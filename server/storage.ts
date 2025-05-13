@@ -744,6 +744,152 @@ export class MemStorage implements IStorage {
     this.apologeticsResources.set(id, resource);
     return resource;
   }
+
+  // Prayer request methods
+  async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
+    return Array.from(this.prayerRequests.values())
+      .filter(prayer => prayer.privacyLevel === 'public')
+      .sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+  }
+  
+  async getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]> {
+    let prayers = Array.from(this.prayerRequests.values());
+    
+    // Apply filtering if provided
+    if (filter === 'answered') {
+      prayers = prayers.filter(prayer => prayer.isAnswered === true);
+    } else if (filter === 'unanswered') {
+      prayers = prayers.filter(prayer => prayer.isAnswered !== true);
+    }
+    
+    return prayers.sort((a, b) => {
+      if (!a.createdAt || !b.createdAt) return 0;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+  }
+  
+  async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
+    return this.prayerRequests.get(id);
+  }
+  
+  async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
+    return Array.from(this.prayerRequests.values())
+      .filter(prayer => prayer.authorId === userId)
+      .sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+  }
+  
+  async getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]> {
+    return Array.from(this.prayerRequests.values())
+      .filter(prayer => prayer.groupId === groupId)
+      .sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+  }
+  
+  async createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest> {
+    const id = this.prayerRequestIdCounter++;
+    const createdAt = new Date();
+    const newPrayer: PrayerRequest = {
+      id,
+      createdAt,
+      updatedAt: null,
+      prayerCount: 0,
+      isAnswered: false,
+      answeredDescription: null,
+      ...prayer
+    };
+    this.prayerRequests.set(id, newPrayer);
+    return newPrayer;
+  }
+  
+  async updatePrayerRequest(id: number, data: Partial<PrayerRequest>): Promise<PrayerRequest> {
+    const prayer = this.prayerRequests.get(id);
+    if (!prayer) {
+      throw new Error(`Prayer request with ID ${id} not found`);
+    }
+    
+    const updatedPrayer = {
+      ...prayer,
+      ...data,
+      updatedAt: new Date()
+    };
+    
+    this.prayerRequests.set(id, updatedPrayer);
+    return updatedPrayer;
+  }
+  
+  async markPrayerRequestAsAnswered(id: number, answeredDescription: string): Promise<PrayerRequest> {
+    const prayer = this.prayerRequests.get(id);
+    if (!prayer) {
+      throw new Error(`Prayer request with ID ${id} not found`);
+    }
+    
+    const updatedPrayer = {
+      ...prayer,
+      isAnswered: true,
+      answeredDescription,
+      updatedAt: new Date()
+    };
+    
+    this.prayerRequests.set(id, updatedPrayer);
+    return updatedPrayer;
+  }
+  
+  async deletePrayerRequest(id: number): Promise<boolean> {
+    return this.prayerRequests.delete(id);
+  }
+  
+  async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
+    const id = this.prayerIdCounter++;
+    const createdAt = new Date();
+    const newPrayer: Prayer = {
+      id,
+      createdAt,
+      ...prayer
+    };
+    
+    this.prayers.set(id, newPrayer);
+    
+    // Update the prayer count on the request
+    const prayerRequest = this.prayerRequests.get(prayer.prayerRequestId);
+    if (prayerRequest) {
+      const prayerCount = (prayerRequest.prayerCount || 0) + 1;
+      this.prayerRequests.set(prayerRequest.id, {
+        ...prayerRequest,
+        prayerCount
+      });
+    }
+    
+    return newPrayer;
+  }
+  
+  async getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]> {
+    return Array.from(this.prayers.values())
+      .filter(prayer => prayer.prayerRequestId === prayerRequestId)
+      .sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+  }
+  
+  async getUserPrayedRequests(userId: number): Promise<number[]> {
+    return Array.from(this.prayers.values())
+      .filter(prayer => prayer.userId === userId)
+      .map(prayer => prayer.prayerRequestId);
+  }
+
+  // Helper method to check if a user is member of a group
+  async isGroupMember(userId: number, groupId: number): Promise<boolean> {
+    return Array.from(this.groupMembers.values())
+      .some(member => member.userId === userId && member.groupId === groupId);
+  }
 }
 
 // Database storage implementation

@@ -4,6 +4,13 @@ import { useAuth } from "@/hooks/use-auth";
 import MainLayout from "@/components/layouts/main-layout";
 import { PrayerRequest } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { formatDistanceToNow, format } from "date-fns";
+
+// Helper function to format dates consistently
+function formatDate(date: Date | null | undefined): string {
+  if (!date) return "Unknown date";
+  return formatDistanceToNow(new Date(date), { addSuffix: true });
+}
 import { 
   Card, 
   CardContent,
