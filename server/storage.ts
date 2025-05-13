@@ -375,6 +375,8 @@ export class MemStorage implements IStorage {
   private groups: Map<number, Group>;
   private groupMembers: Map<number, GroupMember>;
   private apologeticsResources: Map<number, ApologeticsResource>;
+  private prayerRequests: Map<number, PrayerRequest>;
+  private prayers: Map<number, Prayer>;
   
   private userIdCounter: number;
   private communityIdCounter: number;
@@ -383,6 +385,8 @@ export class MemStorage implements IStorage {
   private groupIdCounter: number;
   private groupMemberIdCounter: number;
   private apologeticsResourceIdCounter: number;
+  private prayerRequestIdCounter: number;
+  private prayerIdCounter: number;
   
   sessionStore: any;
 
@@ -393,6 +397,8 @@ export class MemStorage implements IStorage {
     this.comments = new Map();
     this.groups = new Map();
     this.groupMembers = new Map();
+    this.prayerRequests = new Map();
+    this.prayers = new Map();
     this.apologeticsResources = new Map();
     
     this.userIdCounter = 1;
@@ -402,6 +408,8 @@ export class MemStorage implements IStorage {
     this.groupIdCounter = 1;
     this.groupMemberIdCounter = 1;
     this.apologeticsResourceIdCounter = 1;
+    this.prayerRequestIdCounter = 1;
+    this.prayerIdCounter = 1;
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24 hours

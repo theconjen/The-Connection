@@ -633,7 +633,7 @@ function PrayerRequestCard({
           <div>
             <h3 className="text-xl font-semibold">{prayer.title}</h3>
             <div className="flex items-center text-sm text-muted-foreground">
-              <span>{prayer.isAnonymous ? "Anonymous" : prayer.author?.displayName || prayer.author?.username || "Unknown"}</span>
+              <span>{prayer.isAnonymous ? "Anonymous" : "User " + prayer.authorId}</span>
               <span className="mx-2">•</span>
               <span>{formatDate(prayer.createdAt)}</span>
               {prayer.privacyLevel !== "public" && (
