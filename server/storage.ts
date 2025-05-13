@@ -14,6 +14,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
 import { eq, and, desc, SQL, sql } from "drizzle-orm";
+import { pool } from './db';
 
 const MemoryStore = createMemoryStore(session);
 const PostgresSessionStore = connectPg(session);
@@ -61,7 +62,7 @@ export interface IStorage {
   createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: any; // Using any to avoid typing issues with session store
 }
 
 export class MemStorage implements IStorage {
@@ -81,7 +82,7 @@ export class MemStorage implements IStorage {
   private groupMemberIdCounter: number;
   private apologeticsResourceIdCounter: number;
   
-  sessionStore: session.SessionStore;
+  sessionStore: any;
 
   constructor() {
     this.users = new Map();
@@ -429,4 +430,244 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
+  sessionStore: any;
+
+  constructor() {
+    // Initialize the PostgreSQL session store
+    this.sessionStore = new PostgresSessionStore({
+      tableName: 'sessions',
+      createTableIfMissing: true,
+      pool: pool
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const result = await db.insert(users).values(user).returning();
+    return result[0];
+  }
+
+  // Community methods
+  async getAllCommunities(): Promise<Community[]> {
+    return await db.select().from(communities);
+  }
+
+  async getCommunity(id: number): Promise<Community | undefined> {
+    const result = await db.select().from(communities).where(eq(communities.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getCommunityBySlug(slug: string): Promise<Community | undefined> {
+    const result = await db.select().from(communities).where(eq(communities.slug, slug)).limit(1);
+    return result[0];
+  }
+
+  async createCommunity(community: InsertCommunity): Promise<Community> {
+    const result = await db.insert(communities).values(community).returning();
+    return result[0];
+  }
+
+  // Post methods
+  async getAllPosts(filter: string = "popular"): Promise<Post[]> {
+    let query = db.select().from(posts);
+    
+    if (filter === "latest") {
+      query = query.orderBy(desc(posts.createdAt));
+    } else if (filter === "top") {
+      query = query.orderBy(desc(posts.upvotes));
+    } else {
+      // Default "popular" - use a combination of time and upvotes
+      // We'll simplify this for now to be the same as "top"
+      query = query.orderBy(desc(posts.upvotes));
+    }
+    
+    return await query;
+  }
+
+  async getPost(id: number): Promise<Post | undefined> {
+    const result = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPostsByCommunitySlug(communitySlug: string, filter: string = "popular"): Promise<Post[]> {
+    const community = await this.getCommunityBySlug(communitySlug);
+    if (!community) return [];
+    
+    let query = db.select().from(posts).where(eq(posts.communityId, community.id));
+    
+    if (filter === "latest") {
+      query = query.orderBy(desc(posts.createdAt));
+    } else if (filter === "top") {
+      query = query.orderBy(desc(posts.upvotes));
+    } else {
+      // Default "popular"
+      query = query.orderBy(desc(posts.upvotes));
+    }
+    
+    return await query;
+  }
+
+  async getPostsByGroupId(groupId: number, filter: string = "popular"): Promise<Post[]> {
+    let query = db.select().from(posts).where(eq(posts.groupId, groupId));
+    
+    if (filter === "latest") {
+      query = query.orderBy(desc(posts.createdAt));
+    } else if (filter === "top") {
+      query = query.orderBy(desc(posts.upvotes));
+    } else {
+      // Default "popular"
+      query = query.orderBy(desc(posts.upvotes));
+    }
+    
+    return await query;
+  }
+
+  async createPost(post: InsertPost): Promise<Post> {
+    const result = await db.insert(posts).values(post).returning();
+    return result[0];
+  }
+
+  async upvotePost(id: number): Promise<Post> {
+    const post = await this.getPost(id);
+    if (!post) {
+      throw new Error("Post not found");
+    }
+    
+    const result = await db
+      .update(posts)
+      .set({ upvotes: (post.upvotes || 0) + 1 })
+      .where(eq(posts.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  // Comment methods
+  async getComment(id: number): Promise<Comment | undefined> {
+    const result = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getCommentsByPostId(postId: number): Promise<Comment[]> {
+    return await db
+      .select()
+      .from(comments)
+      .where(eq(comments.postId, postId))
+      .orderBy(desc(comments.createdAt));
+  }
+
+  async createComment(comment: InsertComment): Promise<Comment> {
+    const result = await db.insert(comments).values(comment).returning();
+    
+    // Update the post comment count
+    await db
+      .update(posts)
+      .set({ 
+        commentCount: sql`${posts.commentCount} + 1` 
+      })
+      .where(eq(posts.id, comment.postId));
+    
+    return result[0];
+  }
+
+  async upvoteComment(id: number): Promise<Comment> {
+    const comment = await this.getComment(id);
+    if (!comment) {
+      throw new Error("Comment not found");
+    }
+    
+    const result = await db
+      .update(comments)
+      .set({ upvotes: (comment.upvotes || 0) + 1 })
+      .where(eq(comments.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  // Group methods
+  async getGroup(id: number): Promise<Group | undefined> {
+    const result = await db.select().from(groups).where(eq(groups.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getGroupsByUserId(userId: number): Promise<Group[]> {
+    // Get groups where the user is a member
+    const memberGroupIds = await db
+      .select({ groupId: groupMembers.groupId })
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, userId));
+    
+    if (memberGroupIds.length === 0) return [];
+    
+    const groupIds = memberGroupIds.map(g => g.groupId);
+    
+    // We can't use SQL "IN" easily in drizzle, so we'll fetch all groups and filter
+    const allGroups = await db.select().from(groups);
+    return allGroups.filter(group => groupIds.includes(group.id));
+  }
+
+  async createGroup(group: InsertGroup): Promise<Group> {
+    const result = await db.insert(groups).values(group).returning();
+    return result[0];
+  }
+
+  // Group member methods
+  async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
+    const result = await db.insert(groupMembers).values(member).returning();
+    return result[0];
+  }
+
+  async getGroupMembers(groupId: number): Promise<GroupMember[]> {
+    return await db
+      .select()
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
+  }
+
+  async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
+    const result = await db
+      .select()
+      .from(groupMembers)
+      .where(
+        and(
+          eq(groupMembers.groupId, groupId),
+          eq(groupMembers.userId, userId),
+          eq(groupMembers.isAdmin, true)
+        )
+      )
+      .limit(1);
+    
+    return result.length > 0;
+  }
+
+  // Apologetics resource methods
+  async getAllApologeticsResources(): Promise<ApologeticsResource[]> {
+    return await db.select().from(apologeticsResources);
+  }
+
+  async getApologeticsResource(id: number): Promise<ApologeticsResource | undefined> {
+    const result = await db.select().from(apologeticsResources).where(eq(apologeticsResources.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource> {
+    const result = await db.insert(apologeticsResources).values(resource).returning();
+    return result[0];
+  }
+}
+
+// Replace MemStorage with DatabaseStorage
+export const storage = new DatabaseStorage();
