@@ -31,6 +31,8 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User>;
+  getVerifiedApologeticsAnswerers(): Promise<User[]>;
   
   // Community methods
   getAllCommunities(): Promise<Community[]>;
@@ -66,6 +68,23 @@ export interface IStorage {
   getAllApologeticsResources(): Promise<ApologeticsResource[]>;
   getApologeticsResource(id: number): Promise<ApologeticsResource | undefined>;
   createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
+  
+  // Apologetics Q&A methods
+  getAllApologeticsTopics(): Promise<ApologeticsTopic[]>;
+  getApologeticsTopic(id: number): Promise<ApologeticsTopic | undefined>;
+  getApologeticsTopicBySlug(slug: string): Promise<ApologeticsTopic | undefined>;
+  createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic>;
+  
+  getAllApologeticsQuestions(filterByStatus?: string): Promise<ApologeticsQuestion[]>;
+  getApologeticsQuestion(id: number): Promise<ApologeticsQuestion | undefined>;
+  getApologeticsQuestionsByTopic(topicId: number): Promise<ApologeticsQuestion[]>;
+  createApologeticsQuestion(question: InsertApologeticsQuestion): Promise<ApologeticsQuestion>;
+  updateApologeticsQuestionStatus(id: number, status: string): Promise<ApologeticsQuestion>;
+  incrementApologeticsQuestionViewCount(id: number): Promise<ApologeticsQuestion>;
+  
+  getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]>;
+  createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer>;
+  upvoteApologeticsAnswer(id: number): Promise<ApologeticsAnswer>;
   
   // Microblog (Twitter-like posts) methods
   getAllMicroblogs(filterType?: string): Promise<Microblog[]>;

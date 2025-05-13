@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   displayName: text("display_name"),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -141,6 +142,60 @@ export const insertApologeticsResourceSchema = createInsertSchema(apologeticsRes
   url: true,
 });
 
+// Apologetics Q&A system
+export const apologeticsTopics = pgTable("apologetics_topics", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  iconName: text("icon_name").notNull(),
+  slug: text("slug").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertApologeticsTopicSchema = createInsertSchema(apologeticsTopics).pick({
+  name: true,
+  description: true,
+  iconName: true,
+  slug: true,
+});
+
+export const apologeticsQuestions = pgTable("apologetics_questions", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  topicId: integer("topic_id").references(() => apologeticsTopics.id).notNull(),
+  status: text("status").notNull().default("open"), // open, answered, closed
+  answerCount: integer("answer_count").default(0),
+  viewCount: integer("view_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertApologeticsQuestionSchema = createInsertSchema(apologeticsQuestions).pick({
+  title: true,
+  content: true,
+  authorId: true,
+  topicId: true,
+  status: true,
+});
+
+export const apologeticsAnswers = pgTable("apologetics_answers", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  questionId: integer("question_id").references(() => apologeticsQuestions.id).notNull(),
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  isVerifiedAnswer: boolean("is_verified_answer").default(false),
+  upvotes: integer("upvotes").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertApologeticsAnswerSchema = createInsertSchema(apologeticsAnswers).pick({
+  content: true,
+  questionId: true,
+  authorId: true,
+  isVerifiedAnswer: true,
+});
+
 // Type definitions
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -162,6 +217,15 @@ export type Comment = typeof comments.$inferSelect;
 
 export type InsertApologeticsResource = z.infer<typeof insertApologeticsResourceSchema>;
 export type ApologeticsResource = typeof apologeticsResources.$inferSelect;
+
+export type InsertApologeticsTopic = z.infer<typeof insertApologeticsTopicSchema>;
+export type ApologeticsTopic = typeof apologeticsTopics.$inferSelect;
+
+export type InsertApologeticsQuestion = z.infer<typeof insertApologeticsQuestionSchema>;
+export type ApologeticsQuestion = typeof apologeticsQuestions.$inferSelect;
+
+export type InsertApologeticsAnswer = z.infer<typeof insertApologeticsAnswerSchema>;
+export type ApologeticsAnswer = typeof apologeticsAnswers.$inferSelect;
 
 // Livestreams table schema
 export const livestreams = pgTable("livestreams", {

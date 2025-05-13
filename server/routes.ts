@@ -245,6 +245,217 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next(error);
     }
   });
+  
+  // Apologetics Q&A system - Topics routes
+  app.get("/api/apologetics/topics", async (req, res, next) => {
+    try {
+      const topics = await storage.getAllApologeticsTopics();
+      res.json(topics);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/apologetics/topics/:id", async (req, res, next) => {
+    try {
+      const topicId = parseInt(req.params.id);
+      const topic = await storage.getApologeticsTopic(topicId);
+      if (!topic) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      res.json(topic);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/apologetics/topics/slug/:slug", async (req, res, next) => {
+    try {
+      const { slug } = req.params;
+      const topic = await storage.getApologeticsTopicBySlug(slug);
+      if (!topic) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      res.json(topic);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/apologetics/topics", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Only admins can create topics
+      if (!req.user || req.user.isVerifiedApologeticsAnswerer !== true) {
+        return res.status(403).json({ message: "Only verified apologetics experts can create topics" });
+      }
+      
+      const validatedData = insertApologeticsTopicSchema.parse(req.body);
+      const topic = await storage.createApologeticsTopic(validatedData);
+      res.status(201).json(topic);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  // Apologetics Q&A system - Questions routes
+  app.get("/api/apologetics/questions", async (req, res, next) => {
+    try {
+      const { status } = req.query;
+      const questions = await storage.getAllApologeticsQuestions(status as string);
+      res.json(questions);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/apologetics/questions/:id", async (req, res, next) => {
+    try {
+      const questionId = parseInt(req.params.id);
+      const question = await storage.getApologeticsQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+      
+      // Increment view count
+      await storage.incrementApologeticsQuestionViewCount(questionId);
+      
+      res.json(question);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/apologetics/topics/:topicId/questions", async (req, res, next) => {
+    try {
+      const topicId = parseInt(req.params.topicId);
+      const questions = await storage.getApologeticsQuestionsByTopic(topicId);
+      res.json(questions);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/apologetics/questions", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Add the current user ID as the author
+      const validatedData = insertApologeticsQuestionSchema.parse({
+        ...req.body,
+        authorId: req.user.id
+      });
+      
+      const question = await storage.createApologeticsQuestion(validatedData);
+      res.status(201).json(question);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.put("/api/apologetics/questions/:id/status", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Only verified answerers can update question status
+      if (!req.user || req.user.isVerifiedApologeticsAnswerer !== true) {
+        return res.status(403).json({ message: "Only verified apologetics experts can update question status" });
+      }
+      
+      const questionId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!status || !["open", "answered", "closed"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      
+      const question = await storage.updateApologeticsQuestionStatus(questionId, status);
+      res.json(question);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Apologetics Q&A system - Answers routes
+  app.get("/api/apologetics/questions/:questionId/answers", async (req, res, next) => {
+    try {
+      const questionId = parseInt(req.params.questionId);
+      const answers = await storage.getApologeticsAnswersByQuestion(questionId);
+      res.json(answers);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/apologetics/answers", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Set verified flag based on user status
+      const isVerified = req.user.isVerifiedApologeticsAnswerer === true;
+      
+      // Add the current user ID as the author
+      const validatedData = insertApologeticsAnswerSchema.parse({
+        ...req.body,
+        authorId: req.user.id,
+        isVerifiedAnswer: isVerified
+      });
+      
+      const answer = await storage.createApologeticsAnswer(validatedData);
+      
+      // If this is from a verified answerer, mark the question as answered
+      if (isVerified) {
+        await storage.updateApologeticsQuestionStatus(validatedData.questionId, "answered");
+      }
+      
+      res.status(201).json(answer);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.post("/api/apologetics/answers/:id/upvote", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const answerId = parseInt(req.params.id);
+      const answer = await storage.upvoteApologeticsAnswer(answerId);
+      res.json(answer);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Verified Apologetics Answerers management
+  app.get("/api/users/verified-apologetics-answerers", async (req, res, next) => {
+    try {
+      const verifiedAnswerers = await storage.getVerifiedApologeticsAnswerers();
+      res.json(verifiedAnswerers);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.put("/api/users/:userId/verified-apologetics-answerer", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Only admins can set verified status (for now let's assume only verified answerers can verify others)
+      if (!req.user || req.user.isVerifiedApologeticsAnswerer !== true) {
+        return res.status(403).json({ message: "Only verified apologetics experts can verify others" });
+      }
+      
+      const userId = parseInt(req.params.userId);
+      const { isVerified } = req.body;
+      
+      if (typeof isVerified !== 'boolean') {
+        return res.status(400).json({ message: "Invalid isVerified value" });
+      }
+      
+      const user = await storage.setVerifiedApologeticsAnswerer(userId, isVerified);
+      res.json(user);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // Microblog (Twitter-like) routes
   app.get("/api/microblogs", async (req, res, next) => {
