@@ -69,25 +69,27 @@ const BibleStudyPage: React.FC = () => {
 
   // Fetch public reading plans
   const { data: publicReadingPlans = [], isLoading: plansLoading } = useQuery<BibleReadingPlan[]>({
-    queryKey: ["/api/bible/reading-plans/public"],
+    queryKey: ["/api/bible-reading-plans"],
+    queryFn: () => fetch("/api/bible-reading-plans?filter=public").then(res => res.json()),
     enabled: activeTab === "reading-plans",
   });
 
   // Fetch user's reading progress
   const { data: userProgress = [], isLoading: progressLoading } = useQuery<BibleReadingProgress[]>({
-    queryKey: ["/api/bible/reading-progress", user?.id],
+    queryKey: ["/api/bible-reading-progress", user?.id],
     enabled: !!user && activeTab === "reading-plans",
   });
 
   // Fetch user's study notes
   const { data: studyNotes = [], isLoading: notesLoading } = useQuery<BibleStudyNote[]>({
-    queryKey: ["/api/bible/study-notes", user?.id],
+    queryKey: ["/api/bible-study-notes", user?.id],
+    queryFn: () => fetch("/api/bible-study-notes?mine=true").then(res => res.json()),
     enabled: !!user && activeTab === "study-notes",
   });
 
   // Fetch user's verse memorization
   const { data: memorizationVerses = [], isLoading: versesLoading } = useQuery<VerseMemorization[]>({
-    queryKey: ["/api/bible/memorization", user?.id],
+    queryKey: ["/api/verse-memorization", user?.id],
     enabled: !!user && activeTab === "memorization",
   });
 
