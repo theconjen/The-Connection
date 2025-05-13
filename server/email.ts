@@ -13,8 +13,10 @@ import {
 // Check for AWS credentials
 // Email functionality configuration
 let emailFunctionalityEnabled = false;
-// Force mock mode if environment variable is set
-const forceMockMode = process.env.FORCE_EMAIL_MOCK_MODE === 'true';
+// Force mock mode - ALWAYS USE MOCK MODE FOR DEVELOPMENT
+const forceMockMode = true; // Hardcoded to true for development
+
+console.log("📧 [SETUP] Using hardcoded MOCK MODE for email functionality");
 
 if (forceMockMode) {
   console.log("📧 Email functionality running in FORCED MOCK MODE. No actual emails will be sent.");
@@ -133,9 +135,9 @@ export interface EmailTemplateParams {
  * Creates a new email template in AWS SES
  */
 export async function createEmailTemplate(params: EmailTemplateParams): Promise<boolean> {
-  if (!emailFunctionalityEnabled) {
-    console.log('Email functionality disabled. Would have created template:', params.TemplateName);
-    return false;
+  if (forceMockMode || !emailFunctionalityEnabled) {
+    console.log('📧 [MOCK] Would have created template:', params.TemplateName);
+    return true; // Return true in mock mode to simulate success
   }
   
   try {
@@ -161,9 +163,9 @@ export async function createEmailTemplate(params: EmailTemplateParams): Promise<
  * Updates an existing email template in AWS SES
  */
 export async function updateEmailTemplate(params: EmailTemplateParams): Promise<boolean> {
-  if (!emailFunctionalityEnabled) {
-    console.log('Email functionality disabled. Would have updated template:', params.TemplateName);
-    return false;
+  if (forceMockMode || !emailFunctionalityEnabled) {
+    console.log('📧 [MOCK] Would have updated template:', params.TemplateName);
+    return true; // Return true in mock mode to simulate success
   }
   
   try {
@@ -189,9 +191,9 @@ export async function updateEmailTemplate(params: EmailTemplateParams): Promise<
  * Deletes an email template from AWS SES
  */
 export async function deleteEmailTemplate(templateName: string): Promise<boolean> {
-  if (!emailFunctionalityEnabled) {
-    console.log('Email functionality disabled. Would have deleted template:', templateName);
-    return false;
+  if (forceMockMode || !emailFunctionalityEnabled) {
+    console.log('📧 [MOCK] Would have deleted template:', templateName);
+    return true; // Return true in mock mode to simulate success
   }
   
   try {
@@ -212,9 +214,10 @@ export async function deleteEmailTemplate(templateName: string): Promise<boolean
  * Gets a list of all email templates in AWS SES
  */
 export async function listEmailTemplates(): Promise<string[]> {
-  if (!emailFunctionalityEnabled) {
-    console.log('Email functionality disabled. Would have listed templates.');
-    return [];
+  if (forceMockMode || !emailFunctionalityEnabled) {
+    console.log('📧 [MOCK] Would have listed templates.');
+    // Return some mock template names to simulate the API
+    return Object.values(DEFAULT_TEMPLATES);
   }
   
   try {
@@ -232,9 +235,15 @@ export async function listEmailTemplates(): Promise<string[]> {
  * Gets details of a specific email template from AWS SES
  */
 export async function getEmailTemplate(templateName: string): Promise<Template | null> {
-  if (!emailFunctionalityEnabled) {
-    console.log('Email functionality disabled. Would have retrieved template:', templateName);
-    return null;
+  if (forceMockMode || !emailFunctionalityEnabled) {
+    console.log('📧 [MOCK] Would have retrieved template:', templateName);
+    // Return a mock template in mock mode
+    return {
+      TemplateName: templateName,
+      SubjectPart: `Mock subject for ${templateName}`,
+      TextPart: `Mock text content for ${templateName}`,
+      HtmlPart: `<div>Mock HTML content for ${templateName}</div>`
+    };
   }
   
   try {
