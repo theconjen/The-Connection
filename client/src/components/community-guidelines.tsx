@@ -44,10 +44,9 @@ export default function CommunityGuidelines() {
           ))}
         </ul>
         <div className="mt-4">
-          <Link href="/guidelines">
-            <a className="text-primary text-sm font-medium hover:text-primary-700">
-              Read Full Guidelines
-            </a>
+          <Link href="/guidelines" 
+            className="text-primary text-sm font-medium hover:text-primary-700">
+            Read Full Guidelines
           </Link>
         </div>
       </CardContent>

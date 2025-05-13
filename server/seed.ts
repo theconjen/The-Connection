@@ -5,7 +5,10 @@ import {
   apologeticsResources, 
   livestreams, 
   creatorTiers,
-  virtualGifts
+  virtualGifts,
+  bibleReadingPlans,
+  bibleStudyNotes,
+  verseMemorization
 } from '@shared/schema';
 import { scrypt, randomBytes } from 'crypto';
 import { promisify } from 'util';
@@ -224,6 +227,108 @@ async function seedDatabase() {
   ]);
   
   console.log("Created virtual gifts");
+  
+  // Add Bible reading plans
+  await db.insert(bibleReadingPlans).values([
+    {
+      title: "Through the Gospels in 30 Days",
+      description: "A 30-day reading plan to guide you through Matthew, Mark, Luke, and John.",
+      duration: 30,
+      readings: JSON.stringify([
+        { day: 1, passages: ["Matthew 1-2"], title: "The Birth of Jesus" },
+        { day: 2, passages: ["Matthew 3-4"], title: "Jesus's Baptism and Temptation" },
+        { day: 3, passages: ["Matthew 5-7"], title: "The Sermon on the Mount" },
+        // More days would be included here
+        { day: 30, passages: ["John 20-21"], title: "The Resurrection and Ascension" }
+      ]),
+      creatorId: demoUser[0].id,
+      isPublic: true
+    },
+    {
+      title: "Psalms for Meditation",
+      description: "A 15-day devotional through selected Psalms for reflection and meditation.",
+      duration: 15,
+      readings: JSON.stringify([
+        { day: 1, passages: ["Psalm 1"], title: "The Way of the Righteous" },
+        { day: 2, passages: ["Psalm 23"], title: "The Lord Is My Shepherd" },
+        { day: 3, passages: ["Psalm 27"], title: "The Lord Is My Light" },
+        // More days would be included here
+        { day: 15, passages: ["Psalm 150"], title: "Let Everything Praise the Lord" }
+      ]),
+      creatorId: demoUser[0].id,
+      isPublic: true
+    },
+    {
+      title: "Journey Through Romans",
+      description: "A deep dive into Paul's epistle to the Romans over 21 days.",
+      duration: 21,
+      readings: JSON.stringify([
+        { day: 1, passages: ["Romans 1:1-17"], title: "The Gospel of God" },
+        { day: 2, passages: ["Romans 1:18-32"], title: "God's Wrath Against Sin" },
+        { day: 3, passages: ["Romans 2:1-16"], title: "God's Righteous Judgment" },
+        // More days would be included here
+        { day: 21, passages: ["Romans 16"], title: "Personal Greetings and Final Instructions" }
+      ]),
+      creatorId: demoUser[0].id,
+      isPublic: true
+    }
+  ]);
+  
+  console.log("Created Bible reading plans");
+  
+  // Add Bible study notes
+  await db.insert(bibleStudyNotes).values([
+    {
+      userId: demoUser[0].id,
+      title: "The Parable of the Sower",
+      content: "This parable speaks to the different ways people respond to God's Word. The seed is the same (God's truth), but the soil (our hearts) determines how it grows. I need to examine what kind of soil I am and how I can better receive God's Word.",
+      passage: "Matthew 13:1-23",
+      isPublic: true
+    },
+    {
+      userId: demoUser[0].id,
+      title: "Faith vs. Works in James",
+      content: "James isn't contradicting Paul's teaching on justification by faith alone. Rather, he's emphasizing that true faith necessarily produces good works. Faith without works is dead because real faith transforms how we live.",
+      passage: "James 2:14-26",
+      isPublic: true
+    },
+    {
+      userId: demoUser[0].id,
+      title: "The Fruit of the Spirit",
+      content: "The fruit of the Spirit is singular, suggesting these qualities come as a package. They're not achievements we work toward but natural results of the Spirit's presence in our lives. I want to focus on cultivating an environment where the Spirit can produce this fruit in me.",
+      passage: "Galatians 5:22-23",
+      isPublic: true
+    }
+  ]);
+  
+  console.log("Created Bible study notes");
+  
+  // Add verse memorization
+  await db.insert(verseMemorization).values([
+    {
+      userId: demoUser[0].id,
+      verse: "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.",
+      reference: "John 3:16",
+      reminderFrequency: 3,
+      reviewDates: JSON.stringify([new Date()])
+    },
+    {
+      userId: demoUser[0].id,
+      verse: "Trust in the LORD with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.",
+      reference: "Proverbs 3:5-6",
+      reminderFrequency: 2,
+      reviewDates: JSON.stringify([new Date()])
+    },
+    {
+      userId: demoUser[0].id,
+      verse: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God. And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.",
+      reference: "Philippians 4:6-7",
+      reminderFrequency: 5,
+      reviewDates: JSON.stringify([new Date()])
+    }
+  ]);
+  
+  console.log("Created verse memorization entries");
   console.log("Database seeding completed successfully!");
 }
 

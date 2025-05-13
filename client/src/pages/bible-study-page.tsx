@@ -68,11 +68,14 @@ const BibleStudyPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("reading-plans");
 
   // Fetch public reading plans
-  const { data: publicReadingPlans = [], isLoading: plansLoading } = useQuery<BibleReadingPlan[]>({
+  const { data: publicReadingPlansData, isLoading: plansLoading } = useQuery<BibleReadingPlan[]>({
     queryKey: ["/api/bible-reading-plans"],
     queryFn: () => fetch("/api/bible-reading-plans?filter=public").then(res => res.json()),
     enabled: activeTab === "reading-plans",
   });
+  
+  // Ensure we have an array, even if the API returns something else
+  const publicReadingPlans = Array.isArray(publicReadingPlansData) ? publicReadingPlansData : [];
 
   // Fetch user's reading progress
   const { data: userProgress = [], isLoading: progressLoading } = useQuery<BibleReadingProgress[]>({
