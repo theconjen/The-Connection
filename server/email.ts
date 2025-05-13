@@ -78,7 +78,7 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
   
   return sendEmail({
     to: email,
-    from: process.env.AWS_SES_FROM_EMAIL || 'The Connection <noreply@theconnection.example.com>', // Use environment variable if available
+    from: process.env.AWS_SES_FROM_EMAIL || 'The Connection <noreply@theconnection.app>', // Use environment variable if available
     subject: 'Welcome to The Connection!',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -98,7 +98,7 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
           </ul>
           <p>If you have any questions, feel free to reach out to our support team.</p>
           <div style="margin-top: 30px; text-align: center;">
-            <a href="https://theconnection.replit.app/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
+            <a href="https://theconnection.app/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
           </div>
           <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
             This email was sent to ${email}. If you did not create this account, please disregard this email.
