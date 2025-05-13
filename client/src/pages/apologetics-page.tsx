@@ -27,6 +27,33 @@ import {
   HeartHandshakeIcon
 } from "lucide-react";
 
+// Helper function to format dates
+const formatDate = (dateString?: string | Date | null) => {
+  if (!dateString) return '';
+  
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    return 'Today';
+  } else if (diffDays === 1) {
+    return 'Yesterday';
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
+  } else {
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  }
+};
+
 export default function ApologeticsPage() {
   const { user } = useAuth();
   const { data: resources, isLoading: resourcesLoading } = useQuery<ApologeticsResource[]>({
@@ -383,51 +410,71 @@ export default function ApologeticsPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-3">Recent Questions</h3>
                 <div className="space-y-4">
-                  {/* Placeholder for when we have questions */}
-                  <Card>
-                    <CardContent className="p-5">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium text-lg mb-1">How do we reconcile the Biblical creation account with modern science?</h4>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Science and Faith</span>
-                            <span className="mx-2">•</span>
-                            <span>Asked 2 days ago</span>
-                            <span className="mx-2">•</span>
-                            <span>3 answers</span>
+                  {questionsLoading ? (
+                    Array.from({ length: 2 }).map((_, i) => (
+                      <Card key={i} className="h-28">
+                        <CardContent className="p-5">
+                          <Skeleton className="h-6 w-3/4 mb-2" />
+                          <div className="flex">
+                            <Skeleton className="h-4 w-20 mr-4" />
+                            <Skeleton className="h-4 w-24 mr-4" />
+                            <Skeleton className="h-4 w-16" />
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-1 text-sm">
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-md flex items-center">
-                            <UserCheckIcon className="h-3 w-3 mr-1" />
-                            Verified Answer
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardContent className="p-5">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium text-lg mb-1">Can the Bible be considered historically accurate?</h4>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <span className="bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded">Infallibility of Scripture</span>
-                            <span className="mx-2">•</span>
-                            <span>Asked 5 days ago</span>
-                            <span className="mx-2">•</span>
-                            <span>2 answers</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-1 text-sm">
-                          <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-md">
-                            Open
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : questions && questions.length > 0 ? (
+                    questions.slice(0, 3).map((question) => {
+                      // Find the associated topic
+                      const topic = topics?.find(t => t.id === question.topicId);
+                      
+                      return (
+                        <Card key={question.id}>
+                          <CardContent className="p-5">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <Link href={`/apologetics/questions/${question.id}`}>
+                                  <h4 className="font-medium text-lg mb-1 hover:text-primary transition-colors">{question.title}</h4>
+                                </Link>
+                                <div className="flex items-center text-sm text-muted-foreground flex-wrap">
+                                  {topic && (
+                                    <>
+                                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{topic.title}</span>
+                                      <span className="mx-2">•</span>
+                                    </>
+                                  )}
+                                  <span>Asked {formatDate(question.createdAt)}</span>
+                                  <span className="mx-2">•</span>
+                                  <span>{question.answerCount || 0} answers</span>
+                                </div>
+                              </div>
+                              {question.status === 'answered' && (
+                                <div className="flex items-center space-x-1 text-sm">
+                                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-md flex items-center">
+                                    <UserCheckIcon className="h-3 w-3 mr-1" />
+                                    Verified Answer
+                                  </span>
+                                </div>
+                              )}
+                              {question.status === 'pending' && (
+                                <div className="flex items-center space-x-1 text-sm">
+                                  <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-md">
+                                    Pending
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  ) : (
+                    <Card>
+                      <CardContent className="p-5 text-center">
+                        <p className="text-muted-foreground">No questions available</p>
+                      </CardContent>
+                    </Card>
+                  )}
                   
                   <div className="text-center mt-6">
                     <Button variant="outline">View All Questions</Button>
