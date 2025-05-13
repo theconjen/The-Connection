@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Home, Compass, BookOpen, Users, User, Heart, Video, MessageCircle } from "lucide-react";
+import { Home, Compass, BookOpen, Users, User, Heart, Video, MessageCircle, HeartHandshake } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -34,6 +34,11 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
       path: "/apologetics", 
       label: "Learn", 
       icon: <BookOpen className="h-5 w-5" /> 
+    },
+    { 
+      path: "/prayer-requests", 
+      label: "Prayer", 
+      icon: <HeartHandshake className="h-5 w-5" /> 
     },
     { 
       path: "/profile", 

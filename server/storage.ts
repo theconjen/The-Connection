@@ -117,6 +117,22 @@ export interface IStorage {
   // Apologetics resource methods
   getAllApologeticsResources(): Promise<ApologeticsResource[]>;
   getApologeticsResource(id: number): Promise<ApologeticsResource | undefined>;
+  
+  // Prayer Request methods
+  getPublicPrayerRequests(): Promise<PrayerRequest[]>;
+  getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]>;
+  getPrayerRequest(id: number): Promise<PrayerRequest | undefined>;
+  getUserPrayerRequests(userId: number): Promise<PrayerRequest[]>;
+  getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]>;
+  createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest>;
+  updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest>;
+  markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest>;
+  deletePrayerRequest(id: number): Promise<boolean>;
+  
+  // Prayer methods
+  createPrayer(prayer: InsertPrayer): Promise<Prayer>;
+  getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]>;
+  getUserPrayedRequests(userId: number): Promise<number[]>;
   createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
   
   // Apologetics Q&A methods

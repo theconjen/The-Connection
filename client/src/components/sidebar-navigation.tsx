@@ -11,7 +11,8 @@ import {
   PenTool,
   User,
   Video,
-  MessageCircle
+  MessageCircle,
+  HeartHandshake
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,11 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       path: "/apologetics", 
       label: "Apologetics", 
       icon: <BookOpen className="mr-3 w-5 h-5" />
+    },
+    { 
+      path: "/prayer-requests", 
+      label: "Prayer Requests", 
+      icon: <HeartHandshake className="mr-3 w-5 h-5" />
     },
     { 
       path: "/saved", 

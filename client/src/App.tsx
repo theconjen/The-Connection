@@ -25,6 +25,7 @@ function App() {
         <Route path="/auth" component={AuthPage} />
         <ReadOnlyRoute path="/community/:slug" component={CommunityPage} />
         <ReadOnlyRoute path="/apologetics" component={ApologeticsPage} />
+        <ReadOnlyRoute path="/prayer-requests" component={PrayerRequestsPage} />
         <ReadOnlyRoute path="/discover" component={DiscoverPage} />
         <ReadOnlyRoute path="/livestreams" component={LivestreamsPage} />
         <ProtectedRoute path="/livestreamer-application" component={LivestreamerApplicationPage} />
