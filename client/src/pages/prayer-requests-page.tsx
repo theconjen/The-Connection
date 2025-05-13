@@ -57,7 +57,8 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { HeartHandshakeIcon, PlusIcon, BadgeCheckIcon, ClockIcon } from "lucide-react";
 
-// Format date helper
+// We use the formatDate function defined at the top of the file
+/* 
 const formatDate = (dateString?: string | Date | null) => {
   if (!dateString) return '';
   
@@ -83,6 +84,7 @@ const formatDate = (dateString?: string | Date | null) => {
     });
   }
 };
+*/
 
 // Form schema for creating prayer requests
 const prayerRequestSchema = z.object({
