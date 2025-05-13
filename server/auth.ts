@@ -33,11 +33,13 @@ async function comparePasswords(supplied: string, stored: string) {
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "faith-connect-session-secret",
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     store: storage.sessionStore,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      secure: false, // Set to true in production with HTTPS
+      httpOnly: true
     }
   };
 
@@ -115,7 +117,12 @@ export function setupAuth(app: Express) {
       // Log the user in
       req.login(user, (err) => {
         if (err) return next(err);
-        res.status(201).json(user);
+        console.log("New user registered and logged in:", user.username);
+        // Generate a fresh session to ensure cookie is sent
+        req.session.save((err) => {
+          if (err) return next(err);
+          res.status(201).json(user);
+        });
       });
     } catch (error) {
       if (error instanceof ZodError) {
@@ -132,7 +139,12 @@ export function setupAuth(app: Express) {
       
       req.login(user, (err) => {
         if (err) return next(err);
-        return res.status(200).json(user);
+        console.log("User logged in successfully:", user.username);
+        // Generate a fresh session to ensure cookie is sent
+        req.session.save((err) => {
+          if (err) return next(err);
+          return res.status(200).json(user);
+        });
       });
     })(req, res, next);
   });
