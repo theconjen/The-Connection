@@ -23,6 +23,12 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
   res.status(401).json({ message: "Unauthorized" });
 }
 
+// Check if user is authenticated, but allow guest access (read-only) by continuing
+function allowGuest(req: Request, res: Response, next: Function) {
+  // Always continue to the next middleware, regardless of authentication status
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);

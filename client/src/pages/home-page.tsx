@@ -12,7 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 
-export default function HomePage() {
+interface HomePageProps {
+  isGuest?: boolean;
+}
+
+export default function HomePage({ isGuest = false }: HomePageProps) {
   const [filter, setFilter] = useState<string>("popular");
   const [page, setPage] = useState(1);
   

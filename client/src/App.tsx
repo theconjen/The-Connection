@@ -1,6 +1,6 @@
 import { Switch, Route } from "wouter";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ProtectedRoute } from "@/lib/protected-route";
+import { ProtectedRoute, ReadOnlyRoute } from "@/lib/protected-route";
 import HomePage from "@/pages/home-page";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
@@ -18,14 +18,14 @@ function App() {
   return (
     <TooltipProvider>
       <Switch>
-        <Route path="/" component={HomePage} />
+        <ReadOnlyRoute path="/" component={({ isGuest }) => <HomePage isGuest={isGuest} />} />
         <Route path="/auth" component={AuthPage} />
-        <Route path="/community/:slug" component={CommunityPage} />
-        <Route path="/apologetics" component={ApologeticsPage} />
-        <Route path="/discover" component={DiscoverPage} />
-        <Route path="/livestreams" component={LivestreamsPage} />
+        <ReadOnlyRoute path="/community/:slug" component={({ isGuest }) => <CommunityPage isGuest={isGuest} />} />
+        <ReadOnlyRoute path="/apologetics" component={({ isGuest }) => <ApologeticsPage isGuest={isGuest} />} />
+        <ReadOnlyRoute path="/discover" component={({ isGuest }) => <DiscoverPage isGuest={isGuest} />} />
+        <ReadOnlyRoute path="/livestreams" component={({ isGuest }) => <LivestreamsPage isGuest={isGuest} />} />
         <ProtectedRoute path="/livestreamer-application" component={LivestreamerApplicationPage} />
-        <Route path="/posts/:id" component={PostDetailPage} />
+        <ReadOnlyRoute path="/posts/:id" component={({ isGuest }) => <PostDetailPage isGuest={isGuest} />} />
         <ProtectedRoute path="/groups" component={GroupsPage} />
         <ProtectedRoute path="/profile" component={ProfilePage} />
         <ProtectedRoute path="/submit" component={SubmitPostPage} />

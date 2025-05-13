@@ -1,7 +1,12 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { Redirect, Route } from "wouter";
+import { ReactNode } from "react";
 
+/**
+ * Protected Route - requires authentication
+ * Redirects to /auth if user is not logged in
+ */
 export function ProtectedRoute({
   path,
   component: Component,
@@ -21,6 +26,32 @@ export function ProtectedRoute({
         <Redirect to="/auth" />
       ) : (
         <Component />
+      )}
+    </Route>
+  );
+}
+
+/**
+ * Read-only Route - allows guests but with limited functionality
+ * Component receives isGuest flag to conditionally render UI elements
+ */
+export function ReadOnlyRoute({
+  path,
+  component: Component,
+}: {
+  path: string;
+  component: (props: { isGuest: boolean }) => React.JSX.Element;
+}) {
+  const { user, isLoading } = useAuth();
+
+  return (
+    <Route path={path}>
+      {isLoading ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <Component isGuest={!user} />
       )}
     </Route>
   );
