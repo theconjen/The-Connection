@@ -57,13 +57,13 @@ interface EmailParams {
 }
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
-  if (!emailFunctionalityEnabled) {
-    console.log('Email functionality disabled. Would have sent email to:', params.to);
-    console.log('Email subject:', params.subject);
+  if (forceMockMode || !emailFunctionalityEnabled) {
+    console.log('📧 [MOCK] Would have sent email to:', params.to);
+    console.log('📧 [MOCK] Email subject:', params.subject);
     // Log more detailed information in development mode
     if (process.env.NODE_ENV !== 'production') {
-      console.log('Email content (Text):', params.text?.substring(0, 100) + (params.text && params.text.length > 100 ? '...' : ''));
-      console.log('Email content (HTML):', params.html?.substring(0, 100) + (params.html && params.html.length > 100 ? '...' : ''));
+      console.log('📧 [MOCK] Email content (Text):', params.text?.substring(0, 100) + (params.text && params.text.length > 100 ? '...' : ''));
+      console.log('📧 [MOCK] Email content (HTML):', params.html?.substring(0, 100) + (params.html && params.html.length > 100 ? '...' : ''));
     }
     return true; // Return true in mock mode to simulate success
   }
@@ -260,11 +260,11 @@ export async function sendTemplatedEmail(params: {
   templateData: Record<string, any>
 }): Promise<boolean> {
   const { to, from, templateName, templateData } = params;
-  if (!emailFunctionalityEnabled) {
-    console.log('Email functionality disabled. Would have sent templated email to:', to);
-    console.log('Template:', templateName);
-    console.log('Template data:', JSON.stringify(templateData));
-    return false;
+  if (forceMockMode || !emailFunctionalityEnabled) {
+    console.log('📧 [MOCK] Would have sent templated email to:', to);
+    console.log('📧 [MOCK] Template:', templateName);
+    console.log('📧 [MOCK] Template data:', JSON.stringify(templateData));
+    return true; // Return true in mock mode to simulate success
   }
   
   try {
@@ -301,6 +301,17 @@ export async function initializeEmailTemplates(): Promise<void> {
   console.log('Initializing email templates...');
   console.log(`Email functionality enabled: ${emailFunctionalityEnabled}`);
   console.log(`Using AWS Region: ${awsRegion}`);
+  console.log(`Forced mock mode: ${forceMockMode}`);
+  
+  if (forceMockMode) {
+    console.log('💡 Running in FORCED MOCK MODE - skipping actual AWS SES template setup');
+    console.log('✓ Welcome template setup complete (mock)');
+    console.log('✓ Password reset template setup complete (mock)');
+    console.log('✓ Notification template setup complete (mock)');
+    console.log('✓ Livestream invite template setup complete (mock)');
+    console.log('✓ All email templates successfully initialized in mock mode.');
+    return;
+  }
   
   if (!emailFunctionalityEnabled) {
     console.log('Email functionality disabled. Skipping template initialization.');
