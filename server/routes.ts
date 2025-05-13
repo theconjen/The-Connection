@@ -4,6 +4,14 @@ import { WebSocketServer } from "ws";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { 
+  createEmailTemplate, 
+  updateEmailTemplate,
+  deleteEmailTemplate,
+  getEmailTemplate,
+  listEmailTemplates,
+  EmailTemplateParams
+} from "./email";
+import { 
   insertCommunitySchema, 
   insertPostSchema, 
   insertCommentSchema,

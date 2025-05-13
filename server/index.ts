@@ -46,6 +46,14 @@ app.use((req, res, next) => {
     console.error("Error seeding database:", error);
   }
   
+  // Initialize email templates
+  try {
+    await initializeEmailTemplates();
+  } catch (error) {
+    console.error("Error initializing email templates:", error);
+    // Continue with server startup even if email template initialization fails
+  }
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
