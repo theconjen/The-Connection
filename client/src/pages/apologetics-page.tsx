@@ -42,7 +42,7 @@ export default function ApologeticsPage() {
   });
   
   const { data: verifiedAnswerers, isLoading: answererLoading } = useQuery<User[]>({
-    queryKey: ['/api/apologetics/verified-answerers'],
+    queryKey: ['/api/users/verified-apologetics-answerers'],
   });
 
   const getResourceIcon = (type: string) => {
@@ -352,9 +352,9 @@ export default function ApologeticsPage() {
                         <Link href={`/apologetics/topics/${topic.slug}`}>
                           <CardContent className="p-5 h-full flex flex-col">
                             <div className="mb-2">
-                              {getTopicIcon(topic.iconName)}
+                              {getTopicIcon(topic.iconName || 'default')}
                             </div>
-                            <h4 className="font-semibold group-hover:text-primary transition-colors">{topic.name}</h4>
+                            <h4 className="font-semibold group-hover:text-primary transition-colors">{topic.title}</h4>
                             <p className="text-sm text-muted-foreground line-clamp-2">{topic.description}</p>
                           </CardContent>
                         </Link>
