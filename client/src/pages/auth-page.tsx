@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Redirect, useNavigate } from "wouter";
+import { Redirect, useLocation } from "wouter";
+import { navigate } from "wouter/use-browser-location";
 import { insertUserSchema, InsertUser } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -47,7 +48,6 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("login");
-  const navigate = useNavigate();
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -102,7 +102,7 @@ export default function AuthPage() {
                   <path d="M14 14.5a9 9 0 0 0-4.5 0" />
                   <path d="M9.5 9a9 9 0 0 0 0 4.5" />
                 </svg>
-                <span>FaithConnect</span>
+                <span>The Connection</span>
               </div>
             </div>
             <CardTitle className="text-2xl text-center">Welcome!</CardTitle>

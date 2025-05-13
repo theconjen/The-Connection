@@ -494,7 +494,7 @@ export default function GroupsPage() {
           </CardHeader>
           <CardContent className="p-4">
             <p className="text-neutral-600 text-sm mb-4">
-              Private groups on FaithConnect provide spaces for deeper fellowship, focused discussion, and spiritual growth with a select group of people.
+              Private groups on The Connection provide spaces for deeper fellowship, focused discussion, and spiritual growth with a select group of people.
             </p>
             
             <h3 className="font-medium mb-2">Use groups for:</h3>

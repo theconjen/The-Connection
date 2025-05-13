@@ -24,7 +24,7 @@ export default function ShareButtons({ url, title }: ShareButtonsProps) {
   };
 
   const shareUrl = getAbsoluteUrl(url);
-  const shareTitle = `${title} | FaithConnect`;
+  const shareTitle = `${title} | The Connection`;
 
   return (
     <div className="flex space-x-3 justify-center">
@@ -44,7 +44,7 @@ export default function ShareButtons({ url, title }: ShareButtonsProps) {
         <WhatsappIcon size={32} round />
       </WhatsappShareButton>
       
-      <EmailShareButton url={shareUrl} subject={shareTitle} body={`Check out this post on FaithConnect: ${shareUrl}`}>
+      <EmailShareButton url={shareUrl} subject={shareTitle} body={`Check out this post on The Connection: ${shareUrl}`}>
         <EmailIcon size={32} round />
       </EmailShareButton>
     </div>
