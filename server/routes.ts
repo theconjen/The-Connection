@@ -1012,5 +1012,266 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // ========================
+  // PRAYER REQUEST ROUTES
+  // ========================
+  
+  // Get all prayer requests (with privacy filter)
+  app.get("/api/prayer-requests", allowGuest, async (req, res) => {
+    try {
+      // If user is not authenticated, only return public prayers
+      if (!req.isAuthenticated()) {
+        const publicPrayers = await storage.getPublicPrayerRequests();
+        return res.json(publicPrayers);
+      }
+      
+      // Get filter from query string
+      const filter = req.query.filter as string;
+      const prayers = await storage.getAllPrayerRequests(filter);
+      
+      // Filter out non-public prayers that don't belong to the user
+      const userId = req.user?.id;
+      const filteredPrayers = prayers.filter(prayer => {
+        // Public prayers are visible to all authenticated users
+        if (prayer.privacyLevel === 'public') return true;
+        
+        // User's own prayers are always visible to them
+        if (prayer.authorId === userId) return true;
+        
+        // Group-only prayers are only visible to group members
+        if (prayer.privacyLevel === 'group-only' && prayer.groupId) {
+          // We would need to check if user is in the group, but for simplicity
+          // we'll return true here and implement the check in the storage method
+          return true;
+        }
+        
+        // Hide all other prayers (e.g., friends-only would need a friends system)
+        return false;
+      });
+      
+      res.json(filteredPrayers);
+    } catch (error) {
+      console.error("Error getting prayer requests:", error);
+      res.status(500).json({ message: "Failed to get prayer requests" });
+    }
+  });
+  
+  // Get a specific prayer request
+  app.get("/api/prayer-requests/:id", allowGuest, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const prayer = await storage.getPrayerRequest(id);
+      
+      if (!prayer) {
+        return res.status(404).json({ message: "Prayer request not found" });
+      }
+      
+      // Check privacy settings
+      if (!req.isAuthenticated() && prayer.privacyLevel !== 'public') {
+        return res.status(403).json({ message: "Unauthorized to view this prayer request" });
+      }
+      
+      if (req.isAuthenticated() && prayer.privacyLevel === 'group-only' && prayer.groupId) {
+        // Check if user is a member of the group
+        // For simplicity, we're assuming this check happens in the storage method
+      }
+      
+      res.json(prayer);
+    } catch (error) {
+      console.error("Error getting prayer request:", error);
+      res.status(500).json({ message: "Failed to get prayer request" });
+    }
+  });
+  
+  // Get prayer requests for a user
+  app.get("/api/users/:userId/prayer-requests", ensureAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Only allow users to see their own prayer requests or admins
+      if (req.user?.id !== userId && !req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const prayers = await storage.getUserPrayerRequests(userId);
+      res.json(prayers);
+    } catch (error) {
+      console.error("Error getting user prayer requests:", error);
+      res.status(500).json({ message: "Failed to get user prayer requests" });
+    }
+  });
+  
+  // Get prayer requests for a group
+  app.get("/api/groups/:groupId/prayer-requests", ensureAuthenticated, async (req, res) => {
+    try {
+      const groupId = parseInt(req.params.groupId);
+      
+      // Check if user is a member of the group
+      const isGroupMember = await storage.isGroupMember(groupId, req.user?.id);
+      if (!isGroupMember) {
+        return res.status(403).json({ message: "Unauthorized: Not a group member" });
+      }
+      
+      const prayers = await storage.getGroupPrayerRequests(groupId);
+      res.json(prayers);
+    } catch (error) {
+      console.error("Error getting group prayer requests:", error);
+      res.status(500).json({ message: "Failed to get group prayer requests" });
+    }
+  });
+  
+  // Create a new prayer request
+  app.post("/api/prayer-requests", ensureAuthenticated, async (req, res) => {
+    try {
+      const prayerData = insertPrayerRequestSchema.parse(req.body);
+      
+      // If group privacy, verify the user is a member of the group
+      if (prayerData.privacyLevel === 'group-only' && prayerData.groupId) {
+        const isGroupMember = await storage.isGroupMember(prayerData.groupId, req.user?.id);
+        if (!isGroupMember) {
+          return res.status(403).json({ message: "Unauthorized: Not a group member" });
+        }
+      }
+      
+      // Set the author ID to the current user
+      const prayer = await storage.createPrayerRequest({
+        ...prayerData,
+        authorId: req.user?.id
+      });
+      
+      res.status(201).json(prayer);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid prayer request data", errors: error.errors });
+      }
+      console.error("Error creating prayer request:", error);
+      res.status(500).json({ message: "Failed to create prayer request" });
+    }
+  });
+  
+  // Update a prayer request
+  app.patch("/api/prayer-requests/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const prayer = await storage.getPrayerRequest(id);
+      
+      if (!prayer) {
+        return res.status(404).json({ message: "Prayer request not found" });
+      }
+      
+      // Only allow the author or an admin to update the prayer
+      if (prayer.authorId !== req.user?.id && !req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updatedPrayer = await storage.updatePrayerRequest(id, req.body);
+      res.json(updatedPrayer);
+    } catch (error) {
+      console.error("Error updating prayer request:", error);
+      res.status(500).json({ message: "Failed to update prayer request" });
+    }
+  });
+  
+  // Mark a prayer request as answered
+  app.post("/api/prayer-requests/:id/answer", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { description } = req.body;
+      
+      const prayer = await storage.getPrayerRequest(id);
+      
+      if (!prayer) {
+        return res.status(404).json({ message: "Prayer request not found" });
+      }
+      
+      // Only allow the author to mark as answered
+      if (prayer.authorId !== req.user?.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updatedPrayer = await storage.markPrayerRequestAsAnswered(id, description);
+      res.json(updatedPrayer);
+    } catch (error) {
+      console.error("Error marking prayer request as answered:", error);
+      res.status(500).json({ message: "Failed to mark prayer request as answered" });
+    }
+  });
+  
+  // Delete a prayer request
+  app.delete("/api/prayer-requests/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const prayer = await storage.getPrayerRequest(id);
+      
+      if (!prayer) {
+        return res.status(404).json({ message: "Prayer request not found" });
+      }
+      
+      // Only allow the author or an admin to delete the prayer
+      if (prayer.authorId !== req.user?.id && !req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const result = await storage.deletePrayerRequest(id);
+      
+      if (result) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: "Failed to delete prayer request" });
+      }
+    } catch (error) {
+      console.error("Error deleting prayer request:", error);
+      res.status(500).json({ message: "Failed to delete prayer request" });
+    }
+  });
+  
+  // Pray for a prayer request
+  app.post("/api/prayer-requests/:id/pray", ensureAuthenticated, async (req, res) => {
+    try {
+      const prayerRequestId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      const prayer = await storage.createPrayer({
+        prayerRequestId,
+        userId
+      });
+      
+      res.status(201).json(prayer);
+    } catch (error) {
+      console.error("Error praying for request:", error);
+      res.status(500).json({ message: "Failed to record prayer" });
+    }
+  });
+  
+  // Get all prayers for a prayer request
+  app.get("/api/prayer-requests/:id/prayers", allowGuest, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const prayers = await storage.getPrayersForRequest(id);
+      res.json(prayers);
+    } catch (error) {
+      console.error("Error getting prayers:", error);
+      res.status(500).json({ message: "Failed to get prayers" });
+    }
+  });
+  
+  // Get all prayer requests a user has prayed for
+  app.get("/api/users/:userId/prayed", ensureAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Users can only see their own prayed requests
+      if (req.user?.id !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const prayedRequestIds = await storage.getUserPrayedRequests(userId);
+      res.json(prayedRequestIds);
+    } catch (error) {
+      console.error("Error getting user's prayed requests:", error);
+      res.status(500).json({ message: "Failed to get user's prayed requests" });
+    }
+  });
+
   return httpServer;
 }

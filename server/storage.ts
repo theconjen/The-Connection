@@ -112,6 +112,7 @@ export interface IStorage {
   addGroupMember(member: InsertGroupMember): Promise<GroupMember>;
   getGroupMembers(groupId: number): Promise<GroupMember[]>;
   isGroupAdmin(groupId: number, userId: number): Promise<boolean>;
+  isGroupMember(groupId: number, userId: number): Promise<boolean>;
   
   // Apologetics resource methods
   getAllApologeticsResources(): Promise<ApologeticsResource[]>;

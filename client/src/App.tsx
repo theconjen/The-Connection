@@ -15,6 +15,7 @@ import LivestreamerApplicationPage from "@/pages/livestreamer-application-page";
 import DiscoverPage from "@/pages/discover-page";
 import MicroblogsPage from "@/pages/microblogs-page";
 import MicroblogDetailPage from "@/pages/microblog-detail-page";
+import PrayerRequestsPage from "@/pages/prayer-requests-page";
 
 function App() {
   return (
