@@ -75,7 +75,10 @@ const BibleStudyPage: React.FC = () => {
   });
   
   // Ensure we have an array, even if the API returns something else
-  const publicReadingPlans = Array.isArray(publicReadingPlansData) ? publicReadingPlansData : [];
+  const publicReadingPlans = Array.isArray(publicReadingPlansData) ? publicReadingPlansData.map(plan => ({
+    ...plan,
+    readings: typeof plan.readings === 'string' ? JSON.parse(plan.readings) : plan.readings
+  })) : [];
 
   // Fetch user's reading progress
   const { data: userProgressData, isLoading: progressLoading } = useQuery<BibleReadingProgress[]>({
@@ -85,7 +88,12 @@ const BibleStudyPage: React.FC = () => {
   });
   
   // Ensure we have an array, even if the API returns something else
-  const userProgress = Array.isArray(userProgressData) ? userProgressData : [];
+  const userProgress = Array.isArray(userProgressData) ? userProgressData.map(progress => ({
+    ...progress,
+    completedDays: typeof progress.completedDays === 'string' ? 
+      JSON.parse(progress.completedDays) : 
+      (Array.isArray(progress.completedDays) ? progress.completedDays : [])
+  })) : [];
 
   // Fetch user's study notes
   const { data: studyNotesData, isLoading: notesLoading } = useQuery<BibleStudyNote[]>({
