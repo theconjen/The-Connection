@@ -21,7 +21,7 @@ if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !pro
 
 // Initialize the SES client
 const sesClient = new SESClient({
-  region: process.env.AWS_REGION,
+  region: 'us-east-2', // Hardcoding the region to ensure it's formatted correctly
   credentials: emailFunctionalityEnabled ? {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
@@ -218,12 +218,13 @@ export async function getEmailTemplate(templateName: string): Promise<Template |
 /**
  * Sends an email using a template with template data
  */
-export async function sendTemplatedEmail(
+export async function sendTemplatedEmail(params: {
   to: string,
   from: string,
   templateName: string,
   templateData: Record<string, any>
-): Promise<boolean> {
+}): Promise<boolean> {
+  const { to, from, templateName, templateData } = params;
   if (!emailFunctionalityEnabled) {
     console.log('Email functionality disabled. Would have sent templated email to:', to);
     console.log('Template:', templateName);
@@ -497,15 +498,15 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
   
   if (template) {
     // Send using template
-    return sendTemplatedEmail(
-      email,
+    return sendTemplatedEmail({
+      to: email,
       from,
-      DEFAULT_TEMPLATES.WELCOME,
-      {
+      templateName: DEFAULT_TEMPLATES.WELCOME,
+      templateData: {
         name,
         email
       }
-    );
+    });
   } else {
     // Fall back to regular email
     return sendEmail({
@@ -552,16 +553,16 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
   
   if (template) {
     // Send using template
-    return sendTemplatedEmail(
-      email,
+    return sendTemplatedEmail({
+      to: email,
       from,
-      DEFAULT_TEMPLATES.PASSWORD_RESET,
-      {
+      templateName: DEFAULT_TEMPLATES.PASSWORD_RESET,
+      templateData: {
         name,
         email,
         resetLink
       }
-    );
+    });
   } else {
     // Fall back to regular email
     return sendEmail({
