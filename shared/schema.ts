@@ -189,3 +189,132 @@ export const insertLivestreamSchema = createInsertSchema(livestreams).pick({
 
 export type InsertLivestream = z.infer<typeof insertLivestreamSchema>;
 export type Livestream = typeof livestreams.$inferSelect;
+
+// Livestreamer application and approval system
+export const livestreamerApplications = pgTable("livestreamer_applications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  status: text("status").notNull().default("pending"), // "pending", "approved", "rejected"
+  ministryName: text("ministry_name"),
+  ministryDescription: text("ministry_description").notNull(),
+  ministerialExperience: text("ministerial_experience"),
+  statementOfFaith: text("statement_of_faith").notNull(),
+  socialMediaLinks: text("social_media_links"),
+  referenceName: text("reference_name").notNull(),
+  referenceContact: text("reference_contact").notNull(),
+  referenceRelationship: text("reference_relationship").notNull(),
+  sampleContentUrl: text("sample_content_url").notNull(),
+  livestreamTopics: text("livestream_topics").notNull(),
+  targetAudience: text("target_audience").notNull(),
+  agreedToTerms: boolean("agreed_to_terms").notNull(),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewNotes: text("review_notes"),
+  reviewedAt: timestamp("reviewed_at"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const insertLivestreamerApplicationSchema = createInsertSchema(livestreamerApplications).pick({
+  userId: true,
+  ministryName: true,
+  ministryDescription: true,
+  ministerialExperience: true,
+  statementOfFaith: true,
+  socialMediaLinks: true,
+  referenceName: true,
+  referenceContact: true,
+  referenceRelationship: true,
+  sampleContentUrl: true,
+  livestreamTopics: true,
+  targetAudience: true,
+  agreedToTerms: true
+});
+
+// Creator tier and incentive structure
+export const creatorTiers = pgTable("creator_tiers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  requirements: text("requirements").notNull(),
+  benefits: text("benefits").notNull(),
+  iconName: text("icon_name").notNull(),
+  order: integer("order").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCreatorTierSchema = createInsertSchema(creatorTiers).pick({
+  name: true,
+  description: true,
+  requirements: true,
+  benefits: true,
+  iconName: true,
+  order: true,
+});
+
+// User-Creator tier relationship
+export const userCreatorTiers = pgTable("user_creator_tiers", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  tierId: integer("tier_id").references(() => creatorTiers.id).notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  validUntil: timestamp("valid_until"),
+});
+
+export const insertUserCreatorTierSchema = createInsertSchema(userCreatorTiers).pick({
+  userId: true,
+  tierId: true,
+  validUntil: true,
+});
+
+// Virtual gifts that can be sent during livestreams
+export const virtualGifts = pgTable("virtual_gifts", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  iconName: text("icon_name").notNull(),
+  value: integer("value").notNull(), // Value in platform points/currency
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertVirtualGiftSchema = createInsertSchema(virtualGifts).pick({
+  name: true,
+  description: true,
+  iconName: true,
+  value: true,
+  isActive: true,
+});
+
+// Record of gifts sent during livestreams
+export const livestreamGifts = pgTable("livestream_gifts", {
+  id: serial("id").primaryKey(),
+  livestreamId: integer("livestream_id").references(() => livestreams.id).notNull(),
+  giftId: integer("gift_id").references(() => virtualGifts.id).notNull(),
+  senderId: integer("sender_id").references(() => users.id),
+  receiverId: integer("receiver_id").references(() => users.id).notNull(),
+  message: text("message"),
+  sentAt: timestamp("sent_at").defaultNow(),
+});
+
+export const insertLivestreamGiftSchema = createInsertSchema(livestreamGifts).pick({
+  livestreamId: true,
+  giftId: true,
+  senderId: true,
+  receiverId: true,
+  message: true,
+});
+
+// Export additional types
+export type InsertLivestreamerApplication = z.infer<typeof insertLivestreamerApplicationSchema>;
+export type LivestreamerApplication = typeof livestreamerApplications.$inferSelect;
+
+export type InsertCreatorTier = z.infer<typeof insertCreatorTierSchema>;
+export type CreatorTier = typeof creatorTiers.$inferSelect;
+
+export type InsertUserCreatorTier = z.infer<typeof insertUserCreatorTierSchema>;
+export type UserCreatorTier = typeof userCreatorTiers.$inferSelect;
+
+export type InsertVirtualGift = z.infer<typeof insertVirtualGiftSchema>;
+export type VirtualGift = typeof virtualGifts.$inferSelect;
+
+export type InsertLivestreamGift = z.infer<typeof insertLivestreamGiftSchema>;
+export type LivestreamGift = typeof livestreamGifts.$inferSelect;
