@@ -1,18 +1,22 @@
-import { MailService } from '@sendgrid/mail';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
-// Check for SendGrid API key
+// Check for AWS credentials
 let emailFunctionalityEnabled = false;
-if (!process.env.SENDGRID_API_KEY) {
-  console.warn("SENDGRID_API_KEY environment variable is not set. Email functionality will be disabled.");
+if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
+  console.warn("AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) not set. Email functionality will be disabled.");
   console.warn("Users can still register but won't receive welcome emails.");
 } else {
   emailFunctionalityEnabled = true;
 }
 
-const mailService = new MailService();
-if (emailFunctionalityEnabled) {
-  mailService.setApiKey(process.env.SENDGRID_API_KEY);
-}
+// Initialize the SES client
+const sesClient = new SESClient({
+  region: process.env.AWS_REGION,
+  credentials: emailFunctionalityEnabled ? {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
+  } : undefined
+});
 
 interface EmailParams {
   to: string;
@@ -31,11 +35,40 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
   }
   
   try {
-    await mailService.send(params);
-    console.log(`Email sent successfully to ${params.to}`);
+    // Create the email command
+    const sendEmailCommand = new SendEmailCommand({
+      Destination: {
+        ToAddresses: [params.to]
+      },
+      Message: {
+        Body: {
+          ...(params.html && { 
+            Html: {
+              Charset: "UTF-8",
+              Data: params.html
+            }
+          }),
+          ...(params.text && {
+            Text: {
+              Charset: "UTF-8",
+              Data: params.text
+            }
+          })
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: params.subject
+        }
+      },
+      Source: params.from
+    });
+
+    // Send the email
+    const response = await sesClient.send(sendEmailCommand);
+    console.log(`Email sent successfully to ${params.to}`, response.MessageId);
     return true;
   } catch (error) {
-    console.error('SendGrid email error:', error);
+    console.error('AWS SES email error:', error);
     return false;
   }
 }
@@ -45,7 +78,7 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
   
   return sendEmail({
     to: email,
-    from: process.env.SENDGRID_FROM_EMAIL || 'noreply@theconnection.example.com', // Use environment variable if available
+    from: process.env.AWS_SES_FROM_EMAIL || 'The Connection <noreply@theconnection.example.com>', // Use environment variable if available
     subject: 'Welcome to The Connection!',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
