@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Home, Compass, BookOpen, Users, User, Heart, Video, MessageCircle, HeartHandshake } from "lucide-react";
+import { Home, Compass, BookOpen, Users, User, Heart, Video, MessageCircle, HeartHandshake, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,6 +29,12 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
       path: "/livestreams", 
       label: "Live", 
       icon: <Video className="h-5 w-5" />
+    },
+    { 
+      path: "/events", 
+      label: "Events", 
+      icon: <Calendar className="h-5 w-5" />,
+      badge: "New"
     },
     { 
       path: "/apologetics", 

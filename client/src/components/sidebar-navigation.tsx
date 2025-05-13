@@ -12,7 +12,8 @@ import {
   User,
   Video,
   MessageCircle,
-  HeartHandshake
+  HeartHandshake,
+  Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,12 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       path: "/livestreams", 
       label: "Livestreams", 
       icon: <Video className="mr-3 w-5 h-5" />
+    },
+    { 
+      path: "/events", 
+      label: "Events", 
+      icon: <Calendar className="mr-3 w-5 h-5" />,
+      badge: "New"
     },
     { 
       path: "/apologetics", 
