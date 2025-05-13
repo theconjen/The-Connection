@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Home, Compass, BookOpen, Users, User, Heart, Video } from "lucide-react";
+import { Home, Compass, BookOpen, Users, User, Heart, Video, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -15,6 +15,12 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
       icon: <Home className="h-5 w-5" /> 
     },
     { 
+      path: "/microblogs", 
+      label: "Feed", 
+      icon: <MessageCircle className="h-5 w-5" />,
+      badge: "New"
+    },
+    { 
       path: "/discover", 
       label: "Discover", 
       icon: <Compass className="h-5 w-5" /> 
@@ -22,8 +28,7 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
     { 
       path: "/livestreams", 
       label: "Live", 
-      icon: <Video className="h-5 w-5" />,
-      badge: "New"
+      icon: <Video className="h-5 w-5" />
     },
     { 
       path: "/apologetics", 
