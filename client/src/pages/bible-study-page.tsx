@@ -70,7 +70,7 @@ const BibleStudyPage: React.FC = () => {
   // Fetch public reading plans
   const { data: publicReadingPlansData, isLoading: plansLoading } = useQuery<BibleReadingPlan[]>({
     queryKey: ["/api/bible-reading-plans"],
-    queryFn: () => fetch("/api/bible-reading-plans?filter=public").then(res => res.json()),
+    queryFn: () => fetch("/api/bible-reading-plans").then(res => res.json()),
     enabled: activeTab === "reading-plans",
   });
   
@@ -78,23 +78,34 @@ const BibleStudyPage: React.FC = () => {
   const publicReadingPlans = Array.isArray(publicReadingPlansData) ? publicReadingPlansData : [];
 
   // Fetch user's reading progress
-  const { data: userProgress = [], isLoading: progressLoading } = useQuery<BibleReadingProgress[]>({
+  const { data: userProgressData, isLoading: progressLoading } = useQuery<BibleReadingProgress[]>({
     queryKey: ["/api/bible-reading-progress", user?.id],
+    queryFn: () => fetch("/api/bible-reading-progress").then(res => res.json()),
     enabled: !!user && activeTab === "reading-plans",
   });
+  
+  // Ensure we have an array, even if the API returns something else
+  const userProgress = Array.isArray(userProgressData) ? userProgressData : [];
 
   // Fetch user's study notes
-  const { data: studyNotes = [], isLoading: notesLoading } = useQuery<BibleStudyNote[]>({
+  const { data: studyNotesData, isLoading: notesLoading } = useQuery<BibleStudyNote[]>({
     queryKey: ["/api/bible-study-notes", user?.id],
     queryFn: () => fetch("/api/bible-study-notes?mine=true").then(res => res.json()),
     enabled: !!user && activeTab === "study-notes",
   });
+  
+  // Ensure we have an array, even if the API returns something else
+  const studyNotes = Array.isArray(studyNotesData) ? studyNotesData : [];
 
   // Fetch user's verse memorization
-  const { data: memorizationVerses = [], isLoading: versesLoading } = useQuery<VerseMemorization[]>({
+  const { data: memorizationVersesData, isLoading: versesLoading } = useQuery<VerseMemorization[]>({
     queryKey: ["/api/verse-memorization", user?.id],
+    queryFn: () => fetch("/api/verse-memorization").then(res => res.json()),
     enabled: !!user && activeTab === "memorization",
   });
+  
+  // Ensure we have an array, even if the API returns something else
+  const memorizationVerses = Array.isArray(memorizationVersesData) ? memorizationVersesData : [];
 
   // Helper function to get progress for a plan
   const getProgressForPlan = (planId: number) => {
@@ -104,7 +115,8 @@ const BibleStudyPage: React.FC = () => {
   // Calculate progress percentage
   const calculateProgress = (progress: BibleReadingProgress | undefined, planDuration: number) => {
     if (!progress) return 0;
-    return Math.round((progress.completedDays.length / planDuration) * 100);
+    const completedDays = Array.isArray(progress.completedDays) ? progress.completedDays : [];
+    return Math.round((completedDays.length / planDuration) * 100);
   };
 
   return (
