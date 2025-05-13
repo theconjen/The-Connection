@@ -11,7 +11,8 @@ import {
   insertGroupMemberSchema,
   insertApologeticsResourceSchema,
   insertLivestreamerApplicationSchema,
-  insertLivestreamSchema
+  insertLivestreamSchema,
+  insertMicroblogSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 
@@ -233,6 +234,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof ZodError) {
         return res.status(400).json({ message: "Invalid input data", errors: error.errors });
       }
+      next(error);
+    }
+  });
+
+  // Microblog (Twitter-like) routes
+  app.get("/api/microblogs", async (req, res, next) => {
+    try {
+      const filter = req.query.filter as string || 'recent';
+      const microblogs = await storage.getAllMicroblogs(filter);
+      res.json(microblogs);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/microblogs/:id", async (req, res, next) => {
+    try {
+      const microblogId = parseInt(req.params.id);
+      const microblog = await storage.getMicroblog(microblogId);
+      
+      if (!microblog) {
+        return res.status(404).json({ message: "Microblog not found" });
+      }
+      
+      res.json(microblog);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/microblogs/:id/replies", async (req, res, next) => {
+    try {
+      const microblogId = parseInt(req.params.id);
+      const replies = await storage.getMicroblogReplies(microblogId);
+      res.json(replies);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/users/:userId/microblogs", async (req, res, next) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const microblogs = await storage.getMicroblogsByUserId(userId);
+      res.json(microblogs);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/communities/:communityId/microblogs", async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.communityId);
+      const microblogs = await storage.getMicroblogsByCommunityId(communityId);
+      res.json(microblogs);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/groups/:groupId/microblogs", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const groupId = parseInt(req.params.groupId);
+      
+      // Check if user is a member of this group
+      const members = await storage.getGroupMembers(groupId);
+      const isMember = members.some(member => member.userId === req.user?.id);
+      
+      if (!isMember) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      
+      const microblogs = await storage.getMicroblogsByGroupId(groupId);
+      res.json(microblogs);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/microblogs", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Character limit validation for Twitter-like posts (280 chars)
+      if (req.body.content && req.body.content.length > 280) {
+        return res.status(400).json({ message: "Content exceeds 280 character limit" });
+      }
+      
+      // If posting to a group, verify membership
+      if (req.body.groupId) {
+        const groupId = parseInt(req.body.groupId);
+        const members = await storage.getGroupMembers(groupId);
+        const isMember = members.some(member => member.userId === req.user?.id);
+        
+        if (!isMember) {
+          return res.status(403).json({ message: "You are not a member of this group" });
+        }
+      }
+      
+      const validatedData = insertMicroblogSchema.parse({
+        ...req.body,
+        authorId: req.user?.id
+      });
+      
+      const microblog = await storage.createMicroblog(validatedData);
+      res.status(201).json(microblog);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.post("/api/microblogs/:id/like", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const microblogId = parseInt(req.params.id);
+      const like = await storage.likeMicroblog(microblogId, req.user!.id);
+      res.status(201).json(like);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.delete("/api/microblogs/:id/like", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const microblogId = parseInt(req.params.id);
+      const result = await storage.unlikeMicroblog(microblogId, req.user!.id);
+      
+      if (result) {
+        res.status(200).json({ success: true });
+      } else {
+        res.status(404).json({ message: "Like not found" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/users/:userId/liked-microblogs", async (req, res, next) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const likedMicroblogIds = await storage.getUserLikedMicroblogs(userId);
+      res.json(likedMicroblogIds);
+    } catch (error) {
       next(error);
     }
   });
