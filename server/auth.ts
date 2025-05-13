@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser, insertUserSchema } from "@shared/schema";
 import { ZodError } from "zod";
+import { sendWelcomeEmail } from "./email";
 
 declare global {
   namespace Express {
@@ -83,9 +84,15 @@ export function setupAuth(app: Express) {
       const validatedData = insertUserSchema.parse(req.body);
       
       // Check if username is taken
-      const existingUser = await storage.getUserByUsername(validatedData.username);
-      if (existingUser) {
+      const existingUserByUsername = await storage.getUserByUsername(validatedData.username);
+      if (existingUserByUsername) {
         return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Check if email is taken
+      const existingUserByEmail = await storage.getUserByEmail(validatedData.email);
+      if (existingUserByEmail) {
+        return res.status(400).json({ message: "Email address already in use" });
       }
 
       // Create user with hashed password
@@ -93,6 +100,14 @@ export function setupAuth(app: Express) {
         ...validatedData,
         password: await hashPassword(validatedData.password),
       });
+
+      // Send welcome email
+      try {
+        await sendWelcomeEmail(user.email, user.displayName || undefined);
+      } catch (emailError) {
+        console.error("Failed to send welcome email:", emailError);
+        // Continue with registration even if email fails
+      }
 
       // Log the user in
       req.login(user, (err) => {
