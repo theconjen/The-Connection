@@ -18,16 +18,16 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { 
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface MobileNavigationProps {
   currentPath: string;
@@ -66,7 +66,7 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
     },
   ];
   
-  // Secondary items in the "More" drawer
+  // Secondary items in the "More" sheet
   const moreItems = [
     { 
       path: "/events", 
@@ -144,8 +144,8 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
           ))}
           
           {/* More Button */}
-          <Drawer open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
-            <DrawerTrigger asChild>
+          <Sheet open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
+            <SheetTrigger asChild>
               <button 
                 className={cn(
                   "flex flex-col items-center px-2 py-2 rounded-xl transition-colors",
@@ -164,17 +164,17 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
                 </div>
                 <span className="text-[11px] font-medium">More</span>
               </button>
-            </DrawerTrigger>
+            </SheetTrigger>
             
-            <DrawerContent className="px-4 pb-6 max-h-[85vh]">
-              <DrawerHeader className="px-0">
-                <DrawerTitle className="text-xl font-semibold text-center">
+            <SheetContent side="bottom" className="rounded-t-xl max-h-[85vh] overflow-y-auto pb-8">
+              <SheetHeader className="px-0">
+                <SheetTitle className="text-xl font-semibold text-center">
                   More Options
-                </DrawerTitle>
-                <DrawerDescription className="text-center">
+                </SheetTitle>
+                <SheetDescription className="text-center">
                   Additional features and sections
-                </DrawerDescription>
-              </DrawerHeader>
+                </SheetDescription>
+              </SheetHeader>
               
               <div className="grid grid-cols-2 gap-3 mt-2">
                 {moreItems.map((item) => (
@@ -215,15 +215,15 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
                 ))}
               </div>
               
-              <DrawerFooter className="px-0 mt-4">
-                <DrawerClose asChild>
+              <SheetFooter className="px-0 mt-4 flex justify-center">
+                <SheetClose asChild>
                   <button className="mx-auto w-10 h-10 rounded-full border border-secondary/20 flex items-center justify-center">
                     <X className="h-4 w-4 text-muted-foreground" />
                   </button>
-                </DrawerClose>
-              </DrawerFooter>
-            </DrawerContent>
-          </Drawer>
+                </SheetClose>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
         </div>
       </nav>
     </>
