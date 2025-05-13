@@ -475,7 +475,7 @@ function LivestreamCard({ stream, onJoin, renderStatusBadge }: LivestreamCardPro
     <Card className="overflow-hidden card-hover border-secondary/20">
       <div className="relative">
         <img 
-          src={stream.thumbnail} 
+          src={typeof stream.thumbnail === 'string' ? stream.thumbnail : 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1032&auto=format&fit=crop'} 
           alt={stream.title} 
           className="w-full h-40 object-cover"
         />
@@ -493,7 +493,7 @@ function LivestreamCard({ stream, onJoin, renderStatusBadge }: LivestreamCardPro
         {stream.status === "upcoming" && stream.scheduledFor && (
           <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-md flex items-center">
             <Calendar className="h-3 w-3 mr-1" />
-            {stream.scheduledFor.toLocaleString()}
+            {new Date(stream.scheduledFor).toLocaleString()}
           </div>
         )}
       </div>
