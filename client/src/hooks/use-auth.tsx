@@ -39,13 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      // Force refresh user data
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      
       toast({
         title: "Welcome back!",
         description: `You've successfully logged in as ${user.username}.`
       });
-      import("wouter/use-browser-location").then(({ navigate }) => {
-        navigate("/");
-      });
+      
+      // Delay navigation slightly to ensure state is updated
+      setTimeout(() => {
+        import("wouter/use-browser-location").then(({ navigate }) => {
+          navigate("/");
+        });
+      }, 100);
     },
     onError: (error: Error) => {
       toast({
