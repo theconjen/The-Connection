@@ -36,6 +36,14 @@ export default function ApologeticsPage() {
   const { data: topics, isLoading: topicsLoading } = useQuery<ApologeticsTopic[]>({
     queryKey: ['/api/apologetics/topics'],
   });
+  
+  const { data: questions, isLoading: questionsLoading } = useQuery<ApologeticsQuestion[]>({
+    queryKey: ['/api/apologetics/questions'],
+  });
+  
+  const { data: verifiedAnswerers, isLoading: answererLoading } = useQuery<User[]>({
+    queryKey: ['/api/apologetics/verified-answerers'],
+  });
 
   const getResourceIcon = (type: string) => {
     switch (type) {
