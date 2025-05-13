@@ -7,13 +7,18 @@ import {
   GroupMember, InsertGroupMember,
   ApologeticsResource, InsertApologeticsResource,
   Livestream, InsertLivestream,
-  users, communities, posts, comments, groups, groupMembers, apologeticsResources, livestreams
+  LivestreamerApplication, InsertLivestreamerApplication,
+  CreatorTier, VirtualGift, LivestreamGift,
+  Microblog, InsertMicroblog,
+  MicroblogLike, InsertMicroblogLike,
+  users, communities, posts, comments, groups, groupMembers, apologeticsResources, 
+  livestreams, microblogs, microblogLikes
 } from "@shared/schema";
 import createMemoryStore from "memorystore";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
-import { eq, and, desc, SQL, sql } from "drizzle-orm";
+import { eq, and, desc, SQL, sql, inArray, isNull } from "drizzle-orm";
 import { pool } from './db';
 
 const MemoryStore = createMemoryStore(session);
@@ -713,6 +718,163 @@ export class DatabaseStorage implements IStorage {
   async createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource> {
     const result = await db.insert(apologeticsResources).values(resource).returning();
     return result[0];
+  }
+
+  // Microblog methods implementation
+  async getAllMicroblogs(filterType: string = "recent"): Promise<Microblog[]> {
+    // Public microblogs only (not assigned to a community or group)
+    const query = db.select().from(microblogs).where(
+      and(
+        isNull(microblogs.communityId),
+        isNull(microblogs.groupId)
+      )
+    );
+    
+    if (filterType === "popular") {
+      return await query.orderBy(desc(microblogs.likeCount));
+    } else {
+      // Default to recent
+      return await query.orderBy(desc(microblogs.createdAt));
+    }
+  }
+  
+  async getMicroblog(id: number): Promise<Microblog | undefined> {
+    const result = await db.select().from(microblogs).where(eq(microblogs.id, id)).limit(1);
+    return result[0];
+  }
+  
+  async getMicroblogsByUserId(userId: number): Promise<Microblog[]> {
+    return await db
+      .select()
+      .from(microblogs)
+      .where(eq(microblogs.authorId, userId))
+      .orderBy(desc(microblogs.createdAt));
+  }
+  
+  async getMicroblogsByAuthors(userIds: number[]): Promise<Microblog[]> {
+    if (userIds.length === 0) return [];
+    
+    return await db
+      .select()
+      .from(microblogs)
+      .where(inArray(microblogs.authorId, userIds))
+      .orderBy(desc(microblogs.createdAt));
+  }
+  
+  async getMicroblogsByCommunityId(communityId: number): Promise<Microblog[]> {
+    return await db
+      .select()
+      .from(microblogs)
+      .where(eq(microblogs.communityId, communityId))
+      .orderBy(desc(microblogs.createdAt));
+  }
+  
+  async getMicroblogsByGroupId(groupId: number): Promise<Microblog[]> {
+    return await db
+      .select()
+      .from(microblogs)
+      .where(eq(microblogs.groupId, groupId))
+      .orderBy(desc(microblogs.createdAt));
+  }
+  
+  async getMicroblogReplies(microblogId: number): Promise<Microblog[]> {
+    return await db
+      .select()
+      .from(microblogs)
+      .where(eq(microblogs.parentId, microblogId))
+      .orderBy(desc(microblogs.createdAt));
+  }
+  
+  async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
+    // For replies, increment reply count of the parent
+    if (microblog.parentId) {
+      const parent = await this.getMicroblog(microblog.parentId);
+      const result = await db.insert(microblogs).values(microblog).returning();
+      
+      // Update parent's reply count if it exists
+      if (parent) {
+        await db
+          .update(microblogs)
+          .set({ replyCount: (parent.replyCount || 0) + 1 })
+          .where(eq(microblogs.id, microblog.parentId));
+      }
+      
+      return result[0];
+    } else {
+      // Simple insert for new microblogs
+      const result = await db.insert(microblogs).values(microblog).returning();
+      return result[0];
+    }
+  }
+  
+  async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
+    // Check if already liked
+    const existing = await db
+      .select()
+      .from(microblogLikes)
+      .where(
+        and(
+          eq(microblogLikes.microblogId, microblogId),
+          eq(microblogLikes.userId, userId)
+        )
+      )
+      .limit(1);
+    
+    if (existing.length > 0) {
+      return existing[0];
+    }
+    
+    // Add the like
+    const result = await db
+      .insert(microblogLikes)
+      .values({ microblogId, userId })
+      .returning();
+    
+    // Increment the like count on the microblog
+    const microblog = await this.getMicroblog(microblogId);
+    if (microblog) {
+      await db
+        .update(microblogs)
+        .set({ likeCount: (microblog.likeCount || 0) + 1 })
+        .where(eq(microblogs.id, microblogId));
+    }
+    
+    return result[0];
+  }
+  
+  async unlikeMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    // Find and delete the like
+    const result = await db
+      .delete(microblogLikes)
+      .where(
+        and(
+          eq(microblogLikes.microblogId, microblogId),
+          eq(microblogLikes.userId, userId)
+        )
+      )
+      .returning();
+    
+    if (result.length === 0) return false;
+    
+    // Decrement the like count on the microblog
+    const microblog = await this.getMicroblog(microblogId);
+    if (microblog && microblog.likeCount && microblog.likeCount > 0) {
+      await db
+        .update(microblogs)
+        .set({ likeCount: microblog.likeCount - 1 })
+        .where(eq(microblogs.id, microblogId));
+    }
+    
+    return true;
+  }
+  
+  async getUserLikedMicroblogs(userId: number): Promise<number[]> {
+    const likes = await db
+      .select()
+      .from(microblogLikes)
+      .where(eq(microblogLikes.userId, userId));
+    
+    return likes.map(like => like.microblogId);
   }
 }
 
