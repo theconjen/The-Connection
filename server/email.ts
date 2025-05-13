@@ -11,11 +11,21 @@ import {
 } from '@aws-sdk/client-ses';
 
 // Check for AWS credentials
+// Email functionality configuration
 let emailFunctionalityEnabled = false;
-if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
-  console.warn("AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) not set. Email functionality will be disabled.");
-  console.warn("Users can still register but won't receive welcome emails.");
+// Force mock mode if environment variable is set
+const forceMockMode = process.env.FORCE_EMAIL_MOCK_MODE === 'true';
+
+if (forceMockMode) {
+  console.log("📧 Email functionality running in FORCED MOCK MODE. No actual emails will be sent.");
+  console.log("📧 All email operations will simulate success for testing purposes.");
+  // We don't enable real email functionality in mock mode
+} else if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
+  console.warn("⚠️ AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) not set. Email functionality will be disabled.");
+  console.warn("⚠️ Users can still register but won't receive actual emails.");
+  // Set the FORCE_EMAIL_MOCK_MODE environment variable to 'true' to simulate email sending
 } else {
+  console.log("📧 Email functionality enabled with AWS SES");
   emailFunctionalityEnabled = true;
 }
 
