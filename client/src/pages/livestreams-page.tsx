@@ -10,118 +10,98 @@ import { Search, Play, Users, Calendar, Clock, Heart, MessageSquare, Share2, Eye
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
-// Type for livestream data
-type Livestream = {
-  id: number;
-  title: string;
-  host: string;
-  hostUsername: string;
-  hostAvatar?: string;
-  thumbnail: string;
-  status: "live" | "upcoming" | "ended";
-  viewerCount: number;
-  scheduledFor?: string;
-  duration?: string;
-  description: string;
-  tags: string[];
+import { Livestream as LivestreamType, User } from "@shared/schema";
+
+// Extended livestream type with host details
+type EnhancedLivestream = LivestreamType & {
+  host?: User;
+  hostUsername?: string; // For display until we get the host data
+  tags: string[]; // Parse from tags string
 };
 
 export default function LivestreamsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
   
-  // Mock data for livestreams (in a real app, this would come from an API)
-  const livestreams: Livestream[] = [
+  // Fetch livestreams from the API
+  const { data: apiLivestreams, isLoading } = useQuery<LivestreamType[]>({
+    queryKey: ["/api/livestreams", activeTab !== "all" ? { status: activeTab } : {}],
+  });
+  
+  // Fetch host details for each livestream
+  const { data: users } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    enabled: !!apiLivestreams && apiLivestreams.length > 0,
+  });
+  
+  // Transform API data to EnhancedLivestream format
+  const livestreams: EnhancedLivestream[] = apiLivestreams ? apiLivestreams.map(stream => {
+    // Find host user
+    const host = users?.find(u => u.id === stream.hostId);
+    
+    // Parse tags string into array
+    const tags = stream.tags ? stream.tags.split(',').map(tag => tag.trim()) : [];
+    
+    return {
+      ...stream,
+      host,
+      hostUsername: host?.username || `user_${stream.hostId}`,
+      tags,
+      // Set default thumbnail if none provided
+      thumbnail: stream.thumbnail || 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1032&auto=format&fit=crop',
+    };
+  }) : [];
+  
+  // If we're still loading or don't have data yet, show placeholder data
+  const defaultLivestreams: EnhancedLivestream[] = [
     {
       id: 1,
       title: "Daily Prayer & Devotional",
-      host: "Sarah Johnson",
+      hostId: 1,
       hostUsername: "sarah_j",
       thumbnail: "https://images.unsplash.com/photo-1507692049790-de58290a4334?q=80&w=1470&auto=format&fit=crop",
       status: "live",
       viewerCount: 245,
       description: "Join us for daily prayer, scripture reading, and devotional time. Open to everyone!",
-      tags: ["prayer", "devotional", "daily"]
+      tags: ["prayer", "devotional", "daily"],
+      createdAt: new Date()
     },
     {
       id: 2,
       title: "Bible Study: Book of Romans",
-      host: "Pastor Mike",
+      hostId: 2,
       hostUsername: "pastor_mike",
       thumbnail: "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?q=80&w=1470&auto=format&fit=crop",
       status: "upcoming",
-      scheduledFor: "May 14, 2025 7:00 PM",
+      scheduledFor: new Date("2025-05-14T19:00:00"),
       viewerCount: 0,
       duration: "1 hour",
       description: "A deep dive into the Book of Romans. We'll be exploring chapters 5-8 this week.",
-      tags: ["bible-study", "romans", "theology"]
-    },
-    {
-      id: 3,
-      title: "Worship & Music Session",
-      host: "Faith Worship Team",
-      hostUsername: "faith_worship",
-      thumbnail: "https://images.unsplash.com/photo-1516669383553-5546c15af553?q=80&w=1470&auto=format&fit=crop",
-      status: "live",
-      viewerCount: 189,
-      description: "Join our worship team for a session of praise and worship music. Feel free to participate!",
-      tags: ["worship", "music", "praise"]
-    },
-    {
-      id: 4,
-      title: "Q&A: Faith & College Life",
-      host: "Emma & Team",
-      hostUsername: "emma_faith",
-      thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1471&auto=format&fit=crop",
-      status: "upcoming",
-      scheduledFor: "May 15, 2025 5:30 PM",
-      viewerCount: 0,
-      duration: "1.5 hours",
-      description: "Got questions about balancing your faith and college life? Join our panel of students for a candid discussion.",
-      tags: ["college", "qa", "youth"]
-    },
-    {
-      id: 5,
-      title: "Christian Creativity Workshop",
-      host: "Jessica Art",
-      hostUsername: "jessica_art",
-      thumbnail: "https://images.unsplash.com/photo-1560421683-6856ea585c78?q=80&w=1374&auto=format&fit=crop",
-      status: "ended",
-      viewerCount: 132,
-      description: "A workshop on expressing your faith through various art forms. Watch the replay!",
-      tags: ["creativity", "art", "expression"]
-    },
-    {
-      id: 6,
-      title: "Women's Prayer Circle",
-      host: "Grace Community",
-      hostUsername: "grace_comm",
-      thumbnail: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1032&auto=format&fit=crop",
-      status: "upcoming",
-      scheduledFor: "May 16, 2025 6:00 PM",
-      viewerCount: 0,
-      duration: "45 minutes",
-      description: "A safe space for women to gather in prayer and support one another in faith.",
-      tags: ["women", "prayer", "community"]
+      tags: ["bible-study", "romans", "theology"],
+      createdAt: new Date()
     }
   ];
 
+  // Determine which livestreams to display (API data or placeholders)
+  const displayLivestreams = livestreams.length > 0 ? livestreams : isLoading ? defaultLivestreams : [];
+  
   // Function to filter livestreams based on search term and tab
-  const filterLivestreams = (streams: Livestream[], term: string, status?: "live" | "upcoming" | "ended") => {
+  const filterLivestreams = (streams: EnhancedLivestream[], term: string, status?: string) => {
     return streams.filter(stream => 
       (stream.title.toLowerCase().includes(term.toLowerCase()) || 
-       stream.host.toLowerCase().includes(term.toLowerCase()) ||
-       stream.tags.some(tag => tag.toLowerCase().includes(term.toLowerCase()))) && 
+       (stream.host?.username || stream.hostUsername || '').toLowerCase().includes(term.toLowerCase()) ||
+       stream.tags.some((tag: string) => tag.toLowerCase().includes(term.toLowerCase()))) && 
       (!status || stream.status === status)
     );
   };
 
   // Get filtered lists for each tab
-  const liveLivestreams = filterLivestreams(livestreams, searchTerm, "live");
-  const upcomingLivestreams = filterLivestreams(livestreams, searchTerm, "upcoming");
-  const pastLivestreams = filterLivestreams(livestreams, searchTerm, "ended");
-  const allLivestreams = filterLivestreams(livestreams, searchTerm);
+  const liveLivestreams = filterLivestreams(displayLivestreams, searchTerm, "live");
+  const upcomingLivestreams = filterLivestreams(displayLivestreams, searchTerm, "upcoming");
+  const pastLivestreams = filterLivestreams(displayLivestreams, searchTerm, "ended");
+  const allLivestreams = filterLivestreams(displayLivestreams, searchTerm);
 
   const handleJoinStream = (stream: Livestream) => {
     if (stream.status === "live") {
