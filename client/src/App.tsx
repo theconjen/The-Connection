@@ -18,14 +18,14 @@ function App() {
   return (
     <TooltipProvider>
       <Switch>
-        <ReadOnlyRoute path="/" component={({ isGuest }) => <HomePage isGuest={isGuest} />} />
+        <ReadOnlyRoute path="/" component={HomePage} />
         <Route path="/auth" component={AuthPage} />
-        <ReadOnlyRoute path="/community/:slug" component={({ isGuest }) => <CommunityPage isGuest={isGuest} />} />
-        <ReadOnlyRoute path="/apologetics" component={({ isGuest }) => <ApologeticsPage isGuest={isGuest} />} />
-        <ReadOnlyRoute path="/discover" component={({ isGuest }) => <DiscoverPage isGuest={isGuest} />} />
-        <ReadOnlyRoute path="/livestreams" component={({ isGuest }) => <LivestreamsPage isGuest={isGuest} />} />
+        <ReadOnlyRoute path="/community/:slug" component={CommunityPage} />
+        <ReadOnlyRoute path="/apologetics" component={ApologeticsPage} />
+        <ReadOnlyRoute path="/discover" component={DiscoverPage} />
+        <ReadOnlyRoute path="/livestreams" component={LivestreamsPage} />
         <ProtectedRoute path="/livestreamer-application" component={LivestreamerApplicationPage} />
-        <ReadOnlyRoute path="/posts/:id" component={({ isGuest }) => <PostDetailPage isGuest={isGuest} />} />
+        <ReadOnlyRoute path="/posts/:id" component={PostDetailPage} />
         <ProtectedRoute path="/groups" component={GroupsPage} />
         <ProtectedRoute path="/profile" component={ProfilePage} />
         <ProtectedRoute path="/submit" component={SubmitPostPage} />

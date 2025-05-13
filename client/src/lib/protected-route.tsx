@@ -12,21 +12,27 @@ export function ProtectedRoute({
   component: Component,
 }: {
   path: string;
-  component: () => React.JSX.Element;
+  component: React.ComponentType;
 }) {
   const { user, isLoading } = useAuth();
 
   return (
     <Route path={path}>
-      {isLoading ? (
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : !user ? (
-        <Redirect to="/auth" />
-      ) : (
-        <Component />
-      )}
+      {() => {
+        if (isLoading) {
+          return (
+            <div className="flex items-center justify-center min-h-screen">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          );
+        }
+        
+        if (!user) {
+          return <Redirect to="/auth" />;
+        }
+        
+        return <Component />;
+      }}
     </Route>
   );
 }
@@ -35,24 +41,34 @@ export function ProtectedRoute({
  * Read-only Route - allows guests but with limited functionality
  * Component receives isGuest flag to conditionally render UI elements
  */
+interface PageComponentProps {
+  isGuest?: boolean;
+}
+
+type PageComponent = React.ComponentType<PageComponentProps>;
+
 export function ReadOnlyRoute({
   path,
   component: Component,
 }: {
   path: string;
-  component: (props: { isGuest: boolean }) => React.JSX.Element;
+  component: PageComponent;
 }) {
   const { user, isLoading } = useAuth();
 
   return (
     <Route path={path}>
-      {isLoading ? (
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <Component isGuest={!user} />
-      )}
+      {() => {
+        if (isLoading) {
+          return (
+            <div className="flex items-center justify-center min-h-screen">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          );
+        }
+        
+        return <Component isGuest={!user} />;
+      }}
     </Route>
   );
 }
