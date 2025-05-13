@@ -98,23 +98,21 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
         <CardContent className="p-2">
           <nav className="space-y-1">
             {menuItems.map((item) => (
-              <Link key={item.path} href={item.path}>
-                <a 
-                  className={cn(
-                    "flex items-center px-3 py-2.5 rounded-lg transition-colors",
-                    currentPath === item.path
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "text-foreground hover:bg-muted hover:text-primary"
-                  )}
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                  {'badge' in item && (
-                    <span className="ml-auto text-xs bg-secondary/30 text-secondary-foreground px-1.5 py-0.5 rounded-full font-medium">
-                      {item.badge}
-                    </span>
-                  )}
-                </a>
+              <Link key={item.path} href={item.path} 
+                className={cn(
+                  "flex items-center px-3 py-2.5 rounded-lg transition-colors",
+                  currentPath === item.path
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-foreground hover:bg-muted hover:text-primary"
+                )}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+                {'badge' in item && (
+                  <span className="ml-auto text-xs bg-secondary/30 text-secondary-foreground px-1.5 py-0.5 rounded-full font-medium">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
@@ -129,19 +127,19 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
         <CardContent className="p-2">
           <nav className="space-y-1">
             {topCommunities.map((community) => (
-              <Link key={community.id} href={community.path}>
-                <a className="flex items-center px-3 py-2.5 rounded-lg text-foreground hover:bg-muted hover:text-primary transition-colors">
-                  <div className="w-6 h-6 rounded-full bg-secondary/10 text-secondary-foreground flex items-center justify-center mr-3">
-                    {community.icon}
-                  </div>
-                  <span>{community.name}</span>
-                </a>
+              <Link key={community.id} href={community.path}
+                className="flex items-center px-3 py-2.5 rounded-lg text-foreground hover:bg-muted hover:text-primary transition-colors"
+              >
+                <div className="w-6 h-6 rounded-full bg-secondary/10 text-secondary-foreground flex items-center justify-center mr-3">
+                  {community.icon}
+                </div>
+                <span>{community.name}</span>
               </Link>
             ))}
-            <Link href="/discover">
-              <a className="flex items-center px-3 py-2.5 text-sm text-primary hover:underline">
-                See more communities →
-              </a>
+            <Link href="/discover"
+              className="flex items-center px-3 py-2.5 text-sm text-primary hover:underline"
+            >
+              See more communities →
             </Link>
           </nav>
         </CardContent>

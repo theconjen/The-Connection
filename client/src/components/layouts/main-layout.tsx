@@ -6,7 +6,7 @@ import UserMenu from "@/components/user-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Heart, BookOpen, PenTool, Menu, Video } from "lucide-react";
+import { Search, Heart, BookOpen, PenTool, Menu, Video, Calendar } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 type MainLayoutProps = {
@@ -76,6 +76,18 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <span className="relative">
                   Livestreams
                   <span className="absolute -top-2 -right-8 text-xs bg-secondary text-white px-1.5 py-0.5 rounded-full font-medium">
+                    New
+                  </span>
+                </span>
+              </Button>
+            </Link>
+            
+            <Link href="/events">
+              <Button variant="ghost" className="hidden md:inline-flex text-foreground hover:text-primary hover:bg-primary/10">
+                <Calendar className="mr-2 h-4 w-4" />
+                <span className="relative">
+                  Events
+                  <span className="absolute -top-2 -right-6 text-xs bg-secondary text-white px-1.5 py-0.5 rounded-full font-medium">
                     New
                   </span>
                 </span>
