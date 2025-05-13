@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Soft pastel color scheme with lavender as primary */
+  --background: 260 30% 99%;
+  --foreground: 260 10% 15%;
+  --muted: 260 20% 96%;
+  --muted-foreground: 260 8% 45%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 260 10% 15%;
+  --card: 0 0% 100%;
+  --card-foreground: 260 10% 15%;
+  --border: 260 15% 90%;
+  --input: 260 15% 90%;
+  
+  /* Lavender primary color */
+  --primary: 265 80% 65%;
+  --primary-foreground: 0 0% 100%;
+  
+  /* Soft pink secondary */
+  --secondary: 330 85% 85%;
+  --secondary-foreground: 330 80% 30%;
+  
+  /* Mint accent */
+  --accent: 150 70% 85%;
+  --accent-foreground: 150 70% 25%;
+  
+  --destructive: 0 70% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 265 70% 75%;
+  --radius: 1rem;
+}
+
+.dark {
+  --background: 260 15% 12%;
+  --foreground: 260 10% 95%; 
+  --muted: 260 20% 18%;
+  --muted-foreground: 260 10% 70%;
+  --popover: 260 15% 12%;
+  --popover-foreground: 260 10% 95%;
+  --card: 260 15% 14%;
+  --card-foreground: 260 10% 95%;
+  --border: 260 15% 25%;
+  --input: 260 15% 25%;
+  
+  /* Brighter lavender for dark mode */
+  --primary: 265 70% 70%;
+  --primary-foreground: 0 0% 100%;
+  
+  /* Brighter pink for dark mode */
+  --secondary: 330 70% 70%;
+  --secondary-foreground: 0 0% 100%;
+  
+  /* Brighter mint for dark mode */
+  --accent: 150 60% 60%;
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 70% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 265 60% 60%;
+  --radius: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply antialiased bg-background text-foreground;
+    font-family: 'Quicksand', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    @apply font-medium;
+  }
+
+  /* Custom styling for cards */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1;
+  }
+
+  /* Custom animations */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+    100% {
+      transform: translateY(0px);
+    }
+  }
+
+  /* Custom scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary/40 rounded-full hover:bg-primary/60 transition-colors;
+  }
+}
