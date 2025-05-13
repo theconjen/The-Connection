@@ -1294,6 +1294,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to get public events" });
     }
   });
+  
+  // ========================
+  // BIBLE STUDY TOOLS ROUTES
+  // ========================
+  
+  // Bible Reading Plans routes
+  app.get("/api/bible/reading-plans/public", allowGuest, async (req, res) => {
+    try {
+      const plans = await storage.getAllBibleReadingPlans();
+      res.json(plans);
+    } catch (error) {
+      console.error("Error getting public Bible reading plans:", error);
+      res.status(500).json({ message: "Failed to get reading plans" });
+    }
+  });
+  
+  app.get("/api/bible/reading-plans/user", ensureAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user.id;
+      const plans = await storage.getUserBibleReadingPlans(userId);
+      res.json(plans);
+    } catch (error) {
+      console.error("Error getting user's Bible reading plans:", error);
+      res.status(500).json({ message: "Failed to get user's reading plans" });
+    }
+  });
+  
+  app.get("/api/bible/reading-plans/group/:groupId", ensureAuthenticated, async (req, res) => {
+    try {
+      const groupId = parseInt(req.params.groupId);
+      const plans = await storage.getGroupBibleReadingPlans(groupId);
+      res.json(plans);
+    } catch (error) {
+      console.error("Error getting group Bible reading plans:", error);
+      res.status(500).json({ message: "Failed to get group's reading plans" });
+    }
+  });
+  
+  app.post("/api/bible/reading-plans", ensureAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const creatorId = req.user.id;
+      const readingPlan = {
+        ...req.body,
+        creatorId
+      };
+      const plan = await storage.createBibleReadingPlan(readingPlan);
+      res.status(201).json(plan);
+    } catch (error) {
+      console.error("Error creating Bible reading plan:", error);
+      res.status(500).json({ message: "Failed to create reading plan" });
+    }
+  });
+  
+  // Bible Reading Progress routes
+  app.get("/api/bible/reading-progress", ensureAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user.id;
+      const progress = await storage.getUserReadingProgress(userId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error getting user's reading progress:", error);
+      res.status(500).json({ message: "Failed to get reading progress" });
+    }
+  });
+  
+  app.post("/api/bible/reading-progress", ensureAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user.id;
+      const progressData = {
+        ...req.body,
+        userId
+      };
+      const progress = await storage.createBibleReadingProgress(progressData);
+      res.status(201).json(progress);
+    } catch (error) {
+      console.error("Error creating reading progress:", error);
+      res.status(500).json({ message: "Failed to create reading progress" });
+    }
+  });
+  
+  app.patch("/api/bible/reading-progress/:progressId/complete-day/:day", ensureAuthenticated, async (req, res) => {
+    try {
+      const progressId = parseInt(req.params.progressId);
+      const day = parseInt(req.params.day);
+      const progress = await storage.markDayCompleted(progressId, day);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error marking day as completed:", error);
+      res.status(500).json({ message: "Failed to update reading progress" });
+    }
+  });
+  
+  // Bible Study Notes routes
+  app.get("/api/bible/study-notes", ensureAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user.id;
+      const filter = { userId };
+      const notes = await storage.getBibleStudyNotes(filter);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error getting Bible study notes:", error);
+      res.status(500).json({ message: "Failed to get study notes" });
+    }
+  });
+  
+  app.get("/api/bible/study-notes/public", allowGuest, async (req, res) => {
+    try {
+      const filter = { isPublic: true };
+      const notes = await storage.getBibleStudyNotes(filter);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error getting public Bible study notes:", error);
+      res.status(500).json({ message: "Failed to get public study notes" });
+    }
+  });
+  
+  app.get("/api/bible/study-notes/group/:groupId", ensureAuthenticated, async (req, res) => {
+    try {
+      const groupId = parseInt(req.params.groupId);
+      const filter = { groupId };
+      const notes = await storage.getBibleStudyNotes(filter);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error getting group Bible study notes:", error);
+      res.status(500).json({ message: "Failed to get group study notes" });
+    }
+  });
+  
+  app.post("/api/bible/study-notes", ensureAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user.id;
+      const noteData = {
+        ...req.body,
+        userId
+      };
+      const note = await storage.createBibleStudyNote(noteData);
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating Bible study note:", error);
+      res.status(500).json({ message: "Failed to create study note" });
+    }
+  });
+  
+  // Verse Memorization routes
+  app.get("/api/bible/memorization", ensureAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user.id;
+      const verses = await storage.getUserVerseMemorization(userId);
+      res.json(verses);
+    } catch (error) {
+      console.error("Error getting verse memorization:", error);
+      res.status(500).json({ message: "Failed to get memorization verses" });
+    }
+  });
+  
+  app.post("/api/bible/memorization", ensureAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user.id;
+      const verseData = {
+        ...req.body,
+        userId
+      };
+      const verse = await storage.createVerseMemorization(verseData);
+      res.status(201).json(verse);
+    } catch (error) {
+      console.error("Error creating verse memorization:", error);
+      res.status(500).json({ message: "Failed to create verse memorization" });
+    }
+  });
+  
+  app.patch("/api/bible/memorization/:id/mark-mastered", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const verse = await storage.markVerseMastered(id);
+      res.json(verse);
+    } catch (error) {
+      console.error("Error marking verse as mastered:", error);
+      res.status(500).json({ message: "Failed to update verse memorization" });
+    }
+  });
+  
+  app.patch("/api/bible/memorization/:id/add-review", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const verse = await storage.addVerseReviewDate(id);
+      res.json(verse);
+    } catch (error) {
+      console.error("Error adding verse review date:", error);
+      res.status(500).json({ message: "Failed to update verse memorization" });
+    }
+  });
 
   app.get("/api/events/nearby", allowGuest, async (req, res) => {
     try {
