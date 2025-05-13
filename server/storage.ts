@@ -1036,6 +1036,60 @@ export class MemStorage implements IStorage {
         return dateA.getTime() - dateB.getTime();
       });
   }
+  
+  async getAllEvents(filter?: string): Promise<Event[]> {
+    const events = Array.from(this.events.values());
+    
+    if (filter === 'upcoming') {
+      const now = new Date();
+      return events
+        .filter(event => {
+          const eventDate = new Date(`${event.eventDate.toString()}T${event.endTime.toString()}`);
+          return eventDate >= now;
+        })
+        .sort((a, b) => {
+          const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
+          const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
+          return dateA.getTime() - dateB.getTime();
+        });
+    } else if (filter === 'past') {
+      const now = new Date();
+      return events
+        .filter(event => {
+          const eventDate = new Date(`${event.eventDate.toString()}T${event.endTime.toString()}`);
+          return eventDate < now;
+        })
+        .sort((a, b) => {
+          const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
+          const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
+          return dateB.getTime() - dateA.getTime(); // descending order for past events
+        });
+    }
+    
+    // Default: return all events sorted by date
+    return events.sort((a, b) => {
+      const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
+      const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
+      return dateA.getTime() - dateB.getTime();
+    });
+  }
+  
+  async getPublicEvents(): Promise<Event[]> {
+    const events = Array.from(this.events.values());
+    const now = new Date();
+    
+    return events
+      .filter(event => {
+        // Public events are those with no groupId (open to all) and are upcoming
+        const eventDate = new Date(`${event.eventDate.toString()}T${event.endTime.toString()}`);
+        return !event.groupId && eventDate >= now;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
+        const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
+        return dateA.getTime() - dateB.getTime();
+      });
+  }
 
   async createEvent(event: InsertEvent): Promise<Event> {
     const id = this.eventIdCounter++;
