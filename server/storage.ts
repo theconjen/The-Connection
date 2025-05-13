@@ -191,6 +191,8 @@ export interface IStorage {
   // COMMUNITY EVENTS
   // ========================
   getAllEvents(filter?: string): Promise<Event[]>;
+  getPublicEvents(): Promise<Event[]>;
+  getEventsNearby(latitude: string, longitude: string, radiusInKm: number): Promise<Event[]>;
   getEvent(id: number): Promise<Event | undefined>;
   getEventsByCommunity(communityId: number): Promise<Event[]>;
   getEventsByGroup(groupId: number): Promise<Event[]>;
@@ -363,6 +365,24 @@ export interface IStorage {
   updateServiceTestimonial(id: number, data: Partial<ServiceTestimonial>): Promise<ServiceTestimonial>;
   deleteServiceTestimonial(id: number): Promise<boolean>;
   
+  // Event methods
+  getAllEvents(filter?: string): Promise<Event[]>;
+  getPublicEvents(): Promise<Event[]>;
+  getEventsNearby(latitude: string, longitude: string, radiusInKm: number): Promise<Event[]>;
+  getEvent(id: number): Promise<Event | undefined>;
+  getEventsByCommunity(communityId: number): Promise<Event[]>;
+  getEventsByGroup(groupId: number): Promise<Event[]>;
+  getEventsByUser(userId: number): Promise<Event[]>;
+  createEvent(event: InsertEvent): Promise<Event>;
+  updateEvent(id: number, eventData: Partial<Event>): Promise<Event>;
+  deleteEvent(id: number): Promise<boolean>;
+  
+  // Event RSVP methods
+  getEventRsvps(eventId: number): Promise<EventRsvp[]>;
+  getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined>;
+  createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp>;
+  updateEventRsvp(id: number, status: string): Promise<EventRsvp>;
+  
   // Session store
   sessionStore: any; // Using any to avoid typing issues with session store
 }
@@ -377,6 +397,8 @@ export class MemStorage implements IStorage {
   private apologeticsResources: Map<number, ApologeticsResource>;
   private prayerRequests: Map<number, PrayerRequest>;
   private prayers: Map<number, Prayer>;
+  private events: Map<number, Event>;
+  private eventRsvps: Map<number, EventRsvp>;
   
   private userIdCounter: number;
   private communityIdCounter: number;
@@ -387,6 +409,8 @@ export class MemStorage implements IStorage {
   private apologeticsResourceIdCounter: number;
   private prayerRequestIdCounter: number;
   private prayerIdCounter: number;
+  private eventIdCounter: number;
+  private eventRsvpIdCounter: number;
   
   sessionStore: any;
 
@@ -400,6 +424,8 @@ export class MemStorage implements IStorage {
     this.prayerRequests = new Map();
     this.prayers = new Map();
     this.apologeticsResources = new Map();
+    this.events = new Map();
+    this.eventRsvps = new Map();
     
     this.userIdCounter = 1;
     this.communityIdCounter = 1;
@@ -410,6 +436,8 @@ export class MemStorage implements IStorage {
     this.apologeticsResourceIdCounter = 1;
     this.prayerRequestIdCounter = 1;
     this.prayerIdCounter = 1;
+    this.eventIdCounter = 1;
+    this.eventRsvpIdCounter = 1;
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24 hours
@@ -889,6 +917,202 @@ export class MemStorage implements IStorage {
   async isGroupMember(userId: number, groupId: number): Promise<boolean> {
     return Array.from(this.groupMembers.values())
       .some(member => member.userId === userId && member.groupId === groupId);
+  }
+
+  // ========================
+  // EVENT METHODS
+  // ========================
+
+  async getAllEvents(filter?: string): Promise<Event[]> {
+    let events = Array.from(this.events.values());
+    
+    if (filter) {
+      const lowerFilter = filter.toLowerCase();
+      events = events.filter(event => 
+        event.title.toLowerCase().includes(lowerFilter) || 
+        event.description.toLowerCase().includes(lowerFilter) ||
+        (event.location && event.location.toLowerCase().includes(lowerFilter))
+      );
+    }
+    
+    // Sort events by date, most recent first
+    return events.sort((a, b) => {
+      const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
+      const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
+      return dateA.getTime() - dateB.getTime();
+    });
+  }
+
+  async getPublicEvents(): Promise<Event[]> {
+    const events = Array.from(this.events.values());
+    
+    // Filter out only public events
+    const publicEvents = events.filter(event => event.isPublic);
+    
+    // Sort events by date, most recent first
+    return publicEvents.sort((a, b) => {
+      const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
+      const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
+      return dateA.getTime() - dateB.getTime();
+    });
+  }
+
+  async getEventsNearby(latitude: string, longitude: string, radiusInKm: number): Promise<Event[]> {
+    const events = await this.getPublicEvents();
+    
+    if (!latitude || !longitude) {
+      return events;
+    }
+    
+    const userLat = parseFloat(latitude);
+    const userLng = parseFloat(longitude);
+    
+    // Filter events that have location coordinates
+    return events.filter(event => {
+      if (!event.latitude || !event.longitude) return false;
+      
+      const eventLat = parseFloat(event.latitude);
+      const eventLng = parseFloat(event.longitude);
+      
+      // Calculate distance using the Haversine formula
+      const distance = this.calculateDistance(userLat, userLng, eventLat, eventLng);
+      
+      // Return true if the event is within the specified radius
+      return distance <= radiusInKm;
+    });
+  }
+  
+  // Helper function to calculate distance between two coordinates using Haversine formula
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Radius of the earth in km
+    const dLat = this.deg2rad(lat2 - lat1);
+    const dLon = this.deg2rad(lon2 - lon1);
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const distance = R * c; // Distance in km
+    return distance;
+  }
+  
+  private deg2rad(deg: number): number {
+    return deg * (Math.PI/180);
+  }
+
+  async getEvent(id: number): Promise<Event | undefined> {
+    return this.events.get(id);
+  }
+
+  async getEventsByCommunity(communityId: number): Promise<Event[]> {
+    const events = Array.from(this.events.values());
+    return events
+      .filter(event => event.communityId === communityId)
+      .sort((a, b) => {
+        const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
+        const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
+        return dateA.getTime() - dateB.getTime();
+      });
+  }
+
+  async getEventsByGroup(groupId: number): Promise<Event[]> {
+    const events = Array.from(this.events.values());
+    return events
+      .filter(event => event.groupId === groupId)
+      .sort((a, b) => {
+        const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
+        const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
+        return dateA.getTime() - dateB.getTime();
+      });
+  }
+
+  async getEventsByUser(userId: number): Promise<Event[]> {
+    const events = Array.from(this.events.values());
+    return events
+      .filter(event => event.creatorId === userId)
+      .sort((a, b) => {
+        const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
+        const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
+        return dateA.getTime() - dateB.getTime();
+      });
+  }
+
+  async createEvent(event: InsertEvent): Promise<Event> {
+    const id = this.eventIdCounter++;
+    const newEvent: Event = {
+      ...event,
+      id,
+      createdAt: new Date(),
+    };
+    
+    this.events.set(id, newEvent);
+    return newEvent;
+  }
+
+  async updateEvent(id: number, eventData: Partial<Event>): Promise<Event> {
+    const event = await this.getEvent(id);
+    if (!event) {
+      throw new Error(`Event with id ${id} not found`);
+    }
+    
+    const updatedEvent = { ...event, ...eventData };
+    this.events.set(id, updatedEvent);
+    
+    return updatedEvent;
+  }
+
+  async deleteEvent(id: number): Promise<boolean> {
+    const exists = this.events.has(id);
+    if (!exists) {
+      return false;
+    }
+    
+    this.events.delete(id);
+    
+    // Delete associated RSVPs as well
+    const rsvps = Array.from(this.eventRsvps.values());
+    const eventRsvps = rsvps.filter(rsvp => rsvp.eventId === id);
+    
+    for (const rsvp of eventRsvps) {
+      this.eventRsvps.delete(rsvp.id);
+    }
+    
+    return true;
+  }
+
+  // Event RSVP methods
+  async getEventRsvps(eventId: number): Promise<EventRsvp[]> {
+    const rsvps = Array.from(this.eventRsvps.values());
+    return rsvps.filter(rsvp => rsvp.eventId === eventId);
+  }
+
+  async getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined> {
+    const rsvps = Array.from(this.eventRsvps.values());
+    return rsvps.find(rsvp => rsvp.eventId === eventId && rsvp.userId === userId);
+  }
+
+  async createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp> {
+    const id = this.eventRsvpIdCounter++;
+    const newRsvp: EventRsvp = {
+      ...rsvp,
+      id,
+      createdAt: new Date(),
+    };
+    
+    this.eventRsvps.set(id, newRsvp);
+    return newRsvp;
+  }
+
+  async updateEventRsvp(id: number, status: string): Promise<EventRsvp> {
+    const rsvp = this.eventRsvps.get(id);
+    if (!rsvp) {
+      throw new Error(`RSVP with id ${id} not found`);
+    }
+    
+    const updatedRsvp = { ...rsvp, status };
+    this.eventRsvps.set(id, updatedRsvp);
+    
+    return updatedRsvp;
   }
 }
 
