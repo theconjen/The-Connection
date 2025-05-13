@@ -10,8 +10,9 @@ import GroupsPage from "@/pages/groups-page";
 import ProfilePage from "@/pages/profile-page";
 import PostDetailPage from "@/pages/post-detail-page";
 import SubmitPostPage from "@/pages/submit-post-page";
-import DiscoverPage from "@/pages/discover-page";
 import LivestreamsPage from "@/pages/livestreams-page";
+import LivestreamerApplicationPage from "@/pages/livestreamer-application-page";
+import DiscoverPage from "@/pages/discover-page";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="/apologetics" component={ApologeticsPage} />
         <Route path="/discover" component={DiscoverPage} />
         <Route path="/livestreams" component={LivestreamsPage} />
+        <ProtectedRoute path="/livestreamer-application" component={LivestreamerApplicationPage} />
         <Route path="/posts/:id" component={PostDetailPage} />
         <ProtectedRoute path="/groups" component={GroupsPage} />
         <ProtectedRoute path="/profile" component={ProfilePage} />

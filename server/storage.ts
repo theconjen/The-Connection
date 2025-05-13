@@ -61,6 +61,28 @@ export interface IStorage {
   getApologeticsResource(id: number): Promise<ApologeticsResource | undefined>;
   createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
   
+  // Livestream methods
+  getLivestreams(status?: string): Promise<Livestream[]>;
+  getLivestream(id: number): Promise<Livestream | undefined>;
+  createLivestream(livestream: InsertLivestream): Promise<Livestream>;
+  updateLivestreamStatus(id: number, status: string): Promise<Livestream>;
+  
+  // Livestreamer application methods
+  getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined>;
+  getPendingLivestreamerApplications(): Promise<LivestreamerApplication[]>;
+  createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication>;
+  updateLivestreamerApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<LivestreamerApplication>;
+  isApprovedLivestreamer(userId: number): Promise<boolean>;
+  
+  // Creator tier methods
+  getAllCreatorTiers(): Promise<CreatorTier[]>;
+  getCreatorTier(id: number): Promise<CreatorTier | undefined>;
+  
+  // Virtual gift methods
+  getActiveVirtualGifts(): Promise<VirtualGift[]>;
+  getVirtualGift(id: number): Promise<VirtualGift | undefined>;
+  sendGiftToLivestream(gift: { livestreamId: number, giftId: number, senderId: number, receiverId: number, message?: string }): Promise<LivestreamGift>;
+  
   // Session store
   sessionStore: any; // Using any to avoid typing issues with session store
 }
