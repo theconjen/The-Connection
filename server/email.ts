@@ -20,8 +20,18 @@ if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !pro
 }
 
 // Initialize the SES client
+// Extract just the first region if multiple are provided
+let awsRegion = 'us-east-1'; // Default region
+if (process.env.AWS_REGION) {
+  // Split by comma and take the first region, removing any whitespace
+  const regions = process.env.AWS_REGION.split(',');
+  if (regions.length > 0) {
+    awsRegion = regions[0].trim();
+  }
+}
+
 const sesClient = new SESClient({
-  region: 'us-east-2', // Hardcoding the region to ensure it's formatted correctly
+  region: awsRegion,
   credentials: emailFunctionalityEnabled ? {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
@@ -615,11 +625,11 @@ export async function sendNotificationEmail(params: NotificationEmailParams): Pr
   
   if (template) {
     // Send using template
-    return sendTemplatedEmail(
-      params.email,
+    return sendTemplatedEmail({
+      to: params.email,
       from,
-      DEFAULT_TEMPLATES.NOTIFICATION,
-      {
+      templateName: DEFAULT_TEMPLATES.NOTIFICATION,
+      templateData: {
         name,
         email: params.email,
         subject: params.subject,
@@ -628,7 +638,7 @@ export async function sendNotificationEmail(params: NotificationEmailParams): Pr
         actionUrl: params.actionUrl || "",
         actionText: params.actionText || "View Details"
       }
-    );
+    });
   } else {
     // Fall back to regular email
     let actionButton = '';
@@ -687,11 +697,11 @@ export async function sendLivestreamInviteEmail(params: LivestreamInviteEmailPar
   
   if (template) {
     // Send using template
-    return sendTemplatedEmail(
-      params.email,
+    return sendTemplatedEmail({
+      to: params.email,
       from,
-      DEFAULT_TEMPLATES.LIVESTREAM_INVITE,
-      {
+      templateName: DEFAULT_TEMPLATES.LIVESTREAM_INVITE,
+      templateData: {
         name,
         email: params.email,
         hostName: params.hostName,
@@ -701,7 +711,7 @@ export async function sendLivestreamInviteEmail(params: LivestreamInviteEmailPar
         streamDescription: params.streamDescription,
         streamUrl: params.streamUrl
       }
-    );
+    });
   } else {
     // Fall back to regular email
     return sendEmail({
