@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import MainLayout from "@/components/layouts/main-layout";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,11 +14,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { Livestream as LivestreamType, User } from "@shared/schema";
 
 // Extended livestream type with host details
-type EnhancedLivestream = LivestreamType & {
+interface EnhancedLivestream extends Omit<LivestreamType, 'tags'> {
   host?: User;
   hostUsername?: string; // For display until we get the host data
-  tags: string[]; // Parse from tags string
-};
+  tags: string[]; // Parse from tags string - original is a string with comma separated values
+}
 
 export default function LivestreamsPage() {
   const { toast } = useToast();
@@ -66,7 +67,9 @@ export default function LivestreamsPage() {
       viewerCount: 245,
       description: "Join us for daily prayer, scripture reading, and devotional time. Open to everyone!",
       tags: ["prayer", "devotional", "daily"],
-      createdAt: new Date()
+      createdAt: new Date(),
+      scheduledFor: null,
+      duration: null
     },
     {
       id: 2,
@@ -103,11 +106,13 @@ export default function LivestreamsPage() {
   const pastLivestreams = filterLivestreams(displayLivestreams, searchTerm, "ended");
   const allLivestreams = filterLivestreams(displayLivestreams, searchTerm);
 
-  const handleJoinStream = (stream: Livestream) => {
+  const handleJoinStream = (stream: EnhancedLivestream) => {
+    const hostName = stream.host?.username || stream.hostUsername || `user_${stream.hostId}`;
+    
     if (stream.status === "live") {
       toast({
         title: "Joining Livestream",
-        description: `You're joining "${stream.title}" hosted by ${stream.host}`,
+        description: `You're joining "${stream.title}" hosted by ${hostName}`,
       });
     } else if (stream.status === "upcoming") {
       toast({
@@ -123,7 +128,7 @@ export default function LivestreamsPage() {
   };
 
   // Function to render status badge
-  const renderStatusBadge = (status: "live" | "upcoming" | "ended") => {
+  const renderStatusBadge = (status: string) => {
     if (status === "live") {
       return <Badge className="bg-red-500 hover:bg-red-600 text-white flex items-center gap-1 px-2">
         <span className="h-2 w-2 rounded-full bg-white animate-pulse"></span> LIVE
@@ -460,9 +465,9 @@ export default function LivestreamsPage() {
 
 // Livestream Card Component
 interface LivestreamCardProps {
-  stream: Livestream;
+  stream: EnhancedLivestream;
   onJoin: () => void;
-  renderStatusBadge: (status: "live" | "upcoming" | "ended") => React.ReactNode;
+  renderStatusBadge: (status: string) => React.ReactNode;
 }
 
 function LivestreamCard({ stream, onJoin, renderStatusBadge }: LivestreamCardProps) {
@@ -488,7 +493,7 @@ function LivestreamCard({ stream, onJoin, renderStatusBadge }: LivestreamCardPro
         {stream.status === "upcoming" && stream.scheduledFor && (
           <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-md flex items-center">
             <Calendar className="h-3 w-3 mr-1" />
-            {stream.scheduledFor}
+            {stream.scheduledFor.toLocaleString()}
           </div>
         )}
       </div>
@@ -497,14 +502,14 @@ function LivestreamCard({ stream, onJoin, renderStatusBadge }: LivestreamCardPro
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-2">
             <Avatar className="h-8 w-8">
-              {stream.hostAvatar ? (
-                <AvatarImage src={stream.hostAvatar} alt={stream.host} />
+              {stream.host?.avatarUrl ? (
+                <AvatarImage src={stream.host.avatarUrl} alt={stream.host.username} />
               ) : (
-                <AvatarFallback>{stream.host.substring(0, 2)}</AvatarFallback>
+                <AvatarFallback>{stream.hostUsername?.substring(0, 2).toUpperCase() || '??'}</AvatarFallback>
               )}
             </Avatar>
             <div>
-              <h4 className="text-sm font-medium">{stream.host}</h4>
+              <h4 className="text-sm font-medium">{stream.host?.displayName || stream.hostUsername}</h4>
               <p className="text-xs text-muted-foreground">@{stream.hostUsername}</p>
             </div>
           </div>
