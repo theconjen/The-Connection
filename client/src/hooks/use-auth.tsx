@@ -43,6 +43,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Welcome back!",
         description: `You've successfully logged in as ${user.username}.`
       });
+      import("wouter/use-browser-location").then(({ navigate }) => {
+        navigate("/");
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -62,7 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], user);
       toast({
         title: "Account created!",
-        description: "Your account has been successfully created and you're now logged in.",
+        description: `Welcome to The Connection, ${user.username}! Your account has been created.`,
+      });
+      import("wouter/use-browser-location").then(({ navigate }) => {
+        navigate("/");
       });
     },
     onError: (error: Error) => {
@@ -83,6 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
+      });
+      import("wouter/use-browser-location").then(({ navigate }) => {
+        navigate("/auth");
       });
     },
     onError: (error: Error) => {
