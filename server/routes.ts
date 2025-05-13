@@ -1744,5 +1744,471 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================
+  // BIBLE STUDY TOOLS ROUTES
+  // ========================
+
+  // Reading Plans
+  app.get("/api/bible-reading-plans", allowGuest, async (req, res) => {
+    try {
+      let plans;
+      const filter = req.query.filter as string;
+      
+      if (req.isAuthenticated() && req.query.mine === "true") {
+        plans = await storage.getUserBibleReadingPlans(req.user.id);
+      } else if (req.query.groupId) {
+        const groupId = parseInt(req.query.groupId as string);
+        plans = await storage.getGroupBibleReadingPlans(groupId);
+      } else {
+        plans = await storage.getAllBibleReadingPlans(filter);
+      }
+      
+      res.json(plans);
+    } catch (error) {
+      console.error("Error getting reading plans:", error);
+      res.status(500).json({ message: "Failed to get reading plans" });
+    }
+  });
+
+  app.get("/api/bible-reading-plans/:id", allowGuest, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const plan = await storage.getBibleReadingPlan(id);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Reading plan not found" });
+      }
+      
+      // If not public and not creator, check if it's a group plan and user is member
+      if (!plan.isPublic && (!req.user || plan.creatorId !== req.user.id)) {
+        if (plan.groupId) {
+          const isMember = req.user && await storage.isGroupMember(req.user.id, plan.groupId);
+          if (!isMember) {
+            return res.status(403).json({ message: "You don't have access to this reading plan" });
+          }
+        } else {
+          return res.status(403).json({ message: "You don't have access to this reading plan" });
+        }
+      }
+      
+      res.json(plan);
+    } catch (error) {
+      console.error("Error getting reading plan:", error);
+      res.status(500).json({ message: "Failed to get reading plan" });
+    }
+  });
+
+  app.post("/api/bible-reading-plans", ensureAuthenticated, async (req, res) => {
+    try {
+      const planData = insertBibleReadingPlanSchema.parse({
+        ...req.body,
+        creatorId: req.user.id
+      });
+      
+      // If it's a group plan, verify the user is a member
+      if (planData.groupId) {
+        const isMember = await storage.isGroupMember(req.user.id, planData.groupId);
+        if (!isMember) {
+          return res.status(403).json({ message: "You must be a member of the group to create a reading plan for it" });
+        }
+      }
+      
+      const plan = await storage.createBibleReadingPlan(planData);
+      res.status(201).json(plan);
+    } catch (error) {
+      console.error("Error creating reading plan:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create reading plan" });
+    }
+  });
+
+  app.patch("/api/bible-reading-plans/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const plan = await storage.getBibleReadingPlan(id);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Reading plan not found" });
+      }
+      
+      // Only creator can update the plan
+      if (plan.creatorId !== req.user.id) {
+        return res.status(403).json({ message: "You don't have permission to update this reading plan" });
+      }
+      
+      const updates = {
+        ...req.body,
+        // Don't allow changing creator
+        creatorId: plan.creatorId
+      };
+      
+      const updatedPlan = await storage.updateBibleReadingPlan(id, updates);
+      res.json(updatedPlan);
+    } catch (error) {
+      console.error("Error updating reading plan:", error);
+      res.status(500).json({ message: "Failed to update reading plan" });
+    }
+  });
+
+  app.delete("/api/bible-reading-plans/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const plan = await storage.getBibleReadingPlan(id);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Reading plan not found" });
+      }
+      
+      // Only creator can delete the plan
+      if (plan.creatorId !== req.user.id) {
+        return res.status(403).json({ message: "You don't have permission to delete this reading plan" });
+      }
+      
+      await storage.deleteBibleReadingPlan(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting reading plan:", error);
+      res.status(500).json({ message: "Failed to delete reading plan" });
+    }
+  });
+
+  // Reading Progress
+  app.get("/api/bible-reading-progress", ensureAuthenticated, async (req, res) => {
+    try {
+      const progress = await storage.getUserReadingProgress(req.user.id);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error getting reading progress:", error);
+      res.status(500).json({ message: "Failed to get reading progress" });
+    }
+  });
+
+  app.get("/api/bible-reading-plans/:planId/progress", ensureAuthenticated, async (req, res) => {
+    try {
+      const planId = parseInt(req.params.planId);
+      const progress = await storage.getBibleReadingProgress(req.user.id, planId);
+      
+      if (!progress) {
+        return res.status(404).json({ message: "Reading progress not found" });
+      }
+      
+      res.json(progress);
+    } catch (error) {
+      console.error("Error getting reading progress:", error);
+      res.status(500).json({ message: "Failed to get reading progress" });
+    }
+  });
+
+  app.post("/api/bible-reading-plans/:planId/progress", ensureAuthenticated, async (req, res) => {
+    try {
+      const planId = parseInt(req.params.planId);
+      const plan = await storage.getBibleReadingPlan(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Reading plan not found" });
+      }
+      
+      // Check if user can access this plan
+      if (!plan.isPublic && plan.creatorId !== req.user.id) {
+        if (plan.groupId) {
+          const isMember = await storage.isGroupMember(req.user.id, plan.groupId);
+          if (!isMember) {
+            return res.status(403).json({ message: "You don't have access to this reading plan" });
+          }
+        } else {
+          return res.status(403).json({ message: "You don't have access to this reading plan" });
+        }
+      }
+      
+      // Check if progress already exists
+      const existingProgress = await storage.getBibleReadingProgress(req.user.id, planId);
+      if (existingProgress) {
+        return res.status(400).json({ message: "You've already started this reading plan" });
+      }
+      
+      const progressData = insertBibleReadingProgressSchema.parse({
+        planId,
+        userId: req.user.id
+      });
+      
+      const progress = await storage.createBibleReadingProgress(progressData);
+      res.status(201).json(progress);
+    } catch (error) {
+      console.error("Error starting reading progress:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to start reading progress" });
+    }
+  });
+
+  app.post("/api/bible-reading-progress/:progressId/complete-day", ensureAuthenticated, async (req, res) => {
+    try {
+      const progressId = parseInt(req.params.progressId);
+      const { day } = req.body;
+      
+      if (!day || typeof day !== 'number' || day < 1) {
+        return res.status(400).json({ message: "Valid day number is required" });
+      }
+      
+      const progress = await storage.markDayCompleted(progressId, day);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error completing reading day:", error);
+      res.status(500).json({ message: "Failed to complete reading day" });
+    }
+  });
+
+  // Bible Study Notes
+  app.get("/api/bible-study-notes", allowGuest, async (req, res) => {
+    try {
+      const filter: { userId?: number, groupId?: number, isPublic?: boolean } = {};
+      
+      // Only fetch user's private notes when authenticated
+      if (req.query.mine === "true") {
+        if (!req.isAuthenticated()) {
+          return res.status(401).json({ message: "You must be logged in to view your notes" });
+        }
+        filter.userId = req.user.id;
+      }
+      
+      if (req.query.groupId) {
+        filter.groupId = parseInt(req.query.groupId as string);
+      }
+      
+      if (req.query.public === "true") {
+        filter.isPublic = true;
+      }
+      
+      const notes = await storage.getBibleStudyNotes(filter);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error getting bible study notes:", error);
+      res.status(500).json({ message: "Failed to get bible study notes" });
+    }
+  });
+
+  app.get("/api/bible-study-notes/:id", allowGuest, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const note = await storage.getBibleStudyNote(id);
+      
+      if (!note) {
+        return res.status(404).json({ message: "Bible study note not found" });
+      }
+      
+      // Check if user can access this note
+      if (!note.isPublic && (!req.isAuthenticated() || note.userId !== req.user.id)) {
+        if (note.groupId) {
+          const isMember = req.isAuthenticated() && await storage.isGroupMember(req.user.id, note.groupId);
+          if (!isMember) {
+            return res.status(403).json({ message: "You don't have access to this note" });
+          }
+        } else {
+          return res.status(403).json({ message: "You don't have access to this note" });
+        }
+      }
+      
+      res.json(note);
+    } catch (error) {
+      console.error("Error getting bible study note:", error);
+      res.status(500).json({ message: "Failed to get bible study note" });
+    }
+  });
+
+  app.post("/api/bible-study-notes", ensureAuthenticated, async (req, res) => {
+    try {
+      const noteData = insertBibleStudyNotesSchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
+      
+      // If it's a group note, verify the user is a member
+      if (noteData.groupId) {
+        const isMember = await storage.isGroupMember(req.user.id, noteData.groupId);
+        if (!isMember) {
+          return res.status(403).json({ message: "You must be a member of the group to create a note for it" });
+        }
+      }
+      
+      const note = await storage.createBibleStudyNote(noteData);
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating bible study note:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create bible study note" });
+    }
+  });
+
+  app.patch("/api/bible-study-notes/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const note = await storage.getBibleStudyNote(id);
+      
+      if (!note) {
+        return res.status(404).json({ message: "Bible study note not found" });
+      }
+      
+      // Only owner can update the note
+      if (note.userId !== req.user.id) {
+        return res.status(403).json({ message: "You don't have permission to update this note" });
+      }
+      
+      const updates = {
+        ...req.body,
+        // Don't allow changing owner
+        userId: note.userId
+      };
+      
+      const updatedNote = await storage.updateBibleStudyNote(id, updates);
+      res.json(updatedNote);
+    } catch (error) {
+      console.error("Error updating bible study note:", error);
+      res.status(500).json({ message: "Failed to update bible study note" });
+    }
+  });
+
+  app.delete("/api/bible-study-notes/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const note = await storage.getBibleStudyNote(id);
+      
+      if (!note) {
+        return res.status(404).json({ message: "Bible study note not found" });
+      }
+      
+      // Only owner can delete the note
+      if (note.userId !== req.user.id) {
+        return res.status(403).json({ message: "You don't have permission to delete this note" });
+      }
+      
+      await storage.deleteBibleStudyNote(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting bible study note:", error);
+      res.status(500).json({ message: "Failed to delete bible study note" });
+    }
+  });
+
+  // Verse Memorization
+  app.get("/api/verse-memorization", ensureAuthenticated, async (req, res) => {
+    try {
+      const verses = await storage.getUserVerseMemorization(req.user.id);
+      res.json(verses);
+    } catch (error) {
+      console.error("Error getting verse memorization:", error);
+      res.status(500).json({ message: "Failed to get verse memorization" });
+    }
+  });
+
+  app.get("/api/verse-memorization/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const verse = await storage.getVerseMemorization(id);
+      
+      if (!verse) {
+        return res.status(404).json({ message: "Verse memorization not found" });
+      }
+      
+      // Only owner can view their verse memorization
+      if (verse.userId !== req.user.id) {
+        return res.status(403).json({ message: "You don't have permission to view this verse memorization" });
+      }
+      
+      res.json(verse);
+    } catch (error) {
+      console.error("Error getting verse memorization:", error);
+      res.status(500).json({ message: "Failed to get verse memorization" });
+    }
+  });
+
+  app.post("/api/verse-memorization", ensureAuthenticated, async (req, res) => {
+    try {
+      const verseData = insertVerseMemorizationSchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
+      
+      const verse = await storage.createVerseMemorization(verseData);
+      res.status(201).json(verse);
+    } catch (error) {
+      console.error("Error creating verse memorization:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create verse memorization" });
+    }
+  });
+
+  app.post("/api/verse-memorization/:id/mastered", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const verse = await storage.getVerseMemorization(id);
+      
+      if (!verse) {
+        return res.status(404).json({ message: "Verse memorization not found" });
+      }
+      
+      // Only owner can update their verse memorization
+      if (verse.userId !== req.user.id) {
+        return res.status(403).json({ message: "You don't have permission to update this verse memorization" });
+      }
+      
+      const updatedVerse = await storage.markVerseMastered(id);
+      res.json(updatedVerse);
+    } catch (error) {
+      console.error("Error marking verse as mastered:", error);
+      res.status(500).json({ message: "Failed to mark verse as mastered" });
+    }
+  });
+
+  app.post("/api/verse-memorization/:id/review", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const verse = await storage.getVerseMemorization(id);
+      
+      if (!verse) {
+        return res.status(404).json({ message: "Verse memorization not found" });
+      }
+      
+      // Only owner can update their verse memorization
+      if (verse.userId !== req.user.id) {
+        return res.status(403).json({ message: "You don't have permission to update this verse memorization" });
+      }
+      
+      const updatedVerse = await storage.addVerseReviewDate(id);
+      res.json(updatedVerse);
+    } catch (error) {
+      console.error("Error adding review date:", error);
+      res.status(500).json({ message: "Failed to add review date" });
+    }
+  });
+
+  app.delete("/api/verse-memorization/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const verse = await storage.getVerseMemorization(id);
+      
+      if (!verse) {
+        return res.status(404).json({ message: "Verse memorization not found" });
+      }
+      
+      // Only owner can delete their verse memorization
+      if (verse.userId !== req.user.id) {
+        return res.status(403).json({ message: "You don't have permission to delete this verse memorization" });
+      }
+      
+      await storage.deleteVerseMemorization(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting verse memorization:", error);
+      res.status(500).json({ message: "Failed to delete verse memorization" });
+    }
+  });
+
   return httpServer;
 }

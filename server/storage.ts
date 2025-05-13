@@ -1168,6 +1168,325 @@ export class MemStorage implements IStorage {
     
     return updatedRsvp;
   }
+  
+  // ========================
+  // BIBLE STUDY TOOLS IMPLEMENTATION
+  // ========================
+  
+  // Bible Reading Plans
+  private bibleReadingPlans = new Map<number, BibleReadingPlan>();
+  private bibleReadingPlanIdCounter = 1;
+  
+  async getAllBibleReadingPlans(filter?: string): Promise<BibleReadingPlan[]> {
+    const plans = Array.from(this.bibleReadingPlans.values());
+    
+    if (filter === 'public') {
+      return plans.filter(plan => plan.isPublic);
+    } else if (filter === 'private') {
+      return plans.filter(plan => !plan.isPublic);
+    }
+    
+    return plans;
+  }
+  
+  async getBibleReadingPlan(id: number): Promise<BibleReadingPlan | undefined> {
+    return this.bibleReadingPlans.get(id);
+  }
+  
+  async getGroupBibleReadingPlans(groupId: number): Promise<BibleReadingPlan[]> {
+    const plans = Array.from(this.bibleReadingPlans.values());
+    return plans.filter(plan => plan.groupId === groupId);
+  }
+  
+  async getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]> {
+    const plans = Array.from(this.bibleReadingPlans.values());
+    return plans.filter(plan => plan.creatorId === userId);
+  }
+  
+  async createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan> {
+    const id = this.bibleReadingPlanIdCounter++;
+    const newPlan: BibleReadingPlan = {
+      ...plan,
+      id,
+      createdAt: new Date(),
+    };
+    
+    this.bibleReadingPlans.set(id, newPlan);
+    return newPlan;
+  }
+  
+  async updateBibleReadingPlan(id: number, data: Partial<BibleReadingPlan>): Promise<BibleReadingPlan> {
+    const plan = this.bibleReadingPlans.get(id);
+    if (!plan) {
+      throw new Error(`Bible reading plan with id ${id} not found`);
+    }
+    
+    const updatedPlan = { ...plan, ...data };
+    this.bibleReadingPlans.set(id, updatedPlan);
+    
+    return updatedPlan;
+  }
+  
+  async deleteBibleReadingPlan(id: number): Promise<boolean> {
+    const exists = this.bibleReadingPlans.has(id);
+    if (!exists) {
+      return false;
+    }
+    
+    this.bibleReadingPlans.delete(id);
+    
+    // Also delete associated progress
+    const allProgress = Array.from(this.bibleReadingProgress.values());
+    const planProgress = allProgress.filter(p => p.planId === id);
+    
+    for (const progress of planProgress) {
+      this.bibleReadingProgress.delete(progress.id);
+    }
+    
+    return true;
+  }
+  
+  // Bible Reading Progress
+  private bibleReadingProgress = new Map<number, BibleReadingProgress>();
+  private bibleReadingProgressIdCounter = 1;
+  
+  async getBibleReadingProgress(userId: number, planId: number): Promise<BibleReadingProgress | undefined> {
+    const allProgress = Array.from(this.bibleReadingProgress.values());
+    return allProgress.find(p => p.userId === userId && p.planId === planId);
+  }
+  
+  async getUserReadingProgress(userId: number): Promise<BibleReadingProgress[]> {
+    const allProgress = Array.from(this.bibleReadingProgress.values());
+    return allProgress.filter(p => p.userId === userId);
+  }
+  
+  async createBibleReadingProgress(progress: InsertBibleReadingProgress): Promise<BibleReadingProgress> {
+    const id = this.bibleReadingProgressIdCounter++;
+    const newProgress: BibleReadingProgress = {
+      ...progress,
+      id,
+      currentDay: 1,
+      completedDays: [],
+      startedAt: new Date(),
+      completedAt: null,
+    };
+    
+    this.bibleReadingProgress.set(id, newProgress);
+    return newProgress;
+  }
+  
+  async updateBibleReadingProgress(id: number, data: Partial<BibleReadingProgress>): Promise<BibleReadingProgress> {
+    const progress = this.bibleReadingProgress.get(id);
+    if (!progress) {
+      throw new Error(`Bible reading progress with id ${id} not found`);
+    }
+    
+    const updatedProgress = { ...progress, ...data };
+    this.bibleReadingProgress.set(id, updatedProgress);
+    
+    return updatedProgress;
+  }
+  
+  async markDayCompleted(progressId: number, day: number): Promise<BibleReadingProgress> {
+    const progress = this.bibleReadingProgress.get(progressId);
+    if (!progress) {
+      throw new Error(`Bible reading progress with id ${progressId} not found`);
+    }
+    
+    // Make sure we don't add duplicate days
+    if (!progress.completedDays.includes(day)) {
+      const completedDays = [...progress.completedDays, day];
+      completedDays.sort((a, b) => a - b); // Keep array sorted
+      
+      // Get the reading plan
+      const plan = await this.getBibleReadingPlan(progress.planId);
+      if (!plan) {
+        throw new Error(`Reading plan with id ${progress.planId} not found`);
+      }
+      
+      // Check if all days are completed
+      let completedAt = progress.completedAt;
+      let currentDay = progress.currentDay;
+      
+      if (completedDays.length >= plan.duration) {
+        completedAt = new Date();
+      } else {
+        // Set current day to the next uncompleted day
+        for (let i = 1; i <= plan.duration; i++) {
+          if (!completedDays.includes(i)) {
+            currentDay = i;
+            break;
+          }
+        }
+      }
+      
+      const updatedProgress = { 
+        ...progress, 
+        completedDays, 
+        completedAt,
+        currentDay 
+      };
+      
+      this.bibleReadingProgress.set(progressId, updatedProgress);
+      return updatedProgress;
+    }
+    
+    return progress;
+  }
+  
+  // Bible Study Notes
+  private bibleStudyNotes = new Map<number, BibleStudyNote>();
+  private bibleStudyNoteIdCounter = 1;
+  
+  async getBibleStudyNotes(filter: { userId?: number, groupId?: number, isPublic?: boolean }): Promise<BibleStudyNote[]> {
+    const notes = Array.from(this.bibleStudyNotes.values());
+    
+    return notes.filter(note => {
+      if (filter.userId !== undefined && note.userId !== filter.userId) {
+        return false;
+      }
+      
+      if (filter.groupId !== undefined && note.groupId !== filter.groupId) {
+        return false;
+      }
+      
+      if (filter.isPublic !== undefined && note.isPublic !== filter.isPublic) {
+        return false;
+      }
+      
+      return true;
+    }).sort((a, b) => {
+      if (!a.createdAt || !b.createdAt) return 0;
+      return b.createdAt.getTime() - a.createdAt.getTime(); // most recent first
+    });
+  }
+  
+  async getBibleStudyNote(id: number): Promise<BibleStudyNote | undefined> {
+    return this.bibleStudyNotes.get(id);
+  }
+  
+  async createBibleStudyNote(note: InsertBibleStudyNote): Promise<BibleStudyNote> {
+    const id = this.bibleStudyNoteIdCounter++;
+    const now = new Date();
+    const newNote: BibleStudyNote = {
+      ...note,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    this.bibleStudyNotes.set(id, newNote);
+    return newNote;
+  }
+  
+  async updateBibleStudyNote(id: number, data: Partial<BibleStudyNote>): Promise<BibleStudyNote> {
+    const note = this.bibleStudyNotes.get(id);
+    if (!note) {
+      throw new Error(`Bible study note with id ${id} not found`);
+    }
+    
+    const updatedNote = { 
+      ...note, 
+      ...data,
+      updatedAt: new Date()
+    };
+    
+    this.bibleStudyNotes.set(id, updatedNote);
+    return updatedNote;
+  }
+  
+  async deleteBibleStudyNote(id: number): Promise<boolean> {
+    const exists = this.bibleStudyNotes.has(id);
+    if (!exists) {
+      return false;
+    }
+    
+    this.bibleStudyNotes.delete(id);
+    return true;
+  }
+  
+  // Verse Memorization
+  private verseMemorization = new Map<number, VerseMemorization>();
+  private verseMemorizationIdCounter = 1;
+  
+  async getUserVerseMemorization(userId: number): Promise<VerseMemorization[]> {
+    const verses = Array.from(this.verseMemorization.values());
+    return verses
+      .filter(verse => verse.userId === userId)
+      .sort((a, b) => {
+        if (!a.startDate || !b.startDate) return 0;
+        return b.startDate.getTime() - a.startDate.getTime();
+      });
+  }
+  
+  async getVerseMemorization(id: number): Promise<VerseMemorization | undefined> {
+    return this.verseMemorization.get(id);
+  }
+  
+  async createVerseMemorization(verse: InsertVerseMemorization): Promise<VerseMemorization> {
+    const id = this.verseMemorizationIdCounter++;
+    const newVerse: VerseMemorization = {
+      ...verse,
+      id,
+      startDate: new Date(),
+      masteredDate: null,
+      reviewDates: [],
+    };
+    
+    this.verseMemorization.set(id, newVerse);
+    return newVerse;
+  }
+  
+  async updateVerseMemorization(id: number, data: Partial<VerseMemorization>): Promise<VerseMemorization> {
+    const verse = this.verseMemorization.get(id);
+    if (!verse) {
+      throw new Error(`Verse memorization with id ${id} not found`);
+    }
+    
+    const updatedVerse = { ...verse, ...data };
+    this.verseMemorization.set(id, updatedVerse);
+    
+    return updatedVerse;
+  }
+  
+  async markVerseMastered(id: number): Promise<VerseMemorization> {
+    const verse = this.verseMemorization.get(id);
+    if (!verse) {
+      throw new Error(`Verse memorization with id ${id} not found`);
+    }
+    
+    const updatedVerse = { 
+      ...verse, 
+      masteredDate: new Date() 
+    };
+    
+    this.verseMemorization.set(id, updatedVerse);
+    return updatedVerse;
+  }
+  
+  async addVerseReviewDate(id: number): Promise<VerseMemorization> {
+    const verse = this.verseMemorization.get(id);
+    if (!verse) {
+      throw new Error(`Verse memorization with id ${id} not found`);
+    }
+    
+    const reviewDates = [...verse.reviewDates, new Date()];
+    
+    const updatedVerse = { ...verse, reviewDates };
+    this.verseMemorization.set(id, updatedVerse);
+    
+    return updatedVerse;
+  }
+  
+  async deleteVerseMemorization(id: number): Promise<boolean> {
+    const exists = this.verseMemorization.has(id);
+    if (!exists) {
+      return false;
+    }
+    
+    this.verseMemorization.delete(id);
+    return true;
+  }
 }
 
 // Database storage implementation
