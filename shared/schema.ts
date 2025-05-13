@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, relations } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   displayName: text("display_name"),
   bio: text("bio"),
+  avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -17,6 +18,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   displayName: true,
   bio: true,
+  avatarUrl: true,
 });
 
 // Communities table schema
@@ -158,3 +160,32 @@ export type Comment = typeof comments.$inferSelect;
 
 export type InsertApologeticsResource = z.infer<typeof insertApologeticsResourceSchema>;
 export type ApologeticsResource = typeof apologeticsResources.$inferSelect;
+
+// Livestreams table schema
+export const livestreams = pgTable("livestreams", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  hostId: integer("host_id").references(() => users.id).notNull(),
+  thumbnail: text("thumbnail"),
+  status: text("status").notNull().default("upcoming"), // "live", "upcoming", "ended"
+  viewerCount: integer("viewer_count").default(0),
+  scheduledFor: timestamp("scheduled_for"),
+  duration: text("duration"),
+  tags: text("tags"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertLivestreamSchema = createInsertSchema(livestreams).pick({
+  title: true,
+  description: true,
+  hostId: true,
+  thumbnail: true,
+  status: true,
+  scheduledFor: true,
+  duration: true,
+  tags: true,
+});
+
+export type InsertLivestream = z.infer<typeof insertLivestreamSchema>;
+export type Livestream = typeof livestreams.$inferSelect;

@@ -5,12 +5,18 @@ import {
   Comment, InsertComment,
   Group, InsertGroup,
   GroupMember, InsertGroupMember,
-  ApologeticsResource, InsertApologeticsResource
+  ApologeticsResource, InsertApologeticsResource,
+  Livestream, InsertLivestream,
+  users, communities, posts, comments, groups, groupMembers, apologeticsResources, livestreams
 } from "@shared/schema";
 import createMemoryStore from "memorystore";
 import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { db } from "./db";
+import { eq, and, desc, SQL, sql } from "drizzle-orm";
 
 const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 // Storage interface
 export interface IStorage {
