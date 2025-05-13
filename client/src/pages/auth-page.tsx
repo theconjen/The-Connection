@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Redirect } from "wouter";
+import { Redirect, useNavigate } from "wouter";
 import { insertUserSchema, InsertUser } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -47,6 +47,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("login");
+  const navigate = useNavigate();
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -110,6 +111,16 @@ export default function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 flex justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate("/")}
+                className="text-sm" 
+                size="sm"
+              >
+                Continue as Guest
+              </Button>
+            </div>
             <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="login">Login</TabsTrigger>
