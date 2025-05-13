@@ -11,8 +11,57 @@ import {
   CreatorTier, VirtualGift, LivestreamGift,
   Microblog, InsertMicroblog,
   MicroblogLike, InsertMicroblogLike,
+  
+  // Apologetics system
+  ApologeticsTopic, InsertApologeticsTopic,
+  ApologeticsQuestion, InsertApologeticsQuestion,
+  ApologeticsAnswer, InsertApologeticsAnswer,
+  
+  // Community Events
+  Event, InsertEvent,
+  EventRsvp, InsertEventRsvp,
+  
+  // Prayer system
+  PrayerRequest, InsertPrayerRequest,
+  Prayer, InsertPrayer,
+  
+  // Mentorship system
+  MentorProfile, InsertMentorProfile,
+  MentorshipRequest, InsertMentorshipRequest,
+  MentorshipRelationship, InsertMentorshipRelationship,
+  
+  // Bible study tools
+  BibleReadingPlan, InsertBibleReadingPlan,
+  BibleReadingProgress, InsertBibleReadingProgress,
+  BibleStudyNote, InsertBibleStudyNote,
+  VerseMemorization, InsertVerseMemorization,
+  
+  // Community challenges
+  Challenge, InsertChallenge,
+  ChallengeParticipant, InsertChallengeParticipant,
+  ChallengeTestimonial, InsertChallengeTestimonial,
+  
+  // Resource sharing
+  Resource, InsertResource,
+  ResourceRating, InsertResourceRating,
+  ResourceCollection, InsertResourceCollection,
+  CollectionResource, InsertCollectionResource,
+  
+  // Community service
+  ServiceProject, InsertServiceProject,
+  ServiceVolunteer, InsertServiceVolunteer,
+  ServiceTestimonial, InsertServiceTestimonial,
+  
+  // Database tables
   users, communities, posts, comments, groups, groupMembers, apologeticsResources, 
-  livestreams, microblogs, microblogLikes
+  livestreams, microblogs, microblogLikes,
+  apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
+  events, eventRsvps, prayerRequests, prayers,
+  mentorProfiles, mentorshipRequests, mentorshipRelationships,
+  bibleReadingPlans, bibleReadingProgress, bibleStudyNotes, verseMemorization,
+  challenges, challengeParticipants, challengeTestimonials,
+  resources, resourceRatings, resourceCollections, collectionResources,
+  serviceProjects, serviceVolunteers, serviceTestimonials
 } from "@shared/schema";
 import createMemoryStore from "memorystore";
 import session from "express-session";
@@ -120,6 +169,182 @@ export interface IStorage {
   getActiveVirtualGifts(): Promise<VirtualGift[]>;
   getVirtualGift(id: number): Promise<VirtualGift | undefined>;
   sendGiftToLivestream(gift: { livestreamId: number, giftId: number, senderId: number, receiverId: number, message?: string }): Promise<LivestreamGift>;
+  
+  // ========================
+  // COMMUNITY EVENTS
+  // ========================
+  getAllEvents(filter?: string): Promise<Event[]>;
+  getEvent(id: number): Promise<Event | undefined>;
+  getEventsByCommunity(communityId: number): Promise<Event[]>;
+  getEventsByGroup(groupId: number): Promise<Event[]>;
+  getEventsByUser(userId: number): Promise<Event[]>;
+  createEvent(event: InsertEvent): Promise<Event>;
+  updateEvent(id: number, eventData: Partial<Event>): Promise<Event>;
+  deleteEvent(id: number): Promise<boolean>;
+  
+  // Event RSVP methods
+  getEventRsvps(eventId: number): Promise<EventRsvp[]>;
+  getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined>;
+  createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp>;
+  updateEventRsvp(id: number, status: string): Promise<EventRsvp>;
+  
+  // ========================
+  // PRAYER REQUESTS
+  // ========================
+  getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]>;
+  getPrayerRequest(id: number): Promise<PrayerRequest | undefined>;
+  getUserPrayerRequests(userId: number): Promise<PrayerRequest[]>;
+  getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]>;
+  getPublicPrayerRequests(): Promise<PrayerRequest[]>;
+  createPrayerRequest(request: InsertPrayerRequest): Promise<PrayerRequest>;
+  updatePrayerRequest(id: number, data: Partial<PrayerRequest>): Promise<PrayerRequest>;
+  markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest>;
+  deletePrayerRequest(id: number): Promise<boolean>;
+  
+  // Prayer methods (praying for requests)
+  getPrayersForRequest(requestId: number): Promise<Prayer[]>;
+  createPrayer(prayer: InsertPrayer): Promise<Prayer>;
+  getUserPrayedRequests(userId: number): Promise<number[]>; // returns prayer request IDs
+  
+  // ========================
+  // MENTORSHIP PROGRAM
+  // ========================
+  getAllMentorProfiles(): Promise<MentorProfile[]>;
+  getMentorProfile(id: number): Promise<MentorProfile | undefined>;
+  getMentorProfileByUserId(userId: number): Promise<MentorProfile | undefined>;
+  createMentorProfile(profile: InsertMentorProfile): Promise<MentorProfile>;
+  updateMentorProfile(id: number, data: Partial<MentorProfile>): Promise<MentorProfile>;
+  
+  // Mentorship requests
+  getMentorshipRequests(filter: { mentorId?: number, menteeId?: number, status?: string }): Promise<MentorshipRequest[]>;
+  getMentorshipRequest(id: number): Promise<MentorshipRequest | undefined>;
+  createMentorshipRequest(request: InsertMentorshipRequest): Promise<MentorshipRequest>;
+  updateMentorshipRequestStatus(id: number, status: string): Promise<MentorshipRequest>;
+  
+  // Mentorship relationships
+  getMentorshipRelationships(filter: { mentorId?: number, menteeId?: number, isActive?: boolean }): Promise<MentorshipRelationship[]>;
+  getMentorshipRelationship(id: number): Promise<MentorshipRelationship | undefined>;
+  createMentorshipRelationship(relationship: InsertMentorshipRelationship): Promise<MentorshipRelationship>;
+  updateMentorshipRelationship(id: number, data: Partial<MentorshipRelationship>): Promise<MentorshipRelationship>;
+  endMentorshipRelationship(id: number): Promise<MentorshipRelationship>;
+  
+  // ========================
+  // BIBLE STUDY TOOLS
+  // ========================
+  getAllBibleReadingPlans(filter?: string): Promise<BibleReadingPlan[]>;
+  getBibleReadingPlan(id: number): Promise<BibleReadingPlan | undefined>;
+  getGroupBibleReadingPlans(groupId: number): Promise<BibleReadingPlan[]>;
+  getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]>;
+  createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan>;
+  updateBibleReadingPlan(id: number, data: Partial<BibleReadingPlan>): Promise<BibleReadingPlan>;
+  deleteBibleReadingPlan(id: number): Promise<boolean>;
+  
+  // Bible reading progress
+  getBibleReadingProgress(userId: number, planId: number): Promise<BibleReadingProgress | undefined>;
+  getUserReadingProgress(userId: number): Promise<BibleReadingProgress[]>;
+  createBibleReadingProgress(progress: InsertBibleReadingProgress): Promise<BibleReadingProgress>;
+  updateBibleReadingProgress(id: number, data: Partial<BibleReadingProgress>): Promise<BibleReadingProgress>;
+  markDayCompleted(progressId: number, day: number): Promise<BibleReadingProgress>;
+  
+  // Bible study notes
+  getBibleStudyNotes(filter: { userId?: number, groupId?: number, isPublic?: boolean }): Promise<BibleStudyNote[]>;
+  getBibleStudyNote(id: number): Promise<BibleStudyNote | undefined>;
+  createBibleStudyNote(note: InsertBibleStudyNote): Promise<BibleStudyNote>;
+  updateBibleStudyNote(id: number, data: Partial<BibleStudyNote>): Promise<BibleStudyNote>;
+  deleteBibleStudyNote(id: number): Promise<boolean>;
+  
+  // Verse memorization
+  getUserVerseMemorization(userId: number): Promise<VerseMemorization[]>;
+  getVerseMemorization(id: number): Promise<VerseMemorization | undefined>;
+  createVerseMemorization(verseMemorization: InsertVerseMemorization): Promise<VerseMemorization>;
+  updateVerseMemorization(id: number, data: Partial<VerseMemorization>): Promise<VerseMemorization>;
+  markVerseMastered(id: number): Promise<VerseMemorization>;
+  addVerseReviewDate(id: number, date: Date): Promise<VerseMemorization>;
+  deleteVerseMemorization(id: number): Promise<boolean>;
+  
+  // ========================
+  // COMMUNITY CHALLENGES
+  // ========================
+  getAllChallenges(filter?: string): Promise<Challenge[]>;
+  getChallenge(id: number): Promise<Challenge | undefined>;
+  getChallengesByCommunity(communityId: number): Promise<Challenge[]>;
+  getChallengesByGroup(groupId: number): Promise<Challenge[]>;
+  getActiveChallenges(): Promise<Challenge[]>;
+  createChallenge(challenge: InsertChallenge): Promise<Challenge>;
+  updateChallenge(id: number, data: Partial<Challenge>): Promise<Challenge>;
+  deleteChallenge(id: number): Promise<boolean>;
+  
+  // Challenge participants
+  getChallengeParticipants(challengeId: number): Promise<ChallengeParticipant[]>;
+  getUserChallenges(userId: number): Promise<{ challenge: Challenge, participant: ChallengeParticipant }[]>;
+  joinChallenge(participant: InsertChallengeParticipant): Promise<ChallengeParticipant>;
+  updateChallengeProgress(participantId: number, progress: Record<string, any>): Promise<ChallengeParticipant>;
+  completeChallenge(participantId: number): Promise<ChallengeParticipant>;
+  leaveChallenge(participantId: number): Promise<boolean>;
+  
+  // Challenge testimonials
+  getChallengeTestimonials(challengeId: number): Promise<ChallengeTestimonial[]>;
+  getUserChallengeTestimonial(challengeId: number, userId: number): Promise<ChallengeTestimonial | undefined>;
+  createChallengeTestimonial(testimonial: InsertChallengeTestimonial): Promise<ChallengeTestimonial>;
+  updateChallengeTestimonial(id: number, content: string): Promise<ChallengeTestimonial>;
+  deleteChallengeTestimonial(id: number): Promise<boolean>;
+  
+  // ========================
+  // RESOURCE SHARING
+  // ========================
+  getAllResources(filter?: string): Promise<Resource[]>;
+  getResource(id: number): Promise<Resource | undefined>;
+  getResourcesByType(type: string): Promise<Resource[]>;
+  getResourcesByTags(tags: string[]): Promise<Resource[]>;
+  createResource(resource: InsertResource): Promise<Resource>;
+  updateResource(id: number, data: Partial<Resource>): Promise<Resource>;
+  deleteResource(id: number): Promise<boolean>;
+  
+  // Resource ratings
+  getResourceRatings(resourceId: number): Promise<ResourceRating[]>;
+  getUserResourceRating(resourceId: number, userId: number): Promise<ResourceRating | undefined>;
+  createResourceRating(rating: InsertResourceRating): Promise<ResourceRating>;
+  updateResourceRating(id: number, data: Partial<ResourceRating>): Promise<ResourceRating>;
+  deleteResourceRating(id: number): Promise<boolean>;
+  
+  // Resource collections
+  getAllResourceCollections(isPublic?: boolean): Promise<ResourceCollection[]>;
+  getUserResourceCollections(userId: number): Promise<ResourceCollection[]>;
+  getResourceCollection(id: number): Promise<ResourceCollection | undefined>;
+  createResourceCollection(collection: InsertResourceCollection): Promise<ResourceCollection>;
+  updateResourceCollection(id: number, data: Partial<ResourceCollection>): Promise<ResourceCollection>;
+  deleteResourceCollection(id: number): Promise<boolean>;
+  
+  // Collection resources
+  getCollectionResources(collectionId: number): Promise<Resource[]>;
+  addResourceToCollection(collectionResource: InsertCollectionResource): Promise<CollectionResource>;
+  removeResourceFromCollection(collectionId: number, resourceId: number): Promise<boolean>;
+  
+  // ========================
+  // COMMUNITY SERVICE
+  // ========================
+  getAllServiceProjects(filter?: string): Promise<ServiceProject[]>;
+  getServiceProject(id: number): Promise<ServiceProject | undefined>;
+  getServiceProjectsByCommunity(communityId: number): Promise<ServiceProject[]>;
+  getServiceProjectsByGroup(groupId: number): Promise<ServiceProject[]>;
+  getUpcomingServiceProjects(): Promise<ServiceProject[]>;
+  createServiceProject(project: InsertServiceProject): Promise<ServiceProject>;
+  updateServiceProject(id: number, data: Partial<ServiceProject>): Promise<ServiceProject>;
+  deleteServiceProject(id: number): Promise<boolean>;
+  
+  // Service volunteers
+  getServiceVolunteers(projectId: number): Promise<ServiceVolunteer[]>;
+  getUserServiceProjects(userId: number): Promise<{ project: ServiceProject, volunteer: ServiceVolunteer }[]>;
+  signUpForProject(volunteer: InsertServiceVolunteer): Promise<ServiceVolunteer>;
+  updateVolunteerStatus(id: number, status: string, hoursServed?: number): Promise<ServiceVolunteer>;
+  removeVolunteerFromProject(id: number): Promise<boolean>;
+  
+  // Service testimonials
+  getServiceTestimonials(projectId: number): Promise<ServiceTestimonial[]>;
+  getUserServiceTestimonial(projectId: number, userId: number): Promise<ServiceTestimonial | undefined>;
+  createServiceTestimonial(testimonial: InsertServiceTestimonial): Promise<ServiceTestimonial>;
+  updateServiceTestimonial(id: number, data: Partial<ServiceTestimonial>): Promise<ServiceTestimonial>;
+  deleteServiceTestimonial(id: number): Promise<boolean>;
   
   // Session store
   sessionStore: any; // Using any to avoid typing issues with session store

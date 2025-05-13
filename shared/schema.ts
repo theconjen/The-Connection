@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, relations } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, relations } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -427,3 +427,486 @@ export type Microblog = typeof microblogs.$inferSelect;
 
 export type InsertMicroblogLike = z.infer<typeof insertMicroblogLikeSchema>;
 export type MicroblogLike = typeof microblogLikes.$inferSelect;
+
+// ========================
+// COMMUNITY EVENTS
+// ========================
+export const events = pgTable("events", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  location: text("location"),
+  isVirtual: boolean("is_virtual").default(false),
+  virtualMeetingUrl: text("virtual_meeting_url"),
+  eventDate: date("event_date").notNull(),
+  startTime: time("start_time").notNull(),
+  endTime: time("end_time").notNull(),
+  imageUrl: text("image_url"),
+  communityId: integer("community_id").references(() => communities.id),
+  groupId: integer("group_id").references(() => groups.id),
+  creatorId: integer("creator_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEventSchema = createInsertSchema(events).pick({
+  title: true,
+  description: true,
+  location: true,
+  isVirtual: true,
+  virtualMeetingUrl: true,
+  eventDate: true,
+  startTime: true,
+  endTime: true,
+  imageUrl: true,
+  communityId: true,
+  groupId: true,
+  creatorId: true,
+});
+
+export const eventRsvps = pgTable("event_rsvps", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  status: text("status").notNull(), // attending, maybe, declined
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEventRsvpSchema = createInsertSchema(eventRsvps).pick({
+  eventId: true,
+  userId: true,
+  status: true,
+});
+
+// ========================
+// PRAYER REQUESTS
+// ========================
+export const prayerRequests = pgTable("prayer_requests", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  isAnonymous: boolean("is_anonymous").default(false),
+  privacyLevel: text("privacy_level").notNull(), // public, friends-only, group-only
+  groupId: integer("group_id").references(() => groups.id),
+  authorId: integer("author_id").notNull().references(() => users.id),
+  prayerCount: integer("prayer_count").default(0),
+  isAnswered: boolean("is_answered").default(false),
+  answeredDescription: text("answered_description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPrayerRequestSchema = createInsertSchema(prayerRequests).pick({
+  title: true,
+  content: true,
+  isAnonymous: true,
+  privacyLevel: true,
+  groupId: true,
+  authorId: true,
+});
+
+export const prayers = pgTable("prayers", {
+  id: serial("id").primaryKey(),
+  prayerRequestId: integer("prayer_request_id").notNull().references(() => prayerRequests.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPrayerSchema = createInsertSchema(prayers).pick({
+  prayerRequestId: true,
+  userId: true,
+});
+
+// ========================
+// MENTORSHIP PROGRAM
+// ========================
+export const mentorProfiles = pgTable("mentor_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  spiritualGifts: text("spiritual_gifts").array(),
+  areasOfExpertise: text("areas_of_expertise").array(),
+  yearsOfFaith: integer("years_of_faith"),
+  shortBio: text("short_bio").notNull(),
+  availability: text("availability").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMentorProfileSchema = createInsertSchema(mentorProfiles).pick({
+  userId: true,
+  spiritualGifts: true,
+  areasOfExpertise: true,
+  yearsOfFaith: true,
+  shortBio: true,
+  availability: true,
+});
+
+export const mentorshipRequests = pgTable("mentorship_requests", {
+  id: serial("id").primaryKey(),
+  mentorId: integer("mentor_id").notNull().references(() => users.id),
+  menteeId: integer("mentee_id").notNull().references(() => users.id),
+  message: text("message"),
+  status: text("status").notNull(), // pending, accepted, declined
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMentorshipRequestSchema = createInsertSchema(mentorshipRequests).pick({
+  mentorId: true,
+  menteeId: true,
+  message: true,
+  status: true,
+});
+
+export const mentorshipRelationships = pgTable("mentorship_relationships", {
+  id: serial("id").primaryKey(),
+  mentorId: integer("mentor_id").notNull().references(() => users.id),
+  menteeId: integer("mentee_id").notNull().references(() => users.id),
+  startDate: timestamp("start_date").defaultNow(),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").default(true),
+  goals: jsonb("goals"),
+});
+
+export const insertMentorshipRelationshipSchema = createInsertSchema(mentorshipRelationships).pick({
+  mentorId: true,
+  menteeId: true,
+  goals: true,
+});
+
+// ========================
+// BIBLE STUDY TOOLS
+// ========================
+export const bibleReadingPlans = pgTable("bible_reading_plans", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  duration: integer("duration").notNull(), // days
+  readings: jsonb("readings").notNull(), // Array of daily readings
+  creatorId: integer("creator_id").references(() => users.id),
+  groupId: integer("group_id").references(() => groups.id),
+  isPublic: boolean("is_public").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBibleReadingPlanSchema = createInsertSchema(bibleReadingPlans).pick({
+  title: true,
+  description: true,
+  duration: true,
+  readings: true,
+  creatorId: true,
+  groupId: true,
+  isPublic: true,
+});
+
+export const bibleReadingProgress = pgTable("bible_reading_progress", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id").notNull().references(() => bibleReadingPlans.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  currentDay: integer("current_day").default(1),
+  completedDays: jsonb("completed_days").default([]),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertBibleReadingProgressSchema = createInsertSchema(bibleReadingProgress).pick({
+  planId: true,
+  userId: true,
+});
+
+export const bibleStudyNotes = pgTable("bible_study_notes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  groupId: integer("group_id").references(() => groups.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  passage: text("passage"),
+  isPublic: boolean("is_public").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBibleStudyNotesSchema = createInsertSchema(bibleStudyNotes).pick({
+  userId: true,
+  groupId: true,
+  title: true,
+  content: true,
+  passage: true,
+  isPublic: true,
+});
+
+export const verseMemorization = pgTable("verse_memorization", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  verse: text("verse").notNull(),
+  reference: text("reference").notNull(),
+  startDate: timestamp("start_date").defaultNow(),
+  masteredDate: timestamp("mastered_date"),
+  reviewDates: jsonb("review_dates").default([]),
+  reminderFrequency: integer("reminder_frequency"), // days
+});
+
+export const insertVerseMemorizationSchema = createInsertSchema(verseMemorization).pick({
+  userId: true,
+  verse: true,
+  reference: true,
+  reminderFrequency: true,
+});
+
+// ========================
+// COMMUNITY CHALLENGES
+// ========================
+export const challenges = pgTable("challenges", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  type: text("type").notNull(), // prayer, service, bible-reading
+  duration: integer("duration").notNull(), // days
+  goals: jsonb("goals").notNull(),
+  creatorId: integer("creator_id").notNull().references(() => users.id),
+  groupId: integer("group_id").references(() => groups.id),
+  communityId: integer("community_id").references(() => communities.id),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertChallengeSchema = createInsertSchema(challenges).pick({
+  title: true,
+  description: true,
+  type: true,
+  duration: true,
+  goals: true,
+  creatorId: true,
+  groupId: true,
+  communityId: true,
+  startDate: true,
+  endDate: true,
+});
+
+export const challengeParticipants = pgTable("challenge_participants", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => challenges.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  progress: jsonb("progress").default({}),
+  isCompleted: boolean("is_completed").default(false),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertChallengeParticipantSchema = createInsertSchema(challengeParticipants).pick({
+  challengeId: true,
+  userId: true,
+});
+
+export const challengeTestimonials = pgTable("challenge_testimonials", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => challenges.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertChallengeTestimonialSchema = createInsertSchema(challengeTestimonials).pick({
+  challengeId: true,
+  userId: true,
+  content: true,
+});
+
+// ========================
+// RESOURCE SHARING
+// ========================
+export const resources = pgTable("resources", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  type: text("type").notNull(), // book, podcast, video, article
+  url: text("url"),
+  author: text("author"),
+  imageUrl: text("image_url"),
+  tags: text("tags").array(),
+  averageRating: integer("average_rating").default(0),
+  submitterId: integer("submitter_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertResourceSchema = createInsertSchema(resources).pick({
+  title: true,
+  description: true,
+  type: true,
+  url: true,
+  author: true,
+  imageUrl: true,
+  tags: true,
+  submitterId: true,
+});
+
+export const resourceRatings = pgTable("resource_ratings", {
+  id: serial("id").primaryKey(),
+  resourceId: integer("resource_id").notNull().references(() => resources.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  rating: integer("rating").notNull(),
+  review: text("review"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertResourceRatingSchema = createInsertSchema(resourceRatings).pick({
+  resourceId: true,
+  userId: true,
+  rating: true,
+  review: true,
+});
+
+export const resourceCollections = pgTable("resource_collections", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  creatorId: integer("creator_id").notNull().references(() => users.id),
+  isPublic: boolean("is_public").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertResourceCollectionSchema = createInsertSchema(resourceCollections).pick({
+  title: true,
+  description: true,
+  creatorId: true,
+  isPublic: true,
+});
+
+export const collectionResources = pgTable("collection_resources", {
+  id: serial("id").primaryKey(),
+  collectionId: integer("collection_id").notNull().references(() => resourceCollections.id),
+  resourceId: integer("resource_id").notNull().references(() => resources.id),
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+export const insertCollectionResourceSchema = createInsertSchema(collectionResources).pick({
+  collectionId: true,
+  resourceId: true,
+});
+
+// ========================
+// COMMUNITY SERVICE
+// ========================
+export const serviceProjects = pgTable("service_projects", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  location: text("location"),
+  date: date("date"),
+  startTime: time("start_time"),
+  endTime: time("end_time"),
+  organizerId: integer("organizer_id").notNull().references(() => users.id),
+  communityId: integer("community_id").references(() => communities.id),
+  groupId: integer("group_id").references(() => groups.id),
+  volunteerLimit: integer("volunteer_limit"),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertServiceProjectSchema = createInsertSchema(serviceProjects).pick({
+  title: true,
+  description: true,
+  location: true,
+  date: true,
+  startTime: true,
+  endTime: true,
+  organizerId: true,
+  communityId: true,
+  groupId: true,
+  volunteerLimit: true,
+  imageUrl: true,
+});
+
+export const serviceVolunteers = pgTable("service_volunteers", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => serviceProjects.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  status: text("status").notNull(), // signed-up, confirmed, attended, cancelled
+  hoursServed: integer("hours_served"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertServiceVolunteerSchema = createInsertSchema(serviceVolunteers).pick({
+  projectId: true,
+  userId: true,
+  status: true,
+});
+
+export const serviceTestimonials = pgTable("service_testimonials", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => serviceProjects.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertServiceTestimonialSchema = createInsertSchema(serviceTestimonials).pick({
+  projectId: true,
+  userId: true,
+  content: true,
+  imageUrl: true,
+});
+
+// Type exports for all community features
+export type Event = typeof events.$inferSelect;
+export type InsertEvent = z.infer<typeof insertEventSchema>;
+
+export type EventRsvp = typeof eventRsvps.$inferSelect;
+export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
+
+export type PrayerRequest = typeof prayerRequests.$inferSelect;
+export type InsertPrayerRequest = z.infer<typeof insertPrayerRequestSchema>;
+
+export type Prayer = typeof prayers.$inferSelect;
+export type InsertPrayer = z.infer<typeof insertPrayerSchema>;
+
+export type MentorProfile = typeof mentorProfiles.$inferSelect;
+export type InsertMentorProfile = z.infer<typeof insertMentorProfileSchema>;
+
+export type MentorshipRequest = typeof mentorshipRequests.$inferSelect;
+export type InsertMentorshipRequest = z.infer<typeof insertMentorshipRequestSchema>;
+
+export type MentorshipRelationship = typeof mentorshipRelationships.$inferSelect;
+export type InsertMentorshipRelationship = z.infer<typeof insertMentorshipRelationshipSchema>;
+
+export type BibleReadingPlan = typeof bibleReadingPlans.$inferSelect;
+export type InsertBibleReadingPlan = z.infer<typeof insertBibleReadingPlanSchema>;
+
+export type BibleReadingProgress = typeof bibleReadingProgress.$inferSelect;
+export type InsertBibleReadingProgress = z.infer<typeof insertBibleReadingProgressSchema>;
+
+export type BibleStudyNote = typeof bibleStudyNotes.$inferSelect;
+export type InsertBibleStudyNote = z.infer<typeof insertBibleStudyNotesSchema>;
+
+export type VerseMemorization = typeof verseMemorization.$inferSelect;
+export type InsertVerseMemorization = z.infer<typeof insertVerseMemorizationSchema>;
+
+export type Challenge = typeof challenges.$inferSelect;
+export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
+
+export type ChallengeParticipant = typeof challengeParticipants.$inferSelect;
+export type InsertChallengeParticipant = z.infer<typeof insertChallengeParticipantSchema>;
+
+export type ChallengeTestimonial = typeof challengeTestimonials.$inferSelect;
+export type InsertChallengeTestimonial = z.infer<typeof insertChallengeTestimonialSchema>;
+
+export type Resource = typeof resources.$inferSelect;
+export type InsertResource = z.infer<typeof insertResourceSchema>;
+
+export type ResourceRating = typeof resourceRatings.$inferSelect;
+export type InsertResourceRating = z.infer<typeof insertResourceRatingSchema>;
+
+export type ResourceCollection = typeof resourceCollections.$inferSelect;
+export type InsertResourceCollection = z.infer<typeof insertResourceCollectionSchema>;
+
+export type CollectionResource = typeof collectionResources.$inferSelect;
+export type InsertCollectionResource = z.infer<typeof insertCollectionResourceSchema>;
+
+export type ServiceProject = typeof serviceProjects.$inferSelect;
+export type InsertServiceProject = z.infer<typeof insertServiceProjectSchema>;
+
+export type ServiceVolunteer = typeof serviceVolunteers.$inferSelect;
+export type InsertServiceVolunteer = z.infer<typeof insertServiceVolunteerSchema>;
+
+export type ServiceTestimonial = typeof serviceTestimonials.$inferSelect;
+export type InsertServiceTestimonial = z.infer<typeof insertServiceTestimonialSchema>;

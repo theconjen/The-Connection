@@ -12,6 +12,7 @@ import {
   EmailTemplateParams
 } from "./email";
 import { 
+  // Existing schemas
   insertCommunitySchema, 
   insertPostSchema, 
   insertCommentSchema,
@@ -23,7 +24,42 @@ import {
   insertApologeticsAnswerSchema,
   insertLivestreamerApplicationSchema,
   insertLivestreamSchema,
-  insertMicroblogSchema
+  insertMicroblogSchema,
+  
+  // Community Events
+  insertEventSchema,
+  insertEventRsvpSchema,
+  
+  // Prayer Request system
+  insertPrayerRequestSchema,
+  insertPrayerSchema,
+  
+  // Mentorship system
+  insertMentorProfileSchema,
+  insertMentorshipRequestSchema,
+  insertMentorshipRelationshipSchema,
+  
+  // Bible study tools
+  insertBibleReadingPlanSchema,
+  insertBibleReadingProgressSchema,
+  insertBibleStudyNotesSchema,
+  insertVerseMemorizationSchema,
+  
+  // Community challenges
+  insertChallengeSchema,
+  insertChallengeParticipantSchema,
+  insertChallengeTestimonialSchema,
+  
+  // Resource sharing
+  insertResourceSchema,
+  insertResourceRatingSchema,
+  insertResourceCollectionSchema,
+  insertCollectionResourceSchema,
+  
+  // Community service
+  insertServiceProjectSchema,
+  insertServiceVolunteerSchema,
+  insertServiceTestimonialSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 
