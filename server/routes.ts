@@ -536,6 +536,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Admin routes for email templates
+  app.get("/api/admin/email-templates", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Check if user is admin
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const templates = await listEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/admin/email-templates/:name", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Check if user is admin
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const templateName = req.params.name;
+      const template = await getEmailTemplate(templateName);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/admin/email-templates", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Check if user is admin
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const templateParams = req.body as EmailTemplateParams;
+      
+      if (!templateParams.TemplateName || !templateParams.SubjectPart) {
+        return res.status(400).json({ 
+          message: "Missing required fields (TemplateName, SubjectPart)"
+        });
+      }
+      
+      const success = await createEmailTemplate(templateParams);
+      
+      if (success) {
+        res.status(201).json({ message: "Template created successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to create template" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.put("/api/admin/email-templates/:name", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Check if user is admin
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const templateName = req.params.name;
+      const templateParams = {
+        ...req.body,
+        TemplateName: templateName
+      } as EmailTemplateParams;
+      
+      if (!templateParams.SubjectPart) {
+        return res.status(400).json({ 
+          message: "Missing required field (SubjectPart)" 
+        });
+      }
+      
+      const success = await updateEmailTemplate(templateParams);
+      
+      if (success) {
+        res.json({ message: "Template updated successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to update template" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.delete("/api/admin/email-templates/:name", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Check if user is admin
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const templateName = req.params.name;
+      const success = await deleteEmailTemplate(templateName);
+      
+      if (success) {
+        res.json({ message: "Template deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Template not found or could not be deleted" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Test email template route
+  app.post("/api/admin/email-templates/:name/test", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Check if user is admin
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      // Use the admin's email for the test
+      const { email } = req.user;
+      const templateName = req.params.name;
+      
+      // The templateData should be provided in the request body
+      const templateData = req.body.templateData || {};
+      
+      // Import the sendTemplatedEmail function
+      const { sendTemplatedEmail } = await import("./email");
+      
+      const success = await sendTemplatedEmail({
+        to: email,
+        from: process.env.AWS_SES_FROM_EMAIL || "noreply@theconnection.app",
+        templateName,
+        templateData
+      });
+      
+      if (success) {
+        res.json({ message: `Test email sent to ${email}` });
+      } else {
+        res.status(500).json({ message: "Failed to send test email" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   // Virtual gifts routes
   app.get("/api/virtual-gifts", async (req, res, next) => {
     try {
