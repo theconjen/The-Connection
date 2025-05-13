@@ -16,6 +16,8 @@ import DiscoverPage from "@/pages/discover-page";
 import MicroblogsPage from "@/pages/microblogs-page";
 import MicroblogDetailPage from "@/pages/microblog-detail-page";
 import PrayerRequestsPage from "@/pages/prayer-requests-page";
+import EventsPage from "@/pages/events-page";
+import EventDetailPage from "@/pages/event-detail-page";
 
 function App() {
   return (
@@ -32,6 +34,8 @@ function App() {
         <ReadOnlyRoute path="/posts/:id" component={PostDetailPage} />
         <ReadOnlyRoute path="/microblogs" component={MicroblogsPage} />
         <ReadOnlyRoute path="/microblogs/:id" component={MicroblogDetailPage} />
+        <ReadOnlyRoute path="/events" component={EventsPage} />
+        <ReadOnlyRoute path="/events/:id" component={EventDetailPage} />
         <ProtectedRoute path="/groups" component={GroupsPage} />
         <ProtectedRoute path="/profile" component={ProfilePage} />
         <ProtectedRoute path="/submit" component={SubmitPostPage} />

@@ -1273,5 +1273,277 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Community Events Calendar routes
+  app.get("/api/events", allowGuest, async (req, res) => {
+    try {
+      const filter = req.query.filter as string;
+      const events = await storage.getAllEvents(filter);
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting events:", error);
+      res.status(500).json({ message: "Failed to get events" });
+    }
+  });
+
+  app.get("/api/events/public", allowGuest, async (req, res) => {
+    try {
+      const events = await storage.getPublicEvents();
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting public events:", error);
+      res.status(500).json({ message: "Failed to get public events" });
+    }
+  });
+
+  app.get("/api/events/nearby", allowGuest, async (req, res) => {
+    try {
+      const { latitude, longitude, radius } = req.query;
+      
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "Latitude and longitude are required" });
+      }
+      
+      const radiusInKm = radius ? parseInt(radius as string) : 10; // Default to 10km
+      const events = await storage.getEventsNearby(
+        latitude as string,
+        longitude as string,
+        radiusInKm
+      );
+      
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting nearby events:", error);
+      res.status(500).json({ message: "Failed to get nearby events" });
+    }
+  });
+
+  app.get("/api/events/:id", allowGuest, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const event = await storage.getEvent(id);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // If event is not public and user is not authenticated, deny access
+      if (!event.isPublic && !req.isAuthenticated()) {
+        return res.status(403).json({ message: "This event is private" });
+      }
+      
+      res.json(event);
+    } catch (error) {
+      console.error("Error getting event:", error);
+      res.status(500).json({ message: "Failed to get event" });
+    }
+  });
+
+  app.get("/api/communities/:communityId/events", allowGuest, async (req, res) => {
+    try {
+      const communityId = parseInt(req.params.communityId);
+      const events = await storage.getEventsByCommunity(communityId);
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting community events:", error);
+      res.status(500).json({ message: "Failed to get community events" });
+    }
+  });
+
+  app.get("/api/groups/:groupId/events", ensureAuthenticated, async (req, res) => {
+    try {
+      const groupId = parseInt(req.params.groupId);
+      
+      // Check if user is a member of the group
+      const isMember = await storage.isGroupMember(req.user.id, groupId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You must be a member of the group to view its events" });
+      }
+      
+      const events = await storage.getEventsByGroup(groupId);
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting group events:", error);
+      res.status(500).json({ message: "Failed to get group events" });
+    }
+  });
+
+  app.get("/api/user/events", ensureAuthenticated, async (req, res) => {
+    try {
+      const events = await storage.getEventsByUser(req.user.id);
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting user events:", error);
+      res.status(500).json({ message: "Failed to get user events" });
+    }
+  });
+
+  app.post("/api/events", ensureAuthenticated, async (req, res) => {
+    try {
+      // Validate the request data
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        creatorId: req.user.id
+      });
+      
+      // If this is a group event, check if user is a member of the group
+      if (eventData.groupId) {
+        const isMember = await storage.isGroupMember(req.user.id, eventData.groupId);
+        if (!isMember) {
+          return res.status(403).json({ message: "You must be a member of the group to create events for it" });
+        }
+      }
+      
+      // Create the event
+      const event = await storage.createEvent(eventData);
+      res.status(201).json(event);
+    } catch (error) {
+      console.error("Error creating event:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create event" });
+    }
+  });
+
+  app.patch("/api/events/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const event = await storage.getEvent(id);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // Only the creator can update the event
+      if (event.creatorId !== req.user.id) {
+        return res.status(403).json({ message: "You can only update events you created" });
+      }
+      
+      const updatedEvent = await storage.updateEvent(id, req.body);
+      res.json(updatedEvent);
+    } catch (error) {
+      console.error("Error updating event:", error);
+      res.status(500).json({ message: "Failed to update event" });
+    }
+  });
+
+  app.delete("/api/events/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const event = await storage.getEvent(id);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // Only the creator can delete the event
+      if (event.creatorId !== req.user.id) {
+        return res.status(403).json({ message: "You can only delete events you created" });
+      }
+      
+      await storage.deleteEvent(id);
+      res.json({ message: "Event deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      res.status(500).json({ message: "Failed to delete event" });
+    }
+  });
+
+  // Event RSVP routes
+  app.get("/api/events/:eventId/rsvps", allowGuest, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const rsvps = await storage.getEventRsvps(eventId);
+      res.json(rsvps);
+    } catch (error) {
+      console.error("Error getting event RSVPs:", error);
+      res.status(500).json({ message: "Failed to get event RSVPs" });
+    }
+  });
+
+  app.get("/api/events/:eventId/rsvp", ensureAuthenticated, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const rsvp = await storage.getUserEventRsvp(eventId, req.user.id);
+      
+      if (!rsvp) {
+        return res.status(404).json({ message: "RSVP not found" });
+      }
+      
+      res.json(rsvp);
+    } catch (error) {
+      console.error("Error getting user RSVP:", error);
+      res.status(500).json({ message: "Failed to get user RSVP" });
+    }
+  });
+
+  app.post("/api/events/:eventId/rsvp", ensureAuthenticated, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const event = await storage.getEvent(eventId);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // If this is a group event, check if user is a member of the group
+      if (event.groupId) {
+        const isMember = await storage.isGroupMember(req.user.id, event.groupId);
+        if (!isMember) {
+          return res.status(403).json({ message: "You must be a member of the group to RSVP to its events" });
+        }
+      }
+      
+      // Check if user already has an RSVP
+      const existingRsvp = await storage.getUserEventRsvp(eventId, req.user.id);
+      if (existingRsvp) {
+        return res.status(400).json({ message: "You have already RSVP'd to this event" });
+      }
+      
+      // Create the RSVP
+      const { status } = req.body;
+      if (!status || !["going", "maybe", "not_going"].includes(status)) {
+        return res.status(400).json({ message: "Valid status (going, maybe, not_going) is required" });
+      }
+      
+      const rsvpData = insertEventRsvpSchema.parse({
+        eventId,
+        userId: req.user.id,
+        status
+      });
+      
+      const rsvp = await storage.createEventRsvp(rsvpData);
+      res.status(201).json(rsvp);
+    } catch (error) {
+      console.error("Error creating RSVP:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create RSVP" });
+    }
+  });
+
+  app.patch("/api/events/:eventId/rsvp", ensureAuthenticated, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const rsvp = await storage.getUserEventRsvp(eventId, req.user.id);
+      
+      if (!rsvp) {
+        return res.status(404).json({ message: "RSVP not found" });
+      }
+      
+      const { status } = req.body;
+      if (!status || !["going", "maybe", "not_going"].includes(status)) {
+        return res.status(400).json({ message: "Valid status (going, maybe, not_going) is required" });
+      }
+      
+      const updatedRsvp = await storage.updateEventRsvp(rsvp.id, status);
+      res.json(updatedRsvp);
+    } catch (error) {
+      console.error("Error updating RSVP:", error);
+      res.status(500).json({ message: "Failed to update RSVP" });
+    }
+  });
+
   return httpServer;
 }
