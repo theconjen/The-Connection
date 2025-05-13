@@ -351,6 +351,26 @@ export default function LivestreamsPage() {
       
       {/* Right Sidebar */}
       <aside className="hidden lg:block w-80 space-y-6 sticky top-24 self-start">
+        {user && (
+          <Card className="border-secondary/20 mb-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Become a Livestreamer</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Share your knowledge, host Bible studies, or lead prayer sessions as an approved livestreamer.
+              </p>
+              <Button 
+                className="w-full" 
+                variant="secondary"
+                onClick={() => window.location.href = "/livestreamer-application"}
+              >
+                Apply Now
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        
         <Card className="border-secondary/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Featured Hosts</CardTitle>
