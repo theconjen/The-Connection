@@ -320,3 +320,46 @@ export type VirtualGift = typeof virtualGifts.$inferSelect;
 
 export type InsertLivestreamGift = z.infer<typeof insertLivestreamGiftSchema>;
 export type LivestreamGift = typeof livestreamGifts.$inferSelect;
+
+// Microblog posts (Twitter-like) schema
+export const microblogs = pgTable("microblogs", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"), // Optional image attachment
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  communityId: integer("community_id").references(() => communities.id), // Optional community (public if null)
+  groupId: integer("group_id").references(() => groups.id), // Optional private group (public if null)
+  likeCount: integer("like_count").default(0),
+  repostCount: integer("repost_count").default(0),
+  replyCount: integer("reply_count").default(0),
+  parentId: integer("parent_id").references(() => microblogs.id), // For replies to other microblogs
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMicroblogSchema = createInsertSchema(microblogs).pick({
+  content: true,
+  imageUrl: true,
+  authorId: true,
+  communityId: true,
+  groupId: true,
+  parentId: true,
+});
+
+// Microblog likes table for tracking user likes
+export const microblogLikes = pgTable("microblog_likes", {
+  id: serial("id").primaryKey(),
+  microblogId: integer("microblog_id").references(() => microblogs.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMicroblogLikeSchema = createInsertSchema(microblogLikes).pick({
+  microblogId: true,
+  userId: true,
+});
+
+export type InsertMicroblog = z.infer<typeof insertMicroblogSchema>;
+export type Microblog = typeof microblogs.$inferSelect;
+
+export type InsertMicroblogLike = z.infer<typeof insertMicroblogLikeSchema>;
+export type MicroblogLike = typeof microblogLikes.$inferSelect;

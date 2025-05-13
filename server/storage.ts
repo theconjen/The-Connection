@@ -62,6 +62,19 @@ export interface IStorage {
   getApologeticsResource(id: number): Promise<ApologeticsResource | undefined>;
   createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
   
+  // Microblog (Twitter-like posts) methods
+  getAllMicroblogs(filterType?: string): Promise<Microblog[]>;
+  getMicroblog(id: number): Promise<Microblog | undefined>;
+  getMicroblogsByUserId(userId: number): Promise<Microblog[]>;
+  getMicroblogsByAuthors(userIds: number[]): Promise<Microblog[]>;
+  getMicroblogsByCommunityId(communityId: number): Promise<Microblog[]>;
+  getMicroblogsByGroupId(groupId: number): Promise<Microblog[]>;
+  getMicroblogReplies(microblogId: number): Promise<Microblog[]>;
+  createMicroblog(microblog: InsertMicroblog): Promise<Microblog>;
+  likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike>;
+  unlikeMicroblog(microblogId: number, userId: number): Promise<boolean>;
+  getUserLikedMicroblogs(userId: number): Promise<number[]>; // returns IDs of microblogs user has liked
+  
   // Livestream methods
   getLivestreams(status?: string): Promise<Livestream[]>;
   getLivestream(id: number): Promise<Livestream | undefined>;
