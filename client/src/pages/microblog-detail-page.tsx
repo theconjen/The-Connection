@@ -113,7 +113,7 @@ export default function MicroblogDetailPage() {
   
   if (isNaN(microblogId)) {
     return (
-      <MainLayout currentPath="/microblogs">
+      <MainLayout>
         <div className="container max-w-3xl py-6 text-center">
           <h1 className="text-3xl font-bold mb-6">Invalid Post ID</h1>
           <p className="mb-4">The post ID you're trying to view is invalid.</p>
@@ -126,7 +126,7 @@ export default function MicroblogDetailPage() {
   }
   
   return (
-    <MainLayout currentPath="/microblogs">
+    <MainLayout>
       <div className="container max-w-3xl py-6">
         <div className="mb-6">
           <Link href="/microblogs">

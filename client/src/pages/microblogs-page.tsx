@@ -65,7 +65,7 @@ export default function MicroblogsPage() {
   const isAuthenticated = !!user;
   
   return (
-    <MainLayout currentPath="/microblogs">
+    <MainLayout>
       <div className="container max-w-3xl py-6">
         <h1 className="text-3xl font-bold mb-6">Feed</h1>
         

@@ -28,7 +28,7 @@ export default function ShareButtons({ url, title }: ShareButtonsProps) {
 
   return (
     <div className="flex space-x-3 justify-center">
-      <FacebookShareButton url={shareUrl} quote={shareTitle}>
+      <FacebookShareButton url={shareUrl}>
         <FacebookIcon size={32} round />
       </FacebookShareButton>
       

@@ -10,7 +10,8 @@ import {
   BookMarked,
   PenTool,
   User,
-  Video
+  Video,
+  MessageCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,12 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       icon: <Home className="mr-3 w-5 h-5" />
     },
     { 
+      path: "/microblogs", 
+      label: "Feed", 
+      icon: <MessageCircle className="mr-3 w-5 h-5" />,
+      badge: "New"
+    },
+    { 
       path: "/discover", 
       label: "Discover", 
       icon: <Compass className="mr-3 w-5 h-5" />
@@ -33,8 +40,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
     { 
       path: "/livestreams", 
       label: "Livestreams", 
-      icon: <Video className="mr-3 w-5 h-5" />,
-      badge: "New"
+      icon: <Video className="mr-3 w-5 h-5" />
     },
     { 
       path: "/apologetics", 
