@@ -1,6 +1,7 @@
 import { Link } from "wouter";
-import { Home, Compass, BookOpen, Users, User, Heart } from "lucide-react";
+import { Home, Compass, BookOpen, Users, User, Heart, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface MobileNavigationProps {
   currentPath: string;
@@ -19,14 +20,15 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
       icon: <Compass className="h-5 w-5" /> 
     },
     { 
+      path: "/livestreams", 
+      label: "Live", 
+      icon: <Video className="h-5 w-5" />,
+      badge: "New"
+    },
+    { 
       path: "/apologetics", 
       label: "Learn", 
       icon: <BookOpen className="h-5 w-5" /> 
-    },
-    { 
-      path: "/groups", 
-      label: "Groups", 
-      icon: <Users className="h-5 w-5" /> 
     },
     { 
       path: "/profile", 
@@ -47,12 +49,17 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
                 : "text-muted-foreground hover:text-primary"
             )}>
               <div className={cn(
-                "flex items-center justify-center w-10 h-10 rounded-full mb-1",
+                "flex items-center justify-center w-10 h-10 rounded-full mb-1 relative",
                 currentPath === item.path
                   ? "bg-primary/10" 
                   : "bg-transparent"
               )}>
                 {item.icon}
+                {'badge' in item && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-secondary text-[10px] text-white flex items-center justify-center font-bold">
+                    !
+                  </span>
+                )}
               </div>
               <span className="text-xs font-medium">{item.label}</span>
               

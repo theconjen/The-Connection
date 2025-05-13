@@ -9,7 +9,8 @@ import {
   Heart, 
   BookMarked,
   PenTool,
-  User
+  User,
+  Video
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,12 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       path: "/discover", 
       label: "Discover", 
       icon: <Compass className="mr-3 w-5 h-5" />
+    },
+    { 
+      path: "/livestreams", 
+      label: "Livestreams", 
+      icon: <Video className="mr-3 w-5 h-5" />,
+      badge: "New"
     },
     { 
       path: "/apologetics", 
@@ -83,6 +90,11 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
                 >
                   {item.icon}
                   <span>{item.label}</span>
+                  {'badge' in item && (
+                    <span className="ml-auto text-xs bg-secondary/30 text-secondary-foreground px-1.5 py-0.5 rounded-full font-medium">
+                      {item.badge}
+                    </span>
+                  )}
                 </a>
               </Link>
             ))}
