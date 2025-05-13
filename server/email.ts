@@ -1,11 +1,16 @@
 import { MailService } from '@sendgrid/mail';
 
+// Check for SendGrid API key
+let emailFunctionalityEnabled = false;
 if (!process.env.SENDGRID_API_KEY) {
   console.warn("SENDGRID_API_KEY environment variable is not set. Email functionality will be disabled.");
+  console.warn("Users can still register but won't receive welcome emails.");
+} else {
+  emailFunctionalityEnabled = true;
 }
 
 const mailService = new MailService();
-if (process.env.SENDGRID_API_KEY) {
+if (emailFunctionalityEnabled) {
   mailService.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
@@ -18,13 +23,16 @@ interface EmailParams {
 }
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
-  if (!process.env.SENDGRID_API_KEY) {
-    console.log('SendGrid API key not set. Would have sent email:', params);
+  if (!emailFunctionalityEnabled) {
+    console.log('Email functionality disabled. Would have sent email to:', params.to);
+    console.log('Email subject:', params.subject);
+    // Don't log the full email content to avoid cluttering the logs
     return false;
   }
   
   try {
     await mailService.send(params);
+    console.log(`Email sent successfully to ${params.to}`);
     return true;
   } catch (error) {
     console.error('SendGrid email error:', error);
@@ -37,7 +45,7 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
   
   return sendEmail({
     to: email,
-    from: 'support@theconnection.replit.app', // Update with your verified domain
+    from: process.env.SENDGRID_FROM_EMAIL || 'noreply@theconnection.example.com', // Use environment variable if available
     subject: 'Welcome to The Connection!',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

@@ -103,7 +103,10 @@ export function setupAuth(app: Express) {
 
       // Send welcome email
       try {
-        await sendWelcomeEmail(user.email, user.displayName || undefined);
+        const emailResult = await sendWelcomeEmail(user.email, user.displayName || undefined);
+        if (!emailResult) {
+          console.log(`Welcome email not sent to ${user.email} because email functionality is disabled.`);
+        }
       } catch (emailError) {
         console.error("Failed to send welcome email:", emailError);
         // Continue with registration even if email fails
