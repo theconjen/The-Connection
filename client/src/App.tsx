@@ -13,6 +13,8 @@ import SubmitPostPage from "@/pages/submit-post-page";
 import LivestreamsPage from "@/pages/livestreams-page";
 import LivestreamerApplicationPage from "@/pages/livestreamer-application-page";
 import DiscoverPage from "@/pages/discover-page";
+import MicroblogsPage from "@/pages/microblogs-page";
+import MicroblogDetailPage from "@/pages/microblog-detail-page";
 
 function App() {
   return (
@@ -26,6 +28,8 @@ function App() {
         <ReadOnlyRoute path="/livestreams" component={LivestreamsPage} />
         <ProtectedRoute path="/livestreamer-application" component={LivestreamerApplicationPage} />
         <ReadOnlyRoute path="/posts/:id" component={PostDetailPage} />
+        <ReadOnlyRoute path="/microblogs" component={MicroblogsPage} />
+        <ReadOnlyRoute path="/microblogs/:id" component={MicroblogDetailPage} />
         <ProtectedRoute path="/groups" component={GroupsPage} />
         <ProtectedRoute path="/profile" component={ProfilePage} />
         <ProtectedRoute path="/submit" component={SubmitPostPage} />
