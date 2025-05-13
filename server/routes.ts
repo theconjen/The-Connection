@@ -18,6 +18,9 @@ import {
   insertGroupSchema,
   insertGroupMemberSchema,
   insertApologeticsResourceSchema,
+  insertApologeticsTopicSchema,
+  insertApologeticsQuestionSchema,
+  insertApologeticsAnswerSchema,
   insertLivestreamerApplicationSchema,
   insertLivestreamSchema,
   insertMicroblogSchema
