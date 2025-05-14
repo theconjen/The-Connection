@@ -204,5 +204,4 @@ if (import.meta.url === new URL(import.meta.url).href) {
     });
 }
 
-// Export the function
-export { seedApologetics };
+// Function is already exported at the top
