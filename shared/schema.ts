@@ -65,6 +65,63 @@ export const insertCommunityMemberSchema = createInsertSchema(communityMembers).
   role: true,
 });
 
+// Community Chat Rooms schema
+export const communityChatRooms = pgTable("community_chat_rooms", {
+  id: serial("id").primaryKey(),
+  communityId: integer("community_id").references(() => communities.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  isPrivate: boolean("is_private").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id).notNull(),
+});
+
+export const insertCommunityChatRoomSchema = createInsertSchema(communityChatRooms).pick({
+  communityId: true,
+  name: true,
+  description: true,
+  isPrivate: true,
+  createdBy: true,
+});
+
+// Chat Room Messages schema
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  chatRoomId: integer("chat_room_id").references(() => communityChatRooms.id).notNull(),
+  senderId: integer("sender_id").references(() => users.id).notNull(),
+  isSystemMessage: boolean("is_system_message").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).pick({
+  content: true,
+  chatRoomId: true,
+  senderId: true,
+  isSystemMessage: true,
+});
+
+// Community Wall Posts schema
+export const communityWallPosts = pgTable("community_wall_posts", {
+  id: serial("id").primaryKey(),
+  communityId: integer("community_id").references(() => communities.id).notNull(),
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  isPrivate: boolean("is_private").default(false), // For private wall posts
+  likeCount: integer("like_count").default(0),
+  commentCount: integer("comment_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCommunityWallPostSchema = createInsertSchema(communityWallPosts).pick({
+  communityId: true,
+  authorId: true,
+  content: true,
+  imageUrl: true,
+  isPrivate: true,
+});
+
 // Groups table schema (private groups)
 export const groups = pgTable("groups", {
   id: serial("id").primaryKey(),
@@ -446,6 +503,19 @@ export type Microblog = typeof microblogs.$inferSelect;
 
 export type InsertMicroblogLike = z.infer<typeof insertMicroblogLikeSchema>;
 export type MicroblogLike = typeof microblogLikes.$inferSelect;
+
+// Community Roles & Chat Room Types
+export type InsertCommunityMember = z.infer<typeof insertCommunityMemberSchema>;
+export type CommunityMember = typeof communityMembers.$inferSelect;
+
+export type InsertCommunityChatRoom = z.infer<typeof insertCommunityChatRoomSchema>;
+export type CommunityChatRoom = typeof communityChatRooms.$inferSelect;
+
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+
+export type InsertCommunityWallPost = z.infer<typeof insertCommunityWallPostSchema>;
+export type CommunityWallPost = typeof communityWallPosts.$inferSelect;
 
 // ========================
 // COMMUNITY EVENTS

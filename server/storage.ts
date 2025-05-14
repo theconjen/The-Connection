@@ -1,6 +1,10 @@
 import { 
   User, InsertUser, 
   Community, InsertCommunity,
+  CommunityMember, InsertCommunityMember,
+  CommunityChatRoom, InsertCommunityChatRoom,
+  ChatMessage, InsertChatMessage,
+  CommunityWallPost, InsertCommunityWallPost,
   Post, InsertPost,
   Comment, InsertComment,
   Group, InsertGroup,
