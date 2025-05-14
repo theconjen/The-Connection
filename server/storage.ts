@@ -71,7 +71,7 @@ import createMemoryStore from "memorystore";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
-import { eq, and, desc, SQL, sql, inArray, isNull } from "drizzle-orm";
+import { eq, and, or, desc, SQL, sql, inArray, isNull } from "drizzle-orm";
 import { pool } from './db';
 
 const MemoryStore = createMemoryStore(session);
@@ -2159,7 +2159,7 @@ export class DatabaseStorage implements IStorage {
       let query = db.select().from(bibleReadingPlans);
       
       if (filter === 'public') {
-        query = query.where(eq(bibleReadingPlans.visibility, 'public'));
+        query = query.where(eq(bibleReadingPlans.isPublic, true));
       }
       
       return await query.orderBy(desc(bibleReadingPlans.createdAt));
@@ -2177,7 +2177,7 @@ export class DatabaseStorage implements IStorage {
         .where(
           or(
             eq(bibleReadingPlans.creatorId, userId),
-            eq(bibleReadingPlans.visibility, 'public')
+            eq(bibleReadingPlans.isPublic, true)
           )
         )
         .orderBy(desc(bibleReadingPlans.createdAt));
