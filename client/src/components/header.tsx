@@ -42,8 +42,8 @@ export default function Header() {
     <header className="bg-white border-b border-secondary/10 sticky top-0 z-40 shadow-sm">
       <div className="container mx-auto">
         <div className="px-4 py-3 flex items-center justify-between">
-          {/* Logo and Nav Section */}
-          <div className="flex items-center space-x-6">
+          {/* Logo Section */}
+          <div className="flex items-center">
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <svg width="30" height="30" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -56,10 +56,77 @@ export default function Header() {
                 The Connection
               </span>
             </Link>
+          </div>
 
-            {/* Desktop Navigation */}
+          {/* Search Bar - Expanded in the middle */}
+          <div className="hidden md:flex flex-1 max-w-2xl mx-6">
+            {searchVisible ? (
+              <div className="relative w-full">
+                <Input
+                  type="text"
+                  placeholder="Search posts, communities, Bible studies..."
+                  className="w-full pr-10 pl-4 py-2 h-10 rounded-full"
+                  autoFocus
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2"
+                  onClick={() => setSearchVisible(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSearchVisible(true)}
+                className="text-neutral-600 mx-auto"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
+
+          {/* Navigation, Notifications, and Profile Section */}
+          <div className="flex items-center space-x-1 md:space-x-4">
+            {/* Mobile Search Button */}
+            <div className="md:hidden">
+              {searchVisible ? (
+                <div className="fixed inset-0 z-50 bg-background/80 flex items-start justify-center pt-16 px-4">
+                  <div className="relative w-full max-w-md">
+                    <Input
+                      type="text"
+                      placeholder="Search..."
+                      className="w-full pr-10"
+                      autoFocus
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0"
+                      onClick={() => setSearchVisible(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSearchVisible(true)}
+                  className="text-neutral-600"
+                >
+                  <Search className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
+            
+            {/* Desktop Navigation - Moved to the right */}
             {!isMobile && (
-              <nav className="hidden md:flex items-center space-x-4">
+              <nav className="hidden md:flex items-center space-x-2">
                 {navItems.map((item, index) => (
                   <Link 
                     key={index} 
@@ -75,38 +142,6 @@ export default function Header() {
                   </Link>
                 ))}
               </nav>
-            )}
-          </div>
-
-          {/* Search, Notifications, and Profile Section */}
-          <div className="flex items-center space-x-1 md:space-x-3">
-            {/* Search Bar */}
-            {searchVisible ? (
-              <div className="relative flex-1 min-w-[200px] md:min-w-[300px]">
-                <Input
-                  type="text"
-                  placeholder="Search..."
-                  className="w-full pr-10"
-                  autoFocus
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0"
-                  onClick={() => setSearchVisible(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSearchVisible(true)}
-                className="text-neutral-600"
-              >
-                <Search className="h-5 w-5" />
-              </Button>
             )}
 
             {/* Create Button */}
