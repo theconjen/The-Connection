@@ -33,6 +33,8 @@ export const communities = pgTable("communities", {
   iconName: text("icon_name").notNull(),
   iconColor: text("icon_color").notNull(),
   memberCount: integer("member_count").default(0),
+  hasPrivateWall: boolean("has_private_wall").default(false),
+  hasPublicWall: boolean("has_public_wall").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: integer("created_by").references(() => users.id),
 });
@@ -43,7 +45,24 @@ export const insertCommunitySchema = createInsertSchema(communities).pick({
   slug: true,
   iconName: true, 
   iconColor: true,
+  hasPrivateWall: true,
+  hasPublicWall: true,
   createdBy: true,
+});
+
+// Community members table schema with roles
+export const communityMembers = pgTable("community_members", {
+  id: serial("id").primaryKey(),
+  communityId: integer("community_id").references(() => communities.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  role: text("role").notNull().default("member"), // "owner", "moderator", "member"
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+export const insertCommunityMemberSchema = createInsertSchema(communityMembers).pick({
+  communityId: true,
+  userId: true,
+  role: true,
 });
 
 // Groups table schema (private groups)
