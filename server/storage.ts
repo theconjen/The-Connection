@@ -1243,6 +1243,15 @@ export class MemStorage implements IStorage {
     return this.prayerRequests.get(id);
   }
   
+  async getAllPrayerRequests(): Promise<PrayerRequest[]> {
+    return Array.from(this.prayerRequests.values())
+      .filter(prayer => prayer.privacyLevel === 'public')
+      .sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+  }
+
   async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
     return Array.from(this.prayerRequests.values())
       .filter(prayer => prayer.authorId === userId)
