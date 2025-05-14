@@ -2294,32 +2294,34 @@ export class DatabaseStorage implements IStorage {
     return result.rows[0];
   }
   
-  async upvoteApologeticsAnswer(id: number): Promise<typeof apologeticsAnswers.$inferSelect> {
-    const result = await db
-      .update(apologeticsAnswers)
-      .set({ 
-        upvotes: sql`${apologeticsAnswers.upvotes} + 1` 
-      })
-      .where(eq(apologeticsAnswers.id, id))
-      .returning();
-    return result[0];
+  async upvoteApologeticsAnswer(id: number): Promise<any> {
+    return await pool.query(`
+      UPDATE apologetics_answers
+      SET upvotes = COALESCE(upvotes, 0) + 1
+      WHERE id = $1
+      RETURNING id, content, question_id as "questionId", user_id as "authorId", 
+                is_verified_answer as "isVerifiedAnswer", upvotes, created_at as "createdAt"
+    `, [id]).then(result => result.rows[0]);
   }
   
   // Verified apologetics answerers methods
-  async getVerifiedApologeticsAnswerers(): Promise<User[]> {
-    return await db
-      .select()
-      .from(users)
-      .where(eq(users.isVerifiedApologeticsAnswerer, true));
+  async getVerifiedApologeticsAnswerers(): Promise<any[]> {
+    return await pool.query(`
+      SELECT id, username, email, display_name as "displayName", bio, avatar_url as "avatarUrl",
+             is_verified_apologetics_answerer as "isVerifiedApologeticsAnswerer", created_at as "createdAt"
+      FROM users
+      WHERE is_verified_apologetics_answerer = true
+    `).then(result => result.rows);
   }
   
-  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User> {
-    const result = await db
-      .update(users)
-      .set({ isVerifiedApologeticsAnswerer: isVerified })
-      .where(eq(users.id, userId))
-      .returning();
-    return result[0];
+  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<any> {
+    return await pool.query(`
+      UPDATE users
+      SET is_verified_apologetics_answerer = $1
+      WHERE id = $2
+      RETURNING id, username, email, display_name as "displayName", bio, avatar_url as "avatarUrl",
+                is_verified_apologetics_answerer as "isVerifiedApologeticsAnswerer", created_at as "createdAt"
+    `, [isVerified, userId]).then(result => result.rows[0]);
   }
 
   // Microblog methods implementation
