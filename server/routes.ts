@@ -127,6 +127,715 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update community
+  app.put("/api/communities/:id", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Check if user is authorized (owner or moderator)
+      const communityId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const isOwner = await storage.isCommunityOwner(communityId, userId);
+      const isModerator = await storage.isCommunityModerator(communityId, userId);
+      
+      if (!isOwner && !isModerator) {
+        return res.status(403).json({ message: "Forbidden: Only community owners or moderators can update community details" });
+      }
+      
+      const community = await storage.getCommunity(communityId);
+      if (!community) {
+        return res.status(404).json({ message: "Community not found" });
+      }
+      
+      const validatedData = insertCommunitySchema.partial().parse(req.body);
+      const updatedCommunity = await storage.updateCommunity(communityId, validatedData);
+      
+      res.json(updatedCommunity);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  // Delete community
+  app.delete("/api/communities/:id", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const isOwner = await storage.isCommunityOwner(communityId, userId);
+      
+      if (!isOwner) {
+        return res.status(403).json({ message: "Forbidden: Only community owners can delete communities" });
+      }
+      
+      const success = await storage.deleteCommunity(communityId);
+      if (!success) {
+        return res.status(404).json({ message: "Community not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Community Members routes
+  app.get("/api/communities/:id/members", async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.id);
+      const members = await storage.getCommunityMembers(communityId);
+      res.json(members);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/communities/:id/members", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Check if already a member
+      const existingMember = await storage.getCommunityMember(communityId, userId);
+      if (existingMember) {
+        return res.status(409).json({ message: "Already a member of this community" });
+      }
+      
+      // Default role is "member" unless this is the first member (then "owner")
+      const members = await storage.getCommunityMembers(communityId);
+      const role = members.length === 0 ? "owner" : "member";
+      
+      const validatedData = insertCommunityMemberSchema.parse({
+        communityId,
+        userId,
+        role
+      });
+      
+      const member = await storage.addCommunityMember(validatedData);
+      res.status(201).json(member);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.put("/api/communities/:communityId/members/:memberId/role", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.communityId);
+      const memberId = parseInt(req.params.memberId);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Only owners can change roles
+      const isOwner = await storage.isCommunityOwner(communityId, userId);
+      if (!isOwner) {
+        return res.status(403).json({ message: "Forbidden: Only community owners can change member roles" });
+      }
+      
+      const { role } = req.body;
+      if (!role || !["member", "moderator", "owner"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role. Must be one of: member, moderator, owner" });
+      }
+      
+      const updatedMember = await storage.updateCommunityMemberRole(memberId, role);
+      res.json(updatedMember);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.delete("/api/communities/:communityId/members/:userId", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.communityId);
+      const memberUserId = parseInt(req.params.userId);
+      const currentUserId = req.user?.id;
+      
+      if (!currentUserId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Check if user is removing themselves (allowed) or is owner/mod (allowed to remove others)
+      const isSelf = currentUserId === memberUserId;
+      const isOwner = await storage.isCommunityOwner(communityId, currentUserId);
+      const isModerator = await storage.isCommunityModerator(communityId, currentUserId);
+      
+      if (!isSelf && !isOwner && !isModerator) {
+        return res.status(403).json({ 
+          message: "Forbidden: You can only remove yourself or you must be an owner/moderator to remove others" 
+        });
+      }
+      
+      // Owners can't be removed except by themselves
+      if (!isSelf) {
+        const targetIsOwner = await storage.isCommunityOwner(communityId, memberUserId);
+        if (targetIsOwner) {
+          return res.status(403).json({ message: "Forbidden: Owners can only be removed by themselves" });
+        }
+      }
+      
+      const success = await storage.removeCommunityMember(communityId, memberUserId);
+      if (!success) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Community Chat Room routes
+  app.get("/api/communities/:id/chat-rooms", async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // If authenticated, show all rooms (incl. private) if member
+      if (userId) {
+        const isMember = await storage.isCommunityMember(communityId, userId);
+        if (isMember) {
+          const rooms = await storage.getCommunityRooms(communityId);
+          return res.json(rooms);
+        }
+      }
+      
+      // Otherwise, show only public rooms
+      const publicRooms = await storage.getPublicCommunityRooms(communityId);
+      res.json(publicRooms);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/chat-rooms/:id", async (req, res, next) => {
+    try {
+      const roomId = parseInt(req.params.id);
+      const room = await storage.getCommunityRoom(roomId);
+      
+      if (!room) {
+        return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      // Check access for private rooms
+      if (room.isPrivate) {
+        const userId = req.user?.id;
+        if (!userId) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        
+        const isMember = await storage.isCommunityMember(room.communityId, userId);
+        if (!isMember) {
+          return res.status(403).json({ message: "Forbidden: Private rooms are only accessible to community members" });
+        }
+      }
+      
+      res.json(room);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/communities/:id/chat-rooms", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Check if user is member of the community
+      const isMember = await storage.isCommunityMember(communityId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "Forbidden: Only community members can create chat rooms" });
+      }
+      
+      // If creating a private room, make sure user is owner or moderator
+      if (req.body.isPrivate) {
+        const isModOrOwner = await storage.isCommunityModerator(communityId, userId);
+        if (!isModOrOwner) {
+          return res.status(403).json({ message: "Forbidden: Only moderators or owners can create private chat rooms" });
+        }
+      }
+      
+      const validatedData = insertCommunityChatRoomSchema.parse({
+        ...req.body,
+        communityId,
+        createdBy: userId
+      });
+      
+      const room = await storage.createCommunityRoom(validatedData);
+      
+      // Add system message announcing the room creation
+      await storage.createChatMessage({
+        chatRoomId: room.id,
+        senderId: userId,
+        content: `${req.user?.username || "A user"} created this chat room`,
+        isSystemMessage: true
+      });
+      
+      res.status(201).json(room);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.put("/api/chat-rooms/:id", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const roomId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const room = await storage.getCommunityRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      // Check if user is authorized (creator, owner, or moderator)
+      const isCreator = room.createdBy === userId;
+      const isOwner = await storage.isCommunityOwner(room.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(room.communityId, userId);
+      
+      if (!isCreator && !isOwner && !isModerator) {
+        return res.status(403).json({ 
+          message: "Forbidden: Only room creators, community owners, or moderators can update rooms" 
+        });
+      }
+      
+      const validatedData = insertCommunityChatRoomSchema.partial().parse(req.body);
+      const updatedRoom = await storage.updateCommunityRoom(roomId, validatedData);
+      
+      res.json(updatedRoom);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.delete("/api/chat-rooms/:id", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const roomId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const room = await storage.getCommunityRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      // Check if user is authorized (creator, owner, or moderator)
+      const isCreator = room.createdBy === userId;
+      const isOwner = await storage.isCommunityOwner(room.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(room.communityId, userId);
+      
+      if (!isCreator && !isOwner && !isModerator) {
+        return res.status(403).json({ 
+          message: "Forbidden: Only room creators, community owners, or moderators can delete rooms" 
+        });
+      }
+      
+      const success = await storage.deleteCommunityRoom(roomId);
+      if (!success) {
+        return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Chat Messages routes
+  app.get("/api/chat-rooms/:id/messages", async (req, res, next) => {
+    try {
+      const roomId = parseInt(req.params.id);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      
+      const room = await storage.getCommunityRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      // Check access for private rooms
+      if (room.isPrivate) {
+        const userId = req.user?.id;
+        if (!userId) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        
+        const isMember = await storage.isCommunityMember(room.communityId, userId);
+        if (!isMember) {
+          return res.status(403).json({ message: "Forbidden: Private rooms are only accessible to community members" });
+        }
+      }
+      
+      const messages = await storage.getChatMessages(roomId, limit);
+      res.json(messages);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/chat-rooms/:roomId/messages-after/:messageId", async (req, res, next) => {
+    try {
+      const roomId = parseInt(req.params.roomId);
+      const afterId = parseInt(req.params.messageId);
+      
+      const room = await storage.getCommunityRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      // Check access for private rooms
+      if (room.isPrivate) {
+        const userId = req.user?.id;
+        if (!userId) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        
+        const isMember = await storage.isCommunityMember(room.communityId, userId);
+        if (!isMember) {
+          return res.status(403).json({ message: "Forbidden: Private rooms are only accessible to community members" });
+        }
+      }
+      
+      const messages = await storage.getChatMessagesAfter(roomId, afterId);
+      res.json(messages);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/chat-rooms/:id/messages", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const roomId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const room = await storage.getCommunityRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      // Check if user is a member of the community
+      const isMember = await storage.isCommunityMember(room.communityId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "Forbidden: Only community members can send messages" });
+      }
+      
+      const validatedData = insertChatMessageSchema.parse({
+        ...req.body,
+        chatRoomId: roomId,
+        senderId: userId
+      });
+      
+      const message = await storage.createChatMessage(validatedData);
+      
+      // Get the sender info to include in response
+      const sender = await storage.getUser(userId);
+      
+      res.status(201).json({
+        ...message,
+        sender
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.delete("/api/chat-messages/:id", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Get message to check ownership and room info
+      const messages = await storage.getChatMessages(0); // We need a better way to get a single message
+      const message = messages.find(m => m.id === messageId);
+      
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      
+      const room = await storage.getCommunityRoom(message.chatRoomId);
+      if (!room) {
+        return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      // Check if user is authorized (sender, owner, or moderator)
+      const isSender = message.senderId === userId;
+      const isOwner = await storage.isCommunityOwner(room.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(room.communityId, userId);
+      
+      if (!isSender && !isOwner && !isModerator) {
+        return res.status(403).json({ 
+          message: "Forbidden: Only message senders, community owners, or moderators can delete messages" 
+        });
+      }
+      
+      const success = await storage.deleteChatMessage(messageId);
+      if (!success) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Community Wall Posts routes
+  app.get("/api/communities/:id/wall", async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.id);
+      const isPrivate = req.query.private === 'true';
+      
+      const community = await storage.getCommunity(communityId);
+      if (!community) {
+        return res.status(404).json({ message: "Community not found" });
+      }
+      
+      // For private wall, check if user is a member
+      if (isPrivate) {
+        // Make sure private wall exists
+        if (!community.hasPrivateWall) {
+          return res.status(404).json({ message: "This community does not have a private wall" });
+        }
+        
+        const userId = req.user?.id;
+        if (!userId) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        
+        const isMember = await storage.isCommunityMember(communityId, userId);
+        if (!isMember) {
+          return res.status(403).json({ message: "Forbidden: Private wall is only accessible to community members" });
+        }
+        
+        const posts = await storage.getCommunityWallPosts(communityId, true);
+        return res.json(posts);
+      } 
+      
+      // For public wall
+      if (!community.hasPublicWall) {
+        return res.status(404).json({ message: "This community does not have a public wall" });
+      }
+      
+      const posts = await storage.getCommunityWallPosts(communityId, false);
+      res.json(posts);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/wall-posts/:id", async (req, res, next) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const post = await storage.getCommunityWallPost(postId);
+      
+      if (!post) {
+        return res.status(404).json({ message: "Wall post not found" });
+      }
+      
+      // Check if private post and if user has access
+      if (post.isPrivate) {
+        const userId = req.user?.id;
+        if (!userId) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        
+        const isMember = await storage.isCommunityMember(post.communityId, userId);
+        if (!isMember) {
+          return res.status(403).json({ message: "Forbidden: Private posts are only accessible to community members" });
+        }
+      }
+      
+      res.json(post);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/communities/:id/wall", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const communityId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const community = await storage.getCommunity(communityId);
+      if (!community) {
+        return res.status(404).json({ message: "Community not found" });
+      }
+      
+      // Check if this is for private or public wall
+      const isPrivate = req.body.isPrivate === true;
+      
+      // Check if wall type is enabled
+      if (isPrivate && !community.hasPrivateWall) {
+        return res.status(400).json({ message: "This community does not have a private wall enabled" });
+      }
+      
+      if (!isPrivate && !community.hasPublicWall) {
+        return res.status(400).json({ message: "This community does not have a public wall enabled" });
+      }
+      
+      // For private posts, check if user is a member
+      if (isPrivate) {
+        const isMember = await storage.isCommunityMember(communityId, userId);
+        if (!isMember) {
+          return res.status(403).json({ message: "Forbidden: Only community members can post to the private wall" });
+        }
+      }
+      
+      const validatedData = insertCommunityWallPostSchema.parse({
+        ...req.body,
+        communityId,
+        authorId: userId
+      });
+      
+      const post = await storage.createCommunityWallPost(validatedData);
+      
+      // Get the author info to include in response
+      const author = await storage.getUser(userId);
+      
+      res.status(201).json({
+        ...post,
+        author
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.put("/api/wall-posts/:id", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const post = await storage.getCommunityWallPost(postId);
+      if (!post) {
+        return res.status(404).json({ message: "Wall post not found" });
+      }
+      
+      // Check if user is authorized (author, owner, or moderator)
+      const isAuthor = post.authorId === userId;
+      const isOwner = await storage.isCommunityOwner(post.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(post.communityId, userId);
+      
+      if (!isAuthor && !isOwner && !isModerator) {
+        return res.status(403).json({ 
+          message: "Forbidden: Only post authors, community owners, or moderators can update posts" 
+        });
+      }
+      
+      // Don't allow changing isPrivate status (that's a core property)
+      if (req.body.isPrivate !== undefined && req.body.isPrivate !== post.isPrivate) {
+        return res.status(400).json({ message: "Cannot change private/public status of an existing post" });
+      }
+      
+      const validatedData = insertCommunityWallPostSchema.partial().parse(req.body);
+      const updatedPost = await storage.updateCommunityWallPost(postId, validatedData);
+      
+      // Include author in response
+      const author = await storage.getUser(updatedPost.authorId);
+      
+      res.json({
+        ...updatedPost,
+        author
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.delete("/api/wall-posts/:id", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const post = await storage.getCommunityWallPost(postId);
+      if (!post) {
+        return res.status(404).json({ message: "Wall post not found" });
+      }
+      
+      // Check if user is authorized (author, owner, or moderator)
+      const isAuthor = post.authorId === userId;
+      const isOwner = await storage.isCommunityOwner(post.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(post.communityId, userId);
+      
+      if (!isAuthor && !isOwner && !isModerator) {
+        return res.status(403).json({ 
+          message: "Forbidden: Only post authors, community owners, or moderators can delete posts" 
+        });
+      }
+      
+      const success = await storage.deleteCommunityWallPost(postId);
+      if (!success) {
+        return res.status(404).json({ message: "Wall post not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Posts routes
   app.get("/api/posts", async (req, res, next) => {
     try {
