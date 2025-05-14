@@ -390,11 +390,12 @@ export interface IStorage {
   // ========================
   // CONTENT RECOMMENDATIONS
   // ========================
-  // User preferences
+  // Session store
+  sessionStore: any; // Using any to avoid typing issues with session store
+  
+  // Content Recommendation methods
   getUserPreferences(userId: number): Promise<UserPreferences | undefined>;
   updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
-  
-  // Recommendations
   getAllRecommendations(userId: number): Promise<ContentRecommendation[]>;
   getRecommendation(id: number): Promise<ContentRecommendation | undefined>;
   addContentRecommendation(recommendation: InsertContentRecommendation): Promise<ContentRecommendation>;
@@ -405,9 +406,6 @@ export interface IStorage {
   getTopMicroblogs(limit: number): Promise<Microblog[]>;
   getUpcomingEvents(limit: number): Promise<Event[]>;
   getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]>;
-  
-  // Session store
-  sessionStore: any; // Using any to avoid typing issues with session store
 }
 
 export class MemStorage implements IStorage {
