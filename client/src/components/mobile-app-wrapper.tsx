@@ -2,6 +2,7 @@ import React from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import MobileNavigation from "./mobile-navigation";
+import MobileHeader from "./mobile-header";
 
 interface MobileAppWrapperProps {
   children: React.ReactNode;
@@ -26,6 +27,9 @@ export default function MobileAppWrapper({ children }: MobileAppWrapperProps) {
 
   return (
     <div className="md:hidden min-h-screen flex flex-col bg-background overflow-x-hidden">
+      {/* Mobile Header - only if not fullscreen */}
+      {!isFullScreenPage && <MobileHeader />}
+      
       {/* App Content - with proper bottom padding for navigation */}
       <div 
         className={cn(
