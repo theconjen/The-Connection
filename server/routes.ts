@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
+import { getRecommendationsForUser } from "./recommendation-engine";
 import { 
   createEmailTemplate, 
   updateEmailTemplate,
@@ -18,6 +19,9 @@ import {
   insertCommentSchema,
   insertGroupSchema,
   insertGroupMemberSchema,
+  // Recommendation schemas
+  insertUserPreferencesSchema,
+  insertContentRecommendationSchema,
   insertApologeticsResourceSchema,
   insertApologeticsTopicSchema,
   insertApologeticsQuestionSchema,
@@ -2207,6 +2211,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting verse memorization:", error);
       res.status(500).json({ message: "Failed to delete verse memorization" });
+    }
+  });
+
+  // ========================
+  // CONTENT RECOMMENDATIONS
+  // ========================
+
+  // Get personalized recommendations for the current user
+  app.get("/api/recommendations", allowGuest, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      
+      if (userId) {
+        // Get personalized recommendations for logged-in users
+        const recommendations = await getRecommendationsForUser(userId, limit);
+        res.json(recommendations);
+      } else {
+        // Get popular content for guests
+        const popularContent = await getRecommendationsForUser(0, limit); // 0 as a special case for guest users
+        res.json(popularContent);
+      }
+    } catch (error) {
+      console.error("Error getting recommendations:", error);
+      res.status(500).json({ message: "Failed to get recommendations" });
+    }
+  });
+
+  // Get user preferences
+  app.get("/api/user-preferences", ensureAuthenticated, async (req, res) => {
+    try {
+      const preferences = await storage.getUserPreferences(req.user.id);
+      
+      if (!preferences) {
+        return res.status(404).json({ message: "Preferences not found" });
+      }
+      
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error getting user preferences:", error);
+      res.status(500).json({ message: "Failed to get user preferences" });
+    }
+  });
+
+  // Update user preferences
+  app.patch("/api/user-preferences", ensureAuthenticated, async (req, res) => {
+    try {
+      const updateData = insertUserPreferencesSchema.partial().parse(req.body);
+      const preferences = await storage.updateUserPreferences(req.user.id, updateData);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error updating user preferences:", error);
+      res.status(500).json({ message: "Failed to update user preferences" });
+    }
+  });
+
+  // Track content engagement (view, like, comment, etc.)
+  app.post("/api/recommendations/track-engagement", allowGuest, async (req, res) => {
+    try {
+      const { contentType, contentId, action } = req.body;
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        // Just acknowledge for guests, no tracking
+        return res.status(200).json({ success: true });
+      }
+      
+      if (!contentType || !contentId || !action) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Get user preferences to update engagement history
+      let preferences = await storage.getUserPreferences(userId);
+      
+      if (!preferences) {
+        // Create preferences if they don't exist
+        preferences = await storage.updateUserPreferences(userId, {
+          userId,
+          interests: [],
+          favoriteTopics: [],
+          engagementHistory: []
+        });
+      }
+      
+      // Update engagement history
+      const updatedHistory = [
+        {
+          timestamp: new Date(),
+          contentType,
+          contentId,
+          action
+        },
+        ...(preferences.engagementHistory || []).slice(0, 99) // Keep last 100 items
+      ];
+      
+      // Save updated engagement history
+      await storage.updateUserPreferences(userId, {
+        userId,
+        engagementHistory: updatedHistory
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error tracking engagement:", error);
+      res.status(500).json({ message: "Failed to track engagement" });
+    }
+  });
+
+  // Mark a recommendation as viewed
+  app.patch("/api/recommendations/:id/viewed", ensureAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.markRecommendationAsViewed(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Recommendation not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking recommendation as viewed:", error);
+      res.status(500).json({ message: "Failed to mark recommendation as viewed" });
     }
   });
 
