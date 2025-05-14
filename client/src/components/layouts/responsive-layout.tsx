@@ -1,8 +1,8 @@
 import React from "react";
 import { useLocation } from "wouter";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import MainLayout from "./main-layout";
-import MobileHeader from "@/components/mobile-header";
+import Header from "@/components/header";
+import MobileNavigation from "@/components/mobile-navigation";
 
 type ResponsiveLayoutProps = {
   children: React.ReactNode;
@@ -18,18 +18,23 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [location] = useLocation();
 
-  // For mobile view, we don't use the MainLayout
-  if (isMobile) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <MobileHeader currentPath={location} />
-        <main className="flex-1 pt-2 pb-20">
-          {children}
-        </main>
-      </div>
-    );
-  }
+  // We'll use the same layout for both mobile and desktop, 
+  // but with different components inside based on screen size
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Header - we now only use one header component */}
+      <Header />
 
-  // For desktop view, we wrap with MainLayout which includes sidebar navigation
-  return <MainLayout>{children}</MainLayout>;
+      {/* Main Content */}
+      <main className={`flex-1 container mx-auto px-4 ${isMobile ? 'py-2 pb-20' : 'py-6'}`}>
+        {/* Content Area */}
+        <div className="flex-1">
+          {children}
+        </div>
+      </main>
+
+      {/* Mobile Navigation Bar - only show on mobile */}
+      {isMobile && <MobileNavigation currentPath={location} />}
+    </div>
+  );
 }
