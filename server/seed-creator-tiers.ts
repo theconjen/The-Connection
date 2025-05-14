@@ -91,7 +91,12 @@ async function seedCreatorTiersAndGifts() {
 }
 
 // Run the seed function if this file is executed directly
-if (require.main === module) {
+// Using ESM module detection pattern instead of CommonJS
+import { fileURLToPath } from 'url';
+
+// This block will only run when file is executed directly, not when imported
+if (import.meta.url.startsWith('file:') && 
+    import.meta.url === new URL(fileURLToPath(import.meta.url), import.meta.url).href) {
   seedCreatorTiersAndGifts()
     .then(() => console.log("Done!"))
     .catch((error) => {
