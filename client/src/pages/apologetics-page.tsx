@@ -107,15 +107,25 @@ export default function ApologeticsPage() {
       <div className="flex-1">
         {/* Hero Section */}
         <Card className="mb-8 overflow-hidden">
-          <div className="bg-primary-700 text-white p-8 md:p-12">
-            <div className="max-w-3xl">
-              <h1 className="text-3xl font-bold mb-4 text-white">Apologetics Resource Center</h1>
-              <p className="text-white text-lg mb-6">
-                Equipping believers with knowledge and resources to understand, explain, and defend the Christian faith with confidence and grace.
-              </p>
-              <p className="bg-primary-900/50 p-3 rounded text-amber-100 text-sm italic mb-6 border-l-4 border-amber-300 pl-4">
-                "Always be prepared to give an answer to everyone who asks you to give the reason for the hope that you have." - 1 Peter 3:15
-              </p>
+          <div className="relative">
+            <div className="absolute inset-0 w-full h-full">
+              <img 
+                src="https://images.unsplash.com/photo-1509021397737-c3561cfdb56f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80" 
+                alt="Bible open with light" 
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-primary-900/80"></div>
+            </div>
+            <div className="relative z-10 text-white p-8 md:p-12">
+              <div className="max-w-3xl">
+                <h1 className="text-3xl font-bold mb-4 text-white">Apologetics Resource Center</h1>
+                <p className="text-white text-lg mb-6">
+                  Equipping believers with knowledge and resources to understand, explain, and defend the Christian faith with confidence and grace.
+                </p>
+                <p className="bg-primary-900/70 p-3 rounded text-amber-100 text-sm italic mb-6 border-l-4 border-amber-300 pl-4 shadow-md">
+                  "Always be prepared to give an answer to everyone who asks you to give the reason for the hope that you have." - 1 Peter 3:15
+                </p>
+              </div>
             </div>
           </div>
           <CardContent className="p-6">
