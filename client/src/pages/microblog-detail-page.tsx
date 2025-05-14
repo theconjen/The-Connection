@@ -5,27 +5,30 @@ import { useAuth } from "@/hooks/use-auth";
 import { Microblog, User } from "@shared/schema";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
-import MainLayout from "@/components/layouts/main-layout";
+import { Button } from "@/components/ui/button";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import MicroblogPost from "@/components/microblog-post";
 import MicroblogComposer from "@/components/microblog-composer";
-import { Button } from "@/components/ui/button";
+import MobileMicroblogPost from "@/components/mobile-microblog-post";
+import MobileMicroblogComposer from "@/components/mobile-microblog-composer";
 
 export default function MicroblogDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const microblogId = parseInt(id);
   const { user, isLoading: authLoading } = useAuth();
+  const postId = parseInt(id);
+  const isMobile = useMediaQuery("(max-width: 768px)");
   
-  const { data: microblog, isLoading: postLoading } = useQuery<Microblog & { author?: User; isLiked?: boolean }>({
-    queryKey: ['/api/microblogs', microblogId],
+  const { data: post, isLoading: postLoading } = useQuery<Microblog & { author?: User; isLiked?: boolean }>({
+    queryKey: ['/api/microblogs', postId],
     queryFn: async () => {
-      const response = await fetch(`/api/microblogs/${microblogId}`);
+      const response = await fetch(`/api/microblogs/${postId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch microblog');
+        throw new Error('Failed to fetch microblog post');
       }
       
       const post = await response.json();
       
-      // Fetch author
+      // Fetch author data
       let author = null;
       try {
         const authorRes = await fetch(`/api/users/${post.authorId}`);
@@ -36,7 +39,7 @@ export default function MicroblogDetailPage() {
         console.error('Error fetching author:', error);
       }
       
-      // Check if user liked this post
+      // Check if user has liked this post
       let isLiked = false;
       if (user) {
         try {
@@ -46,7 +49,7 @@ export default function MicroblogDetailPage() {
             isLiked = likedPostIds.includes(post.id);
           }
         } catch (error) {
-          console.error('Error fetching liked status:', error);
+          console.error('Error checking liked status:', error);
         }
       }
       
@@ -56,20 +59,20 @@ export default function MicroblogDetailPage() {
         isLiked
       };
     },
-    enabled: !isNaN(microblogId) && !authLoading,
+    enabled: !isNaN(postId),
   });
   
   const { data: replies, isLoading: repliesLoading } = useQuery<(Microblog & { author?: User; isLiked?: boolean })[]>({
-    queryKey: ['/api/microblogs', microblogId, 'replies'],
+    queryKey: ['/api/microblogs', postId, 'replies'],
     queryFn: async () => {
-      const response = await fetch(`/api/microblogs/${microblogId}/replies`);
+      const response = await fetch(`/api/microblogs/${postId}/replies`);
       if (!response.ok) {
         throw new Error('Failed to fetch replies');
       }
       
       const replies = await response.json();
       
-      // Fetch authors for replies
+      // Fetch authors for each reply
       const authors = await Promise.all(
         replies.map(async (reply: Microblog) => {
           try {
@@ -85,16 +88,16 @@ export default function MicroblogDetailPage() {
         })
       );
       
-      // Check if user liked any replies
-      let likedReplyIds: number[] = [];
+      // Fetch user's liked posts if authenticated
+      let likedPostIds: number[] = [];
       if (user) {
         try {
           const likedRes = await fetch(`/api/users/${user.id}/liked-microblogs`);
           if (likedRes.ok) {
-            likedReplyIds = await likedRes.json();
+            likedPostIds = await likedRes.json();
           }
         } catch (error) {
-          console.error('Error fetching liked replies:', error);
+          console.error('Error fetching liked posts:', error);
         }
       }
       
@@ -102,76 +105,54 @@ export default function MicroblogDetailPage() {
       return replies.map((reply: Microblog, index: number) => ({
         ...reply,
         author: authors[index],
-        isLiked: likedReplyIds.includes(reply.id),
+        isLiked: likedPostIds.includes(reply.id),
       }));
     },
-    enabled: !isNaN(microblogId) && !authLoading,
+    enabled: !isNaN(postId),
   });
   
   const isLoading = postLoading || repliesLoading;
-  const isAuthenticated = !!user;
+  const isAuthenticated = !!user && !authLoading;
   
-  if (isNaN(microblogId)) {
+  if (isMobile) {
     return (
-      <MainLayout>
-        <div className="container max-w-3xl py-6 text-center">
-          <h1 className="text-3xl font-bold mb-6">Invalid Post ID</h1>
-          <p className="mb-4">The post ID you're trying to view is invalid.</p>
-          <Link href="/microblogs">
-            <Button>Back to Feed</Button>
-          </Link>
-        </div>
-      </MainLayout>
-    );
-  }
-  
-  return (
-    <MainLayout>
-      <div className="container max-w-3xl py-6">
-        <div className="mb-6">
-          <Link href="/microblogs">
-            <Button variant="ghost" size="sm" className="mb-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Feed
-            </Button>
-          </Link>
-          
-          <h1 className="text-2xl font-bold">Post</h1>
-        </div>
-        
+      <>
         {isLoading ? (
           <div className="flex justify-center py-10">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : microblog ? (
+        ) : post ? (
           <div>
-            {/* Main post */}
-            <MicroblogPost 
-              post={microblog} 
+            <MobileMicroblogPost 
+              post={post} 
               isAuthenticated={isAuthenticated}
               isDetailView={true}
             />
             
-            {/* Reply composer */}
-            <div className="my-6">
-              <h2 className="text-xl font-semibold mb-4">Reply to this post</h2>
-              <MicroblogComposer parentId={microblogId} />
-            </div>
-            
-            {/* Replies */}
-            <div className="mt-6">
-              <h2 className="text-xl font-semibold mb-4">Replies</h2>
+            <div className="border-t border-secondary/10 mt-2 pt-3">
+              <h2 className="text-lg font-semibold mb-2 px-3">Replies</h2>
+              
+              <MobileMicroblogComposer 
+                parentId={post.id}
+                minimized={false}
+                onSuccess={() => {
+                  // This will refresh the replies list
+                  window.location.reload();
+                }}
+              />
               
               {replies && replies.length > 0 ? (
-                replies.map((reply) => (
-                  <MicroblogPost 
-                    key={reply.id} 
-                    post={reply} 
-                    isAuthenticated={isAuthenticated}
-                  />
-                ))
+                <div>
+                  {replies.map((reply) => (
+                    <MobileMicroblogPost 
+                      key={reply.id} 
+                      post={reply} 
+                      isAuthenticated={isAuthenticated}
+                    />
+                  ))}
+                </div>
               ) : (
-                <div className="text-center py-6 text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground">
                   No replies yet. Be the first to reply!
                 </div>
               )}
@@ -182,7 +163,69 @@ export default function MicroblogDetailPage() {
             Post not found or has been removed.
           </div>
         )}
+      </>
+    );
+  }
+  
+  // Desktop version
+  return (
+    <div className="container max-w-3xl py-6">
+      <div className="mb-6">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="gap-1" 
+          onClick={() => window.history.back()}
+        >
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
       </div>
-    </MainLayout>
+      
+      {isLoading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      ) : post ? (
+        <div>
+          <MicroblogPost 
+            post={post} 
+            isAuthenticated={isAuthenticated}
+            isDetailView={true}
+          />
+          
+          <div className="mt-6">
+            <h2 className="text-xl font-semibold mb-4">Replies</h2>
+            
+            <MicroblogComposer 
+              parentId={post.id}
+              onSuccess={() => {
+                // This will refresh the replies list
+                window.location.reload();
+              }}
+            />
+            
+            {replies && replies.length > 0 ? (
+              <div className="mt-6">
+                {replies.map((reply) => (
+                  <MicroblogPost 
+                    key={reply.id} 
+                    post={reply} 
+                    isAuthenticated={isAuthenticated}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No replies yet. Be the first to reply!
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-10 text-muted-foreground">
+          Post not found or has been removed.
+        </div>
+      )}
+    </div>
   );
 }
