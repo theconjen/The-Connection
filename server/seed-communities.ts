@@ -21,7 +21,7 @@ export async function seedCommunities() {
   }
 
   // Get the demo user to use as creator
-  const demoUsers = await db.select().from(users).where(eb => eb.eq(users.username, 'demo'));
+  const demoUsers = await db.select().from(users).where(({ eq }) => eq(users.username, 'demo'));
   if (demoUsers.length === 0) {
     console.log("Demo user not found, cannot seed communities");
     return;
@@ -151,15 +151,13 @@ export async function seedCommunities() {
   console.log("Community seeding complete!");
 }
 
-// If this file is run directly, execute the seeding
-if (require.main === module) {
-  seedCommunities()
-    .then(() => {
-      console.log("Community seeding script complete");
-      process.exit(0);
-    })
-    .catch(err => {
-      console.error("Error seeding communities:", err);
-      process.exit(1);
-    });
-}
+// Execute the seeding when this file is run directly
+seedCommunities()
+  .then(() => {
+    console.log("Community seeding script complete");
+    process.exit(0);
+  })
+  .catch(err => {
+    console.error("Error seeding communities:", err);
+    process.exit(1);
+  });
