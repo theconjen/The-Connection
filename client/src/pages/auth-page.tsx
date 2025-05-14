@@ -238,7 +238,7 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Display Name (optional)</FormLabel>
                           <FormControl>
-                            <Input placeholder="John Smith" {...field} />
+                            <Input placeholder="John Smith" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -317,7 +317,7 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Bio (optional)</FormLabel>
                           <FormControl>
-                            <Input placeholder="Tell us a bit about yourself" {...field} />
+                            <Input placeholder="Tell us a bit about yourself" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
