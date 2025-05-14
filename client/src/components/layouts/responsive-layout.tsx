@@ -1,8 +1,8 @@
 import React from "react";
 import { useLocation } from "wouter";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import Header from "@/components/header";
-import MobileNavigation from "@/components/mobile-navigation";
+import Header from "../header";
+import MobileNavigation from "../mobile-navigation";
 
 type ResponsiveLayoutProps = {
   children: React.ReactNode;
