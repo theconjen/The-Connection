@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import MainLayout from "@/components/layouts/main-layout";
 import PostCard from "@/components/post-card";
 import FeedFilters from "@/components/feed-filters";
 import CommunitiesList from "@/components/communities-list";
@@ -11,6 +10,7 @@ import { Post, User, Community } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface HomePageProps {
   isGuest?: boolean;
@@ -19,6 +19,7 @@ interface HomePageProps {
 export default function HomePage({ isGuest = false }: HomePageProps) {
   const [filter, setFilter] = useState<string>("popular");
   const [page, setPage] = useState(1);
+  const isMobile = useMediaQuery("(max-width: 768px)");
   
   const { data: posts, isLoading, isFetching } = useQuery<(Post & { author?: User; community?: Community })[]>({
     queryKey: ["/api/posts", { filter, page }],
@@ -34,7 +35,7 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
   };
 
   return (
-    <MainLayout>
+    <div className={`flex ${isMobile ? 'flex-col' : 'md:flex-row container mx-auto px-4 py-6 gap-6'}`}>
       {/* Main Feed Area */}
       <div className="flex-1">
         <FeedFilters onFilterChange={handleFilterChange} currentFilter={filter} />
@@ -100,12 +101,14 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
         )}
       </div>
 
-      {/* Right Sidebar */}
-      <aside className="hidden lg:block w-80 space-y-6 sticky top-24 self-start">
-        <ApologeticsResourceCard />
-        <PrivateGroupsList />
-        <CommunityGuidelines />
-      </aside>
-    </MainLayout>
+      {/* Right Sidebar (Desktop only) */}
+      {!isMobile && (
+        <aside className="hidden md:block w-80 space-y-6 sticky top-24 self-start">
+          <ApologeticsResourceCard />
+          <PrivateGroupsList />
+          <CommunityGuidelines />
+        </aside>
+      )}
+    </div>
   );
 }

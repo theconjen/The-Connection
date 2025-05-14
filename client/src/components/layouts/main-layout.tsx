@@ -168,12 +168,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-6 md:flex md:space-x-6">
-        {/* Left Sidebar (Desktop only) */}
-        <aside className="hidden md:block w-64 space-y-6 sticky top-24 self-start">
-          <SidebarNavigation currentPath={location} />
-        </aside>
-
+      <main className="flex-1 container mx-auto px-4 py-6">
         {/* Content Area */}
         <div className="flex-1">
           {children}
