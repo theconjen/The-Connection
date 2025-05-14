@@ -89,24 +89,24 @@ export default function EventsList({
           </div>
         </RadioGroup>
         
-        {/* Display Mode Tabs (List/Map) */}
-        <div className="ml-auto">
-          <TabsList>
-            <TabsTrigger 
-              value="list" 
-              onClick={() => setDisplayMode("list")}
-              className={displayMode === "list" ? "bg-primary text-primary-foreground" : ""}
-            >
-              <List size={16} className="mr-1" /> List
-            </TabsTrigger>
-            <TabsTrigger 
-              value="map" 
-              onClick={() => setDisplayMode("map")}
-              className={displayMode === "map" ? "bg-primary text-primary-foreground" : ""}
-            >
-              <Map size={16} className="mr-1" /> Map
-            </TabsTrigger>
-          </TabsList>
+        {/* Display Mode Toggle Buttons */}
+        <div className="ml-auto flex items-center space-x-2">
+          <Button
+            variant={displayMode === "list" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setDisplayMode("list")}
+            className="flex items-center"
+          >
+            <List size={16} className="mr-1" /> List
+          </Button>
+          <Button
+            variant={displayMode === "map" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setDisplayMode("map")}
+            className="flex items-center"
+          >
+            <Map size={16} className="mr-1" /> Map
+          </Button>
         </div>
       </div>
 
