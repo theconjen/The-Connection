@@ -2180,6 +2180,104 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(apologeticsResources).values(resource).returning();
     return result[0];
   }
+  
+  // Apologetics topics methods
+  async getAllApologeticsTopics(): Promise<typeof apologeticsTopics.$inferSelect[]> {
+    return await db.select().from(apologeticsTopics);
+  }
+  
+  async getApologeticsTopic(id: number): Promise<typeof apologeticsTopics.$inferSelect | undefined> {
+    const result = await db.select().from(apologeticsTopics).where(eq(apologeticsTopics.id, id)).limit(1);
+    return result[0];
+  }
+  
+  async getApologeticsTopicBySlug(slug: string): Promise<typeof apologeticsTopics.$inferSelect | undefined> {
+    const result = await db.select().from(apologeticsTopics).where(eq(apologeticsTopics.slug, slug)).limit(1);
+    return result[0];
+  }
+  
+  // Apologetics questions methods
+  async getAllApologeticsQuestions(): Promise<typeof apologeticsQuestions.$inferSelect[]> {
+    return await db.select().from(apologeticsQuestions).orderBy(desc(apologeticsQuestions.createdAt));
+  }
+  
+  async getApologeticsQuestion(id: number): Promise<typeof apologeticsQuestions.$inferSelect | undefined> {
+    const result = await db.select().from(apologeticsQuestions).where(eq(apologeticsQuestions.id, id)).limit(1);
+    return result[0];
+  }
+  
+  async getApologeticsQuestionsByTopic(topicId: number): Promise<typeof apologeticsQuestions.$inferSelect[]> {
+    return await db
+      .select()
+      .from(apologeticsQuestions)
+      .where(eq(apologeticsQuestions.topicId, topicId))
+      .orderBy(desc(apologeticsQuestions.createdAt));
+  }
+  
+  async createApologeticsQuestion(question: typeof insertApologeticsQuestionSchema._type): Promise<typeof apologeticsQuestions.$inferSelect> {
+    const result = await db.insert(apologeticsQuestions).values(question).returning();
+    return result[0];
+  }
+  
+  async updateApologeticsQuestionStatus(id: number, status: string): Promise<typeof apologeticsQuestions.$inferSelect> {
+    const result = await db
+      .update(apologeticsQuestions)
+      .set({ status })
+      .where(eq(apologeticsQuestions.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  // Apologetics answers methods
+  async getApologeticsAnswersByQuestion(questionId: number): Promise<typeof apologeticsAnswers.$inferSelect[]> {
+    return await db
+      .select()
+      .from(apologeticsAnswers)
+      .where(eq(apologeticsAnswers.questionId, questionId))
+      .orderBy(desc(apologeticsAnswers.isVerifiedAnswer), desc(apologeticsAnswers.upvotes));
+  }
+  
+  async createApologeticsAnswer(answer: typeof insertApologeticsAnswerSchema._type): Promise<typeof apologeticsAnswers.$inferSelect> {
+    const result = await db.insert(apologeticsAnswers).values(answer).returning();
+    
+    // Increment answer count on the question
+    await db
+      .update(apologeticsQuestions)
+      .set({ 
+        answerCount: sql`${apologeticsQuestions.answerCount} + 1` 
+      })
+      .where(eq(apologeticsQuestions.id, answer.questionId));
+    
+    return result[0];
+  }
+  
+  async upvoteApologeticsAnswer(id: number): Promise<typeof apologeticsAnswers.$inferSelect> {
+    const result = await db
+      .update(apologeticsAnswers)
+      .set({ 
+        upvotes: sql`${apologeticsAnswers.upvotes} + 1` 
+      })
+      .where(eq(apologeticsAnswers.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  // Verified apologetics answerers methods
+  async getVerifiedApologeticsAnswerers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.isVerifiedApologeticsAnswerer, true));
+  }
+  
+  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User> {
+    const result = await db
+      .update(users)
+      .set({ isVerifiedApologeticsAnswerer: isVerified })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
+  }
 
   // Microblog methods implementation
   async getAllMicroblogs(filterType: string = "recent"): Promise<Microblog[]> {
@@ -2960,6 +3058,200 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error creating Bible reading plan:", error);
       throw error;
+    }
+  }
+  
+  async updateBibleReadingPlan(id: number, data: Partial<BibleReadingPlan>): Promise<BibleReadingPlan> {
+    try {
+      const result = await db
+        .update(bibleReadingPlans)
+        .set(data)
+        .where(eq(bibleReadingPlans.id, id))
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error updating Bible reading plan:", error);
+      throw error;
+    }
+  }
+  
+  async deleteBibleReadingPlan(id: number): Promise<boolean> {
+    try {
+      await db.delete(bibleReadingPlans).where(eq(bibleReadingPlans.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting Bible reading plan:", error);
+      return false;
+    }
+  }
+  
+  // Bible Reading Progress methods
+  async getUserReadingProgress(userId: number): Promise<typeof bibleReadingProgress.$inferSelect[]> {
+    try {
+      return await db
+        .select()
+        .from(bibleReadingProgress)
+        .where(eq(bibleReadingProgress.userId, userId));
+    } catch (error) {
+      console.error("Error getting user reading progress:", error);
+      return [];
+    }
+  }
+  
+  async getBibleReadingProgress(userId: number, planId: number): Promise<typeof bibleReadingProgress.$inferSelect | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(bibleReadingProgress)
+        .where(
+          and(
+            eq(bibleReadingProgress.userId, userId),
+            eq(bibleReadingProgress.planId, planId)
+          )
+        )
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error getting Bible reading progress:", error);
+      return undefined;
+    }
+  }
+  
+  async createBibleReadingProgress(progress: typeof insertBibleReadingProgressSchema._type): Promise<typeof bibleReadingProgress.$inferSelect> {
+    try {
+      const result = await db.insert(bibleReadingProgress).values(progress).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating Bible reading progress:", error);
+      throw error;
+    }
+  }
+  
+  async updateBibleReadingProgress(
+    userId: number,
+    planId: number,
+    data: { 
+      currentDay?: number, 
+      completedDays?: unknown,
+      completedAt?: Date | null 
+    }
+  ): Promise<typeof bibleReadingProgress.$inferSelect> {
+    try {
+      const result = await db
+        .update(bibleReadingProgress)
+        .set(data)
+        .where(
+          and(
+            eq(bibleReadingProgress.userId, userId),
+            eq(bibleReadingProgress.planId, planId)
+          )
+        )
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error updating Bible reading progress:", error);
+      throw error;
+    }
+  }
+  
+  // Bible Study Notes methods
+  async getAllBibleStudyNotes(): Promise<typeof bibleStudyNotes.$inferSelect[]> {
+    try {
+      return await db
+        .select()
+        .from(bibleStudyNotes)
+        .where(eq(bibleStudyNotes.isPublic, true))
+        .orderBy(desc(bibleStudyNotes.createdAt));
+    } catch (error) {
+      console.error("Error getting all Bible study notes:", error);
+      return [];
+    }
+  }
+  
+  async getUserBibleStudyNotes(userId: number): Promise<typeof bibleStudyNotes.$inferSelect[]> {
+    try {
+      return await db
+        .select()
+        .from(bibleStudyNotes)
+        .where(eq(bibleStudyNotes.userId, userId))
+        .orderBy(desc(bibleStudyNotes.createdAt));
+    } catch (error) {
+      console.error("Error getting user Bible study notes:", error);
+      return [];
+    }
+  }
+  
+  async getGroupBibleStudyNotes(groupId: number): Promise<typeof bibleStudyNotes.$inferSelect[]> {
+    try {
+      return await db
+        .select()
+        .from(bibleStudyNotes)
+        .where(eq(bibleStudyNotes.groupId, groupId))
+        .orderBy(desc(bibleStudyNotes.createdAt));
+    } catch (error) {
+      console.error("Error getting group Bible study notes:", error);
+      return [];
+    }
+  }
+  
+  async getBibleStudyNote(id: number): Promise<typeof bibleStudyNotes.$inferSelect | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(bibleStudyNotes)
+        .where(eq(bibleStudyNotes.id, id))
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error getting Bible study note:", error);
+      return undefined;
+    }
+  }
+  
+  async createBibleStudyNote(note: typeof insertBibleStudyNotesSchema._type): Promise<typeof bibleStudyNotes.$inferSelect> {
+    try {
+      const result = await db.insert(bibleStudyNotes).values(note).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating Bible study note:", error);
+      throw error;
+    }
+  }
+  
+  async updateBibleStudyNote(
+    id: number,
+    data: Partial<typeof insertBibleStudyNotesSchema._type>
+  ): Promise<typeof bibleStudyNotes.$inferSelect> {
+    try {
+      const updateData = {
+        ...data,
+        updatedAt: new Date(),
+      };
+      
+      const result = await db
+        .update(bibleStudyNotes)
+        .set(updateData)
+        .where(eq(bibleStudyNotes.id, id))
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error updating Bible study note:", error);
+      throw error;
+    }
+  }
+  
+  async deleteBibleStudyNote(id: number): Promise<boolean> {
+    try {
+      await db.delete(bibleStudyNotes).where(eq(bibleStudyNotes.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting Bible study note:", error);
+      return false;
     }
   }
 }
