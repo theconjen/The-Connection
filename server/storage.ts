@@ -2182,36 +2182,63 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Apologetics topics methods
-  async getAllApologeticsTopics(): Promise<typeof apologeticsTopics.$inferSelect[]> {
-    return await db.select().from(apologeticsTopics);
+  async getAllApologeticsTopics(): Promise<any[]> {
+    return await pool.query(`
+      SELECT id, title as name, description, slug, created_at as "createdAt"
+      FROM apologetics_topics
+      ORDER BY id
+    `).then(result => result.rows);
   }
   
-  async getApologeticsTopic(id: number): Promise<typeof apologeticsTopics.$inferSelect | undefined> {
-    const result = await db.select().from(apologeticsTopics).where(eq(apologeticsTopics.id, id)).limit(1);
-    return result[0];
+  async getApologeticsTopic(id: number): Promise<any | undefined> {
+    return await pool.query(`
+      SELECT id, title as name, description, slug, created_at as "createdAt"
+      FROM apologetics_topics
+      WHERE id = $1
+      LIMIT 1
+    `, [id]).then(result => result.rows[0] || undefined);
   }
   
-  async getApologeticsTopicBySlug(slug: string): Promise<typeof apologeticsTopics.$inferSelect | undefined> {
-    const result = await db.select().from(apologeticsTopics).where(eq(apologeticsTopics.slug, slug)).limit(1);
-    return result[0];
+  async getApologeticsTopicBySlug(slug: string): Promise<any | undefined> {
+    return await pool.query(`
+      SELECT id, title as name, description, slug, created_at as "createdAt"
+      FROM apologetics_topics
+      WHERE slug = $1
+      LIMIT 1
+    `, [slug]).then(result => result.rows[0] || undefined);
   }
   
   // Apologetics questions methods
-  async getAllApologeticsQuestions(): Promise<typeof apologeticsQuestions.$inferSelect[]> {
-    return await db.select().from(apologeticsQuestions).orderBy(desc(apologeticsQuestions.createdAt));
+  async getAllApologeticsQuestions(): Promise<any[]> {
+    return await pool.query(`
+      SELECT 
+        q.id, q.title, q.content, q.user_id as "authorId", q.topic_id as "topicId", 
+        q.status, q.view_count as "viewCount", q.created_at as "createdAt"
+      FROM apologetics_questions q
+      ORDER BY q.created_at DESC
+    `).then(result => result.rows);
   }
   
-  async getApologeticsQuestion(id: number): Promise<typeof apologeticsQuestions.$inferSelect | undefined> {
-    const result = await db.select().from(apologeticsQuestions).where(eq(apologeticsQuestions.id, id)).limit(1);
-    return result[0];
+  async getApologeticsQuestion(id: number): Promise<any | undefined> {
+    return await pool.query(`
+      SELECT 
+        q.id, q.title, q.content, q.user_id as "authorId", q.topic_id as "topicId", 
+        q.status, q.view_count as "viewCount", q.created_at as "createdAt"
+      FROM apologetics_questions q
+      WHERE q.id = $1
+      LIMIT 1
+    `, [id]).then(result => result.rows[0] || undefined);
   }
   
-  async getApologeticsQuestionsByTopic(topicId: number): Promise<typeof apologeticsQuestions.$inferSelect[]> {
-    return await db
-      .select()
-      .from(apologeticsQuestions)
-      .where(eq(apologeticsQuestions.topicId, topicId))
-      .orderBy(desc(apologeticsQuestions.createdAt));
+  async getApologeticsQuestionsByTopic(topicId: number): Promise<any[]> {
+    return await pool.query(`
+      SELECT 
+        q.id, q.title, q.content, q.user_id as "authorId", q.topic_id as "topicId", 
+        q.status, q.view_count as "viewCount", q.created_at as "createdAt"
+      FROM apologetics_questions q
+      WHERE q.topic_id = $1
+      ORDER BY q.created_at DESC
+    `, [topicId]).then(result => result.rows);
   }
   
   async createApologeticsQuestion(question: typeof insertApologeticsQuestionSchema._type): Promise<typeof apologeticsQuestions.$inferSelect> {
