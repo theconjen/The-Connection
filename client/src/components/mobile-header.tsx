@@ -36,7 +36,7 @@ export default function MobileHeader({
   const showTitle = title || (!searchVisible && !backButton);
 
   return (
-    <header className="bg-white border-b border-secondary/10 sticky top-0 z-40 shadow-sm">
+    <header className="bg-card border-b border-border/50 sticky top-0 z-40 shadow-sm backdrop-blur-sm bg-opacity-80">
       <div className="px-3 py-2.5 flex items-center justify-between w-full">
         {/* Left Section */}
         <div className="flex items-center">
@@ -82,7 +82,7 @@ export default function MobileHeader({
           ) : showTitle && (
             <div className="font-medium text-lg">
               {title || (
-                <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-bold">
+                <span className="text-foreground font-medium site-title">
                   The Connection
                 </span>
               )}

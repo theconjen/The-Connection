@@ -48,7 +48,7 @@ export default function Header() {
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <img src={logoImage} alt="The Connection Logo" className="h-8 w-auto" />
-              <span className="ml-2 font-medium tracking-tight text-xl text-foreground">
+              <span className="ml-2 font-medium text-xl text-foreground site-title">
                 The Connection
               </span>
             </Link>
@@ -160,7 +160,7 @@ export default function Header() {
               </SheetTrigger>
               <SheetContent side="right" className="w-[80vw] sm:w-[350px] border-l border-border/60">
                 <SheetHeader>
-                  <SheetTitle className="text-xl font-medium text-foreground">The Connection</SheetTitle>
+                  <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
                   <SheetDescription className="text-muted-foreground">Navigate through different sections of the application</SheetDescription>
                 </SheetHeader>
                 <div className="py-6">
