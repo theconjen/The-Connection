@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -109,6 +109,80 @@ export default function EventsMap({
     );
   }
 
+  // Create a wrapper component for the Map to ensure it only renders on client-side
+  const MapComponent = () => {
+    const mapRef = useRef(null);
+    
+    return (
+      <MapContainer 
+        center={initialCenter} 
+        zoom={initialZoom} 
+        style={{ height: '100%', width: '100%', borderRadius: '0 0 var(--radius) var(--radius)' }}
+        ref={mapRef}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        {mapEvents.map(event => {
+          if (!event.latitude || !event.longitude) return null;
+          
+          const lat = parseFloat(event.latitude);
+          const lng = parseFloat(event.longitude);
+          
+          if (isNaN(lat) || isNaN(lng)) return null;
+          
+          return (
+            <Marker 
+              key={event.id} 
+              position={[lat, lng]}
+              icon={customIcon}
+            >
+              <Popup className="event-popup" minWidth={250} maxWidth={300}>
+                <div className="space-y-2">
+                  <h3 className="font-medium text-base">{event.title}</h3>
+                  
+                  <div className="flex items-start gap-2">
+                    <Calendar size={14} className="mt-0.5 shrink-0" />
+                    <span className="text-sm">{formatDate(event.eventDate)}</span>
+                  </div>
+                  
+                  <div className="flex items-start gap-2">
+                    <Clock size={14} className="mt-0.5 shrink-0" />
+                    <span className="text-sm">{event.startTime} - {event.endTime}</span>
+                  </div>
+                  
+                  {event.location && (
+                    <div className="flex items-start gap-2">
+                      <MapPin size={14} className="mt-0.5 shrink-0" />
+                      <span className="text-sm">
+                        {event.location}
+                        {event.address && <div>{event.address}</div>}
+                        {(event.city || event.state) && (
+                          <div>
+                            {event.city}{event.city && event.state ? ', ' : ''}
+                            {event.state} {event.zipCode}
+                          </div>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="pt-2">
+                    <Link href={`/events/${event.id}`}>
+                      <Button size="sm" className="w-full">View Details</Button>
+                    </Link>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
+    );
+  };
+
   return (
     <Card className="w-full">
       <CardHeader className="bg-primary/5">
@@ -122,71 +196,7 @@ export default function EventsMap({
       </CardHeader>
       <CardContent className="p-0">
         <div style={{ height, width: '100%' }}>
-          <MapContainer 
-            center={initialCenter} 
-            zoom={initialZoom} 
-            style={{ height: '100%', width: '100%', borderRadius: '0 0 var(--radius) var(--radius)' }}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            
-            {mapEvents.map(event => {
-              if (!event.latitude || !event.longitude) return null;
-              
-              const lat = parseFloat(event.latitude);
-              const lng = parseFloat(event.longitude);
-              
-              if (isNaN(lat) || isNaN(lng)) return null;
-              
-              return (
-                <Marker 
-                  key={event.id} 
-                  position={[lat, lng]}
-                  icon={customIcon}
-                >
-                  <Popup className="event-popup" minWidth={250} maxWidth={300}>
-                    <div className="space-y-2">
-                      <h3 className="font-medium text-base">{event.title}</h3>
-                      
-                      <div className="flex items-start gap-2">
-                        <Calendar size={14} className="mt-0.5 shrink-0" />
-                        <span className="text-sm">{formatDate(event.eventDate)}</span>
-                      </div>
-                      
-                      <div className="flex items-start gap-2">
-                        <Clock size={14} className="mt-0.5 shrink-0" />
-                        <span className="text-sm">{event.startTime} - {event.endTime}</span>
-                      </div>
-                      
-                      {event.location && (
-                        <div className="flex items-start gap-2">
-                          <MapPin size={14} className="mt-0.5 shrink-0" />
-                          <span className="text-sm">
-                            {event.location}
-                            {event.address && <div>{event.address}</div>}
-                            {(event.city || event.state) && (
-                              <div>
-                                {event.city}{event.city && event.state ? ', ' : ''}
-                                {event.state} {event.zipCode}
-                              </div>
-                            )}
-                          </span>
-                        </div>
-                      )}
-                      
-                      <div className="pt-2">
-                        <Link href={`/events/${event.id}`}>
-                          <Button size="sm" className="w-full">View Details</Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
-          </MapContainer>
+          <MapComponent />
         </div>
       </CardContent>
     </Card>
