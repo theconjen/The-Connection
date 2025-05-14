@@ -45,7 +45,7 @@ export default function CommunitiesPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [newCommunity, setNewCommunity] = useState({
     name: "",
     description: "",
@@ -79,7 +79,7 @@ export default function CommunitiesPage() {
         title: "Community created",
         description: `"${data.name}" has been created successfully.`,
       });
-      setIsCreateDialogOpen(false);
+      setOpen(false);
       resetForm();
       navigate(`/community/${data.slug}`);
     },
@@ -162,14 +162,14 @@ export default function CommunitiesPage() {
         </div>
         
         {user && (
-          <Dialog>
+          <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Button onClick={() => setOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Community
               </Button>
             </DialogTrigger>
-            <DialogContent onEscapeKeyDown={() => setIsCreateDialogOpen(false)}>
+            <DialogContent onEscapeKeyDown={() => setOpen(false)}>
               <DialogHeader>
                 <DialogTitle>Create Community</DialogTitle>
                 <DialogDescription>
@@ -253,7 +253,7 @@ export default function CommunitiesPage() {
           </p>
           
           {user ? (
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button onClick={() => setOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Community
             </Button>
