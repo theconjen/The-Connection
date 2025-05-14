@@ -1,71 +1,71 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;500;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* The Connection color palette - darker version */
+  /* The Connection color palette - mature and gender-neutral */
   /* Soft White (Background) */
-  --background: 240 25% 96%;
-  --foreground: 240 10% 8%;
-  --muted: 240 15% 92%;
-  --muted-foreground: 240 10% 35%;
+  --background: 220 25% 97%;
+  --foreground: 220 30% 10%;
+  --muted: 220 15% 92%;
+  --muted-foreground: 220 10% 40%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 8%;
+  --popover-foreground: 220 30% 10%;
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 8%;
-  --border: 240 15% 82%;
-  --input: 240 15% 82%;
+  --card-foreground: 220 30% 10%;
+  --border: 220 20% 85%;
+  --input: 220 20% 85%;
   
-  /* Deeper Purple (Primary Identity Color) */
-  --primary: 246 85% 60%;
+  /* Deep Blue (Primary Identity Color) */
+  --primary: 215 70% 45%;
   --primary-foreground: 0 0% 100%;
   
-  /* Deeper Blush Pink (Gentle Accent) */
-  --secondary: 334 70% 70%;
+  /* Teal (Gender-neutral Accent) */
+  --secondary: 175 65% 40%;
   --secondary-foreground: 0 0% 100%;
   
-  /* Deeper Dusty Rose (Depth/Support Accent) */
-  --accent: 332 60% 55%;
+  /* Amber (Warm Accent) */
+  --accent: 35 85% 50%;
   --accent-foreground: 0 0% 100%;
   
   /* Default red for destructive actions */
-  --destructive: 0 70% 50%;
+  --destructive: 0 75% 45%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 246 85% 60%;
-  --radius: 0.75rem;
+  --ring: 215 70% 45%;
+  --radius: 0.5rem;
 }
 
 .dark {
-  /* Deeper Charcoal (Dark Mode/Contrast) */
-  --background: 240 20% 8%;
-  --foreground: 240 10% 95%; 
-  --muted: 240 15% 16%;
-  --muted-foreground: 240 10% 70%;
-  --popover: 240 20% 8%;
-  --popover-foreground: 240 10% 95%;
-  --card: 240 20% 12%;
-  --card-foreground: 240 10% 95%;
-  --border: 240 15% 20%;
-  --input: 240 15% 20%;
+  /* Deep Navy (Dark Mode/Contrast) */
+  --background: 215 30% 10%;
+  --foreground: 215 10% 95%; 
+  --muted: 215 25% 18%;
+  --muted-foreground: 215 10% 65%;
+  --popover: 215 30% 10%;
+  --popover-foreground: 215 10% 95%;
+  --card: 215 30% 14%;
+  --card-foreground: 215 10% 95%;
+  --border: 215 25% 22%;
+  --input: 215 25% 22%;
   
-  /* Deep Purple for dark mode */
-  --primary: 246 85% 65%;
+  /* Brighter Deep Blue for dark mode */
+  --primary: 215 70% 55%;
   --primary-foreground: 0 0% 100%;
   
-  /* Deep Blush Pink for dark mode */
-  --secondary: 334 70% 65%;
+  /* Brighter Teal for dark mode */
+  --secondary: 175 70% 45%;
   --secondary-foreground: 0 0% 100%;
   
-  /* Deep Dusty Rose for dark mode */
-  --accent: 332 60% 60%;
+  /* Brighter Amber for dark mode */
+  --accent: 35 90% 55%;
   --accent-foreground: 0 0% 100%;
   
-  --destructive: 0 70% 50%;
+  --destructive: 0 75% 50%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 246 85% 65%;
-  --radius: 0.75rem;
+  --ring: 215 70% 55%;
+  --radius: 0.5rem;
 }
 
 @layer base {
@@ -75,12 +75,13 @@
 
   body {
     @apply antialiased bg-background text-foreground;
-    font-family: 'Quicksand', sans-serif;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: -0.01em;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Poppins', sans-serif;
-    @apply font-medium;
+    font-family: 'Merriweather', serif;
+    @apply font-medium tracking-tight;
   }
 
   /* More professional card styling */
