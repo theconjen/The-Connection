@@ -2081,6 +2081,254 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Event methods
+  async getAllEvents(filter?: string): Promise<Event[]> {
+    try {
+      // Base query
+      let query = db.select().from(events);
+      
+      // Apply filter if provided
+      if (filter) {
+        if (filter === "upcoming") {
+          const now = new Date();
+          query = query.where(sql`${events.eventDate} >= CURRENT_DATE`);
+        } else if (filter === "past") {
+          const now = new Date();
+          query = query.where(sql`${events.eventDate} < CURRENT_DATE`);
+        } else if (filter === "virtual") {
+          query = query.where(eq(events.isVirtual, true));
+        } else if (filter === "in-person") {
+          query = query.where(eq(events.isVirtual, false));
+        } else {
+          // Text search
+          query = query.where(
+            or(
+              sql`${events.title} ILIKE ${'%' + filter + '%'}`,
+              sql`${events.description} ILIKE ${'%' + filter + '%'}`,
+              sql`${events.location} ILIKE ${'%' + filter + '%'}`,
+              sql`${events.address} ILIKE ${'%' + filter + '%'}`,
+              sql`${events.city} ILIKE ${'%' + filter + '%'}`,
+              sql`${events.state} ILIKE ${'%' + filter + '%'}`
+            )
+          );
+        }
+      }
+      
+      // Order by date (most recent first for past events, soonest first for upcoming)
+      if (filter === "past") {
+        query = query.orderBy(desc(events.eventDate), desc(events.startTime));
+      } else {
+        query = query.orderBy(events.eventDate, events.startTime);
+      }
+      
+      const result = await query;
+      return result;
+    } catch (error) {
+      console.error("Error getting events:", error);
+      return [];
+    }
+  }
+  
+  async getPublicEvents(): Promise<Event[]> {
+    try {
+      const result = await db
+        .select()
+        .from(events)
+        .where(
+          and(
+            eq(events.isPublic, true),
+            sql`${events.eventDate} >= CURRENT_DATE`
+          )
+        )
+        .orderBy(events.eventDate, events.startTime);
+      
+      return result;
+    } catch (error) {
+      console.error("Error getting public events:", error);
+      return [];
+    }
+  }
+  
+  async getEventsNearby(latitude: string, longitude: string, radiusInKm: number): Promise<Event[]> {
+    try {
+      if (!latitude || !longitude) {
+        return this.getPublicEvents();
+      }
+      
+      const userLat = parseFloat(latitude);
+      const userLng = parseFloat(longitude);
+      
+      if (isNaN(userLat) || isNaN(userLng)) {
+        return this.getPublicEvents();
+      }
+      
+      // First get public events
+      const publicEvents = await this.getPublicEvents();
+      
+      // Filter events that have location coordinates and calculate distance
+      return publicEvents
+        .filter(event => {
+          // Ensure event has valid coordinates
+          if (!event.latitude || !event.longitude) return false;
+          
+          const eventLat = parseFloat(event.latitude);
+          const eventLng = parseFloat(event.longitude);
+          
+          if (isNaN(eventLat) || isNaN(eventLng)) return false;
+          
+          // Calculate distance using haversine formula
+          const distance = this.calculateDistance(
+            userLat, userLng,
+            eventLat, eventLng
+          );
+          
+          // Keep events within the specified radius
+          return distance <= radiusInKm;
+        })
+        .sort((a, b) => {
+          // Sort by distance from user (closest first)
+          const distA = this.calculateDistance(
+            userLat, userLng,
+            parseFloat(a.latitude!), parseFloat(a.longitude!)
+          );
+          const distB = this.calculateDistance(
+            userLat, userLng,
+            parseFloat(b.latitude!), parseFloat(b.longitude!)
+          );
+          
+          return distA - distB;
+        });
+    } catch (error) {
+      console.error("Error getting nearby events:", error);
+      return [];
+    }
+  }
+  
+  // Helper function to calculate distance between two coordinates using haversine formula
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Earth's radius in km
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const d = R * c;
+    return d;
+  }
+  
+  private toRad(degrees: number): number {
+    return degrees * Math.PI / 180;
+  }
+  
+  async getEvent(id: number): Promise<Event | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(events)
+        .where(eq(events.id, id))
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error(`Error getting event with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async getEventsByCommunity(communityId: number): Promise<Event[]> {
+    try {
+      const result = await db
+        .select()
+        .from(events)
+        .where(eq(events.communityId, communityId))
+        .orderBy(events.eventDate, events.startTime);
+      
+      return result;
+    } catch (error) {
+      console.error(`Error getting events for community ${communityId}:`, error);
+      return [];
+    }
+  }
+  
+  async getEventsByGroup(groupId: number): Promise<Event[]> {
+    try {
+      const result = await db
+        .select()
+        .from(events)
+        .where(eq(events.groupId, groupId))
+        .orderBy(events.eventDate, events.startTime);
+      
+      return result;
+    } catch (error) {
+      console.error(`Error getting events for group ${groupId}:`, error);
+      return [];
+    }
+  }
+  
+  async getEventsByUser(userId: number): Promise<Event[]> {
+    try {
+      const result = await db
+        .select()
+        .from(events)
+        .where(eq(events.creatorId, userId))
+        .orderBy(events.eventDate, events.startTime);
+      
+      return result;
+    } catch (error) {
+      console.error(`Error getting events for user ${userId}:`, error);
+      return [];
+    }
+  }
+  
+  async createEvent(event: InsertEvent): Promise<Event> {
+    try {
+      const result = await db
+        .insert(events)
+        .values(event)
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error creating event:", error);
+      throw new Error("Failed to create event");
+    }
+  }
+  
+  async updateEvent(id: number, eventData: Partial<Event>): Promise<Event> {
+    try {
+      const result = await db
+        .update(events)
+        .set(eventData)
+        .where(eq(events.id, id))
+        .returning();
+      
+      if (result.length === 0) {
+        throw new Error(`Event with ID ${id} not found`);
+      }
+      
+      return result[0];
+    } catch (error) {
+      console.error(`Error updating event ${id}:`, error);
+      throw new Error("Failed to update event");
+    }
+  }
+  
+  async deleteEvent(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(events)
+        .where(eq(events.id, id))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error(`Error deleting event ${id}:`, error);
+      return false;
+    }
+  }
+  
   async getUpcomingEvents(limit: number): Promise<Event[]> {
     try {
       const now = new Date();
