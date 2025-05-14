@@ -15,6 +15,10 @@ import {
 import { 
   // Existing schemas
   insertCommunitySchema, 
+  insertCommunityMemberSchema,
+  insertCommunityChatRoomSchema,
+  insertChatMessageSchema,
+  insertCommunityWallPostSchema,
   insertPostSchema, 
   insertCommentSchema,
   insertGroupSchema,

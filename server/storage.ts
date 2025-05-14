@@ -96,6 +96,39 @@ export interface IStorage {
   getCommunity(id: number): Promise<Community | undefined>;
   getCommunityBySlug(slug: string): Promise<Community | undefined>;
   createCommunity(community: InsertCommunity): Promise<Community>;
+  updateCommunity(id: number, community: Partial<Community>): Promise<Community>;
+  deleteCommunity(id: number): Promise<boolean>;
+  
+  // Community Members & Roles
+  getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]>;
+  getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined>;
+  addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember>;
+  updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember>;
+  removeCommunityMember(communityId: number, userId: number): Promise<boolean>;
+  isCommunityMember(communityId: number, userId: number): Promise<boolean>;
+  isCommunityOwner(communityId: number, userId: number): Promise<boolean>;
+  isCommunityModerator(communityId: number, userId: number): Promise<boolean>;
+  
+  // Community Chat Rooms
+  getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]>;
+  getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]>;
+  getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined>;
+  createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom>;
+  updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom>;
+  deleteCommunityRoom(id: number): Promise<boolean>;
+  
+  // Chat Messages
+  getChatMessages(roomId: number, limit?: number): Promise<(ChatMessage & { sender: User })[]>;
+  getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]>;
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  deleteChatMessage(id: number): Promise<boolean>;
+  
+  // Community Wall Posts
+  getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]>;
+  getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined>;
+  createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost>;
+  updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost>;
+  deleteCommunityWallPost(id: number): Promise<boolean>;
   
   // Post methods
   getAllPosts(filter?: string): Promise<Post[]>;
@@ -415,6 +448,10 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private communities: Map<number, Community>;
+  private communityMembers: Map<number, CommunityMember>;
+  private communityChatRooms: Map<number, CommunityChatRoom>;
+  private chatMessages: Map<number, ChatMessage>;
+  private communityWallPosts: Map<number, CommunityWallPost>;
   private posts: Map<number, Post>;
   private comments: Map<number, Comment>;
   private groups: Map<number, Group>;
@@ -429,6 +466,10 @@ export class MemStorage implements IStorage {
   
   private userIdCounter: number;
   private communityIdCounter: number;
+  private communityMemberIdCounter: number;
+  private communityChatRoomIdCounter: number;
+  private chatMessageIdCounter: number;
+  private communityWallPostIdCounter: number;
   private postIdCounter: number;
   private commentIdCounter: number;
   private groupIdCounter: number;
@@ -446,6 +487,10 @@ export class MemStorage implements IStorage {
   constructor() {
     this.users = new Map();
     this.communities = new Map();
+    this.communityMembers = new Map();
+    this.communityChatRooms = new Map();
+    this.chatMessages = new Map();
+    this.communityWallPosts = new Map();
     this.posts = new Map();
     this.comments = new Map();
     this.groups = new Map();
@@ -460,6 +505,10 @@ export class MemStorage implements IStorage {
     
     this.userIdCounter = 1;
     this.communityIdCounter = 1;
+    this.communityMemberIdCounter = 1;
+    this.communityChatRoomIdCounter = 1;
+    this.chatMessageIdCounter = 1;
+    this.communityWallPostIdCounter = 1;
     this.postIdCounter = 1;
     this.commentIdCounter = 1;
     this.groupIdCounter = 1;
@@ -595,10 +644,368 @@ export class MemStorage implements IStorage {
       ...insertCommunity,
       id,
       memberCount: 0,
-      createdAt: now
+      createdAt: now,
+      hasPrivateWall: insertCommunity.hasPrivateWall || false,
+      hasPublicWall: insertCommunity.hasPublicWall !== false // default to true if not specified
     };
     this.communities.set(id, community);
     return community;
+  }
+  
+  async updateCommunity(id: number, communityData: Partial<Community>): Promise<Community> {
+    const community = await this.getCommunity(id);
+    if (!community) {
+      throw new Error(`Community with ID ${id} not found`);
+    }
+    
+    const updatedCommunity = {
+      ...community,
+      ...communityData
+    };
+    
+    this.communities.set(id, updatedCommunity);
+    return updatedCommunity;
+  }
+  
+  async deleteCommunity(id: number): Promise<boolean> {
+    const exists = this.communities.has(id);
+    if (exists) {
+      // Delete all related data
+      // 1. Delete community members
+      const communityMembers = Array.from(this.communityMembers.values())
+        .filter(member => member.communityId === id);
+      for (const member of communityMembers) {
+        this.communityMembers.delete(member.id);
+      }
+      
+      // 2. Delete chat rooms and their messages
+      const chatRooms = Array.from(this.communityChatRooms.values())
+        .filter(room => room.communityId === id);
+      for (const room of chatRooms) {
+        const messages = Array.from(this.chatMessages.values())
+          .filter(msg => msg.chatRoomId === room.id);
+        for (const message of messages) {
+          this.chatMessages.delete(message.id);
+        }
+        this.communityChatRooms.delete(room.id);
+      }
+      
+      // 3. Delete wall posts
+      const wallPosts = Array.from(this.communityWallPosts.values())
+        .filter(post => post.communityId === id);
+      for (const post of wallPosts) {
+        this.communityWallPosts.delete(post.id);
+      }
+      
+      // 4. Delete community itself
+      this.communities.delete(id);
+    }
+    return exists;
+  }
+  
+  // Community Members methods
+  async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
+    const members = Array.from(this.communityMembers.values())
+      .filter(member => member.communityId === communityId);
+      
+    return Promise.all(members.map(async member => {
+      const user = await this.getUser(member.userId);
+      if (!user) {
+        throw new Error(`User with ID ${member.userId} not found`);
+      }
+      return { ...member, user };
+    }));
+  }
+  
+  async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
+    return Array.from(this.communityMembers.values())
+      .find(member => member.communityId === communityId && member.userId === userId);
+  }
+  
+  async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
+    const id = this.communityMemberIdCounter++;
+    const now = new Date();
+    const newMember: CommunityMember = {
+      ...member,
+      id,
+      joinedAt: now
+    };
+    
+    this.communityMembers.set(id, newMember);
+    
+    // Update community member count
+    const community = await this.getCommunity(member.communityId);
+    if (community) {
+      await this.updateCommunity(community.id, { 
+        memberCount: (community.memberCount || 0) + 1 
+      });
+    }
+    
+    return newMember;
+  }
+  
+  async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
+    const member = this.communityMembers.get(id);
+    if (!member) {
+      throw new Error(`Community member with ID ${id} not found`);
+    }
+    
+    const updatedMember = { ...member, role };
+    this.communityMembers.set(id, updatedMember);
+    return updatedMember;
+  }
+  
+  async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
+    const member = Array.from(this.communityMembers.values())
+      .find(m => m.communityId === communityId && m.userId === userId);
+      
+    if (member) {
+      this.communityMembers.delete(member.id);
+      
+      // Update community member count
+      const community = await this.getCommunity(communityId);
+      if (community && community.memberCount && community.memberCount > 0) {
+        await this.updateCommunity(community.id, { 
+          memberCount: community.memberCount - 1 
+        });
+      }
+      
+      return true;
+    }
+    
+    return false;
+  }
+  
+  async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
+    const member = await this.getCommunityMember(communityId, userId);
+    return !!member;
+  }
+  
+  async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
+    const member = await this.getCommunityMember(communityId, userId);
+    return !!member && member.role === 'owner';
+  }
+  
+  async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
+    const member = await this.getCommunityMember(communityId, userId);
+    return !!member && (member.role === 'moderator' || member.role === 'owner');
+  }
+  
+  // Community Chat Room methods
+  async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
+    return Array.from(this.communityChatRooms.values())
+      .filter(room => room.communityId === communityId);
+  }
+  
+  async getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
+    return Array.from(this.communityChatRooms.values())
+      .filter(room => room.communityId === communityId && !room.isPrivate);
+  }
+  
+  async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
+    return this.communityChatRooms.get(id);
+  }
+  
+  async createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom> {
+    const id = this.communityChatRoomIdCounter++;
+    const now = new Date();
+    
+    const newRoom: CommunityChatRoom = {
+      ...room,
+      id,
+      createdAt: now,
+      isPrivate: room.isPrivate || false
+    };
+    
+    this.communityChatRooms.set(id, newRoom);
+    return newRoom;
+  }
+  
+  async updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
+    const room = this.communityChatRooms.get(id);
+    if (!room) {
+      throw new Error(`Community chat room with ID ${id} not found`);
+    }
+    
+    const updatedRoom = { ...room, ...data };
+    this.communityChatRooms.set(id, updatedRoom);
+    return updatedRoom;
+  }
+  
+  async deleteCommunityRoom(id: number): Promise<boolean> {
+    const exists = this.communityChatRooms.has(id);
+    
+    if (exists) {
+      // Delete all messages in this room
+      const messages = Array.from(this.chatMessages.values())
+        .filter(msg => msg.chatRoomId === id);
+      
+      for (const message of messages) {
+        this.chatMessages.delete(message.id);
+      }
+      
+      // Delete the room itself
+      this.communityChatRooms.delete(id);
+    }
+    
+    return exists;
+  }
+  
+  // Chat Messages methods
+  async getChatMessages(roomId: number, limit: number = 50): Promise<(ChatMessage & { sender: User })[]> {
+    const messages = Array.from(this.chatMessages.values())
+      .filter(msg => msg.chatRoomId === roomId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) // Oldest first
+      .slice(-limit); // Get the most recent messages up to the limit
+      
+    return Promise.all(messages.map(async message => {
+      const sender = await this.getUser(message.senderId);
+      if (!sender && !message.isSystemMessage) {
+        throw new Error(`User with ID ${message.senderId} not found`);
+      }
+      return { 
+        ...message, 
+        sender: sender || { 
+          id: 0, 
+          username: "System", 
+          email: "", 
+          password: "",
+          displayName: "System",
+          bio: null,
+          avatarUrl: null,
+          isVerifiedApologeticsAnswerer: null,
+          createdAt: null
+        } 
+      };
+    }));
+  }
+  
+  async getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]> {
+    const afterMessage = this.chatMessages.get(afterId);
+    if (!afterMessage) {
+      return [];
+    }
+    
+    const messages = Array.from(this.chatMessages.values())
+      .filter(msg => 
+        msg.chatRoomId === roomId && 
+        msg.createdAt.getTime() > afterMessage.createdAt.getTime()
+      )
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      
+    return Promise.all(messages.map(async message => {
+      const sender = await this.getUser(message.senderId);
+      if (!sender && !message.isSystemMessage) {
+        throw new Error(`User with ID ${message.senderId} not found`);
+      }
+      return { 
+        ...message, 
+        sender: sender || { 
+          id: 0, 
+          username: "System", 
+          email: "", 
+          password: "",
+          displayName: "System",
+          bio: null,
+          avatarUrl: null,
+          isVerifiedApologeticsAnswerer: null,
+          createdAt: null
+        } 
+      };
+    }));
+  }
+  
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const id = this.chatMessageIdCounter++;
+    const now = new Date();
+    
+    const newMessage: ChatMessage = {
+      ...message,
+      id,
+      createdAt: now,
+      isSystemMessage: message.isSystemMessage || false
+    };
+    
+    this.chatMessages.set(id, newMessage);
+    return newMessage;
+  }
+  
+  async deleteChatMessage(id: number): Promise<boolean> {
+    const exists = this.chatMessages.has(id);
+    if (exists) {
+      this.chatMessages.delete(id);
+    }
+    return exists;
+  }
+  
+  // Community Wall Posts methods
+  async getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
+    let posts = Array.from(this.communityWallPosts.values())
+      .filter(post => post.communityId === communityId);
+      
+    if (isPrivate !== undefined) {
+      posts = posts.filter(post => post.isPrivate === isPrivate);
+    }
+    
+    posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // Newest first
+    
+    return Promise.all(posts.map(async post => {
+      const author = await this.getUser(post.authorId);
+      if (!author) {
+        throw new Error(`User with ID ${post.authorId} not found`);
+      }
+      return { ...post, author };
+    }));
+  }
+  
+  async getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined> {
+    const post = this.communityWallPosts.get(id);
+    if (!post) {
+      return undefined;
+    }
+    
+    const author = await this.getUser(post.authorId);
+    if (!author) {
+      throw new Error(`User with ID ${post.authorId} not found`);
+    }
+    
+    return { ...post, author };
+  }
+  
+  async createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost> {
+    const id = this.communityWallPostIdCounter++;
+    const now = new Date();
+    
+    const newPost: CommunityWallPost = {
+      ...post,
+      id,
+      createdAt: now,
+      isPrivate: post.isPrivate || false,
+      likeCount: 0,
+      commentCount: 0
+    };
+    
+    this.communityWallPosts.set(id, newPost);
+    return newPost;
+  }
+  
+  async updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
+    const post = this.communityWallPosts.get(id);
+    if (!post) {
+      throw new Error(`Community wall post with ID ${id} not found`);
+    }
+    
+    const updatedPost = { ...post, ...data };
+    this.communityWallPosts.set(id, updatedPost);
+    return updatedPost;
+  }
+  
+  async deleteCommunityWallPost(id: number): Promise<boolean> {
+    const exists = this.communityWallPosts.has(id);
+    if (exists) {
+      this.communityWallPosts.delete(id);
+    }
+    return exists;
   }
 
   // Post methods
