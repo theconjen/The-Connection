@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, relations } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -435,9 +435,14 @@ export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  location: text("location"),
+  location: text("location"), // General location name
+  address: text("address"), // Full street address
+  city: text("city"), // City
+  state: text("state"), // State or province
+  zipCode: text("zip_code"), // Postal/ZIP code
   isVirtual: boolean("is_virtual").default(false),
   isPublic: boolean("is_public").default(false), // Allow events to be publicly visible
+  showOnMap: boolean("show_on_map").default(true), // Whether to display the event on maps
   virtualMeetingUrl: text("virtual_meeting_url"),
   eventDate: date("event_date").notNull(),
   startTime: time("start_time").notNull(),
@@ -455,8 +460,13 @@ export const insertEventSchema = createInsertSchema(events).pick({
   title: true,
   description: true,
   location: true,
+  address: true,
+  city: true,
+  state: true,
+  zipCode: true,
   isVirtual: true,
   isPublic: true,
+  showOnMap: true,
   virtualMeetingUrl: true,
   eventDate: true,
   startTime: true,
