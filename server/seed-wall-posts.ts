@@ -17,7 +17,7 @@ export async function seedWallPosts() {
     }
 
     // Get the demo user
-    const demoUsers = await db.select().from(users).where(({ eq }) => eq(users.username, 'demo'));
+    const demoUsers = await db.select().from(users).where(eq(users.username, 'demo'));
     if (demoUsers.length === 0) {
       console.log("Demo user not found, cannot seed wall posts");
       return;
