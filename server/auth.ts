@@ -33,13 +33,14 @@ async function comparePasswords(supplied: string, stored: string) {
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "faith-connect-session-secret",
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       secure: false, // Set to true in production with HTTPS
-      httpOnly: true
+      httpOnly: true,
+      sameSite: 'lax'
     }
   };
 
@@ -133,17 +134,29 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: any, user: SelectUser | false, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json({ message: "Invalid username or password" });
       
       req.login(user, (err) => {
         if (err) return next(err);
         console.log("User logged in successfully:", user.username);
+        
+        // Send a sanitized user object (without password)
+        const sanitizedUser = {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          displayName: user.displayName,
+          bio: user.bio,
+          createdAt: user.createdAt,
+          isVerifiedApologeticsAnswerer: user.isVerifiedApologeticsAnswerer,
+        };
+        
         // Generate a fresh session to ensure cookie is sent
         req.session.save((err) => {
           if (err) return next(err);
-          return res.status(200).json(user);
+          return res.status(200).json(sanitizedUser);
         });
       });
     })(req, res, next);
