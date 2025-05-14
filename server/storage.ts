@@ -2347,6 +2347,87 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
+  
+  // Event RSVP methods
+  async getEventRsvps(eventId: number): Promise<EventRsvp[]> {
+    try {
+      const rsvps = await db
+        .select({
+          id: eventRsvps.id,
+          eventId: eventRsvps.eventId,
+          userId: eventRsvps.userId,
+          status: eventRsvps.status,
+          createdAt: eventRsvps.createdAt,
+          user: {
+            id: users.id,
+            username: users.username,
+            displayName: users.displayName,
+            avatarUrl: users.avatarUrl
+          }
+        })
+        .from(eventRsvps)
+        .leftJoin(users, eq(eventRsvps.userId, users.id))
+        .where(eq(eventRsvps.eventId, eventId));
+      
+      return rsvps;
+    } catch (error) {
+      console.error(`Error getting RSVPs for event ${eventId}:`, error);
+      return [];
+    }
+  }
+
+  async getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(eventRsvps)
+        .where(
+          and(
+            eq(eventRsvps.eventId, eventId),
+            eq(eventRsvps.userId, userId)
+          )
+        )
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error(`Error getting user RSVP for event ${eventId}:`, error);
+      return undefined;
+    }
+  }
+
+  async createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp> {
+    try {
+      const result = await db
+        .insert(eventRsvps)
+        .values(rsvp)
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error creating event RSVP:", error);
+      throw new Error("Failed to create RSVP");
+    }
+  }
+
+  async updateEventRsvp(id: number, status: string): Promise<EventRsvp> {
+    try {
+      const result = await db
+        .update(eventRsvps)
+        .set({ status })
+        .where(eq(eventRsvps.id, id))
+        .returning();
+      
+      if (result.length === 0) {
+        throw new Error(`RSVP with ID ${id} not found`);
+      }
+      
+      return result[0];
+    } catch (error) {
+      console.error(`Error updating RSVP ${id}:`, error);
+      throw new Error("Failed to update RSVP");
+    }
+  }
 
   async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
     try {

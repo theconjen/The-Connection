@@ -15,23 +15,8 @@ import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  eventDate: string;
-  startTime: string;
-  endTime: string;
-  location: string | null;
-  latitude: string | null;
-  longitude: string | null;
-  isPublic: boolean;
-  communityId: number | null;
-  groupId: number | null;
-  creatorId: number;
-  createdAt: Date | null;
-}
+import EventsList from "@/components/events/EventsList";
+import { Event } from "@/components/events/EventsMap";
 
 export default function EventsPage() {
   const { user } = useAuth();
