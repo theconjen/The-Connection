@@ -1,238 +1,456 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useRoute } from "wouter";
-import MainLayout from "@/components/layouts/main-layout";
-import PostCard from "@/components/post-card";
-import FeedFilters from "@/components/feed-filters";
-import ApologeticsResourceCard from "@/components/apologetics-resource";
-import PrivateGroupsList from "@/components/private-groups-list";
-import CommunityGuidelines from "@/components/community-guidelines";
-import { Post, User, Community } from "@shared/schema";
+import { useState, useEffect } from "react";
+import { useParams, useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from "@/components/ui/dialog";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { 
+  PencilLine, 
+  Users, 
+  MessageSquareText, 
+  LayoutList, 
+  Settings, 
+  MoreVertical,
+  Loader2, 
+  UserPlus, 
+  UserMinus,
+  Eye,
+  ShieldAlert,
+  Lock,
+  Trash,
+  AlertTriangle
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { MemberList } from "@/components/community/MemberList";
+import { ChatRoomList } from "@/components/community/ChatRoomList";
 
 export default function CommunityPage() {
-  const [, params] = useRoute("/community/:slug");
-  const slug = params?.slug || "";
-  const [filter, setFilter] = useState<string>("popular");
+  const params = useParams();
+  const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const slug = params.slug as string;
+  const [showJoinConfirm, setShowJoinConfirm] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
-  const { data: community, isLoading: isLoadingCommunity } = useQuery<Community>({
+  // Fetch community details
+  const { 
+    data: community, 
+    isLoading: isLoadingCommunity, 
+    error: communityError 
+  } = useQuery({
     queryKey: [`/api/communities/${slug}`],
     enabled: !!slug,
   });
   
-  const { data: posts, isLoading: isLoadingPosts, isFetching } = useQuery<(Post & { author?: User; community?: Community })[]>({
-    queryKey: ["/api/posts", { community: slug, filter }],
-    enabled: !!slug,
+  // Check membership status
+  const { 
+    data: membership,
+    isLoading: isLoadingMembership,
+    error: membershipError
+  } = useQuery({
+    queryKey: [`/api/communities/${community?.id}/members`],
+    enabled: !!community?.id && !!user,
+    select: (data) => {
+      if (!user) return null;
+      return data.find((member: any) => member.userId === user.id);
+    },
   });
   
-  const handleFilterChange = (newFilter: string) => {
-    setFilter(newFilter);
+  // Role checks
+  const isOwner = membership?.role === 'owner';
+  const isModerator = membership?.role === 'moderator';
+  const isMember = !!membership;
+  
+  // Join community mutation
+  const joinMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest(
+        "POST",
+        `/api/communities/${community.id}/members`,
+        {}
+      );
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/communities/${community.id}/members`] });
+      toast({
+        title: "Joined community",
+        description: `You are now a member of ${community.name}`,
+      });
+      setShowJoinConfirm(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to join community",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Leave community mutation
+  const leaveMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      await apiRequest(
+        "DELETE",
+        `/api/communities/${community.id}/members/${user.id}`
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/communities/${community.id}/members`] });
+      toast({
+        title: "Left community",
+        description: `You have left ${community.name}`,
+      });
+      setShowLeaveConfirm(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to leave community",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Delete community mutation
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest(
+        "DELETE",
+        `/api/communities/${community.id}`
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
+      toast({
+        title: "Community deleted",
+        description: `${community.name} has been permanently deleted`,
+      });
+      navigate('/communities');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete community",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const handleJoinCommunity = () => {
+    joinMutation.mutate();
   };
   
-  const getCommunityIcon = (iconName: string, iconColor: string) => {
-    let icon;
-    let colorClass = '';
-    
-    switch (iconColor) {
-      case 'primary':
-        colorClass = 'bg-primary-100 text-primary-600';
-        break;
-      case 'secondary':
-        colorClass = 'bg-green-100 text-green-600';
-        break;
-      case 'accent':
-        colorClass = 'bg-amber-100 text-amber-600';
-        break;
-      case 'red':
-        colorClass = 'bg-red-100 text-red-500';
-        break;
-      default:
-        colorClass = 'bg-neutral-100 text-neutral-600';
-    }
-    
-    switch (iconName) {
-      case 'pray':
-        icon = (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
-            <path d="M12 2v1" />
-            <path d="M12 21v-1" />
-            <path d="M3.3 7.8c-.4-1 .1-2 1-2.4 1-.4 2 .1 2.4 1 .4 1-.1 2-1 2.4-1 .4-2-.1-2.4-1Z" />
-            <path d="M20.7 16.2c-.4-1 .1-2 1-2.4 1-.4 2 .1 2.4 1 .4 1-.1 2-1 2.4-1 .4-2-.1-2.4-1Z" />
-            <path d="M3.3 16.2c-.4-1 .1-2 1-2.4 1-.4 2 .1 2.4 1 .4 1-.1 2-1 2.4-1 .4-2-.1-2.4-1Z" />
-            <path d="M20.7 7.8c-.4-1 .1-2 1-2.4 1-.4 2 .1 2.4 1 .4 1-.1 2-1 2.4-1 .4-2-.1-2.4-1Z" />
-            <path d="M9 15.9a4 4 0 0 0 6 0" />
-            <path d="M17 10c.7-.7.7-1.3 0-2" />
-            <path d="M7 8c-.7.7-.7 1.3 0 2" />
-          </svg>
-        );
-        break;
-      case 'book':
-        icon = (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
-            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-          </svg>
-        );
-        break;
-      case 'church':
-        icon = (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
-            <path d="m2 22 10-10 10 10" />
-            <path d="M4 15v7" />
-            <path d="M20 15v7" />
-            <path d="M12 9v3" />
-            <path d="M12 3a6 6 0 0 1 1 3.142c0 .64-.057 1.11-.172 1.415-.114.306-.242.483-.242.483L12 9l-.586-.96s-.128-.177-.242-.483C11.057 7.252 11 6.782 11 6.142A6 6 0 0 1 12 3Z" />
-          </svg>
-        );
-        break;
-      case 'heart':
-        icon = (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
-            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-          </svg>
-        );
-        break;
-      default:
-        icon = (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-        );
-    }
-    
+  const handleLeaveCommunity = () => {
+    leaveMutation.mutate();
+  };
+  
+  const handleDeleteCommunity = () => {
+    deleteMutation.mutate();
+  };
+  
+  // Loading state
+  if (isLoadingCommunity || (user && isLoadingMembership)) {
     return (
-      <div className={`w-20 h-20 rounded-full ${colorClass} flex items-center justify-center mr-6`}>
-        {icon}
+      <div className="flex justify-center items-center min-h-[600px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading community...</span>
       </div>
     );
-  };
-
-  return (
-    <MainLayout>
-      {/* Main Content Area */}
-      <div className="flex-1">
-        {/* Community Header */}
-        {isLoadingCommunity ? (
-          <Card className="bg-white mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Skeleton className="w-20 h-20 rounded-full mr-6" />
-                <div>
-                  <Skeleton className="h-8 w-48 mb-2" />
-                  <Skeleton className="h-4 w-64" />
-                  <Skeleton className="h-4 w-24 mt-2" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : community ? (
-          <Card className="bg-white mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                {getCommunityIcon(community.iconName, community.iconColor)}
-                <div>
-                  <h1 className="text-2xl font-bold mb-1">r/{community.slug}</h1>
-                  <p className="text-neutral-600">{community.description}</p>
-                  <p className="text-sm text-neutral-500 mt-1">{community.memberCount} members</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="bg-white mb-6">
-            <CardContent className="p-6 text-center">
-              <h1 className="text-xl font-medium">Community not found</h1>
-              <p className="text-neutral-600 mt-2">The community you're looking for doesn't exist or has been removed.</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Feed Filters */}
-        <FeedFilters onFilterChange={handleFilterChange} currentFilter={filter} />
-
-        {/* Posts */}
-        {isLoadingPosts ? (
-          // Loading skeletons
-          Array.from({ length: 3 }).map((_, index) => (
-            <Card key={index} className="mb-6">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  <Skeleton className="w-10 h-10 rounded-full mr-3" />
-                  <div>
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-40 mt-1" />
-                  </div>
-                </div>
-                <Skeleton className="h-6 w-3/4 mb-2" />
-                <Skeleton className="h-4 w-full mb-1" />
-                <Skeleton className="h-4 w-full mb-1" />
-                <Skeleton className="h-4 w-2/3 mb-6" />
-                <div className="flex space-x-4">
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-8 w-24" />
-                  <Skeleton className="h-8 w-16" />
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <>
-            {posts && posts.length > 0 ? (
-              posts.map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))
-            ) : (
-              <Card className="mb-6 p-10 text-center">
-                <CardContent>
-                  <h3 className="text-xl font-semibold mb-3">No Posts Yet</h3>
-                  <p className="text-neutral-600 mb-4">
-                    Be the first to share something in this community!
-                  </p>
-                  <Button className="bg-primary hover:bg-primary-700">
-                    Create Post
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {posts && posts.length > 0 && (
-              <div className="text-center py-4">
-                <Button 
-                  variant="outline"
-                  className="border border-neutral-300 text-neutral-700 hover:bg-neutral-100 font-medium" 
-                  disabled={isFetching}
-                >
-                  {isFetching ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    "Load More"
-                  )}
-                </Button>
-              </div>
-            )}
-          </>
-        )}
+  }
+  
+  // Error state
+  if (communityError || membershipError) {
+    return (
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        <div className="p-6 text-center">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Error Loading Community</h2>
+          <p className="text-muted-foreground mb-4">
+            {(communityError as Error)?.message || (membershipError as Error)?.message || "Failed to load community details."}
+          </p>
+          <Button onClick={() => navigate('/communities')}>
+            Back to Communities
+          </Button>
+        </div>
       </div>
-
-      {/* Right Sidebar */}
-      <aside className="hidden lg:block w-80 space-y-6 sticky top-24 self-start">
-        <ApologeticsResourceCard />
-        <PrivateGroupsList />
-        <CommunityGuidelines />
-      </aside>
-    </MainLayout>
+    );
+  }
+  
+  // Community not found
+  if (!community) {
+    return (
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        <div className="p-6 text-center">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Community Not Found</h2>
+          <p className="text-muted-foreground mb-4">
+            The community you're looking for doesn't exist or has been deleted.
+          </p>
+          <Button onClick={() => navigate('/communities')}>
+            Back to Communities
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="container max-w-6xl mx-auto px-4 py-8">
+      {/* Community Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">{community.name}</h1>
+          <p className="text-muted-foreground mt-1">{community.description}</p>
+          
+          <div className="flex items-center gap-4 mt-3">
+            <div className="flex items-center text-muted-foreground">
+              <Users className="mr-1 h-4 w-4" />
+              <span>{community.memberCount || 0} members</span>
+            </div>
+            
+            {community.hasPrivateWall && (
+              <div className="flex items-center text-amber-500">
+                <Lock className="mr-1 h-4 w-4" />
+                <span>Private Wall</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {user ? (
+            isMember ? (
+              <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <UserMinus className="mr-2 h-4 w-4" />
+                    Leave
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Leave Community</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to leave {community.name}? You'll lose access to private content and chat rooms.
+                      {isOwner && (
+                        <div className="mt-2 text-destructive">
+                          <ShieldAlert className="inline h-4 w-4 mr-1" />
+                          Warning: You are the owner of this community. If you leave, ownership must be transferred first.
+                        </div>
+                      )}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant={isOwner ? "outline" : "destructive"}
+                      onClick={handleLeaveCommunity}
+                      disabled={isOwner || leaveMutation.isPending}
+                    >
+                      {leaveMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Leaving...
+                        </>
+                      ) : (
+                        "Leave Community"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            ) : (
+              <Dialog open={showJoinConfirm} onOpenChange={setShowJoinConfirm}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Join
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Join Community</DialogTitle>
+                    <DialogDescription>
+                      You're about to join {community.name}. Members can access private chat rooms and participate in discussions.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button 
+                      onClick={handleJoinCommunity}
+                      disabled={joinMutation.isPending}
+                    >
+                      {joinMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Joining...
+                        </>
+                      ) : (
+                        "Join Community"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )
+          ) : (
+            <Button onClick={() => navigate('/auth')}>
+              Sign In to Join
+            </Button>
+          )}
+          
+          {(isOwner || isModerator) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  <PencilLine className="mr-2 h-4 w-4" />
+                  <span>Edit Community</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Community Settings</span>
+                </DropdownMenuItem>
+                
+                {isOwner && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                      <DialogTrigger asChild>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive">
+                          <Trash className="mr-2 h-4 w-4" />
+                          <span>Delete Community</span>
+                        </DropdownMenuItem>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Delete Community</DialogTitle>
+                          <DialogDescription>
+                            Are you sure you want to delete {community.name}? This action is permanent and will delete all content, chat rooms, and member relationships.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="bg-destructive/10 text-destructive p-3 rounded-md">
+                          <AlertTriangle className="h-5 w-5 mb-2" />
+                          <p className="text-sm">This is a permanent action and cannot be undone. All content will be permanently deleted.</p>
+                        </div>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                          <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+                            Cancel
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            onClick={handleDeleteCommunity}
+                            disabled={deleteMutation.isPending}
+                          >
+                            {deleteMutation.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              "Delete Community"
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+      
+      <Tabs defaultValue="chat">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="chat">
+            <MessageSquareText className="h-4 w-4 mr-2" />
+            Chat Rooms
+          </TabsTrigger>
+          <TabsTrigger value="wall">
+            <LayoutList className="h-4 w-4 mr-2" />
+            Wall
+          </TabsTrigger>
+          <TabsTrigger value="members">
+            <Users className="h-4 w-4 mr-2" />
+            Members
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="chat" className="mt-6">
+          <ChatRoomList 
+            communityId={community.id} 
+            isOwner={isOwner} 
+            isModerator={isModerator} 
+            isMember={isMember} 
+          />
+        </TabsContent>
+        
+        <TabsContent value="wall" className="mt-6">
+          {(community.hasPrivateWall || community.hasPublicWall) ? (
+            <div className="p-10 text-center">
+              <Eye className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Wall Content Coming Soon</h2>
+              <p className="text-muted-foreground mb-4">
+                The community wall feature is currently being implemented.
+              </p>
+            </div>
+          ) : (
+            <div className="text-center py-6 border rounded-md">
+              <LayoutList className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <h4 className="text-lg font-medium">No Wall Available</h4>
+              <p className="text-muted-foreground">
+                This community does not have a public or private wall enabled.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="members" className="mt-6">
+          <MemberList 
+            communityId={community.id} 
+            isOwner={isOwner} 
+            isModerator={isModerator} 
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

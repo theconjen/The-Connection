@@ -6,6 +6,7 @@ import HomePage from "@/pages/home-page";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import CommunityPage from "@/pages/community-page";
+import CommunitiesPage from "@/pages/communities-page";
 import ApologeticsPage from "@/pages/apologetics-page";
 import GroupsPage from "@/pages/groups-page";
 import ProfilePage from "@/pages/profile-page";
@@ -43,6 +44,7 @@ function App() {
         
         {/* Public routes with responsive layout */}
         <ReadOnlyRoute path="/" component={withResponsiveLayout(HomePage)} />
+        <ReadOnlyRoute path="/communities" component={withResponsiveLayout(CommunitiesPage)} />
         <ReadOnlyRoute path="/community/:slug" component={withResponsiveLayout(CommunityPage)} />
         <ReadOnlyRoute path="/apologetics" component={withResponsiveLayout(ApologeticsPage)} />
         <ReadOnlyRoute path="/prayer-requests" component={withResponsiveLayout(PrayerRequestsPage)} />

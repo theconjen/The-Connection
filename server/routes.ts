@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
+import WebSocket from 'ws';
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { getRecommendationsForUser } from "./recommendation-engine";
@@ -1702,23 +1703,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   
-  // Set up WebSocket server for livestreams
+  // Set up WebSocket server for chat and livestreams
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store connected clients with their room subscriptions
+  const connectedClients = new Map();
   
   wss.on('connection', (ws) => {
     console.log('WebSocket client connected');
     
-    ws.on('message', (message) => {
+    // Initialize client data
+    const clientData = {
+      userId: null,
+      username: null,
+      subscribedRooms: new Set()
+    };
+    connectedClients.set(ws, clientData);
+    
+    ws.on('message', async (message) => {
       try {
         const data = JSON.parse(message.toString());
         console.log('Received message:', data);
         
-        // Broadcast to all connected clients
-        wss.clients.forEach((client) => {
-          if (client.readyState === ws.OPEN) {
-            client.send(JSON.stringify(data));
-          }
-        });
+        // Handle different message types
+        switch (data.type) {
+          case 'auth':
+            // Authenticate the connection
+            if (data.userId && data.token) {
+              // In a real implementation, validate the token
+              // For now, just trust the client-provided data
+              clientData.userId = data.userId;
+              clientData.username = data.username;
+              
+              // Confirm authentication
+              ws.send(JSON.stringify({
+                type: 'auth_success',
+                userId: data.userId
+              }));
+            }
+            break;
+            
+          case 'join_room':
+            // Join a specific chat room
+            if (data.roomId) {
+              const roomId = parseInt(data.roomId);
+              
+              // Get room to check if it's private and if the user can access it
+              const room = await storage.getCommunityRoom(roomId);
+              
+              if (!room) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'Room not found'
+                }));
+                break;
+              }
+              
+              // For private rooms, check if user is a community member
+              if (room.isPrivate && clientData.userId) {
+                const isMember = await storage.isCommunityMember(room.communityId, clientData.userId);
+                
+                if (!isMember) {
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    message: 'Access denied: Private room is only accessible to community members'
+                  }));
+                  break;
+                }
+              }
+              
+              // Add room to subscriptions
+              clientData.subscribedRooms.add(roomId);
+              
+              // Notify client
+              ws.send(JSON.stringify({
+                type: 'room_joined',
+                roomId: roomId
+              }));
+              
+              // Get recent messages
+              const recentMessages = await storage.getChatMessages(roomId, 20);
+              
+              // Add user info to messages
+              const messagesWithUsers = await Promise.all(
+                recentMessages.map(async (msg) => {
+                  const sender = await storage.getUser(msg.senderId);
+                  return { ...msg, sender };
+                })
+              );
+              
+              // Send recent messages
+              ws.send(JSON.stringify({
+                type: 'message_history',
+                roomId: roomId,
+                messages: messagesWithUsers.reverse() // Newest first
+              }));
+              
+              // Notify room that user joined
+              broadcastToRoom(roomId, {
+                type: 'system_message',
+                roomId: roomId,
+                message: `${clientData.username || 'A user'} joined the chat`
+              }, ws); // Don't send to the user who just joined
+            }
+            break;
+            
+          case 'leave_room':
+            // Leave a specific chat room
+            if (data.roomId) {
+              const roomId = parseInt(data.roomId);
+              
+              // Remove room from subscriptions
+              clientData.subscribedRooms.delete(roomId);
+              
+              // Notify client
+              ws.send(JSON.stringify({
+                type: 'room_left',
+                roomId: roomId
+              }));
+              
+              // Notify room that user left (only if authenticated)
+              if (clientData.userId) {
+                broadcastToRoom(roomId, {
+                  type: 'system_message',
+                  roomId: roomId,
+                  message: `${clientData.username || 'A user'} left the chat`
+                }, ws);
+              }
+            }
+            break;
+            
+          case 'chat_message':
+            // Process a new chat message
+            if (data.roomId && data.content && clientData.userId) {
+              const roomId = parseInt(data.roomId);
+              
+              // Check if user is subscribed to this room
+              if (!clientData.subscribedRooms.has(roomId)) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'You need to join the room before sending messages'
+                }));
+                break;
+              }
+              
+              // Get room to check if user can post
+              const room = await storage.getCommunityRoom(roomId);
+              
+              if (!room) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'Room not found'
+                }));
+                break;
+              }
+              
+              // Check if user is a member of the community
+              const isMember = await storage.isCommunityMember(room.communityId, clientData.userId);
+              
+              if (!isMember) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'Only community members can send messages'
+                }));
+                break;
+              }
+              
+              // Save message to database
+              const message = await storage.createChatMessage({
+                chatRoomId: roomId,
+                senderId: clientData.userId,
+                content: data.content,
+                isSystemMessage: false
+              });
+              
+              // Add sender info to the message
+              const sender = await storage.getUser(clientData.userId);
+              
+              // Broadcast message to all users in the room
+              broadcastToRoom(roomId, {
+                type: 'new_message',
+                roomId: roomId,
+                message: { ...message, sender }
+              });
+            } else {
+              ws.send(JSON.stringify({
+                type: 'error',
+                message: 'Authentication required to send messages'
+              }));
+            }
+            break;
+            
+          case 'typing':
+            // Notify others that user is typing
+            if (data.roomId && clientData.userId) {
+              const roomId = parseInt(data.roomId);
+              
+              // Check if user is subscribed to this room
+              if (!clientData.subscribedRooms.has(roomId)) {
+                break;
+              }
+              
+              // Broadcast typing notification to all users in the room
+              broadcastToRoom(roomId, {
+                type: 'user_typing',
+                roomId: roomId,
+                userId: clientData.userId,
+                username: clientData.username
+              }, ws); // Don't send back to sender
+            }
+            break;
+            
+          case 'ping':
+            // Respond to ping with pong
+            ws.send(JSON.stringify({ type: 'pong' }));
+            break;
+            
+          case 'livestream':
+            // Forward livestream data to all clients (existing functionality)
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(data));
+              }
+            });
+            break;
+            
+          default:
+            console.log('Unknown message type:', data.type);
+        }
       } catch (error) {
         console.error('Error processing message:', error);
       }
@@ -1726,9 +1938,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     ws.on('close', () => {
       console.log('WebSocket client disconnected');
+      
+      // Notify rooms that user left
+      if (clientData.userId) {
+        for (const roomId of clientData.subscribedRooms) {
+          broadcastToRoom(roomId, {
+            type: 'system_message',
+            roomId: roomId,
+            message: `${clientData.username || 'A user'} disconnected`
+          });
+        }
+      }
+      
+      // Remove client from connected clients
+      connectedClients.delete(ws);
     });
+    
+    // Send initial connection confirmation
+    ws.send(JSON.stringify({
+      type: 'connected'
+    }));
   });
-
+  
+  // Helper function to broadcast messages to all clients in a specific room
+  function broadcastToRoom(roomId, data, excludeClient = null) {
+    for (const [client, clientData] of connectedClients.entries()) {
+      if (client !== excludeClient && 
+          client.readyState === WebSocket.OPEN && 
+          clientData.subscribedRooms.has(roomId)) {
+        client.send(JSON.stringify(data));
+      }
+    }
+  }
+  
   // ========================
   // PRAYER REQUEST ROUTES
   // ========================
