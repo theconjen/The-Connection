@@ -65,27 +65,27 @@ export default function EventsList({
   return (
     <div className="space-y-6">
       {/* View Mode & Display Mode Selection */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col md:flex-row gap-4 items-center bg-card border rounded-lg p-4 shadow-sm">
         {/* View Mode Radio Group */}
         <RadioGroup 
           defaultValue="all" 
-          className="flex space-x-2"
+          className="flex space-x-4"
           value={viewMode}
           onValueChange={(value) => onViewModeChange(value as "all" | "public" | "nearby")}
         >
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="all" id="all" />
-            <Label htmlFor="all">All Events</Label>
+            <RadioGroupItem value="all" id="all" className="text-primary" />
+            <Label htmlFor="all" className="font-medium text-foreground">All Events</Label>
           </div>
           
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="public" id="public" />
-            <Label htmlFor="public">Public Events</Label>
+            <RadioGroupItem value="public" id="public" className="text-primary" />
+            <Label htmlFor="public" className="font-medium text-foreground">Public Events</Label>
           </div>
           
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="nearby" id="nearby" />
-            <Label htmlFor="nearby">Events Near Me</Label>
+            <RadioGroupItem value="nearby" id="nearby" className="text-primary" />
+            <Label htmlFor="nearby" className="font-medium text-foreground">Events Near Me</Label>
           </div>
         </RadioGroup>
         
@@ -95,30 +95,31 @@ export default function EventsList({
             variant={displayMode === "list" ? "default" : "outline"}
             size="sm"
             onClick={() => setDisplayMode("list")}
-            className="flex items-center"
+            className="flex items-center gap-1.5"
           >
-            <List size={16} className="mr-1" /> List
+            <List size={16} /> List
           </Button>
           <Button
             variant={displayMode === "map" ? "default" : "outline"}
             size="sm"
             onClick={() => setDisplayMode("map")}
-            className="flex items-center"
+            className="flex items-center gap-1.5"
           >
-            <Map size={16} className="mr-1" /> Map
+            <Map size={16} /> Map
           </Button>
         </div>
       </div>
 
       {/* Location Update Button for Nearby Mode */}
       {viewMode === "nearby" && (
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-background/60 border rounded-lg p-4">
           <Button 
             variant="outline" 
             onClick={getUserLocation} 
             disabled={isGettingLocation}
-            className="flex-shrink-0"
+            className="flex-shrink-0 flex items-center gap-2"
           >
+            <MapPin size={16} />
             {isGettingLocation ? 'Getting location...' : 'Update My Location'}
           </Button>
           
@@ -131,7 +132,7 @@ export default function EventsList({
                 value={radiusInMiles}
                 onValueChange={setRadiusInMiles}
               >
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[120px] bg-card border-input">
                   <SelectValue placeholder="Radius" />
                 </SelectTrigger>
                 <SelectContent>
@@ -148,13 +149,13 @@ export default function EventsList({
       )}
 
       {/* Search Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 bg-background/60 border rounded-lg p-4">
         <div className="flex-1">
           <Input
             placeholder="Search events..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
+            className="w-full bg-card border-input"
           />
         </div>
         <div className="flex-1">
@@ -162,47 +163,50 @@ export default function EventsList({
             placeholder="Filter by city..."
             value={searchCity}
             onChange={(e) => setSearchCity(e.target.value)}
-            className="w-full"
+            className="w-full bg-card border-input"
           />
         </div>
       </div>
 
       {/* Loading State */}
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-pulse flex flex-col items-center gap-2">
-            <div className="h-12 w-12 rounded-full bg-primary/30"></div>
-            <div className="h-4 w-40 bg-primary/30 rounded"></div>
+        <div className="flex justify-center py-12">
+          <div className="animate-pulse flex flex-col items-center gap-3">
+            <div className="h-14 w-14 rounded-full bg-primary/20"></div>
+            <div className="h-4 w-48 bg-primary/20 rounded-md"></div>
+            <div className="h-3 w-32 bg-primary/10 rounded-md"></div>
           </div>
         </div>
       ) : displayMode === "map" ? (
         /* Map View Mode */
-        <EventsMap events={filteredEvents} />
+        <div className="border rounded-lg overflow-hidden shadow-sm">
+          <EventsMap events={filteredEvents} />
+        </div>
       ) : filteredEvents.length > 0 ? (
         /* List View Mode with Events */
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {filteredEvents.map((event) => (
-            <Card key={event.id} className="overflow-hidden transition-all hover:shadow-md">
-              <CardHeader className="bg-primary/5 pb-2">
-                <CardTitle className="line-clamp-1">{event.title}</CardTitle>
-                <CardDescription className="flex items-center gap-1">
-                  <CalendarDays size={14} />
+            <Card key={event.id} className="overflow-hidden transition-all hover:shadow-md border-border/80 card-hover">
+              <CardHeader className="bg-background pb-2">
+                <div className="text-overline flex items-center gap-1 mb-1">
+                  <CalendarDays size={14} className="text-primary" />
                   {formatDate(event.eventDate)}
-                </CardDescription>
+                </div>
+                <CardTitle className="line-clamp-1 text-xl">{event.title}</CardTitle>
               </CardHeader>
               
               <CardContent className="pt-4">
                 <p className="text-sm text-muted-foreground line-clamp-3 mb-4">{event.description}</p>
                 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-3 text-sm">
                   {event.location && (
                     <div className="flex items-start gap-2">
-                      <MapPin size={16} className="text-muted-foreground mt-0.5" />
+                      <MapPin size={16} className="text-accent mt-0.5 flex-shrink-0" />
                       <div>
-                        <div>{event.location}</div>
-                        {event.address && <div>{event.address}</div>}
+                        <div className="font-medium">{event.location}</div>
+                        {event.address && <div className="text-muted-foreground">{event.address}</div>}
                         {(event.city || event.state) && (
-                          <div>
+                          <div className="text-muted-foreground">
                             {event.city}{event.city && event.state ? ', ' : ''}
                             {event.state} {event.zipCode}
                           </div>
@@ -212,29 +216,29 @@ export default function EventsList({
                   )}
                   
                   <div className="flex items-start gap-2">
-                    <Clock size={16} className="text-muted-foreground mt-0.5" />
+                    <Clock size={16} className="text-primary mt-0.5 flex-shrink-0" />
                     <span>{event.startTime} - {event.endTime}</span>
                   </div>
                   
-                  <div className="flex items-center gap-2 mt-3">
-                    <div className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+                  <div className="flex flex-wrap items-center gap-2 mt-4">
+                    <div className="px-2.5 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary">
                       {event.isPublic ? 'Public' : 'Private'}
                     </div>
                     
                     {event.isVirtual && (
-                      <div className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                      <div className="px-2.5 py-1 text-xs font-medium rounded-full bg-secondary/10 text-secondary">
                         Virtual
                       </div>
                     )}
                     
                     {event.communityId && (
-                      <div className="px-2 py-0.5 text-xs rounded-full bg-secondary/10 text-secondary">
+                      <div className="px-2.5 py-1 text-xs font-medium rounded-full bg-accent/10 text-accent">
                         Community
                       </div>
                     )}
                     
                     {event.groupId && (
-                      <div className="px-2 py-0.5 text-xs rounded-full bg-secondary/10 text-secondary">
+                      <div className="px-2.5 py-1 text-xs font-medium rounded-full bg-accent/10 text-accent">
                         Group
                       </div>
                     )}
@@ -244,7 +248,7 @@ export default function EventsList({
               
               <CardFooter className="flex justify-between border-t pt-4">
                 <Link href={`/events/${event.id}`}>
-                  <Button variant="ghost" size="sm" className="gap-1">
+                  <Button variant="outline" size="sm" className="gap-1 text-primary hover:text-primary hover:bg-primary/5">
                     View Details
                     <ChevronRight size={14} />
                   </Button>
@@ -255,12 +259,12 @@ export default function EventsList({
         </div>
       ) : (
         /* Empty State */
-        <div className="flex flex-col items-center justify-center py-12 bg-muted/20 rounded-lg text-center">
-          <div className="bg-primary/10 p-4 rounded-full mb-4">
-            <CalendarDays size={32} className="text-primary" />
+        <div className="flex flex-col items-center justify-center py-16 bg-card border rounded-lg text-center">
+          <div className="bg-primary/10 p-5 rounded-full mb-5">
+            <CalendarDays size={36} className="text-primary" />
           </div>
-          <h3 className="text-xl font-medium">No events found</h3>
-          <p className="text-muted-foreground mt-2 max-w-md">
+          <h3 className="text-2xl font-medium mb-2">No events found</h3>
+          <p className="text-muted-foreground mt-2 max-w-md px-4">
             {viewMode === "nearby" 
               ? "There are no events near your current location. Try expanding your search radius or check back later."
               : viewMode === "public" 

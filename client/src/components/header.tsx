@@ -40,34 +40,34 @@ export default function Header() {
   ];
 
   return (
-    <header className="bg-white border-b border-secondary/10 sticky top-0 z-40 shadow-sm">
+    <header className="bg-card border-b border-border/50 sticky top-0 z-40 shadow-sm backdrop-blur-sm bg-opacity-80">
       <div className="container mx-auto">
-        <div className="px-4 py-3 flex items-center justify-between">
+        <div className="px-4 py-3 md:py-4 flex items-center justify-between">
           {/* Logo Section */}
           <div className="flex items-center">
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <img src={logoImage} alt="The Connection Logo" className="h-8 w-auto" />
-              <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <span className="ml-2 font-medium tracking-tight text-xl text-foreground">
                 The Connection
               </span>
             </Link>
           </div>
 
           {/* Search Bar - Expanded in the middle */}
-          <div className="hidden md:flex flex-1 max-w-2xl mx-6">
+          <div className="hidden md:flex flex-1 max-w-xl mx-8">
             {searchVisible ? (
               <div className="relative w-full">
                 <Input
                   type="text"
                   placeholder="Search posts, communities, Bible studies..."
-                  className="w-full pr-10 pl-4 py-2 h-10 rounded-full"
+                  className="w-full pr-10 pl-4 py-2 h-10 bg-background/60 border-border/60 focus:border-primary/40 focus:ring-primary/20"
                   autoFocus
                 />
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setSearchVisible(false)}
                 >
                   <X className="h-4 w-4" />
@@ -78,7 +78,7 @@ export default function Header() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setSearchVisible(true)}
-                className="text-neutral-600 mx-auto"
+                className="text-muted-foreground mx-auto hover:text-foreground hover:bg-background/60"
               >
                 <Search className="h-5 w-5" />
               </Button>
@@ -86,22 +86,22 @@ export default function Header() {
           </div>
 
           {/* Navigation, Notifications, and Profile Section */}
-          <div className="flex items-center space-x-1 md:space-x-4">
+          <div className="flex items-center space-x-2 md:space-x-4">
             {/* Mobile Search Button */}
             <div className="md:hidden">
               {searchVisible ? (
-                <div className="fixed inset-0 z-50 bg-background/80 flex items-start justify-center pt-16 px-4">
+                <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-start justify-center pt-16 px-4">
                   <div className="relative w-full max-w-md">
                     <Input
                       type="text"
                       placeholder="Search..."
-                      className="w-full pr-10"
+                      className="w-full pr-10 bg-card border-border/60"
                       autoFocus
                     />
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-0"
+                      className="absolute right-0 top-0 text-muted-foreground"
                       onClick={() => setSearchVisible(false)}
                     >
                       <X className="h-4 w-4" />
@@ -113,7 +113,7 @@ export default function Header() {
                   variant="ghost"
                   size="icon"
                   onClick={() => setSearchVisible(true)}
-                  className="text-neutral-600"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <Search className="h-5 w-5" />
                 </Button>
@@ -122,15 +122,15 @@ export default function Header() {
             
             {/* Desktop Navigation - Moved to the right */}
             {!isMobile && (
-              <nav className="hidden md:flex items-center space-x-2">
+              <nav className="hidden md:flex items-center space-x-1">
                 {navItems.map((item, index) => (
                   <Link 
                     key={index} 
                     href={item.path}
-                    className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                    className={`flex items-center px-3 py-2 rounded-md transition-colors ${
                       location === item.path
-                        ? "text-primary"
-                        : "text-neutral-600 hover:bg-neutral-100"
+                        ? "text-primary bg-primary/5 font-medium"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/60"
                     }`}
                   >
                     {item.icon}
@@ -143,7 +143,7 @@ export default function Header() {
             {/* Create Button */}
             <Link href="/submit-post">
               <Button 
-                className="hidden md:flex bg-primary text-white font-medium rounded-full hover:shadow-md hover:shadow-primary/25 transition-all"
+                className="hidden md:flex bg-primary text-primary-foreground font-medium hover:bg-primary/90"
                 size="sm"
               >
                 <PenSquare className="h-4 w-4 mr-2" />
@@ -154,16 +154,16 @@ export default function Header() {
             {/* Menu button shown on both mobile and desktop */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-neutral-600">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-background/60">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[80vw] sm:w-[350px]">
+              <SheetContent side="right" className="w-[80vw] sm:w-[350px] border-l border-border/60">
                 <SheetHeader>
-                  <SheetTitle>The Connection</SheetTitle>
-                  <SheetDescription>Navigate through different sections of the application</SheetDescription>
+                  <SheetTitle className="text-xl font-medium text-foreground">The Connection</SheetTitle>
+                  <SheetDescription className="text-muted-foreground">Navigate through different sections of the application</SheetDescription>
                 </SheetHeader>
-                <div className="py-4">
+                <div className="py-6">
                   <SidebarNavigation currentPath={location} />
                 </div>
               </SheetContent>
@@ -175,7 +175,7 @@ export default function Header() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-neutral-600"
+                  className="text-muted-foreground hover:text-foreground hover:bg-background/60"
                 >
                   <BellIcon className="h-5 w-5" />
                 </Button>
@@ -187,7 +187,7 @@ export default function Header() {
               /* Sign In Button */
               <Link href="/auth">
                 <Button 
-                  className="bg-primary text-white font-medium rounded-full hover:shadow-md hover:shadow-primary/25 transition-all"
+                  className="bg-primary text-primary-foreground font-medium hover:bg-primary/90"
                   size="sm"
                 >
                   Sign In

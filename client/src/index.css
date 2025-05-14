@@ -1,71 +1,71 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* The Connection color palette */
-  /* Soft White (Background) */
-  --background: 240 25% 96%;
-  --foreground: 240 10% 10%;
-  --muted: 240 15% 90%;
-  --muted-foreground: 240 5% 45%;
+  /* Updated sophisticated color palette */
+  /* Clean subtle background */
+  --background: 220 20% 98%;
+  --foreground: 220 25% 15%;
+  --muted: 220 15% 93%;
+  --muted-foreground: 220 10% 38%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 10%;
+  --popover-foreground: 220 25% 15%;
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 10%;
-  --border: 240 15% 85%;
-  --input: 240 15% 85%;
+  --card-foreground: 220 25% 15%;
+  --border: 220 13% 90%;
+  --input: 220 13% 90%;
   
-  /* Muted Purple (Primary Identity Color) */
-  --primary: 246 98% 80%;
+  /* Deep blue (Primary Identity Color) */
+  --primary: 220 70% 50%;
   --primary-foreground: 0 0% 100%;
   
-  /* Blush Pink (Gentle Accent) */
-  --secondary: 334 79% 88%;
-  --secondary-foreground: 0 0% 20%;
+  /* Sage green (Sophisticated Accent) */
+  --secondary: 150 30% 60%;
+  --secondary-foreground: 150 20% 15%;
   
-  /* Dusty Rose (Depth/Support Accent) */
-  --accent: 332 60% 65%;
+  /* Warm copper (Depth/Support Accent) */
+  --accent: 25 60% 55%;
   --accent-foreground: 0 0% 100%;
   
   /* Default red for destructive actions */
-  --destructive: 0 70% 60%;
+  --destructive: 0 70% 50%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 246 98% 80%;
-  --radius: 1rem;
+  --ring: 220 70% 50%;
+  --radius: 0.5rem;
 }
 
 .dark {
-  /* Deep Charcoal (Dark Mode/Contrast) */
-  --background: 240 10% 12%;
-  --foreground: 240 10% 95%; 
-  --muted: 240 15% 20%;
-  --muted-foreground: 240 10% 70%;
-  --popover: 240 10% 12%;
-  --popover-foreground: 240 10% 95%;
-  --card: 240 10% 16%;
-  --card-foreground: 240 10% 95%;
-  --border: 240 10% 25%;
-  --input: 240 10% 25%;
+  /* Deep sophisticated dark mode */
+  --background: 220 30% 10%;
+  --foreground: 220 15% 95%; 
+  --muted: 220 25% 18%;
+  --muted-foreground: 220 10% 70%;
+  --popover: 220 30% 10%;
+  --popover-foreground: 220 15% 95%;
+  --card: 220 25% 13%;
+  --card-foreground: 220 15% 95%;
+  --border: 220 25% 20%;
+  --input: 220 25% 20%;
   
-  /* Brighter Muted Purple for dark mode */
-  --primary: 246 98% 80%;
+  /* Brighter blue for dark mode */
+  --primary: 220 70% 60%;
   --primary-foreground: 0 0% 100%;
   
-  /* Brighter Blush Pink for dark mode */
-  --secondary: 334 85% 85%;
+  /* Brighter sage for dark mode */
+  --secondary: 150 40% 55%;
   --secondary-foreground: 0 0% 100%;
   
-  /* Brighter Dusty Rose for dark mode */
-  --accent: 332 70% 70%;
+  /* Brighter copper for dark mode */
+  --accent: 25 70% 60%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 70% 50%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 246 80% 80%;
-  --radius: 1rem;
+  --ring: 220 70% 60%;
+  --radius: 0.5rem;
 }
 
 @layer base {
@@ -75,17 +75,49 @@
 
   body {
     @apply antialiased bg-background text-foreground;
-    font-family: 'Quicksand', sans-serif;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: -0.01em;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Poppins', sans-serif;
-    @apply font-medium;
+    font-family: 'Merriweather', serif;
+    @apply font-medium tracking-tight;
   }
 
-  /* Custom styling for cards */
+  /* More professional card styling */
   .card-hover {
-    @apply transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1;
+    @apply transition-all duration-300 hover:shadow-md hover:shadow-primary/5 hover:border-primary/20;
+  }
+
+  /* Sophisticated button styles */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/90 transition-colors;
+  }
+  
+  .btn-subtle {
+    @apply bg-muted text-muted-foreground hover:bg-muted/80 transition-colors;
+  }
+
+  /* Text styles */
+  .text-overline {
+    @apply uppercase text-xs tracking-wider font-medium text-muted-foreground;
+  }
+  
+  .text-caption {
+    @apply text-sm text-muted-foreground;
+  }
+  
+  /* Section styling */
+  .section-title {
+    @apply text-2xl md:text-3xl font-bold mb-2;
+  }
+  
+  .section-description {
+    @apply text-muted-foreground mb-6 max-w-2xl;
   }
 
   /* Custom animations */
@@ -98,16 +130,16 @@
       transform: translateY(0px);
     }
     50% {
-      transform: translateY(-10px);
+      transform: translateY(-8px);
     }
     100% {
       transform: translateY(0px);
     }
   }
 
-  /* Custom scrollbar styling */
+  /* Elegant scrollbar styling */
   ::-webkit-scrollbar {
-    width: 10px;
+    width: 8px;
   }
   
   ::-webkit-scrollbar-track {
@@ -115,6 +147,6 @@
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-primary/40 rounded-full hover:bg-primary/60 transition-colors;
+    @apply bg-primary/30 rounded-full hover:bg-primary/50 transition-colors;
   }
 }
