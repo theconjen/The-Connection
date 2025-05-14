@@ -2241,41 +2241,57 @@ export class DatabaseStorage implements IStorage {
     `, [topicId]).then(result => result.rows);
   }
   
-  async createApologeticsQuestion(question: typeof insertApologeticsQuestionSchema._type): Promise<typeof apologeticsQuestions.$inferSelect> {
-    const result = await db.insert(apologeticsQuestions).values(question).returning();
-    return result[0];
+  async createApologeticsQuestion(question: any): Promise<any> {
+    const { title, content, authorId, topicId, status = "open" } = question;
+    return await pool.query(`
+      INSERT INTO apologetics_questions (title, content, user_id, topic_id, status, view_count)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, title, content, user_id as "authorId", topic_id as "topicId", status, view_count as "viewCount", created_at as "createdAt"
+    `, [title, content, authorId, topicId, status, 0]).then(result => result.rows[0]);
   }
   
-  async updateApologeticsQuestionStatus(id: number, status: string): Promise<typeof apologeticsQuestions.$inferSelect> {
-    const result = await db
-      .update(apologeticsQuestions)
-      .set({ status })
-      .where(eq(apologeticsQuestions.id, id))
-      .returning();
-    return result[0];
+  async updateApologeticsQuestionStatus(id: number, status: string): Promise<any> {
+    return await pool.query(`
+      UPDATE apologetics_questions
+      SET status = $1
+      WHERE id = $2
+      RETURNING id, title, content, user_id as "authorId", topic_id as "topicId", 
+                status, view_count as "viewCount", created_at as "createdAt"
+    `, [status, id]).then(result => result.rows[0]);
   }
   
   // Apologetics answers methods
-  async getApologeticsAnswersByQuestion(questionId: number): Promise<typeof apologeticsAnswers.$inferSelect[]> {
-    return await db
-      .select()
-      .from(apologeticsAnswers)
-      .where(eq(apologeticsAnswers.questionId, questionId))
-      .orderBy(desc(apologeticsAnswers.isVerifiedAnswer), desc(apologeticsAnswers.upvotes));
+  async getApologeticsAnswersByQuestion(questionId: number): Promise<any[]> {
+    return await pool.query(`
+      SELECT 
+        a.id, a.content, a.question_id as "questionId", a.user_id as "authorId", 
+        a.is_verified_answer as "isVerifiedAnswer", a.created_at as "createdAt"
+      FROM apologetics_answers a
+      WHERE a.question_id = $1
+      ORDER BY a.is_verified_answer DESC, a.created_at DESC
+    `, [questionId]).then(result => result.rows);
   }
   
-  async createApologeticsAnswer(answer: typeof insertApologeticsAnswerSchema._type): Promise<typeof apologeticsAnswers.$inferSelect> {
-    const result = await db.insert(apologeticsAnswers).values(answer).returning();
+  async createApologeticsAnswer(answer: any): Promise<any> {
+    const { content, questionId, authorId, isVerifiedAnswer = false } = answer;
+    
+    // Insert the answer
+    const result = await pool.query(`
+      INSERT INTO apologetics_answers (content, question_id, user_id, is_verified_answer)
+      VALUES ($1, $2, $3, $4)
+      RETURNING 
+        id, content, question_id as "questionId", user_id as "authorId", 
+        is_verified_answer as "isVerifiedAnswer", created_at as "createdAt"
+    `, [content, questionId, authorId, isVerifiedAnswer]);
     
     // Increment answer count on the question
-    await db
-      .update(apologeticsQuestions)
-      .set({ 
-        answerCount: sql`${apologeticsQuestions.answerCount} + 1` 
-      })
-      .where(eq(apologeticsQuestions.id, answer.questionId));
+    await pool.query(`
+      UPDATE apologetics_questions
+      SET answer_count = COALESCE(answer_count, 0) + 1
+      WHERE id = $1
+    `, [questionId]);
     
-    return result[0];
+    return result.rows[0];
   }
   
   async upvoteApologeticsAnswer(id: number): Promise<typeof apologeticsAnswers.$inferSelect> {

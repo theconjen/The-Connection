@@ -381,7 +381,7 @@ export default function ApologeticsPage() {
                             <div className="mb-2">
                               {getTopicIcon(topic.iconName || 'default')}
                             </div>
-                            <h4 className="font-semibold group-hover:text-primary transition-colors">{topic.title}</h4>
+                            <h4 className="font-semibold group-hover:text-primary transition-colors">{topic.name}</h4>
                             <p className="text-sm text-muted-foreground line-clamp-2">{topic.description}</p>
                           </CardContent>
                         </Link>
@@ -439,7 +439,7 @@ export default function ApologeticsPage() {
                                 <div className="flex items-center text-sm text-muted-foreground flex-wrap">
                                   {topic && (
                                     <>
-                                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{topic.title}</span>
+                                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{topic.name}</span>
                                       <span className="mx-2">•</span>
                                     </>
                                   )}
