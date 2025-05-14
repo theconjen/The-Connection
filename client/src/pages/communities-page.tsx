@@ -162,14 +162,14 @@ export default function CommunitiesPage() {
         </div>
         
         {user && (
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <Dialog>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => setIsCreateDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Community
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent onEscapeKeyDown={() => setIsCreateDialogOpen(false)}>
               <DialogHeader>
                 <DialogTitle>Create Community</DialogTitle>
                 <DialogDescription>
