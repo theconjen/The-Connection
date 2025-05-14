@@ -1,11 +1,16 @@
-import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, MapPin, Users } from 'lucide-react';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+
+// Dynamically import Leaflet components to avoid SSR issues
+const MapContainer = lazy(() => import('react-leaflet').then(mod => ({ default: mod.MapContainer })));
+const TileLayer = lazy(() => import('react-leaflet').then(mod => ({ default: mod.TileLayer })));
+const Marker = lazy(() => import('react-leaflet').then(mod => ({ default: mod.Marker })));
+const Popup = lazy(() => import('react-leaflet').then(mod => ({ default: mod.Popup })));
 
 // Define custom marker icon to fix the missing marker issue
 const customIcon = new Icon({
@@ -73,12 +78,21 @@ export default function EventsMap({
 
   useEffect(() => {
     // Filter events that have coordinates and should be shown on map
+    console.log('All events:', events);
+    
+    // First check for events with show on map
+    const eventsWithShowOnMap = events.filter(event => event.showOnMap === true);
+    console.log('Events with showOnMap=true:', eventsWithShowOnMap);
+    
+    // Then filter for those with coordinates
     const eventsWithCoordinates = events.filter(event => 
       event.latitude && 
       event.longitude && 
-      event.showOnMap && 
-      !event.isVirtual
+      event.showOnMap === true && 
+      event.isVirtual === false
     );
+    console.log('Final filtered events for map:', eventsWithCoordinates);
+    
     setMapEvents(eventsWithCoordinates);
   }, [events]);
 
@@ -113,13 +127,17 @@ export default function EventsMap({
   const MapComponent = () => {
     const mapRef = useRef(null);
     
+    // Add logging to debug
+    console.log('Rendering map with events:', mapEvents);
+    
     return (
-      <MapContainer 
-        center={initialCenter} 
-        zoom={initialZoom} 
-        style={{ height: '100%', width: '100%', borderRadius: '0 0 var(--radius) var(--radius)' }}
-        ref={mapRef}
-      >
+      <Suspense fallback={<div className="h-full w-full flex items-center justify-center">Loading map...</div>}>
+        <MapContainer 
+          center={initialCenter} 
+          zoom={initialZoom} 
+          style={{ height: '100%', width: '100%', borderRadius: '0 0 var(--radius) var(--radius)' }}
+          ref={mapRef}
+        >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
