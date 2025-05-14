@@ -51,7 +51,16 @@ export default function EventsPage() {
     startTime: "12:00",
     endTime: "13:00",
     location: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    latitude: "",
+    longitude: "",
+    isVirtual: false,
     isPublic: true,
+    showOnMap: true,
+    virtualMeetingUrl: "",
     communityId: null as number | null,
     groupId: null as number | null
   });
@@ -105,8 +114,8 @@ export default function EventsPage() {
   };
 
   // Handle switch/checkbox change
-  const handleSwitchChange = (checked: boolean) => {
-    setNewEvent({ ...newEvent, isPublic: checked });
+  const handleSwitchChange = (field: string, checked: boolean) => {
+    setNewEvent({ ...newEvent, [field]: checked });
   };
 
   // Handle form submission
@@ -137,7 +146,16 @@ export default function EventsPage() {
         startTime: "12:00",
         endTime: "13:00",
         location: "",
+        address: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        latitude: "",
+        longitude: "",
+        isVirtual: false,
         isPublic: true,
+        showOnMap: true,
+        virtualMeetingUrl: "",
         communityId: null,
         groupId: null
       });
@@ -230,48 +248,160 @@ export default function EventsPage() {
                     />
                   </div>
                   
-                  <div className="grid gap-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      name="location"
-                      value={newEvent.location}
-                      onChange={handleInputChange}
-                      placeholder="Community Center"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="startTime">Start Time</Label>
+                      <Input
+                        id="startTime"
+                        name="startTime"
+                        type="time"
+                        value={newEvent.startTime}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="endTime">End Time</Label>
+                      <Input
+                        id="endTime"
+                        name="endTime"
+                        type="time"
+                        value={newEvent.endTime}
+                        onChange={handleInputChange}
+                      />
+                    </div>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="startTime">Start Time</Label>
-                    <Input
-                      id="startTime"
-                      name="startTime"
-                      type="time"
-                      value={newEvent.startTime}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <Label htmlFor="endTime">End Time</Label>
-                    <Input
-                      id="endTime"
-                      name="endTime"
-                      type="time"
-                      value={newEvent.endTime}
-                      onChange={handleInputChange}
-                    />
-                  </div>
+
+                {/* Event Type Selection */}
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="isVirtual" className="flex-grow">Virtual Event</Label>
+                  <Switch
+                    id="isVirtual"
+                    checked={newEvent.isVirtual}
+                    onCheckedChange={(checked) => handleSwitchChange('isVirtual', checked)}
+                  />
                 </div>
                 
+                {/* Virtual Meeting URL (only shown if virtual) */}
+                {newEvent.isVirtual && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="virtualMeetingUrl">Meeting URL</Label>
+                    <Input
+                      id="virtualMeetingUrl"
+                      name="virtualMeetingUrl"
+                      value={newEvent.virtualMeetingUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://zoom.us/j/123456789"
+                    />
+                  </div>
+                )}
+
+                {/* Physical Location Details (only shown if not virtual) */}
+                {!newEvent.isVirtual && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="location">Location Name</Label>
+                      <Input
+                        id="location"
+                        name="location"
+                        value={newEvent.location}
+                        onChange={handleInputChange}
+                        placeholder="Community Center"
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="address">Street Address</Label>
+                      <Input
+                        id="address"
+                        name="address"
+                        value={newEvent.address}
+                        onChange={handleInputChange}
+                        placeholder="123 Main St"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="city">City</Label>
+                        <Input
+                          id="city"
+                          name="city"
+                          value={newEvent.city}
+                          onChange={handleInputChange}
+                          placeholder="New York"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label htmlFor="state">State</Label>
+                          <Input
+                            id="state"
+                            name="state"
+                            value={newEvent.state}
+                            onChange={handleInputChange}
+                            placeholder="NY"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="zipCode">Zip Code</Label>
+                          <Input
+                            id="zipCode"
+                            name="zipCode"
+                            value={newEvent.zipCode}
+                            onChange={handleInputChange}
+                            placeholder="10001"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="latitude">Latitude</Label>
+                        <Input
+                          id="latitude"
+                          name="latitude"
+                          value={newEvent.latitude}
+                          onChange={handleInputChange}
+                          placeholder="40.7128"
+                        />
+                      </div>
+                      
+                      <div className="grid gap-2">
+                        <Label htmlFor="longitude">Longitude</Label>
+                        <Input
+                          id="longitude"
+                          name="longitude"
+                          onChange={handleInputChange}
+                          value={newEvent.longitude}
+                          placeholder="-74.0060"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Show on Map Option */}
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="showOnMap" className="flex-grow">Show on worldwide map</Label>
+                      <Switch
+                        id="showOnMap"
+                        checked={newEvent.showOnMap}
+                        onCheckedChange={(checked) => handleSwitchChange('showOnMap', checked)}
+                      />
+                    </div>
+                  </>
+                )}
+                
+                {/* Public/Private Setting */}
                 <div className="flex items-center gap-2">
                   <Label htmlFor="isPublic" className="flex-grow">Make event public</Label>
                   <Switch
                     id="isPublic"
                     checked={newEvent.isPublic}
-                    onCheckedChange={handleSwitchChange}
+                    onCheckedChange={(checked) => handleSwitchChange('isPublic', checked)}
                   />
                 </div>
               </div>
@@ -287,125 +417,16 @@ export default function EventsPage() {
         )}
       </div>
       
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <RadioGroup 
-          defaultValue="all" 
-          className="flex space-x-2"
-          value={viewMode}
-          onValueChange={(value) => setViewMode(value as "all" | "public" | "nearby")}
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="all" id="all" />
-            <Label htmlFor="all">All Events</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="public" id="public" />
-            <Label htmlFor="public">Public Events</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="nearby" id="nearby" />
-            <Label htmlFor="nearby">Events Near Me</Label>
-          </div>
-        </RadioGroup>
-        
-        {viewMode === "nearby" && (
-          <Button 
-            variant="outline" 
-            onClick={getUserLocation} 
-            disabled={isGettingLocation}
-            className="ml-auto"
-          >
-            {isGettingLocation ? 'Getting location...' : 'Update My Location'}
-          </Button>
-        )}
-      </div>
-      
-      {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-pulse flex flex-col items-center gap-2">
-            <div className="h-12 w-12 rounded-full bg-primary/30"></div>
-            <div className="h-4 w-40 bg-primary/30 rounded"></div>
-          </div>
-        </div>
-      ) : events.length > 0 ? (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {events.map((event: Event) => (
-            <Card key={event.id} className="overflow-hidden transition-all hover:shadow-md">
-              <CardHeader className="bg-primary/5 pb-2">
-                <CardTitle className="line-clamp-1">{event.title}</CardTitle>
-                <CardDescription className="flex items-center gap-1">
-                  <CalendarDays size={14} />
-                  {formatDate(event.eventDate)}
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent className="pt-4">
-                <p className="text-sm text-muted-foreground line-clamp-3 mb-4">{event.description}</p>
-                
-                <div className="space-y-2 text-sm">
-                  {event.location && (
-                    <div className="flex items-start gap-2">
-                      <MapPin size={16} className="text-muted-foreground mt-0.5" />
-                      <span>{event.location}</span>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-start gap-2">
-                    <Clock size={16} className="text-muted-foreground mt-0.5" />
-                    <span>{event.startTime} - {event.endTime}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <div className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
-                      {event.isPublic ? 'Public' : 'Private'}
-                    </div>
-                    
-                    {event.communityId && (
-                      <div className="px-2 py-0.5 text-xs rounded-full bg-secondary/10 text-secondary">
-                        Community
-                      </div>
-                    )}
-                    
-                    {event.groupId && (
-                      <div className="px-2 py-0.5 text-xs rounded-full bg-secondary/10 text-secondary">
-                        Group
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-              
-              <CardFooter className="flex justify-between border-t pt-4">
-                <Link href={`/events/${event.id}`}>
-                  <Button variant="ghost" size="sm" className="gap-1">
-                    View Details
-                    <ChevronRight size={14} />
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-12 bg-muted/20 rounded-lg text-center">
-          <div className="bg-primary/10 p-4 rounded-full mb-4">
-            <CalendarDays size={32} className="text-primary" />
-          </div>
-          <h3 className="text-xl font-medium">No events found</h3>
-          <p className="text-muted-foreground mt-1 mb-4 max-w-md">
-            {viewMode === "nearby" 
-              ? "There are no events scheduled near your current location." 
-              : "There are no events scheduled at this time."}
-          </p>
-          {user && (
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              Create an Event
-            </Button>
-          )}
-        </div>
-      )}
+      {/* Using the new EventsList component */}
+      <EventsList 
+        events={events}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        isLoading={isLoading}
+        getUserLocation={getUserLocation}
+        isGettingLocation={isGettingLocation}
+        coordinates={coordinates}
+      />
     </div>
   );
 }
