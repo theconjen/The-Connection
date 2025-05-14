@@ -5,67 +5,67 @@
 @tailwind utilities;
 
 :root {
-  /* The Connection color palette */
+  /* The Connection color palette - darker version */
   /* Soft White (Background) */
   --background: 240 25% 96%;
-  --foreground: 240 10% 10%;
-  --muted: 240 15% 90%;
-  --muted-foreground: 240 5% 45%;
+  --foreground: 240 10% 8%;
+  --muted: 240 15% 92%;
+  --muted-foreground: 240 10% 35%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 10%;
+  --popover-foreground: 240 10% 8%;
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 10%;
-  --border: 240 15% 85%;
-  --input: 240 15% 85%;
+  --card-foreground: 240 10% 8%;
+  --border: 240 15% 82%;
+  --input: 240 15% 82%;
   
-  /* Muted Purple (Primary Identity Color) */
-  --primary: 246 98% 80%;
+  /* Deeper Purple (Primary Identity Color) */
+  --primary: 246 85% 60%;
   --primary-foreground: 0 0% 100%;
   
-  /* Blush Pink (Gentle Accent) */
-  --secondary: 334 79% 88%;
-  --secondary-foreground: 0 0% 20%;
+  /* Deeper Blush Pink (Gentle Accent) */
+  --secondary: 334 70% 70%;
+  --secondary-foreground: 0 0% 100%;
   
-  /* Dusty Rose (Depth/Support Accent) */
-  --accent: 332 60% 65%;
+  /* Deeper Dusty Rose (Depth/Support Accent) */
+  --accent: 332 60% 55%;
   --accent-foreground: 0 0% 100%;
   
   /* Default red for destructive actions */
-  --destructive: 0 70% 60%;
+  --destructive: 0 70% 50%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 246 98% 80%;
-  --radius: 1rem;
+  --ring: 246 85% 60%;
+  --radius: 0.75rem;
 }
 
 .dark {
-  /* Deep Charcoal (Dark Mode/Contrast) */
-  --background: 240 10% 12%;
+  /* Deeper Charcoal (Dark Mode/Contrast) */
+  --background: 240 20% 8%;
   --foreground: 240 10% 95%; 
-  --muted: 240 15% 20%;
+  --muted: 240 15% 16%;
   --muted-foreground: 240 10% 70%;
-  --popover: 240 10% 12%;
+  --popover: 240 20% 8%;
   --popover-foreground: 240 10% 95%;
-  --card: 240 10% 16%;
+  --card: 240 20% 12%;
   --card-foreground: 240 10% 95%;
-  --border: 240 10% 25%;
-  --input: 240 10% 25%;
+  --border: 240 15% 20%;
+  --input: 240 15% 20%;
   
-  /* Brighter Muted Purple for dark mode */
-  --primary: 246 98% 80%;
+  /* Deep Purple for dark mode */
+  --primary: 246 85% 65%;
   --primary-foreground: 0 0% 100%;
   
-  /* Brighter Blush Pink for dark mode */
-  --secondary: 334 85% 85%;
+  /* Deep Blush Pink for dark mode */
+  --secondary: 334 70% 65%;
   --secondary-foreground: 0 0% 100%;
   
-  /* Brighter Dusty Rose for dark mode */
-  --accent: 332 70% 70%;
+  /* Deep Dusty Rose for dark mode */
+  --accent: 332 60% 60%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 70% 50%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 246 80% 80%;
-  --radius: 1rem;
+  --ring: 246 85% 65%;
+  --radius: 0.75rem;
 }
 
 @layer base {
