@@ -90,9 +90,14 @@ async function seedCreatorTiersAndGifts() {
   console.log("Seeding of creator tiers and virtual gifts completed!");
 }
 
-// Run the seed function
-seedCreatorTiersAndGifts()
-  .then(() => console.log("Done!"))
-  .catch((error) => {
-    console.error("Error seeding creator tiers and gifts:", error);
-  });
+// Run the seed function if this file is executed directly
+if (require.main === module) {
+  seedCreatorTiersAndGifts()
+    .then(() => console.log("Done!"))
+    .catch((error) => {
+      console.error("Error seeding creator tiers and gifts:", error);
+    });
+}
+
+// Export the function for use in other scripts
+export { seedCreatorTiersAndGifts };

@@ -195,7 +195,7 @@ export async function seedApologetics() {
 }
 
 // Run this directly if called directly
-if (require.main === module) {
+if (import.meta.url === new URL(import.meta.url).href) {
   seedApologetics()
     .then(() => process.exit(0))
     .catch((error) => {
@@ -203,3 +203,6 @@ if (require.main === module) {
       process.exit(1);
     });
 }
+
+// Export the function
+export { seedApologetics };

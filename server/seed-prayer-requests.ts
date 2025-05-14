@@ -132,7 +132,7 @@ export async function seedPrayerRequests() {
 }
 
 // Run this directly if called directly
-if (require.main === module) {
+if (import.meta.url === new URL(import.meta.url).href) {
   seedPrayerRequests()
     .then(() => process.exit(0))
     .catch((error) => {
@@ -140,3 +140,6 @@ if (require.main === module) {
       process.exit(1);
     });
 }
+
+// Export the function
+export { seedPrayerRequests };
