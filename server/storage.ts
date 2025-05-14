@@ -450,6 +450,8 @@ export class MemStorage implements IStorage {
     this.groupMembers = new Map();
     this.prayerRequests = new Map();
     this.prayers = new Map();
+    this.userPreferences = new Map();
+    this.contentRecommendations = new Map();
     this.apologeticsResources = new Map();
     this.events = new Map();
     this.eventRsvps = new Map();
@@ -465,6 +467,8 @@ export class MemStorage implements IStorage {
     this.prayerIdCounter = 1;
     this.eventIdCounter = 1;
     this.eventRsvpIdCounter = 1;
+    this.userPreferencesIdCounter = 1;
+    this.contentRecommendationIdCounter = 1;
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24 hours
@@ -1914,6 +1918,241 @@ export class DatabaseStorage implements IStorage {
       .where(eq(microblogLikes.userId, userId));
     
     return likes.map(like => like.microblogId);
+  }
+
+  // ========================
+  // CONTENT RECOMMENDATIONS
+  // ========================
+  
+  // User preferences methods
+  async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
+    try {
+      const [preferences] = await db
+        .select()
+        .from(userPreferences)
+        .where(eq(userPreferences.userId, userId));
+      
+      return preferences;
+    } catch (error) {
+      console.error("Error getting user preferences:", error);
+      return undefined;
+    }
+  }
+
+  async updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    try {
+      const existingPrefs = await this.getUserPreferences(userId);
+      
+      if (existingPrefs) {
+        // Update existing preferences
+        const [updatedPrefs] = await db
+          .update(userPreferences)
+          .set({
+            ...preferences,
+            updatedAt: new Date()
+          })
+          .where(eq(userPreferences.id, existingPrefs.id))
+          .returning();
+          
+        return updatedPrefs;
+      } else {
+        // Create new preferences
+        const [newPrefs] = await db
+          .insert(userPreferences)
+          .values({
+            userId,
+            interests: preferences.interests || [],
+            favoriteTopics: preferences.favoriteTopics || [],
+            contentTypesPreference: preferences.contentTypesPreference || {},
+            notificationSettings: preferences.notificationSettings || {},
+            appSettings: preferences.appSettings || {},
+            engagementHistory: preferences.engagementHistory || [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+          
+        return newPrefs;
+      }
+    } catch (error) {
+      console.error("Error updating user preferences:", error);
+      throw new Error("Failed to update user preferences");
+    }
+  }
+
+  // Recommendation methods
+  async getAllRecommendations(userId: number): Promise<ContentRecommendation[]> {
+    try {
+      // Get all recommendations for the user, sorted by viewed status and score
+      const recommendations = await db
+        .select()
+        .from(contentRecommendations)
+        .where(eq(contentRecommendations.userId, userId))
+        .orderBy(
+          contentRecommendations.viewed,
+          desc(contentRecommendations.score)
+        );
+      
+      return recommendations;
+    } catch (error) {
+      console.error("Error getting recommendations:", error);
+      return [];
+    }
+  }
+
+  async getRecommendation(id: number): Promise<ContentRecommendation | undefined> {
+    try {
+      const [recommendation] = await db
+        .select()
+        .from(contentRecommendations)
+        .where(eq(contentRecommendations.id, id));
+      
+      return recommendation;
+    } catch (error) {
+      console.error("Error getting recommendation:", error);
+      return undefined;
+    }
+  }
+
+  async addContentRecommendation(recommendation: InsertContentRecommendation): Promise<ContentRecommendation> {
+    try {
+      const [newRecommendation] = await db
+        .insert(contentRecommendations)
+        .values({
+          ...recommendation,
+          createdAt: new Date(),
+          viewed: false
+        })
+        .returning();
+      
+      return newRecommendation;
+    } catch (error) {
+      console.error("Error adding recommendation:", error);
+      throw new Error("Failed to add recommendation");
+    }
+  }
+
+  async markRecommendationAsViewed(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .update(contentRecommendations)
+        .set({ 
+          viewed: true,
+          viewedAt: new Date()
+        })
+        .where(eq(contentRecommendations.id, id));
+      
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error("Error marking recommendation as viewed:", error);
+      return false;
+    }
+  }
+
+  // Content retrieval for recommendations
+  async getTopPosts(limit: number): Promise<Post[]> {
+    try {
+      // Get posts sorted by upvotes and comment count
+      const topPosts = await db
+        .select()
+        .from(posts)
+        .orderBy(desc(sql`${posts.upvotes} + ${posts.commentCount} * 2`))
+        .limit(limit);
+      
+      return topPosts;
+    } catch (error) {
+      console.error("Error getting top posts:", error);
+      return [];
+    }
+  }
+
+  async getTopMicroblogs(limit: number): Promise<Microblog[]> {
+    try {
+      // Get microblogs that are not replies, sorted by likes and replies
+      const topMicroblogs = await db
+        .select()
+        .from(microblogs)
+        .where(isNull(microblogs.parentId))
+        .orderBy(desc(sql`${microblogs.likeCount} + ${microblogs.replyCount} * 2`))
+        .limit(limit);
+      
+      return topMicroblogs;
+    } catch (error) {
+      console.error("Error getting top microblogs:", error);
+      return [];
+    }
+  }
+
+  async getUpcomingEvents(limit: number): Promise<Event[]> {
+    try {
+      const now = new Date();
+      
+      // Get future events sorted by start date
+      const upcomingEvents = await db
+        .select()
+        .from(events)
+        .where(sql`${events.startDateTime} > ${now}`)
+        .orderBy(events.startDateTime)
+        .limit(limit);
+      
+      return upcomingEvents;
+    } catch (error) {
+      console.error("Error getting upcoming events:", error);
+      return [];
+    }
+  }
+
+  async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
+    try {
+      // Get public prayer requests
+      const publicRequests = await db
+        .select()
+        .from(prayerRequests)
+        .where(eq(prayerRequests.privacyLevel, 'public'));
+      
+      // Get the user's own prayer requests
+      const userRequests = await db
+        .select()
+        .from(prayerRequests)
+        .where(eq(prayerRequests.authorId, userId));
+      
+      // Get user's groups
+      const userGroups = await db
+        .select()
+        .from(groupMembers)
+        .where(eq(groupMembers.userId, userId));
+      
+      const userGroupIds = userGroups.map(g => g.groupId);
+      
+      // Get prayer requests from user's groups
+      const groupRequests = userGroupIds.length > 0 
+        ? await db
+            .select()
+            .from(prayerRequests)
+            .where(
+              and(
+                eq(prayerRequests.privacyLevel, 'group'),
+                inArray(prayerRequests.groupId, userGroupIds)
+              )
+            )
+        : [];
+      
+      // Combine and de-duplicate
+      const allRequests = [...publicRequests, ...userRequests, ...groupRequests];
+      const uniqueIds = new Set();
+      const uniqueRequests = allRequests.filter(request => {
+        if (uniqueIds.has(request.id)) {
+          return false;
+        }
+        uniqueIds.add(request.id);
+        return true;
+      });
+      
+      return uniqueRequests;
+    } catch (error) {
+      console.error("Error getting prayer requests visible to user:", error);
+      return [];
+    }
   }
 }
 
