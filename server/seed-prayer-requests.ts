@@ -141,5 +141,4 @@ if (import.meta.url === new URL(import.meta.url).href) {
     });
 }
 
-// Export the function
-export { seedPrayerRequests };
+// Function is already exported at the top

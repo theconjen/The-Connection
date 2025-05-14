@@ -153,5 +153,4 @@ if (import.meta.url === new URL(import.meta.url).href) {
     });
 }
 
-// Export the function
-export { seedFeed };
+// Function is already exported at the top
