@@ -6,6 +6,7 @@ import { Redirect, useLocation } from "wouter";
 import { navigate } from "wouter/use-browser-location";
 import { insertUserSchema, InsertUser } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import logoImage from "../assets/tc-logo.png";
 import {
   Card,
   CardContent,
@@ -98,13 +99,7 @@ export default function AuthPage() {
           <CardHeader className="space-y-1">
             <div className="flex justify-center mb-2">
               <div className="flex items-center gap-2 font-bold text-2xl text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary h-8 w-8">
-                  <path d="M16.5 19a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z" />
-                  <path d="M9.5 4a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
-                  <path d="M9.5 17a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
-                  <path d="M14 14.5a9 9 0 0 0-4.5 0" />
-                  <path d="M9.5 9a9 9 0 0 0 0 4.5" />
-                </svg>
+                <img src={logoImage} alt="The Connection Logo" className="h-10 w-auto" />
                 <span>The Connection</span>
               </div>
             </div>
