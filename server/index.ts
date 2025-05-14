@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./seed";
+import { seedBibleReadingPlans } from "./seed-bible-reading-plans";
 import { initializeEmailTemplates } from "./email";
 import dotenv from "dotenv";
 
@@ -46,6 +47,7 @@ app.use((req, res, next) => {
   // Seed the database before starting the server
   try {
     await seedDatabase();
+    await seedBibleReadingPlans();
   } catch (error) {
     console.error("Error seeding database:", error);
   }

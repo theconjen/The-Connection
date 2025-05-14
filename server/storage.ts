@@ -2199,6 +2199,20 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
+  
+  async createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan> {
+    try {
+      const [newPlan] = await db
+        .insert(bibleReadingPlans)
+        .values(plan)
+        .returning();
+      
+      return newPlan;
+    } catch (error) {
+      console.error("Error creating Bible reading plan:", error);
+      throw error;
+    }
+  }
 }
 
 // Replace MemStorage with DatabaseStorage

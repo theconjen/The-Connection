@@ -76,10 +76,8 @@ export default function ApologeticsResourceCard() {
           ))}
         </ul>
         <div className="mt-4">
-          <Link href="/apologetics">
-            <a className="text-primary text-sm font-medium hover:text-primary-700">
-              Visit Apologetics Center →
-            </a>
+          <Link href="/apologetics" className="text-primary text-sm font-medium hover:text-primary-700">
+            Visit Apologetics Center →
           </Link>
         </div>
       </CardContent>
