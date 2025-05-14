@@ -107,13 +107,13 @@ export default function ApologeticsPage() {
       <div className="flex-1">
         {/* Hero Section */}
         <Card className="mb-8 overflow-hidden">
-          <div className="bg-primary-600 text-white p-8 md:p-12">
+          <div className="bg-primary-700 text-white p-8 md:p-12">
             <div className="max-w-3xl">
-              <h1 className="text-3xl font-bold mb-4">Apologetics Resource Center</h1>
-              <p className="text-lg mb-6">
+              <h1 className="text-3xl font-bold mb-4 text-white">Apologetics Resource Center</h1>
+              <p className="text-white text-lg mb-6">
                 Equipping believers with knowledge and resources to understand, explain, and defend the Christian faith with confidence and grace.
               </p>
-              <p className="text-white text-sm italic mb-6 border-l-2 border-primary-300 pl-4">
+              <p className="bg-primary-900/50 p-3 rounded text-amber-100 text-sm italic mb-6 border-l-4 border-amber-300 pl-4">
                 "Always be prepared to give an answer to everyone who asks you to give the reason for the hope that you have." - 1 Peter 3:15
               </p>
             </div>
