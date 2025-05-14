@@ -1,91 +1,90 @@
 import { Link } from "wouter";
-import { Home, Search, Video, Calendar, Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import SidebarNavigation from "./sidebar-navigation";
+import { Home, MessageCircle, Search, BookText, Menu } from "lucide-react";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetTrigger,
+  SheetClose
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
+import SidebarNavigation from "@/components/sidebar-navigation";
 
 interface MobileNavigationProps {
   currentPath: string;
 }
 
-/**
- * Mobile-optimized bottom navigation bar
- * - Limited to 5 essential navigation items
- * - Uses a "More" menu for less frequently accessed features
- * - Active state highlighting
- */
 export default function MobileNavigation({ currentPath }: MobileNavigationProps) {
-  // Helper to determine if a route is active (exact or starts with the path)
-  const isActive = (path: string) => {
-    if (path === "/") return currentPath === "/";
-    return currentPath === path || currentPath.startsWith(`${path}/`);
-  };
-  
+  // Main navigation items - keep to 5 most important ones
+  const navItems = [
+    {
+      icon: <Home className="h-6 w-6" />,
+      label: "Home",
+      path: "/"
+    },
+    {
+      icon: <MessageCircle className="h-6 w-6" />,
+      label: "Feed",
+      path: "/microblogs"
+    },
+    {
+      icon: <Search className="h-6 w-6" />,
+      label: "Discover",
+      path: "/discover"
+    },
+    {
+      icon: <BookText className="h-6 w-6" />,
+      label: "Bible",
+      path: "/bible-study"
+    },
+    {
+      icon: <Menu className="h-6 w-6" />,
+      label: "More",
+      isSheet: true
+    }
+  ];
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-secondary/20 shadow-lg h-16 z-50 md:hidden">
-      <div className="grid grid-cols-5 h-full">
-        {/* Home */}
-        <Link href="/">
-          <div className="flex flex-col items-center justify-center h-full cursor-pointer">
-            <Home 
-              className={`h-5 w-5 mb-1 ${isActive('/') ? 'text-primary' : 'text-muted-foreground'}`} 
-              fill={isActive('/') ? "currentColor" : "none"}
-            />
-            <span className={`text-[10px] ${isActive('/') ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
-              Home
-            </span>
-          </div>
-        </Link>
-        
-        {/* Discover */}
-        <Link href="/discover">
-          <div className="flex flex-col items-center justify-center h-full cursor-pointer">
-            <Search 
-              className={`h-5 w-5 mb-1 ${isActive('/discover') ? 'text-primary' : 'text-muted-foreground'}`} 
-            />
-            <span className={`text-[10px] ${isActive('/discover') ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
-              Discover
-            </span>
-          </div>
-        </Link>
-        
-        {/* Microblogs Feed */}
-        <Link href="/microblogs">
-          <div className="flex flex-col items-center justify-center h-full cursor-pointer">
-            <div className={`h-12 w-12 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center -mt-4 border-4 border-white`}>
-              <span className="text-white font-bold text-lg">+</span>
-            </div>
-          </div>
-        </Link>
-        
-        {/* Livestreams */}
-        <Link href="/livestreams">
-          <div className="flex flex-col items-center justify-center h-full cursor-pointer">
-            <Video 
-              className={`h-5 w-5 mb-1 ${isActive('/livestreams') ? 'text-primary' : 'text-muted-foreground'}`} 
-            />
-            <span className={`text-[10px] ${isActive('/livestreams') ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
-              Livestreams
-            </span>
-          </div>
-        </Link>
-        
-        {/* More Menu */}
-        <Sheet>
-          <SheetTrigger className="flex flex-col items-center justify-center h-full">
-            <Menu 
-              className="h-5 w-5 mb-1 text-muted-foreground" 
-            />
-            <span className="text-[10px] text-muted-foreground">
-              More
-            </span>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[300px] sm:w-[300px]">
-            <div className="py-4">
-              <SidebarNavigation currentPath={currentPath} />
-            </div>
-          </SheetContent>
-        </Sheet>
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-secondary/10 md:hidden z-40">
+      <div className="flex items-center justify-around">
+        {navItems.map((item, index) => 
+          item.isSheet ? (
+            <Sheet key={index}>
+              <SheetTrigger asChild>
+                <button className="flex flex-col items-center py-2 px-4 w-full">
+                  {item.icon}
+                  <span className="text-xs mt-1">{item.label}</span>
+                </button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[80vw] sm:w-[350px]">
+                <div className="py-4">
+                  <SheetClose asChild>
+                    <div className="absolute right-4 top-4">
+                      <Button variant="ghost" size="icon">
+                        <X className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </SheetClose>
+                  <SidebarNavigation currentPath={currentPath} />
+                </div>
+              </SheetContent>
+            </Sheet>
+          ) : (
+            <Link key={index} href={item.path}>
+              <div 
+                className={`flex flex-col items-center py-2 px-4 w-full ${
+                  currentPath === item.path 
+                    ? "text-primary" 
+                    : "text-muted-foreground"
+                }`}
+              >
+                {item.icon}
+                <span className="text-xs mt-1">{item.label}</span>
+              </div>
+            </Link>
+          )
+        )}
       </div>
-    </div>
+    </nav>
   );
 }

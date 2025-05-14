@@ -6,7 +6,15 @@ import UserMenu from "@/components/user-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Heart, BookOpen, PenTool, Menu, Video, Calendar } from "lucide-react";
+import { 
+  Search, 
+  Home, 
+  PenTool, 
+  Menu, 
+  MessageCircle, 
+  Users, 
+  BookText 
+} from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 type MainLayoutProps = {
@@ -17,6 +25,31 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const [mobileSearchVisible, setMobileSearchVisible] = useState(false);
   const { user } = useAuth();
   const [location] = useLocation();
+
+  const headerMenuItems = [
+    { 
+      path: "/", 
+      label: "Home", 
+      icon: <Home className="mr-2 h-4 w-4" />
+    },
+    { 
+      path: "/microblogs", 
+      label: "Feed", 
+      icon: <MessageCircle className="mr-2 h-4 w-4" />,
+      badge: "New"
+    },
+    { 
+      path: "/groups", 
+      label: "Groups", 
+      icon: <Users className="mr-2 h-4 w-4" />
+    },
+    { 
+      path: "/bible-study", 
+      label: "Bible Study", 
+      icon: <BookText className="mr-2 h-4 w-4" />,
+      badge: "New"
+    },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -63,48 +96,31 @@ export default function MainLayout({ children }: MainLayoutProps) {
               <Search className="h-5 w-5" />
             </Button>
             
-            <Link href="/discover">
-              <Button variant="ghost" className="hidden md:inline-flex text-foreground hover:text-primary hover:bg-primary/10">
-                <Heart className="mr-2 h-4 w-4" />
-                Communities
-              </Button>
-            </Link>
-            
-            <Link href="/livestreams">
-              <Button variant="ghost" className="hidden md:inline-flex text-foreground hover:text-primary hover:bg-primary/10">
-                <Video className="mr-2 h-4 w-4" />
-                <span className="relative">
-                  Livestreams
-                  <span className="absolute -top-2 -right-8 text-xs bg-secondary text-white px-1.5 py-0.5 rounded-full font-medium">
-                    New
+            {/* Header Menu Items (Desktop only) */}
+            {headerMenuItems.map((item) => (
+              <Link key={item.path} href={item.path}>
+                <Button 
+                  variant={location === item.path ? "secondary" : "ghost"} 
+                  className="hidden md:inline-flex text-foreground hover:text-primary hover:bg-primary/10"
+                >
+                  {item.icon}
+                  <span className="relative">
+                    {item.label}
+                    {item.badge && (
+                      <span className="absolute -top-2 -right-8 text-xs bg-secondary text-white px-1.5 py-0.5 rounded-full font-medium">
+                        {item.badge}
+                      </span>
+                    )}
                   </span>
-                </span>
-              </Button>
-            </Link>
-            
-            <Link href="/events">
-              <Button variant="ghost" className="hidden md:inline-flex text-foreground hover:text-primary hover:bg-primary/10">
-                <Calendar className="mr-2 h-4 w-4" />
-                <span className="relative">
-                  Events
-                  <span className="absolute -top-2 -right-6 text-xs bg-secondary text-white px-1.5 py-0.5 rounded-full font-medium">
-                    New
-                  </span>
-                </span>
-              </Button>
-            </Link>
-            
-            <Link href="/apologetics">
-              <Button variant="ghost" className="hidden md:inline-flex text-foreground hover:text-primary hover:bg-primary/10">
-                <BookOpen className="mr-2 h-4 w-4" />
-                Apologetics
-              </Button>
-            </Link>
+                </Button>
+              </Link>
+            ))}
 
+            {/* Create Post Button */}
             <Link href="/submit">
-              <Button variant="ghost" className="hidden md:inline-flex text-foreground hover:text-primary hover:bg-primary/10">
+              <Button className="hidden md:inline-flex bg-primary text-white font-medium rounded-full">
                 <PenTool className="mr-2 h-4 w-4" />
-                Create Post
+                Create
               </Button>
             </Link>
             
