@@ -2089,8 +2089,8 @@ export class DatabaseStorage implements IStorage {
       const upcomingEvents = await db
         .select()
         .from(events)
-        .where(sql`${events.startDateTime} > ${now}`)
-        .orderBy(events.startDateTime)
+        .where(sql`${events.startTime} > ${now}`)
+        .orderBy(events.startTime)
         .limit(limit);
       
       return upcomingEvents;
@@ -2149,6 +2149,53 @@ export class DatabaseStorage implements IStorage {
       return uniqueRequests;
     } catch (error) {
       console.error("Error getting prayer requests visible to user:", error);
+      return [];
+    }
+  }
+
+  // Bible Study methods
+  async getAllBibleReadingPlans(filter?: string): Promise<BibleReadingPlan[]> {
+    try {
+      let query = db.select().from(bibleReadingPlans);
+      
+      if (filter === 'public') {
+        query = query.where(eq(bibleReadingPlans.visibility, 'public'));
+      }
+      
+      return await query.orderBy(desc(bibleReadingPlans.createdAt));
+    } catch (error) {
+      console.error("Error getting all Bible reading plans:", error);
+      return [];
+    }
+  }
+
+  async getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]> {
+    try {
+      return await db
+        .select()
+        .from(bibleReadingPlans)
+        .where(
+          or(
+            eq(bibleReadingPlans.creatorId, userId),
+            eq(bibleReadingPlans.visibility, 'public')
+          )
+        )
+        .orderBy(desc(bibleReadingPlans.createdAt));
+    } catch (error) {
+      console.error("Error getting user Bible reading plans:", error);
+      return [];
+    }
+  }
+
+  async getGroupBibleReadingPlans(groupId: number): Promise<BibleReadingPlan[]> {
+    try {
+      return await db
+        .select()
+        .from(bibleReadingPlans)
+        .where(eq(bibleReadingPlans.groupId, groupId))
+        .orderBy(desc(bibleReadingPlans.createdAt));
+    } catch (error) {
+      console.error("Error getting group Bible reading plans:", error);
       return [];
     }
   }
