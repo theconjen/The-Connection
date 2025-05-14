@@ -10,7 +10,8 @@ import {
   MessageCircle,
   BookOpen, 
   Home,
-  X 
+  X,
+  Menu
 } from "lucide-react";
 import { 
   Sheet, 
@@ -19,6 +20,7 @@ import {
   SheetClose
 } from "@/components/ui/sheet";
 import UserMenu from "@/components/user-menu";
+import SidebarNavigation from "@/components/sidebar-navigation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 export default function Header() {
@@ -115,6 +117,27 @@ export default function Header() {
               </Button>
             </Link>
             
+            {/* Menu button shown on both mobile and desktop */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-neutral-600">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[80vw] sm:w-[350px]">
+                <div className="py-4">
+                  <SheetClose asChild>
+                    <div className="absolute right-4 top-4">
+                      <Button variant="ghost" size="icon">
+                        <X className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </SheetClose>
+                  <SidebarNavigation currentPath={location} />
+                </div>
+              </SheetContent>
+            </Sheet>
+
             {user ? (
               <>
                 {/* Notifications Button (only show if logged in) */}
