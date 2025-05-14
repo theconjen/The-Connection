@@ -658,6 +658,44 @@ export const insertVerseMemorizationSchema = createInsertSchema(verseMemorizatio
 });
 
 // ========================
+// CONTENT RECOMMENDATIONS
+// ========================
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  interests: jsonb("interests").default([]),
+  favoriteTopics: jsonb("favorite_topics").default([]),
+  engagementHistory: jsonb("engagement_history").default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const contentRecommendations = pgTable("content_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  contentType: text("content_type").notNull(), // 'post', 'microblog', 'apologetics', 'bible_study', etc.
+  contentId: integer("content_id").notNull(),
+  score: integer("score").notNull(),
+  reason: text("reason"),
+  isViewed: boolean("is_viewed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).pick({
+  userId: true,
+  interests: true,
+  favoriteTopics: true,
+});
+
+export const insertContentRecommendationSchema = createInsertSchema(contentRecommendations).pick({
+  userId: true,
+  contentType: true,
+  contentId: true,
+  score: true,
+  reason: true,
+});
+
+// ========================
 // COMMUNITY CHALLENGES
 // ========================
 export const challenges = pgTable("challenges", {
@@ -886,6 +924,12 @@ export type InsertBibleStudyNote = z.infer<typeof insertBibleStudyNotesSchema>;
 
 export type VerseMemorization = typeof verseMemorization.$inferSelect;
 export type InsertVerseMemorization = z.infer<typeof insertVerseMemorizationSchema>;
+
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+
+export type ContentRecommendation = typeof contentRecommendations.$inferSelect;
+export type InsertContentRecommendation = z.infer<typeof insertContentRecommendationSchema>;
 
 export type Challenge = typeof challenges.$inferSelect;
 export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
