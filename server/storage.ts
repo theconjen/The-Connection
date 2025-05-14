@@ -11,6 +11,8 @@ import {
   CreatorTier, VirtualGift, LivestreamGift,
   Microblog, InsertMicroblog,
   MicroblogLike, InsertMicroblogLike,
+  UserPreferences, InsertUserPreferences,
+  ContentRecommendation, InsertContentRecommendation,
   
   // Apologetics system
   ApologeticsTopic, InsertApologeticsTopic,
@@ -61,7 +63,9 @@ import {
   bibleReadingPlans, bibleReadingProgress, bibleStudyNotes, verseMemorization,
   challenges, challengeParticipants, challengeTestimonials,
   resources, resourceRatings, resourceCollections, collectionResources,
-  serviceProjects, serviceVolunteers, serviceTestimonials
+  serviceProjects, serviceVolunteers, serviceTestimonials,
+  // Recommendation system
+  userPreferences, contentRecommendations
 } from "@shared/schema";
 import createMemoryStore from "memorystore";
 import session from "express-session";
@@ -383,6 +387,25 @@ export interface IStorage {
   createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp>;
   updateEventRsvp(id: number, status: string): Promise<EventRsvp>;
   
+  // ========================
+  // CONTENT RECOMMENDATIONS
+  // ========================
+  // User preferences
+  getUserPreferences(userId: number): Promise<UserPreferences | undefined>;
+  updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+  
+  // Recommendations
+  getAllRecommendations(userId: number): Promise<ContentRecommendation[]>;
+  getRecommendation(id: number): Promise<ContentRecommendation | undefined>;
+  addContentRecommendation(recommendation: InsertContentRecommendation): Promise<ContentRecommendation>;
+  markRecommendationAsViewed(id: number): Promise<boolean>;
+  
+  // Content retrieval for recommendations
+  getTopPosts(limit: number): Promise<Post[]>;
+  getTopMicroblogs(limit: number): Promise<Microblog[]>;
+  getUpcomingEvents(limit: number): Promise<Event[]>;
+  getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]>;
+  
   // Session store
   sessionStore: any; // Using any to avoid typing issues with session store
 }
@@ -394,6 +417,8 @@ export class MemStorage implements IStorage {
   private comments: Map<number, Comment>;
   private groups: Map<number, Group>;
   private groupMembers: Map<number, GroupMember>;
+  private userPreferences: Map<number, UserPreferences>;
+  private contentRecommendations: Map<number, ContentRecommendation>;
   private apologeticsResources: Map<number, ApologeticsResource>;
   private prayerRequests: Map<number, PrayerRequest>;
   private prayers: Map<number, Prayer>;
@@ -411,6 +436,8 @@ export class MemStorage implements IStorage {
   private prayerIdCounter: number;
   private eventIdCounter: number;
   private eventRsvpIdCounter: number;
+  private userPreferencesIdCounter: number;
+  private contentRecommendationIdCounter: number;
   
   sessionStore: any;
 
