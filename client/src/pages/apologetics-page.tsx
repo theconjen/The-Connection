@@ -113,7 +113,7 @@ export default function ApologeticsPage() {
               <p className="text-lg mb-6">
                 Equipping believers with knowledge and resources to understand, explain, and defend the Christian faith with confidence and grace.
               </p>
-              <p className="text-primary-100 text-sm italic mb-6">
+              <p className="text-white text-sm italic mb-6 border-l-2 border-primary-300 pl-4">
                 "Always be prepared to give an answer to everyone who asks you to give the reason for the hope that you have." - 1 Peter 3:15
               </p>
             </div>
