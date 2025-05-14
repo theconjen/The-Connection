@@ -6,12 +6,12 @@ import {
   BookOpen,
   Users,
   Calendar,
-  PrayingHands,
+  FileHeart,
   Tv,
   Settings,
   HelpCircle,
   Sparkles,
-  HandHelping
+  Handshake
 } from "lucide-react";
 
 interface SidebarNavigationProps {
@@ -35,7 +35,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       title: "Resources",
       items: [
         { icon: <Calendar className="h-5 w-5" />, label: "Events", path: "/events" },
-        { icon: <PrayingHands className="h-5 w-5" />, label: "Prayer Requests", path: "/prayer-requests" },
+        { icon: <FileHeart className="h-5 w-5" />, label: "Prayer Requests", path: "/prayer-requests" },
         { icon: <Tv className="h-5 w-5" />, label: "Livestreams", path: "/livestreams" },
         { icon: <Sparkles className="h-5 w-5" />, label: "Apologetics", path: "/apologetics" },
       ],
@@ -44,7 +44,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       title: "Help",
       items: [
         { icon: <HelpCircle className="h-5 w-5" />, label: "FAQ", path: "/faq" },
-        { icon: <HandHelping className="h-5 w-5" />, label: "Support", path: "/support" },
+        { icon: <Handshake className="h-5 w-5" />, label: "Support", path: "/support" },
         { icon: <Settings className="h-5 w-5" />, label: "Settings", path: "/settings" },
       ],
     },
