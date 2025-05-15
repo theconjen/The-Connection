@@ -247,15 +247,8 @@ export default function Header() {
                 <UserMenu user={user} />
               </>
             ) : (
-              /* Sign In Button */
-              <Link href="/auth">
-                <Button 
-                  className="btn-gradient font-medium"
-                  size={isMobile ? "sm" : "default"}
-                >
-                  Sign In
-                </Button>
-              </Link>
+              // Sign In removed - Only the Create button is needed which is already in place above
+              <></>
             )}
           </div>
         </div>
