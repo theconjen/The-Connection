@@ -129,7 +129,7 @@ export default function Header() {
                     href={item.path}
                     className={`flex items-center px-3 py-2 rounded-md transition-colors ${
                       location === item.path
-                        ? "text-primary bg-primary/5 font-medium"
+                        ? "text-gradient bg-primary/5 font-medium"
                         : "text-muted-foreground hover:text-foreground hover:bg-background/60"
                     }`}
                   >

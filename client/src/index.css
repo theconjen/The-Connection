@@ -117,6 +117,14 @@
     background: linear-gradient(135deg, #F649A8, #D645D0, #7B41F7);
     @apply text-white shadow-sm hover:shadow-md hover:shadow-secondary/20 transition-all;
   }
+  
+  .text-gradient {
+    background: linear-gradient(135deg, #F649A8, #D645D0, #7B41F7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+  }
 
   /* Text styles */
   .text-overline {

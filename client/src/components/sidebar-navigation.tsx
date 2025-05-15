@@ -53,7 +53,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
   return (
     <div className="space-y-6 px-3">
       <div className="space-y-1">
-        <h2 className="px-3 text-xl font-semibold tracking-tight">
+        <h2 className="px-3 text-xl font-semibold tracking-tight text-gradient">
           The Connection
         </h2>
         <p className="px-3 text-sm text-muted-foreground">
@@ -84,7 +84,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
                   <div 
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer text-sm transition-all ${
                       currentPath === item.path
-                        ? "bg-secondary/10 text-primary"
+                        ? "bg-secondary/10 text-gradient font-medium"
                         : "hover:bg-secondary/5 text-foreground"
                     }`}
                   >
@@ -101,12 +101,12 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       {!user && (
         <div className="space-y-2">
           <Link href="/auth">
-            <div className="w-full bg-primary text-white text-center py-2 px-4 rounded-lg font-medium hover:bg-primary/90 transition-colors cursor-pointer">
+            <div className="w-full btn-gradient text-center py-2 px-4 rounded-lg font-medium transition-colors cursor-pointer">
               Sign In
             </div>
           </Link>
           <div className="text-center text-xs text-muted-foreground">
-            New here? <Link href="/auth?tab=register" className="text-primary hover:underline">Create an account</Link>
+            New here? <Link href="/auth?tab=register" className="text-gradient hover:underline">Create an account</Link>
           </div>
         </div>
       )}
