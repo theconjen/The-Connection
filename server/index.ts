@@ -61,12 +61,7 @@ app.use((req, res, next) => {
     // Continue with server startup even if email template initialization fails
   }
 
-  // Set up authentication
-  try {
-    await setupAuth(app);
-  } catch (error) {
-    console.error("Error setting up authentication:", error);
-  }
+  // Authentication is set up in routes.ts
   
   const server = await registerRoutes(app);
 
