@@ -4,7 +4,6 @@ import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./seed";
 import { seedBibleReadingPlans } from "./seed-bible-reading-plans";
 import { initializeEmailTemplates } from "./email";
-import { setupAuth } from "./replitAuth";
 import dotenv from "dotenv";
 
 // Load environment variables from .env file
@@ -60,8 +59,6 @@ app.use((req, res, next) => {
     console.error("Error initializing email templates:", error);
     // Continue with server startup even if email template initialization fails
   }
-
-  // Authentication is set up in routes.ts
   
   const server = await registerRoutes(app);
 

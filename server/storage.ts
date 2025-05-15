@@ -84,17 +84,11 @@ const PostgresSessionStore = connectPg(session);
 // Storage interface
 export interface IStorage {
   // User methods
-  getUser(id: string): Promise<User | undefined>;
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  upsertUser(user: { 
-    id: string;
-    email?: string | null;
-    firstName?: string | null;
-    lastName?: string | null;
-    profileImageUrl?: string | null;
-    displayName?: string | null;
-  }): Promise<User>;
-  setVerifiedApologeticsAnswerer(userId: string, isVerified: boolean): Promise<User>;
+  createUser(user: InsertUser): Promise<User>;
+  setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User>;
   getVerifiedApologeticsAnswerers(): Promise<User[]>;
   
   // Community methods
@@ -1958,43 +1952,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: string): Promise<User | undefined> {
+  async getUser(id: number): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
   }
 
-  async upsertUser(userData: { 
-    id: string;
-    email?: string | null;
-    firstName?: string | null;
-    lastName?: string | null;
-    profileImageUrl?: string | null;
-    displayName?: string | null;
-  }): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values({
-        id: userData.id,
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        profileImageUrl: userData.profileImageUrl,
-        displayName: userData.displayName,
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          profileImageUrl: userData.profileImageUrl,
-          displayName: userData.displayName,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {

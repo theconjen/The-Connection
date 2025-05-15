@@ -3,9 +3,8 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import WebSocket from 'ws';
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth } from "./auth";
 import { getRecommendationsForUser } from "./recommendation-engine";
-import passport from "passport";
 import { 
   createEmailTemplate, 
   updateEmailTemplate,
@@ -88,13 +87,8 @@ function allowGuest(req: Request, res: Response, next: Function) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth routes
-  app.get('/api/user', (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    res.json(req.user);
-  });
+  // Set up authentication routes
+  setupAuth(app);
 
   // Communities routes
   app.get("/api/communities", async (req, res, next) => {
