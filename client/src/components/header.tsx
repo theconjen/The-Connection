@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,9 @@ import {
   BookOpen, 
   Home,
   X,
-  Menu
+  Menu,
+  Users,
+  CalendarDays
 } from "lucide-react";
 import { 
   Sheet, 
@@ -30,40 +32,88 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 export default function Header() {
   const [location] = useLocation();
   const [searchVisible, setSearchVisible] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { user } = useAuth();
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const isTablet = useMediaQuery("(min-width: 769px) and (max-width: 1023px)");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Top navigation items for desktop
   const navItems = [
     { icon: <Home className="h-5 w-5" />, label: "Home", path: "/" },
     { icon: <MessageCircle className="h-5 w-5" />, label: "Feed", path: "/microblogs" },
+    { icon: <Users className="h-5 w-5" />, label: "Communities", path: "/communities" },
+    { icon: <CalendarDays className="h-5 w-5" />, label: "Events", path: "/events" },
     { icon: <BookOpen className="h-5 w-5" />, label: "Bible Study", path: "/bible-study" },
   ];
 
+  // Add scroll listener to apply shadow and background changes
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 10) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Handle ESC key to close search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && searchVisible) {
+        setSearchVisible(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [searchVisible]);
+
+  // Focus search input when opened
+  useEffect(() => {
+    if (searchVisible && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchVisible]);
+
   return (
-    <header className="bg-card border-b border-border/50 sticky top-0 z-40 shadow-sm backdrop-blur-sm bg-opacity-80">
+    <header 
+      className={`sticky top-0 z-40 backdrop-blur-sm transition-all duration-200
+        ${scrolled 
+          ? 'bg-background/90 shadow-md' 
+          : 'bg-background/70 border-b border-border/10'
+        }`}
+    >
       <div className="container mx-auto">
-        <div className="px-4 py-3 md:py-4 flex items-center justify-between">
-          {/* Logo Section */}
+        <div className="px-3 py-3 md:py-4 flex items-center justify-between">
+          {/* Logo Section - Optimized for all screen sizes */}
           <div className="flex items-center">
-            {/* Logo */}
             <Link href="/" className="flex items-center">
               <img src={logoImage} alt="The Connection Logo" className="h-8 w-auto" />
-              <span className="ml-2 font-medium text-xl text-foreground site-title">
+              <span className={`ml-2 font-medium text-xl text-foreground site-title ${isMobile ? 'text-lg' : ''}`}>
                 The Connection
               </span>
             </Link>
           </div>
 
-          {/* Search Bar - Expanded in the middle */}
-          <div className="hidden md:flex flex-1 max-w-xl mx-8">
-            {searchVisible ? (
-              <div className="relative w-full">
-                <Input
-                  type="text"
-                  placeholder="Search posts, communities, Bible studies..."
-                  className="w-full pr-10 pl-4 py-2 h-10 bg-background/60 border-border/60 focus:border-primary/40 focus:ring-primary/20"
-                  autoFocus
-                />
+          {/* Search Bar - Tablet & Desktop */}
+          <div className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8">
+            <div className="relative w-full">
+              <Input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search posts, communities, Bible studies..."
+                className={`w-full h-10 bg-background/60 border-border/60 pl-10
+                  focus:border-primary/40 focus:ring-primary/20 transition-all
+                  ${searchVisible ? 'opacity-100' : 'opacity-70 hover:opacity-90 focus:opacity-100'}`}
+                onFocus={() => setSearchVisible(true)}
+              />
+              <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+              {searchVisible && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -72,40 +122,44 @@ export default function Header() {
                 >
                   <X className="h-4 w-4" />
                 </Button>
-              </div>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSearchVisible(true)}
-                className="text-muted-foreground mx-auto hover:text-foreground hover:bg-background/60"
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Navigation, Notifications, and Profile Section */}
-          <div className="flex items-center space-x-2 md:space-x-4">
+          <div className="flex items-center space-x-2 md:space-x-3">
             {/* Mobile Search Button */}
             <div className="md:hidden">
               {searchVisible ? (
-                <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-start justify-center pt-16 px-4">
-                  <div className="relative w-full max-w-md">
+                <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col items-start justify-start pt-16 px-4">
+                  <div className="relative w-full max-w-md mx-auto">
                     <Input
+                      ref={searchInputRef}
                       type="text"
                       placeholder="Search..."
-                      className="w-full pr-10 bg-card border-border/60"
-                      autoFocus
+                      className="w-full pl-10 pr-10 py-2 bg-card border-border/60"
                     />
+                    <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-0 text-muted-foreground"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
                       onClick={() => setSearchVisible(false)}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-5 w-5" />
                     </Button>
+                  </div>
+                  
+                  {/* Quick search categories on mobile */}
+                  <div className="mt-4 w-full px-4">
+                    <div className="text-sm font-medium mb-2">Search Categories</div>
+                    <div className="flex flex-wrap gap-2">
+                      {['Posts', 'People', 'Communities', 'Bible Studies', 'Events'].map((cat) => (
+                        <Button key={cat} variant="outline" size="sm" className="text-xs">
+                          {cat}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -120,27 +174,30 @@ export default function Header() {
               )}
             </div>
             
-            {/* Desktop Navigation - Moved to the right */}
+            {/* Desktop/Tablet Navigation - Dynamic based on space */}
             {!isMobile && (
-              <nav className="hidden md:flex items-center space-x-1">
-                {navItems.map((item, index) => (
-                  <Link 
-                    key={index} 
-                    href={item.path}
-                    className={`flex items-center px-3 py-2 rounded-md transition-colors ${
-                      location === item.path
-                        ? "text-gradient bg-primary/5 font-medium"
-                        : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                    }`}
-                  >
-                    {item.icon}
-                    <span className="ml-2">{item.label}</span>
-                  </Link>
-                ))}
+              <nav className="hidden md:flex items-center">
+                <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
+                  {/* Show all items on larger screens, fewer on tablets */}
+                  {navItems.slice(0, isTablet ? 3 : navItems.length).map((item, index) => (
+                    <Link 
+                      key={index} 
+                      href={item.path}
+                      className={`flex items-center whitespace-nowrap px-3 py-2 rounded-md transition-colors ${
+                        location === item.path
+                          ? "text-primary bg-primary/5 font-medium"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      }`}
+                    >
+                      {item.icon}
+                      <span className="ml-2">{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
               </nav>
             )}
 
-            {/* Create Button */}
+            {/* Create Button - Desktop & Tablet only */}
             <Link href="/submit-post">
               <Button 
                 className="hidden md:flex btn-gradient font-medium"
@@ -151,19 +208,23 @@ export default function Header() {
               </Button>
             </Link>
             
-            {/* Menu button shown on both mobile and desktop */}
+            {/* Menu button (more compact on mobile) */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-background/60">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-muted-foreground hover:text-foreground hover:bg-background/60"
+                >
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[80vw] sm:w-[350px] border-l border-border/60">
+              <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60">
                 <SheetHeader>
                   <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
-                  <SheetDescription className="text-muted-foreground">Navigate through different sections of the application</SheetDescription>
+                  <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
                 </SheetHeader>
-                <div className="py-6">
+                <div className="py-4">
                   <SidebarNavigation currentPath={location} />
                 </div>
               </SheetContent>
@@ -171,16 +232,18 @@ export default function Header() {
 
             {user ? (
               <>
-                {/* Notifications Button (only show if logged in) */}
+                {/* Notifications Button - Accessible from both mobile and desktop */}
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative"
                 >
                   <BellIcon className="h-5 w-5" />
+                  {/* Notification indicator dot - show when there are unread notifications */}
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                 </Button>
                 
-                {/* User Menu */}
+                {/* User Menu - Optimized for both desktop and mobile */}
                 <UserMenu user={user} />
               </>
             ) : (
@@ -188,7 +251,7 @@ export default function Header() {
               <Link href="/auth">
                 <Button 
                   className="btn-gradient font-medium"
-                  size="sm"
+                  size={isMobile ? "sm" : "default"}
                 >
                   Sign In
                 </Button>
