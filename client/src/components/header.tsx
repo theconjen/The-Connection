@@ -143,7 +143,7 @@ export default function Header() {
             {/* Create Button */}
             <Link href="/submit-post">
               <Button 
-                className="hidden md:flex bg-primary text-primary-foreground font-medium hover:bg-primary/90"
+                className="hidden md:flex btn-gradient font-medium"
                 size="sm"
               >
                 <PenSquare className="h-4 w-4 mr-2" />
@@ -187,7 +187,7 @@ export default function Header() {
               /* Sign In Button */
               <Link href="/auth">
                 <Button 
-                  className="bg-primary text-primary-foreground font-medium hover:bg-primary/90"
+                  className="btn-gradient font-medium"
                   size="sm"
                 >
                   Sign In

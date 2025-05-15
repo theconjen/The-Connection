@@ -125,7 +125,7 @@ export default function MobileHeader({
               
               <Link href="/auth">
                 <Button 
-                  className="bg-primary text-white text-sm font-medium h-9 px-4 rounded-full hover:shadow-sm hover:shadow-primary/25 transition-all"
+                  className="btn-gradient text-sm font-medium h-9 px-4 rounded-full hover:shadow-sm hover:shadow-primary/25 transition-all"
                   size="sm"
                 >
                   Sign In
