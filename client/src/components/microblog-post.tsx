@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Heart, MessageCircle, Repeat, Share2 } from "lucide-react";
+import { Heart, MessageCircle, Repeat, Share2, MoreHorizontal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Microblog, User } from "@shared/schema";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import ShareButtons from "./share-buttons";
 import { getInitials } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
@@ -31,6 +37,8 @@ export function MicroblogPost({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isSharing, setIsSharing] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
   
   const toggleLikeMutation = useMutation({
     mutationFn: async (liked: boolean) => {
@@ -124,15 +132,46 @@ export function MicroblogPost({
   const handleShare = () => {
     setIsSharing(prev => !prev);
   };
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+  };
   
   const postUrl = `/microblogs/${post.id}`;
+
+  // Format content with clickable links, hashtags, and mentions
+  const formatContent = (content: string) => {
+    // URLs
+    const urlPattern = /https?:\/\/[^\s]+/g;
+    const hashtagPattern = /#(\w+)/g;
+    const mentionPattern = /@(\w+)/g;
+
+    let formattedContent = content;
+    
+    // Replace URLs with clickable links
+    formattedContent = formattedContent.replace(urlPattern, (url) => {
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${url}</a>`;
+    });
+    
+    // Replace hashtags with links
+    formattedContent = formattedContent.replace(hashtagPattern, (match, tag) => {
+      return `<a href="/tags/${tag}" class="text-primary hover:underline">${match}</a>`;
+    });
+    
+    // Replace @mentions with links
+    formattedContent = formattedContent.replace(mentionPattern, (match, username) => {
+      return `<a href="/users/${username}" class="text-primary hover:underline">${match}</a>`;
+    });
+    
+    return formattedContent;
+  };
   
   return (
-    <Card className="mb-4 overflow-hidden shadow-sm hover:shadow">
+    <Card className="mb-4 overflow-hidden shadow-sm hover:shadow transition-shadow duration-200 border-border/50">
       <CardContent className="pt-4">
         <div className="flex gap-3">
           <Link href={`/users/${post.authorId}`}>
-            <Avatar className="cursor-pointer">
+            <Avatar className="cursor-pointer h-10 w-10">
               {post.author?.avatarUrl ? (
                 <AvatarImage src={post.author.avatarUrl} alt={post.author.displayName || "User"} />
               ) : (
@@ -141,20 +180,52 @@ export function MicroblogPost({
             </Avatar>
           </Link>
           
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <Link href={`/users/${post.authorId}`}>
-                <h3 className="text-sm font-semibold cursor-pointer hover:underline">
-                  {post.author?.displayName || "User"}
-                </h3>
-              </Link>
-              <span className="text-xs text-muted-foreground">
-                @{post.author?.username || "user"}
-              </span>
-              <span className="text-xs text-muted-foreground">·</span>
-              <span className="text-xs text-muted-foreground">
-                {formatDate(post.createdAt as Date)}
-              </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center min-w-0 flex-wrap">
+                <Link href={`/users/${post.authorId}`}>
+                  <h3 className="text-sm font-semibold cursor-pointer hover:underline truncate max-w-[140px]">
+                    {post.author?.displayName || "User"}
+                  </h3>
+                </Link>
+                <span className="text-xs text-muted-foreground truncate ml-1.5">
+                  @{post.author?.username || "user"}
+                </span>
+                <span className="text-xs text-muted-foreground mx-1.5">·</span>
+                <span className="text-xs text-muted-foreground">
+                  {formatDate(post.createdAt as Date)}
+                </span>
+              </div>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-muted-foreground hover:bg-background/80 ml-auto"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">More options</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => navigator.clipboard.writeText(`${window.location.origin}${postUrl}`)}>
+                    Copy link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleShare}>
+                    Share post
+                  </DropdownMenuItem>
+                  {isAuthenticated && post.authorId === 1 && (
+                    <>
+                      <DropdownMenuItem>Edit post</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive">Delete post</DropdownMenuItem>
+                    </>
+                  )}
+                  {isAuthenticated && post.authorId !== 1 && (
+                    <DropdownMenuItem>Report post</DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             
             {post.parentId && !isDetailView && (
@@ -163,15 +234,30 @@ export function MicroblogPost({
               </div>
             )}
             
-            <div className="mt-1 whitespace-pre-wrap">{post.content}</div>
+            <Link href={postUrl}>
+              <div 
+                className="mt-1.5 text-foreground whitespace-pre-wrap break-words"
+                dangerouslySetInnerHTML={{ __html: formatContent(post.content) }}
+              ></div>
+            </Link>
             
             {post.imageUrl && (
-              <div className="mt-3">
-                <img 
-                  src={post.imageUrl} 
-                  alt="Post attachment" 
-                  className="rounded-md max-h-96 w-auto object-contain" 
-                />
+              <div className="mt-3 relative overflow-hidden rounded-lg">
+                {!imageLoaded && (
+                  <div className="bg-muted animate-pulse rounded-lg w-full h-48 flex items-center justify-center">
+                    <span className="text-xs text-muted-foreground">Loading image...</span>
+                  </div>
+                )}
+                <Link href={postUrl}>
+                  <img 
+                    ref={imageRef}
+                    src={post.imageUrl} 
+                    alt="Post attachment" 
+                    className={`rounded-lg max-h-96 w-full object-cover border border-border/10 ${imageLoaded ? 'block' : 'hidden'}`}
+                    loading="lazy"
+                    onLoad={handleImageLoad}
+                  />
+                </Link>
               </div>
             )}
           </div>
@@ -179,11 +265,11 @@ export function MicroblogPost({
       </CardContent>
       
       {showControls && (
-        <CardFooter className="py-2 px-6 border-t">
+        <CardFooter className="py-2 px-4 border-t border-border/10">
           <div className="flex justify-between w-full">
             <Link href={`/microblogs/${post.id}`}>
-              <Button variant="ghost" size="sm" className="text-muted-foreground">
-                <MessageCircle className="h-4 w-4 mr-1" />
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-secondary/30">
+                <MessageCircle className="h-4 w-4 mr-1.5" />
                 <span>{post.replyCount || 0}</span>
               </Button>
             </Link>
@@ -191,10 +277,10 @@ export function MicroblogPost({
             <Button 
               variant="ghost" 
               size="sm" 
-              className="text-muted-foreground"
+              className="text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50/30"
               disabled={!isAuthenticated}
             >
-              <Repeat className="h-4 w-4 mr-1" />
+              <Repeat className="h-4 w-4 mr-1.5" />
               <span>{post.repostCount || 0}</span>
             </Button>
             
@@ -202,23 +288,30 @@ export function MicroblogPost({
               variant="ghost" 
               size="sm" 
               onClick={handleLikeToggle}
-              className={`${post.isLiked ? "text-pink-500" : "text-muted-foreground"}`}
+              className={`hover:bg-pink-50/30 ${post.isLiked ? "text-pink-500" : "text-muted-foreground hover:text-pink-500"}`}
               disabled={toggleLikeMutation.isPending}
             >
-              <Heart className={`h-4 w-4 mr-1 ${post.isLiked ? "fill-pink-500" : ""}`} />
+              <Heart className={`h-4 w-4 mr-1.5 transition-all ${post.isLiked ? "fill-pink-500" : ""}`} />
               <span>{post.likeCount || 0}</span>
             </Button>
             
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleShare}>
-              <Share2 className="h-4 w-4" />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-muted-foreground hover:text-blue-500 hover:bg-blue-50/30" 
+              onClick={handleShare}
+            >
+              <Share2 className="h-4 w-4 mr-1.5" />
+              <span>Share</span>
             </Button>
           </div>
         </CardFooter>
       )}
       
       {isSharing && (
-        <div className="p-3 border-t">
-          <ShareButtons url={`${window.location.origin}${postUrl}`} title={`Microblog post by ${post.author?.displayName || "User"}`} />
+        <div className="p-4 border-t border-border/10 bg-secondary/5">
+          <h4 className="text-sm font-medium mb-2">Share this post</h4>
+          <ShareButtons url={`${window.location.origin}${postUrl}`} title={`Post by ${post.author?.displayName || "User"}: ${post.content.substring(0, 30)}...`} />
         </div>
       )}
     </Card>
