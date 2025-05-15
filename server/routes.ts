@@ -1260,6 +1260,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get microblogs liked by a user
+  app.get("/api/users/:userId/liked-microblogs", async (req, res, next) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Optional auth check - users can only see their own liked posts when authenticated
+      if (req.user?.id !== userId) {
+        // For public profiles, we can still show liked posts
+        // If stricter privacy is needed, uncomment this:
+        // return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const likedPostIds = await storage.getLikedMicroblogIdsByUserId(userId);
+      res.json(likedPostIds);
+    } catch (error) {
+      console.error("Error getting liked microblogs:", error);
+      res.status(500).json({ message: "Failed to get liked microblogs" });
+    }
+  });
+  
   app.get("/api/communities/:communityId/microblogs", async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.communityId);
@@ -3219,6 +3239,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user preferences:", error);
       res.status(500).json({ message: "Failed to update user preferences" });
+    }
+  });
+
+  // Get user by ID - public endpoint for author information
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Remove sensitive information for public user profile
+      const publicUser = {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        bio: user.bio,
+        createdAt: user.createdAt,
+        isVerifiedApologeticsAnswerer: user.isVerifiedApologeticsAnswerer
+      };
+      
+      res.json(publicUser);
+    } catch (error) {
+      console.error("Error getting user:", error);
+      res.status(500).json({ message: "Failed to get user" });
     }
   });
 
