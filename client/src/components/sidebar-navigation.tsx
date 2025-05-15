@@ -100,13 +100,13 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
 
       {!user && (
         <div className="space-y-2">
-          <Link href="/api/login">
+          <Link href="/auth">
             <div className="w-full btn-gradient text-center py-2 px-4 rounded-lg font-medium transition-colors cursor-pointer">
               Sign In
             </div>
           </Link>
           <div className="text-center text-xs text-muted-foreground">
-            Sign in with your Replit account
+            Sign in to your account
           </div>
         </div>
       )}

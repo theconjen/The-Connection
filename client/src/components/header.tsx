@@ -248,7 +248,7 @@ export default function Header() {
               </>
             ) : (
               // Sign In button
-              <Link href="/api/login">
+              <Link href="/auth">
                 <Button 
                   className="btn-gradient font-medium"
                   size="sm"

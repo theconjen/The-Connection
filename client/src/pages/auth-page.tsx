@@ -47,7 +47,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
+  const auth = useAuth();
+  const { user } = auth;
   const [activeTab, setActiveTab] = useState<string>("login");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
@@ -76,14 +77,14 @@ export default function AuthPage() {
   });
 
   const onLoginSubmit = (data: LoginFormValues) => {
-    loginMutation.mutate(data);
+    auth.loginMutation.mutate(data);
   };
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
     // Omit confirmPassword as it's not in the InsertUser type
     const { confirmPassword, ...userData } = data;
     
-    registerMutation.mutate(userData as InsertUser);
+    auth.registerMutation.mutate(userData as InsertUser);
   };
 
   // Redirect if user is already logged in
