@@ -10,6 +10,7 @@ import CommunitiesPage from "@/pages/communities-page";
 import ApologeticsPage from "@/pages/apologetics-page";
 import GroupsPage from "@/pages/groups-page";
 import ProfilePage from "@/pages/profile-page";
+import PostsPage from "@/pages/posts-page";
 import PostDetailPage from "@/pages/post-detail-page";
 import SubmitPostPage from "@/pages/submit-post-page";
 import LivestreamsPage from "@/pages/livestreams-page";
@@ -50,6 +51,7 @@ function App() {
         <ReadOnlyRoute path="/prayer-requests" component={withResponsiveLayout(PrayerRequestsPage)} />
         <ReadOnlyRoute path="/discover" component={withResponsiveLayout(DiscoverPage)} />
         <ReadOnlyRoute path="/livestreams" component={withResponsiveLayout(LivestreamsPage)} />
+        <ReadOnlyRoute path="/posts" component={withResponsiveLayout(PostsPage)} />
         <ReadOnlyRoute path="/posts/:id" component={withResponsiveLayout(PostDetailPage)} />
         <ReadOnlyRoute path="/microblogs" component={withResponsiveLayout(MicroblogsPage)} />
         <ReadOnlyRoute path="/microblogs/:id" component={withResponsiveLayout(MicroblogDetailPage)} />
