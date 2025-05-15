@@ -46,14 +46,15 @@ export default {
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         
-        // Direct access to custom color palette
-        neutralGray: "#8E8E93",      // Primary Neutral (UI Accent)
-        deepCharcoal: "#1C1C1E",     // Deep Charcoal (Dark Mode/Contrast)
-        softWhite: "#F2F2F7",        // Soft White (Background)
-        lavenderGray: "#C7C7D1",     // Lavender Gray (Secondary Accent)
-        mutedPurple: "#A29BFE",      // Muted Purple (Primary Identity Color)
-        blushPink: "#F7C8E0",        // Blush Pink (Gentle Accent)
-        dustyRose: "#D291BC",        // Dusty Rose (Depth/Support Accent)
+        // Direct access to TC logo color palette
+        neutralGray: "#8E8E93",
+        deepCharcoal: "#1C1C1E",
+        softWhite: "#F2F2F7",
+        tcPink: "#F649A8",
+        tcPurple: "#7B41F7",
+        tcGradientStart: "#F649A8",
+        tcGradientEnd: "#7B41F7",
+        tcGradientMid: "#D645D0",
         
         chart: {
           "1": "hsl(var(--chart-1))",

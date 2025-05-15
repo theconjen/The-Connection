@@ -6,7 +6,7 @@
 @tailwind utilities;
 
 :root {
-  /* The Connection color palette - mature and gender-neutral */
+  /* The Connection color palette - based on logo colors */
   /* Soft White (Background) */
   --background: 220 25% 97%;
   --foreground: 220 30% 10%;
@@ -19,53 +19,53 @@
   --border: 220 20% 85%;
   --input: 220 20% 85%;
   
-  /* Deep Blue (Primary Identity Color) */
-  --primary: 215 70% 45%;
+  /* Vibrant Pink from Logo (Primary Identity Color) */
+  --primary: 325 85% 55%;
   --primary-foreground: 0 0% 100%;
   
-  /* Teal (Gender-neutral Accent) */
-  --secondary: 175 65% 40%;
+  /* Purple from Logo (Secondary Color) */
+  --secondary: 265 70% 50%;
   --secondary-foreground: 0 0% 100%;
   
-  /* Amber (Warm Accent) */
-  --accent: 35 85% 50%;
+  /* Gradient Pink-Purple Accent */
+  --accent: 295 80% 55%;
   --accent-foreground: 0 0% 100%;
   
   /* Default red for destructive actions */
   --destructive: 0 75% 45%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 215 70% 45%;
+  --ring: 325 85% 55%;
   --radius: 0.5rem;
 }
 
 .dark {
-  /* Deep Navy (Dark Mode/Contrast) */
-  --background: 215 30% 10%;
-  --foreground: 215 10% 95%; 
-  --muted: 215 25% 18%;
-  --muted-foreground: 215 10% 65%;
-  --popover: 215 30% 10%;
-  --popover-foreground: 215 10% 95%;
-  --card: 215 30% 14%;
-  --card-foreground: 215 10% 95%;
-  --border: 215 25% 22%;
-  --input: 215 25% 22%;
+  /* Deep Purple background (Dark Mode/Contrast) inspired by logo */
+  --background: 265 30% 10%;
+  --foreground: 265 10% 95%; 
+  --muted: 265 25% 18%;
+  --muted-foreground: 265 10% 65%;
+  --popover: 265 30% 10%;
+  --popover-foreground: 265 10% 95%;
+  --card: 265 30% 14%;
+  --card-foreground: 265 10% 95%;
+  --border: 265 25% 22%;
+  --input: 265 25% 22%;
   
-  /* Brighter Deep Blue for dark mode */
-  --primary: 215 70% 55%;
+  /* Brighter Pink for dark mode */
+  --primary: 325 90% 60%;
   --primary-foreground: 0 0% 100%;
   
-  /* Brighter Teal for dark mode */
-  --secondary: 175 70% 45%;
+  /* Brighter Purple for dark mode */
+  --secondary: 265 80% 60%;
   --secondary-foreground: 0 0% 100%;
   
-  /* Brighter Amber for dark mode */
-  --accent: 35 90% 55%;
+  /* Brighter Pink-Purple for dark mode */
+  --accent: 295 90% 65%;
   --accent-foreground: 0 0% 100%;
   
-  --destructive: 0 75% 50%;
+  --destructive: 0 80% 55%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 215 70% 55%;
+  --ring: 325 90% 60%;
   --radius: 0.5rem;
 }
 
