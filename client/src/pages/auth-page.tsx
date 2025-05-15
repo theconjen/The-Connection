@@ -176,7 +176,7 @@ export default function AuthPage() {
                     />
                     <Button 
                       type="submit" 
-                      className="w-full" 
+                      className="w-full btn-gradient" 
                       disabled={loginMutation.isPending}
                     >
                       {loginMutation.isPending ? (
@@ -194,7 +194,7 @@ export default function AuthPage() {
                   <span className="text-neutral-600">Don't have an account? </span>
                   <Button 
                     variant="link" 
-                    className="p-0" 
+                    className="p-0 text-gradient" 
                     onClick={() => setActiveTab("register")}
                   >
                     Register
@@ -325,7 +325,7 @@ export default function AuthPage() {
                     />
                     <Button 
                       type="submit" 
-                      className="w-full"
+                      className="w-full btn-gradient"
                       disabled={registerMutation.isPending}
                     >
                       {registerMutation.isPending ? (
@@ -343,7 +343,7 @@ export default function AuthPage() {
                   <span className="text-neutral-600">Already have an account? </span>
                   <Button 
                     variant="link" 
-                    className="p-0" 
+                    className="p-0 text-gradient" 
                     onClick={() => setActiveTab("login")}
                   >
                     Sign In
