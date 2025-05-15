@@ -1,28 +1,41 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, varchar, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table schema
+// Session storage table for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// Users table schema - updated for Replit Auth
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
+  // Uses string id from Replit Auth
+  id: varchar("id").primaryKey().notNull(),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
   displayName: text("display_name"),
   bio: text("bio"),
-  avatarUrl: text("avatar_url"),
   isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
+  isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  email: true,
-  password: true,
-  displayName: true,
-  bio: true,
-  avatarUrl: true,
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
 });
+
+export type UpsertUser = typeof users.$inferInsert;
 
 // Communities table schema
 export const communities = pgTable("communities", {
@@ -36,7 +49,7 @@ export const communities = pgTable("communities", {
   hasPrivateWall: boolean("has_private_wall").default(false),
   hasPublicWall: boolean("has_public_wall").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-  createdBy: integer("created_by").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id),
 });
 
 export const insertCommunitySchema = createInsertSchema(communities).pick({

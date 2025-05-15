@@ -247,8 +247,15 @@ export default function Header() {
                 <UserMenu user={user} />
               </>
             ) : (
-              // Sign In removed - Only the Create button is needed which is already in place above
-              <></>
+              // Sign In button
+              <Link href="/api/login">
+                <Button 
+                  className="btn-gradient font-medium"
+                  size="sm"
+                >
+                  Sign In
+                </Button>
+              </Link>
             )}
           </div>
         </div>
