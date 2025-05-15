@@ -6,6 +6,7 @@ import CommunitiesList from "@/components/communities-list";
 import ApologeticsResourceCard from "@/components/apologetics-resource";
 import PrivateGroupsList from "@/components/private-groups-list";
 import CommunityGuidelines from "@/components/community-guidelines";
+import WelcomeBanner from "@/components/welcome-banner";
 import { Post, User, Community } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,80 +36,85 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
   };
 
   return (
-    <div className={`flex ${isMobile ? 'flex-col' : 'md:flex-row container mx-auto px-4 py-6 gap-6'}`}>
-      {/* Main Feed Area */}
-      <div className="flex-1">
-        <FeedFilters onFilterChange={handleFilterChange} currentFilter={filter} />
+    <div className={`container mx-auto px-4 py-6`}>
+      {/* Welcome Banner */}
+      <WelcomeBanner className="mb-6" />
+      
+      <div className={`flex ${isMobile ? 'flex-col' : 'md:flex-row gap-6'}`}>
+        {/* Main Feed Area */}
+        <div className="flex-1">
+          <FeedFilters onFilterChange={handleFilterChange} currentFilter={filter} />
 
-        {isLoading ? (
-          // Loading skeletons
-          Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="bg-white rounded-xl shadow-sm border border-neutral-200 mb-6 p-6">
-              <div className="flex items-center mb-4">
-                <Skeleton className="w-10 h-10 rounded-full mr-3" />
-                <div>
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-40 mt-1" />
+          {isLoading ? (
+            // Loading skeletons
+            Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="bg-white rounded-xl shadow-sm border border-neutral-200 mb-6 p-6">
+                <div className="flex items-center mb-4">
+                  <Skeleton className="w-10 h-10 rounded-full mr-3" />
+                  <div>
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-40 mt-1" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-full mb-1" />
+                <Skeleton className="h-4 w-full mb-1" />
+                <Skeleton className="h-4 w-2/3 mb-6" />
+                <div className="flex space-x-4">
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-8 w-16" />
                 </div>
               </div>
-              <Skeleton className="h-6 w-3/4 mb-2" />
-              <Skeleton className="h-4 w-full mb-1" />
-              <Skeleton className="h-4 w-full mb-1" />
-              <Skeleton className="h-4 w-2/3 mb-6" />
-              <div className="flex space-x-4">
-                <Skeleton className="h-8 w-16" />
-                <Skeleton className="h-8 w-24" />
-                <Skeleton className="h-8 w-16" />
-              </div>
-            </div>
-          ))
-        ) : (
-          <>
-            {posts && posts.map((post, index) => (
-              <PostCard 
-                key={post.id} 
-                post={post} 
-                featured={index === 0 && page === 1} 
-              />
-            ))}
+            ))
+          ) : (
+            <>
+              {posts && posts.map((post, index) => (
+                <PostCard 
+                  key={post.id} 
+                  post={post} 
+                  featured={index === 0 && page === 1} 
+                />
+              ))}
 
-            {posts && posts.length === 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-neutral-200 mb-6 p-10 text-center">
-                <h3 className="text-xl font-semibold mb-3">No Posts Found</h3>
-                <p className="text-neutral-600 mb-4">
-                  There are no posts to display at the moment.
-                </p>
-              </div>
-            )}
+              {posts && posts.length === 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-neutral-200 mb-6 p-10 text-center">
+                  <h3 className="text-xl font-semibold mb-3">No Posts Found</h3>
+                  <p className="text-neutral-600 mb-4">
+                    There are no posts to display at the moment.
+                  </p>
+                </div>
+              )}
 
-            <div className="text-center py-4">
-              <Button 
-                className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-100 font-medium" 
-                onClick={handleLoadMore}
-                disabled={isFetching}
-              >
-                {isFetching ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  "Load More"
-                )}
-              </Button>
-            </div>
-          </>
+              <div className="text-center py-4">
+                <Button 
+                  className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-100 font-medium" 
+                  onClick={handleLoadMore}
+                  disabled={isFetching}
+                >
+                  {isFetching ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    "Load More"
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Right Sidebar (Desktop only) */}
+        {!isMobile && (
+          <aside className="hidden md:block w-80 space-y-6 sticky top-24 self-start">
+            <ApologeticsResourceCard />
+            <PrivateGroupsList />
+            <CommunityGuidelines />
+          </aside>
         )}
       </div>
-
-      {/* Right Sidebar (Desktop only) */}
-      {!isMobile && (
-        <aside className="hidden md:block w-80 space-y-6 sticky top-24 self-start">
-          <ApologeticsResourceCard />
-          <PrivateGroupsList />
-          <CommunityGuidelines />
-        </aside>
-      )}
     </div>
   );
 }
