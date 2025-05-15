@@ -125,6 +125,12 @@
     background-clip: text;
     text-fill-color: transparent;
   }
+  
+  /* Custom styling for tabs */
+  [data-state="active"].custom-tab-trigger {
+    background: linear-gradient(135deg, #F649A8, #D645D0, #7B41F7);
+    color: white;
+  }
 
   /* Text styles */
   .text-overline {

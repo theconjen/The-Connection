@@ -100,10 +100,10 @@ export default function AuthPage() {
             <div className="flex justify-center mb-2">
               <div className="flex items-center gap-2 font-bold text-2xl text-primary">
                 <img src={logoImage} alt="The Connection Logo" className="h-10 w-auto" />
-                <span>The Connection</span>
+                <span className="text-gradient font-semibold ml-2">The Connection</span>
               </div>
             </div>
-            <CardTitle className="text-2xl text-center">Welcome!</CardTitle>
+            <CardTitle className="text-2xl text-center text-gradient">Welcome!</CardTitle>
             <CardDescription className="text-center">
               Sign in to your account or create a new one
             </CardDescription>
@@ -121,8 +121,8 @@ export default function AuthPage() {
             </div>
             <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register</TabsTrigger>
+                <TabsTrigger value="login" className="custom-tab-trigger">Login</TabsTrigger>
+                <TabsTrigger value="register" className="custom-tab-trigger">Register</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
