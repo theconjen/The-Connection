@@ -77,14 +77,14 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
     {
       title: "Prayer Requests",
       description: "Share your prayer needs or pray for others in our supportive prayer community.",
-      icon: <FileHeart className="h-6 w-6 text-red-600" />,
+      icon: <Sparkles className="h-6 w-6 text-red-600" />,
       path: "/prayer-requests",
       color: "bg-red-500"
     },
     {
       title: "Apologetics",
       description: "Discover resources to help you understand and defend your faith with confidence.",
-      icon: <Sparkles className="h-6 w-6 text-amber-600" />,
+      icon: <Lightbulb className="h-6 w-6 text-amber-600" />,
       path: "/apologetics",
       color: "bg-amber-500"
     },
@@ -103,10 +103,10 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
       color: "bg-indigo-500"
     },
     {
-      title: "Q&A Forum",
-      description: "Ask questions about faith, theology, and Christian living, and get answers from the community.",
-      icon: <Lightbulb className="h-6 w-6 text-orange-600" />,
-      path: "/forum",
+      title: "Forums",
+      description: "Discover and engage with discussions, ask questions, and share insights with the Christian community.",
+      icon: <FileHeart className="h-6 w-6 text-orange-600" />,
+      path: "/forums",
       color: "bg-orange-500"
     },
     {
