@@ -2473,12 +2473,17 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getUserLikedMicroblogs(userId: number): Promise<number[]> {
-    const likes = await db
-      .select()
-      .from(microblogLikes)
-      .where(eq(microblogLikes.userId, userId));
-    
-    return likes.map(like => like.microblogId);
+    try {
+      const likes = await db
+        .select()
+        .from(microblogLikes)
+        .where(eq(microblogLikes.userId, userId));
+      
+      return likes.map(like => like.microblogId);
+    } catch (error) {
+      console.error("Error getting user liked microblogs:", error);
+      return [];
+    }
   }
 
   // ========================

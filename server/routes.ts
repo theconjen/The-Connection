@@ -1272,7 +1272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // return res.status(403).json({ message: "Unauthorized" });
       }
       
-      const likedPostIds = await storage.getLikedMicroblogIdsByUserId(userId);
+      const likedPostIds = await storage.getUserLikedMicroblogs(userId);
       res.json(likedPostIds);
     } catch (error) {
       console.error("Error getting liked microblogs:", error);
