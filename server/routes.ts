@@ -3,8 +3,9 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import WebSocket from 'ws';
 import { storage } from "./storage";
-import { setupAuth } from "./auth";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { getRecommendationsForUser } from "./recommendation-engine";
+import passport from "passport";
 import { 
   createEmailTemplate, 
   updateEmailTemplate,
@@ -87,8 +88,17 @@ function allowGuest(req: Request, res: Response, next: Function) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Set up authentication routes
-  setupAuth(app);
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
 
   // Communities routes
   app.get("/api/communities", async (req, res, next) => {
