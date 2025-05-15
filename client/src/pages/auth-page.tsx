@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Redirect, useLocation } from "wouter";
 import { navigate } from "wouter/use-browser-location";
 import { insertUserSchema, InsertUser } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, AuthContextType } from "@/hooks/use-auth";
 import logoImage from "../assets/tc-logo.png";
 import {
   Card,
@@ -47,7 +47,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const auth = useAuth();
+  const auth = useAuth() as AuthContextType;
   const { user } = auth;
   const [activeTab, setActiveTab] = useState<string>("login");
   const [showLoginPassword, setShowLoginPassword] = useState(false);

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, AuthContextType } from "@/hooks/use-auth";
 import { 
   Home,
   MessageCircle,
@@ -19,7 +19,7 @@ interface SidebarNavigationProps {
 }
 
 export default function SidebarNavigation({ currentPath }: SidebarNavigationProps) {
-  const { user } = useAuth();
+  const { user } = useAuth() as AuthContextType;
 
   const navItems = [
     {

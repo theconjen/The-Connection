@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, AuthContextType } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import logoImage from "@assets/TC Logo - Color.png";
@@ -33,7 +33,7 @@ export default function Header() {
   const [location] = useLocation();
   const [searchVisible, setSearchVisible] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user } = useAuth();
+  const { user } = useAuth() as AuthContextType;
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isTablet = useMediaQuery("(min-width: 769px) and (max-width: 1023px)");
   const searchInputRef = useRef<HTMLInputElement>(null);

@@ -1,5 +1,5 @@
 import { User } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, AuthContextType } from "@/hooks/use-auth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { 
@@ -17,7 +17,7 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ user }: UserMenuProps) {
-  const auth = useAuth();
+  const auth = useAuth() as AuthContextType;
   
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to sign out?")) {
