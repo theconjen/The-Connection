@@ -7,9 +7,20 @@ import { User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+// Define types for login data and auth context
 type LoginData = Pick<InsertUser, "username" | "password">;
 
-export function useAuth() {
+export type AuthContextType = {
+  user: SelectUser | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  isAuthenticated: boolean;
+  loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
+  logoutMutation: UseMutationResult<void, Error, void>;
+  registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
+};
+
+export function useAuth(): AuthContextType {
   const { toast } = useToast();
   
   const {
