@@ -208,13 +208,13 @@ export default function Header() {
               </Button>
             </Link>
             
-            {/* Menu button (more compact on mobile) */}
+            {/* Menu button - only on mobile */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  className="md:hidden text-muted-foreground hover:text-foreground hover:bg-background/60"
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
