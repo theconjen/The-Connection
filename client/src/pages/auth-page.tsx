@@ -178,9 +178,9 @@ export default function AuthPage() {
                     <Button 
                       type="submit" 
                       className="w-full btn-gradient" 
-                      disabled={loginMutation.isPending}
+                      disabled={auth.loginMutation.isPending}
                     >
-                      {loginMutation.isPending ? (
+                      {auth.loginMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Signing in...
@@ -327,9 +327,9 @@ export default function AuthPage() {
                     <Button 
                       type="submit" 
                       className="w-full btn-gradient"
-                      disabled={registerMutation.isPending}
+                      disabled={auth.registerMutation.isPending}
                     >
-                      {registerMutation.isPending ? (
+                      {auth.registerMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Creating Account...

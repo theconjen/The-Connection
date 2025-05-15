@@ -17,11 +17,11 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ user }: UserMenuProps) {
-  const { logoutMutation } = useAuth();
+  const auth = useAuth();
   
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to sign out?")) {
-      logoutMutation.mutate();
+      auth.logoutMutation.mutate();
     }
   };
   
@@ -61,9 +61,9 @@ export default function UserMenu({ user }: UserMenuProps) {
         <DropdownMenuItem 
           onClick={handleLogout}
           className="text-red-500 focus:text-red-500 cursor-pointer"
-          disabled={logoutMutation.isPending}
+          disabled={auth.logoutMutation.isPending}
         >
-          {logoutMutation.isPending ? "Signing out..." : "Sign out"}
+          {auth.logoutMutation.isPending ? "Signing out..." : "Sign out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
