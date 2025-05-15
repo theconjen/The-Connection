@@ -2,24 +2,10 @@ import { Link } from "wouter";
 import { 
   Home, 
   MessageCircle, 
-  Search, 
-  BookOpen, 
-  Menu, 
+  MessageSquare,
   PenSquare,
-  Users,
-  CalendarDays
+  Users
 } from "lucide-react";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetTrigger,
-  SheetClose,
-  SheetHeader,
-  SheetTitle
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
-import SidebarNavigation from "@/components/sidebar-navigation";
 import { useState, useEffect } from "react";
 
 interface MobileNavigationProps {
@@ -51,16 +37,16 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
       path: "/submit-post"
     },
     {
-      icon: <BookOpen className="h-5 w-5" />,
-      activeIcon: <BookOpen className="h-5 w-5 fill-primary" />,
-      label: "Bible",
-      path: "/bible-study"
+      icon: <Users className="h-5 w-5" />,
+      activeIcon: <Users className="h-5 w-5 fill-primary" />,
+      label: "Community",
+      path: "/communities"
     },
     {
-      icon: <Menu className="h-5 w-5" />,
-      activeIcon: <Menu className="h-5 w-5 fill-primary" />,
-      label: "More",
-      isSheet: true
+      icon: <MessageSquare className="h-5 w-5" />,
+      activeIcon: <MessageSquare className="h-5 w-5 fill-primary" />,
+      label: "Chat",
+      path: "/messages"
     }
   ];
 
@@ -87,65 +73,29 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
       `}
     >
       <div className="flex items-center justify-between px-1">
-        {navItems.map((item, index) => 
-          item.isSheet ? (
-            <Sheet key={index}>
-              <SheetTrigger asChild>
-                <button 
-                  className={`flex flex-col items-center justify-center py-3 px-2 w-full
-                    ${activeTab === item.path 
-                      ? "text-primary" 
-                      : "text-muted-foreground"
-                    }
-                  `}
-                >
-                  {activeTab === item.path ? item.activeIcon : item.icon}
-                  <span className="text-xs mt-1 font-medium">{item.label}</span>
-                </button>
-              </SheetTrigger>
-              <SheetContent 
-                side="bottom" 
-                className="h-[85vh] rounded-t-xl border-t border-border/10 pb-safe-area-inset-bottom pt-6"
-              >
-                <SheetHeader>
-                  <SheetTitle className="text-center text-xl font-medium">More Options</SheetTitle>
-                </SheetHeader>
-                <div className="py-4 overflow-y-auto h-full">
-                  <SidebarNavigation currentPath={currentPath} />
-                  
-                  <SheetClose asChild className="mt-4">
-                    <Button variant="secondary" className="w-full">
-                      Close
-                    </Button>
-                  </SheetClose>
-                </div>
-              </SheetContent>
-            </Sheet>
-          ) : (
-            <Link key={index} href={item.path}>
-              <button 
-                className={`flex flex-col items-center justify-center py-3 px-2 w-full relative
-                  ${activeTab === item.path 
-                    ? "text-primary" 
-                    : "text-muted-foreground"
-                  }
-                `}
-              >
-                {/* Create button - simplified to match other icons */}
-                {activeTab === item.path ? item.activeIcon : item.icon}
-                
-                <span className="text-xs mt-1 font-medium">
-                  {item.label}
-                </span>
-                
-                {/* Active indicator line */}
-                {activeTab === item.path && !item.isSheet && (
-                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
-                )}
-              </button>
-            </Link>
-          )
-        )}
+        {navItems.map((item, index) => (
+          <Link key={index} href={item.path}>
+            <button 
+              className={`flex flex-col items-center justify-center py-3 px-2 w-full relative
+                ${activeTab === item.path 
+                  ? "text-primary" 
+                  : "text-muted-foreground"
+                }
+              `}
+            >
+              {activeTab === item.path ? item.activeIcon : item.icon}
+              
+              <span className="text-xs mt-1 font-medium">
+                {item.label}
+              </span>
+              
+              {/* Active indicator line */}
+              {activeTab === item.path && (
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
+          </Link>
+        ))}
       </div>
     </nav>
   );
