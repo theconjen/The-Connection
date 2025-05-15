@@ -29,7 +29,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
         { icon: <MessageCircle className="h-5 w-5" />, label: "Feed", path: "/microblogs" },
         { icon: <BookOpen className="h-5 w-5" />, label: "Bible Study", path: "/bible-study" },
         { icon: <Users className="h-5 w-5" />, label: "Communities", path: "/communities" },
-        { icon: <FileHeart className="h-5 w-5" />, label: "Posts", path: "/posts" },
+        { icon: <FileHeart className="h-5 w-5" />, label: "Forums", path: "/forums" },
       ],
     },
     {

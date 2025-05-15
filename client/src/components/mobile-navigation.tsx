@@ -4,7 +4,8 @@ import {
   MessageCircle, 
   MessageSquare,
   PenSquare,
-  Users
+  Users,
+  FileHeart
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -71,12 +72,12 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
           </div>
         </Link>
 
-        {/* Chat */}
-        <Link href="/messages" className="flex-1">
-          <div className={`flex flex-col items-center p-2 ${activeTab === '/messages' ? 'text-primary' : 'text-muted-foreground'}`}>
-            {activeTab === '/messages' ? <MessageSquare className="h-5 w-5 fill-primary" /> : <MessageSquare className="h-5 w-5" />}
-            <span className="text-xs mt-1">Chat</span>
-            {activeTab === '/messages' && <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-primary" />}
+        {/* Forums */}
+        <Link href="/forums" className="flex-1">
+          <div className={`flex flex-col items-center p-2 ${activeTab === '/forums' ? 'text-primary' : 'text-muted-foreground'}`}>
+            {activeTab === '/forums' ? <FileHeart className="h-5 w-5 fill-primary" /> : <FileHeart className="h-5 w-5" />}
+            <span className="text-xs mt-1">Forums</span>
+            {activeTab === '/forums' && <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-primary" />}
           </div>
         </Link>
       </div>
