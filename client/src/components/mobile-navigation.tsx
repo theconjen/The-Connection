@@ -68,15 +68,15 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
 
   return (
     <nav 
-      className={`fixed bottom-0 left-0 right-0 bg-background border-t md:hidden z-40 transition-all duration-200
+      className={`fixed bottom-0 left-0 right-0 bg-background border-t md:hidden z-40 transition-all duration-200 max-w-full overflow-hidden
         ${scrolled ? 'border-border/20 shadow-lg' : 'border-border/10'}
       `}
     >
-      <div className="flex items-center justify-between px-1">
+      <div className="grid grid-cols-5 w-full">
         {navItems.map((item, index) => (
-          <Link key={index} href={item.path}>
+          <Link key={index} href={item.path} className="w-full">
             <button 
-              className={`flex flex-col items-center justify-center py-3 px-2 w-full relative
+              className={`flex flex-col items-center justify-center py-3 w-full relative
                 ${activeTab === item.path 
                   ? "text-primary" 
                   : "text-muted-foreground"
@@ -85,7 +85,7 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
             >
               {activeTab === item.path ? item.activeIcon : item.icon}
               
-              <span className="text-xs mt-1 font-medium">
+              <span className="text-xs mt-1 font-medium truncate">
                 {item.label}
               </span>
               
