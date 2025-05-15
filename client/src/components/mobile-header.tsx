@@ -78,7 +78,7 @@ export default function MobileHeader({
           ) : showTitle && (
             <div className="font-medium text-lg">
               {title || (
-                <span className="text-foreground font-medium site-title">
+                <span className="font-medium text-gradient site-title">
                   The Connection
                 </span>
               )}
