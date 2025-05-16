@@ -5,11 +5,34 @@ import { seedDatabase } from "./seed";
 import { seedBibleReadingPlans } from "./seed-bible-reading-plans";
 import { initializeEmailTemplates } from "./email";
 import dotenv from "dotenv";
+import session from "express-session";
+import passport from "passport";
 
 // Load environment variables from .env file
 dotenv.config();
 
 const app = express();
+
+// Set up basic in-memory session (fallback when DB is unavailable)
+const MemoryStore = new (session.Store as any)();
+app.use(session({
+  secret: process.env.SESSION_SECRET || "faith-connect-session-secret",
+  resave: false,
+  saveUninitialized: false,
+  store: MemoryStore,
+  cookie: {
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    secure: false, // Set to true in production with HTTPS
+    httpOnly: true,
+    sameSite: 'lax'
+  }
+}));
+
+// Initialize passport with basic settings
+app.use(passport.initialize());
+app.use(passport.session());
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
