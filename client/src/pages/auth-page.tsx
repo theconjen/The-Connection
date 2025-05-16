@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import PasswordResetForm from "@/components/password-reset-form";
 
 // Extend the schema with stronger validation
 const loginSchema = z.object({
@@ -121,9 +122,10 @@ export default function AuthPage() {
               </Button>
             </div>
             <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
                 <TabsTrigger value="login" className="custom-tab-trigger">Login</TabsTrigger>
                 <TabsTrigger value="register" className="custom-tab-trigger">Register</TabsTrigger>
+                <TabsTrigger value="reset" className="custom-tab-trigger">Reset</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
@@ -192,6 +194,15 @@ export default function AuthPage() {
                   </form>
                 </Form>
                 <div className="mt-4 text-center text-sm">
+                  <div className="mb-2">
+                    <Button 
+                      variant="link" 
+                      className="p-0 text-muted-foreground hover:text-primary" 
+                      onClick={() => setActiveTab("reset")}
+                    >
+                      Forgot your password?
+                    </Button>
+                  </div>
                   <span className="text-neutral-600">Don't have an account? </span>
                   <Button 
                     variant="link" 
@@ -350,6 +361,10 @@ export default function AuthPage() {
                     Sign In
                   </Button>
                 </div>
+              </TabsContent>
+              
+              <TabsContent value="reset">
+                <PasswordResetForm onBack={() => setActiveTab("login")} />
               </TabsContent>
             </Tabs>
           </CardContent>

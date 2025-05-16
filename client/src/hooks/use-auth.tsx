@@ -34,8 +34,20 @@ export function useAuth(): AuthContextType {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest("POST", "/api/login", credentials);
-      return await res.json();
+      try {
+        const res = await apiRequest("POST", "/api/login", credentials);
+        return await res.json();
+      } catch (error) {
+        // Enhance error messages for common authentication issues
+        if (error instanceof Error) {
+          if (error.message.includes('401')) {
+            throw new Error('Invalid username or password. Please try again.');
+          } else if (error.message.includes('429')) {
+            throw new Error('Too many login attempts. Please try again later.');
+          }
+        }
+        throw error;
+      }
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -44,7 +56,8 @@ export function useAuth(): AuthContextType {
       
       toast({
         title: "Welcome back!",
-        description: `You've successfully logged in as ${user.username}.`
+        description: `You've successfully logged in as ${user.username}.`,
+        variant: "default",
       });
       
       // Delay navigation slightly to ensure state is updated
@@ -65,8 +78,20 @@ export function useAuth(): AuthContextType {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
-      const res = await apiRequest("POST", "/api/register", credentials);
-      return await res.json();
+      try {
+        const res = await apiRequest("POST", "/api/register", credentials);
+        return await res.json();
+      } catch (error) {
+        // Enhance error messages for common registration issues
+        if (error instanceof Error) {
+          if (error.message.includes('exists')) {
+            throw new Error('This username or email is already in use. Please try another one.');
+          } else if (error.message.includes('validation')) {
+            throw new Error('Please check your information and try again.');
+          }
+        }
+        throw error;
+      }
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -76,12 +101,13 @@ export function useAuth(): AuthContextType {
       toast({
         title: "Account created!",
         description: `Welcome to The Connection, ${user.username}! Your account has been created.`,
+        variant: "default",
       });
       
       // Delay navigation slightly to ensure state is updated
       setTimeout(() => {
         import("wouter/use-browser-location").then(({ navigate }) => {
-          navigate("/");
+          navigate("/onboarding");
         });
       }, 100);
     },
@@ -96,23 +122,44 @@ export function useAuth(): AuthContextType {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/logout");
+      try {
+        await apiRequest("POST", "/api/logout");
+      } catch (error) {
+        // If the server is unreachable, still allow client-side logout
+        console.warn("Server logout failed, proceeding with client-side logout:", error);
+      }
     },
     onSuccess: () => {
+      // Clear user data from cache
       queryClient.setQueryData(["/api/user"], null);
+      
+      // Invalidate all queries to ensure fresh data on login
+      queryClient.invalidateQueries();
+      
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
+        variant: "default",
       });
+      
+      // Navigate to auth page
       import("wouter/use-browser-location").then(({ navigate }) => {
         navigate("/auth");
       });
     },
     onError: (error: Error) => {
+      // For logout errors, still perform client-side logout
+      queryClient.setQueryData(["/api/user"], null);
+      
       toast({
-        title: "Logout failed",
-        description: error.message,
+        title: "Logout issue",
+        description: "Your session has been cleared but there was a server communication issue.",
         variant: "destructive",
+      });
+      
+      // Navigate to auth page even if there was an error
+      import("wouter/use-browser-location").then(({ navigate }) => {
+        navigate("/auth");
       });
     },
   });
