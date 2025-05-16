@@ -20,6 +20,7 @@ interface SidebarNavigationProps {
 
 export default function SidebarNavigation({ currentPath }: SidebarNavigationProps) {
   const { user } = useAuth() as AuthContextType;
+  const isAdmin = user && user.isAdmin;
 
   const navItems = [
     {
@@ -50,6 +51,18 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       ],
     },
   ];
+  
+  // Only add admin section if user is an admin
+  if (isAdmin) {
+    navItems.push({
+      title: "Administration",
+      items: [
+        { icon: <Settings className="h-5 w-5" />, label: "Admin Dashboard", path: "/admin" },
+        { icon: <Tv className="h-5 w-5" />, label: "Livestreamer Apps", path: "/admin/livestreamer-applications" },
+        { icon: <BookOpen className="h-5 w-5" />, label: "Apologist Apps", path: "/admin/apologist-scholar-applications" },
+      ],
+    });
+  }
 
   return (
     <div className="space-y-6 px-3 h-full overflow-y-auto">
