@@ -83,13 +83,13 @@ export function AdminNav() {
                         {item.children.map((child, childIndex) => (
                           <li key={childIndex}>
                             <Link href={child.href}>
-                              <a className={cn(
-                                "flex items-center p-2 hover:bg-accent rounded-md text-sm",
+                              <div className={cn(
+                                "flex items-center p-2 hover:bg-accent rounded-md text-sm cursor-pointer",
                                 location === child.href ? "bg-accent/50 font-medium" : ""
                               )}>
                                 {child.icon}
                                 {child.title}
-                              </a>
+                              </div>
                             </Link>
                           </li>
                         ))}
@@ -104,14 +104,14 @@ export function AdminNav() {
             return (
               <li key={index}>
                 <Link href={item.href}>
-                  <a className={cn(
-                    "flex items-center p-2 hover:bg-accent rounded-md text-sm",
+                  <div className={cn(
+                    "flex items-center p-2 hover:bg-accent rounded-md text-sm cursor-pointer",
                     item.className,
                     location === item.href ? "bg-accent/50 font-medium" : ""
                   )}>
                     {item.icon}
                     {item.title}
-                  </a>
+                  </div>
                 </Link>
               </li>
             );

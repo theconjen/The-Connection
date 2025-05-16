@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
+import AdminLayout from '@/components/layouts/admin-layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -110,24 +111,7 @@ export default function AdminLivestreamerApplications() {
 
   const [, setLocation] = useLocation();
   
-  // Check if user is admin
-  if (isAuthLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    setLocation("/login");
-    return null;
-  }
-
-  if (!user?.isAdmin) {
-    setLocation("/");
-    return null;
-  }
+  // AdminLayout already handles authentication and redirect checks
 
   const pendingApplications = applications?.filter(
     (app: LivestreamerApplication) => app.status === 'pending'
@@ -159,7 +143,7 @@ export default function AdminLivestreamerApplications() {
   );
 
   return (
-    <div className="container mx-auto py-8">
+    <AdminLayout>
       <div className="mb-6 flex items-center">
         <Button variant="ghost" className="mr-2" onClick={() => window.history.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -457,6 +441,6 @@ export default function AdminLivestreamerApplications() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminLayout>
   );
 }

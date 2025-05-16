@@ -72,10 +72,10 @@ function App() {
         <ProtectedRoute path="/profile" component={withResponsiveLayout(ProfilePage)} />
         <ProtectedRoute path="/submit" component={withResponsiveLayout(SubmitPostPage)} />
         
-        {/* Admin routes */}
-        <AdminRoute path="/admin" component={withResponsiveLayout(AdminDashboard)} />
-        <AdminRoute path="/admin/livestreamer-applications" component={withResponsiveLayout(AdminLivestreamerApplications)} />
-        <AdminRoute path="/admin/apologist-scholar-applications" component={withResponsiveLayout(AdminApologistScholarApplications)} />
+        {/* Admin routes - directly use admin pages (they include AdminLayout inside) */}
+        <AdminRoute path="/admin" component={AdminDashboard} />
+        <AdminRoute path="/admin/livestreamer-applications" component={AdminLivestreamerApplications} />
+        <AdminRoute path="/admin/apologist-scholar-applications" component={AdminApologistScholarApplications} />
         
         {/* Not found page */}
         <Route component={withResponsiveLayout(NotFound)} />
