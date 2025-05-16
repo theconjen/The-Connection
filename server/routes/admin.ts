@@ -1,122 +1,114 @@
 import { Router } from 'express';
+import { ensureAdmin } from '../middlewares/admin-auth';
 import { storage } from '../storage';
-import { isAdmin } from '../middlewares/admin-auth';
-import { sendEmail } from '../email';
-import { db } from '../db';
-import { users } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { format } from 'date-fns';
+import { sendApplicationStatusUpdateEmail } from '../email-notifications';
 
 const router = Router();
 
-// Require admin authentication for all routes in this router
-router.use(isAdmin);
-
-// Get all pending livestreamer applications
-router.get('/applications/livestreamer', async (req, res) => {
+// Get all livestreamer applications
+router.get('/livestreamer-applications', ensureAdmin, async (req, res, next) => {
   try {
-    const applications = await storage.getPendingLivestreamerApplications();
+    const applications = await storage.getAllLivestreamerApplications();
     res.json(applications);
   } catch (error) {
-    console.error('Error fetching pending livestreamer applications:', error);
-    res.status(500).json({ message: 'Failed to fetch applications' });
+    next(error);
   }
 });
 
-// Approve a livestreamer application
-router.post('/applications/livestreamer/:id/approve', async (req, res) => {
+// Get a specific application by ID
+router.get('/livestreamer-applications/:id', ensureAdmin, async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { reviewNotes } = req.body;
-    const reviewerId = req.user.id;
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid application ID" });
+    }
     
+    const application = await storage.getLivestreamerApplicationById(id);
+    
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+    
+    res.json(application);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update application status (approve or reject)
+router.put('/livestreamer-applications/:id', ensureAdmin, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid application ID" });
+    }
+    
+    const { status, reviewNotes } = req.body;
+    
+    if (!status || !['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: "Invalid status. Must be 'approved' or 'rejected'" });
+    }
+    
+    // Update the application status
     const updatedApplication = await storage.updateLivestreamerApplication(
-      parseInt(id), 
-      'approved', 
-      reviewNotes || '',
-      reviewerId
+      id, 
+      status, 
+      reviewNotes || '', 
+      req.user!.id
     );
     
-    // Get the applicant's information to send notification
+    if (!updatedApplication) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+    
+    // Get applicant details to send email notification
     const applicant = await storage.getUser(updatedApplication.userId);
     
-    if (applicant && applicant.email) {
-      // Send approval notification email to the applicant
-      await sendEmail({
-        to: applicant.email,
-        subject: 'Livestreamer Application Approved',
-        template: 'notification',
-        templateData: {
-          username: applicant.username,
-          message: 'Congratulations! Your application to become a livestreamer has been approved.',
-          callToAction: 'You can now start creating livestreams on our platform.',
-          actionUrl: '/livestreams/create',
-          actionText: 'Create Livestream'
-        }
+    if (applicant) {
+      // Send email notification to the applicant
+      await sendApplicationStatusUpdateEmail({
+        email: applicant.email,
+        applicantName: applicant.displayName || applicant.username,
+        status: status === 'approved' ? 'APPROVED' : 'REJECTED',
+        ministryName: updatedApplication.ministryName || 'your ministry',
+        reviewNotes: reviewNotes || '',
+        platformLink: 'https://theconnection.app/livestream'
       });
     }
     
-    res.json(updatedApplication);
+    res.json({
+      message: `Application ${status === 'approved' ? 'approved' : 'rejected'} successfully`,
+      application: updatedApplication
+    });
   } catch (error) {
-    console.error('Error approving livestreamer application:', error);
-    res.status(500).json({ message: 'Failed to approve application' });
+    next(error);
   }
 });
 
-// Reject a livestreamer application
-router.post('/applications/livestreamer/:id/reject', async (req, res) => {
+// Get application statistics
+router.get('/livestreamer-applications/stats', ensureAdmin, async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { reviewNotes } = req.body;
-    const reviewerId = req.user.id;
+    const applications = await storage.getAllLivestreamerApplications();
     
-    const updatedApplication = await storage.updateLivestreamerApplication(
-      parseInt(id), 
-      'rejected', 
-      reviewNotes || '',
-      reviewerId
-    );
+    const stats = {
+      total: applications.length,
+      pending: applications.filter(app => app.status === 'pending').length,
+      approved: applications.filter(app => app.status === 'approved').length,
+      rejected: applications.filter(app => app.status === 'rejected').length,
+      reviewedToday: applications.filter(app => {
+        if (!app.reviewedAt) return false;
+        const today = new Date();
+        const reviewDate = new Date(app.reviewedAt);
+        return today.getDate() === reviewDate.getDate() && 
+               today.getMonth() === reviewDate.getMonth() && 
+               today.getFullYear() === reviewDate.getFullYear();
+      }).length
+    };
     
-    // Get the applicant's information to send notification
-    const applicant = await storage.getUser(updatedApplication.userId);
-    
-    if (applicant && applicant.email) {
-      // Send rejection notification email to the applicant
-      await sendEmail({
-        to: applicant.email,
-        subject: 'Livestreamer Application Status Update',
-        template: 'notification',
-        templateData: {
-          username: applicant.username,
-          message: 'Your application to become a livestreamer has been reviewed. Unfortunately, it was not approved at this time.',
-          callToAction: reviewNotes || 'Please review the feedback provided and consider reapplying in the future.',
-          actionUrl: '/livestreamer/apply',
-          actionText: 'View Application'
-        }
-      });
-    }
-    
-    res.json(updatedApplication);
+    res.json(stats);
   } catch (error) {
-    console.error('Error rejecting livestreamer application:', error);
-    res.status(500).json({ message: 'Failed to reject application' });
-  }
-});
-
-// Get all users with admin capabilities
-router.get('/admin-users', async (req, res) => {
-  try {
-    const adminUsers = await db.select({
-      id: users.id,
-      username: users.username,
-      email: users.email
-    })
-    .from(users)
-    .where(eq(users.isAdmin, true));
-    
-    res.json(adminUsers);
-  } catch (error) {
-    console.error('Error fetching admin users:', error);
-    res.status(500).json({ message: 'Failed to fetch admin users' });
+    next(error);
   }
 });
 
