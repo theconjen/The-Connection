@@ -4,7 +4,8 @@
 import { db } from './db';
 import { users } from '../shared/schema';
 import { eq, sql } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
+import { scrypt, randomBytes } from 'crypto';
+import { promisify } from 'util';
 
 async function createAdminUser() {
   try {
@@ -44,7 +45,11 @@ async function createAdminUser() {
       console.log(`User ${username} has been updated to admin status`);
     } else {
       // Create new admin user
-      const hashedPassword = await bcrypt.hash(password, 10);
+      // Use the same hashing method as in auth.ts
+      const scryptAsync = promisify(scrypt);
+      const salt = randomBytes(16).toString("hex");
+      const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+      const hashedPassword = `${buf.toString("hex")}.${salt}`;
       
       await db.insert(users).values({
         username,
