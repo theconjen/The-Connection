@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import WebSocket from 'ws';
 import { storage } from "./storage";
-import { setupAuth } from "./auth";
+import { setupAuth, comparePasswords } from "./auth";
 import { getRecommendationsForUser } from "./recommendation-engine";
 import { sendNotificationEmail } from "./email";
 import adminRoutes from "./routes/admin";
@@ -99,6 +99,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json(req.user);
     }
     return res.status(401).json({ message: "Not authenticated" });
+  });
+  
+  // Admin login endpoint
+  app.post("/api/admin-login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
+      
+      // Get user
+      const user = await storage.getUserByUsername(username);
+      
+      // Check if user exists and is an admin
+      if (!user || !user.isAdmin || !(await comparePasswords(password, user.password))) {
+        return res.status(401).json({ message: "Invalid admin credentials" });
+      }
+      
+      // Log in the user
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Login error", error: err.message });
+        }
+        return res.json(user);
+      });
+    } catch (error) {
+      console.error("Admin login error:", error);
+      res.status(500).json({ message: "Server error during admin login" });
+    }
   });
   
   // Mount admin routes
