@@ -163,6 +163,7 @@ export function setupAuth(app: Express) {
           bio: user.bio,
           createdAt: user.createdAt,
           isVerifiedApologeticsAnswerer: user.isVerifiedApologeticsAnswerer,
+          isAdmin: user.isAdmin,
         };
         
         // Generate a fresh session to ensure cookie is sent
