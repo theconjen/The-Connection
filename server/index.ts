@@ -67,13 +67,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Seed the database before starting the server
-  try {
-    await seedDatabase();
-    await seedBibleReadingPlans();
-  } catch (error) {
-    console.error("Error seeding database:", error);
-  }
+  // Skip database seeding for now due to connection issues
+  console.log("Skipping database seeding due to connection issues...");
   
   // Initialize email templates
   try {
