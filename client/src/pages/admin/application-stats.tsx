@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
-import { Navigate, Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -198,6 +198,8 @@ export default function ApplicationStatsPage() {
     enabled: isAuthenticated && user?.isAdmin,
   });
 
+  const [, setLocation] = useLocation();
+  
   // Check if user is admin
   if (isAuthLoading) {
     return (
@@ -208,11 +210,13 @@ export default function ApplicationStatsPage() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    setLocation("/login");
+    return null;
   }
 
   if (!user?.isAdmin) {
-    return <Navigate to="/" />;
+    setLocation("/");
+    return null;
   }
 
   // If data is still loading, show loading state

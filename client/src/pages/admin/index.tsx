@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
-import { Navigate, Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity } from 'lucide-react';
@@ -22,6 +22,8 @@ export default function AdminDashboard() {
     enabled: isAuthenticated && user?.isAdmin,
   });
 
+  const [, setLocation] = useLocation();
+  
   // Check if user is admin
   if (isAuthLoading) {
     return (
@@ -32,11 +34,13 @@ export default function AdminDashboard() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    setLocation("/login");
+    return null;
   }
 
   if (!user?.isAdmin) {
-    return <Navigate to="/" />;
+    setLocation("/");
+    return null;
   }
 
   // Count pending applications
