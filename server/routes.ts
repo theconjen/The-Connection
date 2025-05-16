@@ -5,6 +5,7 @@ import WebSocket from 'ws';
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { getRecommendationsForUser } from "./recommendation-engine";
+import { sendNotificationEmail } from "./email";
 import { 
   createEmailTemplate, 
   updateEmailTemplate,
@@ -1534,6 +1535,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reviewNotes, 
         req.user.id
       );
+      
+      // Get the user's details to send the notification
+      const applicant = await storage.getUser(application.userId);
+      
+      if (applicant && applicant.email) {
+        // Send email notification to applicant about their application status
+        const emailSubject = status === "approved" 
+          ? "Your Livestreamer Application Has Been Approved" 
+          : "Update on Your Livestreamer Application";
+        
+        const emailTitle = status === "approved"
+          ? "Congratulations! Your Application is Approved"
+          : "Your Application Status Has Been Updated";
+        
+        const emailMessage = status === "approved"
+          ? "We're pleased to inform you that your application to become a livestreamer has been approved. You can now start creating livestreams on our platform."
+          : `Your livestreamer application has been reviewed. Status: ${status.toUpperCase()}. ${reviewNotes ? `Reviewer notes: ${reviewNotes}` : ''}`;
+        
+        const actionUrl = status === "approved"
+          ? `https://${process.env.REPLIT_DOMAIN || "theconnection.app"}/livestreams/create`
+          : `https://${process.env.REPLIT_DOMAIN || "theconnection.app"}/livestreamer-application`;
+        
+        const actionText = status === "approved"
+          ? "Start Livestreaming"
+          : "View Application";
+        
+        await sendNotificationEmail({
+          email: applicant.email,
+          subject: emailSubject,
+          title: emailTitle,
+          message: emailMessage,
+          actionUrl: actionUrl,
+          actionText: actionText
+        });
+      }
       
       res.json(application);
     } catch (error) {
