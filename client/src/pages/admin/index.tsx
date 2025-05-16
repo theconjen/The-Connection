@@ -1,9 +1,10 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap } from 'lucide-react';
+import AdminLayout from '@/components/layouts/admin-layout';
 
 export default function AdminDashboard() {
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
@@ -29,26 +30,7 @@ export default function AdminDashboard() {
     enabled: isAuthenticated && user?.isAdmin,
   });
 
-  const [, setLocation] = useLocation();
-  
-  // Check if user is admin
-  if (isAuthLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    setLocation("/login");
-    return null;
-  }
-
-  if (!user?.isAdmin) {
-    setLocation("/");
-    return null;
-  }
+  // AdminLayout already handles authentication and redirect checks
 
   // Count pending applications
   const pendingCount = pendingApplications?.filter((app: any) => app.status === 'pending')?.length || 0;
@@ -57,7 +39,7 @@ export default function AdminDashboard() {
   const pendingApologistCount = pendingApologistApplications?.filter((app: any) => app.status === 'pending')?.length || 0;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <AdminLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <p className="text-gray-500">Manage the Christian community platform</p>
@@ -307,6 +289,6 @@ export default function AdminDashboard() {
           </CardFooter>
         </Card>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
