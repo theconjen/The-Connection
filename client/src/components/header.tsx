@@ -9,6 +9,7 @@ import {
   PenSquare,
   BellIcon,
   MessageCircle,
+  MessageSquare,
   BookOpen, 
   Home,
   X,
@@ -232,7 +233,20 @@ export default function Header() {
 
             {user ? (
               <>
-                {/* Notifications Button - Accessible from both mobile and desktop */}
+                {/* Direct Messages Button - Always visible */}
+                <Link href="/messages">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative"
+                  >
+                    <MessageSquare className="h-5 w-5" />
+                    {/* Unread messages indicator */}
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
+                  </Button>
+                </Link>
+
+                {/* Notifications Button */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -247,15 +261,29 @@ export default function Header() {
                 <UserMenu user={user} />
               </>
             ) : (
-              // Sign In button
-              <Link href="/auth">
-                <Button 
-                  className="btn-gradient font-medium"
-                  size="sm"
-                >
-                  Sign In
-                </Button>
-              </Link>
+              <>
+                {/* Direct Messages Button - Always visible even for guests */}
+                <Link href="/auth">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground hover:bg-background/60"
+                    title="Sign in to access messages"
+                  >
+                    <MessageSquare className="h-5 w-5" />
+                  </Button>
+                </Link>
+
+                {/* Sign In button */}
+                <Link href="/auth">
+                  <Button 
+                    className="btn-gradient font-medium"
+                    size="sm"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
         </div>

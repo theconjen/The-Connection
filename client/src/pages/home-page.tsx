@@ -111,13 +111,7 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
       path: "/forums",
       color: "bg-orange-500"
     },
-    {
-      title: "Direct Messages",
-      description: "Connect privately with other believers for one-on-one conversations and support.",
-      icon: <MessageSquare className="h-6 w-6 text-rose-600" />,
-      path: "/messages",
-      color: "bg-rose-500"
-    }
+
   ];
 
   return (
