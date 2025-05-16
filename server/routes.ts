@@ -91,6 +91,9 @@ function allowGuest(req: Request, res: Response, next: Function) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);
+  
+  // Mount admin routes
+  app.use('/api/admin', adminRoutes);
 
   // Communities routes
   app.get("/api/communities", async (req, res, next) => {

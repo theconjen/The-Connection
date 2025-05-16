@@ -23,6 +23,10 @@ import EventsPage from "@/pages/events-page";
 import EventDetailPage from "@/pages/event-detail-page";
 import BibleStudyPage from "@/pages/bible-study-page";
 
+// Admin pages
+import AdminDashboard from "@/pages/admin";
+import AdminLivestreamerApplications from "@/pages/admin/livestreamer-applications";
+
 /**
  * Wraps components with the responsive layout
  * This function helps avoid repetition of the ResponsiveLayout wrapper 
@@ -64,6 +68,10 @@ function App() {
         <ProtectedRoute path="/groups" component={withResponsiveLayout(GroupsPage)} />
         <ProtectedRoute path="/profile" component={withResponsiveLayout(ProfilePage)} />
         <ProtectedRoute path="/submit" component={withResponsiveLayout(SubmitPostPage)} />
+        
+        {/* Admin routes */}
+        <ProtectedRoute path="/admin" component={withResponsiveLayout(AdminDashboard)} />
+        <ProtectedRoute path="/admin/livestreamer-applications" component={withResponsiveLayout(AdminLivestreamerApplications)} />
         
         {/* Not found page */}
         <Route component={withResponsiveLayout(NotFound)} />
