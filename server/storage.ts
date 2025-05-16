@@ -3304,6 +3304,94 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
+  
+  // Livestreamer application methods
+  async getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined> {
+    try {
+      const applications = await db
+        .select()
+        .from(livestreamerApplications)
+        .where(eq(livestreamerApplications.userId, userId));
+      
+      return applications[0];
+    } catch (error) {
+      console.error("Error getting livestreamer application by user ID:", error);
+      return undefined;
+    }
+  }
+  
+  async getPendingLivestreamerApplications(): Promise<LivestreamerApplication[]> {
+    try {
+      const pendingApplications = await db
+        .select()
+        .from(livestreamerApplications)
+        .where(eq(livestreamerApplications.status, "pending"))
+        .orderBy(livestreamerApplications.submittedAt);
+      
+      return pendingApplications;
+    } catch (error) {
+      console.error("Error getting pending livestreamer applications:", error);
+      return [];
+    }
+  }
+  
+  async createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication> {
+    try {
+      const result = await db
+        .insert(livestreamerApplications)
+        .values(application)
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error creating livestreamer application:", error);
+      throw error;
+    }
+  }
+  
+  async updateLivestreamerApplication(
+    id: number, 
+    status: string, 
+    reviewNotes: string, 
+    reviewerId: number
+  ): Promise<LivestreamerApplication> {
+    try {
+      const result = await db
+        .update(livestreamerApplications)
+        .set({ 
+          status, 
+          reviewNotes, 
+          reviewedBy: reviewerId,
+          reviewedAt: new Date()
+        })
+        .where(eq(livestreamerApplications.id, id))
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error updating livestreamer application:", error);
+      throw error;
+    }
+  }
+  
+  async isApprovedLivestreamer(userId: number): Promise<boolean> {
+    try {
+      const applications = await db
+        .select()
+        .from(livestreamerApplications)
+        .where(
+          and(
+            eq(livestreamerApplications.userId, userId),
+            eq(livestreamerApplications.status, "approved")
+          )
+        );
+      
+      return applications.length > 0;
+    } catch (error) {
+      console.error("Error checking approved livestreamer status:", error);
+      return false;
+    }
+  }
 }
 
 // Replace MemStorage with DatabaseStorage
