@@ -1940,6 +1940,15 @@ export class MemStorage implements IStorage {
 
 // Database storage implementation
 export class DatabaseStorage implements IStorage {
+  
+  // Check if user is an admin
+  async checkUserIsAdmin(userId: number): Promise<boolean> {
+    const [user] = await db.select({ isAdmin: users.isAdmin })
+      .from(users)
+      .where(eq(users.id, userId));
+    
+    return user?.isAdmin || false;
+  }
   sessionStore: any;
 
   constructor() {

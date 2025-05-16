@@ -1,8 +1,8 @@
 /**
  * Migration to add the isAdmin field to the users table
  */
-const { db } = require('../db.js');
-const { sql } = require('drizzle-orm');
+import { db } from '../db.ts';
+import { sql } from 'drizzle-orm';
 
 async function runMigration() {
   try {
