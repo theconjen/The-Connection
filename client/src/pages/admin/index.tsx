@@ -1,9 +1,9 @@
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity } from 'lucide-react';
+import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
@@ -11,6 +11,13 @@ export default function AdminDashboard() {
   // Query to fetch pending livestreamer applications count
   const { data: pendingApplications, isLoading: isLoadingApplications } = useQuery({
     queryKey: ['/api/admin/applications/livestreamer'],
+    retry: false,
+    enabled: isAuthenticated && user?.isAdmin,
+  });
+  
+  // Query to fetch apologist scholar applications count
+  const { data: pendingApologistApplications, isLoading: isLoadingApologistApplications } = useQuery({
+    queryKey: ['/api/admin/apologist-scholar-applications'],
     retry: false,
     enabled: isAuthenticated && user?.isAdmin,
   });
@@ -45,6 +52,9 @@ export default function AdminDashboard() {
 
   // Count pending applications
   const pendingCount = pendingApplications?.filter((app: any) => app.status === 'pending')?.length || 0;
+  
+  // Count pending apologist scholar applications
+  const pendingApologistCount = pendingApologistApplications?.filter((app: any) => app.status === 'pending')?.length || 0;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -167,6 +177,48 @@ export default function AdminDashboard() {
           <CardFooter className="mt-auto">
             <Button asChild className="w-full">
               <Link href="/admin/livestreamer-applications">Manage Applications</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        {/* Apologist Scholar Applications Card */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl">Apologist Scholar Applications</CardTitle>
+              <GraduationCap className="h-5 w-5 text-primary" />
+            </div>
+            <CardDescription>Review and manage apologist scholar applications</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Pending Applications</p>
+                {isLoadingApologistApplications ? (
+                  <Loader2 className="mt-1 h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <div className="flex items-center">
+                    <span className="text-2xl font-bold">{pendingApologistCount}</span>
+                    {pendingApologistCount > 0 && (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                        Needs Attention
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {pendingApologistCount > 0 ? (
+                  <AlertCircle className="h-5 w-5 text-amber-500" />
+                ) : (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                )}
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="mt-auto">
+            <Button asChild className="w-full">
+              <Link href="/admin/apologist-scholar-applications">Manage Applications</Link>
             </Button>
           </CardFooter>
         </Card>

@@ -15,6 +15,7 @@ import PostDetailPage from "@/pages/post-detail-page";
 import SubmitPostPage from "@/pages/submit-post-page";
 import LivestreamsPage from "@/pages/livestreams-page";
 import LivestreamerApplicationPage from "@/pages/livestreamer-application-page";
+import ApologistScholarApplicationPage from "@/pages/apologist-scholar-application-page";
 import DiscoverPage from "@/pages/discover-page";
 import MicroblogsPage from "@/pages/microblogs-page";
 import MicroblogDetailPage from "@/pages/microblog-detail-page";
@@ -26,6 +27,7 @@ import BibleStudyPage from "@/pages/bible-study-page";
 // Admin pages
 import AdminDashboard from "@/pages/admin";
 import AdminLivestreamerApplications from "@/pages/admin/livestreamer-applications";
+import AdminApologistScholarApplications from "@/pages/admin/apologist-scholar-applications";
 
 /**
  * Wraps components with the responsive layout
@@ -65,6 +67,7 @@ function App() {
         
         {/* Protected routes with responsive layout */}
         <ProtectedRoute path="/livestreamer-application" component={withResponsiveLayout(LivestreamerApplicationPage)} />
+        <ProtectedRoute path="/apologist-scholar-application" component={withResponsiveLayout(ApologistScholarApplicationPage)} />
         <ProtectedRoute path="/groups" component={withResponsiveLayout(GroupsPage)} />
         <ProtectedRoute path="/profile" component={withResponsiveLayout(ProfilePage)} />
         <ProtectedRoute path="/submit" component={withResponsiveLayout(SubmitPostPage)} />
@@ -72,6 +75,7 @@ function App() {
         {/* Admin routes */}
         <ProtectedRoute path="/admin" component={withResponsiveLayout(AdminDashboard)} />
         <ProtectedRoute path="/admin/livestreamer-applications" component={withResponsiveLayout(AdminLivestreamerApplications)} />
+        <ProtectedRoute path="/admin/apologist-scholar-applications" component={withResponsiveLayout(AdminApologistScholarApplications)} />
         
         {/* Not found page */}
         <Route component={withResponsiveLayout(NotFound)} />
