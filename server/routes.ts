@@ -1407,9 +1407,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Livestream routes
   app.get("/api/livestreams", async (req, res, next) => {
     try {
-      const status = req.query.status as string;
-      const livestreams = await storage.getLivestreams(status);
-      res.json(livestreams);
+      // Since we don't have actual livestreams yet, return an empty array
+      // We'll implement this fully later when livestreaming features are added
+      res.json([]);
     } catch (error) {
       next(error);
     }
@@ -1417,14 +1417,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/livestreams/:id", async (req, res, next) => {
     try {
-      const livestreamId = parseInt(req.params.id);
-      const livestream = await storage.getLivestream(livestreamId);
-      
-      if (!livestream) {
-        return res.status(404).json({ message: "Livestream not found" });
-      }
-      
-      res.json(livestream);
+      // Since we don't have actual livestreams yet, return 404
+      // We'll implement this fully later when livestreaming features are added
+      return res.status(404).json({ message: "Livestream not found" });
     } catch (error) {
       next(error);
     }
