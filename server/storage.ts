@@ -3409,6 +3409,94 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
+  
+  // Apologist Scholar application methods
+  async getApologistScholarApplicationByUserId(userId: number): Promise<ApologistScholarApplication | undefined> {
+    try {
+      const applications = await db
+        .select()
+        .from(apologistScholarApplications)
+        .where(eq(apologistScholarApplications.userId, userId));
+      
+      return applications[0];
+    } catch (error) {
+      console.error("Error getting apologist scholar application by user ID:", error);
+      return undefined;
+    }
+  }
+  
+  async getPendingApologistScholarApplications(): Promise<ApologistScholarApplication[]> {
+    try {
+      const pendingApplications = await db
+        .select()
+        .from(apologistScholarApplications)
+        .where(eq(apologistScholarApplications.status, "pending"))
+        .orderBy(apologistScholarApplications.submittedAt);
+      
+      return pendingApplications;
+    } catch (error) {
+      console.error("Error getting pending apologist scholar applications:", error);
+      return [];
+    }
+  }
+  
+  async createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication> {
+    try {
+      const result = await db
+        .insert(apologistScholarApplications)
+        .values(application)
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error creating apologist scholar application:", error);
+      throw error;
+    }
+  }
+  
+  async updateApologistScholarApplication(
+    id: number, 
+    status: string, 
+    reviewNotes: string, 
+    reviewerId: number
+  ): Promise<ApologistScholarApplication> {
+    try {
+      const result = await db
+        .update(apologistScholarApplications)
+        .set({ 
+          status, 
+          reviewNotes, 
+          reviewedBy: reviewerId,
+          reviewedAt: new Date()
+        })
+        .where(eq(apologistScholarApplications.id, id))
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error updating apologist scholar application:", error);
+      throw error;
+    }
+  }
+  
+  async isApprovedApologistScholar(userId: number): Promise<boolean> {
+    try {
+      const applications = await db
+        .select()
+        .from(apologistScholarApplications)
+        .where(
+          and(
+            eq(apologistScholarApplications.userId, userId),
+            eq(apologistScholarApplications.status, "approved")
+          )
+        );
+      
+      return applications.length > 0;
+    } catch (error) {
+      console.error("Error checking if user is approved apologist scholar:", error);
+      return false;
+    }
+  }
 }
 
 // Replace MemStorage with DatabaseStorage
