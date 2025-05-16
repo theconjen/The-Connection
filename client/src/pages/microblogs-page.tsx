@@ -79,50 +79,8 @@ export default function MicroblogsPage() {
     setIsRefreshing(false);
   };
   
-  // Add pull-to-refresh functionality on mobile
-  useEffect(() => {
-    if (!isMobile) return;
-    
-    let startY: number | null = null;
-    let isPulling = false;
-    
-    const touchStart = (e: TouchEvent) => {
-      // Only enable pull-to-refresh at the top of the page
-      if (window.scrollY === 0) {
-        startY = e.touches[0].clientY;
-        isPulling = true;
-      }
-    };
-    
-    const touchMove = (e: TouchEvent) => {
-      if (!isPulling || startY === null) return;
-      
-      const currentY = e.touches[0].clientY;
-      const diff = currentY - startY;
-      
-      // If pulled down at least 60px, trigger refresh
-      if (diff > 60) {
-        handleRefresh();
-        isPulling = false;
-        startY = null;
-      }
-    };
-    
-    const touchEnd = () => {
-      isPulling = false;
-      startY = null;
-    };
-    
-    document.addEventListener('touchstart', touchStart);
-    document.addEventListener('touchmove', touchMove);
-    document.addEventListener('touchend', touchEnd);
-    
-    return () => {
-      document.removeEventListener('touchstart', touchStart);
-      document.removeEventListener('touchmove', touchMove);
-      document.removeEventListener('touchend', touchEnd);
-    };
-  }, [isMobile, refetch]);
+  // No need for manual pull-to-refresh implementation
+  // Since we're using our MobilePullRefresh component
   
   const isAuthenticated = !!user;
   
@@ -143,76 +101,74 @@ export default function MicroblogsPage() {
             {/* Mobile Composer */}
             <MobileMicroblogComposer />
             
-            {/* Refresh indicator */}
-            {isRefreshing && (
-              <div className="flex justify-center py-2">
-                <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-                <span className="ml-2 text-sm text-muted-foreground">Refreshing...</span>
-              </div>
-            )}
-            
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : microblogs && microblogs.length > 0 ? (
-              <div>
-                {microblogs.map((post) => (
-                  <MobileMicroblogPost 
-                    key={post.id} 
-                    post={post} 
-                    isAuthenticated={isAuthenticated}
-                  />
-                ))}
-                <div className="py-8 flex justify-center">
-                  <Button variant="outline" size="sm" className="text-sm" onClick={handleRefresh}>
-                    Load more
-                  </Button>
+            <MobilePullRefresh onRefresh={handleRefresh}>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-10 text-muted-foreground">
-                No posts found. Be the first to post!
-              </div>
-            )}
+              ) : microblogs && microblogs.length > 0 ? (
+                <div>
+                  {microblogs.map((post) => (
+                    <MobileMicroblogPost 
+                      key={post.id} 
+                      post={post} 
+                      isAuthenticated={isAuthenticated}
+                    />
+                  ))}
+                  <div className="py-8 flex justify-center">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-sm active-scale touch-target" 
+                      onClick={handleRefresh}
+                    >
+                      Load more
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                  No posts found. Be the first to post!
+                </div>
+              )}
+            </MobilePullRefresh>
           </TabsContent>
           
           <TabsContent value="popular" className="pt-2 m-0">
             {/* Mobile Composer */}
             <MobileMicroblogComposer />
             
-            {/* Refresh indicator */}
-            {isRefreshing && (
-              <div className="flex justify-center py-2">
-                <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-                <span className="ml-2 text-sm text-muted-foreground">Refreshing...</span>
-              </div>
-            )}
-            
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : microblogs && microblogs.length > 0 ? (
-              <div>
-                {microblogs.map((post) => (
-                  <MobileMicroblogPost 
-                    key={post.id} 
-                    post={post} 
-                    isAuthenticated={isAuthenticated}
-                  />
-                ))}
-                <div className="py-8 flex justify-center">
-                  <Button variant="outline" size="sm" className="text-sm" onClick={handleRefresh}>
-                    Load more
-                  </Button>
+            <MobilePullRefresh onRefresh={handleRefresh}>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-10 text-muted-foreground">
-                No posts found. Be the first to post!
-              </div>
-            )}
+              ) : microblogs && microblogs.length > 0 ? (
+                <div>
+                  {microblogs.map((post) => (
+                    <MobileMicroblogPost 
+                      key={post.id} 
+                      post={post} 
+                      isAuthenticated={isAuthenticated}
+                    />
+                  ))}
+                  <div className="py-8 flex justify-center">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-sm active-scale touch-target" 
+                      onClick={handleRefresh}
+                    >
+                      Load more
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                  No posts found. Be the first to post!
+                </div>
+              )}
+            </MobilePullRefresh>
           </TabsContent>
         </Tabs>
       </>
