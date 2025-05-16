@@ -189,7 +189,7 @@ export default function Header() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative"
+                    className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative active-scale touch-target"
                   >
                     <MessageSquare className="h-5 w-5" />
                     {/* Unread messages indicator */}
@@ -201,7 +201,7 @@ export default function Header() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative"
+                  className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative active-scale touch-target"
                 >
                   <BellIcon className="h-5 w-5" />
                   {/* Notification indicator dot - show when there are unread notifications */}
