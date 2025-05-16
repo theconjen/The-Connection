@@ -1,11 +1,11 @@
 /**
  * Script to create an admin user account
  */
-const { db } = require('./db.js');
-const { users } = require('../shared/schema.js');
-const { eq, sql } = require('drizzle-orm');
-const bcrypt = require('bcryptjs');
-const readline = require('readline');
+import { db } from './db.js';
+import { users } from '../shared/schema.js';
+import { eq, sql } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
+import readline from 'readline';
 
 const rl = readline.createInterface({
   input: process.stdin,
