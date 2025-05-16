@@ -12,6 +12,7 @@ import {
   ApologeticsResource, InsertApologeticsResource,
   Livestream, InsertLivestream,
   LivestreamerApplication, InsertLivestreamerApplication,
+  ApologistScholarApplication, InsertApologistScholarApplication,
   CreatorTier, VirtualGift, LivestreamGift,
   Microblog, InsertMicroblog,
   MicroblogLike, InsertMicroblogLike,
@@ -218,6 +219,13 @@ export interface IStorage {
   createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication>;
   updateLivestreamerApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<LivestreamerApplication>;
   isApprovedLivestreamer(userId: number): Promise<boolean>;
+  
+  // Apologist Scholar application methods
+  getApologistScholarApplicationByUserId(userId: number): Promise<ApologistScholarApplication | undefined>;
+  getPendingApologistScholarApplications(): Promise<ApologistScholarApplication[]>;
+  createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication>;
+  updateApologistScholarApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<ApologistScholarApplication>;
+  isApprovedApologistScholar(userId: number): Promise<boolean>;
   
   // Creator tier methods
   getAllCreatorTiers(): Promise<CreatorTier[]>;
