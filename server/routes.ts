@@ -7,6 +7,7 @@ import { setupAuth } from "./auth";
 import { getRecommendationsForUser } from "./recommendation-engine";
 import { sendNotificationEmail } from "./email";
 import adminRoutes from "./routes/admin";
+import { format } from "date-fns";
 import { 
   createEmailTemplate, 
   updateEmailTemplate,
@@ -1484,6 +1485,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user details for the email
       const applicant = await storage.getUser(req.user!.id);
+      
+      // Import the notification function
+      const { sendLivestreamerApplicationNotificationEmail } = await import('./email-notifications');
+      
+      // Send email notification to admin
+      if (applicant) {
+        await sendLivestreamerApplicationNotificationEmail({
+          email: adminEmail,
+          applicantName: applicant.displayName || applicant.username,
+          applicantEmail: applicant.email,
+          ministryName: validatedData.ministryName || 'Not specified',
+          applicationId: application.id,
+          applicationDate: format(new Date(), 'PPP'), // Uses date-fns format
+          reviewLink: `https://theconnection.app/admin/livestreamer-applications/${application.id}`
+        });
+      }
       
       // Send notification email
       await sendNotificationEmail({
