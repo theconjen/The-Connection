@@ -14,8 +14,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, ArrowLeft, CheckCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, ArrowLeft, CheckCircle, AlertTriangle, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Request password reset schema
@@ -23,10 +23,15 @@ const requestSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 
-// Reset password schema
+// Reset password schema with stronger validation
 const resetSchema = z.object({
   token: z.string().min(1, "Token is required"),
-  password: z.string().min(8, "Password must be at least 8 characters long"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters long")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
   confirmPassword: z.string().min(8, "Password must be at least 8 characters long"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
@@ -196,8 +201,10 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
         </div>
         
         <Alert className="mb-4">
+          <Mail className="h-4 w-4" />
+          <AlertTitle>Check your email</AlertTitle>
           <AlertDescription>
-            Check your email for a password reset token, then enter it below.
+            We've sent a password reset token to your email address. Enter it below to continue.
           </AlertDescription>
         </Alert>
         
@@ -231,6 +238,9 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
                   <FormMessage />
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Password must contain at least 8 characters including uppercase, lowercase, number, and special character.
+                  </div>
                 </FormItem>
               )}
             />
