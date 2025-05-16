@@ -39,14 +39,8 @@ export default function Header() {
   const isTablet = useMediaQuery("(min-width: 769px) and (max-width: 1023px)");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Top navigation items for desktop
-  const navItems = [
-    { icon: <Home className="h-5 w-5" />, label: "Home", path: "/" },
-    { icon: <MessageCircle className="h-5 w-5" />, label: "Feed", path: "/microblogs" },
-    { icon: <Users className="h-5 w-5" />, label: "Communities", path: "/communities" },
-    { icon: <CalendarDays className="h-5 w-5" />, label: "Events", path: "/events" },
-    { icon: <BookOpen className="h-5 w-5" />, label: "Bible Study", path: "/bible-study" },
-  ];
+  // We no longer use top navigation items for desktop
+  // Navigation is handled through the homepage grid and mobile nav
 
   // Add scroll listener to apply shadow and background changes
   useEffect(() => {
@@ -175,28 +169,7 @@ export default function Header() {
               )}
             </div>
             
-            {/* Desktop/Tablet Navigation - Dynamic based on space */}
-            {!isMobile && (
-              <nav className="hidden md:flex items-center">
-                <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
-                  {/* Show all items on larger screens, fewer on tablets */}
-                  {navItems.slice(0, isTablet ? 3 : navItems.length).map((item, index) => (
-                    <Link 
-                      key={index} 
-                      href={item.path}
-                      className={`flex items-center whitespace-nowrap px-3 py-2 rounded-md transition-colors ${
-                        location === item.path
-                          ? "text-primary bg-primary/5 font-medium"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                      }`}
-                    >
-                      {item.icon}
-                      <span className="ml-2">{item.label}</span>
-                    </Link>
-                  ))}
-                </div>
-              </nav>
-            )}
+            {/* Desktop navigation has been removed in favor of homepage grid navigation */}
 
             {/* Create Button - Desktop & Tablet only */}
             <Link href="/submit-post">
