@@ -10,6 +10,17 @@ import { sendEmail } from "./email";
 import { ZodError } from "zod";
 import { sendWelcomeEmail } from "./email";
 
+// Simple function to send a password reset email
+async function sendPasswordResetEmail(email: string, username: string, token: string): Promise<boolean> {
+  return await sendEmail({
+    to: email,
+    from: "noreply@theconnection.com",
+    subject: "Reset Your Password - The Connection",
+    text: `Hello ${username},\n\nYou recently requested to reset your password. Use the following token to complete the process: ${token}\n\nIf you did not request this, please ignore this email.\n\nBest regards,\nThe Connection Team`,
+    html: `<p>Hello ${username},</p><p>You recently requested to reset your password. Use the following token to complete the process:</p><p><strong>${token}</strong></p><p>If you did not request this, please ignore this email.</p><p>Best regards,<br>The Connection Team</p>`
+  });
+}
+
 declare global {
   namespace Express {
     interface User extends SelectUser {}
