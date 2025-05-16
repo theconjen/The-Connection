@@ -7,29 +7,50 @@ import { initializeEmailTemplates } from "./email";
 import dotenv from "dotenv";
 import session from "express-session";
 import passport from "passport";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
+import { User } from "@shared/schema";
 
 // Load environment variables from .env file
 dotenv.config();
 
 const app = express();
 
-// Set up a simple in-memory session store
+// Set up PostgreSQL session store
+const PgSessionStore = connectPgSimple(session);
+const sessionStore = new PgSessionStore({
+  pool: pool,
+  tableName: 'sessions',
+  createTableIfMissing: true
+});
+
 app.use(session({
+  store: sessionStore,
   secret: process.env.SESSION_SECRET || "faith-connect-session-secret",
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     httpOnly: true
   }
 }));
 
-// Initialize passport with basic settings
+// Initialize passport with proper serialization
 app.use(passport.initialize());
 app.use(passport.session());
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
+passport.serializeUser((user: Express.User, done) => {
+  done(null, (user as User).id);
+});
+passport.deserializeUser(async (id: number, done) => {
+  try {
+    const { storage } = await import("./storage");
+    const user = await storage.getUser(id);
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
