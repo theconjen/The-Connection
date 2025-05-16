@@ -171,42 +171,9 @@ export default function Header() {
             
             {/* Desktop navigation has been removed in favor of homepage grid navigation */}
 
-            {/* Create Button - Desktop & Tablet only */}
-            <Link href="/submit-post">
-              <Button 
-                className="hidden md:flex btn-gradient font-medium"
-                size="sm"
-              >
-                <PenSquare className="h-4 w-4 mr-2" />
-                Create
-              </Button>
-            </Link>
-            
-            {/* Menu button - only on mobile */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="md:hidden text-muted-foreground hover:text-foreground hover:bg-background/60"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60">
-                <SheetHeader>
-                  <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
-                  <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
-                </SheetHeader>
-                <div className="py-4">
-                  <SidebarNavigation currentPath={location} />
-                </div>
-              </SheetContent>
-            </Sheet>
-
             {user ? (
               <>
-                {/* Direct Messages Button - Always visible */}
+                {/* Direct Messages Button - Always visible (FIRST) */}
                 <Link href="/messages">
                   <Button
                     variant="ghost"
@@ -216,6 +183,17 @@ export default function Header() {
                     <MessageSquare className="h-5 w-5" />
                     {/* Unread messages indicator */}
                     <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
+                  </Button>
+                </Link>
+
+                {/* Create Button - Desktop & Tablet only */}
+                <Link href="/submit-post">
+                  <Button 
+                    className="hidden md:flex btn-gradient font-medium"
+                    size="sm"
+                  >
+                    <PenSquare className="h-4 w-4 mr-2" />
+                    Create
                   </Button>
                 </Link>
 
@@ -230,12 +208,34 @@ export default function Header() {
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                 </Button>
                 
+                {/* Menu button - only on mobile */}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="md:hidden text-muted-foreground hover:text-foreground hover:bg-background/60"
+                    >
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60">
+                    <SheetHeader>
+                      <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
+                      <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
+                    </SheetHeader>
+                    <div className="py-4">
+                      <SidebarNavigation currentPath={location} />
+                    </div>
+                  </SheetContent>
+                </Sheet>
+                
                 {/* User Menu - Optimized for both desktop and mobile */}
                 <UserMenu user={user} />
               </>
             ) : (
               <>
-                {/* Direct Messages Button - Always visible even for guests */}
+                {/* Direct Messages Button - Always visible even for guests (FIRST) */}
                 <Link href="/auth">
                   <Button
                     variant="ghost"
@@ -246,6 +246,40 @@ export default function Header() {
                     <MessageSquare className="h-5 w-5" />
                   </Button>
                 </Link>
+
+                {/* Create Button - Desktop & Tablet only */}
+                <Link href="/auth">
+                  <Button 
+                    className="hidden md:flex text-muted-foreground hover:text-foreground"
+                    variant="ghost"
+                    size="sm"
+                  >
+                    <PenSquare className="h-4 w-4 mr-2" />
+                    Create
+                  </Button>
+                </Link>
+
+                {/* Menu button - only on mobile */}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="md:hidden text-muted-foreground hover:text-foreground hover:bg-background/60"
+                    >
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60">
+                    <SheetHeader>
+                      <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
+                      <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
+                    </SheetHeader>
+                    <div className="py-4">
+                      <SidebarNavigation currentPath={location} />
+                    </div>
+                  </SheetContent>
+                </Sheet>
 
                 {/* Sign In button */}
                 <Link href="/auth">
