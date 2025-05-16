@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'wouter';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -108,6 +108,8 @@ export default function AdminLivestreamerApplications() {
     },
   });
 
+  const [, setLocation] = useLocation();
+  
   // Check if user is admin
   if (isAuthLoading) {
     return (
@@ -118,11 +120,13 @@ export default function AdminLivestreamerApplications() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    setLocation("/login");
+    return null;
   }
 
   if (!user?.isAdmin) {
-    return <Navigate to="/" />;
+    setLocation("/");
+    return null;
   }
 
   const pendingApplications = applications?.filter(
