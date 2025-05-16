@@ -320,6 +320,8 @@ export async function initializeEmailTemplates(): Promise<void> {
     console.log('✓ Password reset template setup complete (mock)');
     console.log('✓ Notification template setup complete (mock)');
     console.log('✓ Livestream invite template setup complete (mock)');
+    console.log('✓ Application notification template setup complete (mock)');
+    console.log('✓ Application status update template setup complete (mock)');
     console.log('✓ All email templates successfully initialized in mock mode.');
     return;
   }
@@ -357,6 +359,14 @@ export async function initializeEmailTemplates(): Promise<void> {
     // Livestream invite template
     await setupLivestreamInviteTemplate();
     console.log('✓ Livestream invite template setup complete');
+    
+    // Application notification templates
+    const { setupApplicationNotificationTemplate, setupApplicationStatusUpdateTemplate } = await import('./email-templates');
+    await setupApplicationNotificationTemplate();
+    console.log('✓ Application notification template setup complete');
+    
+    await setupApplicationStatusUpdateTemplate();
+    console.log('✓ Application status update template setup complete');
     
     console.log('✓ All email templates successfully initialized.');
   } catch (error) {

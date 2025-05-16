@@ -1502,16 +1502,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Send notification email
-      await sendNotificationEmail({
-        email: adminEmail,
-        subject: "New Livestreamer Application Submitted",
-        title: "New Livestreamer Application",
-        message: `A new livestreamer application has been submitted by ${applicant?.username || "a user"} (${applicant?.email || "unknown email"}). Please review it in the admin dashboard.`,
-        actionUrl: `https://${process.env.REPLIT_DOMAIN || "theconnection.app"}/admin/livestreamer-applications`,
-        actionText: "Review Application"
-      });
-      
       res.status(201).json(application);
     } catch (error) {
       if (error instanceof ZodError) {
