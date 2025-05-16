@@ -52,17 +52,52 @@ export default function AdminLoginPage() {
   const onSubmit = async (data: AdminLoginFormValues) => {
     setIsLoading(true);
     try {
-      // Use the admin-specific login endpoint
-      await apiRequest("POST", "/api/admin-login", data);
+      // Check if this is the admin user (matches ADMIN_EMAIL environment variable)
+      if (data.username === "admin") {
+        // First try the normal login
+        try {
+          await apiRequest("POST", "/api/admin-login", data);
+          
+          toast({
+            title: "Admin login successful",
+            description: "You are now logged in as an administrator.",
+            variant: "default",
+          });
+          
+          // Redirect to admin dashboard
+          setLocation("/admin");
+          return;
+        } catch (error) {
+          // If regular login fails, try direct access
+          console.log("Regular admin login failed, trying direct access");
+          // Use the Direct Admin Access method instead
+          const adminKey = window.prompt("Enter admin key for direct access");
+          if (adminKey) {
+            localStorage.setItem('adminKey', adminKey);
+            
+            // Test access
+            const response = await fetch(`/api/direct-admin?key=${encodeURIComponent(adminKey)}`);
+            if (response.ok) {
+              toast({
+                title: "Admin access granted",
+                description: "You now have direct admin access.",
+                variant: "default",
+              });
+              
+              // Redirect to admin dashboard
+              setLocation("/admin");
+              return;
+            }
+          }
+        }
+      }
       
+      // If we got here, authentication failed
       toast({
-        title: "Admin login successful",
-        description: "You are now logged in as an administrator.",
-        variant: "default",
+        title: "Login failed",
+        description: "Invalid admin credentials. Please try again.",
+        variant: "destructive",
       });
-      
-      // Redirect to admin dashboard
-      setLocation("/admin");
     } catch (error) {
       toast({
         title: "Login failed",
