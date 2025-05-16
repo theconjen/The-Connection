@@ -31,11 +31,11 @@ export default function WelcomeBanner({ className = "" }: WelcomeBannerProps) {
   };
   
   return (
-    <Card className={`overflow-hidden ${className}`}>
+    <Card className={`overflow-hidden border-border/40 shadow-sm ${className}`}>
       <CardContent className="p-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold">
+            <h2 className="text-base font-bold">
               Good {timeOfDay}, <span className="text-gradient">{user ? user.username : "Friend"}</span>!
             </h2>
             <p className="text-xs text-muted-foreground">
@@ -47,19 +47,19 @@ export default function WelcomeBanner({ className = "" }: WelcomeBannerProps) {
             variant="ghost"
             size="sm"
             onClick={changeQuote}
-            className="flex gap-1 items-center h-7 px-2"
+            className="flex gap-1 items-center h-7 px-2 -mr-1 hover:bg-secondary/10"
           >
             <RefreshCw className="h-3 w-3" />
             <span className="text-xs">New Quote</span>
           </Button>
         </div>
         
-        <div className="bg-secondary/5 p-2 rounded-lg relative mt-2 text-sm">
-          <blockquote className="pl-4 pr-2 py-1 text-sm italic">
+        <div className="bg-secondary/5 p-2 rounded-lg relative mt-2 border border-border/10">
+          <blockquote className="pl-3 pr-2 py-0.5 text-xs sm:text-sm italic">
             "{quote.text}"
           </blockquote>
-          <footer className="text-right text-xs text-muted-foreground pr-2">
-            — {quote.author} {quote.reference && <span className="opacity-75">({quote.reference})</span>}
+          <footer className="text-right text-xs text-muted-foreground pr-2 pt-1">
+            — {quote.author} {quote.reference && <span className="opacity-75 text-[10px]">({quote.reference})</span>}
           </footer>
         </div>
       </CardContent>

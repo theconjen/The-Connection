@@ -29,19 +29,23 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
       <div className="flex-1 flex">
         {/* Desktop Sidebar - only visible on larger screens */}
         {!isMobile && !isTablet && (
-          <aside className="hidden lg:block w-64 border-r border-border/40 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto py-6 px-3">
+          <aside className="hidden lg:block w-60 border-r border-border/40 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto py-4 bg-background/95 backdrop-blur-sm">
             <SidebarNavigation currentPath={location} />
           </aside>
         )}
 
         {/* Main Content Area - adapts to available space */}
         <main 
-          className={`flex-1 ${isMobile ? 'px-2 py-2 pb-24' : 'px-4 py-6'} 
+          className={`flex-1 ${isMobile ? 'px-2 py-2 pb-20' : 'px-4 py-4'} 
             ${!isMobile && !isTablet ? 'max-w-5xl mx-auto' : 'w-full'}
+            transition-all
           `}
         >
           <div className="flex-1 h-full">
-            {children}
+            {/* Animated page transitions could be added here */}
+            <div className="animate-fadeIn">
+              {children}
+            </div>
           </div>
         </main>
       </div>
