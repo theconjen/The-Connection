@@ -6,6 +6,7 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { getRecommendationsForUser } from "./recommendation-engine";
 import { sendNotificationEmail } from "./email";
+import adminRoutes from "./routes/admin";
 import { 
   createEmailTemplate, 
   updateEmailTemplate,
