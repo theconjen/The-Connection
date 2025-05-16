@@ -93,6 +93,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);
   
+  // Current user API endpoint
+  app.get("/api/user", (req, res) => {
+    if (req.isAuthenticated()) {
+      return res.json(req.user);
+    }
+    return res.status(401).json({ message: "Not authenticated" });
+  });
+  
   // Mount admin routes
   app.use('/api/admin', adminRoutes);
 
