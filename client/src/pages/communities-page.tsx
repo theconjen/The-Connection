@@ -56,7 +56,7 @@ export default function CommunitiesPage() {
   });
   
   // Fetch communities
-  const { data: communities, isLoading, error } = useQuery({
+  const { data: communities, isLoading, error } = useQuery<Community[]>({
     queryKey: ['/api/communities'],
   });
   
@@ -244,7 +244,7 @@ export default function CommunitiesPage() {
         )}
       </div>
       
-      {communities?.length === 0 ? (
+      {!communities || communities.length === 0 ? (
         <div className="text-center py-12">
           <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-2xl font-bold mb-2">No Communities Yet</h2>
@@ -265,7 +265,7 @@ export default function CommunitiesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {communities?.map((community: Community) => (
+          {communities.map((community: Community) => (
             <Card 
               key={community.id} 
               className="cursor-pointer hover:shadow-md transition-shadow"
