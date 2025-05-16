@@ -1,14 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Microblog, User } from "@shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, PenSquare, Plus } from "lucide-react";
 import MicroblogPost from "@/components/microblog-post";
 import MicroblogComposer from "@/components/microblog-composer";
 import MobileMicroblogPost from "@/components/mobile-microblog-post";
 import MobileMicroblogComposer from "@/components/mobile-microblog-composer";
 import MobilePullRefresh from "@/components/mobile-pull-refresh";
+import FloatingActionButton from "@/components/floating-action-button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 
@@ -16,7 +18,9 @@ export default function MicroblogsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("latest");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showMobileComposer, setShowMobileComposer] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const composerSheetRef = useRef<HTMLButtonElement>(null);
   
   const { 
     data: microblogs, 
@@ -98,9 +102,6 @@ export default function MicroblogsPage() {
           </div>
           
           <TabsContent value="latest" className="pt-2 m-0">
-            {/* Mobile Composer */}
-            <MobileMicroblogComposer />
-            
             <MobilePullRefresh onRefresh={handleRefresh}>
               {isLoading ? (
                 <div className="flex justify-center py-8">
@@ -135,9 +136,6 @@ export default function MicroblogsPage() {
           </TabsContent>
           
           <TabsContent value="popular" className="pt-2 m-0">
-            {/* Mobile Composer */}
-            <MobileMicroblogComposer />
-            
             <MobilePullRefresh onRefresh={handleRefresh}>
               {isLoading ? (
                 <div className="flex justify-center py-8">
@@ -171,6 +169,41 @@ export default function MicroblogsPage() {
             </MobilePullRefresh>
           </TabsContent>
         </Tabs>
+        
+        {/* Floating Action Button */}
+        <FloatingActionButton 
+          onClick={() => setShowMobileComposer(true)} 
+          icon={<PenSquare className="h-6 w-6 text-white" />}
+          label="Create post"
+          position="bottom-right"
+        />
+        
+        {/* Mobile Composer Sheet */}
+        <Sheet open={showMobileComposer} onOpenChange={setShowMobileComposer}>
+          <SheetTrigger asChild>
+            <button ref={composerSheetRef} className="hidden">Open composer</button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[85vh] rounded-t-xl p-0">
+            <div className="flex flex-col h-full">
+              <div className="border-b p-3 flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Create post</h3>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 px-2" 
+                  onClick={() => setShowMobileComposer(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+              <div className="flex-1 overflow-auto p-3">
+                <MobileMicroblogComposer 
+                  onSuccess={() => setShowMobileComposer(false)}
+                />
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </>
     );
   }
