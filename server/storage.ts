@@ -1957,16 +1957,6 @@ export class DatabaseStorage implements IStorage {
     
     return user?.isAdmin || false;
   }
-  sessionStore: any;
-
-  constructor() {
-    // Initialize the PostgreSQL session store
-    this.sessionStore = new PostgresSessionStore({
-      tableName: 'sessions',
-      createTableIfMissing: true,
-      pool: pool
-    });
-  }
 
   // User methods
   async getUser(id: number): Promise<User | undefined> {
