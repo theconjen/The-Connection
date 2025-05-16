@@ -32,35 +32,33 @@ export default function WelcomeBanner({ className = "" }: WelcomeBannerProps) {
   
   return (
     <Card className={`overflow-hidden ${className}`}>
-      <CardContent className="p-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-4">
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">
+            <h2 className="text-lg font-bold">
               Good {timeOfDay}, <span className="text-gradient">{user ? user.username : "Friend"}</span>!
             </h2>
-            <p className="text-muted-foreground">
-              Welcome to your spiritual journey on The Connection
+            <p className="text-xs text-muted-foreground">
+              Welcome to The Connection
             </p>
           </div>
           
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={changeQuote}
-            className="flex gap-2 items-center"
+            className="flex gap-1 items-center h-7 px-2"
           >
-            <RefreshCw className="h-4 w-4" />
-            New Quote
+            <RefreshCw className="h-3 w-3" />
+            <span className="text-xs">New Quote</span>
           </Button>
         </div>
         
-        <div className="bg-secondary/10 p-4 rounded-lg relative mt-4">
-          <div className="text-4xl text-primary/20 absolute top-2 left-4 font-serif">"</div>
-          <blockquote className="pl-6 pr-4 py-2 text-lg italic">
-            {quote.text}
+        <div className="bg-secondary/5 p-2 rounded-lg relative mt-2 text-sm">
+          <blockquote className="pl-4 pr-2 py-1 text-sm italic">
+            "{quote.text}"
           </blockquote>
-          <div className="text-4xl text-primary/20 absolute bottom-2 right-4 font-serif">"</div>
-          <footer className="text-right text-sm mt-2 text-muted-foreground pr-4">
+          <footer className="text-right text-xs text-muted-foreground pr-2">
             — {quote.author} {quote.reference && <span className="opacity-75">({quote.reference})</span>}
           </footer>
         </div>
