@@ -451,6 +451,56 @@ export const insertLivestreamGiftSchema = createInsertSchema(livestreamGifts).pi
 export type InsertLivestreamerApplication = z.infer<typeof insertLivestreamerApplicationSchema>;
 export type LivestreamerApplication = typeof livestreamerApplications.$inferSelect;
 
+// Apologist Scholar Contributor application system
+export const apologistScholarApplications = pgTable("apologist_scholar_applications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  status: text("status").notNull().default("pending"), // "pending", "approved", "rejected"
+  fullName: text("full_name").notNull(),
+  academicCredentials: text("academic_credentials").notNull(),
+  educationalBackground: text("educational_background").notNull(),
+  theologicalPerspective: text("theological_perspective").notNull(),
+  statementOfFaith: text("statement_of_faith").notNull(),
+  areasOfExpertise: text("areas_of_expertise").notNull(),
+  publishedWorks: text("published_works"),
+  priorApologeticsExperience: text("prior_apologetics_experience").notNull(),
+  writingSample: text("writing_sample").notNull(),
+  onlineSocialHandles: text("online_social_handles"),
+  referenceName: text("reference_name").notNull(),
+  referenceContact: text("reference_contact").notNull(),
+  referenceInstitution: text("reference_institution").notNull(),
+  motivation: text("motivation").notNull(),
+  weeklyTimeCommitment: text("weekly_time_commitment").notNull(),
+  agreedToGuidelines: boolean("agreed_to_guidelines").notNull(),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewNotes: text("review_notes"),
+  reviewedAt: timestamp("reviewed_at"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const insertApologistScholarApplicationSchema = createInsertSchema(apologistScholarApplications).pick({
+  userId: true,
+  fullName: true,
+  academicCredentials: true,
+  educationalBackground: true,
+  theologicalPerspective: true,
+  statementOfFaith: true,
+  areasOfExpertise: true,
+  publishedWorks: true,
+  priorApologeticsExperience: true,
+  writingSample: true,
+  onlineSocialHandles: true,
+  referenceName: true,
+  referenceContact: true,
+  referenceInstitution: true,
+  motivation: true,
+  weeklyTimeCommitment: true,
+  agreedToGuidelines: true
+});
+
+export type InsertApologistScholarApplication = z.infer<typeof insertApologistScholarApplicationSchema>;
+export type ApologistScholarApplication = typeof apologistScholarApplications.$inferSelect;
+
 export type InsertCreatorTier = z.infer<typeof insertCreatorTierSchema>;
 export type CreatorTier = typeof creatorTiers.$inferSelect;
 
