@@ -28,18 +28,18 @@ function FeatureCard({ title, description, icon, path, color }: FeatureCardProps
   return (
     <Card className="transition-all duration-200 hover:shadow-md overflow-hidden border h-full">
       <div className={`h-1 w-full ${color}`}></div>
-      <CardContent className="p-4">
-        <div className="flex items-center mb-2">
-          <div className={`inline-flex items-center justify-center rounded-full w-8 h-8 ${color} bg-opacity-15 mr-3`}>
+      <CardContent className="p-3">
+        <div className="flex items-center mb-1.5">
+          <div className={`inline-flex items-center justify-center rounded-full w-7 h-7 ${color} bg-opacity-15 mr-2`}>
             {icon}
           </div>
-          <h3 className="text-lg font-semibold">{title}</h3>
+          <h3 className="text-base font-semibold">{title}</h3>
         </div>
-        <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
+        <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
       </CardContent>
-      <CardFooter className="border-t bg-muted/10 p-2">
+      <CardFooter className="border-t bg-muted/10 p-1.5">
         <Link href={path} className="w-full">
-          <Button variant="outline" size="sm" className="w-full">Go to {title}</Button>
+          <Button variant="outline" size="sm" className="w-full text-xs h-8">Go to {title}</Button>
         </Link>
       </CardFooter>
     </Card>
@@ -115,16 +115,16 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-4 flex flex-col min-h-[calc(100vh-4rem)]">
+    <div className="container mx-auto px-3 py-3 flex flex-col min-h-[calc(100vh-4rem)]">
       {/* Welcome Banner - Smaller and more compact */}
-      <WelcomeBanner className="mb-3" />
+      <WelcomeBanner className="mb-2" />
       
-      <div className="mb-3">
-        <h2 className="text-xl font-bold mb-1">Explore The Connection</h2>
-        <p className="text-sm text-muted-foreground">Discover features to support your faith journey.</p>
+      <div className="mb-2">
+        <h2 className="text-lg font-bold mb-0.5">Explore The Connection</h2>
+        <p className="text-xs text-muted-foreground">Discover features to support your faith journey.</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 flex-grow">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 flex-grow">
         {featuredApps.map((app, index) => (
           <FeatureCard
             key={index}
@@ -138,11 +138,11 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
       </div>
 
       {!user && (
-        <div className="mt-4 p-3 border rounded-lg bg-muted/10 text-center">
-          <h3 className="text-lg font-semibold">Join Our Community</h3>
-          <p className="mb-2 text-sm mx-auto">Connect with fellow believers and access all features.</p>
+        <div className="mt-3 p-2.5 border rounded-lg bg-muted/10 text-center">
+          <h3 className="text-base font-semibold">Join Our Community</h3>
+          <p className="mb-2 text-xs mx-auto">Connect with fellow believers and access all features.</p>
           <Link href="/auth">
-            <Button size="sm" className="btn-gradient font-medium">Sign Up Now</Button>
+            <Button size="sm" className="btn-gradient font-medium h-8 text-xs px-3">Sign Up Now</Button>
           </Link>
         </div>
       )}

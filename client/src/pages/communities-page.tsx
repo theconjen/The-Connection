@@ -264,33 +264,33 @@ export default function CommunitiesPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {communities.map((community: Community) => (
             <Card 
               key={community.id} 
               className="cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => navigate(`/community/${community.slug}`)}
             >
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center justify-between">
+              <CardHeader className="pb-2 md:pb-2 p-4 md:p-6">
+                <CardTitle className="flex items-center justify-between text-lg md:text-xl">
                   <span>{community.name}</span>
                   {community.hasPrivateWall && (
                     <Lock className="h-4 w-4 text-amber-500" />
                   )}
                 </CardTitle>
-                <CardDescription className="line-clamp-2">
+                <CardDescription className="line-clamp-2 text-sm">
                   {community.description}
                 </CardDescription>
               </CardHeader>
               
-              <CardContent>
+              <CardContent className="px-4 md:px-6 py-2">
                 <div className="flex items-center text-muted-foreground text-sm">
-                  <Users className="mr-1 h-4 w-4" />
+                  <Users className="mr-1 h-4 w-4 flex-shrink-0" />
                   <span>{community.memberCount || 0} members</span>
                 </div>
               </CardContent>
               
-              <CardFooter>
+              <CardFooter className="px-4 md:px-6 py-4">
                 <Button 
                   variant="secondary"
                   className="w-full"
