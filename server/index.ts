@@ -13,18 +13,15 @@ dotenv.config();
 
 const app = express();
 
-// Set up basic in-memory session (fallback when DB is unavailable)
-const MemoryStore = new (session.Store as any)();
+// Set up a simple in-memory session store
 app.use(session({
   secret: process.env.SESSION_SECRET || "faith-connect-session-secret",
   resave: false,
   saveUninitialized: false,
-  store: MemoryStore,
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    secure: false, // Set to true in production with HTTPS
-    httpOnly: true,
-    sameSite: 'lax'
+    secure: false,
+    httpOnly: true
   }
 }));
 

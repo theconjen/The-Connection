@@ -175,21 +175,24 @@ export default function AdminLoginPage() {
             onClick={async () => {
               setIsLoading(true);
               try {
-                // Use admin email as the access key (stored in env var)
-                await fetch(`/api/temp-admin-access?key=${encodeURIComponent(window.prompt("Enter admin key") || "")}`);
+                const adminKey = window.prompt("Enter admin key");
+                if (!adminKey) {
+                  throw new Error("Admin key required");
+                }
                 
-                // Check if we got access
-                const response = await fetch('/api/admin-check');
+                // Store admin key in localStorage
+                localStorage.setItem('adminKey', adminKey);
+                
+                // Test access
+                const response = await fetch(`/api/direct-admin?key=${encodeURIComponent(adminKey)}`);
                 if (response.ok) {
+                  const userData = await response.json();
+                  
                   toast({
                     title: "Admin access granted",
-                    description: "You now have temporary admin access.",
+                    description: "You now have direct admin access.",
                     variant: "default",
                   });
-                  
-                  // Force update admin status in auth state
-                  const queryClient = useQueryClient();
-                  queryClient.invalidateQueries({ queryKey: ['/api/user'] });
                   
                   // Redirect to admin dashboard
                   setLocation("/admin");
@@ -202,6 +205,7 @@ export default function AdminLoginPage() {
                   description: "Invalid admin key. Please try again.",
                   variant: "destructive",
                 });
+                localStorage.removeItem('adminKey');
               } finally {
                 setIsLoading(false);
               }

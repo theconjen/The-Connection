@@ -107,27 +107,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(401).json({ message: "Not authenticated" });
   });
   
-  // TEMPORARY: Direct admin access endpoint (bypasses database)
-  app.get("/api/temp-admin-access", (req, res) => {
-    if (req.query.key === process.env.ADMIN_EMAIL) {
-      req.session.tempAdminAccess = true;
-      res.json({ success: true, message: "Temporary admin access granted" });
-    } else {
-      res.status(401).json({ message: "Unauthorized" });
-    }
-  });
-  
-  // Modified user endpoint that also checks for temp admin access
-  app.get("/api/admin-check", (req, res) => {
-    if (req.session.tempAdminAccess) {
-      return res.json({ 
+  // TEMPORARY: Direct admin access endpoint (bypasses database and sessions)
+  app.get("/api/direct-admin", (req, res) => {
+    const adminKey = req.query.key;
+    // Check if admin key matches ADMIN_EMAIL
+    if (adminKey === process.env.ADMIN_EMAIL) {
+      res.json({ 
         isAdmin: true,
         id: 0,
         username: "admin",
         email: process.env.ADMIN_EMAIL
       });
+    } else {
+      res.status(401).json({ message: "Unauthorized" });
     }
-    return res.status(401).json({ message: "Not authenticated as admin" });
   });
   
   // Admin login endpoint
