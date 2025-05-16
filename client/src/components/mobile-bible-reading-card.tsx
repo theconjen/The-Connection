@@ -118,7 +118,7 @@ export default function MobileBibleReadingCard({
   return (
     <>
       <Card 
-        className="mb-4 touch-manipulation border rounded-xl" 
+        className="mb-4 touch-manipulation border rounded-xl active:bg-secondary/5 transition-colors duration-150 active-scale" 
         onClick={() => setIsOpen(true)}
       >
         <CardContent className="p-4">
@@ -160,14 +160,14 @@ export default function MobileBibleReadingCard({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs rounded-full px-3"
+                      className="h-8 text-xs rounded-full px-3 touch-target active-scale"
                       onClick={(e) => {
                         e.stopPropagation();
                         markAsCompletedMutation.mutate(currentDay);
                       }}
                       disabled={markAsCompletedMutation.isPending}
                     >
-                      <CheckCircle className="h-3 w-3 mr-1" />
+                      <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
                       Mark as read
                     </Button>
                   </div>
@@ -204,7 +204,7 @@ export default function MobileBibleReadingCard({
                 onClick={() => joinPlanMutation.mutate()}
                 disabled={joinPlanMutation.isPending}
                 size="sm"
-                className="rounded-full"
+                className="rounded-full px-4 h-9 touch-target active-scale"
               >
                 Join Plan
               </Button>
@@ -229,9 +229,10 @@ export default function MobileBibleReadingCard({
                     return (
                       <div 
                         key={index} 
-                        className={`py-2 px-3 mb-2 rounded-lg border flex items-center gap-2
+                        className={`py-2 px-3 mb-2 rounded-lg border flex items-center gap-3
                           ${isCompleted ? 'bg-secondary/10 border-secondary/20' : 'border-border'}
                           ${isToday ? 'border-primary/50' : ''}
+                          transition-colors duration-150 active:bg-secondary/5
                         `}
                       >
                         <Checkbox 
@@ -241,6 +242,7 @@ export default function MobileBibleReadingCard({
                               markAsCompletedMutation.mutate(reading.day);
                             }
                           }}
+                          className="h-5 w-5 rounded touch-target"
                           disabled={!isAuthenticated || markAsCompletedMutation.isPending}
                         />
                         <div className="flex-1">

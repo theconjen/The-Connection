@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import MainLayout from "@/components/layouts/main-layout";
 import { PrayerRequest } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatDistanceToNow, format } from "date-fns";
+import FloatingActionButton from "@/components/floating-action-button";
 
 // Helper function to format dates consistently
 function formatDate(date: Date | null | undefined): string {
@@ -683,13 +685,19 @@ function PrayerRequestCard({
             size="sm"
             onClick={() => onPrayClick(prayer.id)}
             disabled={hasPrayed}
+            className="h-9 touch-target active-scale rounded-full"
           >
             <HeartHandshakeIcon className="h-4 w-4 mr-2" />
             {hasPrayed ? "Prayed" : "Pray for This"}
           </Button>
           
           {onMarkAsAnswered && (
-            <Button variant="outline" size="sm" onClick={onMarkAsAnswered}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onMarkAsAnswered}
+              className="h-9 touch-target active-scale rounded-full"
+            >
               <BadgeCheckIcon className="h-4 w-4 mr-2" />
               Mark as Answered
             </Button>
