@@ -186,6 +186,17 @@ export default function Header() {
                   </Button>
                 </Link>
 
+                {/* Notifications Button - SECOND */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative"
+                >
+                  <BellIcon className="h-5 w-5" />
+                  {/* Notification indicator dot - show when there are unread notifications */}
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                </Button>
+
                 {/* Create Button - Desktop & Tablet only */}
                 <Link href="/submit-post">
                   <Button 
@@ -196,17 +207,6 @@ export default function Header() {
                     Create
                   </Button>
                 </Link>
-
-                {/* Notifications Button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative"
-                >
-                  <BellIcon className="h-5 w-5" />
-                  {/* Notification indicator dot - show when there are unread notifications */}
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                </Button>
                 
                 {/* Menu button - only on mobile */}
                 <Sheet>
@@ -244,6 +244,18 @@ export default function Header() {
                     title="Sign in to access messages"
                   >
                     <MessageSquare className="h-5 w-5" />
+                  </Button>
+                </Link>
+
+                {/* Notifications Button - For guests (SECOND) */}
+                <Link href="/auth">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground hover:bg-background/60"
+                    title="Sign in to access notifications"
+                  >
+                    <BellIcon className="h-5 w-5" />
                   </Button>
                 </Link>
 
