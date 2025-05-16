@@ -219,13 +219,15 @@ export default function Header() {
                       <Menu className="h-5 w-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60">
-                    <SheetHeader>
-                      <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
-                      <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
-                    </SheetHeader>
-                    <div className="py-4">
-                      <SidebarNavigation currentPath={location} />
+                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60 p-0 pt-0">
+                    <div className="h-full overflow-hidden flex flex-col">
+                      <SheetHeader className="p-6 pb-2">
+                        <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
+                        <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
+                      </SheetHeader>
+                      <div className="flex-1 overflow-y-auto py-4 px-6">
+                        <SidebarNavigation currentPath={location} />
+                      </div>
                     </div>
                   </SheetContent>
                 </Sheet>
@@ -282,13 +284,15 @@ export default function Header() {
                       <Menu className="h-5 w-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60">
-                    <SheetHeader>
-                      <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
-                      <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
-                    </SheetHeader>
-                    <div className="py-4">
-                      <SidebarNavigation currentPath={location} />
+                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60 p-0 pt-0">
+                    <div className="h-full overflow-hidden flex flex-col">
+                      <SheetHeader className="p-6 pb-2">
+                        <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
+                        <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
+                      </SheetHeader>
+                      <div className="flex-1 overflow-y-auto py-4 px-6">
+                        <SidebarNavigation currentPath={location} />
+                      </div>
                     </div>
                   </SheetContent>
                 </Sheet>
