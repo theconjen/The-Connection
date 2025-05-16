@@ -12,6 +12,7 @@ export const users = pgTable("users", {
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
   isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
+  isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -22,6 +23,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   displayName: true,
   bio: true,
   avatarUrl: true,
+  isAdmin: true,
 });
 
 // Communities table schema
