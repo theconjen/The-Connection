@@ -1,6 +1,6 @@
 import { Switch, Route } from "wouter";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ProtectedRoute, ReadOnlyRoute } from "@/lib/protected-route";
+import { ProtectedRoute, ReadOnlyRoute, AdminRoute } from "@/lib/protected-route";
 import ResponsiveLayout from "@/components/layouts/responsive-layout";
 import HomePage from "@/pages/home-page";
 import NotFound from "@/pages/not-found";
@@ -73,9 +73,9 @@ function App() {
         <ProtectedRoute path="/submit" component={withResponsiveLayout(SubmitPostPage)} />
         
         {/* Admin routes */}
-        <ProtectedRoute path="/admin" component={withResponsiveLayout(AdminDashboard)} />
-        <ProtectedRoute path="/admin/livestreamer-applications" component={withResponsiveLayout(AdminLivestreamerApplications)} />
-        <ProtectedRoute path="/admin/apologist-scholar-applications" component={withResponsiveLayout(AdminApologistScholarApplications)} />
+        <AdminRoute path="/admin" component={withResponsiveLayout(AdminDashboard)} />
+        <AdminRoute path="/admin/livestreamer-applications" component={withResponsiveLayout(AdminLivestreamerApplications)} />
+        <AdminRoute path="/admin/apologist-scholar-applications" component={withResponsiveLayout(AdminApologistScholarApplications)} />
         
         {/* Not found page */}
         <Route component={withResponsiveLayout(NotFound)} />
