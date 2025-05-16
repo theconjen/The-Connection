@@ -79,7 +79,7 @@ export default function UserMenu({ user }: UserMenuProps) {
         <div className="p-2">
           <DropdownMenuItem 
             onClick={handleLogout}
-            className="text-red-500 focus:text-red-500 cursor-pointer rounded-md"
+            className="text-red-500 focus:text-red-500 cursor-pointer rounded-md py-2.5 active-scale touch-target"
             disabled={auth.logoutMutation.isPending}
           >
             {auth.logoutMutation.isPending ? "Signing out..." : "Sign out"}

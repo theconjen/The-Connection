@@ -47,7 +47,7 @@ export default function WelcomeBanner({ className = "" }: WelcomeBannerProps) {
             variant="ghost"
             size="sm"
             onClick={changeQuote}
-            className="flex gap-1 items-center h-7 px-2 -mr-1 hover:bg-secondary/10"
+            className="flex gap-1 items-center h-7 px-2 -mr-1 hover:bg-secondary/10 active-scale touch-target"
           >
             <RefreshCw className="h-3 w-3" />
             <span className="text-xs">New Quote</span>

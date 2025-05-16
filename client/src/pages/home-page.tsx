@@ -25,21 +25,23 @@ interface FeatureCardProps {
 }
 
 function FeatureCard({ title, description, icon, path, color }: FeatureCardProps) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
   return (
-    <Card className="transition-all duration-200 hover:shadow-md overflow-hidden border h-full">
+    <Card className="transition-all duration-200 hover:shadow-md overflow-hidden border h-full active-scale">
       <div className={`h-1 w-full ${color}`}></div>
-      <CardContent className="p-3">
+      <CardContent className={`${isMobile ? 'p-2.5' : 'p-3'}`}>
         <div className="flex items-center mb-1.5">
-          <div className={`inline-flex items-center justify-center rounded-full w-7 h-7 ${color} bg-opacity-15 mr-2`}>
+          <div className={`inline-flex items-center justify-center rounded-full ${isMobile ? 'w-6 h-6' : 'w-7 h-7'} ${color} bg-opacity-15 mr-2`}>
             {icon}
           </div>
-          <h3 className="text-base font-semibold">{title}</h3>
+          <h3 className={`${isMobile ? 'text-sm' : 'text-base'} font-semibold`}>{title}</h3>
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
       </CardContent>
       <CardFooter className="border-t bg-muted/10 p-1.5">
         <Link href={path} className="w-full">
-          <Button variant="outline" size="sm" className="w-full text-xs h-8">Go to {title}</Button>
+          <Button variant="outline" size="sm" className="w-full text-xs h-8 touch-target">Go to {title}</Button>
         </Link>
       </CardFooter>
     </Card>
@@ -138,11 +140,11 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
       </div>
 
       {!user && (
-        <div className="mt-3 p-2.5 border rounded-lg bg-muted/10 text-center">
+        <div className="mt-3 p-3 border rounded-lg bg-muted/10 text-center shadow-sm">
           <h3 className="text-base font-semibold">Join Our Community</h3>
-          <p className="mb-2 text-xs mx-auto">Connect with fellow believers and access all features.</p>
-          <Link href="/auth">
-            <Button size="sm" className="btn-gradient font-medium h-8 text-xs px-3">Sign Up Now</Button>
+          <p className="mb-3 text-xs mx-auto">Connect with fellow believers and access all features.</p>
+          <Link href="/auth" className="block">
+            <Button size="sm" className="btn-gradient font-medium h-10 text-sm px-4 w-full sm:w-auto active-scale touch-target">Sign Up Now</Button>
           </Link>
         </div>
       )}
