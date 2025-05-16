@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Form,
@@ -21,8 +22,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Key } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Schema for admin login
 const adminLoginSchema = z.object({
@@ -156,6 +158,59 @@ export default function AdminLoginPage() {
             </form>
           </Form>
         </CardContent>
+        <CardFooter className="flex flex-col space-y-4 pt-0">
+          <div className="relative w-full">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t"></span>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or use direct access
+              </span>
+            </div>
+          </div>
+          <Button 
+            variant="outline"
+            className="w-full flex items-center gap-2"
+            onClick={async () => {
+              setIsLoading(true);
+              try {
+                // Use admin email as the access key (stored in env var)
+                await fetch(`/api/temp-admin-access?key=${encodeURIComponent(window.prompt("Enter admin key") || "")}`);
+                
+                // Check if we got access
+                const response = await fetch('/api/admin-check');
+                if (response.ok) {
+                  toast({
+                    title: "Admin access granted",
+                    description: "You now have temporary admin access.",
+                    variant: "default",
+                  });
+                  
+                  // Force update admin status in auth state
+                  const queryClient = useQueryClient();
+                  queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+                  
+                  // Redirect to admin dashboard
+                  setLocation("/admin");
+                } else {
+                  throw new Error("Access denied");
+                }
+              } catch (error) {
+                toast({
+                  title: "Access denied",
+                  description: "Invalid admin key. Please try again.",
+                  variant: "destructive",
+                });
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+          >
+            <Key className="h-4 w-4" />
+            Direct Admin Access
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );

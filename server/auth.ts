@@ -43,11 +43,14 @@ export async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  // Use database session store
+  const sessionStore = storage.sessionStore;
+  
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "faith-connect-session-secret",
     resave: false,
     saveUninitialized: false,
-    store: storage.sessionStore,
+    store: sessionStore,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       secure: false, // Set to true in production with HTTPS
