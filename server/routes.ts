@@ -1588,6 +1588,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Apologist Scholar Application routes
+  app.get("/api/apologist-scholar-application", ensureAuthenticated, async (req, res, next) => {
+    try {
+      const application = await storage.getApologistScholarApplicationByUserId(req.user!.id);
+      res.json(application || null);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/apologist-scholar-application", ensureAuthenticated, async (req, res, next) => {
+    try {
+      // Check if user already has an application
+      const existingApplication = await storage.getApologistScholarApplicationByUserId(req.user!.id);
+      if (existingApplication) {
+        return res.status(400).json({ message: "You already have a pending application" });
+      }
+      
+      const validatedData = insertApologistScholarApplicationSchema.parse({
+        ...req.body,
+        userId: req.user?.id
+      });
+      
+      const application = await storage.createApologistScholarApplication(validatedData);
+      
+      // Send notification email to admin
+      const adminEmail = process.env.ADMIN_EMAIL || "admin@theconnection.app"; // Use environment variable
+      
+      // Get user details for the email
+      const applicant = await storage.getUser(req.user!.id);
+      
+      // Import the notification function
+      const { sendLivestreamerApplicationNotificationEmail } = await import('./email-notifications');
+      
+      // Send email notification to admin (using the same template as livestreamer for now)
+      if (applicant) {
+        await sendLivestreamerApplicationNotificationEmail({
+          email: adminEmail,
+          applicantName: applicant.displayName || applicant.username,
+          applicantEmail: applicant.email,
+          ministryName: validatedData.fullName, // Use full name instead of ministry name
+          applicationId: application.id,
+          applicationDate: format(new Date(), 'PPP'), // Uses date-fns format
+          reviewLink: `https://${process.env.REPLIT_DOMAIN || "theconnection.app"}/admin/apologist-scholar-applications/${application.id}`
+        });
+      }
+      
+      res.status(201).json(application);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Admin routes for Apologist Scholar Applications
+  app.get("/api/admin/apologist-scholar-applications", ensureAuthenticated, async (req, res, next) => {
+    try {
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const applications = await storage.getPendingApologistScholarApplications();
+      res.json(applications);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.put("/api/admin/apologist-scholar-applications/:id", ensureAuthenticated, async (req, res, next) => {
+    try {
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const { id } = req.params;
+      const { status, reviewNotes } = req.body;
+      
+      // Update application status
+      const application = await storage.updateApologistScholarApplication(
+        parseInt(id),
+        status,
+        reviewNotes,
+        req.user.id
+      );
+      
+      // Get applicant details
+      const applicant = await storage.getUser(application.userId);
+      
+      if (applicant) {
+        // Import the notification function
+        const { sendApplicationStatusUpdateEmail } = await import('./email-notifications');
+        
+        // Send email notification to the applicant
+        await sendApplicationStatusUpdateEmail({
+          email: applicant.email,
+          applicantName: applicant.displayName || applicant.username,
+          status: status,
+          ministryName: application.fullName, // Use full name instead of ministry name
+          reviewNotes: reviewNotes,
+          platformLink: status === "approved" 
+            ? `https://${process.env.REPLIT_DOMAIN || "theconnection.app"}/apologetics/questions`
+            : `https://${process.env.REPLIT_DOMAIN || "theconnection.app"}/apologist-scholar-application`
+        });
+      }
+      
+      res.json(application);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   // Admin routes for email templates
   app.get("/api/admin/email-templates", ensureAuthenticated, async (req, res, next) => {
     try {
