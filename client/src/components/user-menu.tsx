@@ -74,6 +74,13 @@ export default function UserMenu({ user }: UserMenuProps) {
               Direct Messages
             </DropdownMenuItem>
           </Link>
+          {user.isAdmin && (
+            <Link href="/admin">
+              <DropdownMenuItem className="cursor-pointer rounded-md py-2.5 active-scale touch-target font-medium text-primary">
+                Admin Dashboard
+              </DropdownMenuItem>
+            </Link>
+          )}
         </div>
         <DropdownMenuSeparator />
         <div className="p-2">
