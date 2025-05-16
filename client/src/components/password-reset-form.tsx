@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -15,12 +13,27 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, ArrowLeft, CheckCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-const resetSchema = z.object({
+// Request password reset schema
+const requestSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 
+// Reset password schema
+const resetSchema = z.object({
+  token: z.string().min(1, "Token is required"),
+  password: z.string().min(8, "Password must be at least 8 characters long"),
+  confirmPassword: z.string().min(8, "Password must be at least 8 characters long"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+type RequestFormValues = z.infer<typeof requestSchema>;
 type ResetFormValues = z.infer<typeof resetSchema>;
 
 interface PasswordResetFormProps {
@@ -29,112 +42,244 @@ interface PasswordResetFormProps {
 
 export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
   const { toast } = useToast();
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [step, setStep] = useState<"request" | "reset" | "success">("request");
+  const [resetToken, setResetToken] = useState<string>("");
   
-  const form = useForm<ResetFormValues>({
-    resolver: zodResolver(resetSchema),
+  // Form for requesting password reset
+  const requestForm = useForm<RequestFormValues>({
+    resolver: zodResolver(requestSchema),
     defaultValues: {
       email: "",
     },
   });
-
-  const resetMutation = useMutation({
-    mutationFn: async (data: ResetFormValues) => {
+  
+  // Form for resetting password with token
+  const resetForm = useForm<ResetFormValues>({
+    resolver: zodResolver(resetSchema),
+    defaultValues: {
+      token: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
+  
+  // Request password reset mutation
+  const requestMutation = useMutation({
+    mutationFn: async (data: RequestFormValues) => {
       const res = await apiRequest("POST", "/api/request-password-reset", data);
-      return res;
+      return await res.json();
     },
     onSuccess: () => {
-      setIsSubmitted(true);
+      toast({
+        title: "Reset email sent",
+        description: "If your email exists in our system, you will receive a reset link shortly",
+      });
+      setStep("reset");
     },
     onError: (error: Error) => {
       toast({
-        title: "Password reset failed",
-        description: error.message || "There was a problem sending the reset email. Please try again.",
+        title: "Failed to send reset email",
+        description: error.message || "Please try again later",
         variant: "destructive",
       });
     },
   });
-
-  const onSubmit = (data: ResetFormValues) => {
+  
+  // Reset password mutation
+  const resetMutation = useMutation({
+    mutationFn: async (data: ResetFormValues) => {
+      const res = await apiRequest("POST", "/api/reset-password", data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password reset successful",
+        description: "You can now log in with your new password",
+      });
+      setStep("success");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to reset password",
+        description: error.message || "Invalid or expired token",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Handle request form submission
+  const onRequestSubmit = (data: RequestFormValues) => {
+    requestMutation.mutate(data);
+  };
+  
+  // Handle reset form submission
+  const onResetSubmit = (data: ResetFormValues) => {
     resetMutation.mutate(data);
   };
-
-  if (isSubmitted) {
+  
+  // Handle manual token entry
+  const handleTokenChange = (token: string) => {
+    setResetToken(token);
+    resetForm.setValue("token", token);
+  };
+  
+  // Render request password reset form
+  if (step === "request") {
     return (
-      <div className="p-6 flex flex-col items-center text-center">
-        <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
-        <h2 className="text-xl font-bold mb-2">Check your email</h2>
-        <p className="text-muted-foreground mb-6">
-          We've sent a password reset link to <span className="font-medium">{form.getValues().email}</span>. 
-          Please check your inbox and follow the instructions to reset your password.
+      <div>
+        <div className="flex items-center mb-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-0 mr-2 hover:bg-transparent" 
+            onClick={onBack}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+          </Button>
+          <h3 className="text-lg font-medium">Reset Your Password</h3>
+        </div>
+        
+        <p className="text-muted-foreground mb-4">
+          Enter your email address and we'll send you a link to reset your password.
         </p>
-        <p className="text-sm text-muted-foreground mb-4">
-          If you don't receive an email within a few minutes, check your spam folder or try again.
-        </p>
-        <Button variant="outline" onClick={onBack} className="mt-2">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to login
-        </Button>
+        
+        <Form {...requestForm}>
+          <form onSubmit={requestForm.handleSubmit(onRequestSubmit)} className="space-y-4">
+            <FormField
+              control={requestForm.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="your@email.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={requestMutation.isPending}
+            >
+              {requestMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send Reset Link"
+              )}
+            </Button>
+          </form>
+        </Form>
       </div>
     );
   }
-
-  return (
-    <>
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold mb-2">Reset your password</h2>
-        <p className="text-muted-foreground">
-          Enter your email address and we'll send you a link to reset your password
-        </p>
+  
+  // Render reset password form
+  if (step === "reset") {
+    return (
+      <div>
+        <div className="flex items-center mb-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-0 mr-2 hover:bg-transparent" 
+            onClick={() => setStep("request")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+          </Button>
+          <h3 className="text-lg font-medium">Set New Password</h3>
+        </div>
+        
+        <Alert className="mb-4">
+          <AlertDescription>
+            Check your email for a password reset token, then enter it below.
+          </AlertDescription>
+        </Alert>
+        
+        <Form {...resetForm}>
+          <form onSubmit={resetForm.handleSubmit(onResetSubmit)} className="space-y-4">
+            <FormField
+              control={resetForm.control}
+              name="token"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reset Token</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Enter token from email" 
+                      value={resetToken}
+                      onChange={(e) => handleTokenChange(e.target.value)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={resetForm.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>New Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="••••••••" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={resetForm.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="••••••••" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={resetMutation.isPending}
+            >
+              {resetMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                "Reset Password"
+              )}
+            </Button>
+          </form>
+        </Form>
       </div>
-      
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="your@email.com"
-                    type="email"
-                    autoComplete="email"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <Button
-            type="submit"
-            className="w-full btn-gradient"
-            disabled={resetMutation.isPending}
-          >
-            {resetMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending reset email...
-              </>
-            ) : (
-              "Send reset link"
-            )}
-          </Button>
-          
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onBack}
-            className="w-full mt-2"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to login
-          </Button>
-        </form>
-      </Form>
-    </>
+    );
+  }
+  
+  // Render success message
+  return (
+    <div className="text-center py-6">
+      <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+      <h3 className="text-xl font-medium mb-2">Password Reset Successful</h3>
+      <p className="text-muted-foreground mb-6">
+        Your password has been reset successfully. You can now log in with your new password.
+      </p>
+      <Button onClick={onBack} className="w-full">
+        Return to Login
+      </Button>
+    </div>
   );
 }
