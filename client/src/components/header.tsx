@@ -173,7 +173,7 @@ export default function Header() {
                   variant="ghost"
                   size="icon"
                   onClick={() => setSearchVisible(true)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground active-scale touch-target"
                 >
                   <Search className="h-5 w-5" />
                 </Button>

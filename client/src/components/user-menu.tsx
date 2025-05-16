@@ -32,7 +32,7 @@ export default function UserMenu({ user }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative rounded-full h-9 w-9 p-0 border-2 border-transparent hover:border-primary/10 transition-colors">
+        <Button variant="ghost" className="relative rounded-full h-9 w-9 p-0 border-2 border-transparent hover:border-primary/10 transition-colors active-scale touch-target">
           <Avatar className="h-8 w-8">
             <AvatarImage src={user.avatarUrl || ''} alt={user.username} />
             <AvatarFallback className="bg-primary/5 text-primary font-medium">{getInitials(user.username)}</AvatarFallback>
@@ -55,22 +55,22 @@ export default function UserMenu({ user }: UserMenuProps) {
         <DropdownMenuSeparator />
         <div className="p-2">
           <Link href="/profile">
-            <DropdownMenuItem className="cursor-pointer rounded-md">
+            <DropdownMenuItem className="cursor-pointer rounded-md py-2.5 active-scale touch-target">
               Profile
             </DropdownMenuItem>
           </Link>
           <Link href="/settings">
-            <DropdownMenuItem className="cursor-pointer rounded-md">
+            <DropdownMenuItem className="cursor-pointer rounded-md py-2.5 active-scale touch-target">
               Settings
             </DropdownMenuItem>
           </Link>
           <Link href="/prayer-requests">
-            <DropdownMenuItem className="cursor-pointer rounded-md">
+            <DropdownMenuItem className="cursor-pointer rounded-md py-2.5 active-scale touch-target">
               My Prayer Requests
             </DropdownMenuItem>
           </Link>
           <Link href="/messages">
-            <DropdownMenuItem className="cursor-pointer rounded-md">
+            <DropdownMenuItem className="cursor-pointer rounded-md py-2.5 active-scale touch-target">
               Direct Messages
             </DropdownMenuItem>
           </Link>

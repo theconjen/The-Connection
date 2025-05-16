@@ -83,7 +83,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
               {section.items.map((item, j) => (
                 <Link key={j} href={item.path}>
                   <div 
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer text-sm transition-all ${
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer text-sm transition-all active-scale touch-target ${
                       currentPath === item.path
                         ? "bg-secondary/10 text-gradient font-medium"
                         : "hover:bg-secondary/5 text-foreground"
@@ -102,7 +102,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       {!user && (
         <div className="space-y-2">
           <Link href="/auth">
-            <div className="w-full btn-gradient text-center py-2 px-4 rounded-lg font-medium transition-colors cursor-pointer">
+            <div className="w-full btn-gradient text-center py-3 px-4 rounded-lg font-medium transition-colors cursor-pointer active-scale touch-target">
               Sign In
             </div>
           </Link>
