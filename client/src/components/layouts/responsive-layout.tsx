@@ -36,15 +36,17 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
 
         {/* Main Content Area - adapts to available space */}
         <main 
-          className={`flex-1 ${isMobile ? 'px-2 py-2 pb-20' : 'px-4 py-4'} 
+          className={`flex-1 ${isMobile ? 'px-3 py-3 pb-24' : isTablet ? 'px-4 py-4' : 'px-6 py-5'} 
             ${!isMobile && !isTablet ? 'max-w-5xl mx-auto' : 'w-full'}
             transition-all
           `}
         >
           <div className="flex-1 h-full">
-            {/* Animated page transitions could be added here */}
+            {/* Animated page transitions */}
             <div className="animate-fadeIn">
-              {children}
+              <div className={isMobile ? 'safe-area-inset-bottom' : ''}>
+                {children}
+              </div>
             </div>
           </div>
         </main>

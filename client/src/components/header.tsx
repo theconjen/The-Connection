@@ -89,7 +89,7 @@ export default function Header() {
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
               <img src={logoImage} alt="The Connection Logo" className="h-8 w-auto" />
-              <span className={`ml-2 font-medium text-xl text-foreground site-title ${isMobile ? 'text-lg' : ''}`}>
+              <span className={`ml-2 font-medium text-foreground site-title ${isMobile ? 'hidden' : 'text-xl'}`}>
                 The Connection
               </span>
             </Link>
@@ -126,13 +126,14 @@ export default function Header() {
             {/* Mobile Search Button */}
             <div className="md:hidden">
               {searchVisible ? (
-                <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col items-start justify-start pt-16 px-4">
+                <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col items-start justify-start pt-16 px-4 safe-area-inset">
                   <div className="relative w-full max-w-md mx-auto">
                     <Input
                       ref={searchInputRef}
                       type="text"
-                      placeholder="Search..."
-                      className="w-full pl-10 pr-10 py-2 bg-card border-border/60"
+                      placeholder="Search The Connection..."
+                      className="w-full pl-10 pr-10 py-2 bg-card border-border/60 shadow-sm"
+                      autoComplete="off"
                     />
                     <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
                     <Button
@@ -146,13 +147,23 @@ export default function Header() {
                   </div>
                   
                   {/* Quick search categories on mobile */}
-                  <div className="mt-4 w-full px-4">
-                    <div className="text-sm font-medium mb-2">Search Categories</div>
+                  <div className="mt-4 w-full px-2">
+                    <div className="text-sm font-medium mb-2 px-2">Popular Searches</div>
                     <div className="flex flex-wrap gap-2">
-                      {['Posts', 'People', 'Communities', 'Bible Studies', 'Events'].map((cat) => (
-                        <Button key={cat} variant="outline" size="sm" className="text-xs">
+                      {['Bible Verses', 'Prayer Requests', 'Communities', 'Events', 'Bible Studies'].map((cat) => (
+                        <Button key={cat} variant="outline" size="sm" className="text-xs rounded-full">
                           {cat}
                         </Button>
+                      ))}
+                    </div>
+                    
+                    <div className="text-sm font-medium my-3 px-2">Recent Searches</div>
+                    <div className="space-y-2 bg-background/80 rounded-lg p-2">
+                      {['How to pray effectively', 'Bible study groups', 'Local church events'].map((search, i) => (
+                        <div key={i} className="flex items-center gap-2 p-2 hover:bg-muted/30 rounded cursor-pointer">
+                          <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-sm">{search}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
