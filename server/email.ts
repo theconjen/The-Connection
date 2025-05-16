@@ -300,7 +300,9 @@ export const DEFAULT_TEMPLATES = {
   WELCOME: 'TheConnection_Welcome',
   PASSWORD_RESET: 'TheConnection_PasswordReset',
   NOTIFICATION: 'TheConnection_Notification',
-  LIVESTREAM_INVITE: 'TheConnection_LivestreamInvite'
+  LIVESTREAM_INVITE: 'TheConnection_LivestreamInvite',
+  APPLICATION_NOTIFICATION: 'TheConnection_LivestreamerApplicationNotification',
+  APPLICATION_STATUS_UPDATE: 'TheConnection_ApplicationStatusUpdate'
 };
 
 /**
