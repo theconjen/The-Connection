@@ -52,7 +52,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
   ];
 
   return (
-    <div className="space-y-6 px-3">
+    <div className="space-y-6 px-3 h-full overflow-y-auto">
       <div className="space-y-1">
         <h2 className="px-3 text-xl font-semibold tracking-tight text-gradient">
           The Connection
@@ -73,7 +73,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-y-auto">
         {navItems.map((section, i) => (
           <div key={i} className="space-y-2">
             <h3 className="px-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase">
