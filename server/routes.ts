@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import WebSocket from 'ws';
 import { storage } from "./storage";
-import { setupAuth, comparePasswords } from "./auth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { getRecommendationsForUser } from "./recommendation-engine";
 import { sendNotificationEmail } from "./email";
 import adminRoutes from "./routes/admin";
@@ -76,12 +76,7 @@ import {
 import { ZodError } from "zod";
 
 // Type guard for authenticated requests
-function ensureAuthenticated(req: Request, res: Response, next: Function) {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ message: "Unauthorized" });
-}
+// Using isAuthenticated from auth.ts instead of defining it here again
 
 // Check if user is authenticated, but allow guest access (read-only) by continuing
 function allowGuest(req: Request, res: Response, next: Function) {
@@ -178,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/communities", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/communities", isAuthenticated, async (req, res, next) => {
     try {
       const validatedData = insertCommunitySchema.parse({
         ...req.body,
@@ -195,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update community
-  app.put("/api/communities/:id", ensureAuthenticated, async (req, res, next) => {
+  app.put("/api/communities/:id", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is authorized (owner or moderator)
       const communityId = parseInt(req.params.id);
@@ -230,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete community
-  app.delete("/api/communities/:id", ensureAuthenticated, async (req, res, next) => {
+  app.delete("/api/communities/:id", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -267,7 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/communities/:id/members", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/communities/:id/members", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -302,7 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/communities/:communityId/members/:memberId/role", ensureAuthenticated, async (req, res, next) => {
+  app.put("/api/communities/:communityId/members/:memberId/role", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.communityId);
       const memberId = parseInt(req.params.memberId);
@@ -330,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/communities/:communityId/members/:userId", ensureAuthenticated, async (req, res, next) => {
+  app.delete("/api/communities/:communityId/members/:userId", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.communityId);
       const memberUserId = parseInt(req.params.userId);
@@ -421,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/communities/:id/chat-rooms", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/communities/:id/chat-rooms", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -469,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/chat-rooms/:id", ensureAuthenticated, async (req, res, next) => {
+  app.put("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
       const roomId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -506,7 +501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/chat-rooms/:id", ensureAuthenticated, async (req, res, next) => {
+  app.delete("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
       const roomId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -603,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/chat-rooms/:id/messages", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/chat-rooms/:id/messages", isAuthenticated, async (req, res, next) => {
     try {
       const roomId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -646,7 +641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/chat-messages/:id", ensureAuthenticated, async (req, res, next) => {
+  app.delete("/api/chat-messages/:id", isAuthenticated, async (req, res, next) => {
     try {
       const messageId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -762,7 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/communities/:id/wall", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/communities/:id/wall", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -819,7 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/wall-posts/:id", ensureAuthenticated, async (req, res, next) => {
+  app.put("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
       const postId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -867,7 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/wall-posts/:id", ensureAuthenticated, async (req, res, next) => {
+  app.delete("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
       const postId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -940,7 +935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/posts", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/posts", isAuthenticated, async (req, res, next) => {
     try {
       const validatedData = insertPostSchema.parse({
         ...req.body,
@@ -968,7 +963,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/comments", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/comments", isAuthenticated, async (req, res, next) => {
     try {
       const validatedData = insertCommentSchema.parse({
         ...req.body,
@@ -986,7 +981,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Groups routes
-  app.get("/api/groups", ensureAuthenticated, async (req, res, next) => {
+  app.get("/api/groups", isAuthenticated, async (req, res, next) => {
     try {
       const userId = req.user?.id;
       const groups = await storage.getGroupsByUserId(userId);
@@ -996,7 +991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/groups", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/groups", isAuthenticated, async (req, res, next) => {
     try {
       const validatedData = insertGroupSchema.parse({
         ...req.body,
@@ -1021,7 +1016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/groups/:groupId/members", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/groups/:groupId/members", isAuthenticated, async (req, res, next) => {
     try {
       const groupId = parseInt(req.params.groupId);
       
@@ -1056,7 +1051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/apologetics", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/apologetics", isAuthenticated, async (req, res, next) => {
     try {
       const validatedData = insertApologeticsResourceSchema.parse(req.body);
       const resource = await storage.createApologeticsResource(validatedData);
@@ -1105,7 +1100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/apologetics/topics", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/apologetics/topics", isAuthenticated, async (req, res, next) => {
     try {
       // Only admins can create topics
       if (!req.user || req.user.isVerifiedApologeticsAnswerer !== true) {
@@ -1161,7 +1156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/apologetics/questions", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/apologetics/questions", isAuthenticated, async (req, res, next) => {
     try {
       // Add the current user ID as the author
       const validatedData = insertApologeticsQuestionSchema.parse({
@@ -1179,7 +1174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/apologetics/questions/:id/status", ensureAuthenticated, async (req, res, next) => {
+  app.put("/api/apologetics/questions/:id/status", isAuthenticated, async (req, res, next) => {
     try {
       // Only verified answerers can update question status
       if (!req.user || req.user.isVerifiedApologeticsAnswerer !== true) {
@@ -1211,7 +1206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/apologetics/answers", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/apologetics/answers", isAuthenticated, async (req, res, next) => {
     try {
       // Set verified flag based on user status
       const isVerified = req.user.isVerifiedApologeticsAnswerer === true;
@@ -1239,7 +1234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/apologetics/answers/:id/upvote", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/apologetics/answers/:id/upvote", isAuthenticated, async (req, res, next) => {
     try {
       const answerId = parseInt(req.params.id);
       const answer = await storage.upvoteApologeticsAnswer(answerId);
@@ -1259,7 +1254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/users/:userId/verified-apologetics-answerer", ensureAuthenticated, async (req, res, next) => {
+  app.put("/api/users/:userId/verified-apologetics-answerer", isAuthenticated, async (req, res, next) => {
     try {
       // Only admins can set verified status (for now let's assume only verified answerers can verify others)
       if (!req.user || req.user.isVerifiedApologeticsAnswerer !== true) {
@@ -1356,7 +1351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/groups/:groupId/microblogs", ensureAuthenticated, async (req, res, next) => {
+  app.get("/api/groups/:groupId/microblogs", isAuthenticated, async (req, res, next) => {
     try {
       const groupId = parseInt(req.params.groupId);
       
@@ -1375,7 +1370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/microblogs", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/microblogs", isAuthenticated, async (req, res, next) => {
     try {
       // Character limit validation for Twitter-like posts (280 chars)
       if (req.body.content && req.body.content.length > 280) {
@@ -1408,7 +1403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/microblogs/:id/like", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/microblogs/:id/like", isAuthenticated, async (req, res, next) => {
     try {
       const microblogId = parseInt(req.params.id);
       const like = await storage.likeMicroblog(microblogId, req.user!.id);
@@ -1418,7 +1413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/microblogs/:id/like", ensureAuthenticated, async (req, res, next) => {
+  app.delete("/api/microblogs/:id/like", isAuthenticated, async (req, res, next) => {
     try {
       const microblogId = parseInt(req.params.id);
       const result = await storage.unlikeMicroblog(microblogId, req.user!.id);
@@ -1444,7 +1439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upvote routes
-  app.post("/api/posts/:postId/upvote", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/posts/:postId/upvote", isAuthenticated, async (req, res, next) => {
     try {
       const postId = parseInt(req.params.postId);
       const post = await storage.upvotePost(postId);
@@ -1454,7 +1449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/comments/:commentId/upvote", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/comments/:commentId/upvote", isAuthenticated, async (req, res, next) => {
     try {
       const commentId = parseInt(req.params.commentId);
       const comment = await storage.upvoteComment(commentId);
@@ -1485,7 +1480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/livestreams", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/livestreams", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is approved to create livestreams
       const isApproved = await storage.isApprovedLivestreamer(req.user!.id);
@@ -1511,7 +1506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Livestreamer application routes
-  app.get("/api/livestreamer-application", ensureAuthenticated, async (req, res, next) => {
+  app.get("/api/livestreamer-application", isAuthenticated, async (req, res, next) => {
     try {
       const application = await storage.getLivestreamerApplicationByUserId(req.user!.id);
       res.json(application || null);
@@ -1520,7 +1515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/livestreamer-application", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/livestreamer-application", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user already has an application
       const existingApplication = await storage.getLivestreamerApplicationByUserId(req.user!.id);
@@ -1567,7 +1562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Admin routes for reviewing applications
-  app.get("/api/admin/livestreamer-applications", ensureAuthenticated, async (req, res, next) => {
+  app.get("/api/admin/livestreamer-applications", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
       if (!req.user?.isAdmin) {
@@ -1581,7 +1576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/admin/livestreamer-applications/:id", ensureAuthenticated, async (req, res, next) => {
+  app.put("/api/admin/livestreamer-applications/:id", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
       if (!req.user?.isAdmin) {
@@ -1644,7 +1639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Apologist Scholar Application routes
-  app.get("/api/apologist-scholar-application", ensureAuthenticated, async (req, res, next) => {
+  app.get("/api/apologist-scholar-application", isAuthenticated, async (req, res, next) => {
     try {
       const application = await storage.getApologistScholarApplicationByUserId(req.user!.id);
       res.json(application || null);
@@ -1653,7 +1648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/apologist-scholar-application", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/apologist-scholar-application", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user already has an application
       const existingApplication = await storage.getApologistScholarApplicationByUserId(req.user!.id);
@@ -1697,7 +1692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Admin routes for Apologist Scholar Applications
-  app.get("/api/admin/apologist-scholar-applications", ensureAuthenticated, async (req, res, next) => {
+  app.get("/api/admin/apologist-scholar-applications", isAuthenticated, async (req, res, next) => {
     try {
       if (!req.user?.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
@@ -1710,7 +1705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/admin/apologist-scholar-applications/:id", ensureAuthenticated, async (req, res, next) => {
+  app.put("/api/admin/apologist-scholar-applications/:id", isAuthenticated, async (req, res, next) => {
     try {
       if (!req.user?.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
@@ -1754,7 +1749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Admin routes for email templates
-  app.get("/api/admin/email-templates", ensureAuthenticated, async (req, res, next) => {
+  app.get("/api/admin/email-templates", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
       if (!req.user?.isAdmin) {
@@ -1768,7 +1763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/admin/email-templates/:name", ensureAuthenticated, async (req, res, next) => {
+  app.get("/api/admin/email-templates/:name", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
       if (!req.user?.isAdmin) {
@@ -1788,7 +1783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/admin/email-templates", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/admin/email-templates", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
       if (!req.user?.isAdmin) {
@@ -1815,7 +1810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/admin/email-templates/:name", ensureAuthenticated, async (req, res, next) => {
+  app.put("/api/admin/email-templates/:name", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
       if (!req.user?.isAdmin) {
@@ -1846,7 +1841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/admin/email-templates/:name", ensureAuthenticated, async (req, res, next) => {
+  app.delete("/api/admin/email-templates/:name", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
       if (!req.user?.isAdmin) {
@@ -1867,7 +1862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Test email template route
-  app.post("/api/admin/email-templates/:name/test", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/admin/email-templates/:name/test", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
       if (!req.user?.isAdmin) {
@@ -1911,7 +1906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/livestreams/:livestreamId/gifts", ensureAuthenticated, async (req, res, next) => {
+  app.post("/api/livestreams/:livestreamId/gifts", isAuthenticated, async (req, res, next) => {
     try {
       const livestreamId = parseInt(req.params.livestreamId);
       const { giftId, message } = req.body;
@@ -2292,7 +2287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get prayer requests for a user
-  app.get("/api/users/:userId/prayer-requests", ensureAuthenticated, async (req, res) => {
+  app.get("/api/users/:userId/prayer-requests", isAuthenticated, async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       
@@ -2310,7 +2305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get prayer requests for a group
-  app.get("/api/groups/:groupId/prayer-requests", ensureAuthenticated, async (req, res) => {
+  app.get("/api/groups/:groupId/prayer-requests", isAuthenticated, async (req, res) => {
     try {
       const groupId = parseInt(req.params.groupId);
       
@@ -2329,7 +2324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create a new prayer request
-  app.post("/api/prayer-requests", ensureAuthenticated, async (req, res) => {
+  app.post("/api/prayer-requests", isAuthenticated, async (req, res) => {
     try {
       const prayerData = insertPrayerRequestSchema.parse(req.body);
       
@@ -2358,7 +2353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update a prayer request
-  app.patch("/api/prayer-requests/:id", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/prayer-requests/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const prayer = await storage.getPrayerRequest(id);
@@ -2381,7 +2376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Mark a prayer request as answered
-  app.post("/api/prayer-requests/:id/answer", ensureAuthenticated, async (req, res) => {
+  app.post("/api/prayer-requests/:id/answer", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { description } = req.body;
@@ -2406,7 +2401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete a prayer request
-  app.delete("/api/prayer-requests/:id", ensureAuthenticated, async (req, res) => {
+  app.delete("/api/prayer-requests/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const prayer = await storage.getPrayerRequest(id);
@@ -2434,7 +2429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Pray for a prayer request
-  app.post("/api/prayer-requests/:id/pray", ensureAuthenticated, async (req, res) => {
+  app.post("/api/prayer-requests/:id/pray", isAuthenticated, async (req, res) => {
     try {
       const prayerRequestId = parseInt(req.params.id);
       const userId = req.user?.id;
@@ -2464,7 +2459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get all prayer requests a user has prayed for
-  app.get("/api/users/:userId/prayed", ensureAuthenticated, async (req, res) => {
+  app.get("/api/users/:userId/prayed", isAuthenticated, async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       
@@ -2518,7 +2513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/bible/reading-plans/user", ensureAuthenticated, async (req, res) => {
+  app.get("/api/bible/reading-plans/user", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
       const userId = req.user.id;
@@ -2530,7 +2525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/bible/reading-plans/group/:groupId", ensureAuthenticated, async (req, res) => {
+  app.get("/api/bible/reading-plans/group/:groupId", isAuthenticated, async (req, res) => {
     try {
       const groupId = parseInt(req.params.groupId);
       const plans = await storage.getGroupBibleReadingPlans(groupId);
@@ -2541,7 +2536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/bible/reading-plans", ensureAuthenticated, async (req, res) => {
+  app.post("/api/bible/reading-plans", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
       const creatorId = req.user.id;
@@ -2558,7 +2553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Bible Reading Progress routes
-  app.get("/api/bible/reading-progress", ensureAuthenticated, async (req, res) => {
+  app.get("/api/bible/reading-progress", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
       const userId = req.user.id;
@@ -2570,7 +2565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/bible/reading-progress", ensureAuthenticated, async (req, res) => {
+  app.post("/api/bible/reading-progress", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
       const userId = req.user.id;
@@ -2586,7 +2581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.patch("/api/bible/reading-progress/:progressId/complete-day/:day", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/bible/reading-progress/:progressId/complete-day/:day", isAuthenticated, async (req, res) => {
     try {
       const progressId = parseInt(req.params.progressId);
       const day = parseInt(req.params.day);
@@ -2599,7 +2594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Bible Study Notes routes
-  app.get("/api/bible/study-notes", ensureAuthenticated, async (req, res) => {
+  app.get("/api/bible/study-notes", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
       const userId = req.user.id;
@@ -2623,7 +2618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/bible/study-notes/group/:groupId", ensureAuthenticated, async (req, res) => {
+  app.get("/api/bible/study-notes/group/:groupId", isAuthenticated, async (req, res) => {
     try {
       const groupId = parseInt(req.params.groupId);
       const filter = { groupId };
@@ -2635,7 +2630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/bible/study-notes", ensureAuthenticated, async (req, res) => {
+  app.post("/api/bible/study-notes", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
       const userId = req.user.id;
@@ -2652,7 +2647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Verse Memorization routes
-  app.get("/api/bible/memorization", ensureAuthenticated, async (req, res) => {
+  app.get("/api/bible/memorization", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
       const userId = req.user.id;
@@ -2664,7 +2659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/bible/memorization", ensureAuthenticated, async (req, res) => {
+  app.post("/api/bible/memorization", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
       const userId = req.user.id;
@@ -2680,7 +2675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.patch("/api/bible/memorization/:id/mark-mastered", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/bible/memorization/:id/mark-mastered", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const verse = await storage.markVerseMastered(id);
@@ -2691,7 +2686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.patch("/api/bible/memorization/:id/add-review", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/bible/memorization/:id/add-review", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const verse = await storage.addVerseReviewDate(id);
@@ -2756,7 +2751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/groups/:groupId/events", ensureAuthenticated, async (req, res) => {
+  app.get("/api/groups/:groupId/events", isAuthenticated, async (req, res) => {
     try {
       const groupId = parseInt(req.params.groupId);
       
@@ -2774,7 +2769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/user/events", ensureAuthenticated, async (req, res) => {
+  app.get("/api/user/events", isAuthenticated, async (req, res) => {
     try {
       const events = await storage.getEventsByUser(req.user.id);
       res.json(events);
@@ -2784,7 +2779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/events", ensureAuthenticated, async (req, res) => {
+  app.post("/api/events", isAuthenticated, async (req, res) => {
     try {
       // Validate the request data
       const eventData = insertEventSchema.parse({
@@ -2812,7 +2807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/events/:id", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/events/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const event = await storage.getEvent(id);
@@ -2834,7 +2829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/events/:id", ensureAuthenticated, async (req, res) => {
+  app.delete("/api/events/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const event = await storage.getEvent(id);
@@ -2868,7 +2863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/events/:eventId/rsvp", ensureAuthenticated, async (req, res) => {
+  app.get("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
       const rsvp = await storage.getUserEventRsvp(eventId, req.user.id);
@@ -2884,7 +2879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/events/:eventId/rsvp", ensureAuthenticated, async (req, res) => {
+  app.post("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
       const event = await storage.getEvent(eventId);
@@ -2930,7 +2925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/events/:eventId/rsvp", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
       const rsvp = await storage.getUserEventRsvp(eventId, req.user.id);
@@ -3006,7 +3001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/bible-reading-plans", ensureAuthenticated, async (req, res) => {
+  app.post("/api/bible-reading-plans", isAuthenticated, async (req, res) => {
     try {
       const planData = insertBibleReadingPlanSchema.parse({
         ...req.body,
@@ -3032,7 +3027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/bible-reading-plans/:id", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/bible-reading-plans/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const plan = await storage.getBibleReadingPlan(id);
@@ -3060,7 +3055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/bible-reading-plans/:id", ensureAuthenticated, async (req, res) => {
+  app.delete("/api/bible-reading-plans/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const plan = await storage.getBibleReadingPlan(id);
@@ -3083,7 +3078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reading Progress
-  app.get("/api/bible-reading-progress", ensureAuthenticated, async (req, res) => {
+  app.get("/api/bible-reading-progress", isAuthenticated, async (req, res) => {
     try {
       const progress = await storage.getUserReadingProgress(req.user.id);
       res.json(progress);
@@ -3093,7 +3088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/bible-reading-plans/:planId/progress", ensureAuthenticated, async (req, res) => {
+  app.get("/api/bible-reading-plans/:planId/progress", isAuthenticated, async (req, res) => {
     try {
       const planId = parseInt(req.params.planId);
       const progress = await storage.getBibleReadingProgress(req.user.id, planId);
@@ -3109,7 +3104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/bible-reading-plans/:planId/progress", ensureAuthenticated, async (req, res) => {
+  app.post("/api/bible-reading-plans/:planId/progress", isAuthenticated, async (req, res) => {
     try {
       const planId = parseInt(req.params.planId);
       const plan = await storage.getBibleReadingPlan(planId);
@@ -3152,7 +3147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/bible-reading-progress/:progressId/complete-day", ensureAuthenticated, async (req, res) => {
+  app.post("/api/bible-reading-progress/:progressId/complete-day", isAuthenticated, async (req, res) => {
     try {
       const progressId = parseInt(req.params.progressId);
       const { day } = req.body;
@@ -3226,7 +3221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/bible-study-notes", ensureAuthenticated, async (req, res) => {
+  app.post("/api/bible-study-notes", isAuthenticated, async (req, res) => {
     try {
       const noteData = insertBibleStudyNotesSchema.parse({
         ...req.body,
@@ -3252,7 +3247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/bible-study-notes/:id", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/bible-study-notes/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const note = await storage.getBibleStudyNote(id);
@@ -3280,7 +3275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/bible-study-notes/:id", ensureAuthenticated, async (req, res) => {
+  app.delete("/api/bible-study-notes/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const note = await storage.getBibleStudyNote(id);
@@ -3303,7 +3298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Verse Memorization
-  app.get("/api/verse-memorization", ensureAuthenticated, async (req, res) => {
+  app.get("/api/verse-memorization", isAuthenticated, async (req, res) => {
     try {
       const verses = await storage.getUserVerseMemorization(req.user.id);
       res.json(verses);
@@ -3313,7 +3308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/verse-memorization/:id", ensureAuthenticated, async (req, res) => {
+  app.get("/api/verse-memorization/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const verse = await storage.getVerseMemorization(id);
@@ -3334,7 +3329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/verse-memorization", ensureAuthenticated, async (req, res) => {
+  app.post("/api/verse-memorization", isAuthenticated, async (req, res) => {
     try {
       const verseData = insertVerseMemorizationSchema.parse({
         ...req.body,
@@ -3352,7 +3347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/verse-memorization/:id/mastered", ensureAuthenticated, async (req, res) => {
+  app.post("/api/verse-memorization/:id/mastered", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const verse = await storage.getVerseMemorization(id);
@@ -3374,7 +3369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/verse-memorization/:id/review", ensureAuthenticated, async (req, res) => {
+  app.post("/api/verse-memorization/:id/review", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const verse = await storage.getVerseMemorization(id);
@@ -3396,7 +3391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/verse-memorization/:id", ensureAuthenticated, async (req, res) => {
+  app.delete("/api/verse-memorization/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const verse = await storage.getVerseMemorization(id);
@@ -3444,7 +3439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user preferences
-  app.get("/api/user-preferences", ensureAuthenticated, async (req, res) => {
+  app.get("/api/user-preferences", isAuthenticated, async (req, res) => {
     try {
       const preferences = await storage.getUserPreferences(req.user.id);
       
@@ -3460,7 +3455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update user preferences
-  app.patch("/api/user-preferences", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/user-preferences", isAuthenticated, async (req, res) => {
     try {
       const updateData = insertUserPreferencesSchema.partial().parse(req.body);
       const preferences = await storage.updateUserPreferences(req.user.id, updateData);
@@ -3552,7 +3547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mark a recommendation as viewed
-  app.patch("/api/recommendations/:id/viewed", ensureAuthenticated, async (req, res) => {
+  app.patch("/api/recommendations/:id/viewed", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.markRecommendationAsViewed(id);
