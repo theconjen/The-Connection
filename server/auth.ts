@@ -2,6 +2,7 @@ import { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
 import { User } from "@shared/schema";
 import { sendWelcomeEmail } from "./email";
+import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 
 /**
  * Ultra Simple Auth System

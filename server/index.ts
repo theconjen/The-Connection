@@ -10,6 +10,7 @@ import passport from "passport";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import { User } from "@shared/schema";
+import { APP_DOMAIN, BASE_URL } from "./config/domain";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -26,13 +27,14 @@ const sessionStore = new PgSessionStore({
 
 app.use(session({
   store: sessionStore,
-  secret: process.env.SESSION_SECRET || "faith-connect-session-secret",
+  secret: process.env.SESSION_SECRET || "theconnection-session-secret",
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    secure: false, // Set to false for development
-    httpOnly: true
+    secure: process.env.NODE_ENV === "production", // Secure in production only
+    httpOnly: true,
+    domain: process.env.NODE_ENV === "production" ? APP_DOMAIN : undefined
   }
 }));
 

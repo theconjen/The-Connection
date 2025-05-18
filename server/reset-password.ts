@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { storage } from './storage';
 import { sendPasswordResetEmail } from './email';
+import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 
 // Token expiration time (1 hour)
 const TOKEN_EXPIRY = 60 * 60 * 1000;
