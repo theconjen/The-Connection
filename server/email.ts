@@ -9,6 +9,7 @@ import {
   SendTemplatedEmailCommand,
   Template
 } from '@aws-sdk/client-ses';
+import { APP_DOMAIN, BASE_URL, EMAIL_FROM, APP_URLS } from './config/domain';
 
 // Check for AWS credentials
 // Email functionality configuration
@@ -645,7 +646,7 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
 export async function sendPasswordResetEmail(email: string, displayName: string = "", resetToken: string): Promise<boolean> {
   const name = displayName || email.split('@')[0];
   const from = process.env.AWS_SES_FROM_EMAIL || 'The Connection <noreply@theconnection.app>';
-  const resetLink = `https://connection.app/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+  const resetLink = `${APP_URLS.RESET_PASSWORD}?token=${resetToken}&email=${encodeURIComponent(email)}`;
   
   // Check if we have templates enabled and available
   const template = await getEmailTemplate(DEFAULT_TEMPLATES.PASSWORD_RESET);
