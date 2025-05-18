@@ -591,7 +591,7 @@ export async function setupLivestreamInviteTemplate(): Promise<boolean> {
 
 export async function sendWelcomeEmail(email: string, displayName: string = ""): Promise<boolean> {
   const name = displayName || email.split('@')[0];
-  const from = process.env.AWS_SES_FROM_EMAIL || 'The Connection <noreply@theconnection.app>';
+  const from = EMAIL_FROM;
   
   // Check if we have templates enabled and available
   const template = await getEmailTemplate(DEFAULT_TEMPLATES.WELCOME);
@@ -645,7 +645,7 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
 
 export async function sendPasswordResetEmail(email: string, displayName: string = "", resetToken: string): Promise<boolean> {
   const name = displayName || email.split('@')[0];
-  const from = process.env.AWS_SES_FROM_EMAIL || 'The Connection <noreply@theconnection.app>';
+  const from = EMAIL_FROM;
   const resetLink = `${APP_URLS.RESET_PASSWORD}?token=${resetToken}&email=${encodeURIComponent(email)}`;
   
   // Check if we have templates enabled and available
@@ -708,7 +708,7 @@ export interface NotificationEmailParams {
 
 export async function sendNotificationEmail(params: NotificationEmailParams): Promise<boolean> {
   const name = params.name || params.email.split('@')[0];
-  const from = process.env.AWS_SES_FROM_EMAIL || 'The Connection <noreply@theconnection.app>';
+  const from = EMAIL_FROM;
   
   // Check if we have templates enabled and available
   const template = await getEmailTemplate(DEFAULT_TEMPLATES.NOTIFICATION);
@@ -780,7 +780,7 @@ export interface LivestreamInviteEmailParams {
 
 export async function sendLivestreamInviteEmail(params: LivestreamInviteEmailParams): Promise<boolean> {
   const name = params.recipientName || params.email.split('@')[0];
-  const from = process.env.AWS_SES_FROM_EMAIL || 'The Connection <noreply@theconnection.app>';
+  const from = EMAIL_FROM;
   
   // Check if we have templates enabled and available
   const template = await getEmailTemplate(DEFAULT_TEMPLATES.LIVESTREAM_INVITE);
