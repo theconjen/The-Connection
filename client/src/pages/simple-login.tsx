@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'wouter';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ export default function SimpleLogin() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const [, navigate] = useNavigate();
+  const [, setLocation] = useLocation();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +43,7 @@ export default function SimpleLogin() {
           description: `Welcome back, ${data.displayName || data.username}!`,
         });
         // Redirect to dashboard or home page
-        navigate('/');
+        setLocation('/');
       } else {
         const error = await response.json();
         toast({
@@ -83,7 +83,7 @@ export default function SimpleLogin() {
           description: `Welcome admin user: ${data.displayName || data.username}!`,
         });
         // Redirect to dashboard or home page
-        navigate('/');
+        setLocation('/');
       } else {
         const error = await response.json();
         toast({
