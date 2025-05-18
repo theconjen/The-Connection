@@ -24,6 +24,14 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
   return res.status(401).json({ message: "Unauthorized" });
 }
 
+// Admin-only middleware
+export function isAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.session && req.session.userId && req.session.isAdmin === true) {
+    return next();
+  }
+  return res.status(403).json({ message: "Unauthorized: Admin access required" });
+}
+
 // Sets up the authentication system
 export function setupAuth(app: Express) {
   // User registration endpoint

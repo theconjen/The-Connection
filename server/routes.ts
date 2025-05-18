@@ -6,8 +6,9 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
 import { getRecommendationsForUser } from "./recommendation-engine";
 import { sendNotificationEmail } from "./email";
-import adminRoutes from "./routes/admin";
+import adminRoutes from "./routes/api/admin";
 import authRoutes from "./routes/api/auth";
+import userRoutes from './routes/api/user';
 import { format } from "date-fns";
 import { 
   createEmailTemplate, 
@@ -149,11 +150,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Mount admin routes
+  // Mount admin routes (imported at the top)
   app.use('/api/admin', adminRoutes);
   
   // Mount auth routes
   app.use('/api', authRoutes);
+  
+  // Mount user routes
+  app.use('/api/user', userRoutes);
 
   // Communities routes
   app.get("/api/communities", async (req, res, next) => {
