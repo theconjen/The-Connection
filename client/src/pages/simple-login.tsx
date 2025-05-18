@@ -42,8 +42,8 @@ export default function SimpleLogin() {
           title: "Success",
           description: `Welcome back, ${data.displayName || data.username}!`,
         });
-        // Redirect to dashboard or home page
-        setLocation('/');
+        // Redirect to dashboard
+        setLocation('/dashboard');
       } else {
         const error = await response.json();
         toast({
@@ -82,8 +82,8 @@ export default function SimpleLogin() {
           title: "Admin Login Success",
           description: `Welcome admin user: ${data.displayName || data.username}!`,
         });
-        // Redirect to dashboard or home page
-        setLocation('/');
+        // Redirect to dashboard
+        setLocation('/dashboard');
       } else {
         const error = await response.json();
         toast({

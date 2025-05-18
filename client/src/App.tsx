@@ -8,6 +8,7 @@ import AuthPage from "@/pages/auth-page";
 import AdminLoginPage from "@/pages/admin-login";
 import LoginTestPage from "@/pages/login-test";
 import SimpleLogin from "@/pages/simple-login";
+import Dashboard from "@/pages/dashboard";
 import CommunityPage from "@/pages/community-page";
 import CommunitiesPage from "@/pages/communities-page";
 import ApologeticsPage from "@/pages/apologetics-page";
@@ -54,6 +55,7 @@ function App() {
         <Route path="/admin-login" component={AdminLoginPage} />
         <Route path="/login-test" component={LoginTestPage} />
         <Route path="/simple-login" component={SimpleLogin} />
+        <ProtectedRoute path="/dashboard" component={withResponsiveLayout(Dashboard)} />
         
         {/* Public routes with responsive layout */}
         <ReadOnlyRoute path="/" component={withResponsiveLayout(HomePage)} />
