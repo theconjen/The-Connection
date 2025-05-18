@@ -35,9 +35,17 @@ router.post('/login', async (req, res) => {
     req.session.username = user.username;
     req.session.isAdmin = user.isAdmin || false;
     
-    // Return user data (excluding password)
-    const { password: _, ...userData } = user;
-    res.json(userData);
+    // Save session explicitly to ensure it's stored before responding
+    req.session.save(err => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).json({ message: "Error saving session" });
+      }
+      
+      // Return user data (excluding password)
+      const { password: _, ...userData } = user;
+      res.json(userData);
+    });
     
   } catch (error) {
     console.error('Login error:', error);
@@ -60,9 +68,17 @@ router.post('/admin-login', async (req, res) => {
     req.session.username = adminUser.username;
     req.session.isAdmin = true;
     
-    // Return admin user data (excluding password)
-    const { password: _, ...userData } = adminUser;
-    res.json(userData);
+    // Save session explicitly to ensure it's stored before responding
+    req.session.save(err => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).json({ message: "Error saving session" });
+      }
+      
+      // Return admin user data (excluding password)
+      const { password: _, ...userData } = adminUser;
+      res.json(userData);
+    });
     
   } catch (error) {
     console.error('Admin login error:', error);
@@ -81,17 +97,30 @@ router.post('/logout', (req, res) => {
 });
 
 // Get current user endpoint
-router.get('/user', (req, res) => {
+router.get('/user', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
   
-  // Return basic session information
-  res.json({
-    id: req.session.userId,
-    username: req.session.username,
-    isAdmin: req.session.isAdmin
-  });
+  try {
+    // Get full user details from database
+    const user = await storage.getUser(req.session.userId);
+    
+    if (!user) {
+      // Session contains a userId but user doesn't exist
+      req.session.destroy(() => {
+        res.status(401).json({ message: "User not found" });
+      });
+      return;
+    }
+    
+    // Return user data (excluding password)
+    const { password: _, ...userData } = user;
+    res.json(userData);
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    res.status(500).json({ message: "Error fetching user details" });
+  }
 });
 
 export default router;
