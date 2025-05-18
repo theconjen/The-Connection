@@ -1974,10 +1974,37 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
     return result[0];
   }
-
+  
   async createUser(user: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(user).returning();
+    // Add created_at and updated_at if not provided
+    const now = new Date();
+    const userData = {
+      ...user,
+      createdAt: user.createdAt || now,
+      updatedAt: now
+    };
+    
+    const result = await db.insert(users).values(userData).returning();
     return result[0];
+  }
+  
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined> {
+    try {
+      const now = new Date();
+      const result = await db
+        .update(users)
+        .set({ 
+          password: hashedPassword,
+          updatedAt: now
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error updating user password:", error);
+      return undefined;
+    }
   }
 
   // Community methods
