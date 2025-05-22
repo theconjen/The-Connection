@@ -4,6 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./seed";
 import { seedBibleReadingPlans } from "./seed-bible-reading-plans";
 import { initializeEmailTemplates } from "./email";
+import { runAllMigrations } from "./run-migrations";
 import dotenv from "dotenv";
 import session from "express-session";
 import passport from "passport";
