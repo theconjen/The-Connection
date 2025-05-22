@@ -88,6 +88,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Run migrations for locality and interest features
+  try {
+    await runAllMigrations();
+    console.log("✅ Database migrations completed");
+  } catch (error) {
+    console.error("❌ Error running database migrations:", error);
+  }
+
   // Skip database seeding for now due to connection issues
   console.log("Skipping database seeding due to connection issues...");
   

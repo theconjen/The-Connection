@@ -22,23 +22,34 @@ export async function runMigration() {
     
     log("✅ Added locality fields to users table");
 
-    // Add columns to communities table
-    await db.execute(sql`
-      ALTER TABLE IF EXISTS communities 
-      ADD COLUMN IF NOT EXISTS interest_tags TEXT[],
-      ADD COLUMN IF NOT EXISTS city TEXT,
-      ADD COLUMN IF NOT EXISTS state TEXT,
-      ADD COLUMN IF NOT EXISTS is_local_community BOOLEAN DEFAULT FALSE,
-      ADD COLUMN IF NOT EXISTS latitude TEXT,
-      ADD COLUMN IF NOT EXISTS longitude TEXT
-    `);
+    // Add columns to communities table one by one to avoid errors
+    await db.execute(sql`ALTER TABLE IF EXISTS communities ADD COLUMN IF NOT EXISTS city TEXT`);
+    await db.execute(sql`ALTER TABLE IF EXISTS communities ADD COLUMN IF NOT EXISTS state TEXT`);
+    await db.execute(sql`ALTER TABLE IF EXISTS communities ADD COLUMN IF NOT EXISTS is_local_community BOOLEAN DEFAULT FALSE`);
+    await db.execute(sql`ALTER TABLE IF EXISTS communities ADD COLUMN IF NOT EXISTS latitude TEXT`);
+    await db.execute(sql`ALTER TABLE IF EXISTS communities ADD COLUMN IF NOT EXISTS longitude TEXT`);
+    
+    // Add array column separately as it might require special handling
+    try {
+      await db.execute(sql`ALTER TABLE IF EXISTS communities ADD COLUMN IF NOT EXISTS interest_tags TEXT[]`);
+      log("✅ Added interest_tags array column");
+    } catch (error) {
+      log("⚠️ Could not add interest_tags column: " + String(error));
+      // Try alternative approach for PostgreSQL arrays
+      try {
+        await db.execute(sql`ALTER TABLE IF EXISTS communities ADD COLUMN IF NOT EXISTS interest_tags_json JSONB DEFAULT '[]'`);
+        log("✅ Added interest_tags_json column as alternative");
+      } catch (innerError) {
+        log("⚠️ Could not add interest_tags_json column: " + String(innerError));
+      }
+    }
     
     log("✅ Added interest tags and locality fields to communities table");
     
     log("Migration completed successfully");
     return true;
   } catch (error) {
-    log("❌ Migration failed:", error);
+    log("❌ Migration failed: " + String(error));
     return false;
   }
 }

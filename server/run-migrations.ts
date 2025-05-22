@@ -26,7 +26,7 @@ export async function runAllMigrations() {
     log("✅ All migrations completed successfully");
     return true;
   } catch (error) {
-    log("❌ Error running migrations:", error);
+    log("❌ Error running migrations: " + String(error));
     return false;
   }
 }
