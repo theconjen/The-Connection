@@ -8,7 +8,10 @@ import AuthPage from "@/pages/auth-page";
 import AdminLoginPage from "@/pages/admin-login";
 import LoginTestPage from "@/pages/login-test";
 import SimpleLogin from "@/pages/simple-login";
-import Dashboard from "@/pages/dashboard";
+import Dashboard from "@/pages/Dashboard";
+import Grow from "@/pages/Grow";
+import Connect from "@/pages/Connect";
+import NearMe from "@/pages/NearMe";
 import CommunityPage from "@/pages/community-page";
 import CommunitiesPage from "@/pages/communities-page";
 import ApologeticsPage from "@/pages/apologetics-page";
@@ -56,6 +59,9 @@ function App() {
         <Route path="/login-test" component={LoginTestPage} />
         <Route path="/simple-login" component={SimpleLogin} />
         <ProtectedRoute path="/dashboard" component={withResponsiveLayout(Dashboard)} />
+        <ProtectedRoute path="/grow" component={withResponsiveLayout(Grow)} />
+        <ProtectedRoute path="/connect" component={withResponsiveLayout(Connect)} />
+        <ProtectedRoute path="/near-me" component={withResponsiveLayout(NearMe)} />
         
         {/* Public routes with responsive layout */}
         <ReadOnlyRoute path="/" component={withResponsiveLayout(HomePage)} />
