@@ -5,7 +5,8 @@ import {
   MessageSquare,
   PenSquare,
   Users,
-  FileHeart
+  FileHeart,
+  Compass
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -79,6 +80,15 @@ export default function MobileNavigation({ currentPath }: MobileNavigationProps)
             {activeTab === '/forums' ? <FileHeart className="h-5 w-5 fill-primary" /> : <FileHeart className="h-5 w-5" />}
             <span className="text-xs mt-1 font-medium">Forums</span>
             {activeTab === '/forums' && <div className="absolute top-0 w-6 h-0.5 rounded-full bg-primary" />}
+          </div>
+        </Link>
+        
+        {/* Connect */}
+        <Link href="/connect" className="flex-1 touch-manipulation">
+          <div className={`flex flex-col items-center py-2.5 px-1 ${activeTab === '/connect' ? 'text-primary' : 'text-muted-foreground'} active-scale touch-target`}>
+            {activeTab === '/connect' ? <Compass className="h-5 w-5 fill-primary" /> : <Compass className="h-5 w-5" />}
+            <span className="text-xs mt-1 font-medium">Connect</span>
+            {activeTab === '/connect' && <div className="absolute top-0 w-6 h-0.5 rounded-full bg-primary" />}
           </div>
         </Link>
       </div>
