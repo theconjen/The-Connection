@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'wouter';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -64,7 +64,7 @@ export function OnboardingFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const handleNextStep = () => {
     if (currentStep < STEPS.length - 1) {
@@ -110,9 +110,12 @@ export function OnboardingFlow() {
         onboardingCompleted: true
       };
 
-      await apiRequest('/api/user/onboarding', {
+      await fetch('/api/user/onboarding', {
         method: 'POST',
-        data: completeData
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(completeData)
       });
 
       toast({
