@@ -9,6 +9,8 @@ import { sendNotificationEmail } from "./email";
 import adminRoutes from "./routes/api/admin";
 import authRoutes from "./routes/api/auth";
 import userRoutes from './routes/api/user';
+import { registerOnboardingRoutes } from './routes/api/user-onboarding';
+import registerLocationSearchRoutes from './routes/api/location-search';
 import { format } from "date-fns";
 import { 
   createEmailTemplate, 
@@ -158,6 +160,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Mount user routes
   app.use('/api/user', userRoutes);
+  
+  // Register onboarding routes for locality and interests
+  registerOnboardingRoutes(app);
+  
+  // Register location search routes for finding communities by city and interests
+  registerLocationSearchRoutes(app);
 
   // Communities routes
   app.get("/api/communities", async (req, res, next) => {
