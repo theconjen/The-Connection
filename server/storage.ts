@@ -2376,6 +2376,133 @@ export class DatabaseStorage implements IStorage {
                 is_verified_apologetics_answerer as "isVerifiedApologeticsAnswerer", created_at as "createdAt"
     `, [isVerified, userId]).then(result => result.rows[0]);
   }
+  
+  async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    // Prepare update fields and values
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    // Add each field to update query
+    for (const [key, value] of Object.entries(userData)) {
+      if (value !== undefined) {
+        // Convert camelCase to snake_case for DB column names
+        const columnName = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        fields.push(`${columnName} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
+    }
+    
+    // Add updated_at timestamp
+    fields.push(`updated_at = $${paramIndex}`);
+    values.push(new Date());
+    
+    // Add user ID as last parameter
+    values.push(id);
+    
+    if (fields.length === 0) {
+      throw new Error("No valid fields to update");
+    }
+    
+    // Build and execute query
+    const query = `
+      UPDATE users
+      SET ${fields.join(', ')}
+      WHERE id = $${paramIndex + 1}
+      RETURNING id, username, email, password, display_name as "displayName", bio, avatar_url as "avatarUrl",
+        city, state, zip_code as "zipCode", latitude, longitude, is_admin as "isAdmin",
+        is_verified_apologetics_answerer as "isVerifiedApologeticsAnswerer", created_at as "createdAt", updated_at as "updatedAt"
+    `;
+    
+    const result = await pool.query(query, values);
+    
+    if (result.rows.length === 0) {
+      throw new Error(`User with ID ${id} not found`);
+    }
+    
+    return result.rows[0];
+  }
+  
+  async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
+    // First check if preferences exist
+    const checkResult = await pool.query(`
+      SELECT * FROM user_preferences WHERE user_id = $1 LIMIT 1
+    `, [userId]);
+    
+    const now = new Date();
+    
+    // If preferences exist, update them
+    if (checkResult.rows.length > 0) {
+      // Prepare update fields and values
+      const fields = [];
+      const values = [];
+      let paramIndex = 1;
+      
+      // Add each field to update query
+      for (const [key, value] of Object.entries(preferences)) {
+        if (value !== undefined) {
+          // Convert camelCase to snake_case for DB column names
+          const columnName = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+          fields.push(`${columnName} = $${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
+      }
+      
+      // Add updated_at timestamp
+      fields.push(`updated_at = $${paramIndex}`);
+      values.push(now);
+      
+      // Add user ID as last parameter
+      values.push(userId);
+      
+      if (fields.length === 0) {
+        throw new Error("No valid fields to update");
+      }
+      
+      // Build and execute query
+      const query = `
+        UPDATE user_preferences
+        SET ${fields.join(', ')}
+        WHERE user_id = $${paramIndex + 1}
+        RETURNING *
+      `;
+      
+      const result = await pool.query(query, values);
+      return result.rows[0];
+    } 
+    // Otherwise, create new preferences
+    else {
+      // Prepare insert fields and placeholders
+      const fields = ['user_id', 'created_at'];
+      const placeholders = ['$1', '$2'];
+      const values = [userId, now];
+      let paramIndex = 3;
+      
+      // Add each field to insert query
+      for (const [key, value] of Object.entries(preferences)) {
+        if (value !== undefined) {
+          // Convert camelCase to snake_case for DB column names
+          const columnName = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+          fields.push(columnName);
+          placeholders.push(`$${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
+      }
+      
+      // Build and execute query
+      const query = `
+        INSERT INTO user_preferences (${fields.join(', ')})
+        VALUES (${placeholders.join(', ')})
+        RETURNING *
+      `;
+      
+      const result = await pool.query(query, values);
+      return result.rows[0];
+    }
+  }
 
   // Microblog methods implementation
   async getAllMicroblogs(filterType: string = "recent"): Promise<Microblog[]> {
