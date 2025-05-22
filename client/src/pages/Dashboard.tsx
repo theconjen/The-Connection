@@ -3,8 +3,8 @@ import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
-import { BookOpen, Users, Calendar, MessageSquare, Video, Shield, 
-         Map, UserPlus, Compass, Heart, BookMarked, Lightbulb } from 'lucide-react';
+import { BookOpen, Shield, Video, Lightbulb, BookMarked, 
+         Map, Compass, Heart, Activity, Briefcase, GraduationCap, Palette } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
@@ -76,25 +76,32 @@ export default function Dashboard() {
 
   const connectFeatures = [
     {
-      title: 'Local Groups',
-      description: 'Find and join Christian communities in your city based on shared interests.',
-      icon: <Users className="h-8 w-8 text-primary" />,
-      link: '/groups',
+      title: 'Christian Creatives',
+      description: 'Connect with writers, artists, musicians, and other creative Christians.',
+      icon: <Palette className="h-8 w-8 text-primary" />,
+      link: '/groups/creatives',
+      color: 'bg-pink-50'
+    },
+    {
+      title: 'Christian Entrepreneurs',
+      description: 'Network with business owners and startup founders who share your faith.',
+      icon: <Briefcase className="h-8 w-8 text-primary" />,
+      link: '/groups/entrepreneurs',
+      color: 'bg-amber-50'
+    },
+    {
+      title: 'Christian Fitness',
+      description: 'Find workout partners, sports teams, and wellness groups for believers.',
+      icon: <Activity className="h-8 w-8 text-primary" />,
+      link: '/groups/fitness',
       color: 'bg-emerald-50'
     },
     {
-      title: 'Events',
-      description: 'Discover Christian events happening near you.',
-      icon: <Calendar className="h-8 w-8 text-primary" />,
-      link: '/events',
+      title: 'College Students',
+      description: 'Connect with other Christian students at your university or in your city.',
+      icon: <GraduationCap className="h-8 w-8 text-primary" />,
+      link: '/groups/college',
       color: 'bg-indigo-50'
-    },
-    {
-      title: 'Forums',
-      description: 'Engage in meaningful discussions about faith and life with other believers.',
-      icon: <MessageSquare className="h-8 w-8 text-primary" />,
-      link: '/forums',
-      color: 'bg-orange-50'
     },
     {
       title: 'Find Christians Near You',
@@ -102,13 +109,6 @@ export default function Dashboard() {
       icon: <Map className="h-8 w-8 text-primary" />,
       link: '/near-me',
       color: 'bg-teal-50'
-    },
-    {
-      title: 'Prayer Requests',
-      description: 'Share your prayer needs and pray for others in the community.',
-      icon: <Heart className="h-8 w-8 text-primary" />,
-      link: '/prayer-requests',
-      color: 'bg-rose-50'
     }
   ];
 

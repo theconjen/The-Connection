@@ -203,9 +203,16 @@ export default function NearMe() {
   }
 
   const INTERESTS = [
-    'bible-study', 'prayer', 'worship', 'family', 'marriage', 
-    'parenting', 'youth', 'apologetics', 'theology', 'missions',
-    'evangelism', 'discipleship', 'community-service', 'sports', 'music'
+    // Creative interests
+    'writing', 'art', 'music', 'photography', 'filmmaking', 
+    // Professional interests
+    'entrepreneurship', 'business', 'marketing', 'tech', 'startups',
+    // Fitness interests
+    'fitness', 'running', 'yoga', 'sports', 'hiking',
+    // Educational interests
+    'college', 'graduate-school', 'study-groups', 'academic',
+    // Traditional Christian interests
+    'bible-study', 'prayer', 'worship', 'missions', 'community-service'
   ];
 
   const US_STATES = [
