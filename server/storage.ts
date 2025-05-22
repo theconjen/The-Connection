@@ -88,6 +88,8 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  updateUser(id: number, userData: Partial<User>): Promise<User>;
+  updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences>;
   createUser(user: InsertUser): Promise<User>;
   updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined>;
   setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User>;
