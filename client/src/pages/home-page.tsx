@@ -32,23 +32,18 @@ function FeatureCard({ title, description, icon, path, color }: FeatureCardProps
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   return (
-    <Card className="transition-all duration-200 hover:shadow-md overflow-hidden border h-full active-scale">
-      <div className={`h-1 w-full ${color}`}></div>
-      <CardContent className={`${isMobile ? 'p-2.5' : 'p-3'}`}>
-        <div className="flex items-center mb-1.5">
-          <div className={`inline-flex items-center justify-center rounded-full ${isMobile ? 'w-6 h-6' : 'w-7 h-7'} ${color} bg-opacity-15 mr-2`}>
+    <Link href={path} className="block h-full">
+      <Card className="transition-all duration-300 hover:shadow-md hover:translate-y-[-2px] overflow-hidden border-none h-full shadow-sm">
+        <div className={`h-2 w-full ${color}`}></div>
+        <CardContent className={`${isMobile ? 'pt-4 px-4 pb-3' : 'pt-5 px-5 pb-4'}`}>
+          <div className={`inline-flex items-center justify-center rounded-full ${isMobile ? 'w-10 h-10' : 'w-12 h-12'} ${color} bg-opacity-15 mb-3`}>
             {icon}
           </div>
-          <h3 className={`${isMobile ? 'text-sm' : 'text-base'} font-semibold`}>{title}</h3>
-        </div>
-        <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
-      </CardContent>
-      <CardFooter className="border-t bg-muted/10 p-1.5">
-        <Link href={path} className="w-full">
-          <Button variant="outline" size="sm" className="w-full text-xs h-8 touch-target">Go to {title}</Button>
-        </Link>
-      </CardFooter>
-    </Card>
+          <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold mb-1`}>{title}</h3>
+          <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 
@@ -121,34 +116,44 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
   ];
 
   return (
-    <div className="container mx-auto px-3 py-3 flex flex-col min-h-[calc(100vh-4rem)]">
-      {/* Welcome Banner - Smaller and more compact */}
-      <WelcomeBanner className="mb-2" />
+    <div className="container mx-auto px-4 py-6 flex flex-col min-h-[calc(100vh-4rem)]">
+      {/* Hero Section with Welcome Banner */}
+      <div className="mb-10">
+        <WelcomeBanner className="mb-6" />
+        
+        <div className="max-w-2xl mx-auto text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold mb-3">Welcome to The Connection</h1>
+          <p className="text-lg text-muted-foreground">A community where faith grows through meaningful connections.</p>
+        </div>
+      </div>
       
-      <div className="mb-2">
-        <h2 className="text-lg font-bold mb-0.5">Explore The Connection</h2>
-        <p className="text-xs text-muted-foreground">Discover features to support your faith journey.</p>
+      {/* Main feature categories */}
+      <div className="mb-12">
+        <h2 className="text-2xl font-bold mb-6 text-center">Explore What We Offer</h2>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
+          {featuredApps.map((app, index) => (
+            <FeatureCard
+              key={index}
+              title={app.title}
+              description={app.description}
+              icon={app.icon}
+              path={app.path}
+              color={app.color}
+            />
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 flex-grow">
-        {featuredApps.map((app, index) => (
-          <FeatureCard
-            key={index}
-            title={app.title}
-            description={app.description}
-            icon={app.icon}
-            path={app.path}
-            color={app.color}
-          />
-        ))}
-      </div>
-
+      {/* Call to Action */}
       {!user && (
-        <div className="mt-3 p-3 border rounded-lg bg-muted/10 text-center shadow-sm">
-          <h3 className="text-base font-semibold">Join Our Community</h3>
-          <p className="mb-3 text-xs mx-auto">Connect with fellow believers and access all features.</p>
-          <Link href="/auth" className="block">
-            <Button size="sm" className="btn-gradient font-medium h-10 text-sm px-4 w-full sm:w-auto active-scale touch-target">Sign Up Now</Button>
+        <div className="mt-6 p-8 rounded-xl bg-gradient-to-r from-primary/10 to-purple-500/10 text-center shadow-sm">
+          <h3 className="text-2xl font-semibold mb-3">Join Our Community</h3>
+          <p className="mb-6 text-lg max-w-xl mx-auto">Connect with fellow believers, access all features, and start your journey with us today.</p>
+          <Link href="/auth" className="inline-block">
+            <Button size="lg" className="btn-gradient font-medium text-base px-8 py-6 shadow-md active-scale touch-target">
+              Sign Up Now
+            </Button>
           </Link>
         </div>
       )}
