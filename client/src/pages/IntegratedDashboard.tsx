@@ -390,28 +390,51 @@ export default function IntegratedDashboard() {
           </p>
         </div>
         
-        {/* Create Post / Search Section */}
-        <div className="mb-8 flex gap-4">
-          <div className="flex-1">
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={user?.avatarUrl || undefined} />
-                    <AvatarFallback>{user?.displayName?.charAt(0) || user?.username?.charAt(0) || 'U'}</AvatarFallback>
-                  </Avatar>
-                  <Input 
-                    placeholder="Share what's on your mind..." 
-                    className="flex-1"
-                    onClick={() => navigate('/submit')}
-                    readOnly
-                  />
-                  <Button variant="outline" onClick={() => navigate('/submit')}>Post</Button>
+        {/* Create Post / Search Section - Only for logged in users */}
+        {user ? (
+          <div className="mb-8 flex gap-4">
+            <div className="flex-1">
+              <Card>
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src={user?.avatarUrl || undefined} />
+                      <AvatarFallback>{user?.displayName?.charAt(0) || user?.username?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <Input 
+                      placeholder="Share what's on your mind..." 
+                      className="flex-1"
+                      onClick={() => navigate('/submit')}
+                      readOnly
+                    />
+                    <Button variant="outline" onClick={() => navigate('/submit')}>Post</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-8">
+            <Card className="bg-gradient-to-r from-primary/10 to-purple-500/10">
+              <CardContent className="pt-6 pb-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">Join The Connection</h3>
+                    <p className="text-muted-foreground">Sign up to post, connect with other believers, and access all features.</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button asChild>
+                      <Link href="/auth">Sign Up</Link>
+                    </Button>
+                    <Button variant="outline" asChild>
+                      <Link href="/auth">Log In</Link>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
-        </div>
+        )}
         
         {/* 3-column layout for desktop, 1-column for mobile */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

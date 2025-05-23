@@ -70,7 +70,7 @@ function Router() {
       <ProtectedRoute path="/near-me" component={withResponsiveLayout(NearMe)} />
       
       {/* Public routes with responsive layout */}
-      <ReadOnlyRoute path="/" component={withResponsiveLayout(HomePage)} />
+      <ReadOnlyRoute path="/" component={withResponsiveLayout(IntegratedDashboard)} />
       <ReadOnlyRoute path="/communities" component={withResponsiveLayout(CommunitiesPage)} />
       <ReadOnlyRoute path="/community/:slug" component={withResponsiveLayout(CommunityPage)} />
       <ReadOnlyRoute path="/apologetics" component={withResponsiveLayout(ApologeticsPage)} />
