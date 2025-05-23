@@ -211,34 +211,34 @@ function FeedSection() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-8">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      <div className="flex justify-center py-6">
+        <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">Latest Updates</h2>
-        <Button variant="ghost" size="sm" asChild>
+        <h2 className="text-lg md:text-xl font-bold">Latest Updates</h2>
+        <Button variant="ghost" size="sm" className="h-8 px-2 md:px-3 text-xs md:text-sm" asChild>
           <Link href="/microblogs">See All</Link>
         </Button>
       </div>
       
       {posts.slice(0, 5).map(post => (
-        <Card key={post.id} className="relative overflow-hidden hover:shadow-md transition-shadow">
-          <CardContent className="pt-6">
-            <div className="flex gap-3">
-              <Avatar>
+        <Card key={post.id} className="relative overflow-hidden hover:shadow-sm transition-shadow">
+          <CardContent className="pt-4 pb-3 px-3 md:px-4">
+            <div className="flex gap-2 md:gap-3">
+              <Avatar className="h-8 w-8 flex-shrink-0">
                 <AvatarImage src={post.user?.avatarUrl || undefined} />
                 <AvatarFallback>{post.user?.displayName?.charAt(0) || "U"}</AvatarFallback>
               </Avatar>
               
-              <div className="flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-semibold">{post.user?.displayName || "User"}</span>
-                  <span className="text-sm text-muted-foreground">@{post.user?.username}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-1 md:gap-2 flex-wrap">
+                  <span className="font-semibold text-sm md:text-base">{post.user?.displayName || "User"}</span>
+                  <span className="text-xs text-muted-foreground">@{post.user?.username}</span>
                   <span className="text-xs text-muted-foreground ml-auto">
                     {typeof post.createdAt === 'string' 
                       ? post.createdAt 
@@ -246,16 +246,16 @@ function FeedSection() {
                   </span>
                 </div>
                 
-                <p className="mt-1">{post.content}</p>
+                <p className="mt-1 text-sm md:text-base line-clamp-4">{post.content}</p>
                 
-                <div className="flex items-center gap-4 mt-3">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground text-xs">
+                <div className="flex items-center gap-2 md:gap-3 mt-2 md:mt-3">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground text-xs h-7 px-2">
                     💬 {post.comments || 0}
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground text-xs">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground text-xs h-7 px-2">
                     ❤️ {post.likes || 0}
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground text-xs">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground text-xs h-7 px-2">
                     🔄 Share
                   </Button>
                 </div>
@@ -265,8 +265,8 @@ function FeedSection() {
         </Card>
       ))}
       
-      <div className="flex justify-center">
-        <Button variant="outline" asChild>
+      <div className="flex justify-center mt-1">
+        <Button variant="outline" size="sm" className="text-xs md:text-sm h-8" asChild>
           <Link href="/microblogs">View More Posts</Link>
         </Button>
       </div>
@@ -282,43 +282,43 @@ function CommunitiesSection() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-8">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      <div className="flex justify-center py-6">
+        <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">Your Communities</h2>
-        <Button variant="ghost" size="sm" asChild>
+        <h2 className="text-lg md:text-xl font-bold">Your Communities</h2>
+        <Button variant="ghost" size="sm" className="h-8 px-2 md:px-3 text-xs md:text-sm" asChild>
           <Link href="/communities">See All</Link>
         </Button>
       </div>
       
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 gap-2">
         {communities.slice(0, 3).map(community => (
-          <Card key={community.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">{community.name}</CardTitle>
-              <CardDescription className="line-clamp-2">{community.description}</CardDescription>
+          <Card key={community.id} className="hover:shadow-sm transition-shadow">
+            <CardHeader className="py-3 px-3 md:px-4">
+              <CardTitle className="text-base md:text-lg">{community.name}</CardTitle>
+              <CardDescription className="line-clamp-2 text-xs md:text-sm">{community.description}</CardDescription>
             </CardHeader>
-            <CardFooter className="pt-0 flex justify-between">
-              <div className="text-sm text-muted-foreground flex items-center">
-                <Users className="h-4 w-4 mr-1" />
+            <CardFooter className="py-2 px-3 md:px-4 flex justify-between border-t">
+              <div className="text-xs md:text-sm text-muted-foreground flex items-center">
+                <Users className="h-3.5 w-3.5 mr-1" />
                 {community.memberCount || 0} members
               </div>
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" size="sm" className="h-7 text-xs md:text-sm px-2 md:px-3" asChild>
                 <Link href={`/community/${community.slug}`}>Visit</Link>
               </Button>
             </CardFooter>
           </Card>
         ))}
         
-        <Button variant="outline" className="mt-2" asChild>
+        <Button variant="outline" size="sm" className="mt-1 text-xs md:text-sm h-8" asChild>
           <Link href="/communities">
-            <PlusCircle className="h-4 w-4 mr-2" />
+            <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
             Explore More Communities
           </Link>
         </Button>
@@ -335,8 +335,8 @@ function EventsSection() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-8">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      <div className="flex justify-center py-5">
+        <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -347,54 +347,54 @@ function EventsSection() {
     .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">Upcoming Events</h2>
-        <Button variant="ghost" size="sm" asChild>
+        <h2 className="text-lg md:text-xl font-bold">Upcoming Events</h2>
+        <Button variant="ghost" size="sm" className="h-8 px-2 md:px-3 text-xs md:text-sm" asChild>
           <Link href="/events">See All</Link>
         </Button>
       </div>
       
-      <div className="space-y-3">
+      <div className="space-y-2">
         {upcomingEvents.slice(0, 3).map(event => (
-          <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">{event.title}</CardTitle>
-              <CardDescription className="flex items-center gap-1">
-                <CalendarDays className="h-3.5 w-3.5" />
+          <Card key={event.id} className="overflow-hidden hover:shadow-sm transition-shadow">
+            <CardHeader className="py-3 px-3 md:px-4">
+              <CardTitle className="text-base md:text-lg">{event.title}</CardTitle>
+              <CardDescription className="flex items-center gap-1 text-xs md:text-sm">
+                <CalendarDays className="h-3 w-3" />
                 {format(new Date(event.eventDate), 'EEE, MMM d, yyyy')}
               </CardDescription>
             </CardHeader>
-            <CardContent className="pb-2">
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div className="flex items-start gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+            <CardContent className="pb-2 pt-0 px-3 md:px-4">
+              <div className="flex flex-wrap gap-2 md:gap-3 text-xs md:text-sm">
+                <div className="flex items-start gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
                   <span>{event.startTime} - {event.endTime}</span>
                 </div>
                 
                 {event.location && (
-                  <div className="flex items-start gap-2">
-                    <Pin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <span>{event.location}</span>
+                  <div className="flex items-start gap-1.5">
+                    <Pin className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                    <span className="line-clamp-1">{event.location}</span>
                   </div>
                 )}
                 
                 {event.isVirtual && (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200">
+                  <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200 text-xs">
                     Virtual
                   </Badge>
                 )}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button variant="outline" size="sm" className="w-full" asChild>
+            <CardFooter className="py-2 px-3 md:px-4 border-t">
+              <Button variant="outline" size="sm" className="w-full h-7 text-xs md:text-sm" asChild>
                 <Link href={`/events/${event.id}`}>View Details</Link>
               </Button>
             </CardFooter>
           </Card>
         ))}
         
-        <Button variant="outline" className="w-full mt-2" asChild>
+        <Button variant="outline" size="sm" className="w-full mt-1 text-xs md:text-sm h-8" asChild>
           <Link href="/events">View All Events</Link>
         </Button>
       </div>
@@ -410,40 +410,41 @@ function ForumsSection() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-8">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      <div className="flex justify-center py-5">
+        <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">Active Forums</h2>
-        <Button variant="ghost" size="sm" asChild>
+        <h2 className="text-lg md:text-xl font-bold">Active Forums</h2>
+        <Button variant="ghost" size="sm" className="h-8 px-2 md:px-3 text-xs md:text-sm" asChild>
           <Link href="/forums">See All</Link>
         </Button>
       </div>
       
-      <div className="space-y-3">
+      <div className="space-y-2">
         {forums.slice(0, 3).map(forum => (
-          <Card key={forum.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">{forum.title}</CardTitle>
-              <CardDescription className="line-clamp-2">{forum.description}</CardDescription>
+          <Card key={forum.id} className="hover:shadow-sm transition-shadow">
+            <CardHeader className="py-3 px-3 md:px-4">
+              <CardTitle className="text-base md:text-lg">{forum.title}</CardTitle>
+              <CardDescription className="line-clamp-2 text-xs md:text-sm">{forum.description}</CardDescription>
             </CardHeader>
-            <CardFooter className="pt-0 flex justify-between">
-              <div className="text-sm text-muted-foreground">
+            <CardFooter className="py-2 px-3 md:px-4 flex justify-between border-t">
+              <div className="text-xs md:text-sm text-muted-foreground flex items-center">
+                <MessageCircle className="h-3.5 w-3.5 mr-1" />
                 {forum.postsCount || 0} posts
               </div>
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" size="sm" className="h-7 text-xs md:text-sm px-2 md:px-3" asChild>
                 <Link href={`/forums/${forum.id}`}>View</Link>
               </Button>
             </CardFooter>
           </Card>
         ))}
         
-        <Button variant="outline" className="w-full mt-2" asChild>
+        <Button variant="outline" size="sm" className="w-full mt-1 text-xs md:text-sm h-8" asChild>
           <Link href="/forums">Browse All Forums</Link>
         </Button>
       </div>
