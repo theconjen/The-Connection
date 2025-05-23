@@ -9,6 +9,7 @@ import AdminLoginPage from "@/pages/admin-login";
 import LoginTestPage from "@/pages/login-test";
 import SimpleLogin from "@/pages/simple-login";
 import Dashboard from "@/pages/Dashboard";
+import IntegratedDashboard from "@/pages/IntegratedDashboard";
 import Grow from "@/pages/Grow";
 import Connect from "@/pages/Connect";
 import NearMe from "@/pages/NearMe";
@@ -63,7 +64,7 @@ function Router() {
       <Route path="/admin-login" component={AdminLoginPage} />
       <Route path="/login-test" component={LoginTestPage} />
       <Route path="/simple-login" component={SimpleLogin} />
-      <ProtectedRoute path="/dashboard" component={withResponsiveLayout(Dashboard)} />
+      <ProtectedRoute path="/dashboard" component={withResponsiveLayout(IntegratedDashboard)} />
       <ProtectedRoute path="/grow" component={withResponsiveLayout(Grow)} />
       <ProtectedRoute path="/connect" component={withResponsiveLayout(Connect)} />
       <ProtectedRoute path="/near-me" component={withResponsiveLayout(NearMe)} />
