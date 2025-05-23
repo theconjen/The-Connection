@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -63,6 +64,8 @@ interface Forum {
 function Menubar() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const menuItems = [
     { icon: <Home className="h-5 w-5" />, label: "Home", path: "/" },
@@ -72,42 +75,130 @@ function Menubar() {
     { icon: <BookOpen className="h-5 w-5" />, label: "Bible Study", path: "/bible-study" },
     { icon: <Sparkles className="h-5 w-5" />, label: "Prayer", path: "/prayer-requests" },
     { icon: <FileHeart className="h-5 w-5" />, label: "Forums", path: "/forums" },
-    { icon: <Tv className="h-5 w-5" />, label: "Livestreams", path: "/livestreams" },
+    { icon: <Tv className="h-5 w-5" />, label: "Live", path: "/livestreams" },
     { icon: <Lightbulb className="h-5 w-5" />, label: "Apologetics", path: "/apologetics" },
   ];
 
+  const primaryMenuItems = menuItems.slice(0, 5); // First 5 items for main display
+  const secondaryMenuItems = menuItems.slice(5); // Rest for dropdown or mobile menu
+
   return (
-    <div className="px-4 py-2 border-b sticky top-0 bg-background z-10">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-6">
-          {menuItems.map((item) => (
-            <Button
-              key={item.label}
-              variant="ghost"
-              size="sm"
-              className="flex items-center gap-2"
-              onClick={() => navigate(item.path)}
-            >
-              {item.icon}
-              <span className="hidden md:inline">{item.label}</span>
-            </Button>
-          ))}
+    <div className="px-3 py-2 border-b sticky top-0 bg-background z-10 shadow-sm">
+      <div className="max-w-screen-xl mx-auto flex items-center justify-between">
+        <div className="flex items-center">
+          {/* Brand logo/name */}
+          <Link href="/" className="font-bold text-xl mr-6 text-primary">
+            TC
+          </Link>
+          
+          {/* Desktop menu items */}
+          {!isMobile && (
+            <div className="hidden md:flex items-center space-x-1">
+              {primaryMenuItems.map((item) => (
+                <Button
+                  key={item.label}
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-1.5"
+                  onClick={() => navigate(item.path)}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Button>
+              ))}
+              
+              {/* More dropdown for desktop */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-1.5"
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                >
+                  <Menu className="h-5 w-5" />
+                  <span>More</span>
+                </Button>
+                
+                {showMobileMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md z-50 py-1 border">
+                    {secondaryMenuItems.map((item) => (
+                      <Button
+                        key={item.label}
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center gap-2 w-full justify-start px-4"
+                        onClick={() => {
+                          navigate(item.path);
+                          setShowMobileMenu(false);
+                        }}
+                      >
+                        {item.icon}
+                        <span>{item.label}</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Mobile menu button */}
+          {isMobile && (
+            <div className="md:hidden">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
+          )}
         </div>
+        
+        {/* Right side - profile or sign in */}
         <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="hidden md:flex">
+            <Search className="h-5 w-5" />
+          </Button>
+          
           {user ? (
             <Link href="/profile">
-              <Avatar className="cursor-pointer">
+              <Avatar className="cursor-pointer h-8 w-8">
                 <AvatarImage src={user.avatarUrl || undefined} />
                 <AvatarFallback>{user.displayName?.charAt(0) || user.username?.charAt(0) || 'U'}</AvatarFallback>
               </Avatar>
             </Link>
           ) : (
-            <Button asChild>
+            <Button size="sm" asChild>
               <Link href="/auth">Sign In</Link>
             </Button>
           )}
         </div>
       </div>
+      
+      {/* Mobile menu dropdown */}
+      {isMobile && showMobileMenu && (
+        <div className="md:hidden mt-2 border-t pt-2">
+          <div className="flex flex-wrap gap-1">
+            {menuItems.map((item) => (
+              <Button
+                key={item.label}
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-1.5 flex-1 min-w-[110px]"
+                onClick={() => {
+                  navigate(item.path);
+                  setShowMobileMenu(false);
+                }}
+              >
+                {item.icon}
+                <span className="text-xs">{item.label}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -379,54 +470,52 @@ export default function IntegratedDashboard() {
       <Menubar />
       
       {/* Main Content */}
-      <div className="container px-4 py-6">
+      <div className="max-w-screen-xl mx-auto px-3 py-4 md:py-6">
         {/* Greeting Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
+        <div className="mb-4 md:mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">
             {getGreeting()}, {user ? (user.displayName || user.username) : 'Friend'}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm md:text-base text-muted-foreground">
             Welcome to The Connection. Your Christian community platform.
           </p>
         </div>
         
         {/* Create Post / Search Section - Only for logged in users */}
         {user ? (
-          <div className="mb-8 flex gap-4">
-            <div className="flex-1">
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={user?.avatarUrl || undefined} />
-                      <AvatarFallback>{user?.displayName?.charAt(0) || user?.username?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
-                    <Input 
-                      placeholder="Share what's on your mind..." 
-                      className="flex-1"
-                      onClick={() => navigate('/submit')}
-                      readOnly
-                    />
-                    <Button variant="outline" onClick={() => navigate('/submit')}>Post</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <div className="mb-4 md:mb-6">
+            <Card className="shadow-sm">
+              <CardContent className="py-3 px-3 md:px-4">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <Avatar className="h-8 w-8 flex-shrink-0">
+                    <AvatarImage src={user?.avatarUrl || undefined} />
+                    <AvatarFallback>{user?.displayName?.charAt(0) || user?.username?.charAt(0) || 'U'}</AvatarFallback>
+                  </Avatar>
+                  <Input 
+                    placeholder="Share what's on your mind..." 
+                    className="flex-1 text-sm h-9"
+                    onClick={() => navigate('/submit')}
+                    readOnly
+                  />
+                  <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => navigate('/submit')}>Post</Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         ) : (
-          <div className="mb-8">
-            <Card className="bg-gradient-to-r from-primary/10 to-purple-500/10">
-              <CardContent className="pt-6 pb-6">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Join The Connection</h3>
-                    <p className="text-muted-foreground">Sign up to post, connect with other believers, and access all features.</p>
+          <div className="mb-4 md:mb-6">
+            <Card className="bg-gradient-to-r from-primary/10 to-purple-500/10 shadow-sm">
+              <CardContent className="py-4 md:py-5">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
+                  <div className="text-center md:text-left mb-3 md:mb-0">
+                    <h3 className="text-lg md:text-xl font-semibold mb-1">Join The Connection</h3>
+                    <p className="text-sm text-muted-foreground">Sign up to post, connect with other believers, and access all features.</p>
                   </div>
-                  <div className="flex gap-3">
-                    <Button asChild>
+                  <div className="flex gap-3 w-full md:w-auto">
+                    <Button className="flex-1 md:flex-none" size="sm" asChild>
                       <Link href="/auth">Sign Up</Link>
                     </Button>
-                    <Button variant="outline" asChild>
+                    <Button className="flex-1 md:flex-none" size="sm" variant="outline" asChild>
                       <Link href="/auth">Log In</Link>
                     </Button>
                   </div>
@@ -436,28 +525,29 @@ export default function IntegratedDashboard() {
           </div>
         )}
         
-        {/* 3-column layout for desktop, 1-column for mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Main Feed Column */}
-          <div className="lg:col-span-6">
+        {/* Responsive layout for all screen sizes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Main Feed Column - Takes more space on larger screens */}
+          <div className="md:col-span-1 lg:col-span-2">
             <FeedSection />
           </div>
           
-          {/* Side Columns */}
-          <div className="lg:col-span-3">
+          {/* Communities Column */}
+          <div className="md:col-span-1 lg:col-span-1">
             <CommunitiesSection />
           </div>
           
-          <div className="lg:col-span-3">
+          {/* Events/Forums Column */}
+          <div className="md:col-span-2 lg:col-span-1">
             <Tabs defaultValue="events">
               <TabsList className="w-full">
                 <TabsTrigger value="events" className="flex-1">Events</TabsTrigger>
                 <TabsTrigger value="forums" className="flex-1">Forums</TabsTrigger>
               </TabsList>
-              <TabsContent value="events" className="mt-4">
+              <TabsContent value="events" className="mt-3">
                 <EventsSection />
               </TabsContent>
-              <TabsContent value="forums" className="mt-4">
+              <TabsContent value="forums" className="mt-3">
                 <ForumsSection />
               </TabsContent>
             </Tabs>
