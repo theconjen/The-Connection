@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { 
   FacebookShareButton, TwitterShareButton, WhatsappShareButton, EmailShareButton,
-  FacebookIcon, TwitterIcon, WhatsappIcon, EmailIcon
+  FacebookIcon, TwitterIcon, WhatsappIcon, EmailIcon,
+  LinkedinShareButton, LinkedinIcon
 } from "react-share";
 import {
   Dialog,
@@ -567,19 +568,35 @@ export default function EventDetailPage() {
           
           <div className="flex flex-col space-y-4 py-4">
             <div className="flex justify-center space-x-4">
-              <FacebookShareButton url={shareUrl} quote={`Join me at ${event?.title || 'this event'}!`}>
+              <FacebookShareButton 
+                url={shareUrl}>
                 <FacebookIcon size={48} round />
               </FacebookShareButton>
               
-              <TwitterShareButton url={shareUrl} title={`Join me at ${event?.title || 'this event'}!`}>
+              <TwitterShareButton 
+                url={shareUrl} 
+                title={`Join me at ${event?.title || 'this event'}!`}
+                hashtags={['TheConnection', 'ChristianEvents']}>
                 <TwitterIcon size={48} round />
               </TwitterShareButton>
               
-              <WhatsappShareButton url={shareUrl} title={`Join me at ${event?.title || 'this event'}!`}>
+              <WhatsappShareButton 
+                url={shareUrl} 
+                title={`Join me at ${event?.title || 'this event'}!`}>
                 <WhatsappIcon size={48} round />
               </WhatsappShareButton>
               
-              <EmailShareButton url={shareUrl} subject={`Invitation: ${event?.title || 'Event'}`} body={`I'd like to invite you to ${event?.title || 'this event'}. Check it out here:`}>
+              <LinkedinShareButton
+                url={shareUrl}
+                title={`${event?.title || 'Christian Event'}`}
+                summary={`Join me at this event on The Connection platform: ${event?.title || 'Christian Event'}`}>
+                <LinkedinIcon size={48} round />
+              </LinkedinShareButton>
+              
+              <EmailShareButton 
+                url={shareUrl} 
+                subject={`Invitation: ${event?.title || 'Event'}`} 
+                body={`I'd like to invite you to ${event?.title || 'this event'}. Check it out here:`}>
                 <EmailIcon size={48} round />
               </EmailShareButton>
             </div>
