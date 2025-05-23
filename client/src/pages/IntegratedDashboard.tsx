@@ -421,7 +421,7 @@ function ForumsSection() {
       <div className="flex justify-between items-center">
         <h2 className="text-lg md:text-xl font-bold">Active Forums</h2>
         <Button variant="ghost" size="sm" className="h-8 px-2 md:px-3 text-xs md:text-sm" asChild>
-          <Link href="/forums">See All</Link>
+          <Link href="/c">See All</Link>
         </Button>
       </div>
       
@@ -438,14 +438,14 @@ function ForumsSection() {
                 {forum.postsCount || 0} posts
               </div>
               <Button variant="outline" size="sm" className="h-7 text-xs md:text-sm px-2 md:px-3" asChild>
-                <Link href={`/forums/${forum.id}`}>View</Link>
+                <Link href={`/c/${forum.id}`}>View</Link>
               </Button>
             </CardFooter>
           </Card>
         ))}
         
         <Button variant="outline" size="sm" className="w-full mt-1 text-xs md:text-sm h-8" asChild>
-          <Link href="/forums">Browse All Forums</Link>
+          <Link href="/c">Browse All Forums</Link>
         </Button>
       </div>
     </div>
