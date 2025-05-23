@@ -310,7 +310,7 @@ function CommunitiesSection() {
                 {community.memberCount || 0} members
               </div>
               <Button variant="outline" size="sm" className="h-7 text-xs md:text-sm px-2 md:px-3" asChild>
-                <Link href={`/community/${community.slug}`}>Visit</Link>
+                <Link href={`/c/${community.slug}`}>Visit</Link>
               </Button>
             </CardFooter>
           </Card>

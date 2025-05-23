@@ -72,7 +72,7 @@ function Router() {
       {/* Public routes with responsive layout */}
       <ReadOnlyRoute path="/" component={withResponsiveLayout(IntegratedDashboard)} />
       <ReadOnlyRoute path="/communities" component={withResponsiveLayout(CommunitiesPage)} />
-      <ReadOnlyRoute path="/community/:slug" component={withResponsiveLayout(CommunityPage)} />
+      <ReadOnlyRoute path="/c/:slug" component={withResponsiveLayout(CommunityPage)} />
       <ReadOnlyRoute path="/apologetics" component={withResponsiveLayout(ApologeticsPage)} />
       <ReadOnlyRoute path="/prayer-requests" component={withResponsiveLayout(PrayerRequestsPage)} />
       <ReadOnlyRoute path="/discover" component={withResponsiveLayout(DiscoverPage)} />

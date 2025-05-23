@@ -378,7 +378,7 @@ export default function CommunitiesPage() {
                   className="w-full"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/community/${community.slug}`);
+                    navigate(`/c/${community.slug}`);
                   }}
                 >
                   View Community
