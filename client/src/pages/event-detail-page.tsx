@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays, MapPin, Clock, Users, ArrowLeft, Share2, Edit, Trash2 } from "lucide-react";
+import { CalendarDays, MapPin, Clock, Users, ArrowLeft, Share2, Edit, Trash2, X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,6 +15,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { 
+  FacebookShareButton, TwitterShareButton, WhatsappShareButton, EmailShareButton,
+  FacebookIcon, TwitterIcon, WhatsappIcon, EmailIcon
+} from "react-share";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose
+} from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -68,7 +80,9 @@ export default function EventDetailPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState("");
 
   // Get event details
   const { data: event, isLoading: isLoadingEvent } = useQuery({
@@ -116,6 +130,11 @@ export default function EventDetailPage() {
       setRsvpStatus(userRsvp.status);
     }
   }, [userRsvp]);
+
+  // Set share URL when component mounts
+  useEffect(() => {
+    setShareUrl(window.location.href);
+  }, []);
 
   // Create RSVP mutation
   const createRsvpMutation = useMutation({
@@ -210,23 +229,25 @@ export default function EventDetailPage() {
   };
 
   // Handle share event
-  const handleShare = async () => {
+  const handleShare = () => {
+    setIsShareDialogOpen(true);
+  };
+  
+  // Handle copy link to clipboard
+  const handleCopyLink = async () => {
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: event.title,
-          text: `Join me at ${event.title}!`,
-          url: window.location.href,
-        });
-      } else {
-        await navigator.clipboard.writeText(window.location.href);
-        toast({
-          title: "Link Copied",
-          description: "Event link copied to clipboard",
-        });
-      }
+      await navigator.clipboard.writeText(shareUrl);
+      toast({
+        title: "Link Copied",
+        description: "Event link copied to clipboard",
+      });
     } catch (error) {
-      console.error("Error sharing:", error);
+      console.error("Error copying link:", error);
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy link to clipboard",
+        variant: "destructive",
+      });
     }
   };
 
