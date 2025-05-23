@@ -554,6 +554,55 @@ export default function EventDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Social Media Share Dialog */}
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share This Event</DialogTitle>
+            <DialogDescription>
+              Share this event with your friends and community
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col space-y-4 py-4">
+            <div className="flex justify-center space-x-4">
+              <FacebookShareButton url={shareUrl} quote={`Join me at ${event?.title || 'this event'}!`}>
+                <FacebookIcon size={48} round />
+              </FacebookShareButton>
+              
+              <TwitterShareButton url={shareUrl} title={`Join me at ${event?.title || 'this event'}!`}>
+                <TwitterIcon size={48} round />
+              </TwitterShareButton>
+              
+              <WhatsappShareButton url={shareUrl} title={`Join me at ${event?.title || 'this event'}!`}>
+                <WhatsappIcon size={48} round />
+              </WhatsappShareButton>
+              
+              <EmailShareButton url={shareUrl} subject={`Invitation: ${event?.title || 'Event'}`} body={`I'd like to invite you to ${event?.title || 'this event'}. Check it out here:`}>
+                <EmailIcon size={48} round />
+              </EmailShareButton>
+            </div>
+            
+            <div className="flex items-center justify-between space-x-2 bg-muted p-2 rounded-md">
+              <div className="truncate text-sm text-muted-foreground">{shareUrl}</div>
+              <Button variant="secondary" size="sm" onClick={handleCopyLink}>
+                Copy Link
+              </Button>
+            </div>
+            
+            <div className="text-center text-sm text-muted-foreground mt-2">
+              Event details will be shared when using these links
+            </div>
+          </div>
+          
+          <DialogClose asChild>
+            <Button variant="outline" className="mt-2">
+              Close
+            </Button>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
