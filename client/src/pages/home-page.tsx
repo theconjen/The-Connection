@@ -76,34 +76,6 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
       color: "bg-purple-500"
     },
     {
-      title: "Christian Creatives",
-      description: "Connect with writers, artists, musicians, and other creative Christians.",
-      icon: <Palette className="h-6 w-6 text-pink-600" />,
-      path: "/groups/creatives",
-      color: "bg-pink-500"
-    },
-    {
-      title: "Entrepreneurs",
-      description: "Network with business owners and startup founders who share your faith.",
-      icon: <Briefcase className="h-6 w-6 text-amber-600" />,
-      path: "/groups/entrepreneurs",
-      color: "bg-amber-500"
-    },
-    {
-      title: "Fitness",
-      description: "Find workout partners, sports teams, and wellness groups for believers.",
-      icon: <Activity className="h-6 w-6 text-emerald-600" />,
-      path: "/groups/fitness",
-      color: "bg-emerald-500"
-    },
-    {
-      title: "College Students",
-      description: "Connect with other Christian students at your university or in your city.",
-      icon: <GraduationCap className="h-6 w-6 text-indigo-600" />,
-      path: "/groups/college",
-      color: "bg-indigo-500"
-    },
-    {
       title: "Bible Study",
       description: "Dive into God's Word with Bible study plans, devotionals, and reading tools.",
       icon: <BookOpen className="h-6 w-6 text-green-600" />,
