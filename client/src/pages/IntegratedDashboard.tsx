@@ -467,9 +467,6 @@ export default function IntegratedDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Menubar */}
-      <Menubar />
-      
       {/* Main Content */}
       <div className="max-w-screen-xl mx-auto px-3 py-4 md:py-6">
         {/* Greeting Section */}
