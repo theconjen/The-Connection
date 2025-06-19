@@ -140,6 +140,13 @@ export function setupAuth(app: Express) {
         req.session.userId = user.id.toString();
         req.session.username = user.username;
         req.session.isAdmin = user.isAdmin || false;
+        req.session.email = user.email;
+        
+        console.log(`Setting session data for user ${username}:`, {
+          userId: req.session.userId,
+          username: req.session.username,
+          sessionID: req.sessionID
+        });
         
         // Create session and return user data
         req.session.save((err) => {
@@ -148,7 +155,7 @@ export function setupAuth(app: Express) {
             return res.status(500).json({ message: "Error creating session" });
           }
           
-          console.log(`User logged in successfully: ${username} (ID: ${user.id})`);
+          console.log(`User logged in successfully: ${username} (ID: ${user.id}), Session saved with ID: ${req.sessionID}`);
           
           // Return user data without password
           const { password, ...userWithoutPassword } = user;
@@ -215,7 +222,15 @@ export function setupAuth(app: Express) {
   // Current user endpoint
   app.get("/api/user", async (req, res) => {
     try {
+      console.log(`/api/user request - SessionID: ${req.sessionID}, Session data:`, {
+        hasSession: !!req.session,
+        userId: req.session?.userId,
+        username: req.session?.username,
+        sessionID: req.sessionID
+      });
+      
       if (!req.session || !req.session.userId) {
+        console.log("Authentication failed - no session or userId");
         return res.status(401).json({ message: "Not authenticated" });
       }
       

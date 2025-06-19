@@ -31,11 +31,12 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "theconnection-session-secret",
   resave: false,
   saveUninitialized: false,
+  name: 'sessionId', // Explicit session name
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    secure: process.env.NODE_ENV === "production", // Secure in production only
+    secure: false, // Disable secure for development
     httpOnly: true,
-    domain: process.env.NODE_ENV === "production" ? APP_DOMAIN : undefined
+    sameSite: 'lax' // Allow cross-origin requests in development
   }
 }));
 
