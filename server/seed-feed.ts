@@ -133,7 +133,7 @@ export async function seedFeed() {
       if (postCount > 0) {
         await db.update(communities)
           .set({ memberCount: community.memberCount || 1 }) // Ensure at least one member
-          .where(eq(communities.id, community.id));
+          .where(eq(eq(communities.id, community.id), parseInt(id)));
       }
     }
     
