@@ -2216,7 +2216,7 @@ export class DatabaseStorage implements IStorage {
   async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
     const result = await db.select()
       .from(communityChatRooms)
-      .where(eq(communityChatRooms.id, id));
+      .where(eq(communityChatRooms.id, id))
       .limit(1);
     return result[0];
   }
@@ -2229,7 +2229,7 @@ export class DatabaseStorage implements IStorage {
   async updateCommunityRoom(id: string, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
     const result = await db.update(communityChatRooms)
       .set(data)
-      .where(eq(communityChatRooms.id, id));
+      .where(eq(communityChatRooms.id, parseInt(id)))
       .returning();
     return result[0];
   }
@@ -2253,7 +2253,7 @@ export class DatabaseStorage implements IStorage {
     })
     .from(chatMessages)
     .innerJoin(users, eq(chatMessages.senderId, users.id))
-    .where(eq(chatMessages.chatRoomId, roomId));
+    .where(eq(chatMessages.chatRoomId, roomId))
     .orderBy(desc(chatMessages.createdAt))
     .limit(limit);
     
@@ -2290,7 +2290,7 @@ export class DatabaseStorage implements IStorage {
 
   // Community Wall Posts
   async getCommunityWallPosts(communityId: string, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
-    let whereCondition = eq(communityWallPosts.communityId, communityId), parseInt(communityId));
+    let whereCondition = eq(communityWallPosts.communityId, parseInt(communityId));
     
     if (isPrivate !== undefined) {
       whereCondition = and(whereCondition, eq(communityWallPosts.isPrivate, isPrivate));
@@ -2331,7 +2331,7 @@ export class DatabaseStorage implements IStorage {
     })
     .from(communityWallPosts)
     .innerJoin(users, eq(communityWallPosts.authorId, users.id))
-    .where(eq(communityWallPosts.id, id));
+    .where(eq(communityWallPosts.id, id))
     .limit(1);
     
     return result[0];
@@ -2345,7 +2345,7 @@ export class DatabaseStorage implements IStorage {
   async updateCommunityWallPost(id: string, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
     const result = await db.update(communityWallPosts)
       .set(data)
-      .where(eq(communityWallPosts.id, id));
+      .where(eq(communityWallPosts.id, id))
       .returning();
     return result[0];
   }
