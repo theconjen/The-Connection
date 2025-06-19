@@ -10,7 +10,7 @@ export async function seedPrayers() {
   try {
     // Check if prayer requests already exist
     const prayerRequestsResult = await pool.query(`SELECT COUNT(*) FROM prayer_requests`);
-    if (parseInt(prayerRequestsResult.rows[0].count) > 0) {
+    if (prayerRequestsResult.rows[0].count > 0) {
       console.log("Prayer requests already exist, skipping seeding");
       return;
     }

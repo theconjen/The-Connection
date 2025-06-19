@@ -23,7 +23,7 @@ export const handleLocationSearch = async (req: Request, res: Response) => {
       state: query.state as string,
       zipCode: query.zipCode as string,
       interests: query.interests ? (query.interests as string).split(',') : undefined,
-      radius: query.radius ? parseInt(query.radius as string) : undefined,
+      radius: query.radius ? query.radius as string : undefined,
     });
     
     if (!validation.success) {

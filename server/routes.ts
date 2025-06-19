@@ -110,7 +110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/user", async (req, res) => {
     if (req.session && req.session.userId!) {
       try {
-        const user = await storage.getUserById(req.session.userId!);
+        const user = await storage.getUserById(req.session.userId!.toString());
         if (!user) {
           return res.status(404).json({ message: "User not found" });
         }
@@ -227,7 +227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/communities/:id", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is authorized (owner or moderator)
-      const communityId = parseInt(req.params.id);
+      const communityId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -261,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete community
   app.delete("/api/communities/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const communityId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -288,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Community Members routes
   app.get("/api/communities/:id/members", async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const communityId = req.params.id;
       const members = await storage.getCommunityMembers(communityId);
       res.json(members);
     } catch (error) {
@@ -298,7 +298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/communities/:id/members", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const communityId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -333,8 +333,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.put("/api/communities/:communityId/members/:memberId/role", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.communityId);
-      const memberId = parseInt(req.params.memberId);
+      const communityId = req.params.communityId;
+      const memberId = req.params.memberId;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -361,8 +361,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.delete("/api/communities/:communityId/members/:userId", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.communityId);
-      const memberUserId = parseInt(req.params.userId);
+      const communityId = req.params.communityId;
+      const memberUserId = req.params.userId;
       const currentUserId = req.session.userId!;
       
       if (!currentUserId) {
@@ -402,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Community Chat Room routes
   app.get("/api/communities/:id/chat-rooms", async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const communityId = req.params.id;
       const userId = req.session.userId!;
       
       // If authenticated, show all rooms (incl. private) if member
@@ -424,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/chat-rooms/:id", async (req, res, next) => {
     try {
-      const roomId = parseInt(req.params.id);
+      const roomId = req.params.id;
       const room = await storage.getCommunityRoom(roomId);
       
       if (!room) {
@@ -452,7 +452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/communities/:id/chat-rooms", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const communityId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -500,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.put("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const roomId = parseInt(req.params.id);
+      const roomId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -537,7 +537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.delete("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const roomId = parseInt(req.params.id);
+      const roomId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -574,8 +574,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat Messages routes
   app.get("/api/chat-rooms/:id/messages", async (req, res, next) => {
     try {
-      const roomId = parseInt(req.params.id);
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const roomId = req.params.id;
+      const limit = req.query.limit ? req.query.limit as string : 50;
       
       if (isNaN(roomId) || roomId <= 0) {
         return res.status(400).json({ message: "Invalid room ID" });
@@ -612,8 +612,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/chat-rooms/:roomId/messages-after/:messageId", async (req, res, next) => {
     try {
-      const roomId = parseInt(req.params.roomId);
-      const afterId = parseInt(req.params.messageId);
+      const roomId = req.params.roomId;
+      const afterId = req.params.messageId;
       
       if (isNaN(roomId) || isNaN(afterId) || roomId <= 0 || afterId <= 0) {
         return res.status(400).json({ message: "Invalid room ID or message ID" });
@@ -646,7 +646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/chat-rooms/:id/messages", isAuthenticated, async (req, res, next) => {
     try {
-      const roomId = parseInt(req.params.id);
+      const roomId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -689,7 +689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.delete("/api/chat-messages/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const messageId = parseInt(req.params.id);
+      const messageId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -734,7 +734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Community Wall Posts routes
   app.get("/api/communities/:id/wall", async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const communityId = req.params.id;
       const isPrivate = req.query.private === 'true';
       
       const community = await storage.getCommunity(communityId);
@@ -777,7 +777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/wall-posts/:id", async (req, res, next) => {
     try {
-      const postId = parseInt(req.params.id);
+      const postId = req.params.id;
       const post = await storage.getCommunityWallPost(postId);
       
       if (!post) {
@@ -805,7 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/communities/:id/wall", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const communityId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -862,7 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.put("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const postId = parseInt(req.params.id);
+      const postId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -910,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.delete("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const postId = parseInt(req.params.id);
+      const postId = req.params.id;
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -949,7 +949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const filter = req.query.filter as string || "popular";
       const communitySlug = req.query.community as string;
-      const groupId = req.query.groupId ? parseInt(req.query.groupId as string) : undefined;
+      const groupId = req.query.groupId ? req.query.groupId as string : undefined;
       
       let posts;
       if (communitySlug) {
@@ -968,7 +968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/posts/:id", async (req, res, next) => {
     try {
-      const postId = parseInt(req.params.id);
+      const postId = req.params.id;
       const post = await storage.getPost(postId);
       
       if (!post) {
@@ -1001,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Comments routes
   app.get("/api/posts/:postId/comments", async (req, res, next) => {
     try {
-      const postId = parseInt(req.params.postId);
+      const postId = req.params.postId;
       const comments = await storage.getCommentsByPostId(postId);
       res.json(comments);
     } catch (error) {
@@ -1064,7 +1064,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/groups/:groupId/members", isAuthenticated, async (req, res, next) => {
     try {
-      const groupId = parseInt(req.params.groupId);
+      const groupId = req.params.groupId;
       
       // Check if user is admin of the group
       const isAdmin = await storage.isGroupAdmin(groupId, req.session!.id);
@@ -1122,7 +1122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/apologetics/topics/:id", async (req, res, next) => {
     try {
-      const topicId = parseInt(req.params.id);
+      const topicId = req.params.id;
       const topic = await storage.getApologeticsTopic(topicId);
       if (!topic) {
         return res.status(404).json({ message: "Topic not found" });
@@ -1177,7 +1177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/apologetics/questions/:id", async (req, res, next) => {
     try {
-      const questionId = parseInt(req.params.id);
+      const questionId = req.params.id;
       const question = await storage.getApologeticsQuestion(questionId);
       if (!question) {
         return res.status(404).json({ message: "Question not found" });
@@ -1194,7 +1194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/apologetics/topics/:topicId/questions", async (req, res, next) => {
     try {
-      const topicId = parseInt(req.params.topicId);
+      const topicId = req.params.topicId;
       const questions = await storage.getApologeticsQuestionsByTopic(topicId);
       res.json(questions);
     } catch (error) {
@@ -1227,7 +1227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only verified apologetics experts can update question status" });
       }
       
-      const questionId = parseInt(req.params.id);
+      const questionId = req.params.id;
       const { status } = req.body;
       
       if (!status || !["open", "answered", "closed"].includes(status)) {
@@ -1244,7 +1244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apologetics Q&A system - Answers routes
   app.get("/api/apologetics/questions/:questionId/answers", async (req, res, next) => {
     try {
-      const questionId = parseInt(req.params.questionId);
+      const questionId = req.params.questionId;
       const answers = await storage.getApologeticsAnswersByQuestion(questionId);
       res.json(answers);
     } catch (error) {
@@ -1282,7 +1282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/apologetics/answers/:id/upvote", isAuthenticated, async (req, res, next) => {
     try {
-      const answerId = parseInt(req.params.id);
+      const answerId = req.params.id;
       const answer = await storage.upvoteApologeticsAnswer(answerId);
       res.json(answer);
     } catch (error) {
@@ -1307,7 +1307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only verified apologetics experts can verify others" });
       }
       
-      const userId = parseInt(req.params.userId);
+      const userId = req.params.userId;
       const { isVerified } = req.body;
       
       if (typeof isVerified !== 'boolean') {
@@ -1334,7 +1334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/microblogs/:id", async (req, res, next) => {
     try {
-      const microblogId = parseInt(req.params.id);
+      const microblogId = req.params.id;
       const microblog = await storage.getMicroblog(microblogId);
       
       if (!microblog) {
@@ -1349,7 +1349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/microblogs/:id/replies", async (req, res, next) => {
     try {
-      const microblogId = parseInt(req.params.id);
+      const microblogId = req.params.id;
       const replies = await storage.getMicroblogReplies(microblogId);
       res.json(replies);
     } catch (error) {
@@ -1359,7 +1359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/users/:userId/microblogs", async (req, res, next) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = req.params.userId;
       const microblogs = await storage.getMicroblogsByUserId(userId);
       res.json(microblogs);
     } catch (error) {
@@ -1370,7 +1370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get microblogs liked by a user
   app.get("/api/users/:userId/liked-microblogs", async (req, res, next) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = req.params.userId;
       
       // Optional auth check - users can only see their own liked posts when authenticated
       if (req.session.userId! !== userId) {
@@ -1389,7 +1389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/communities/:communityId/microblogs", async (req, res, next) => {
     try {
-      const communityId = parseInt(req.params.communityId);
+      const communityId = req.params.communityId;
       const microblogs = await storage.getMicroblogsByCommunityId(communityId);
       res.json(microblogs);
     } catch (error) {
@@ -1399,7 +1399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/groups/:groupId/microblogs", isAuthenticated, async (req, res, next) => {
     try {
-      const groupId = parseInt(req.params.groupId);
+      const groupId = req.params.groupId;
       
       // Check if user is a member of this group
       const members = await storage.getGroupMembers(groupId);
@@ -1425,7 +1425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If posting to a group, verify membership
       if (req.body.groupId) {
-        const groupId = parseInt(req.body.groupId);
+        const groupId = req.body.groupId;
         const members = await storage.getGroupMembers(groupId);
         const isMember = members.some(member => member.userId === req.session.userId!);
         
@@ -1451,7 +1451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/microblogs/:id/like", isAuthenticated, async (req, res, next) => {
     try {
-      const microblogId = parseInt(req.params.id);
+      const microblogId = req.params.id;
       const like = await storage.likeMicroblog(microblogId, req.session!.id);
       res.status(201).json(like);
     } catch (error) {
@@ -1461,7 +1461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.delete("/api/microblogs/:id/like", isAuthenticated, async (req, res, next) => {
     try {
-      const microblogId = parseInt(req.params.id);
+      const microblogId = req.params.id;
       const result = await storage.unlikeMicroblog(microblogId, req.session!.id);
       
       if (result) {
@@ -1476,7 +1476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/users/:userId/liked-microblogs", async (req, res, next) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = req.params.userId;
       const likedMicroblogIds = await storage.getUserLikedMicroblogs(userId);
       res.json(likedMicroblogIds);
     } catch (error) {
@@ -1487,7 +1487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upvote routes
   app.post("/api/posts/:postId/upvote", isAuthenticated, async (req, res, next) => {
     try {
-      const postId = parseInt(req.params.postId);
+      const postId = req.params.postId;
       const post = await storage.upvotePost(postId);
       res.json(post);
     } catch (error) {
@@ -1497,7 +1497,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/comments/:commentId/upvote", isAuthenticated, async (req, res, next) => {
     try {
-      const commentId = parseInt(req.params.commentId);
+      const commentId = req.params.commentId;
       const comment = await storage.upvoteComment(commentId);
       res.json(comment);
     } catch (error) {
@@ -1629,7 +1629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      const applicationId = parseInt(req.params.id);
+      const applicationId = req.params.id;
       const { status, reviewNotes } = req.body;
       
       if (!["approved", "rejected"].includes(status)) {
@@ -1762,7 +1762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update application status
       const application = await storage.updateApologistScholarApplication(
-        parseInt(id),
+        id,
         status,
         reviewNotes,
         req.session.id
@@ -1954,7 +1954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/livestreams/:livestreamId/gifts", isAuthenticated, async (req, res, next) => {
     try {
-      const livestreamId = parseInt(req.params.livestreamId);
+      const livestreamId = req.params.livestreamId;
       const { giftId, message } = req.body;
       
       // Check if the livestream exists and is live
@@ -2036,7 +2036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'join_room':
             // Join a specific chat room
             if (data.roomId) {
-              const roomId = parseInt(data.roomId);
+              const roomId = data.roomId;
               
               // Get room to check if it's private and if the user can access it
               const room = await storage.getCommunityRoom(roomId);
@@ -2101,7 +2101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'leave_room':
             // Leave a specific chat room
             if (data.roomId) {
-              const roomId = parseInt(data.roomId);
+              const roomId = data.roomId;
               
               // Remove room from subscriptions
               clientData.subscribedRooms.delete(roomId);
@@ -2126,7 +2126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'chat_message':
             // Process a new chat message
             if (data.roomId && data.content && clientData.userId) {
-              const roomId = parseInt(data.roomId);
+              const roomId = data.roomId;
               
               // Check if user is subscribed to this room
               if (!clientData.subscribedRooms.has(roomId)) {
@@ -2187,7 +2187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'typing':
             // Notify others that user is typing
             if (data.roomId && clientData.userId) {
-              const roomId = parseInt(data.roomId);
+              const roomId = data.roomId;
               
               // Check if user is subscribed to this room
               if (!clientData.subscribedRooms.has(roomId)) {
@@ -2308,7 +2308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get a specific prayer request
   app.get("/api/prayer-requests/:id", allowGuest, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const prayer = await storage.getPrayerRequest(id);
       
       if (!prayer) {
@@ -2335,7 +2335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get prayer requests for a user
   app.get("/api/users/:userId/prayer-requests", isAuthenticated, async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = req.params.userId;
       
       // Only allow users to see their own prayer requests or admins
       if (req.session.userId! !== userId && !req.session.isAdmin) {
@@ -2353,7 +2353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get prayer requests for a group
   app.get("/api/groups/:groupId/prayer-requests", isAuthenticated, async (req, res) => {
     try {
-      const groupId = parseInt(req.params.groupId);
+      const groupId = req.params.groupId;
       
       // Check if user is a member of the group
       const isGroupMember = await storage.isGroupMember(groupId, req.session.userId!);
@@ -2401,7 +2401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update a prayer request
   app.patch("/api/prayer-requests/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const prayer = await storage.getPrayerRequest(id);
       
       if (!prayer) {
@@ -2424,7 +2424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mark a prayer request as answered
   app.post("/api/prayer-requests/:id/answer", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const { description } = req.body;
       
       const prayer = await storage.getPrayerRequest(id);
@@ -2449,7 +2449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete a prayer request
   app.delete("/api/prayer-requests/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const prayer = await storage.getPrayerRequest(id);
       
       if (!prayer) {
@@ -2477,7 +2477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pray for a prayer request
   app.post("/api/prayer-requests/:id/pray", isAuthenticated, async (req, res) => {
     try {
-      const prayerRequestId = parseInt(req.params.id);
+      const prayerRequestId = req.params.id;
       const userId = req.session.userId!;
       
       const prayer = await storage.createPrayer({
@@ -2495,7 +2495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all prayers for a prayer request
   app.get("/api/prayer-requests/:id/prayers", allowGuest, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const prayers = await storage.getPrayersForRequest(id);
       res.json(prayers);
     } catch (error) {
@@ -2507,7 +2507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all prayer requests a user has prayed for
   app.get("/api/users/:userId/prayed", isAuthenticated, async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = req.params.userId;
       
       // Users can only see their own prayed requests
       if (req.session.userId! !== userId) {
@@ -2573,7 +2573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/bible/reading-plans/group/:groupId", isAuthenticated, async (req, res) => {
     try {
-      const groupId = parseInt(req.params.groupId);
+      const groupId = req.params.groupId;
       const plans = await storage.getGroupBibleReadingPlans(groupId);
       res.json(plans);
     } catch (error) {
@@ -2629,8 +2629,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.patch("/api/bible/reading-progress/:progressId/complete-day/:day", isAuthenticated, async (req, res) => {
     try {
-      const progressId = parseInt(req.params.progressId);
-      const day = parseInt(req.params.day);
+      const progressId = req.params.progressId;
+      const day = req.params.day;
       const progress = await storage.markDayCompleted(progressId, day);
       res.json(progress);
     } catch (error) {
@@ -2666,7 +2666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/bible/study-notes/group/:groupId", isAuthenticated, async (req, res) => {
     try {
-      const groupId = parseInt(req.params.groupId);
+      const groupId = req.params.groupId;
       const filter = { groupId };
       const notes = await storage.getBibleStudyNotes(filter);
       res.json(notes);
@@ -2723,7 +2723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.patch("/api/bible/memorization/:id/mark-mastered", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const verse = await storage.markVerseMastered(id);
       res.json(verse);
     } catch (error) {
@@ -2734,7 +2734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.patch("/api/bible/memorization/:id/add-review", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const verse = await storage.addVerseReviewDate(id);
       res.json(verse);
     } catch (error) {
@@ -2751,7 +2751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Latitude and longitude are required" });
       }
       
-      const radiusInKm = radius ? parseInt(radius as string) : 10; // Default to 10km
+      const radiusInKm = radius ? radius as string : 10; // Default to 10km
       const events = await storage.getEventsNearby(
         latitude as string,
         longitude as string,
@@ -2767,7 +2767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/events/:id", allowGuest, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const event = await storage.getEvent(id);
       
       if (!event) {
@@ -2788,7 +2788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/communities/:communityId/events", allowGuest, async (req, res) => {
     try {
-      const communityId = parseInt(req.params.communityId);
+      const communityId = req.params.communityId;
       const events = await storage.getEventsByCommunity(communityId);
       res.json(events);
     } catch (error) {
@@ -2799,7 +2799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/groups/:groupId/events", isAuthenticated, async (req, res) => {
     try {
-      const groupId = parseInt(req.params.groupId);
+      const groupId = req.params.groupId;
       
       // Check if user is a member of the group
       const isMember = await storage.isGroupMember(req.session.id, groupId);
@@ -2855,7 +2855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/events/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const event = await storage.getEvent(id);
       
       if (!event) {
@@ -2877,7 +2877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/events/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const event = await storage.getEvent(id);
       
       if (!event) {
@@ -2900,7 +2900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Event RSVP routes
   app.get("/api/events/:eventId/rsvps", allowGuest, async (req, res) => {
     try {
-      const eventId = parseInt(req.params.eventId);
+      const eventId = req.params.eventId;
       const rsvps = await storage.getEventRsvps(eventId);
       res.json(rsvps);
     } catch (error) {
@@ -2911,7 +2911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
     try {
-      const eventId = parseInt(req.params.eventId);
+      const eventId = req.params.eventId;
       const rsvp = await storage.getUserEventRsvp(eventId, req.session.id);
       
       if (!rsvp) {
@@ -2927,7 +2927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
     try {
-      const eventId = parseInt(req.params.eventId);
+      const eventId = req.params.eventId;
       const event = await storage.getEvent(eventId);
       
       if (!event) {
@@ -2973,7 +2973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
     try {
-      const eventId = parseInt(req.params.eventId);
+      const eventId = req.params.eventId;
       const rsvp = await storage.getUserEventRsvp(eventId, req.session.id);
       
       if (!rsvp) {
@@ -3006,7 +3006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.isAuthenticated() && req.query.mine === "true") {
         plans = await storage.getUserBibleReadingPlans(req.session.id);
       } else if (req.query.groupId) {
-        const groupId = parseInt(req.query.groupId as string);
+        const groupId = req.query.groupId as string;
         plans = await storage.getGroupBibleReadingPlans(groupId);
       } else {
         plans = await storage.getAllBibleReadingPlans(filter);
@@ -3021,7 +3021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/bible-reading-plans/:id", allowGuest, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const plan = await storage.getBibleReadingPlan(id);
       
       if (!plan) {
@@ -3075,7 +3075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/bible-reading-plans/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const plan = await storage.getBibleReadingPlan(id);
       
       if (!plan) {
@@ -3103,7 +3103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/bible-reading-plans/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const plan = await storage.getBibleReadingPlan(id);
       
       if (!plan) {
@@ -3136,7 +3136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/bible-reading-plans/:planId/progress", isAuthenticated, async (req, res) => {
     try {
-      const planId = parseInt(req.params.planId);
+      const planId = req.params.planId;
       const progress = await storage.getBibleReadingProgress(req.session.id, planId);
       
       if (!progress) {
@@ -3152,7 +3152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/bible-reading-plans/:planId/progress", isAuthenticated, async (req, res) => {
     try {
-      const planId = parseInt(req.params.planId);
+      const planId = req.params.planId;
       const plan = await storage.getBibleReadingPlan(planId);
       
       if (!plan) {
@@ -3195,7 +3195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/bible-reading-progress/:progressId/complete-day", isAuthenticated, async (req, res) => {
     try {
-      const progressId = parseInt(req.params.progressId);
+      const progressId = req.params.progressId;
       const { day } = req.body;
       
       if (!day || typeof day !== 'number' || day < 1) {
@@ -3224,7 +3224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (req.query.groupId) {
-        filter.groupId = parseInt(req.query.groupId as string);
+        filter.groupId = req.query.groupId as string;
       }
       
       if (req.query.public === "true") {
@@ -3241,7 +3241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/bible-study-notes/:id", allowGuest, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const note = await storage.getBibleStudyNote(id);
       
       if (!note) {
@@ -3295,7 +3295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/bible-study-notes/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const note = await storage.getBibleStudyNote(id);
       
       if (!note) {
@@ -3323,7 +3323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/bible-study-notes/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const note = await storage.getBibleStudyNote(id);
       
       if (!note) {
@@ -3356,7 +3356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/verse-memorization/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const verse = await storage.getVerseMemorization(id);
       
       if (!verse) {
@@ -3395,7 +3395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/verse-memorization/:id/mastered", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const verse = await storage.getVerseMemorization(id);
       
       if (!verse) {
@@ -3417,7 +3417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/verse-memorization/:id/review", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const verse = await storage.getVerseMemorization(id);
       
       if (!verse) {
@@ -3439,7 +3439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/verse-memorization/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const verse = await storage.getVerseMemorization(id);
       
       if (!verse) {
@@ -3467,7 +3467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/recommendations", allowGuest, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const limit = req.query.limit ? req.query.limit as string : 10;
       
       if (userId) {
         // Get personalized recommendations for logged-in users
@@ -3515,7 +3515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user by ID - public endpoint for author information
   app.get("/api/users/:id", async (req, res) => {
     try {
-      const userId = parseInt(req.params.id);
+      const userId = req.params.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -3595,7 +3595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mark a recommendation as viewed
   app.patch("/api/recommendations/:id/viewed", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const success = await storage.markRecommendationAsViewed(id);
       
       if (!success) {
