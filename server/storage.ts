@@ -2360,7 +2360,7 @@ export class DatabaseStorage implements IStorage {
   async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
-      .where(eq(prayerRequests.privacyLevel, 'public'));
+      .where(eq(prayerRequests.privacyLevel, 'public'))
       .orderBy(desc(prayerRequests.createdAt));
   }
 
@@ -2373,7 +2373,7 @@ export class DatabaseStorage implements IStorage {
   async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
     const result = await db.select()
       .from(prayerRequests)
-      .where(eq(prayerRequests.id, id));
+      .where(eq(prayerRequests.id, id))
       .limit(1);
     return result[0];
   }
@@ -2381,14 +2381,14 @@ export class DatabaseStorage implements IStorage {
   async getUserPrayerRequests(userId: string): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
-      .where(eq(prayerRequests.authorId, userId));
+      .where(eq(prayerRequests.authorId, userId))
       .orderBy(desc(prayerRequests.createdAt));
   }
 
   async getGroupPrayerRequests(groupId: string): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
-      .where(eq(prayerRequests.groupId, groupId));
+      .where(eq(prayerRequests.groupId, groupId))
       .orderBy(desc(prayerRequests.createdAt));
   }
 
@@ -2400,7 +2400,7 @@ export class DatabaseStorage implements IStorage {
   async updatePrayerRequest(id: string, data: Partial<PrayerRequest>): Promise<PrayerRequest> {
     const result = await db.update(prayerRequests)
       .set(data)
-      .where(eq(prayerRequests.id, id));
+      .where(eq(prayerRequests.id, id))
       .returning();
     return result[0];
   }
@@ -2408,7 +2408,7 @@ export class DatabaseStorage implements IStorage {
   async markPrayerRequestAsAnswered(id: number): Promise<PrayerRequest> {
     const result = await db.update(prayerRequests)
       .set({ isAnswered: true })
-      .where(eq(prayerRequests.id, id));
+      .where(eq(prayerRequests.id, id))
       .returning();
     return result[0];
   }
@@ -4046,7 +4046,7 @@ export class DatabaseStorage implements IStorage {
           reviewedBy: reviewerId,
           reviewedAt: new Date()
         })
-        .where(eq(livestreamerApplications.id, id));
+        .where(eq(livestreamerApplications.id, id))
         .returning();
       
       return result[0];
@@ -4095,7 +4095,7 @@ export class DatabaseStorage implements IStorage {
       const pendingApplications = await db
         .select()
         .from(apologistScholarApplications)
-        .where(eq(apologistScholarApplications.status, "pending"));
+        .where(eq(apologistScholarApplications.status, "pending"))
         .orderBy(apologistScholarApplications.submittedAt);
       
       return pendingApplications;
@@ -4134,7 +4134,7 @@ export class DatabaseStorage implements IStorage {
           reviewedBy: reviewerId,
           reviewedAt: new Date()
         })
-        .where(eq(apologistScholarApplications.id, id));
+        .where(eq(apologistScholarApplications.id, id))
         .returning();
       
       return result[0];
