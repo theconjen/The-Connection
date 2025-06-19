@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import WebSocket from 'ws';
+import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
 import { getRecommendationsForUser } from "./recommendation-engine";
@@ -79,6 +80,11 @@ import {
 } from "@shared/schema";
 import { ZodError } from "zod";
 
+// Utility functions
+const comparePasswords = async (plaintext: string, hash: string): Promise<boolean> => {
+  return await bcrypt.compare(plaintext, hash);
+};
+
 // Type guard for authenticated requests
 // Using isAuthenticated from auth.ts instead of defining it here again
 
@@ -135,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUserByUsername(username);
       
       // Check if user exists and is an admin
-      if (!user || !user.isAdmin || !(await comparePasswords(password, user.password))) {
+      if (!user || !user.isAdmin || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ message: "Invalid admin credentials" });
       }
       

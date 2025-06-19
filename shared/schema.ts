@@ -50,6 +50,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdmin: true,
 });
 
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
 // Communities table schema
 export const communities = pgTable("communities", {
   id: serial("id").primaryKey(),
@@ -98,6 +101,17 @@ export const communityMembers = pgTable("community_members", {
 });
 
 export const insertCommunityMemberSchema = createInsertSchema(communityMembers).pick({
+  communityId: true,
+  userId: true,
+  role: true,
+});
+
+export type Community = typeof communities.$inferSelect;
+export type InsertCommunity = z.infer<typeof insertCommunitySchema>;
+export type CommunityMember = typeof communityMembers.$inferSelect;
+export type InsertCommunityMember = z.infer<typeof insertCommunityMemberSchema>;
+
+export const insertCommunityMemberSchema2 = createInsertSchema(communityMembers).pick({
   communityId: true,
   userId: true,
   role: true,

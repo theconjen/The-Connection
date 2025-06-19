@@ -60,7 +60,8 @@ import {
   ServiceTestimonial, InsertServiceTestimonial,
   
   // Database tables
-  users, communities, posts, comments, groups, groupMembers, apologeticsResources, 
+  users, communities, communityMembers, communityChatRooms, chatMessages, communityWallPosts,
+  posts, comments, groups, groupMembers, apologeticsResources, 
   livestreams, microblogs, microblogLikes,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
   events, eventRsvps, prayerRequests, prayers,
