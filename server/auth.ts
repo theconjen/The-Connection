@@ -137,9 +137,9 @@ export function setupAuth(app: Express) {
         }
         
         // Save user ID in session
-        req.session.userId = user.id;
+        req.session.userId = user.id.toString();
         req.session.username = user.username;
-        req.session.isAdmin = user.isAdmin;
+        req.session.isAdmin = user.isAdmin || false;
         
         // Create session and return user data
         req.session.save((err) => {

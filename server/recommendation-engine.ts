@@ -64,7 +64,7 @@ const WEIGHTS = {
  * @param limit Maximum number of recommendations to return (default 10)
  * @returns Array of content items sorted by recommendation score
  */
-export async function getRecommendationsForUser(userId: number, limit = 10): Promise<ContentItem[]> {
+export async function getRecommendationsForUser(userId: string, limit = 10): Promise<ContentItem[]> {
   try {
     // Get user's preferences
     const userPreferences = await storage.getUserPreferences(userId);

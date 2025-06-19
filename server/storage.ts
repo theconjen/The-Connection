@@ -91,10 +91,10 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   updateUser(id: string, userData: Partial<User>): Promise<User>;
-  updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences>;
+  updateUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<UserPreferences>;
   createUser(user: InsertUser): Promise<User>;
-  updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined>;
-  setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User>;
+  updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined>;
+  setVerifiedApologeticsAnswerer(userId: string, isVerified: boolean): Promise<User>;
   getVerifiedApologeticsAnswerers(): Promise<User[]>;
   
   // Community methods
@@ -107,13 +107,13 @@ export interface IStorage {
   
   // Community Members & Roles
   getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]>;
-  getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined>;
+  getCommunityMember(communityId: number, userId: string): Promise<CommunityMember | undefined>;
   addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember>;
   updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember>;
-  removeCommunityMember(communityId: number, userId: number): Promise<boolean>;
-  isCommunityMember(communityId: number, userId: number): Promise<boolean>;
-  isCommunityOwner(communityId: number, userId: number): Promise<boolean>;
-  isCommunityModerator(communityId: number, userId: number): Promise<boolean>;
+  removeCommunityMember(communityId: number, userId: string): Promise<boolean>;
+  isCommunityMember(communityId: number, userId: string): Promise<boolean>;
+  isCommunityOwner(communityId: number, userId: string): Promise<boolean>;
+  isCommunityModerator(communityId: number, userId: string): Promise<boolean>;
   
   // Community Chat Rooms
   getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]>;
@@ -152,14 +152,14 @@ export interface IStorage {
   
   // Group methods
   getGroup(id: number): Promise<Group | undefined>;
-  getGroupsByUserId(userId: number): Promise<Group[]>;
+  getGroupsByUserId(userId: string): Promise<Group[]>;
   createGroup(group: InsertGroup): Promise<Group>;
   
   // Group member methods
   addGroupMember(member: InsertGroupMember): Promise<GroupMember>;
   getGroupMembers(groupId: number): Promise<GroupMember[]>;
-  isGroupAdmin(groupId: number, userId: number): Promise<boolean>;
-  isGroupMember(groupId: number, userId: number): Promise<boolean>;
+  isGroupAdmin(groupId: number, userId: string): Promise<boolean>;
+  isGroupMember(groupId: number, userId: string): Promise<boolean>;
   
   // Apologetics resource methods
   getAllApologeticsResources(): Promise<ApologeticsResource[]>;
@@ -169,7 +169,7 @@ export interface IStorage {
   getPublicPrayerRequests(): Promise<PrayerRequest[]>;
   getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]>;
   getPrayerRequest(id: number): Promise<PrayerRequest | undefined>;
-  getUserPrayerRequests(userId: number): Promise<PrayerRequest[]>;
+  getUserPrayerRequests(userId: string): Promise<PrayerRequest[]>;
   getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]>;
   createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest>;
   updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest>;
@@ -179,7 +179,7 @@ export interface IStorage {
   // Prayer methods
   createPrayer(prayer: InsertPrayer): Promise<Prayer>;
   getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]>;
-  getUserPrayedRequests(userId: number): Promise<number[]>;
+  getUserPrayedRequests(userId: string): Promise<number[]>;
   createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
   
   // Apologetics Q&A methods
@@ -202,15 +202,15 @@ export interface IStorage {
   // Microblog (Twitter-like posts) methods
   getAllMicroblogs(filterType?: string): Promise<Microblog[]>;
   getMicroblog(id: number): Promise<Microblog | undefined>;
-  getMicroblogsByUserId(userId: number): Promise<Microblog[]>;
+  getMicroblogsByUserId(userId: string): Promise<Microblog[]>;
   getMicroblogsByAuthors(userIds: number[]): Promise<Microblog[]>;
   getMicroblogsByCommunityId(communityId: number): Promise<Microblog[]>;
   getMicroblogsByGroupId(groupId: number): Promise<Microblog[]>;
   getMicroblogReplies(microblogId: number): Promise<Microblog[]>;
   createMicroblog(microblog: InsertMicroblog): Promise<Microblog>;
-  likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike>;
-  unlikeMicroblog(microblogId: number, userId: number): Promise<boolean>;
-  getUserLikedMicroblogs(userId: number): Promise<number[]>; // returns IDs of microblogs user has liked
+  likeMicroblog(microblogId: number, userId: string): Promise<MicroblogLike>;
+  unlikeMicroblog(microblogId: number, userId: string): Promise<boolean>;
+  getUserLikedMicroblogs(userId: string): Promise<number[]>; // returns IDs of microblogs user has liked
   
   // Livestream methods
   getLivestreams(status?: string): Promise<Livestream[]>;
@@ -219,18 +219,18 @@ export interface IStorage {
   updateLivestreamStatus(id: number, status: string): Promise<Livestream>;
   
   // Livestreamer application methods
-  getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined>;
+  getLivestreamerApplicationByUserId(userId: string): Promise<LivestreamerApplication | undefined>;
   getPendingLivestreamerApplications(): Promise<LivestreamerApplication[]>;
   createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication>;
   updateLivestreamerApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<LivestreamerApplication>;
-  isApprovedLivestreamer(userId: number): Promise<boolean>;
+  isApprovedLivestreamer(userId: string): Promise<boolean>;
   
   // Apologist Scholar application methods
-  getApologistScholarApplicationByUserId(userId: number): Promise<ApologistScholarApplication | undefined>;
+  getApologistScholarApplicationByUserId(userId: string): Promise<ApologistScholarApplication | undefined>;
   getPendingApologistScholarApplications(): Promise<ApologistScholarApplication[]>;
   createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication>;
   updateApologistScholarApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<ApologistScholarApplication>;
-  isApprovedApologistScholar(userId: number): Promise<boolean>;
+  isApprovedApologistScholar(userId: string): Promise<boolean>;
   
   // Creator tier methods
   getAllCreatorTiers(): Promise<CreatorTier[]>;
@@ -250,14 +250,14 @@ export interface IStorage {
   getEvent(id: number): Promise<Event | undefined>;
   getEventsByCommunity(communityId: number): Promise<Event[]>;
   getEventsByGroup(groupId: number): Promise<Event[]>;
-  getEventsByUser(userId: number): Promise<Event[]>;
+  getEventsByUser(userId: string): Promise<Event[]>;
   createEvent(event: InsertEvent): Promise<Event>;
   updateEvent(id: number, eventData: Partial<Event>): Promise<Event>;
   deleteEvent(id: number): Promise<boolean>;
   
   // Event RSVP methods
   getEventRsvps(eventId: number): Promise<EventRsvp[]>;
-  getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined>;
+  getUserEventRsvp(eventId: number, userId: string): Promise<EventRsvp | undefined>;
   createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp>;
   updateEventRsvp(id: number, status: string): Promise<EventRsvp>;
   
@@ -266,7 +266,7 @@ export interface IStorage {
   // ========================
   getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]>;
   getPrayerRequest(id: number): Promise<PrayerRequest | undefined>;
-  getUserPrayerRequests(userId: number): Promise<PrayerRequest[]>;
+  getUserPrayerRequests(userId: string): Promise<PrayerRequest[]>;
   getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]>;
   getPublicPrayerRequests(): Promise<PrayerRequest[]>;
   createPrayerRequest(request: InsertPrayerRequest): Promise<PrayerRequest>;
@@ -277,14 +277,14 @@ export interface IStorage {
   // Prayer methods (praying for requests)
   getPrayersForRequest(requestId: number): Promise<Prayer[]>;
   createPrayer(prayer: InsertPrayer): Promise<Prayer>;
-  getUserPrayedRequests(userId: number): Promise<number[]>; // returns prayer request IDs
+  getUserPrayedRequests(userId: string): Promise<number[]>; // returns prayer request IDs
   
   // ========================
   // MENTORSHIP PROGRAM
   // ========================
   getAllMentorProfiles(): Promise<MentorProfile[]>;
   getMentorProfile(id: number): Promise<MentorProfile | undefined>;
-  getMentorProfileByUserId(userId: number): Promise<MentorProfile | undefined>;
+  getMentorProfileByUserId(userId: string): Promise<MentorProfile | undefined>;
   createMentorProfile(profile: InsertMentorProfile): Promise<MentorProfile>;
   updateMentorProfile(id: number, data: Partial<MentorProfile>): Promise<MentorProfile>;
   
@@ -307,14 +307,14 @@ export interface IStorage {
   getAllBibleReadingPlans(filter?: string): Promise<BibleReadingPlan[]>;
   getBibleReadingPlan(id: number): Promise<BibleReadingPlan | undefined>;
   getGroupBibleReadingPlans(groupId: number): Promise<BibleReadingPlan[]>;
-  getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]>;
+  getUserBibleReadingPlans(userId: string): Promise<BibleReadingPlan[]>;
   createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan>;
   updateBibleReadingPlan(id: number, data: Partial<BibleReadingPlan>): Promise<BibleReadingPlan>;
   deleteBibleReadingPlan(id: number): Promise<boolean>;
   
   // Bible reading progress
-  getBibleReadingProgress(userId: number, planId: number): Promise<BibleReadingProgress | undefined>;
-  getUserReadingProgress(userId: number): Promise<BibleReadingProgress[]>;
+  getBibleReadingProgress(userId: string, planId: number): Promise<BibleReadingProgress | undefined>;
+  getUserReadingProgress(userId: string): Promise<BibleReadingProgress[]>;
   createBibleReadingProgress(progress: InsertBibleReadingProgress): Promise<BibleReadingProgress>;
   updateBibleReadingProgress(id: number, data: Partial<BibleReadingProgress>): Promise<BibleReadingProgress>;
   markDayCompleted(progressId: number, day: number): Promise<BibleReadingProgress>;
@@ -327,7 +327,7 @@ export interface IStorage {
   deleteBibleStudyNote(id: number): Promise<boolean>;
   
   // Verse memorization
-  getUserVerseMemorization(userId: number): Promise<VerseMemorization[]>;
+  getUserVerseMemorization(userId: string): Promise<VerseMemorization[]>;
   getVerseMemorization(id: number): Promise<VerseMemorization | undefined>;
   createVerseMemorization(verseMemorization: InsertVerseMemorization): Promise<VerseMemorization>;
   updateVerseMemorization(id: number, data: Partial<VerseMemorization>): Promise<VerseMemorization>;
@@ -349,7 +349,7 @@ export interface IStorage {
   
   // Challenge participants
   getChallengeParticipants(challengeId: number): Promise<ChallengeParticipant[]>;
-  getUserChallenges(userId: number): Promise<{ challenge: Challenge, participant: ChallengeParticipant }[]>;
+  getUserChallenges(userId: string): Promise<{ challenge: Challenge, participant: ChallengeParticipant }[]>;
   joinChallenge(participant: InsertChallengeParticipant): Promise<ChallengeParticipant>;
   updateChallengeProgress(participantId: number, progress: Record<string, any>): Promise<ChallengeParticipant>;
   completeChallenge(participantId: number): Promise<ChallengeParticipant>;
@@ -357,7 +357,7 @@ export interface IStorage {
   
   // Challenge testimonials
   getChallengeTestimonials(challengeId: number): Promise<ChallengeTestimonial[]>;
-  getUserChallengeTestimonial(challengeId: number, userId: number): Promise<ChallengeTestimonial | undefined>;
+  getUserChallengeTestimonial(challengeId: number, userId: string): Promise<ChallengeTestimonial | undefined>;
   createChallengeTestimonial(testimonial: InsertChallengeTestimonial): Promise<ChallengeTestimonial>;
   updateChallengeTestimonial(id: number, content: string): Promise<ChallengeTestimonial>;
   deleteChallengeTestimonial(id: number): Promise<boolean>;
@@ -375,14 +375,14 @@ export interface IStorage {
   
   // Resource ratings
   getResourceRatings(resourceId: number): Promise<ResourceRating[]>;
-  getUserResourceRating(resourceId: number, userId: number): Promise<ResourceRating | undefined>;
+  getUserResourceRating(resourceId: number, userId: string): Promise<ResourceRating | undefined>;
   createResourceRating(rating: InsertResourceRating): Promise<ResourceRating>;
   updateResourceRating(id: number, data: Partial<ResourceRating>): Promise<ResourceRating>;
   deleteResourceRating(id: number): Promise<boolean>;
   
   // Resource collections
   getAllResourceCollections(isPublic?: boolean): Promise<ResourceCollection[]>;
-  getUserResourceCollections(userId: number): Promise<ResourceCollection[]>;
+  getUserResourceCollections(userId: string): Promise<ResourceCollection[]>;
   getResourceCollection(id: number): Promise<ResourceCollection | undefined>;
   createResourceCollection(collection: InsertResourceCollection): Promise<ResourceCollection>;
   updateResourceCollection(id: number, data: Partial<ResourceCollection>): Promise<ResourceCollection>;
@@ -407,14 +407,14 @@ export interface IStorage {
   
   // Service volunteers
   getServiceVolunteers(projectId: number): Promise<ServiceVolunteer[]>;
-  getUserServiceProjects(userId: number): Promise<{ project: ServiceProject, volunteer: ServiceVolunteer }[]>;
+  getUserServiceProjects(userId: string): Promise<{ project: ServiceProject, volunteer: ServiceVolunteer }[]>;
   signUpForProject(volunteer: InsertServiceVolunteer): Promise<ServiceVolunteer>;
   updateVolunteerStatus(id: number, status: string, hoursServed?: number): Promise<ServiceVolunteer>;
   removeVolunteerFromProject(id: number): Promise<boolean>;
   
   // Service testimonials
   getServiceTestimonials(projectId: number): Promise<ServiceTestimonial[]>;
-  getUserServiceTestimonial(projectId: number, userId: number): Promise<ServiceTestimonial | undefined>;
+  getUserServiceTestimonial(projectId: number, userId: string): Promise<ServiceTestimonial | undefined>;
   createServiceTestimonial(testimonial: InsertServiceTestimonial): Promise<ServiceTestimonial>;
   updateServiceTestimonial(id: number, data: Partial<ServiceTestimonial>): Promise<ServiceTestimonial>;
   deleteServiceTestimonial(id: number): Promise<boolean>;
@@ -426,14 +426,14 @@ export interface IStorage {
   getEvent(id: number): Promise<Event | undefined>;
   getEventsByCommunity(communityId: number): Promise<Event[]>;
   getEventsByGroup(groupId: number): Promise<Event[]>;
-  getEventsByUser(userId: number): Promise<Event[]>;
+  getEventsByUser(userId: string): Promise<Event[]>;
   createEvent(event: InsertEvent): Promise<Event>;
   updateEvent(id: number, eventData: Partial<Event>): Promise<Event>;
   deleteEvent(id: number): Promise<boolean>;
   
   // Event RSVP methods
   getEventRsvps(eventId: number): Promise<EventRsvp[]>;
-  getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined>;
+  getUserEventRsvp(eventId: number, userId: string): Promise<EventRsvp | undefined>;
   createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp>;
   updateEventRsvp(id: number, status: string): Promise<EventRsvp>;
   
@@ -444,9 +444,9 @@ export interface IStorage {
   sessionStore: any; // Using any to avoid typing issues with session store
   
   // Content Recommendation methods
-  getUserPreferences(userId: number): Promise<UserPreferences | undefined>;
-  updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
-  getAllRecommendations(userId: number): Promise<ContentRecommendation[]>;
+  getUserPreferences(userId: string): Promise<UserPreferences | undefined>;
+  updateUserPreferences(userId: string, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+  getAllRecommendations(userId: string): Promise<ContentRecommendation[]>;
   getRecommendation(id: number): Promise<ContentRecommendation | undefined>;
   addContentRecommendation(recommendation: InsertContentRecommendation): Promise<ContentRecommendation>;
   markRecommendationAsViewed(id: number): Promise<boolean>;
@@ -455,7 +455,7 @@ export interface IStorage {
   getTopPosts(limit: number): Promise<Post[]>;
   getTopMicroblogs(limit: number): Promise<Microblog[]>;
   getUpcomingEvents(limit: number): Promise<Event[]>;
-  getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]>;
+  getPrayerRequestsVisibleToUser(userId: string): Promise<PrayerRequest[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -656,7 +656,7 @@ export class MemStorage implements IStorage {
     return updatedUser;
   }
   
-  async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
+  async updateUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
     // Get existing preferences or create new ones
     let userPrefs = Array.from(this.userPreferences.values()).find(p => p.userId === userId);
     
@@ -793,7 +793,7 @@ export class MemStorage implements IStorage {
     }));
   }
   
-  async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
+  async getCommunityMember(communityId: number, userId: string): Promise<CommunityMember | undefined> {
     return Array.from(this.communityMembers.values())
       .find(member => member.communityId === communityId && member.userId === userId);
   }
@@ -831,7 +831,7 @@ export class MemStorage implements IStorage {
     return updatedMember;
   }
   
-  async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
+  async removeCommunityMember(communityId: number, userId: string): Promise<boolean> {
     const member = Array.from(this.communityMembers.values())
       .find(m => m.communityId === communityId && m.userId === userId);
       
@@ -852,17 +852,17 @@ export class MemStorage implements IStorage {
     return false;
   }
   
-  async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
+  async isCommunityMember(communityId: number, userId: string): Promise<boolean> {
     const member = await this.getCommunityMember(communityId, userId);
     return !!member;
   }
   
-  async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
+  async isCommunityOwner(communityId: number, userId: string): Promise<boolean> {
     const member = await this.getCommunityMember(communityId, userId);
     return !!member && member.role === 'owner';
   }
   
-  async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
+  async isCommunityModerator(communityId: number, userId: string): Promise<boolean> {
     const member = await this.getCommunityMember(communityId, userId);
     return !!member && (member.role === 'moderator' || member.role === 'owner');
   }
@@ -1220,7 +1220,7 @@ export class MemStorage implements IStorage {
     return this.groups.get(id);
   }
 
-  async getGroupsByUserId(userId: number): Promise<Group[]> {
+  async getGroupsByUserId(userId: string): Promise<Group[]> {
     // Get all group memberships for this user
     const memberships = Array.from(this.groupMembers.values())
       .filter((member) => member.userId === userId);
@@ -1261,7 +1261,7 @@ export class MemStorage implements IStorage {
       .filter((member) => member.groupId === groupId);
   }
 
-  async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
+  async isGroupAdmin(groupId: number, userId: string): Promise<boolean> {
     const member = Array.from(this.groupMembers.values()).find(
       (m) => m.groupId === groupId && m.userId === userId
     );
@@ -1328,7 +1328,7 @@ export class MemStorage implements IStorage {
       });
   }
 
-  async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
+  async getUserPrayerRequests(userId: string): Promise<PrayerRequest[]> {
     return Array.from(this.prayerRequests.values())
       .filter(prayer => prayer.authorId === userId)
       .sort((a, b) => {
@@ -1432,14 +1432,14 @@ export class MemStorage implements IStorage {
       });
   }
   
-  async getUserPrayedRequests(userId: number): Promise<number[]> {
+  async getUserPrayedRequests(userId: string): Promise<number[]> {
     return Array.from(this.prayers.values())
       .filter(prayer => prayer.userId === userId)
       .map(prayer => prayer.prayerRequestId);
   }
 
   // Helper method to check if a user is member of a group
-  async isGroupMember(userId: number, groupId: number): Promise<boolean> {
+  async isGroupMember(userId: string, groupId: number): Promise<boolean> {
     return Array.from(this.groupMembers.values())
       .some(member => member.userId === userId && member.groupId === groupId);
   }
@@ -1551,7 +1551,7 @@ export class MemStorage implements IStorage {
       });
   }
 
-  async getEventsByUser(userId: number): Promise<Event[]> {
+  async getEventsByUser(userId: string): Promise<Event[]> {
     const events = Array.from(this.events.values());
     return events
       .filter(event => event.creatorId === userId)
@@ -1665,7 +1665,7 @@ export class MemStorage implements IStorage {
     return rsvps.filter(rsvp => rsvp.eventId === eventId);
   }
 
-  async getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined> {
+  async getUserEventRsvp(eventId: number, userId: string): Promise<EventRsvp | undefined> {
     const rsvps = Array.from(this.eventRsvps.values());
     return rsvps.find(rsvp => rsvp.eventId === eventId && rsvp.userId === userId);
   }
@@ -1723,7 +1723,7 @@ export class MemStorage implements IStorage {
     return plans.filter(plan => plan.groupId === groupId);
   }
   
-  async getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]> {
+  async getUserBibleReadingPlans(userId: string): Promise<BibleReadingPlan[]> {
     const plans = Array.from(this.bibleReadingPlans.values());
     return plans.filter(plan => plan.creatorId === userId);
   }
@@ -1775,12 +1775,12 @@ export class MemStorage implements IStorage {
   private bibleReadingProgress = new Map<number, BibleReadingProgress>();
   private bibleReadingProgressIdCounter = 1;
   
-  async getBibleReadingProgress(userId: number, planId: number): Promise<BibleReadingProgress | undefined> {
+  async getBibleReadingProgress(userId: string, planId: number): Promise<BibleReadingProgress | undefined> {
     const allProgress = Array.from(this.bibleReadingProgress.values());
     return allProgress.find(p => p.userId === userId && p.planId === planId);
   }
   
-  async getUserReadingProgress(userId: number): Promise<BibleReadingProgress[]> {
+  async getUserReadingProgress(userId: string): Promise<BibleReadingProgress[]> {
     const allProgress = Array.from(this.bibleReadingProgress.values());
     return allProgress.filter(p => p.userId === userId);
   }
@@ -1934,7 +1934,7 @@ export class MemStorage implements IStorage {
   private verseMemorization = new Map<number, VerseMemorization>();
   private verseMemorizationIdCounter = 1;
   
-  async getUserVerseMemorization(userId: number): Promise<VerseMemorization[]> {
+  async getUserVerseMemorization(userId: string): Promise<VerseMemorization[]> {
     const verses = Array.from(this.verseMemorization.values());
     return verses
       .filter(verse => verse.userId === userId)
@@ -2018,7 +2018,7 @@ export class MemStorage implements IStorage {
 export class DatabaseStorage implements IStorage {
   
   // Check if user is an admin
-  async checkUserIsAdmin(userId: number): Promise<boolean> {
+  async checkUserIsAdmin(userId: string): Promise<boolean> {
     const [user] = await db.select({ isAdmin: users.isAdmin })
       .from(users)
       .where(eq(users.id, userId));
@@ -2055,7 +2055,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
-  async updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined> {
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined> {
     try {
       const now = new Date();
       const result = await db
@@ -2115,7 +2115,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User> {
+  async setVerifiedApologeticsAnswerer(userId: string, isVerified: boolean): Promise<User> {
     const result = await db.update(users)
       .set({ isVerifiedApologeticsAnswerer: isVerified, updatedAt: new Date() })
       .where(eq(users.id, userId))
@@ -2127,7 +2127,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).where(eq(users.isVerifiedApologeticsAnswerer, true));
   }
 
-  async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
+  async updateUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
     // For now, return a placeholder as this table might not exist yet
     return {} as UserPreferences;
   }
@@ -2149,7 +2149,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
+  async getCommunityMember(communityId: number, userId: string): Promise<CommunityMember | undefined> {
     const result = await db.select()
       .from(communityMembers)
       .where(and(eq(communityMembers.communityId, communityId), eq(communityMembers.userId, userId)))
@@ -2170,13 +2170,13 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
+  async removeCommunityMember(communityId: number, userId: string): Promise<boolean> {
     const result = await db.delete(communityMembers)
       .where(and(eq(communityMembers.communityId, communityId), eq(communityMembers.userId, userId)));
     return result.rowCount > 0;
   }
 
-  async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
+  async isCommunityMember(communityId: number, userId: string): Promise<boolean> {
     const result = await db.select({ id: communityMembers.id })
       .from(communityMembers)
       .where(and(eq(communityMembers.communityId, communityId), eq(communityMembers.userId, userId)))
@@ -2184,7 +2184,7 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
+  async isCommunityOwner(communityId: number, userId: string): Promise<boolean> {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
       .where(and(
@@ -2196,7 +2196,7 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
+  async isCommunityModerator(communityId: number, userId: string): Promise<boolean> {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
       .where(and(
@@ -2386,7 +2386,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
+  async getUserPrayerRequests(userId: string): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
       .where(eq(prayerRequests.authorId, userId))
@@ -2439,7 +2439,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(prayers.createdAt));
   }
 
-  async getUserPrayedRequests(userId: number): Promise<PrayerRequest[]> {
+  async getUserPrayedRequests(userId: string): Promise<PrayerRequest[]> {
     const prayedRequestIds = await db.select({ requestId: prayers.prayerRequestId })
       .from(prayers)
       .where(eq(prayers.userId, userId));
@@ -2453,7 +2453,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Group Member Methods
-  async isGroupMember(groupId: number, userId: number): Promise<boolean> {
+  async isGroupMember(groupId: number, userId: string): Promise<boolean> {
     const result = await db.select({ id: groupMembers.id })
       .from(groupMembers)
       .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
@@ -2504,7 +2504,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Bible Study Methods
-  async getBibleStudyNotes(userId: number, passage?: string): Promise<BibleStudyNote[]> {
+  async getBibleStudyNotes(userId: string, passage?: string): Promise<BibleStudyNote[]> {
     let query = db.select().from(bibleStudyNotes).where(eq(bibleStudyNotes.userId, userId));
     
     if (passage) {
@@ -2514,7 +2514,7 @@ export class DatabaseStorage implements IStorage {
     return await query.orderBy(desc(bibleStudyNotes.createdAt));
   }
 
-  async markDayCompleted(userId: number, planId: number, day: number): Promise<void> {
+  async markDayCompleted(userId: string, planId: number, day: number): Promise<void> {
     // Implementation for marking a day as completed in a reading plan
     await db.update(bibleReadingProgress)
       .set({ 
@@ -2525,7 +2525,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Verse Memorization Methods
-  async getUserVerseMemorization(userId: number): Promise<VerseMemorization[]> {
+  async getUserVerseMemorization(userId: string): Promise<VerseMemorization[]> {
     return await db.select()
       .from(verseMemorization)
       .where(eq(verseMemorization.userId, userId))
@@ -2679,7 +2679,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async getGroupsByUserId(userId: number): Promise<Group[]> {
+  async getGroupsByUserId(userId: string): Promise<Group[]> {
     // Get groups where the user is a member
     const memberGroupIds = await db
       .select({ groupId: groupMembers.groupId })
@@ -2713,7 +2713,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(groupMembers.groupId, groupId));
   }
 
-  async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
+  async isGroupAdmin(groupId: number, userId: string): Promise<boolean> {
     const result = await db
       .select()
       .from(groupMembers)
@@ -2877,7 +2877,7 @@ export class DatabaseStorage implements IStorage {
     `).then(result => result.rows);
   }
   
-  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<any> {
+  async setVerifiedApologeticsAnswerer(userId: string, isVerified: boolean): Promise<any> {
     return await pool.query(`
       UPDATE users
       SET is_verified_apologetics_answerer = $1
@@ -2934,7 +2934,7 @@ export class DatabaseStorage implements IStorage {
     return result.rows[0];
   }
   
-  async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
+  async updateUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
     // First check if preferences exist
     const checkResult = await pool.query(`
       SELECT * FROM user_preferences WHERE user_id = $1 LIMIT 1
@@ -3037,7 +3037,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
-  async getMicroblogsByUserId(userId: number): Promise<Microblog[]> {
+  async getMicroblogsByUserId(userId: string): Promise<Microblog[]> {
     return await db
       .select()
       .from(microblogs)
@@ -3101,7 +3101,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
+  async likeMicroblog(microblogId: number, userId: string): Promise<MicroblogLike> {
     // Check if already liked
     const existing = await db
       .select()
@@ -3136,7 +3136,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
-  async unlikeMicroblog(microblogId: number, userId: number): Promise<boolean> {
+  async unlikeMicroblog(microblogId: number, userId: string): Promise<boolean> {
     // Find and delete the like
     const result = await db
       .delete(microblogLikes)
@@ -3162,7 +3162,7 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
   
-  async getUserLikedMicroblogs(userId: number): Promise<number[]> {
+  async getUserLikedMicroblogs(userId: string): Promise<number[]> {
     try {
       const likes = await db
         .select()
@@ -3181,7 +3181,7 @@ export class DatabaseStorage implements IStorage {
   // ========================
   
   // User preferences methods
-  async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
     try {
       const [preferences] = await db
         .select()
@@ -3195,7 +3195,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+  async updateUserPreferences(userId: string, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences> {
     try {
       const existingPrefs = await this.getUserPreferences(userId);
       
@@ -3237,7 +3237,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Recommendation methods
-  async getAllRecommendations(userId: number): Promise<ContentRecommendation[]> {
+  async getAllRecommendations(userId: string): Promise<ContentRecommendation[]> {
     try {
       // Get all recommendations for the user, sorted by viewed status and score
       const recommendations = await db
@@ -3525,7 +3525,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getEventsByUser(userId: number): Promise<Event[]> {
+  async getEventsByUser(userId: string): Promise<Event[]> {
     try {
       const result = await db
         .select()
@@ -3634,7 +3634,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined> {
+  async getUserEventRsvp(eventId: number, userId: string): Promise<EventRsvp | undefined> {
     try {
       const result = await db
         .select()
@@ -3687,7 +3687,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
+  async getPrayerRequestsVisibleToUser(userId: string): Promise<PrayerRequest[]> {
     try {
       // Get public prayer requests
       const publicRequests = await db
@@ -3756,7 +3756,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]> {
+  async getUserBibleReadingPlans(userId: string): Promise<BibleReadingPlan[]> {
     try {
       return await db
         .select()
@@ -3827,7 +3827,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Bible Reading Progress methods
-  async getUserReadingProgress(userId: number): Promise<typeof bibleReadingProgress.$inferSelect[]> {
+  async getUserReadingProgress(userId: string): Promise<typeof bibleReadingProgress.$inferSelect[]> {
     try {
       return await db
         .select()
@@ -3839,7 +3839,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getBibleReadingProgress(userId: number, planId: number): Promise<typeof bibleReadingProgress.$inferSelect | undefined> {
+  async getBibleReadingProgress(userId: string, planId: number): Promise<typeof bibleReadingProgress.$inferSelect | undefined> {
     try {
       const result = await db
         .select()
@@ -3870,7 +3870,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateBibleReadingProgress(
-    userId: number,
+    userId: string,
     planId: number,
     data: { 
       currentDay?: number, 
@@ -3911,7 +3911,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getUserBibleStudyNotes(userId: number): Promise<typeof bibleStudyNotes.$inferSelect[]> {
+  async getUserBibleStudyNotes(userId: string): Promise<typeof bibleStudyNotes.$inferSelect[]> {
     try {
       return await db
         .select()
@@ -3996,7 +3996,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Livestreamer application methods
-  async getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined> {
+  async getLivestreamerApplicationByUserId(userId: string): Promise<LivestreamerApplication | undefined> {
     try {
       const applications = await db
         .select()
@@ -4064,7 +4064,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async isApprovedLivestreamer(userId: number): Promise<boolean> {
+  async isApprovedLivestreamer(userId: string): Promise<boolean> {
     try {
       const applications = await db
         .select()
@@ -4084,7 +4084,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Apologist Scholar application methods
-  async getApologistScholarApplicationByUserId(userId: number): Promise<ApologistScholarApplication | undefined> {
+  async getApologistScholarApplicationByUserId(userId: string): Promise<ApologistScholarApplication | undefined> {
     try {
       const applications = await db
         .select()
@@ -4152,7 +4152,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async isApprovedApologistScholar(userId: number): Promise<boolean> {
+  async isApprovedApologistScholar(userId: string): Promise<boolean> {
     try {
       const applications = await db
         .select()
