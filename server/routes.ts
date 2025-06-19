@@ -3597,5 +3597,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add specific 404 handlers for common API paths
+  app.all('/api/users/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "User endpoint not found", path: req.path });
+  });
+
+  app.all('/api/communities/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Community endpoint not found", path: req.path });
+  });
+
+  app.all('/api/posts/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Post endpoint not found", path: req.path });
+  });
+
+  app.all('/api/microblogs/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Microblog endpoint not found", path: req.path });
+  });
+
+  app.all('/api/events/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Event endpoint not found", path: req.path });
+  });
+
+  app.all('/api/prayer-requests/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Prayer request endpoint not found", path: req.path });
+  });
+
+  app.all('/api/apologetics/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Apologetics endpoint not found", path: req.path });
+  });
+
+  app.all('/api/bible-reading/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Bible reading endpoint not found", path: req.path });
+  });
+
+  // Generic catch-all for any other API routes
+  app.all('/api/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "API endpoint not found", path: req.path });
+  });
+
   return httpServer;
 }
