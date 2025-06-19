@@ -29,7 +29,7 @@ export async function seedApologetics() {
     // Mark the demo user as a verified apologetics answerer
     await db.update(users)
       .set({ isVerifiedApologeticsAnswerer: true })
-      .where(eq(eq(users.id, demoUser.id), parseInt(id)));
+      .where(eq(users.id, demoUser.id), parseInt(id)));
     console.log("Marked demo user as verified apologetics answerer");
 
     // Create apologetics topics
@@ -184,7 +184,7 @@ export async function seedApologetics() {
       if (question) {
         await db.update(apologeticsQuestions)
           .set({ answerCount: 1, status: "answered" })
-          .where(eq(eq(apologeticsQuestions.id, question.id), parseInt(id)));
+          .where(eq(apologeticsQuestions.id, question.id), parseInt(id)));
       }
     }
     
