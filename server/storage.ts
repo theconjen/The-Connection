@@ -2020,7 +2020,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserById(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, parseInt(id));
+    const result = await db.select().from(users).where(eq(users.id, parseInt(id)));
     return result[0];
   }
 
@@ -2056,7 +2056,7 @@ export class DatabaseStorage implements IStorage {
           password: hashedPassword,
           updatedAt: now
         })
-        .where(eq(users.id, parseInt(userId));
+        .where(eq(users.id, parseInt(userId)))
         .returning();
       
       return result[0];
@@ -2072,7 +2072,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCommunity(id: string): Promise<Community | undefined> {
-    const result = await db.select().from(communities).where(eq(communities.id, parseInt(id));
+    const result = await db.select().from(communities).where(eq(communities.id, parseInt(id)));
     return result[0];
   }
 
@@ -2089,20 +2089,20 @@ export class DatabaseStorage implements IStorage {
   async updateCommunity(id: string, community: Partial<Community>): Promise<Community> {
     const result = await db.update(communities)
       .set({ ...community, updatedAt: new Date() })
-      .where(eq(communities.id, parseInt(id));
+      .where(eq(communities.id, parseInt(id)))
       .returning();
     return result[0];
   }
 
   async deleteCommunity(id: number): Promise<boolean> {
-    const result = await db.delete(communities).where(eq(communities.id, parseInt(id));
+    const result = await db.delete(communities).where(eq(communities.id, parseInt(id)));
     return result.rowCount > 0;
   }
 
   async updateUser(id: string, userData: Partial<User>): Promise<User> {
     const result = await db.update(users)
       .set({ ...userData, updatedAt: new Date() })
-      .where(eq(users.id, parseInt(id));
+      .where(eq(users.id, parseInt(id)))
       .returning();
     return result[0];
   }
@@ -2110,7 +2110,7 @@ export class DatabaseStorage implements IStorage {
   async setVerifiedApologeticsAnswerer(userId: string, isVerified: boolean): Promise<User> {
     const result = await db.update(users)
       .set({ isVerifiedApologeticsAnswerer: isVerified, updatedAt: new Date() })
-      .where(eq(users.id, parseInt(userId));
+      .where(eq(users.id, parseInt(userId)))
       .returning();
     return result[0];
   }
