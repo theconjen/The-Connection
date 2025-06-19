@@ -560,7 +560,7 @@ export type InsertLivestreamGift = z.infer<typeof insertLivestreamGiftSchema>;
 export type LivestreamGift = typeof livestreamGifts.$inferSelect;
 
 // Microblog posts (Twitter-like) schema
-export const microblogs = pgTable("microblogs", {
+export const microblogs: any = pgTable("microblogs", {
   id: serial("id").primaryKey(),
   content: text("content").notNull(),
   imageUrl: text("image_url"), // Optional image attachment

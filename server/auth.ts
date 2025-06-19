@@ -84,9 +84,9 @@ export function setupAuth(app: Express) {
       }
 
       // Log the user in
-      req.session.userId = user.id;
+      req.session.userId = user.id.toString();
       req.session.username = user.username;
-      req.session.isAdmin = user.isAdmin;
+      req.session.isAdmin = user.isAdmin || false;
       
       // Save session and return user data
       req.session.save((err) => {
@@ -175,7 +175,7 @@ export function setupAuth(app: Express) {
       }
       
       // Set session data
-      req.session.userId = admin.id;
+      req.session.userId = admin.id.toString();
       req.session.username = admin.username;
       req.session.isAdmin = true;
       

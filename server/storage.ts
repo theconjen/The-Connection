@@ -609,11 +609,11 @@ export class MemStorage implements IStorage {
 
   // User methods
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    return this.users.get(parseInt(id.toString()));
   }
 
-  async getUserById(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+  async getUserById(id: string): Promise<User | undefined> {
+    return this.users.get(parseInt(id.toString()));
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -641,7 +641,7 @@ export class MemStorage implements IStorage {
   }
   
   async updateUser(id: string, userData: Partial<User>): Promise<User> {
-    const user = this.users.get(id);
+    const user = this.users.get(parseInt(id.toString()));
     if (!user) {
       throw new Error(`User with ID ${id} not found`);
     }
@@ -690,8 +690,8 @@ export class MemStorage implements IStorage {
     return Array.from(this.communities.values());
   }
 
-  async getCommunity(id: number): Promise<Community | undefined> {
-    return this.communities.get(id);
+  async getCommunity(id: string): Promise<Community | undefined> {
+    return this.communities.get(parseInt(id.toString()));
   }
 
   async getCommunityBySlug(slug: string): Promise<Community | undefined> {
@@ -2019,7 +2019,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async getUserById(id: number): Promise<User | undefined> {
+  async getUserById(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
   }
@@ -2071,7 +2071,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(communities);
   }
 
-  async getCommunity(id: number): Promise<Community | undefined> {
+  async getCommunity(id: string): Promise<Community | undefined> {
     const result = await db.select().from(communities).where(eq(communities.id, id)).limit(1);
     return result[0];
   }
