@@ -44,7 +44,7 @@ export function useAuth() {
           } else {
             // If server validation fails, check if the key matches admin email
             // This is our local fallback for when the server is down
-            const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
+            const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@example.com';
             if (adminKey === adminEmail) {
               setAdminUser({
                 id: 1,
@@ -60,7 +60,7 @@ export function useAuth() {
         } catch (error) {
           console.error("Admin check failed:", error);
           // Try local fallback
-          const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
+          const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@example.com';
           if (adminKey === adminEmail) {
             setAdminUser({
               id: 1, 

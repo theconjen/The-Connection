@@ -72,13 +72,12 @@ function Router() {
       {/* Public routes with responsive layout */}
       <ReadOnlyRoute path="/" component={withResponsiveLayout(IntegratedDashboard)} />
       <ReadOnlyRoute path="/communities" component={withResponsiveLayout(CommunitiesPage)} />
-      <ReadOnlyRoute path="/c/:slug" component={withResponsiveLayout(CommunityPage)} />
       <ReadOnlyRoute path="/apologetics" component={withResponsiveLayout(ApologeticsPage)} />
       <ReadOnlyRoute path="/prayer-requests" component={withResponsiveLayout(PrayerRequestsPage)} />
       <ReadOnlyRoute path="/discover" component={withResponsiveLayout(DiscoverPage)} />
       <ReadOnlyRoute path="/livestreams" component={withResponsiveLayout(LivestreamsPage)} />
       <ReadOnlyRoute path="/forums" component={withResponsiveLayout(ForumsPage)} />
-      <ReadOnlyRoute path="/c" component={withResponsiveLayout(ForumsPage)} />
+      <ReadOnlyRoute path="/c/:slug" component={withResponsiveLayout(CommunityPage)} />
       <ReadOnlyRoute path="/c/:id" component={withResponsiveLayout(PostDetailPage)} />
       <ReadOnlyRoute path="/posts/:id" component={withResponsiveLayout(PostDetailPage)} />
       <ReadOnlyRoute path="/microblogs" component={withResponsiveLayout(MicroblogsPage)} />

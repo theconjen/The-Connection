@@ -45,6 +45,9 @@ export function useChatWebsocket(): UseChatWebsocketReturn {
   // Message handlers map
   const messageHandlersRef = useRef<Map<string, MessageHandler>>(new Map());
   
+  // Keep track of typing timeouts to prevent memory leaks
+  const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  
   // Setup message handlers
   useEffect(() => {
     // Handle connection confirmation
