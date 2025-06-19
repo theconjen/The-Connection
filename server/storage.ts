@@ -2427,7 +2427,7 @@ export class DatabaseStorage implements IStorage {
   async getPrayersForRequest(requestId: string): Promise<Prayer[]> {
     return await db.select()
       .from(prayers)
-      .where(eq(prayers.prayerRequestId, requestId));
+      .where(eq(prayers.prayerRequestId, requestId))
       .orderBy(desc(prayers.createdAt));
   }
 
