@@ -559,6 +559,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const roomId = parseInt(req.params.id);
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
       
+      if (isNaN(roomId) || roomId <= 0) {
+        return res.status(400).json({ message: "Invalid room ID" });
+      }
+      
+      if (limit < 1 || limit > 1000) {
+        return res.status(400).json({ message: "Limit must be between 1 and 1000" });
+      }
+      
       const room = await storage.getCommunityRoom(roomId);
       if (!room) {
         return res.status(404).json({ message: "Chat room not found" });
@@ -588,6 +596,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const roomId = parseInt(req.params.roomId);
       const afterId = parseInt(req.params.messageId);
+      
+      if (isNaN(roomId) || isNaN(afterId) || roomId <= 0 || afterId <= 0) {
+        return res.status(400).json({ message: "Invalid room ID or message ID" });
+      }
       
       const room = await storage.getCommunityRoom(roomId);
       if (!room) {

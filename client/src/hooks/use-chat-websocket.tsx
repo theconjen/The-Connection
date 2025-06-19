@@ -126,12 +126,22 @@ export function useChatWebsocket(): UseChatWebsocketReturn {
           roomId: data.roomId 
         }];
         
+        // Clear any existing timeout for this user/room combination
+        const timeoutKey = `${data.userId}-${data.roomId}`;
+        const existingTimeout = typingTimeoutsRef.current.get(timeoutKey);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+        }
+        
         // Set up automatic removal after 3 seconds
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
           setUsersTyping(current => 
             current.filter(u => u.userId !== data.userId || u.roomId !== data.roomId)
           );
+          typingTimeoutsRef.current.delete(timeoutKey);
         }, 3000);
+        
+        typingTimeoutsRef.current.set(timeoutKey, timeout);
         
         return newTyping;
       });
@@ -301,6 +311,20 @@ export function useChatWebsocket(): UseChatWebsocketReturn {
       roomId
     }));
   }, [socket, user]);
+  
+  // Cleanup effect to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Clear all typing timeouts
+      typingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      typingTimeoutsRef.current.clear();
+      
+      // Close WebSocket connection
+      if (socket) {
+        socket.close();
+      }
+    };
+  }, [socket]);
   
   return {
     sendMessage,
