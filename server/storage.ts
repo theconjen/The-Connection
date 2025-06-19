@@ -2980,7 +2980,7 @@ export class DatabaseStorage implements IStorage {
       await db
         .update(microblogs)
         .set({ likeCount: (microblog.likeCount || 0) + 1 })
-        .where(eq(microblogs.id, parseInt(microblogId));
+        .where(eq(microblogs.id, parseInt(microblogId)));
     }
     
     return result[0];
@@ -3006,7 +3006,7 @@ export class DatabaseStorage implements IStorage {
       await db
         .update(microblogs)
         .set({ likeCount: microblog.likeCount - 1 })
-        .where(eq(microblogs.id, parseInt(microblogId));
+        .where(eq(microblogs.id, parseInt(microblogId)));
     }
     
     return true;
@@ -3411,7 +3411,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await db
         .delete(events)
-        .where(eq(events.id, id));
+        .where(eq(events.id, id))
         .returning();
       
       return result.length > 0;
