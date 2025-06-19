@@ -2430,12 +2430,12 @@ export class DatabaseStorage implements IStorage {
   async getPrayersForRequest(requestId: number): Promise<Prayer[]> {
     return await db.select()
       .from(prayers)
-      .where(eq(prayers.requestId, requestId))
+      .where(eq(prayers.prayerRequestId, requestId))
       .orderBy(desc(prayers.createdAt));
   }
 
   async getUserPrayedRequests(userId: number): Promise<PrayerRequest[]> {
-    const prayedRequestIds = await db.select({ requestId: prayers.requestId })
+    const prayedRequestIds = await db.select({ requestId: prayers.prayerRequestId })
       .from(prayers)
       .where(eq(prayers.userId, userId));
     
