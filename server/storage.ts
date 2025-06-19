@@ -611,6 +611,10 @@ export class MemStorage implements IStorage {
     return this.users.get(id);
   }
 
+  async getUserById(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.username.toLowerCase() === username.toLowerCase(),

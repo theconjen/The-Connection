@@ -40,6 +40,7 @@ import {
   insertApologeticsQuestionSchema,
   insertApologeticsAnswerSchema,
   insertLivestreamerApplicationSchema,
+  insertApologistScholarApplicationSchema,
   insertLivestreamSchema,
   insertMicroblogSchema,
   
@@ -260,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/communities/:id", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -297,7 +298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/communities/:id/members", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -333,7 +334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const communityId = parseInt(req.params.communityId);
       const memberId = parseInt(req.params.memberId);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -361,7 +362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const communityId = parseInt(req.params.communityId);
       const memberUserId = parseInt(req.params.userId);
-      const currentUserId = req.user?.id;
+      const currentUserId = req.session.userId;
       
       if (!currentUserId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -401,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/communities/:id/chat-rooms", async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       // If authenticated, show all rooms (incl. private) if member
       if (userId) {
@@ -431,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check access for private rooms
       if (room.isPrivate) {
-        const userId = req.user?.id;
+        const userId = req.session.userId;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -451,7 +452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/communities/:id/chat-rooms", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -483,7 +484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createChatMessage({
         chatRoomId: room.id,
         senderId: userId,
-        content: `${req.user?.username || "A user"} created this chat room`,
+        content: `${req.session.username || "A user"} created this chat room`,
         isSystemMessage: true
       });
       
@@ -499,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
       const roomId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -536,7 +537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
       const roomId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -590,7 +591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check access for private rooms
       if (room.isPrivate) {
-        const userId = req.user?.id;
+        const userId = req.session.userId;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -624,7 +625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check access for private rooms
       if (room.isPrivate) {
-        const userId = req.user?.id;
+        const userId = req.session.userId;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -645,7 +646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat-rooms/:id/messages", isAuthenticated, async (req, res, next) => {
     try {
       const roomId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -688,7 +689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/chat-messages/:id", isAuthenticated, async (req, res, next) => {
     try {
       const messageId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -747,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "This community does not have a private wall" });
         }
         
-        const userId = req.user?.id;
+        const userId = req.session.userId;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -784,7 +785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if private post and if user has access
       if (post.isPrivate) {
-        const userId = req.user?.id;
+        const userId = req.session.userId;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -804,7 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/communities/:id/wall", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -861,7 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
       const postId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -909,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
       const postId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -983,7 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertPostSchema.parse({
         ...req.body,
-        authorId: req.user?.id
+        authorId: req.session.userId
       });
       
       const post = await storage.createPost(validatedData);
@@ -1011,7 +1012,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertCommentSchema.parse({
         ...req.body,
-        authorId: req.user?.id
+        authorId: req.session.userId
       });
       
       const comment = await storage.createComment(validatedData);
@@ -1027,7 +1028,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Groups routes
   app.get("/api/groups", isAuthenticated, async (req, res, next) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       const groups = await storage.getGroupsByUserId(userId);
       res.json(groups);
     } catch (error) {
@@ -1039,7 +1040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertGroupSchema.parse({
         ...req.body,
-        createdBy: req.user?.id
+        createdBy: req.session.userId
       });
       
       const group = await storage.createGroup(validatedData);
@@ -1047,7 +1048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add creator as admin member
       await storage.addGroupMember({
         groupId: group.id,
-        userId: req.user!.id,
+        userId: req.session!.id,
         isAdmin: true
       });
       
@@ -1065,7 +1066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const groupId = parseInt(req.params.groupId);
       
       // Check if user is admin of the group
-      const isAdmin = await storage.isGroupAdmin(groupId, req.user!.id);
+      const isAdmin = await storage.isGroupAdmin(groupId, req.session!.id);
       if (!isAdmin) {
         return res.status(403).json({ message: "Only group admins can add members" });
       }
@@ -1147,7 +1148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/apologetics/topics", isAuthenticated, async (req, res, next) => {
     try {
       // Only admins can create topics
-      if (!req.user || req.user.isVerifiedApologeticsAnswerer !== true) {
+      if (!req.session || req.session.isVerifiedApologeticsAnswerer !== true) {
         return res.status(403).json({ message: "Only verified apologetics experts can create topics" });
       }
       
@@ -1205,7 +1206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add the current user ID as the author
       const validatedData = insertApologeticsQuestionSchema.parse({
         ...req.body,
-        authorId: req.user.id
+        authorId: req.session.id
       });
       
       const question = await storage.createApologeticsQuestion(validatedData);
@@ -1221,7 +1222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/apologetics/questions/:id/status", isAuthenticated, async (req, res, next) => {
     try {
       // Only verified answerers can update question status
-      if (!req.user || req.user.isVerifiedApologeticsAnswerer !== true) {
+      if (!req.session || req.session.isVerifiedApologeticsAnswerer !== true) {
         return res.status(403).json({ message: "Only verified apologetics experts can update question status" });
       }
       
@@ -1253,12 +1254,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/apologetics/answers", isAuthenticated, async (req, res, next) => {
     try {
       // Set verified flag based on user status
-      const isVerified = req.user.isVerifiedApologeticsAnswerer === true;
+      const isVerified = req.session.isVerifiedApologeticsAnswerer === true;
       
       // Add the current user ID as the author
       const validatedData = insertApologeticsAnswerSchema.parse({
         ...req.body,
-        authorId: req.user.id,
+        authorId: req.session.id,
         isVerifiedAnswer: isVerified
       });
       
@@ -1301,7 +1302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/users/:userId/verified-apologetics-answerer", isAuthenticated, async (req, res, next) => {
     try {
       // Only admins can set verified status (for now let's assume only verified answerers can verify others)
-      if (!req.user || req.user.isVerifiedApologeticsAnswerer !== true) {
+      if (!req.session || req.session.isVerifiedApologeticsAnswerer !== true) {
         return res.status(403).json({ message: "Only verified apologetics experts can verify others" });
       }
       
@@ -1371,7 +1372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       
       // Optional auth check - users can only see their own liked posts when authenticated
-      if (req.user?.id !== userId) {
+      if (req.session.userId !== userId) {
         // For public profiles, we can still show liked posts
         // If stricter privacy is needed, uncomment this:
         // return res.status(403).json({ message: "Unauthorized" });
@@ -1401,7 +1402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user is a member of this group
       const members = await storage.getGroupMembers(groupId);
-      const isMember = members.some(member => member.userId === req.user?.id);
+      const isMember = members.some(member => member.userId === req.session.userId);
       
       if (!isMember) {
         return res.status(403).json({ message: "You are not a member of this group" });
@@ -1425,7 +1426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.groupId) {
         const groupId = parseInt(req.body.groupId);
         const members = await storage.getGroupMembers(groupId);
-        const isMember = members.some(member => member.userId === req.user?.id);
+        const isMember = members.some(member => member.userId === req.session.userId);
         
         if (!isMember) {
           return res.status(403).json({ message: "You are not a member of this group" });
@@ -1434,7 +1435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertMicroblogSchema.parse({
         ...req.body,
-        authorId: req.user?.id
+        authorId: req.session.userId
       });
       
       const microblog = await storage.createMicroblog(validatedData);
@@ -1450,7 +1451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/microblogs/:id/like", isAuthenticated, async (req, res, next) => {
     try {
       const microblogId = parseInt(req.params.id);
-      const like = await storage.likeMicroblog(microblogId, req.user!.id);
+      const like = await storage.likeMicroblog(microblogId, req.session!.id);
       res.status(201).json(like);
     } catch (error) {
       next(error);
@@ -1460,7 +1461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/microblogs/:id/like", isAuthenticated, async (req, res, next) => {
     try {
       const microblogId = parseInt(req.params.id);
-      const result = await storage.unlikeMicroblog(microblogId, req.user!.id);
+      const result = await storage.unlikeMicroblog(microblogId, req.session!.id);
       
       if (result) {
         res.status(200).json({ success: true });
@@ -1527,7 +1528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/livestreams", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is approved to create livestreams
-      const isApproved = await storage.isApprovedLivestreamer(req.user!.id);
+      const isApproved = await storage.isApprovedLivestreamer(req.session!.id);
       if (!isApproved) {
         return res.status(403).json({ 
           message: "You need to be an approved livestreamer to create streams. Please apply first." 
@@ -1536,7 +1537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertLivestreamSchema.parse({
         ...req.body,
-        hostId: req.user?.id
+        hostId: req.session.userId
       });
       
       const livestream = await storage.createLivestream(validatedData);
@@ -1552,7 +1553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Livestreamer application routes
   app.get("/api/livestreamer-application", isAuthenticated, async (req, res, next) => {
     try {
-      const application = await storage.getLivestreamerApplicationByUserId(req.user!.id);
+      const application = await storage.getLivestreamerApplicationByUserId(req.session!.id);
       res.json(application || null);
     } catch (error) {
       next(error);
@@ -1562,14 +1563,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/livestreamer-application", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user already has an application
-      const existingApplication = await storage.getLivestreamerApplicationByUserId(req.user!.id);
+      const existingApplication = await storage.getLivestreamerApplicationByUserId(req.session!.id);
       if (existingApplication) {
         return res.status(400).json({ message: "You already have a pending application" });
       }
       
       const validatedData = insertLivestreamerApplicationSchema.parse({
         ...req.body,
-        userId: req.user?.id
+        userId: req.session.userId
       });
       
       const application = await storage.createLivestreamerApplication(validatedData);
@@ -1578,7 +1579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminEmail = process.env.ADMIN_EMAIL || "admin@theconnection.app"; // Use environment variable
       
       // Get user details for the email
-      const applicant = await storage.getUser(req.user!.id);
+      const applicant = await storage.getUser(req.session!.id);
       
       // Import the notification function
       const { sendLivestreamerApplicationNotificationEmail } = await import('./email-notifications');
@@ -1609,7 +1610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/livestreamer-applications", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -1623,7 +1624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/livestreamer-applications/:id", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -1638,7 +1639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         applicationId, 
         status, 
         reviewNotes, 
-        req.user.id
+        req.session.id
       );
       
       // Get the user's details to send the notification
@@ -1685,7 +1686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apologist Scholar Application routes
   app.get("/api/apologist-scholar-application", isAuthenticated, async (req, res, next) => {
     try {
-      const application = await storage.getApologistScholarApplicationByUserId(req.user!.id);
+      const application = await storage.getApologistScholarApplicationByUserId(req.session!.id);
       res.json(application || null);
     } catch (error) {
       next(error);
@@ -1695,14 +1696,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/apologist-scholar-application", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user already has an application
-      const existingApplication = await storage.getApologistScholarApplicationByUserId(req.user!.id);
+      const existingApplication = await storage.getApologistScholarApplicationByUserId(req.session!.id);
       if (existingApplication) {
         return res.status(400).json({ message: "You already have a pending application" });
       }
       
       const validatedData = insertApologistScholarApplicationSchema.parse({
         ...req.body,
-        userId: req.user?.id
+        userId: req.session.userId
       });
       
       const application = await storage.createApologistScholarApplication(validatedData);
@@ -1711,7 +1712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminEmail = process.env.ADMIN_EMAIL || "admin@theconnection.app"; // Use environment variable
       
       // Get user details for the email
-      const applicant = await storage.getUser(req.user!.id);
+      const applicant = await storage.getUser(req.session!.id);
       
       // Import the notification function
       const { sendLivestreamerApplicationNotificationEmail } = await import('./email-notifications');
@@ -1738,7 +1739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes for Apologist Scholar Applications
   app.get("/api/admin/apologist-scholar-applications", isAuthenticated, async (req, res, next) => {
     try {
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -1751,7 +1752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.put("/api/admin/apologist-scholar-applications/:id", isAuthenticated, async (req, res, next) => {
     try {
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -1763,7 +1764,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseInt(id),
         status,
         reviewNotes,
-        req.user.id
+        req.session.id
       );
       
       // Get applicant details
@@ -1796,7 +1797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/email-templates", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -1810,7 +1811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/email-templates/:name", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -1830,7 +1831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/email-templates", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -1857,7 +1858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/email-templates/:name", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -1888,7 +1889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/email-templates/:name", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -1909,12 +1910,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/email-templates/:name/test", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is admin
-      if (!req.user?.isAdmin) {
+      if (!req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
       // Use the admin's email for the test
-      const { email } = req.user;
+      const { email } = req.session;
       const templateName = req.params.name;
       
       // The templateData should be provided in the request body
@@ -1968,7 +1969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gift = await storage.sendGiftToLivestream({
         livestreamId,
         giftId,
-        senderId: req.user!.id,
+        senderId: req.session!.id,
         receiverId: livestream.hostId,
         message
       });
@@ -2277,7 +2278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prayers = await storage.getAllPrayerRequests(filter);
       
       // Filter out non-public prayers that don't belong to the user
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       const filteredPrayers = prayers.filter(prayer => {
         // Public prayers are visible to all authenticated users
         if (prayer.privacyLevel === 'public') return true;
@@ -2336,7 +2337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       
       // Only allow users to see their own prayer requests or admins
-      if (req.user?.id !== userId && !req.user?.isAdmin) {
+      if (req.session.userId !== userId && !req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -2354,7 +2355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const groupId = parseInt(req.params.groupId);
       
       // Check if user is a member of the group
-      const isGroupMember = await storage.isGroupMember(groupId, req.user?.id);
+      const isGroupMember = await storage.isGroupMember(groupId, req.session.userId);
       if (!isGroupMember) {
         return res.status(403).json({ message: "Unauthorized: Not a group member" });
       }
@@ -2374,7 +2375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If group privacy, verify the user is a member of the group
       if (prayerData.privacyLevel === 'group-only' && prayerData.groupId) {
-        const isGroupMember = await storage.isGroupMember(prayerData.groupId, req.user?.id);
+        const isGroupMember = await storage.isGroupMember(prayerData.groupId, req.session.userId);
         if (!isGroupMember) {
           return res.status(403).json({ message: "Unauthorized: Not a group member" });
         }
@@ -2383,7 +2384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set the author ID to the current user
       const prayer = await storage.createPrayerRequest({
         ...prayerData,
-        authorId: req.user?.id
+        authorId: req.session.userId
       });
       
       res.status(201).json(prayer);
@@ -2407,7 +2408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only allow the author or an admin to update the prayer
-      if (prayer.authorId !== req.user?.id && !req.user?.isAdmin) {
+      if (prayer.authorId !== req.session.userId && !req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -2432,7 +2433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only allow the author to mark as answered
-      if (prayer.authorId !== req.user?.id) {
+      if (prayer.authorId !== req.session.userId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -2455,7 +2456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only allow the author or an admin to delete the prayer
-      if (prayer.authorId !== req.user?.id && !req.user?.isAdmin) {
+      if (prayer.authorId !== req.session.userId && !req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -2476,7 +2477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/prayer-requests/:id/pray", isAuthenticated, async (req, res) => {
     try {
       const prayerRequestId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       const prayer = await storage.createPrayer({
         prayerRequestId,
@@ -2508,7 +2509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       
       // Users can only see their own prayed requests
-      if (req.user?.id !== userId) {
+      if (req.session.userId !== userId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -2560,7 +2561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bible/reading-plans/user", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
-      const userId = req.user.id;
+      const userId = req.session.id;
       const plans = await storage.getUserBibleReadingPlans(userId);
       res.json(plans);
     } catch (error) {
@@ -2583,7 +2584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bible/reading-plans", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
-      const creatorId = req.user.id;
+      const creatorId = req.session.id;
       const readingPlan = {
         ...req.body,
         creatorId
@@ -2600,7 +2601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bible/reading-progress", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
-      const userId = req.user.id;
+      const userId = req.session.id;
       const progress = await storage.getUserReadingProgress(userId);
       res.json(progress);
     } catch (error) {
@@ -2612,7 +2613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bible/reading-progress", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
-      const userId = req.user.id;
+      const userId = req.session.id;
       const progressData = {
         ...req.body,
         userId
@@ -2641,7 +2642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bible/study-notes", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
-      const userId = req.user.id;
+      const userId = req.session.id;
       const filter = { userId };
       const notes = await storage.getBibleStudyNotes(filter);
       res.json(notes);
@@ -2677,7 +2678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bible/study-notes", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
-      const userId = req.user.id;
+      const userId = req.session.id;
       const noteData = {
         ...req.body,
         userId
@@ -2694,7 +2695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bible/memorization", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
-      const userId = req.user.id;
+      const userId = req.session.id;
       const verses = await storage.getUserVerseMemorization(userId);
       res.json(verses);
     } catch (error) {
@@ -2706,7 +2707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bible/memorization", isAuthenticated, async (req, res) => {
     try {
       // @ts-ignore
-      const userId = req.user.id;
+      const userId = req.session.id;
       const verseData = {
         ...req.body,
         userId
@@ -2800,7 +2801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const groupId = parseInt(req.params.groupId);
       
       // Check if user is a member of the group
-      const isMember = await storage.isGroupMember(req.user.id, groupId);
+      const isMember = await storage.isGroupMember(req.session.id, groupId);
       if (!isMember) {
         return res.status(403).json({ message: "You must be a member of the group to view its events" });
       }
@@ -2815,7 +2816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/user/events", isAuthenticated, async (req, res) => {
     try {
-      const events = await storage.getEventsByUser(req.user.id);
+      const events = await storage.getEventsByUser(req.session.id);
       res.json(events);
     } catch (error) {
       console.error("Error getting user events:", error);
@@ -2828,12 +2829,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate the request data
       const eventData = insertEventSchema.parse({
         ...req.body,
-        creatorId: req.user.id
+        creatorId: req.session.id
       });
       
       // If this is a group event, check if user is a member of the group
       if (eventData.groupId) {
-        const isMember = await storage.isGroupMember(req.user.id, eventData.groupId);
+        const isMember = await storage.isGroupMember(req.session.id, eventData.groupId);
         if (!isMember) {
           return res.status(403).json({ message: "You must be a member of the group to create events for it" });
         }
@@ -2861,7 +2862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only the creator can update the event
-      if (event.creatorId !== req.user.id) {
+      if (event.creatorId !== req.session.id) {
         return res.status(403).json({ message: "You can only update events you created" });
       }
       
@@ -2883,7 +2884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only the creator can delete the event
-      if (event.creatorId !== req.user.id) {
+      if (event.creatorId !== req.session.id) {
         return res.status(403).json({ message: "You can only delete events you created" });
       }
       
@@ -2910,7 +2911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      const rsvp = await storage.getUserEventRsvp(eventId, req.user.id);
+      const rsvp = await storage.getUserEventRsvp(eventId, req.session.id);
       
       if (!rsvp) {
         return res.status(404).json({ message: "RSVP not found" });
@@ -2934,14 +2935,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If this is a group event, check if user is a member of the group
       if (event.groupId) {
-        const isMember = await storage.isGroupMember(req.user.id, event.groupId);
+        const isMember = await storage.isGroupMember(req.session.id, event.groupId);
         if (!isMember) {
           return res.status(403).json({ message: "You must be a member of the group to RSVP to its events" });
         }
       }
       
       // Check if user already has an RSVP
-      const existingRsvp = await storage.getUserEventRsvp(eventId, req.user.id);
+      const existingRsvp = await storage.getUserEventRsvp(eventId, req.session.id);
       if (existingRsvp) {
         return res.status(400).json({ message: "You have already RSVP'd to this event" });
       }
@@ -2954,7 +2955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const rsvpData = insertEventRsvpSchema.parse({
         eventId,
-        userId: req.user.id,
+        userId: req.session.id,
         status
       });
       
@@ -2972,7 +2973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      const rsvp = await storage.getUserEventRsvp(eventId, req.user.id);
+      const rsvp = await storage.getUserEventRsvp(eventId, req.session.id);
       
       if (!rsvp) {
         return res.status(404).json({ message: "RSVP not found" });
@@ -3002,7 +3003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filter = req.query.filter as string;
       
       if (req.isAuthenticated() && req.query.mine === "true") {
-        plans = await storage.getUserBibleReadingPlans(req.user.id);
+        plans = await storage.getUserBibleReadingPlans(req.session.id);
       } else if (req.query.groupId) {
         const groupId = parseInt(req.query.groupId as string);
         plans = await storage.getGroupBibleReadingPlans(groupId);
@@ -3027,9 +3028,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If not public and not creator, check if it's a group plan and user is member
-      if (!plan.isPublic && (!req.user || plan.creatorId !== req.user.id)) {
+      if (!plan.isPublic && (!req.session || plan.creatorId !== req.session.id)) {
         if (plan.groupId) {
-          const isMember = req.user && await storage.isGroupMember(req.user.id, plan.groupId);
+          const isMember = req.session && await storage.isGroupMember(req.session.id, plan.groupId);
           if (!isMember) {
             return res.status(403).json({ message: "You don't have access to this reading plan" });
           }
@@ -3049,12 +3050,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const planData = insertBibleReadingPlanSchema.parse({
         ...req.body,
-        creatorId: req.user.id
+        creatorId: req.session.id
       });
       
       // If it's a group plan, verify the user is a member
       if (planData.groupId) {
-        const isMember = await storage.isGroupMember(req.user.id, planData.groupId);
+        const isMember = await storage.isGroupMember(req.session.id, planData.groupId);
         if (!isMember) {
           return res.status(403).json({ message: "You must be a member of the group to create a reading plan for it" });
         }
@@ -3081,7 +3082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only creator can update the plan
-      if (plan.creatorId !== req.user.id) {
+      if (plan.creatorId !== req.session.id) {
         return res.status(403).json({ message: "You don't have permission to update this reading plan" });
       }
       
@@ -3109,7 +3110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only creator can delete the plan
-      if (plan.creatorId !== req.user.id) {
+      if (plan.creatorId !== req.session.id) {
         return res.status(403).json({ message: "You don't have permission to delete this reading plan" });
       }
       
@@ -3124,7 +3125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reading Progress
   app.get("/api/bible-reading-progress", isAuthenticated, async (req, res) => {
     try {
-      const progress = await storage.getUserReadingProgress(req.user.id);
+      const progress = await storage.getUserReadingProgress(req.session.id);
       res.json(progress);
     } catch (error) {
       console.error("Error getting reading progress:", error);
@@ -3135,7 +3136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bible-reading-plans/:planId/progress", isAuthenticated, async (req, res) => {
     try {
       const planId = parseInt(req.params.planId);
-      const progress = await storage.getBibleReadingProgress(req.user.id, planId);
+      const progress = await storage.getBibleReadingProgress(req.session.id, planId);
       
       if (!progress) {
         return res.status(404).json({ message: "Reading progress not found" });
@@ -3158,9 +3159,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user can access this plan
-      if (!plan.isPublic && plan.creatorId !== req.user.id) {
+      if (!plan.isPublic && plan.creatorId !== req.session.id) {
         if (plan.groupId) {
-          const isMember = await storage.isGroupMember(req.user.id, plan.groupId);
+          const isMember = await storage.isGroupMember(req.session.id, plan.groupId);
           if (!isMember) {
             return res.status(403).json({ message: "You don't have access to this reading plan" });
           }
@@ -3170,14 +3171,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if progress already exists
-      const existingProgress = await storage.getBibleReadingProgress(req.user.id, planId);
+      const existingProgress = await storage.getBibleReadingProgress(req.session.id, planId);
       if (existingProgress) {
         return res.status(400).json({ message: "You've already started this reading plan" });
       }
       
       const progressData = insertBibleReadingProgressSchema.parse({
         planId,
-        userId: req.user.id
+        userId: req.session.id
       });
       
       const progress = await storage.createBibleReadingProgress(progressData);
@@ -3218,7 +3219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!req.isAuthenticated()) {
           return res.status(401).json({ message: "You must be logged in to view your notes" });
         }
-        filter.userId = req.user.id;
+        filter.userId = req.session.id;
       }
       
       if (req.query.groupId) {
@@ -3247,9 +3248,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user can access this note
-      if (!note.isPublic && (!req.isAuthenticated() || note.userId !== req.user.id)) {
+      if (!note.isPublic && (!req.isAuthenticated() || note.userId !== req.session.id)) {
         if (note.groupId) {
-          const isMember = req.isAuthenticated() && await storage.isGroupMember(req.user.id, note.groupId);
+          const isMember = req.isAuthenticated() && await storage.isGroupMember(req.session.id, note.groupId);
           if (!isMember) {
             return res.status(403).json({ message: "You don't have access to this note" });
           }
@@ -3269,12 +3270,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const noteData = insertBibleStudyNotesSchema.parse({
         ...req.body,
-        userId: req.user.id
+        userId: req.session.id
       });
       
       // If it's a group note, verify the user is a member
       if (noteData.groupId) {
-        const isMember = await storage.isGroupMember(req.user.id, noteData.groupId);
+        const isMember = await storage.isGroupMember(req.session.id, noteData.groupId);
         if (!isMember) {
           return res.status(403).json({ message: "You must be a member of the group to create a note for it" });
         }
@@ -3301,7 +3302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only owner can update the note
-      if (note.userId !== req.user.id) {
+      if (note.userId !== req.session.id) {
         return res.status(403).json({ message: "You don't have permission to update this note" });
       }
       
@@ -3329,7 +3330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only owner can delete the note
-      if (note.userId !== req.user.id) {
+      if (note.userId !== req.session.id) {
         return res.status(403).json({ message: "You don't have permission to delete this note" });
       }
       
@@ -3344,7 +3345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Verse Memorization
   app.get("/api/verse-memorization", isAuthenticated, async (req, res) => {
     try {
-      const verses = await storage.getUserVerseMemorization(req.user.id);
+      const verses = await storage.getUserVerseMemorization(req.session.id);
       res.json(verses);
     } catch (error) {
       console.error("Error getting verse memorization:", error);
@@ -3362,7 +3363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only owner can view their verse memorization
-      if (verse.userId !== req.user.id) {
+      if (verse.userId !== req.session.id) {
         return res.status(403).json({ message: "You don't have permission to view this verse memorization" });
       }
       
@@ -3377,7 +3378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const verseData = insertVerseMemorizationSchema.parse({
         ...req.body,
-        userId: req.user.id
+        userId: req.session.id
       });
       
       const verse = await storage.createVerseMemorization(verseData);
@@ -3401,7 +3402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only owner can update their verse memorization
-      if (verse.userId !== req.user.id) {
+      if (verse.userId !== req.session.id) {
         return res.status(403).json({ message: "You don't have permission to update this verse memorization" });
       }
       
@@ -3423,7 +3424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only owner can update their verse memorization
-      if (verse.userId !== req.user.id) {
+      if (verse.userId !== req.session.id) {
         return res.status(403).json({ message: "You don't have permission to update this verse memorization" });
       }
       
@@ -3445,7 +3446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only owner can delete their verse memorization
-      if (verse.userId !== req.user.id) {
+      if (verse.userId !== req.session.id) {
         return res.status(403).json({ message: "You don't have permission to delete this verse memorization" });
       }
       
@@ -3464,7 +3465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get personalized recommendations for the current user
   app.get("/api/recommendations", allowGuest, async (req, res) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       
       if (userId) {
@@ -3485,7 +3486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user preferences
   app.get("/api/user-preferences", isAuthenticated, async (req, res) => {
     try {
-      const preferences = await storage.getUserPreferences(req.user.id);
+      const preferences = await storage.getUserPreferences(req.session.id);
       
       if (!preferences) {
         return res.status(404).json({ message: "Preferences not found" });
@@ -3502,7 +3503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user-preferences", isAuthenticated, async (req, res) => {
     try {
       const updateData = insertUserPreferencesSchema.partial().parse(req.body);
-      const preferences = await storage.updateUserPreferences(req.user.id, updateData);
+      const preferences = await storage.updateUserPreferences(req.session.id, updateData);
       res.json(preferences);
     } catch (error) {
       console.error("Error updating user preferences:", error);
@@ -3542,7 +3543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/recommendations/track-engagement", allowGuest, async (req, res) => {
     try {
       const { contentType, contentId, action } = req.body;
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         // Just acknowledge for guests, no tracking
