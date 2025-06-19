@@ -30,6 +30,8 @@ export function useAuth(): AuthContextType {
   } = useQuery<SelectUser | undefined>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    staleTime: 0, // Always consider stale for auth queries
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
   const loginMutation = useMutation({
@@ -68,13 +70,21 @@ export function useAuth(): AuthContextType {
         throw error;
       }
     },
-    onSuccess: (user: SelectUser) => {
+    onSuccess: async (user: SelectUser) => {
+      console.log("Login successful, updating auth state:", user);
+      
       // Store user info in local storage as fallback if sessions fail
       localStorage.setItem('currentUser', JSON.stringify(user));
       
+      // First set the query data immediately
       queryClient.setQueryData(["/api/user"], user);
-      // Force refresh user data
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      
+      // Then invalidate to force a fresh fetch and refetch immediately
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+      
+      // Also invalidate other queries that depend on authentication
+      queryClient.invalidateQueries();
       
       toast({
         title: "Welcome back!",
@@ -82,12 +92,12 @@ export function useAuth(): AuthContextType {
         variant: "default",
       });
       
-      // Delay navigation slightly to ensure state is updated
+      // Navigate after ensuring the state is updated
       setTimeout(() => {
         import("wouter/use-browser-location").then(({ navigate }) => {
           navigate("/");
         });
-      }, 100);
+      }, 300);
     },
     onError: (error: Error) => {
       toast({
