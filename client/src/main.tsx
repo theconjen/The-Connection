@@ -8,16 +8,20 @@ import "./index.css";
 // Global error handling for unhandled promises
 window.addEventListener('unhandledrejection', event => {
   console.warn('Unhandled promise rejection:', event.reason);
-  // Prevent the default handling (which would log to console)
-  event.preventDefault();
+  // Only prevent default for known safe errors
+  if (event.reason && (event.reason.name === 'AbortError' || event.reason.name === 'NetworkError')) {
+    event.preventDefault();
+  }
 });
 
-// Handle DOMExceptions
+// Handle DOMExceptions and other errors
 window.addEventListener('error', event => {
   if (event.error instanceof DOMException) {
-    console.warn('DOMException caught:', event.error.message);
-    // Prevent the default error handling
-    event.preventDefault();
+    console.warn('DOMException caught:', event.error.message, event.error.name);
+    // Only prevent default for non-critical DOMExceptions
+    if (event.error.name === 'AbortError' || event.error.name === 'NetworkError') {
+      event.preventDefault();
+    }
   }
 });
 
