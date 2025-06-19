@@ -602,18 +602,7 @@ export type Microblog = typeof microblogs.$inferSelect;
 export type InsertMicroblogLike = z.infer<typeof insertMicroblogLikeSchema>;
 export type MicroblogLike = typeof microblogLikes.$inferSelect;
 
-// Community Roles & Chat Room Types
-export type InsertCommunityMember = z.infer<typeof insertCommunityMemberSchema>;
-export type CommunityMember = typeof communityMembers.$inferSelect;
-
-export type InsertCommunityChatRoom = z.infer<typeof insertCommunityChatRoomSchema>;
-export type CommunityChatRoom = typeof communityChatRooms.$inferSelect;
-
-export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
-export type ChatMessage = typeof chatMessages.$inferSelect;
-
-export type InsertCommunityWallPost = z.infer<typeof insertCommunityWallPostSchema>;
-export type CommunityWallPost = typeof communityWallPosts.$inferSelect;
+// Duplicate type definitions removed - they're already defined earlier in the file
 
 // ========================
 // COMMUNITY EVENTS
