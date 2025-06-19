@@ -609,11 +609,11 @@ export class MemStorage implements IStorage {
 
   // User methods
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(parseInt(userId));
+    return this.users.get(parseInt(id));
   }
 
   async getUserById(id: string): Promise<User | undefined> {
-    return this.users.get(parseInt(userId));
+    return this.users.get(parseInt(id));
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -641,7 +641,7 @@ export class MemStorage implements IStorage {
   }
   
   async updateUser(id: string, userData: Partial<User>): Promise<User> {
-    const user = this.users.get(parseInt(userId));
+    const user = this.users.get(parseInt(id));
     if (!user) {
       throw new Error(`User with ID ${id} not found`);
     }
@@ -691,7 +691,7 @@ export class MemStorage implements IStorage {
   }
 
   async getCommunity(id: string): Promise<Community | undefined> {
-    return this.communities.get(parseInt(userId));
+    return this.communities.get(parseInt(id));
   }
 
   async getCommunityBySlug(slug: string): Promise<Community | undefined> {
@@ -2008,29 +2008,29 @@ export class DatabaseStorage implements IStorage {
   async checkUserIsAdmin(userId: string): Promise<boolean> {
     const [user] = await db.select({ isAdmin: users.isAdmin })
       .from(users)
-      .where(eq(users.id, parseInt(userId, parseInt(userId))));
+      .where(eq(users.id, parseInt(userId)));
     
     return user?.isAdmin || false;
   }
 
   // User methods
   async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, parseInt(userId)));
+    const result = await db.select().from(users).where(eq(users.id, parseInt(id)));
     return result[0];
   }
 
   async getUserById(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, parseInt(userId)));
+    const result = await db.select().from(users).where(eq(users.id, parseInt(id));
     return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username, parseInt(userId)));
+    const result = await db.select().from(users).where(eq(users.username, username));
     return result[0];
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email, parseInt(userId)));
+    const result = await db.select().from(users).where(eq(users.email, email));
     return result[0];
   }
   
@@ -2056,7 +2056,7 @@ export class DatabaseStorage implements IStorage {
           password: hashedPassword,
           updatedAt: now
         })
-        .where(eq(users.id, parseInt(userId, parseInt(userId))))
+        .where(eq(users.id, parseInt(userId));
         .returning();
       
       return result[0];
@@ -2072,12 +2072,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCommunity(id: string): Promise<Community | undefined> {
-    const result = await db.select().from(communities).where(eq(communities.id, parseInt(userId)));
+    const result = await db.select().from(communities).where(eq(communities.id, parseInt(id));
     return result[0];
   }
 
   async getCommunityBySlug(slug: string): Promise<Community | undefined> {
-    const result = await db.select().from(communities).where(eq(communities.slug, slug, parseInt(userId)));
+    const result = await db.select().from(communities).where(eq(communities.slug, slug));
     return result[0];
   }
 
@@ -2089,20 +2089,20 @@ export class DatabaseStorage implements IStorage {
   async updateCommunity(id: string, community: Partial<Community>): Promise<Community> {
     const result = await db.update(communities)
       .set({ ...community, updatedAt: new Date() })
-      .where(eq(communities.id, parseInt(userId)))
+      .where(eq(communities.id, parseInt(id));
       .returning();
     return result[0];
   }
 
   async deleteCommunity(id: number): Promise<boolean> {
-    const result = await db.delete(communities).where(eq(communities.id, parseInt(userId)));
+    const result = await db.delete(communities).where(eq(communities.id, parseInt(id));
     return result.rowCount > 0;
   }
 
   async updateUser(id: string, userData: Partial<User>): Promise<User> {
     const result = await db.update(users)
       .set({ ...userData, updatedAt: new Date() })
-      .where(eq(users.id, parseInt(id)))
+      .where(eq(users.id, parseInt(id));
       .returning();
     return result[0];
   }
@@ -2110,13 +2110,13 @@ export class DatabaseStorage implements IStorage {
   async setVerifiedApologeticsAnswerer(userId: string, isVerified: boolean): Promise<User> {
     const result = await db.update(users)
       .set({ isVerifiedApologeticsAnswerer: isVerified, updatedAt: new Date() })
-      .where(eq(users.id, parseInt(userId)));
+      .where(eq(users.id, parseInt(userId));
       .returning();
     return result[0];
   }
 
   async getVerifiedApologeticsAnswerers(): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.isVerifiedApologeticsAnswerer, true, parseInt(userId)));
+    return await db.select().from(users).where(eq(users.isVerifiedApologeticsAnswerer, true));
   }
 
   async updateUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
@@ -2136,7 +2136,7 @@ export class DatabaseStorage implements IStorage {
     })
     .from(communityMembers)
     .innerJoin(users, eq(communityMembers.userId, users.id))
-    .where(eq(communityMembers.communityId, communityId, parseInt(userId)));
+    .where(eq(communityMembers.communityId, communityId));
     
     return result;
   }
@@ -2144,7 +2144,7 @@ export class DatabaseStorage implements IStorage {
   async getCommunityMember(communityId: string, userId: string): Promise<CommunityMember | undefined> {
     const result = await db.select()
       .from(communityMembers)
-      .where(and(eq(communityMembers.communityId, communityId))), eq(communityMembers.userId, userId)))
+      .where(and(eq(communityMembers.communityId, communityId), parseInt(communityId)), eq(communityMembers.userId, userId)))
       .limit(1);
     return result[0];
   }
@@ -2157,21 +2157,21 @@ export class DatabaseStorage implements IStorage {
   async updateCommunityMemberRole(id: string, role: string): Promise<CommunityMember> {
     const result = await db.update(communityMembers)
       .set({ role })
-      .where(eq(communityMembers.id, id, parseInt(userId)));
+      .where(eq(communityMembers.id, id));
       .returning();
     return result[0];
   }
 
   async removeCommunityMember(communityId: string, userId: string): Promise<boolean> {
     const result = await db.delete(communityMembers)
-      .where(and(eq(communityMembers.communityId, communityId))), eq(communityMembers.userId, userId)));
+      .where(and(eq(communityMembers.communityId, communityId), parseInt(communityId)), eq(communityMembers.userId, userId)));
     return result.rowCount > 0;
   }
 
   async isCommunityMember(communityId: string, userId: string): Promise<boolean> {
     const result = await db.select({ id: communityMembers.id })
       .from(communityMembers)
-      .where(and(eq(communityMembers.communityId, communityId))), eq(communityMembers.userId, userId)))
+      .where(and(eq(communityMembers.communityId, communityId), parseInt(communityId)), eq(communityMembers.userId, userId)))
       .limit(1);
     return result.length > 0;
   }
@@ -2180,7 +2180,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
       .where(and(
-        eq(communityMembers.communityId, communityId))), 
+        eq(communityMembers.communityId, communityId), parseInt(communityId)), 
         eq(communityMembers.userId, userId),
         eq(communityMembers.role, "owner")
       ))
@@ -2192,7 +2192,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
       .where(and(
-        eq(communityMembers.communityId, communityId))), 
+        eq(communityMembers.communityId, communityId), parseInt(communityId)), 
         eq(communityMembers.userId, userId),
         or(eq(communityMembers.role, "moderator"), eq(communityMembers.role, "owner"))
       ))
@@ -2204,19 +2204,19 @@ export class DatabaseStorage implements IStorage {
   async getCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
     return await db.select()
       .from(communityChatRooms)
-      .where(eq(communityChatRooms.communityId, communityId, parseInt(userId)));
+      .where(eq(communityChatRooms.communityId, communityId));
   }
 
   async getPublicCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
     return await db.select()
       .from(communityChatRooms)
-      .where(and(eq(communityChatRooms.communityId, communityId))), eq(communityChatRooms.isPrivate, false)));
+      .where(and(eq(communityChatRooms.communityId, communityId), parseInt(communityId)), eq(communityChatRooms.isPrivate, false)));
   }
 
   async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
     const result = await db.select()
       .from(communityChatRooms)
-      .where(eq(communityChatRooms.id, id, parseInt(userId)));
+      .where(eq(communityChatRooms.id, id));
       .limit(1);
     return result[0];
   }
@@ -2229,14 +2229,14 @@ export class DatabaseStorage implements IStorage {
   async updateCommunityRoom(id: string, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
     const result = await db.update(communityChatRooms)
       .set(data)
-      .where(eq(communityChatRooms.id, id, parseInt(userId)));
+      .where(eq(communityChatRooms.id, id));
       .returning();
     return result[0];
   }
 
   async deleteCommunityRoom(id: number): Promise<boolean> {
     const result = await db.delete(communityChatRooms)
-      .where(eq(communityChatRooms.id, id, parseInt(userId)));
+      .where(eq(communityChatRooms.id, id));
     return result.rowCount > 0;
   }
 
@@ -2253,7 +2253,7 @@ export class DatabaseStorage implements IStorage {
     })
     .from(chatMessages)
     .innerJoin(users, eq(chatMessages.senderId, users.id))
-    .where(eq(chatMessages.chatRoomId, roomId, parseInt(userId)));
+    .where(eq(chatMessages.chatRoomId, roomId));
     .orderBy(desc(chatMessages.createdAt))
     .limit(limit);
     
@@ -2284,13 +2284,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteChatMessage(id: number): Promise<boolean> {
-    const result = await db.delete(chatMessages).where(eq(chatMessages.id, id, parseInt(userId)));
+    const result = await db.delete(chatMessages).where(eq(chatMessages.id, id));
     return result.rowCount > 0;
   }
 
   // Community Wall Posts
   async getCommunityWallPosts(communityId: string, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
-    let whereCondition = eq(communityWallPosts.communityId, communityId)));
+    let whereCondition = eq(communityWallPosts.communityId, communityId), parseInt(communityId));
     
     if (isPrivate !== undefined) {
       whereCondition = and(whereCondition, eq(communityWallPosts.isPrivate, isPrivate));
@@ -2331,7 +2331,7 @@ export class DatabaseStorage implements IStorage {
     })
     .from(communityWallPosts)
     .innerJoin(users, eq(communityWallPosts.authorId, users.id))
-    .where(eq(communityWallPosts.id, id, parseInt(userId)));
+    .where(eq(communityWallPosts.id, id));
     .limit(1);
     
     return result[0];
@@ -2345,14 +2345,14 @@ export class DatabaseStorage implements IStorage {
   async updateCommunityWallPost(id: string, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
     const result = await db.update(communityWallPosts)
       .set(data)
-      .where(eq(communityWallPosts.id, id, parseInt(userId)));
+      .where(eq(communityWallPosts.id, id));
       .returning();
     return result[0];
   }
 
   async deleteCommunityWallPost(id: number): Promise<boolean> {
     const result = await db.delete(communityWallPosts)
-      .where(eq(communityWallPosts.id, id, parseInt(userId)));
+      .where(eq(communityWallPosts.id, id));
     return result.rowCount > 0;
   }
 
@@ -2360,7 +2360,7 @@ export class DatabaseStorage implements IStorage {
   async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
-      .where(eq(prayerRequests.privacyLevel, 'public', parseInt(userId)));
+      .where(eq(prayerRequests.privacyLevel, 'public'));
       .orderBy(desc(prayerRequests.createdAt));
   }
 
@@ -2373,7 +2373,7 @@ export class DatabaseStorage implements IStorage {
   async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
     const result = await db.select()
       .from(prayerRequests)
-      .where(eq(prayerRequests.id, id, parseInt(userId)));
+      .where(eq(prayerRequests.id, id));
       .limit(1);
     return result[0];
   }
@@ -2381,14 +2381,14 @@ export class DatabaseStorage implements IStorage {
   async getUserPrayerRequests(userId: string): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
-      .where(eq(prayerRequests.authorId, userId, parseInt(userId)));
+      .where(eq(prayerRequests.authorId, userId));
       .orderBy(desc(prayerRequests.createdAt));
   }
 
   async getGroupPrayerRequests(groupId: string): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
-      .where(eq(prayerRequests.groupId, groupId, parseInt(userId)));
+      .where(eq(prayerRequests.groupId, groupId));
       .orderBy(desc(prayerRequests.createdAt));
   }
 
@@ -2400,7 +2400,7 @@ export class DatabaseStorage implements IStorage {
   async updatePrayerRequest(id: string, data: Partial<PrayerRequest>): Promise<PrayerRequest> {
     const result = await db.update(prayerRequests)
       .set(data)
-      .where(eq(prayerRequests.id, id, parseInt(userId)));
+      .where(eq(prayerRequests.id, id));
       .returning();
     return result[0];
   }
@@ -2408,14 +2408,14 @@ export class DatabaseStorage implements IStorage {
   async markPrayerRequestAsAnswered(id: number): Promise<PrayerRequest> {
     const result = await db.update(prayerRequests)
       .set({ isAnswered: true })
-      .where(eq(prayerRequests.id, id, parseInt(userId)));
+      .where(eq(prayerRequests.id, id));
       .returning();
     return result[0];
   }
 
   async deletePrayerRequest(id: number): Promise<boolean> {
     const result = await db.delete(prayerRequests)
-      .where(eq(prayerRequests.id, id, parseInt(userId)));
+      .where(eq(prayerRequests.id, id));
     return result.rowCount > 0;
   }
 
@@ -2427,14 +2427,14 @@ export class DatabaseStorage implements IStorage {
   async getPrayersForRequest(requestId: string): Promise<Prayer[]> {
     return await db.select()
       .from(prayers)
-      .where(eq(prayers.prayerRequestId, requestId, parseInt(userId)));
+      .where(eq(prayers.prayerRequestId, requestId));
       .orderBy(desc(prayers.createdAt));
   }
 
   async getUserPrayedRequests(userId: string): Promise<PrayerRequest[]> {
     const prayedRequestIds = await db.select({ requestId: prayers.prayerRequestId })
       .from(prayers)
-      .where(eq(prayers.userId, userId, parseInt(userId)));
+      .where(eq(prayers.userId, userId));
     
     if (prayedRequestIds.length === 0) return [];
     
@@ -2462,7 +2462,7 @@ export class DatabaseStorage implements IStorage {
   async incrementApologeticsQuestionViewCount(id: number): Promise<void> {
     await db.update(apologeticsQuestions)
       .set({ viewCount: sql`${apologeticsQuestions.viewCount} + 1` })
-      .where(eq(apologeticsQuestions.id, id, parseInt(userId)));
+      .where(eq(apologeticsQuestions.id, id));
   }
 
   // Livestream Methods
@@ -2474,7 +2474,7 @@ export class DatabaseStorage implements IStorage {
   async getLivestream(id: number): Promise<Livestream | undefined> {
     const result = await db.select()
       .from(livestreams)
-      .where(eq(livestreams.id, id, parseInt(userId)));
+      .where(eq(livestreams.id, id));
       .limit(1);
     return result[0];
   }
@@ -2497,10 +2497,10 @@ export class DatabaseStorage implements IStorage {
 
   // Bible Study Methods
   async getBibleStudyNotes(userId: string, passage?: string): Promise<BibleStudyNote[]> {
-    let query = db.select().from(bibleStudyNotes).where(eq(bibleStudyNotes.userId, userId, parseInt(userId)));
+    let query = db.select().from(bibleStudyNotes).where(eq(bibleStudyNotes.userId, userId));
     
     if (passage) {
-      query = query.where(eq(bibleStudyNotes.passage, passage, parseInt(userId)));
+      query = query.where(eq(bibleStudyNotes.passage, passage));
     }
     
     return await query.orderBy(desc(bibleStudyNotes.createdAt));
@@ -2520,7 +2520,7 @@ export class DatabaseStorage implements IStorage {
   async getUserVerseMemorization(userId: string): Promise<VerseMemorization[]> {
     return await db.select()
       .from(verseMemorization)
-      .where(eq(verseMemorization.userId, userId, parseInt(userId)));
+      .where(eq(verseMemorization.userId, userId));
       .orderBy(desc(verseMemorization.startDate));
   }
 
@@ -2532,7 +2532,7 @@ export class DatabaseStorage implements IStorage {
   async markVerseMastered(id: number): Promise<VerseMemorization> {
     const result = await db.update(verseMemorization)
       .set({ masteredDate: new Date() })
-      .where(eq(verseMemorization.id, id, parseInt(userId)));
+      .where(eq(verseMemorization.id, id));
       .returning();
     return result[0];
   }
@@ -2542,7 +2542,7 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         reviewDates: sql`array_append(coalesce(${verseMemorization.reviewDates}, '{}'), ${reviewDate.toISOString()})`
       })
-      .where(eq(verseMemorization.id, id, parseInt(userId)));
+      .where(eq(verseMemorization.id, id));
       .returning();
     return result[0];
   }
@@ -2565,7 +2565,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPost(id: number): Promise<Post | undefined> {
-    const result = await db.select().from(posts).where(eq(posts.id, id, parseInt(userId)));
+    const result = await db.select().from(posts).where(eq(posts.id, id));
     return result[0];
   }
 
@@ -2573,7 +2573,7 @@ export class DatabaseStorage implements IStorage {
     const community = await this.getCommunityBySlug(communitySlug);
     if (!community) return [];
     
-    let query = db.select().from(posts).where(eq(posts.communityId, community.id, parseInt(userId)));
+    let query = db.select().from(posts).where(eq(posts.communityId, community.id));
     
     if (filter === "latest") {
       query = query.orderBy(desc(posts.createdAt));
@@ -2588,7 +2588,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPostsByGroupId(groupId: string, filter: string = "popular"): Promise<Post[]> {
-    let query = db.select().from(posts).where(eq(posts.groupId, groupId, parseInt(userId)));
+    let query = db.select().from(posts).where(eq(posts.groupId, groupId));
     
     if (filter === "latest") {
       query = query.orderBy(desc(posts.createdAt));
@@ -2616,7 +2616,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .update(posts)
       .set({ upvotes: (post.upvotes || 0) + 1 })
-      .where(eq(posts.id, id, parseInt(userId)));
+      .where(eq(posts.id, id));
       .returning();
     
     return result[0];
@@ -2624,7 +2624,7 @@ export class DatabaseStorage implements IStorage {
 
   // Comment methods
   async getComment(id: number): Promise<Comment | undefined> {
-    const result = await db.select().from(comments).where(eq(comments.id, id, parseInt(userId)));
+    const result = await db.select().from(comments).where(eq(comments.id, id));
     return result[0];
   }
 
@@ -2632,7 +2632,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(comments)
-      .where(eq(comments.postId, postId, parseInt(userId)));
+      .where(eq(comments.postId, postId));
       .orderBy(desc(comments.createdAt));
   }
 
@@ -2645,7 +2645,7 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         commentCount: sql`${posts.commentCount} + 1` 
       })
-      .where(eq(posts.id, parseInt(userId)));
+      .where(eq(posts.id, parseInt(comment.postId));
     
     return result[0];
   }
@@ -2659,7 +2659,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .update(comments)
       .set({ upvotes: (comment.upvotes || 0) + 1 })
-      .where(eq(comments.id, id, parseInt(userId)));
+      .where(eq(comments.id, id));
       .returning();
     
     return result[0];
@@ -2667,7 +2667,7 @@ export class DatabaseStorage implements IStorage {
 
   // Group methods
   async getGroup(id: number): Promise<Group | undefined> {
-    const result = await db.select().from(groups).where(eq(groups.id, id, parseInt(userId)));
+    const result = await db.select().from(groups).where(eq(groups.id, id));
     return result[0];
   }
 
@@ -2676,7 +2676,7 @@ export class DatabaseStorage implements IStorage {
     const memberGroupIds = await db
       .select({ groupId: groupMembers.groupId })
       .from(groupMembers)
-      .where(eq(groupMembers.userId, userId, parseInt(userId)));
+      .where(eq(groupMembers.userId, userId));
     
     if (memberGroupIds.length === 0) return [];
     
@@ -2702,7 +2702,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(groupMembers)
-      .where(eq(groupMembers.groupId, groupId, parseInt(userId)));
+      .where(eq(groupMembers.groupId, groupId));
   }
 
   async isGroupAdmin(groupId: string, userId: string): Promise<boolean> {
@@ -2727,7 +2727,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getApologeticsResource(id: number): Promise<ApologeticsResource | undefined> {
-    const result = await db.select().from(apologeticsResources).where(eq(apologeticsResources.id, id, parseInt(userId)));
+    const result = await db.select().from(apologeticsResources).where(eq(apologeticsResources.id, id));
     return result[0];
   }
 
@@ -3025,7 +3025,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getMicroblog(id: number): Promise<Microblog | undefined> {
-    const result = await db.select().from(microblogs).where(eq(microblogs.id, id, parseInt(userId)));
+    const result = await db.select().from(microblogs).where(eq(microblogs.id, id));
     return result[0];
   }
   
@@ -3033,7 +3033,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(microblogs)
-      .where(eq(microblogs.authorId, parseInt(userId)));
+      .where(eq(microblogs.authorId, parseInt(userId));
       .orderBy(desc(microblogs.createdAt));
   }
   
@@ -3043,7 +3043,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(microblogs)
-      .where(inArray(microblogs.authorId, userIds.map(id => parseInt(userId))))
+      .where(inArray(microblogs.authorId, userIds.map(id => parseInt(id))))
       .orderBy(desc(microblogs.createdAt));
   }
   
@@ -3051,7 +3051,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(microblogs)
-      .where(eq(microblogs.communityId, communityId, parseInt(userId)));
+      .where(eq(microblogs.communityId, communityId));
       .orderBy(desc(microblogs.createdAt));
   }
   
@@ -3059,7 +3059,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(microblogs)
-      .where(eq(microblogs.groupId, groupId, parseInt(userId)));
+      .where(eq(microblogs.groupId, groupId));
       .orderBy(desc(microblogs.createdAt));
   }
   
@@ -3067,7 +3067,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(microblogs)
-      .where(eq(microblogs.parentId, microblogId, parseInt(userId)));
+      .where(eq(microblogs.parentId, microblogId));
       .orderBy(desc(microblogs.createdAt));
   }
   
@@ -3082,7 +3082,7 @@ export class DatabaseStorage implements IStorage {
         await db
           .update(microblogs)
           .set({ replyCount: (parent.replyCount || 0) + 1 })
-          .where(eq(microblogs.id, parseInt(userId)));
+          .where(eq(microblogs.id, parseInt(microblog.parentId));
       }
       
       return result[0];
@@ -3122,7 +3122,7 @@ export class DatabaseStorage implements IStorage {
       await db
         .update(microblogs)
         .set({ likeCount: (microblog.likeCount || 0) + 1 })
-        .where(eq(microblogs.id, parseInt(userId)));
+        .where(eq(microblogs.id, parseInt(microblogId));
     }
     
     return result[0];
@@ -3148,7 +3148,7 @@ export class DatabaseStorage implements IStorage {
       await db
         .update(microblogs)
         .set({ likeCount: microblog.likeCount - 1 })
-        .where(eq(microblogs.id, parseInt(userId)));
+        .where(eq(microblogs.id, parseInt(microblogId));
     }
     
     return true;
@@ -3159,7 +3159,7 @@ export class DatabaseStorage implements IStorage {
       const likes = await db
         .select()
         .from(microblogLikes)
-        .where(eq(microblogLikes.userId, userId, parseInt(userId)));
+        .where(eq(microblogLikes.userId, userId));
       
       return likes.map(like => like.microblogId);
     } catch (error) {
@@ -3178,7 +3178,7 @@ export class DatabaseStorage implements IStorage {
       const [preferences] = await db
         .select()
         .from(userPreferences)
-        .where(eq(userPreferences.userId, userId, parseInt(userId)));
+        .where(eq(userPreferences.userId, userId));
       
       return preferences;
     } catch (error) {
@@ -3199,7 +3199,7 @@ export class DatabaseStorage implements IStorage {
             ...preferences,
             updatedAt: new Date()
           })
-          .where(eq(userPreferences.id, existingPrefs.id, parseInt(userId)));
+          .where(eq(userPreferences.id, existingPrefs.id));
           .returning();
           
         return updatedPrefs;
@@ -3235,7 +3235,7 @@ export class DatabaseStorage implements IStorage {
       const recommendations = await db
         .select()
         .from(contentRecommendations)
-        .where(eq(contentRecommendations.userId, userId, parseInt(userId)));
+        .where(eq(contentRecommendations.userId, userId));
         .orderBy(
           contentRecommendations.viewed,
           desc(contentRecommendations.score)
@@ -3253,7 +3253,7 @@ export class DatabaseStorage implements IStorage {
       const [recommendation] = await db
         .select()
         .from(contentRecommendations)
-        .where(eq(contentRecommendations.id, id, parseInt(userId)));
+        .where(eq(contentRecommendations.id, id));
       
       return recommendation;
     } catch (error) {
@@ -3288,7 +3288,7 @@ export class DatabaseStorage implements IStorage {
           viewed: true,
           viewedAt: new Date()
         })
-        .where(eq(contentRecommendations.id, id, parseInt(userId)));
+        .where(eq(contentRecommendations.id, id));
       
       return result.rowCount > 0;
     } catch (error) {
@@ -3346,9 +3346,9 @@ export class DatabaseStorage implements IStorage {
           const now = new Date();
           query = query.where(sql`${events.eventDate} < CURRENT_DATE`);
         } else if (filter === "virtual") {
-          query = query.where(eq(events.isVirtual, true, parseInt(userId)));
+          query = query.where(eq(events.isVirtual, true));
         } else if (filter === "in-person") {
-          query = query.where(eq(events.isVirtual, false, parseInt(userId)));
+          query = query.where(eq(events.isVirtual, false));
         } else {
           // Text search
           query = query.where(
@@ -3477,7 +3477,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(events)
-        .where(eq(events.id, id, parseInt(userId)));
+        .where(eq(events.id, id));
         .limit(1);
       
       return result[0];
@@ -3492,7 +3492,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(events)
-        .where(eq(events.communityId, communityId, parseInt(userId)));
+        .where(eq(events.communityId, communityId));
         .orderBy(events.eventDate, events.startTime);
       
       return result;
@@ -3507,7 +3507,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(events)
-        .where(eq(events.groupId, groupId, parseInt(userId)));
+        .where(eq(events.groupId, groupId));
         .orderBy(events.eventDate, events.startTime);
       
       return result;
@@ -3522,7 +3522,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(events)
-        .where(eq(events.creatorId, userId, parseInt(userId)));
+        .where(eq(events.creatorId, userId));
         .orderBy(events.eventDate, events.startTime);
       
       return result;
@@ -3551,7 +3551,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .update(events)
         .set(eventData)
-        .where(eq(events.id, id, parseInt(userId)));
+        .where(eq(events.id, id));
         .returning();
       
       if (result.length === 0) {
@@ -3569,7 +3569,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await db
         .delete(events)
-        .where(eq(events.id, id, parseInt(userId)));
+        .where(eq(events.id, id));
         .returning();
       
       return result.length > 0;
@@ -3617,7 +3617,7 @@ export class DatabaseStorage implements IStorage {
         })
         .from(eventRsvps)
         .leftJoin(users, eq(eventRsvps.userId, users.id))
-        .where(eq(eventRsvps.eventId, eventId, parseInt(userId)));
+        .where(eq(eventRsvps.eventId, eventId));
       
       return rsvps;
     } catch (error) {
@@ -3665,7 +3665,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .update(eventRsvps)
         .set({ status })
-        .where(eq(eventRsvps.id, id, parseInt(userId)));
+        .where(eq(eventRsvps.id, id));
         .returning();
       
       if (result.length === 0) {
@@ -3685,19 +3685,19 @@ export class DatabaseStorage implements IStorage {
       const publicRequests = await db
         .select()
         .from(prayerRequests)
-        .where(eq(prayerRequests.privacyLevel, 'public', parseInt(userId)));
+        .where(eq(prayerRequests.privacyLevel, 'public'));
       
       // Get the user's own prayer requests
       const userRequests = await db
         .select()
         .from(prayerRequests)
-        .where(eq(prayerRequests.authorId, userId, parseInt(userId)));
+        .where(eq(prayerRequests.authorId, userId));
       
       // Get user's groups
       const userGroups = await db
         .select()
         .from(groupMembers)
-        .where(eq(groupMembers.userId, userId, parseInt(userId)));
+        .where(eq(groupMembers.userId, userId));
       
       const userGroupIds = userGroups.map(g => g.groupId);
       
@@ -3738,7 +3738,7 @@ export class DatabaseStorage implements IStorage {
       let query = db.select().from(bibleReadingPlans);
       
       if (filter === 'public') {
-        query = query.where(eq(bibleReadingPlans.isPublic, true, parseInt(userId)));
+        query = query.where(eq(bibleReadingPlans.isPublic, true));
       }
       
       return await query.orderBy(desc(bibleReadingPlans.createdAt));
@@ -3771,7 +3771,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(bibleReadingPlans)
-        .where(eq(bibleReadingPlans.groupId, groupId, parseInt(userId)));
+        .where(eq(bibleReadingPlans.groupId, groupId));
         .orderBy(desc(bibleReadingPlans.createdAt));
     } catch (error) {
       console.error("Error getting group Bible reading plans:", error);
@@ -3798,7 +3798,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .update(bibleReadingPlans)
         .set(data)
-        .where(eq(bibleReadingPlans.id, id, parseInt(userId)));
+        .where(eq(bibleReadingPlans.id, id));
         .returning();
       
       return result[0];
@@ -3810,7 +3810,7 @@ export class DatabaseStorage implements IStorage {
   
   async deleteBibleReadingPlan(id: number): Promise<boolean> {
     try {
-      await db.delete(bibleReadingPlans).where(eq(bibleReadingPlans.id, id, parseInt(userId)));
+      await db.delete(bibleReadingPlans).where(eq(bibleReadingPlans.id, id));
       return true;
     } catch (error) {
       console.error("Error deleting Bible reading plan:", error);
@@ -3824,7 +3824,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(bibleReadingProgress)
-        .where(eq(bibleReadingProgress.userId, userId, parseInt(userId)));
+        .where(eq(bibleReadingProgress.userId, userId));
     } catch (error) {
       console.error("Error getting user reading progress:", error);
       return [];
@@ -3895,7 +3895,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.isPublic, true, parseInt(userId)));
+        .where(eq(bibleStudyNotes.isPublic, true));
         .orderBy(desc(bibleStudyNotes.createdAt));
     } catch (error) {
       console.error("Error getting all Bible study notes:", error);
@@ -3908,7 +3908,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.userId, userId, parseInt(userId)));
+        .where(eq(bibleStudyNotes.userId, userId));
         .orderBy(desc(bibleStudyNotes.createdAt));
     } catch (error) {
       console.error("Error getting user Bible study notes:", error);
@@ -3921,7 +3921,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.groupId, groupId, parseInt(userId)));
+        .where(eq(bibleStudyNotes.groupId, groupId));
         .orderBy(desc(bibleStudyNotes.createdAt));
     } catch (error) {
       console.error("Error getting group Bible study notes:", error);
@@ -3934,7 +3934,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.id, id, parseInt(userId)));
+        .where(eq(bibleStudyNotes.id, id));
         .limit(1);
       
       return result[0];
@@ -3967,7 +3967,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .update(bibleStudyNotes)
         .set(updateData)
-        .where(eq(bibleStudyNotes.id, id, parseInt(userId)));
+        .where(eq(bibleStudyNotes.id, id));
         .returning();
       
       return result[0];
@@ -3979,7 +3979,7 @@ export class DatabaseStorage implements IStorage {
   
   async deleteBibleStudyNote(id: number): Promise<boolean> {
     try {
-      await db.delete(bibleStudyNotes).where(eq(bibleStudyNotes.id, id, parseInt(userId)));
+      await db.delete(bibleStudyNotes).where(eq(bibleStudyNotes.id, id));
       return true;
     } catch (error) {
       console.error("Error deleting Bible study note:", error);
@@ -3993,7 +3993,7 @@ export class DatabaseStorage implements IStorage {
       const applications = await db
         .select()
         .from(livestreamerApplications)
-        .where(eq(livestreamerApplications.userId, userId, parseInt(userId)));
+        .where(eq(livestreamerApplications.userId, userId));
       
       return applications[0];
     } catch (error) {
@@ -4007,7 +4007,7 @@ export class DatabaseStorage implements IStorage {
       const pendingApplications = await db
         .select()
         .from(livestreamerApplications)
-        .where(eq(livestreamerApplications.status, "pending", parseInt(userId)));
+        .where(eq(livestreamerApplications.status, "pending"));
         .orderBy(livestreamerApplications.submittedAt);
       
       return pendingApplications;
@@ -4046,7 +4046,7 @@ export class DatabaseStorage implements IStorage {
           reviewedBy: reviewerId,
           reviewedAt: new Date()
         })
-        .where(eq(livestreamerApplications.id, id, parseInt(userId)));
+        .where(eq(livestreamerApplications.id, id));
         .returning();
       
       return result[0];
@@ -4081,7 +4081,7 @@ export class DatabaseStorage implements IStorage {
       const applications = await db
         .select()
         .from(apologistScholarApplications)
-        .where(eq(apologistScholarApplications.userId, userId, parseInt(userId)));
+        .where(eq(apologistScholarApplications.userId, userId));
       
       return applications[0];
     } catch (error) {
@@ -4095,7 +4095,7 @@ export class DatabaseStorage implements IStorage {
       const pendingApplications = await db
         .select()
         .from(apologistScholarApplications)
-        .where(eq(apologistScholarApplications.status, "pending", parseInt(userId)));
+        .where(eq(apologistScholarApplications.status, "pending"));
         .orderBy(apologistScholarApplications.submittedAt);
       
       return pendingApplications;
@@ -4134,7 +4134,7 @@ export class DatabaseStorage implements IStorage {
           reviewedBy: reviewerId,
           reviewedAt: new Date()
         })
-        .where(eq(apologistScholarApplications.id, id, parseInt(userId)));
+        .where(eq(apologistScholarApplications.id, id));
         .returning();
       
       return result[0];
