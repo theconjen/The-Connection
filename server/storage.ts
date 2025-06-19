@@ -2144,7 +2144,7 @@ export class DatabaseStorage implements IStorage {
   async getCommunityMember(communityId: string, userId: string): Promise<CommunityMember | undefined> {
     const result = await db.select()
       .from(communityMembers)
-      .where(and(eq(communityMembers.communityId, communityId), parseInt(communityId)), eq(communityMembers.userId, userId)))
+      .where(and(eq(communityMembers.communityId, parseInt(communityId)), eq(communityMembers.userId, parseInt(userId))))
       .limit(1);
     return result[0];
   }
@@ -2157,21 +2157,21 @@ export class DatabaseStorage implements IStorage {
   async updateCommunityMemberRole(id: string, role: string): Promise<CommunityMember> {
     const result = await db.update(communityMembers)
       .set({ role })
-      .where(eq(communityMembers.id, id));
+      .where(eq(communityMembers.id, id))
       .returning();
     return result[0];
   }
 
   async removeCommunityMember(communityId: string, userId: string): Promise<boolean> {
     const result = await db.delete(communityMembers)
-      .where(and(eq(communityMembers.communityId, communityId), parseInt(communityId)), eq(communityMembers.userId, userId)));
+      .where(and(eq(communityMembers.communityId, parseInt(communityId)), eq(communityMembers.userId, parseInt(userId))));
     return result.rowCount > 0;
   }
 
   async isCommunityMember(communityId: string, userId: string): Promise<boolean> {
     const result = await db.select({ id: communityMembers.id })
       .from(communityMembers)
-      .where(and(eq(communityMembers.communityId, communityId), parseInt(communityId)), eq(communityMembers.userId, userId)))
+      .where(and(eq(communityMembers.communityId, parseInt(communityId)), eq(communityMembers.userId, parseInt(userId))))
       .limit(1);
     return result.length > 0;
   }
@@ -2180,8 +2180,8 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
       .where(and(
-        eq(communityMembers.communityId, communityId), parseInt(communityId)), 
-        eq(communityMembers.userId, userId),
+        eq(communityMembers.communityId, parseInt(communityId)), 
+        eq(communityMembers.userId, parseInt(userId)),
         eq(communityMembers.role, "owner")
       ))
       .limit(1);
@@ -2192,8 +2192,8 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
       .where(and(
-        eq(communityMembers.communityId, communityId), parseInt(communityId)), 
-        eq(communityMembers.userId, userId),
+        eq(communityMembers.communityId, parseInt(communityId)), 
+        eq(communityMembers.userId, parseInt(userId)),
         or(eq(communityMembers.role, "moderator"), eq(communityMembers.role, "owner"))
       ))
       .limit(1);
@@ -2210,7 +2210,7 @@ export class DatabaseStorage implements IStorage {
   async getPublicCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
     return await db.select()
       .from(communityChatRooms)
-      .where(and(eq(communityChatRooms.communityId, communityId), parseInt(communityId)), eq(communityChatRooms.isPrivate, false)));
+      .where(and(eq(communityChatRooms.communityId, parseInt(communityId)), eq(communityChatRooms.isPrivate, false)));
   }
 
   async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
