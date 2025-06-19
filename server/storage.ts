@@ -80,10 +80,8 @@ import connectPg from "connect-pg-simple";
 import { db } from "./db";
 import { eq, and, or, desc, SQL, sql, inArray, isNull } from "drizzle-orm";
 import { pool } from './db';
-
 const MemoryStore = createMemoryStore(session);
 const PostgresSessionStore = connectPg(session);
-
 // Storage interface
 export interface IStorage {
   // User methods
@@ -458,7 +456,6 @@ export interface IStorage {
   getUpcomingEvents(limit: string): Promise<Event[]>;
   getPrayerRequestsVisibleToUser(userId: string): Promise<PrayerRequest[]>;
 }
-
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private communities: Map<number, Community>;
@@ -497,7 +494,6 @@ export class MemStorage implements IStorage {
   private contentRecommendationIdCounter: string;
   
   sessionStore: any;
-
   constructor() {
     this.users = new Map();
     this.communities = new Map();
@@ -542,7 +538,6 @@ export class MemStorage implements IStorage {
     // Initialize with sample data
     this.initializeData();
   }
-
   private initializeData() {
     // Sample communities
     this.createCommunity({
@@ -606,16 +601,13 @@ export class MemStorage implements IStorage {
       url: "#"
     });
   }
-
   // User methods
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(parseInt(id));
   }
-
   async getUserById(id: string): Promise<User | undefined> {
     return this.users.get(parseInt(id));
   }
-
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.username.toLowerCase() === username.toLowerCase(),
@@ -627,7 +619,6 @@ export class MemStorage implements IStorage {
       (user) => user.email?.toLowerCase() === email.toLowerCase(),
     );
   }
-
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
     const now = new Date();
@@ -683,23 +674,18 @@ export class MemStorage implements IStorage {
     return userPrefs;
   }
   
-
-
   // Community methods
   async getAllCommunities(): Promise<Community[]> {
     return Array.from(this.communities.values());
   }
-
   async getCommunity(id: string): Promise<Community | undefined> {
     return this.communities.get(parseInt(id));
   }
-
   async getCommunityBySlug(slug: string): Promise<Community | undefined> {
     return Array.from(this.communities.values()).find(
       (community) => community.slug === slug,
     );
   }
-
   async createCommunity(insertCommunity: InsertCommunity): Promise<Community> {
     const id = this.communityIdCounter++;
     const now = new Date();
@@ -1070,7 +1056,6 @@ export class MemStorage implements IStorage {
     }
     return exists;
   }
-
   // Post methods
   async getAllPosts(filter: string = "popular"): Promise<Post[]> {
     const posts = Array.from(this.posts.values());
@@ -1088,11 +1073,9 @@ export class MemStorage implements IStorage {
       });
     }
   }
-
   async getPost(id: number): Promise<Post | undefined> {
     return this.posts.get(id);
   }
-
   async getPostsByCommunitySlug(communitySlug: string, filter: string = "popular"): Promise<Post[]> {
     const community = await this.getCommunityBySlug(communitySlug);
     if (!community) return [];
@@ -1114,7 +1097,6 @@ export class MemStorage implements IStorage {
       });
     }
   }
-
   async getPostsByGroupId(groupId: string, filter: string = "popular"): Promise<Post[]> {
     const posts = Array.from(this.posts.values()).filter(
       (post) => post.groupId === groupId
@@ -1133,7 +1115,6 @@ export class MemStorage implements IStorage {
       });
     }
   }
-
   async createPost(insertPost: InsertPost): Promise<Post> {
     const id = this.postIdCounter++;
     const now = new Date();
@@ -1147,7 +1128,6 @@ export class MemStorage implements IStorage {
     this.posts.set(id, post);
     return post;
   }
-
   async upvotePost(id: number): Promise<Post> {
     const post = this.posts.get(id);
     if (!post) {
@@ -1158,18 +1138,15 @@ export class MemStorage implements IStorage {
     this.posts.set(id, updatedPost);
     return updatedPost;
   }
-
   // Comment methods
   async getComment(id: number): Promise<Comment | undefined> {
     return this.comments.get(id);
   }
-
   async getCommentsByPostId(postId: string): Promise<Comment[]> {
     return Array.from(this.comments.values())
       .filter((comment) => comment.postId === postId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
-
   async createComment(insertComment: InsertComment): Promise<Comment> {
     const id = this.commentIdCounter++;
     const now = new Date();
@@ -1190,7 +1167,6 @@ export class MemStorage implements IStorage {
     
     return comment;
   }
-
   async upvoteComment(id: number): Promise<Comment> {
     const comment = this.comments.get(id);
     if (!comment) {
@@ -1201,12 +1177,10 @@ export class MemStorage implements IStorage {
     this.comments.set(id, updatedComment);
     return updatedComment;
   }
-
   // Group methods
   async getGroup(id: number): Promise<Group | undefined> {
     return this.groups.get(id);
   }
-
   async getGroupsByUserId(userId: string): Promise<Group[]> {
     // Get all group memberships for this user
     const memberships = Array.from(this.groupMembers.values())
@@ -1217,7 +1191,6 @@ export class MemStorage implements IStorage {
     return Array.from(this.groups.values())
       .filter((group) => groupIds.includes(group.id));
   }
-
   async createGroup(insertGroup: InsertGroup): Promise<Group> {
     const id = this.groupIdCounter++;
     const now = new Date();
@@ -1229,7 +1202,6 @@ export class MemStorage implements IStorage {
     this.groups.set(id, group);
     return group;
   }
-
   // Group member methods
   async addGroupMember(insertMember: InsertGroupMember): Promise<GroupMember> {
     const id = this.groupMemberIdCounter++;
@@ -1242,28 +1214,23 @@ export class MemStorage implements IStorage {
     this.groupMembers.set(id, member);
     return member;
   }
-
   async getGroupMembers(groupId: string): Promise<GroupMember[]> {
     return Array.from(this.groupMembers.values())
       .filter((member) => member.groupId === groupId);
   }
-
   async isGroupAdmin(groupId: string, userId: string): Promise<boolean> {
     const member = Array.from(this.groupMembers.values()).find(
       (m) => m.groupId === groupId && m.userId === userId
     );
     return member ? member.isAdmin : false;
   }
-
   // Apologetics resource methods
   async getAllApologeticsResources(): Promise<ApologeticsResource[]> {
     return Array.from(this.apologeticsResources.values());
   }
-
   async getApologeticsResource(id: number): Promise<ApologeticsResource | undefined> {
     return this.apologeticsResources.get(id);
   }
-
   async createApologeticsResource(insertResource: InsertApologeticsResource): Promise<ApologeticsResource> {
     const id = this.apologeticsResourceIdCounter++;
     const now = new Date();
@@ -1275,7 +1242,6 @@ export class MemStorage implements IStorage {
     this.apologeticsResources.set(id, resource);
     return resource;
   }
-
   // Prayer request methods
   async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
     return Array.from(this.prayerRequests.values())
@@ -1314,7 +1280,6 @@ export class MemStorage implements IStorage {
         return b.createdAt.getTime() - a.createdAt.getTime();
       });
   }
-
   async getUserPrayerRequests(userId: string): Promise<PrayerRequest[]> {
     return Array.from(this.prayerRequests.values())
       .filter(prayer => prayer.authorId === userId)
@@ -1424,17 +1389,14 @@ export class MemStorage implements IStorage {
       .filter(prayer => prayer.userId === userId)
       .map(prayer => prayer.prayerRequestId);
   }
-
   // Helper method to check if a user is member of a group
   async isGroupMember(userId: string, groupId: string): Promise<boolean> {
     return Array.from(this.groupMembers.values())
       .some(member => member.userId === userId && member.groupId === groupId);
   }
-
   // ========================
   // EVENT METHODS
   // ========================
-
   async getAllEvents(filter?: string): Promise<Event[]> {
     let events = Array.from(this.events.values());
     
@@ -1454,7 +1416,6 @@ export class MemStorage implements IStorage {
       return dateA.getTime() - dateB.getTime();
     });
   }
-
   async getPublicEvents(): Promise<Event[]> {
     const events = Array.from(this.events.values());
     
@@ -1468,7 +1429,6 @@ export class MemStorage implements IStorage {
       return dateA.getTime() - dateB.getTime();
     });
   }
-
   async getEventsNearby(latitude: string, longitude: string, radiusInKm: string): Promise<Event[]> {
     const events = await this.getPublicEvents();
     
@@ -1511,11 +1471,9 @@ export class MemStorage implements IStorage {
   private deg2rad(deg: string): string {
     return deg * (Math.PI/180);
   }
-
   async getEvent(id: number): Promise<Event | undefined> {
     return this.events.get(id);
   }
-
   async getEventsByCommunity(communityId: string): Promise<Event[]> {
     const events = Array.from(this.events.values());
     return events
@@ -1526,7 +1484,6 @@ export class MemStorage implements IStorage {
         return dateA.getTime() - dateB.getTime();
       });
   }
-
   async getEventsByGroup(groupId: string): Promise<Event[]> {
     const events = Array.from(this.events.values());
     return events
@@ -1537,7 +1494,6 @@ export class MemStorage implements IStorage {
         return dateA.getTime() - dateB.getTime();
       });
   }
-
   async getEventsByUser(userId: string): Promise<Event[]> {
     const events = Array.from(this.events.values());
     return events
@@ -1602,7 +1558,6 @@ export class MemStorage implements IStorage {
         return dateA.getTime() - dateB.getTime();
       });
   }
-
   async createEvent(event: InsertEvent): Promise<Event> {
     const id = this.eventIdCounter++;
     const newEvent: Event = {
@@ -1614,7 +1569,6 @@ export class MemStorage implements IStorage {
     this.events.set(id, newEvent);
     return newEvent;
   }
-
   async updateEvent(id: string, eventData: Partial<Event>): Promise<Event> {
     const event = await this.getEvent(id);
     if (!event) {
@@ -1626,7 +1580,6 @@ export class MemStorage implements IStorage {
     
     return updatedEvent;
   }
-
   async deleteEvent(id: number): Promise<boolean> {
     const exists = this.events.has(id);
     if (!exists) {
@@ -1645,18 +1598,15 @@ export class MemStorage implements IStorage {
     
     return true;
   }
-
   // Event RSVP methods
   async getEventRsvps(eventId: string): Promise<EventRsvp[]> {
     const rsvps = Array.from(this.eventRsvps.values());
     return rsvps.filter(rsvp => rsvp.eventId === eventId);
   }
-
   async getUserEventRsvp(eventId: string, userId: string): Promise<EventRsvp | undefined> {
     const rsvps = Array.from(this.eventRsvps.values());
     return rsvps.find(rsvp => rsvp.eventId === eventId && rsvp.userId === userId);
   }
-
   async createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp> {
     const id = this.eventRsvpIdCounter++;
     const newRsvp: EventRsvp = {
@@ -1668,7 +1618,6 @@ export class MemStorage implements IStorage {
     this.eventRsvps.set(id, newRsvp);
     return newRsvp;
   }
-
   async updateEventRsvp(id: string, status: string): Promise<EventRsvp> {
     const rsvp = this.eventRsvps.get(id);
     if (!rsvp) {
@@ -2000,7 +1949,6 @@ export class MemStorage implements IStorage {
     return true;
   }
 }
-
 // Database storage implementation
 export class DatabaseStorage implements IStorage {
   
@@ -2012,18 +1960,15 @@ export class DatabaseStorage implements IStorage {
     
     return user?.isAdmin || false;
   }
-
   // User methods
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, parseInt(id)));
     return result[0];
   }
-
   async getUserById(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, parseInt(id)));
     return result[0];
   }
-
   async getUserByUsername(username: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.username, username));
     return result[0];
@@ -2065,27 +2010,22 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
   }
-
   // Community methods
   async getAllCommunities(): Promise<Community[]> {
     return await db.select().from(communities);
   }
-
   async getCommunity(id: string): Promise<Community | undefined> {
     const result = await db.select().from(communities).where(eq(communities.id, parseInt(id)));
     return result[0];
   }
-
   async getCommunityBySlug(slug: string): Promise<Community | undefined> {
     const result = await db.select().from(communities).where(eq(communities.slug, slug));
     return result[0];
   }
-
   async createCommunity(community: InsertCommunity): Promise<Community> {
     const result = await db.insert(communities).values(community).returning();
     return result[0];
   }
-
   async updateCommunity(id: string, community: Partial<Community>): Promise<Community> {
     const result = await db.update(communities)
       .set({ ...community, updatedAt: new Date() })
@@ -2093,12 +2033,10 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-
   async deleteCommunity(id: number): Promise<boolean> {
     const result = await db.delete(communities).where(eq(communities.id, parseInt(id)));
     return result.rowCount > 0;
   }
-
   async updateUser(id: string, userData: Partial<User>): Promise<User> {
     const result = await db.update(users)
       .set({ ...userData, updatedAt: new Date() })
@@ -2106,7 +2044,6 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-
   async setVerifiedApologeticsAnswerer(userId: string, isVerified: boolean): Promise<User> {
     const result = await db.update(users)
       .set({ isVerifiedApologeticsAnswerer: isVerified, updatedAt: new Date() })
@@ -2114,16 +2051,13 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-
   async getVerifiedApologeticsAnswerers(): Promise<User[]> {
     return await db.select().from(users).where(eq(users.isVerifiedApologeticsAnswerer, true));
   }
-
   async updateUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
     // For now, return a placeholder as this table might not exist yet
     return {} as UserPreferences;
   }
-
   // Community Member Management
   async getCommunityMembers(communityId: string): Promise<(CommunityMember & { user: User })[]> {
     const result = await db.select({
@@ -2140,7 +2074,6 @@ export class DatabaseStorage implements IStorage {
     
     return result;
   }
-
   async getCommunityMember(communityId: string, userId: string): Promise<CommunityMember | undefined> {
     const result = await db.select()
       .from(communityMembers)
@@ -2148,12 +2081,10 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result[0];
   }
-
   async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
     const result = await db.insert(communityMembers).values(member).returning();
     return result[0];
   }
-
   async updateCommunityMemberRole(id: string, role: string): Promise<CommunityMember> {
     const result = await db.update(communityMembers)
       .set({ role })
@@ -2161,13 +2092,11 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-
   async removeCommunityMember(communityId: string, userId: string): Promise<boolean> {
     const result = await db.delete(communityMembers)
       .where(and(eq(communityMembers.communityId, parseInt(communityId)), eq(communityMembers.userId, parseInt(userId))));
     return result.rowCount > 0;
   }
-
   async isCommunityMember(communityId: string, userId: string): Promise<boolean> {
     const result = await db.select({ id: communityMembers.id })
       .from(communityMembers)
@@ -2175,7 +2104,6 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result.length > 0;
   }
-
   async isCommunityOwner(communityId: string, userId: string): Promise<boolean> {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
@@ -2187,7 +2115,6 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result.length > 0;
   }
-
   async isCommunityModerator(communityId: string, userId: string): Promise<boolean> {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
@@ -2199,20 +2126,17 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result.length > 0;
   }
-
   // Community Chat Room Management
   async getCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
     return await db.select()
       .from(communityChatRooms)
       .where(eq(communityChatRooms.communityId, communityId));
   }
-
   async getPublicCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
     return await db.select()
       .from(communityChatRooms)
       .where(and(eq(communityChatRooms.communityId, parseInt(communityId)), eq(communityChatRooms.isPrivate, false)));
   }
-
   async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
     const result = await db.select()
       .from(communityChatRooms)
@@ -2220,12 +2144,10 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result[0];
   }
-
   async createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom> {
     const result = await db.insert(communityChatRooms).values(room).returning();
     return result[0];
   }
-
   async updateCommunityRoom(id: string, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
     const result = await db.update(communityChatRooms)
       .set(data)
@@ -2233,13 +2155,11 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-
   async deleteCommunityRoom(id: number): Promise<boolean> {
     const result = await db.delete(communityChatRooms)
       .where(eq(communityChatRooms.id, id));
     return result.rowCount > 0;
   }
-
   // Chat Messages
   async getChatMessages(roomId: string, limit = 50): Promise<(ChatMessage & { sender: User })[]> {
     const result = await db.select({
@@ -2259,7 +2179,6 @@ export class DatabaseStorage implements IStorage {
     
     return result;
   }
-
   async getChatMessagesAfter(roomId: string, afterId: string): Promise<(ChatMessage & { sender: User })[]> {
     const result = await db.select({
       id: chatMessages.id,
@@ -2277,17 +2196,14 @@ export class DatabaseStorage implements IStorage {
     
     return result;
   }
-
   async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
     const result = await db.insert(chatMessages).values(message).returning();
     return result[0];
   }
-
   async deleteChatMessage(id: number): Promise<boolean> {
     const result = await db.delete(chatMessages).where(eq(chatMessages.id, id));
     return result.rowCount > 0;
   }
-
   // Community Wall Posts
   async getCommunityWallPosts(communityId: string, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
     let whereCondition = eq(communityWallPosts.communityId, parseInt(communityId));
@@ -2295,7 +2211,6 @@ export class DatabaseStorage implements IStorage {
     if (isPrivate !== undefined) {
       whereCondition = and(whereCondition, eq(communityWallPosts.isPrivate, isPrivate));
     }
-
     const result = await db.select({
       id: communityWallPosts.id,
       communityId: communityWallPosts.communityId,
@@ -2315,7 +2230,6 @@ export class DatabaseStorage implements IStorage {
     
     return result;
   }
-
   async getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined> {
     const result = await db.select({
       id: communityWallPosts.id,
@@ -2336,12 +2250,10 @@ export class DatabaseStorage implements IStorage {
     
     return result[0];
   }
-
   async createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost> {
     const result = await db.insert(communityWallPosts).values(post).returning();
     return result[0];
   }
-
   async updateCommunityWallPost(id: string, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
     const result = await db.update(communityWallPosts)
       .set(data)
@@ -2349,13 +2261,11 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-
   async deleteCommunityWallPost(id: number): Promise<boolean> {
     const result = await db.delete(communityWallPosts)
       .where(eq(communityWallPosts.id, id));
     return result.rowCount > 0;
   }
-
   // Prayer Request Methods
   async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
     return await db.select()
@@ -2363,13 +2273,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(prayerRequests.privacyLevel, 'public'))
       .orderBy(desc(prayerRequests.createdAt));
   }
-
   async getAllPrayerRequests(): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
       .orderBy(desc(prayerRequests.createdAt));
   }
-
   async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
     const result = await db.select()
       .from(prayerRequests)
@@ -2377,26 +2285,22 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result[0];
   }
-
   async getUserPrayerRequests(userId: string): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
       .where(eq(prayerRequests.authorId, userId))
       .orderBy(desc(prayerRequests.createdAt));
   }
-
   async getGroupPrayerRequests(groupId: string): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
       .where(eq(prayerRequests.groupId, groupId))
       .orderBy(desc(prayerRequests.createdAt));
   }
-
   async createPrayerRequest(request: InsertPrayerRequest): Promise<PrayerRequest> {
     const result = await db.insert(prayerRequests).values(request).returning();
     return result[0];
   }
-
   async updatePrayerRequest(id: string, data: Partial<PrayerRequest>): Promise<PrayerRequest> {
     const result = await db.update(prayerRequests)
       .set(data)
@@ -2404,7 +2308,6 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-
   async markPrayerRequestAsAnswered(id: number): Promise<PrayerRequest> {
     const result = await db.update(prayerRequests)
       .set({ isAnswered: true })
@@ -2412,25 +2315,21 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-
   async deletePrayerRequest(id: number): Promise<boolean> {
     const result = await db.delete(prayerRequests)
       .where(eq(prayerRequests.id, id));
     return result.rowCount > 0;
   }
-
   async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
     const result = await db.insert(prayers).values(prayer).returning();
     return result[0];
   }
-
   async getPrayersForRequest(requestId: string): Promise<Prayer[]> {
     return await db.select()
       .from(prayers)
       .where(eq(prayers.prayerRequestId, requestId))
       .orderBy(desc(prayers.createdAt));
   }
-
   async getUserPrayedRequests(userId: string): Promise<PrayerRequest[]> {
     const prayedRequestIds = await db.select({ requestId: prayers.prayerRequestId })
       .from(prayers)
@@ -2443,7 +2342,6 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(prayerRequests.id, prayedRequestIds.map(p => p.requestId)))
       .orderBy(desc(prayerRequests.createdAt));
   }
-
   // Group Member Methods
   async isGroupMember(groupId: string, userId: string): Promise<boolean> {
     const result = await db.select({ id: groupMembers.id })
@@ -2452,25 +2350,21 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result.length > 0;
   }
-
   // Apologetics Methods
   async createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic> {
     const result = await db.insert(apologeticsTopics).values(topic).returning();
     return result[0];
   }
-
   async incrementApologeticsQuestionViewCount(id: number): Promise<void> {
     await db.update(apologeticsQuestions)
       .set({ viewCount: sql`${apologeticsQuestions.viewCount} + 1` })
       .where(eq(apologeticsQuestions.id, id));
   }
-
   // Livestream Methods
   async createLivestream(livestream: InsertLivestream): Promise<Livestream> {
     const result = await db.insert(livestreams).values(livestream).returning();
     return result[0];
   }
-
   async getLivestream(id: number): Promise<Livestream | undefined> {
     const result = await db.select()
       .from(livestreams)
@@ -2478,23 +2372,19 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result[0];
   }
-
   // Virtual Gift Methods (placeholder implementations)
   async getActiveVirtualGifts(): Promise<any[]> {
     // Placeholder implementation
     return [];
   }
-
   async sendGiftToLivestream(giftId: string, livestreamId: string, senderId: string): Promise<any> {
     // Placeholder implementation
     return {};
   }
-
   async getAllCreatorTiers(): Promise<any[]> {
     // Placeholder implementation
     return [];
   }
-
   // Bible Study Methods
   async getBibleStudyNotes(userId: string, passage?: string): Promise<BibleStudyNote[]> {
     let query = db.select().from(bibleStudyNotes).where(eq(bibleStudyNotes.userId, userId));
@@ -2505,7 +2395,6 @@ export class DatabaseStorage implements IStorage {
     
     return await query.orderBy(desc(bibleStudyNotes.createdAt));
   }
-
   async markDayCompleted(userId: string, planId: string, day: string): Promise<void> {
     // Implementation for marking a day as completed in a reading plan
     await db.update(bibleReadingProgress)
@@ -2515,38 +2404,32 @@ export class DatabaseStorage implements IStorage {
       })
       .where(and(eq(bibleReadingProgress.userId, userId), eq(bibleReadingProgress.planId, planId)));
   }
-
   // Verse Memorization Methods
   async getUserVerseMemorization(userId: string): Promise<VerseMemorization[]> {
     return await db.select()
       .from(verseMemorization)
-      .where(eq(verseMemorization.userId, userId));
+      .where(eq(verseMemorization.userId, userId))
       .orderBy(desc(verseMemorization.startDate));
   }
-
   async createVerseMemorization(verse: InsertVerseMemorization): Promise<VerseMemorization> {
     const result = await db.insert(verseMemorization).values(verse).returning();
     return result[0];
   }
-
   async markVerseMastered(id: number): Promise<VerseMemorization> {
     const result = await db.update(verseMemorization)
       .set({ masteredDate: new Date() })
-      .where(eq(verseMemorization.id, id));
+      .where(eq(verseMemorization.id, id))
       .returning();
     return result[0];
   }
-
   async addVerseReviewDate(id: string, reviewDate: Date): Promise<VerseMemorization> {
     const result = await db.update(verseMemorization)
       .set({ 
         reviewDates: sql`array_append(coalesce(${verseMemorization.reviewDates}, '{}'), ${reviewDate.toISOString()})`
       })
-      .where(eq(verseMemorization.id, id));
-      .returning();
+      .where(eq(verseMemorization.id, id)).returning();
     return result[0];
   }
-
   // Post methods
   async getAllPosts(filter: string = "popular"): Promise<Post[]> {
     let query = db.select().from(posts);
@@ -2563,12 +2446,10 @@ export class DatabaseStorage implements IStorage {
     
     return await query;
   }
-
   async getPost(id: number): Promise<Post | undefined> {
     const result = await db.select().from(posts).where(eq(posts.id, id));
     return result[0];
   }
-
   async getPostsByCommunitySlug(communitySlug: string, filter: string = "popular"): Promise<Post[]> {
     const community = await this.getCommunityBySlug(communitySlug);
     if (!community) return [];
@@ -2586,7 +2467,6 @@ export class DatabaseStorage implements IStorage {
     
     return await query;
   }
-
   async getPostsByGroupId(groupId: string, filter: string = "popular"): Promise<Post[]> {
     let query = db.select().from(posts).where(eq(posts.groupId, groupId));
     
@@ -2601,12 +2481,10 @@ export class DatabaseStorage implements IStorage {
     
     return await query;
   }
-
   async createPost(post: InsertPost): Promise<Post> {
     const result = await db.insert(posts).values(post).returning();
     return result[0];
   }
-
   async upvotePost(id: number): Promise<Post> {
     const post = await this.getPost(id);
     if (!post) {
@@ -2616,26 +2494,21 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .update(posts)
       .set({ upvotes: (post.upvotes || 0) + 1 })
-      .where(eq(posts.id, id));
-      .returning();
+      .where(eq(posts.id, id)).returning();
     
     return result[0];
   }
-
   // Comment methods
   async getComment(id: number): Promise<Comment | undefined> {
     const result = await db.select().from(comments).where(eq(comments.id, id));
     return result[0];
   }
-
   async getCommentsByPostId(postId: string): Promise<Comment[]> {
     return await db
       .select()
       .from(comments)
-      .where(eq(comments.postId, postId));
-      .orderBy(desc(comments.createdAt));
+      .where(eq(comments.postId, postId)).orderBy(desc(comments.createdAt));
   }
-
   async createComment(comment: InsertComment): Promise<Comment> {
     const result = await db.insert(comments).values(comment).returning();
     
@@ -2645,11 +2518,10 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         commentCount: sql`${posts.commentCount} + 1` 
       })
-      .where(eq(posts.id, parseInt(comment.postId));
+      .where(eq(posts.id, parseInt(comment.postId)));
     
     return result[0];
   }
-
   async upvoteComment(id: number): Promise<Comment> {
     const comment = await this.getComment(id);
     if (!comment) {
@@ -2659,18 +2531,15 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .update(comments)
       .set({ upvotes: (comment.upvotes || 0) + 1 })
-      .where(eq(comments.id, id));
-      .returning();
+      .where(eq(comments.id, id)).returning();
     
     return result[0];
   }
-
   // Group methods
   async getGroup(id: number): Promise<Group | undefined> {
     const result = await db.select().from(groups).where(eq(groups.id, id));
     return result[0];
   }
-
   async getGroupsByUserId(userId: string): Promise<Group[]> {
     // Get groups where the user is a member
     const memberGroupIds = await db
@@ -2686,25 +2555,21 @@ export class DatabaseStorage implements IStorage {
     const allGroups = await db.select().from(groups);
     return allGroups.filter(group => groupIds.includes(group.id));
   }
-
   async createGroup(group: InsertGroup): Promise<Group> {
     const result = await db.insert(groups).values(group).returning();
     return result[0];
   }
-
   // Group member methods
   async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
     const result = await db.insert(groupMembers).values(member).returning();
     return result[0];
   }
-
   async getGroupMembers(groupId: string): Promise<GroupMember[]> {
     return await db
       .select()
       .from(groupMembers)
       .where(eq(groupMembers.groupId, groupId));
   }
-
   async isGroupAdmin(groupId: string, userId: string): Promise<boolean> {
     const result = await db
       .select()
@@ -2720,17 +2585,14 @@ export class DatabaseStorage implements IStorage {
     
     return result.length > 0;
   }
-
   // Apologetics resource methods
   async getAllApologeticsResources(): Promise<ApologeticsResource[]> {
     return await db.select().from(apologeticsResources);
   }
-
   async getApologeticsResource(id: number): Promise<ApologeticsResource | undefined> {
     const result = await db.select().from(apologeticsResources).where(eq(apologeticsResources.id, id));
     return result[0];
   }
-
   async createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource> {
     const result = await db.insert(apologeticsResources).values(resource).returning();
     return result[0];
@@ -3005,7 +2867,6 @@ export class DatabaseStorage implements IStorage {
       return result.rows[0];
     }
   }
-
   // Microblog methods implementation
   async getAllMicroblogs(filterType: string = "recent"): Promise<Microblog[]> {
     // Public microblogs only (not assigned to a community or group)
@@ -3033,7 +2894,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(microblogs)
-      .where(eq(microblogs.authorId, parseInt(userId));
+      .where(eq(microblogs.authorId, parseInt(userId)))
       .orderBy(desc(microblogs.createdAt));
   }
   
@@ -3051,24 +2912,21 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(microblogs)
-      .where(eq(microblogs.communityId, communityId));
-      .orderBy(desc(microblogs.createdAt));
+      .where(eq(microblogs.communityId, communityId)).orderBy(desc(microblogs.createdAt));
   }
   
   async getMicroblogsByGroupId(groupId: string): Promise<Microblog[]> {
     return await db
       .select()
       .from(microblogs)
-      .where(eq(microblogs.groupId, groupId));
-      .orderBy(desc(microblogs.createdAt));
+      .where(eq(microblogs.groupId, groupId)).orderBy(desc(microblogs.createdAt));
   }
   
   async getMicroblogReplies(microblogId: string): Promise<Microblog[]> {
     return await db
       .select()
       .from(microblogs)
-      .where(eq(microblogs.parentId, microblogId));
-      .orderBy(desc(microblogs.createdAt));
+      .where(eq(microblogs.parentId, microblogId)).orderBy(desc(microblogs.createdAt));
   }
   
   async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
@@ -3082,7 +2940,7 @@ export class DatabaseStorage implements IStorage {
         await db
           .update(microblogs)
           .set({ replyCount: (parent.replyCount || 0) + 1 })
-          .where(eq(microblogs.id, parseInt(microblog.parentId));
+          .where(eq(microblogs.id, parseInt(microblog.parentId)));
       }
       
       return result[0];
@@ -3167,7 +3025,6 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
-
   // ========================
   // CONTENT RECOMMENDATIONS
   // ========================
@@ -3186,7 +3043,6 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
   }
-
   async updateUserPreferences(userId: string, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences> {
     try {
       const existingPrefs = await this.getUserPreferences(userId);
@@ -3199,8 +3055,7 @@ export class DatabaseStorage implements IStorage {
             ...preferences,
             updatedAt: new Date()
           })
-          .where(eq(userPreferences.id, existingPrefs.id));
-          .returning();
+          .where(eq(userPreferences.id, existingPrefs.id)).returning();
           
         return updatedPrefs;
       } else {
@@ -3227,7 +3082,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Failed to update user preferences");
     }
   }
-
   // Recommendation methods
   async getAllRecommendations(userId: string): Promise<ContentRecommendation[]> {
     try {
@@ -3235,8 +3089,7 @@ export class DatabaseStorage implements IStorage {
       const recommendations = await db
         .select()
         .from(contentRecommendations)
-        .where(eq(contentRecommendations.userId, userId));
-        .orderBy(
+        .where(eq(contentRecommendations.userId, userId)).orderBy(
           contentRecommendations.viewed,
           desc(contentRecommendations.score)
         );
@@ -3247,7 +3100,6 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
-
   async getRecommendation(id: number): Promise<ContentRecommendation | undefined> {
     try {
       const [recommendation] = await db
@@ -3261,7 +3113,6 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
   }
-
   async addContentRecommendation(recommendation: InsertContentRecommendation): Promise<ContentRecommendation> {
     try {
       const [newRecommendation] = await db
@@ -3279,7 +3130,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Failed to add recommendation");
     }
   }
-
   async markRecommendationAsViewed(id: number): Promise<boolean> {
     try {
       const result = await db
@@ -3296,7 +3146,6 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
-
   // Content retrieval for recommendations
   async getTopPosts(limit: string): Promise<Post[]> {
     try {
@@ -3313,7 +3162,6 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
-
   async getTopMicroblogs(limit: string): Promise<Microblog[]> {
     try {
       // Get microblogs that are not replies, sorted by likes and replies
@@ -3330,7 +3178,6 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
-
   // Event methods
   async getAllEvents(filter?: string): Promise<Event[]> {
     try {
@@ -3477,8 +3324,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(events)
-        .where(eq(events.id, id));
-        .limit(1);
+        .where(eq(events.id, id)).limit(1);
       
       return result[0];
     } catch (error) {
@@ -3492,8 +3338,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(events)
-        .where(eq(events.communityId, communityId));
-        .orderBy(events.eventDate, events.startTime);
+        .where(eq(events.communityId, communityId)).orderBy(events.eventDate, events.startTime);
       
       return result;
     } catch (error) {
@@ -3507,8 +3352,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(events)
-        .where(eq(events.groupId, groupId));
-        .orderBy(events.eventDate, events.startTime);
+        .where(eq(events.groupId, groupId)).orderBy(events.eventDate, events.startTime);
       
       return result;
     } catch (error) {
@@ -3522,8 +3366,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(events)
-        .where(eq(events.creatorId, userId));
-        .orderBy(events.eventDate, events.startTime);
+        .where(eq(events.creatorId, userId)).orderBy(events.eventDate, events.startTime);
       
       return result;
     } catch (error) {
@@ -3551,8 +3394,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .update(events)
         .set(eventData)
-        .where(eq(events.id, id));
-        .returning();
+        .where(eq(events.id, id)).returning();
       
       if (result.length === 0) {
         throw new Error(`Event with ID ${id} not found`);
@@ -3625,7 +3467,6 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
-
   async getUserEventRsvp(eventId: string, userId: string): Promise<EventRsvp | undefined> {
     try {
       const result = await db
@@ -3645,7 +3486,6 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
   }
-
   async createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp> {
     try {
       const result = await db
@@ -3659,14 +3499,12 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Failed to create RSVP");
     }
   }
-
   async updateEventRsvp(id: string, status: string): Promise<EventRsvp> {
     try {
       const result = await db
         .update(eventRsvps)
         .set({ status })
-        .where(eq(eventRsvps.id, id));
-        .returning();
+        .where(eq(eventRsvps.id, id)).returning();
       
       if (result.length === 0) {
         throw new Error(`RSVP with ID ${id} not found`);
@@ -3678,7 +3516,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Failed to update RSVP");
     }
   }
-
   async getPrayerRequestsVisibleToUser(userId: string): Promise<PrayerRequest[]> {
     try {
       // Get public prayer requests
@@ -3731,7 +3568,6 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
-
   // Bible Study methods
   async getAllBibleReadingPlans(filter?: string): Promise<BibleReadingPlan[]> {
     try {
@@ -3747,7 +3583,6 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
-
   async getUserBibleReadingPlans(userId: string): Promise<BibleReadingPlan[]> {
     try {
       return await db
@@ -3765,14 +3600,12 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
-
   async getGroupBibleReadingPlans(groupId: string): Promise<BibleReadingPlan[]> {
     try {
       return await db
         .select()
         .from(bibleReadingPlans)
-        .where(eq(bibleReadingPlans.groupId, groupId));
-        .orderBy(desc(bibleReadingPlans.createdAt));
+        .where(eq(bibleReadingPlans.groupId, groupId)).orderBy(desc(bibleReadingPlans.createdAt));
     } catch (error) {
       console.error("Error getting group Bible reading plans:", error);
       return [];
@@ -3798,8 +3631,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .update(bibleReadingPlans)
         .set(data)
-        .where(eq(bibleReadingPlans.id, id));
-        .returning();
+        .where(eq(bibleReadingPlans.id, id)).returning();
       
       return result[0];
     } catch (error) {
@@ -3895,8 +3727,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.isPublic, true));
-        .orderBy(desc(bibleStudyNotes.createdAt));
+        .where(eq(bibleStudyNotes.isPublic, true)).orderBy(desc(bibleStudyNotes.createdAt));
     } catch (error) {
       console.error("Error getting all Bible study notes:", error);
       return [];
@@ -4163,6 +3994,5 @@ export class DatabaseStorage implements IStorage {
     }
   }
 }
-
 // Replace MemStorage with DatabaseStorage
 export const storage = new DatabaseStorage();
