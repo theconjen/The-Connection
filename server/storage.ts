@@ -2363,7 +2363,7 @@ export class DatabaseStorage implements IStorage {
   async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
-      .where(eq(prayerRequests.isPublic, true))
+      .where(eq(prayerRequests.privacyLevel, 'public'))
       .orderBy(desc(prayerRequests.createdAt));
   }
 
