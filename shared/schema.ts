@@ -50,9 +50,6 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdmin: true,
 });
 
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-
 // Communities table schema
 export const communities = pgTable("communities", {
   id: serial("id").primaryKey(),
@@ -106,16 +103,20 @@ export const insertCommunityMemberSchema = createInsertSchema(communityMembers).
   role: true,
 });
 
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Community = typeof communities.$inferSelect;
 export type InsertCommunity = z.infer<typeof insertCommunitySchema>;
 export type CommunityMember = typeof communityMembers.$inferSelect;
 export type InsertCommunityMember = z.infer<typeof insertCommunityMemberSchema>;
+export type CommunityChatRoom = typeof communityChatRooms.$inferSelect;
+export type InsertCommunityChatRoom = z.infer<typeof insertCommunityChatRoomSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type CommunityWallPost = typeof communityWallPosts.$inferSelect;
+export type InsertCommunityWallPost = z.infer<typeof insertCommunityWallPostSchema>;
 
-export const insertCommunityMemberSchema2 = createInsertSchema(communityMembers).pick({
-  communityId: true,
-  userId: true,
-  role: true,
-});
+
 
 // Community Chat Rooms schema
 export const communityChatRooms = pgTable("community_chat_rooms", {
@@ -324,12 +325,7 @@ export const insertApologeticsAnswerSchema = createInsertSchema(apologeticsAnswe
   isVerifiedAnswer: true,
 });
 
-// Type definitions
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-export type InsertCommunity = z.infer<typeof insertCommunitySchema>;
-export type Community = typeof communities.$inferSelect;
+// Remove these duplicate type definitions - they're already defined earlier
 
 export type InsertGroup = z.infer<typeof insertGroupSchema>;
 export type Group = typeof groups.$inferSelect;

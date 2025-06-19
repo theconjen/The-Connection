@@ -2359,6 +2359,197 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
+  // Prayer Request Methods
+  async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.isPublic, true))
+      .orderBy(desc(prayerRequests.createdAt));
+  }
+
+  async getAllPrayerRequests(): Promise<PrayerRequest[]> {
+    return await db.select()
+      .from(prayerRequests)
+      .orderBy(desc(prayerRequests.createdAt));
+  }
+
+  async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
+    const result = await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.authorId, userId))
+      .orderBy(desc(prayerRequests.createdAt));
+  }
+
+  async getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]> {
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.groupId, groupId))
+      .orderBy(desc(prayerRequests.createdAt));
+  }
+
+  async createPrayerRequest(request: InsertPrayerRequest): Promise<PrayerRequest> {
+    const result = await db.insert(prayerRequests).values(request).returning();
+    return result[0];
+  }
+
+  async updatePrayerRequest(id: number, data: Partial<PrayerRequest>): Promise<PrayerRequest> {
+    const result = await db.update(prayerRequests)
+      .set(data)
+      .where(eq(prayerRequests.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async markPrayerRequestAsAnswered(id: number): Promise<PrayerRequest> {
+    const result = await db.update(prayerRequests)
+      .set({ isAnswered: true })
+      .where(eq(prayerRequests.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deletePrayerRequest(id: number): Promise<boolean> {
+    const result = await db.delete(prayerRequests)
+      .where(eq(prayerRequests.id, id));
+    return result.rowCount > 0;
+  }
+
+  async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
+    const result = await db.insert(prayers).values(prayer).returning();
+    return result[0];
+  }
+
+  async getPrayersForRequest(requestId: number): Promise<Prayer[]> {
+    return await db.select()
+      .from(prayers)
+      .where(eq(prayers.requestId, requestId))
+      .orderBy(desc(prayers.createdAt));
+  }
+
+  async getUserPrayedRequests(userId: number): Promise<PrayerRequest[]> {
+    const prayedRequestIds = await db.select({ requestId: prayers.requestId })
+      .from(prayers)
+      .where(eq(prayers.userId, userId));
+    
+    if (prayedRequestIds.length === 0) return [];
+    
+    return await db.select()
+      .from(prayerRequests)
+      .where(inArray(prayerRequests.id, prayedRequestIds.map(p => p.requestId)))
+      .orderBy(desc(prayerRequests.createdAt));
+  }
+
+  // Group Member Methods
+  async isGroupMember(groupId: number, userId: number): Promise<boolean> {
+    const result = await db.select({ id: groupMembers.id })
+      .from(groupMembers)
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  // Apologetics Methods
+  async createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic> {
+    const result = await db.insert(apologeticsTopics).values(topic).returning();
+    return result[0];
+  }
+
+  async incrementApologeticsQuestionViewCount(id: number): Promise<void> {
+    await db.update(apologeticsQuestions)
+      .set({ viewCount: sql`${apologeticsQuestions.viewCount} + 1` })
+      .where(eq(apologeticsQuestions.id, id));
+  }
+
+  // Livestream Methods
+  async createLivestream(livestream: InsertLivestream): Promise<Livestream> {
+    const result = await db.insert(livestreams).values(livestream).returning();
+    return result[0];
+  }
+
+  async getLivestream(id: number): Promise<Livestream | undefined> {
+    const result = await db.select()
+      .from(livestreams)
+      .where(eq(livestreams.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  // Virtual Gift Methods (placeholder implementations)
+  async getActiveVirtualGifts(): Promise<any[]> {
+    // Placeholder implementation
+    return [];
+  }
+
+  async sendGiftToLivestream(giftId: number, livestreamId: number, senderId: number): Promise<any> {
+    // Placeholder implementation
+    return {};
+  }
+
+  async getAllCreatorTiers(): Promise<any[]> {
+    // Placeholder implementation
+    return [];
+  }
+
+  // Bible Study Methods
+  async getBibleStudyNotes(userId: number, passage?: string): Promise<BibleStudyNote[]> {
+    let query = db.select().from(bibleStudyNotes).where(eq(bibleStudyNotes.userId, userId));
+    
+    if (passage) {
+      query = query.where(eq(bibleStudyNotes.passage, passage));
+    }
+    
+    return await query.orderBy(desc(bibleStudyNotes.createdAt));
+  }
+
+  async markDayCompleted(userId: number, planId: number, day: number): Promise<void> {
+    // Implementation for marking a day as completed in a reading plan
+    await db.update(bibleReadingProgress)
+      .set({ 
+        currentDay: day + 1,
+        completedDays: sql`array_append(coalesce(${bibleReadingProgress.completedDays}, '{}'), ${day})`
+      })
+      .where(and(eq(bibleReadingProgress.userId, userId), eq(bibleReadingProgress.planId, planId)));
+  }
+
+  // Verse Memorization Methods
+  async getUserVerseMemorization(userId: number): Promise<VerseMemorization[]> {
+    return await db.select()
+      .from(verseMemorization)
+      .where(eq(verseMemorization.userId, userId))
+      .orderBy(desc(verseMemorization.startDate));
+  }
+
+  async createVerseMemorization(verse: InsertVerseMemorization): Promise<VerseMemorization> {
+    const result = await db.insert(verseMemorization).values(verse).returning();
+    return result[0];
+  }
+
+  async markVerseMastered(id: number): Promise<VerseMemorization> {
+    const result = await db.update(verseMemorization)
+      .set({ masteredDate: new Date() })
+      .where(eq(verseMemorization.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async addVerseReviewDate(id: number, reviewDate: Date): Promise<VerseMemorization> {
+    const result = await db.update(verseMemorization)
+      .set({ 
+        reviewDates: sql`array_append(coalesce(${verseMemorization.reviewDates}, '{}'), ${reviewDate.toISOString()})`
+      })
+      .where(eq(verseMemorization.id, id))
+      .returning();
+    return result[0];
+  }
+
   // Post methods
   async getAllPosts(filter: string = "popular"): Promise<Post[]> {
     let query = db.select().from(posts);
