@@ -2474,7 +2474,7 @@ export class DatabaseStorage implements IStorage {
   async getLivestream(id: number): Promise<Livestream | undefined> {
     const result = await db.select()
       .from(livestreams)
-      .where(eq(livestreams.id, id));
+      .where(eq(livestreams.id, id))
       .limit(1);
     return result[0];
   }
@@ -3908,7 +3908,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.userId, userId));
+        .where(eq(bibleStudyNotes.userId, userId))
         .orderBy(desc(bibleStudyNotes.createdAt));
     } catch (error) {
       console.error("Error getting user Bible study notes:", error);
@@ -3921,7 +3921,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.groupId, groupId));
+        .where(eq(bibleStudyNotes.groupId, groupId))
         .orderBy(desc(bibleStudyNotes.createdAt));
     } catch (error) {
       console.error("Error getting group Bible study notes:", error);
@@ -3934,7 +3934,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.id, id));
+        .where(eq(bibleStudyNotes.id, id))
         .limit(1);
       
       return result[0];
@@ -3967,7 +3967,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .update(bibleStudyNotes)
         .set(updateData)
-        .where(eq(bibleStudyNotes.id, id));
+        .where(eq(bibleStudyNotes.id, id))
         .returning();
       
       return result[0];
@@ -4007,7 +4007,7 @@ export class DatabaseStorage implements IStorage {
       const pendingApplications = await db
         .select()
         .from(livestreamerApplications)
-        .where(eq(livestreamerApplications.status, "pending"));
+        .where(eq(livestreamerApplications.status, "pending"))
         .orderBy(livestreamerApplications.submittedAt);
       
       return pendingApplications;
