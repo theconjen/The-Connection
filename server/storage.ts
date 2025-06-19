@@ -2088,6 +2088,276 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async updateCommunity(id: number, community: Partial<Community>): Promise<Community> {
+    const result = await db.update(communities)
+      .set({ ...community, updatedAt: new Date() })
+      .where(eq(communities.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCommunity(id: number): Promise<boolean> {
+    const result = await db.delete(communities).where(eq(communities.id, id));
+    return result.rowCount > 0;
+  }
+
+  async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    const result = await db.update(users)
+      .set({ ...userData, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User> {
+    const result = await db.update(users)
+      .set({ isVerifiedApologeticsAnswerer: isVerified, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
+  }
+
+  async getVerifiedApologeticsAnswerers(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.isVerifiedApologeticsAnswerer, true));
+  }
+
+  async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
+    // For now, return a placeholder as this table might not exist yet
+    return {} as UserPreferences;
+  }
+
+  // Community Member Management
+  async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
+    const result = await db.select({
+      id: communityMembers.id,
+      communityId: communityMembers.communityId,
+      userId: communityMembers.userId,
+      role: communityMembers.role,
+      joinedAt: communityMembers.joinedAt,
+      user: users
+    })
+    .from(communityMembers)
+    .innerJoin(users, eq(communityMembers.userId, users.id))
+    .where(eq(communityMembers.communityId, communityId));
+    
+    return result;
+  }
+
+  async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
+    const result = await db.select()
+      .from(communityMembers)
+      .where(and(eq(communityMembers.communityId, communityId), eq(communityMembers.userId, userId)))
+      .limit(1);
+    return result[0];
+  }
+
+  async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
+    const result = await db.insert(communityMembers).values(member).returning();
+    return result[0];
+  }
+
+  async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
+    const result = await db.update(communityMembers)
+      .set({ role })
+      .where(eq(communityMembers.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
+    const result = await db.delete(communityMembers)
+      .where(and(eq(communityMembers.communityId, communityId), eq(communityMembers.userId, userId)));
+    return result.rowCount > 0;
+  }
+
+  async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
+    const result = await db.select({ id: communityMembers.id })
+      .from(communityMembers)
+      .where(and(eq(communityMembers.communityId, communityId), eq(communityMembers.userId, userId)))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
+    const result = await db.select({ role: communityMembers.role })
+      .from(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId), 
+        eq(communityMembers.userId, userId),
+        eq(communityMembers.role, "owner")
+      ))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
+    const result = await db.select({ role: communityMembers.role })
+      .from(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId), 
+        eq(communityMembers.userId, userId),
+        or(eq(communityMembers.role, "moderator"), eq(communityMembers.role, "owner"))
+      ))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  // Community Chat Room Management
+  async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
+    return await db.select()
+      .from(communityChatRooms)
+      .where(eq(communityChatRooms.communityId, communityId));
+  }
+
+  async getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
+    return await db.select()
+      .from(communityChatRooms)
+      .where(and(eq(communityChatRooms.communityId, communityId), eq(communityChatRooms.isPrivate, false)));
+  }
+
+  async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
+    const result = await db.select()
+      .from(communityChatRooms)
+      .where(eq(communityChatRooms.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom> {
+    const result = await db.insert(communityChatRooms).values(room).returning();
+    return result[0];
+  }
+
+  async updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
+    const result = await db.update(communityChatRooms)
+      .set(data)
+      .where(eq(communityChatRooms.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCommunityRoom(id: number): Promise<boolean> {
+    const result = await db.delete(communityChatRooms)
+      .where(eq(communityChatRooms.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Chat Messages
+  async getChatMessages(roomId: number, limit = 50): Promise<(ChatMessage & { sender: User })[]> {
+    const result = await db.select({
+      id: chatMessages.id,
+      content: chatMessages.content,
+      chatRoomId: chatMessages.chatRoomId,
+      senderId: chatMessages.senderId,
+      isSystemMessage: chatMessages.isSystemMessage,
+      createdAt: chatMessages.createdAt,
+      sender: users
+    })
+    .from(chatMessages)
+    .innerJoin(users, eq(chatMessages.senderId, users.id))
+    .where(eq(chatMessages.chatRoomId, roomId))
+    .orderBy(desc(chatMessages.createdAt))
+    .limit(limit);
+    
+    return result;
+  }
+
+  async getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]> {
+    const result = await db.select({
+      id: chatMessages.id,
+      content: chatMessages.content,
+      chatRoomId: chatMessages.chatRoomId,
+      senderId: chatMessages.senderId,
+      isSystemMessage: chatMessages.isSystemMessage,
+      createdAt: chatMessages.createdAt,
+      sender: users
+    })
+    .from(chatMessages)
+    .innerJoin(users, eq(chatMessages.senderId, users.id))
+    .where(and(eq(chatMessages.chatRoomId, roomId), sql`${chatMessages.id} > ${afterId}`))
+    .orderBy(chatMessages.createdAt);
+    
+    return result;
+  }
+
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const result = await db.insert(chatMessages).values(message).returning();
+    return result[0];
+  }
+
+  async deleteChatMessage(id: number): Promise<boolean> {
+    const result = await db.delete(chatMessages).where(eq(chatMessages.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Community Wall Posts
+  async getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
+    let whereCondition = eq(communityWallPosts.communityId, communityId);
+    
+    if (isPrivate !== undefined) {
+      whereCondition = and(whereCondition, eq(communityWallPosts.isPrivate, isPrivate));
+    }
+
+    const result = await db.select({
+      id: communityWallPosts.id,
+      communityId: communityWallPosts.communityId,
+      authorId: communityWallPosts.authorId,
+      content: communityWallPosts.content,
+      imageUrl: communityWallPosts.imageUrl,
+      isPrivate: communityWallPosts.isPrivate,
+      likeCount: communityWallPosts.likeCount,
+      commentCount: communityWallPosts.commentCount,
+      createdAt: communityWallPosts.createdAt,
+      author: users
+    })
+    .from(communityWallPosts)
+    .innerJoin(users, eq(communityWallPosts.authorId, users.id))
+    .where(whereCondition)
+    .orderBy(desc(communityWallPosts.createdAt));
+    
+    return result;
+  }
+
+  async getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined> {
+    const result = await db.select({
+      id: communityWallPosts.id,
+      communityId: communityWallPosts.communityId,
+      authorId: communityWallPosts.authorId,
+      content: communityWallPosts.content,
+      imageUrl: communityWallPosts.imageUrl,
+      isPrivate: communityWallPosts.isPrivate,
+      likeCount: communityWallPosts.likeCount,
+      commentCount: communityWallPosts.commentCount,
+      createdAt: communityWallPosts.createdAt,
+      author: users
+    })
+    .from(communityWallPosts)
+    .innerJoin(users, eq(communityWallPosts.authorId, users.id))
+    .where(eq(communityWallPosts.id, id))
+    .limit(1);
+    
+    return result[0];
+  }
+
+  async createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost> {
+    const result = await db.insert(communityWallPosts).values(post).returning();
+    return result[0];
+  }
+
+  async updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
+    const result = await db.update(communityWallPosts)
+      .set(data)
+      .where(eq(communityWallPosts.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCommunityWallPost(id: number): Promise<boolean> {
+    const result = await db.delete(communityWallPosts)
+      .where(eq(communityWallPosts.id, id));
+    return result.rowCount > 0;
+  }
+
   // Post methods
   async getAllPosts(filter: string = "popular"): Promise<Post[]> {
     let query = db.select().from(posts);
