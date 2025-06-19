@@ -79,6 +79,7 @@ import {
   insertServiceVolunteerSchema,
   insertServiceTestimonialSchema
 } from "@shared/schema";
+import { livestreamerApplications, apologistScholarApplications } from "@shared/schema";
 import { ZodError } from "zod";
 
 // Utility functions
@@ -107,9 +108,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Current user API endpoint
   app.get("/api/user", async (req, res) => {
-    if (req.session && req.session.userId) {
+    if (req.session && req.session.userId!) {
       try {
-        const user = await storage.getUserById(req.session.userId);
+        const user = await storage.getUserById(req.session.userId!);
         if (!user) {
           return res.status(404).json({ message: "User not found" });
         }
@@ -210,7 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertCommunitySchema.parse({
         ...req.body,
-        createdBy: req.session.userId
+        createdBy: req.session.userId!
       });
       const community = await storage.createCommunity(validatedData);
       res.status(201).json(community);
@@ -227,7 +228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Check if user is authorized (owner or moderator)
       const communityId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -261,7 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/communities/:id", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -298,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/communities/:id/members", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -334,7 +335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const communityId = parseInt(req.params.communityId);
       const memberId = parseInt(req.params.memberId);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -362,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const communityId = parseInt(req.params.communityId);
       const memberUserId = parseInt(req.params.userId);
-      const currentUserId = req.session.userId;
+      const currentUserId = req.session.userId!;
       
       if (!currentUserId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -402,7 +403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/communities/:id/chat-rooms", async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       // If authenticated, show all rooms (incl. private) if member
       if (userId) {
@@ -432,7 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check access for private rooms
       if (room.isPrivate) {
-        const userId = req.session.userId;
+        const userId = req.session.userId!;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -452,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/communities/:id/chat-rooms", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -500,7 +501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
       const roomId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -537,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
       const roomId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -591,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check access for private rooms
       if (room.isPrivate) {
-        const userId = req.session.userId;
+        const userId = req.session.userId!;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -625,7 +626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check access for private rooms
       if (room.isPrivate) {
-        const userId = req.session.userId;
+        const userId = req.session.userId!;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -646,7 +647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat-rooms/:id/messages", isAuthenticated, async (req, res, next) => {
     try {
       const roomId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -689,7 +690,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/chat-messages/:id", isAuthenticated, async (req, res, next) => {
     try {
       const messageId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -748,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "This community does not have a private wall" });
         }
         
-        const userId = req.session.userId;
+        const userId = req.session.userId!;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -785,7 +786,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if private post and if user has access
       if (post.isPrivate) {
-        const userId = req.session.userId;
+        const userId = req.session.userId!;
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
@@ -805,7 +806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/communities/:id/wall", isAuthenticated, async (req, res, next) => {
     try {
       const communityId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -862,7 +863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
       const postId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -910,7 +911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
       const postId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -984,7 +985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertPostSchema.parse({
         ...req.body,
-        authorId: req.session.userId
+        authorId: req.session.userId!
       });
       
       const post = await storage.createPost(validatedData);
@@ -1012,7 +1013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertCommentSchema.parse({
         ...req.body,
-        authorId: req.session.userId
+        authorId: req.session.userId!
       });
       
       const comment = await storage.createComment(validatedData);
@@ -1028,7 +1029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Groups routes
   app.get("/api/groups", isAuthenticated, async (req, res, next) => {
     try {
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       const groups = await storage.getGroupsByUserId(userId);
       res.json(groups);
     } catch (error) {
@@ -1040,7 +1041,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertGroupSchema.parse({
         ...req.body,
-        createdBy: req.session.userId
+        createdBy: req.session.userId!
       });
       
       const group = await storage.createGroup(validatedData);
@@ -1372,7 +1373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       
       // Optional auth check - users can only see their own liked posts when authenticated
-      if (req.session.userId !== userId) {
+      if (req.session.userId! !== userId) {
         // For public profiles, we can still show liked posts
         // If stricter privacy is needed, uncomment this:
         // return res.status(403).json({ message: "Unauthorized" });
@@ -1402,7 +1403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user is a member of this group
       const members = await storage.getGroupMembers(groupId);
-      const isMember = members.some(member => member.userId === req.session.userId);
+      const isMember = members.some(member => member.userId === req.session.userId!);
       
       if (!isMember) {
         return res.status(403).json({ message: "You are not a member of this group" });
@@ -1426,7 +1427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.groupId) {
         const groupId = parseInt(req.body.groupId);
         const members = await storage.getGroupMembers(groupId);
-        const isMember = members.some(member => member.userId === req.session.userId);
+        const isMember = members.some(member => member.userId === req.session.userId!);
         
         if (!isMember) {
           return res.status(403).json({ message: "You are not a member of this group" });
@@ -1435,7 +1436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertMicroblogSchema.parse({
         ...req.body,
-        authorId: req.session.userId
+        authorId: req.session.userId!
       });
       
       const microblog = await storage.createMicroblog(validatedData);
@@ -1537,7 +1538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertLivestreamSchema.parse({
         ...req.body,
-        hostId: req.session.userId
+        hostId: req.session.userId!
       });
       
       const livestream = await storage.createLivestream(validatedData);
@@ -1570,7 +1571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertLivestreamerApplicationSchema.parse({
         ...req.body,
-        userId: req.session.userId
+        userId: req.session.userId!
       });
       
       const application = await storage.createLivestreamerApplication(validatedData);
@@ -1703,7 +1704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertApologistScholarApplicationSchema.parse({
         ...req.body,
-        userId: req.session.userId
+        userId: req.session.userId!
       });
       
       const application = await storage.createApologistScholarApplication(validatedData);
@@ -2278,7 +2279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prayers = await storage.getAllPrayerRequests(filter);
       
       // Filter out non-public prayers that don't belong to the user
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       const filteredPrayers = prayers.filter(prayer => {
         // Public prayers are visible to all authenticated users
         if (prayer.privacyLevel === 'public') return true;
@@ -2337,7 +2338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       
       // Only allow users to see their own prayer requests or admins
-      if (req.session.userId !== userId && !req.session.isAdmin) {
+      if (req.session.userId! !== userId && !req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -2355,7 +2356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const groupId = parseInt(req.params.groupId);
       
       // Check if user is a member of the group
-      const isGroupMember = await storage.isGroupMember(groupId, req.session.userId);
+      const isGroupMember = await storage.isGroupMember(groupId, req.session.userId!);
       if (!isGroupMember) {
         return res.status(403).json({ message: "Unauthorized: Not a group member" });
       }
@@ -2375,7 +2376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If group privacy, verify the user is a member of the group
       if (prayerData.privacyLevel === 'group-only' && prayerData.groupId) {
-        const isGroupMember = await storage.isGroupMember(prayerData.groupId, req.session.userId);
+        const isGroupMember = await storage.isGroupMember(prayerData.groupId, req.session.userId!);
         if (!isGroupMember) {
           return res.status(403).json({ message: "Unauthorized: Not a group member" });
         }
@@ -2384,7 +2385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set the author ID to the current user
       const prayer = await storage.createPrayerRequest({
         ...prayerData,
-        authorId: req.session.userId
+        authorId: req.session.userId!
       });
       
       res.status(201).json(prayer);
@@ -2408,7 +2409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only allow the author or an admin to update the prayer
-      if (prayer.authorId !== req.session.userId && !req.session.isAdmin) {
+      if (prayer.authorId !== req.session.userId! && !req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -2433,7 +2434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only allow the author to mark as answered
-      if (prayer.authorId !== req.session.userId) {
+      if (prayer.authorId !== req.session.userId!) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -2456,7 +2457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only allow the author or an admin to delete the prayer
-      if (prayer.authorId !== req.session.userId && !req.session.isAdmin) {
+      if (prayer.authorId !== req.session.userId! && !req.session.isAdmin) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -2477,7 +2478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/prayer-requests/:id/pray", isAuthenticated, async (req, res) => {
     try {
       const prayerRequestId = parseInt(req.params.id);
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       const prayer = await storage.createPrayer({
         prayerRequestId,
@@ -2509,7 +2510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       
       // Users can only see their own prayed requests
-      if (req.session.userId !== userId) {
+      if (req.session.userId! !== userId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
@@ -3465,7 +3466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get personalized recommendations for the current user
   app.get("/api/recommendations", allowGuest, async (req, res) => {
     try {
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       
       if (userId) {
@@ -3543,7 +3544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/recommendations/track-engagement", allowGuest, async (req, res) => {
     try {
       const { contentType, contentId, action } = req.body;
-      const userId = req.session.userId;
+      const userId = req.session.userId!;
       
       if (!userId) {
         // Just acknowledge for guests, no tracking

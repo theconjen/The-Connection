@@ -238,9 +238,9 @@ export const insertPostSchema = createInsertSchema(posts).pick({
 export const comments = pgTable("comments", {
   id: serial("id").primaryKey(),
   content: text("content").notNull(),
-  postId: integer("post_id").references(() => posts.id).notNull(),
-  authorId: integer("author_id").references(() => users.id),
-  parentId: integer("parent_id").references(() => comments.id),
+  postId: integer("post_id").notNull(),
+  authorId: integer("author_id"),
+  parentId: integer("parent_id"),
   upvotes: integer("upvotes").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });

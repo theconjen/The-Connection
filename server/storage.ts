@@ -86,11 +86,11 @@ const PostgresSessionStore = connectPg(session);
 // Storage interface
 export interface IStorage {
   // User methods
-  getUser(id: number): Promise<User | undefined>;
-  getUserById(id: number): Promise<User | undefined>;
+  getUser(id: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  updateUser(id: number, userData: Partial<User>): Promise<User>;
+  updateUser(id: string, userData: Partial<User>): Promise<User>;
   updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences>;
   createUser(user: InsertUser): Promise<User>;
   updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined>;
@@ -607,12 +607,12 @@ export class MemStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(parseInt(id));
   }
 
-  async getUserById(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+  async getUserById(id: string): Promise<User | undefined> {
+    return this.users.get(parseInt(id));
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {

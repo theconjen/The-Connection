@@ -11,9 +11,11 @@ import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 // Add custom session properties
 declare module 'express-session' {
   interface SessionData {
-    userId?: number;
+    userId?: string;
     username?: string;
     isAdmin?: boolean;
+    email?: string;
+    isVerifiedApologeticsAnswerer?: boolean;
   }
 }
 
