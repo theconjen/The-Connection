@@ -105,9 +105,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   
   // Current user API endpoint
-  app.get("/api/user", (req, res) => {
-    if (req.isAuthenticated()) {
-      return res.json(req.user);
+  app.get("/api/user", async (req, res) => {
+    if (req.session && req.session.userId) {
+      try {
+        const user = await storage.getUserById(req.session.userId);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        const { password, ...userWithoutPassword } = user;
+        return res.json(userWithoutPassword);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        return res.status(500).json({ message: "Failed to fetch user data" });
+      }
     }
     return res.status(401).json({ message: "Not authenticated" });
   });
@@ -199,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertCommunitySchema.parse({
         ...req.body,
-        createdBy: req.user?.id
+        createdBy: req.session.userId
       });
       const community = await storage.createCommunity(validatedData);
       res.status(201).json(community);
@@ -216,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Check if user is authorized (owner or moderator)
       const communityId = parseInt(req.params.id);
-      const userId = req.user?.id;
+      const userId = req.session.userId;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
