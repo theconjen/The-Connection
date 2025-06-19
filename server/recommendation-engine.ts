@@ -31,7 +31,7 @@ export type ContentType =
  * Structure representing a content item with its metadata
  */
 export interface ContentItem {
-  id: number;
+  id: string;
   type: ContentType;
   title: string;
   description?: string;
@@ -39,11 +39,11 @@ export interface ContentItem {
   topics?: string[];
   createdAt: Date | null;
   author?: {
-    id: number;
+    id: string;
     username: string;
   };
-  engagementScore?: number;
-  relevanceScore?: number;
+  engagementScore?: string;
+  relevanceScore?: string;
 }
 
 /**
@@ -114,7 +114,7 @@ export async function getRecommendationsForUser(userId: string, limit = 10): Pro
 /**
  * Get popular content when user preferences aren't available
  */
-async function getPopularContent(limit: number): Promise<ContentItem[]> {
+async function getPopularContent(limit: string): Promise<ContentItem[]> {
   try {
     // Get recent content from various sources
     const posts = await storage.getTopPosts(limit);
@@ -150,7 +150,7 @@ async function getPopularContent(limit: number): Promise<ContentItem[]> {
 /**
  * Calculate a recommendation score for a content item based on user preferences
  */
-function calculateRecommendationScore(item: ContentItem, userPreferences: any): number {
+function calculateRecommendationScore(item: ContentItem, userPreferences: any): string {
   // Interest match score
   const interestScore = calculateInterestScore(item, userPreferences.interests) * WEIGHTS.INTEREST_MATCH;
   
@@ -179,7 +179,7 @@ function calculateRecommendationScore(item: ContentItem, userPreferences: any): 
 /**
  * Calculate how closely content matches user interests
  */
-function calculateInterestScore(item: ContentItem, userInterests: string[]): number {
+function calculateInterestScore(item: ContentItem, userInterests: string[]): string {
   if (!userInterests || userInterests.length === 0 || !item.tags) {
     return 0.5; // Neutral score if we can't make a determination
   }
@@ -204,7 +204,7 @@ function calculateInterestScore(item: ContentItem, userInterests: string[]): num
 /**
  * Calculate recency score for content
  */
-function calculateRecencyScore(createdAt: Date | null): number {
+function calculateRecencyScore(createdAt: Date | null): string {
   if (!createdAt) return 0;
   
   const now = new Date();
@@ -230,7 +230,7 @@ function calculateRecencyScore(createdAt: Date | null): number {
 /**
  * Calculate author affinity score based on user's history with an author
  */
-function calculateAuthorAffinityScore(authorId: number | undefined, engagementHistory: any[]): number {
+function calculateAuthorAffinityScore(authorId: string | undefined, engagementHistory: any[]): string {
   if (!authorId || !engagementHistory || engagementHistory.length === 0) {
     return 0.5; // Neutral score
   }
@@ -247,7 +247,7 @@ function calculateAuthorAffinityScore(authorId: number | undefined, engagementHi
 /**
  * Calculate diversity score to ensure variety in recommendations
  */
-function calculateDiversityScore(contentType: ContentType, engagementHistory: any[]): number {
+function calculateDiversityScore(contentType: ContentType, engagementHistory: any[]): string {
   if (!engagementHistory || engagementHistory.length === 0) {
     return 0.5; // Neutral score
   }
@@ -278,7 +278,7 @@ function isRecent(createdAt: Date | null): boolean {
 /**
  * Ensure a diverse mix of content types in recommendations
  */
-function ensureContentDiversity(content: ContentItem[], limit: number): ContentItem[] {
+function ensureContentDiversity(content: ContentItem[], limit: string): ContentItem[] {
   // Group by content type
   const contentByType = content.reduce((groups, item) => {
     groups[item.type] = groups[item.type] || [];

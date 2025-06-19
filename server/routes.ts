@@ -3213,7 +3213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bible Study Notes
   app.get("/api/bible-study-notes", allowGuest, async (req, res) => {
     try {
-      const filter: { userId?: number, groupId?: number, isPublic?: boolean } = {};
+      const filter: { userId?: string, groupId?: string, isPublic?: boolean } = {};
       
       // Only fetch user's private notes when authenticated
       if (req.query.mine === "true") {
