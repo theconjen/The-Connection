@@ -70,6 +70,7 @@ import {
   challenges, challengeParticipants, challengeTestimonials,
   resources, resourceRatings, resourceCollections, collectionResources,
   serviceProjects, serviceVolunteers, serviceTestimonials,
+  livestreamerApplications, apologistScholarApplications,
   // Recommendation system
   userPreferences, contentRecommendations
 } from "@shared/schema";
@@ -86,8 +87,8 @@ const PostgresSessionStore = connectPg(session);
 // Storage interface
 export interface IStorage {
   // User methods
-  getUser(id: number): Promise<User | undefined>;
-  getUserById(id: number): Promise<User | undefined>;
+  getUser(id: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   updateUser(id: string, userData: Partial<User>): Promise<User>;
@@ -99,11 +100,11 @@ export interface IStorage {
   
   // Community methods
   getAllCommunities(): Promise<Community[]>;
-  getCommunity(id: number): Promise<Community | undefined>;
+  getCommunity(id: string): Promise<Community | undefined>;
   getCommunityBySlug(slug: string): Promise<Community | undefined>;
   createCommunity(community: InsertCommunity): Promise<Community>;
   updateCommunity(id: string, community: Partial<Community>): Promise<Community>;
-  deleteCommunity(id: number): Promise<boolean>;
+  deleteCommunity(id: string): Promise<boolean>;
   
   // Community Members & Roles
   getCommunityMembers(communityId: string): Promise<(CommunityMember & { user: User })[]>;
@@ -118,23 +119,23 @@ export interface IStorage {
   // Community Chat Rooms
   getCommunityRooms(communityId: string): Promise<CommunityChatRoom[]>;
   getPublicCommunityRooms(communityId: string): Promise<CommunityChatRoom[]>;
-  getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined>;
+  getCommunityRoom(id: string): Promise<CommunityChatRoom | undefined>;
   createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom>;
   updateCommunityRoom(id: string, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom>;
-  deleteCommunityRoom(id: number): Promise<boolean>;
+  deleteCommunityRoom(id: string): Promise<boolean>;
   
   // Chat Messages
   getChatMessages(roomId: string, limit?: string): Promise<(ChatMessage & { sender: User })[]>;
   getChatMessagesAfter(roomId: string, afterId: string): Promise<(ChatMessage & { sender: User })[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
-  deleteChatMessage(id: number): Promise<boolean>;
+  deleteChatMessage(id: string): Promise<boolean>;
   
   // Community Wall Posts
   getCommunityWallPosts(communityId: string, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]>;
-  getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined>;
+  getCommunityWallPost(id: string): Promise<(CommunityWallPost & { author: User }) | undefined>;
   createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost>;
   updateCommunityWallPost(id: string, data: Partial<CommunityWallPost>): Promise<CommunityWallPost>;
-  deleteCommunityWallPost(id: number): Promise<boolean>;
+  deleteCommunityWallPost(id: string): Promise<boolean>;
   
   // Post methods
   getAllPosts(filter?: string): Promise<Post[]>;
@@ -607,7 +608,7 @@ export class MemStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
   }
 
@@ -2013,7 +2014,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
   }
