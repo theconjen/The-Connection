@@ -177,10 +177,10 @@ export default function MobileMicroblogPost({
   
   // Optimized for mobile touch and tap targets
   return (
-    <div className="border-b border-border/10 px-2 py-3 bg-background active:bg-secondary/5 transition-colors duration-150">
+    <div className="border-b  border/10 px-2 py-3 bg-background active:bg-secondary/5 transition-colors duration-150">
       <div className="flex gap-3">
         <Link href={`/users/${post.authorId}`}>
-          <Avatar className="h-10 w-10 cursor-pointer border border-border/20">
+          <Avatar className="h-10 w-10 cursor-pointer border  border/20">
             {post.author?.avatarUrl ? (
               <AvatarImage src={post.author.avatarUrl} alt={post.author.displayName || "User"} />
             ) : (
@@ -266,7 +266,7 @@ export default function MobileMicroblogPost({
                   ref={imageRef}
                   src={post.imageUrl} 
                   alt="Post attachment" 
-                  className={`rounded-lg w-full object-cover border border-border/10 ${imageLoaded ? 'block' : 'hidden'}`}
+                  className={`rounded-lg w-full object-cover border  border/10 ${imageLoaded ? 'block' : 'hidden'}`}
                   loading="lazy"
                   onLoad={handleImageLoad}
                   onError={handleImageError}

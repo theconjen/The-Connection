@@ -37,7 +37,7 @@ export default function MobileHeader({
   const showTitle = title || (!searchVisible && !backButton);
 
   return (
-    <header className="bg-card border-b border-border/50 sticky top-0 z-40 shadow-sm backdrop-blur-sm bg-opacity-80">
+    <header className="bg-card border-b  border/50 sticky top-0 z-40 shadow-sm backdrop-blur-sm bg-opacity-80">
       <div className="px-3 py-2.5 flex items-center justify-between w-full">
         {/* Left Section */}
         <div className="flex items-center">

@@ -31,7 +31,7 @@ export default function WelcomeBanner({ className = "" }: WelcomeBannerProps) {
   };
   
   return (
-    <Card className={`overflow-hidden border-border/40 shadow-sm ${className}`}>
+    <Card className={`overflow-hidden  border/40 shadow-sm ${className}`}>
       <CardContent className="p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -54,7 +54,7 @@ export default function WelcomeBanner({ className = "" }: WelcomeBannerProps) {
           </Button>
         </div>
         
-        <div className="bg-secondary/5 p-2 rounded-lg relative mt-2 border border-border/10">
+        <div className="bg-secondary/5 p-2 rounded-lg relative mt-2 border  border/10">
           <blockquote className="pl-3 pr-2 py-0.5 text-xs sm:text-sm italic">
             "{quote.text}"
           </blockquote>

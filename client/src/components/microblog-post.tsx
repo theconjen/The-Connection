@@ -167,7 +167,7 @@ export function MicroblogPost({
   };
   
   return (
-    <Card className="mb-4 overflow-hidden shadow-sm hover:shadow transition-shadow duration-200 border-border/50">
+    <Card className="mb-4 overflow-hidden shadow-sm hover:shadow transition-shadow duration-200  border/50">
       <CardContent className="pt-4">
         <div className="flex gap-3">
           <Link href={`/users/${post.authorId}`}>
@@ -253,7 +253,7 @@ export function MicroblogPost({
                     ref={imageRef}
                     src={post.imageUrl} 
                     alt="Post attachment" 
-                    className={`rounded-lg max-h-96 w-full object-cover border border-border/10 ${imageLoaded ? 'block' : 'hidden'}`}
+                    className={`rounded-lg max-h-96 w-full object-cover border  border/10 ${imageLoaded ? 'block' : 'hidden'}`}
                     loading="lazy"
                     onLoad={handleImageLoad}
                   />
@@ -265,7 +265,7 @@ export function MicroblogPost({
       </CardContent>
       
       {showControls && (
-        <CardFooter className="py-2 px-4 border-t border-border/10">
+        <CardFooter className="py-2 px-4 border-t  border/10">
           <div className="flex justify-between w-full">
             <Link href={`/microblogs/${post.id}`}>
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-secondary/30">
@@ -309,7 +309,7 @@ export function MicroblogPost({
       )}
       
       {isSharing && (
-        <div className="p-4 border-t border-border/10 bg-secondary/5">
+        <div className="p-4 border-t  border/10 bg-secondary/5">
           <h4 className="text-sm font-medium mb-2">Share this post</h4>
           <ShareButtons url={`${window.location.origin}${postUrl}`} title={`Post by ${post.author?.displayName || "User"}: ${post.content.substring(0, 30)}...`} />
         </div>

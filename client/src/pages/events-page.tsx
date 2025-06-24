@@ -242,7 +242,7 @@ export default function EventsPage() {
                   />
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-background/50 rounded-lg p-4 border border-border/80">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-background/50 rounded-lg p-4 border  border/80">
                   <div className="space-y-2">
                     <Label htmlFor="eventDate" className="flex items-center gap-2 font-medium">
                       <CalendarDays size={16} className="text-primary" />
@@ -289,7 +289,7 @@ export default function EventsPage() {
                 </div>
 
                 {/* Event Type Selection */}
-                <div className="flex items-center justify-between bg-background/50 rounded-lg p-4 border border-border/80">
+                <div className="flex items-center justify-between bg-background/50 rounded-lg p-4 border  border/80">
                   <Label htmlFor="isVirtual" className="font-medium flex items-center gap-2">
                     {newEvent.isVirtual ? (
                       <div className="text-secondary flex items-center gap-2">
@@ -440,7 +440,7 @@ export default function EventsPage() {
                 )}
                 
                 {/* Public/Private Setting */}
-                <div className="flex items-center justify-between bg-background/50 rounded-lg p-4 border border-border/80">
+                <div className="flex items-center justify-between bg-background/50 rounded-lg p-4 border  border/80">
                   <Label htmlFor="isPublic" className="font-medium flex items-center gap-2">
                     {newEvent.isPublic ? (
                       <div className="text-primary flex items-center gap-2">

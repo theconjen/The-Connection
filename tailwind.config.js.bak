@@ -1,0 +1,21 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './client/src/**/*.{js,jsx,ts,tsx,html}'
+  ],
+  theme: {
+    extend: {
+      colors: {
+        background:      '#F8F9FB',  // Soft White (Background)
+        foreground:      '#1A1D29',  // Foreground text
+        card:            '#FFFFFF',  // Card Background
+        'muted-background':'#EDEDF0',// Muted Background
+        'muted-foreground':'#64748B',// Muted Foreground
+        border:          '#D1D5DB',  // Border
+        ring:            '#E73AA4',  // Ring (Focus)
+        destructive:     '#DC2626'   // Destructive
+      }
+    }
+  },
+  plugins: []
+};
