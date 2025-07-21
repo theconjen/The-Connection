@@ -34,6 +34,7 @@ export interface Microblog {
   user: User;
   likesCount: number;
   commentsCount: number;
+  isLiked?: boolean;
   createdAt: string;
 }
 

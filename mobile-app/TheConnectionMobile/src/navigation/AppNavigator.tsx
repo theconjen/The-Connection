@@ -5,7 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { View, Text, Alert } from 'react-native';
 import { FloatingActionButton } from '../components/FloatingActionButton';
 
-import { HomeScreen } from '../screens/HomeScreen';
+import OptimizedHomeScreen from '../screens/OptimizedHomeScreen';
 import { CommunitiesScreen } from '../screens/CommunitiesScreen';
 import { MicroblogsScreen } from '../screens/MicroblogsScreen';
 import { EventsScreen } from '../screens/EventsScreen';
@@ -19,16 +19,16 @@ import { useAuth } from '../hooks/useAuth';
 // Simple icon component for tabs
 const TabIcon: React.FC<{ name: string; focused: boolean }> = ({ name, focused }) => (
   <View style={{
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: focused ? '#E73AA4' : '#64748B',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: focused ? '#E91E63' : '#64748B',
     justifyContent: 'center',
     alignItems: 'center',
   }}>
     <Text style={{
       color: '#FFFFFF',
-      fontSize: 12,
+      fontSize: 10,
       fontWeight: 'bold',
     }}>
       {name.charAt(0).toUpperCase()}
@@ -45,26 +45,31 @@ const TabNavigator = () => {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#E73AA4',
+        tabBarActiveTintColor: '#E91E63',
         tabBarInactiveTintColor: '#64748B',
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
-          borderTopColor: '#D1D5DB',
+          borderTopColor: '#E1E5E9',
           borderTopWidth: 1,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 80,
+          paddingBottom: 4,
+          paddingTop: 2,
+          height: 60,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 16,
         },
         headerShown: false,
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          fontSize: 10,
+          fontWeight: '500',
         },
       }}
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={OptimizedHomeScreen}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon name="H" focused={focused} />,
         }}

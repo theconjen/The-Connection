@@ -143,6 +143,12 @@ class ApiService {
     });
   }
 
+  async toggleMicroblogLike(id: number): Promise<void> {
+    return this.makeRequest(`/microblogs/${id}/like`, {
+      method: 'POST',
+    });
+  }
+
   // Events
   async getEvents(): Promise<Event[]> {
     return this.makeRequest<Event[]>('/events/public');
