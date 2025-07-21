@@ -1,68 +1,57 @@
-// App constants and configuration
-export const APP_CONFIG = {
-  name: 'The Connection',
-  version: '1.0.0',
-  buildNumber: 1,
-};
+import Constants from 'expo-constants';
 
 export const API_CONFIG = {
-  // Update this to your production API URL before deployment
   baseUrl: __DEV__ 
     ? 'http://localhost:5000/api' 
-    : 'https://your-replit-domain.replit.app/api', // Replace with your actual domain
+    : 'https://your-production-domain.com/api',
   timeout: 10000,
 };
 
+export const SOCKET_CONFIG = {
+  url: __DEV__ 
+    ? 'http://localhost:5000' 
+    : 'https://your-production-domain.com',
+  options: {
+    transports: ['websocket'],
+    autoConnect: true,
+  },
+};
+
 export const COLORS = {
-  primary: '#E73AA4',
-  secondary: '#6B46C1',
-  accent: '#F59E0B',
+  primary: '#E91E63',
+  secondary: '#9C27B0',
+  background: '#F8F9FB',
+  surface: '#FFFFFF',
+  text: '#1A1625',
+  textSecondary: '#6B7280',
+  border: '#E5E7EB',
   success: '#10B981',
   warning: '#F59E0B',
   error: '#EF4444',
   info: '#3B82F6',
-  
-  // Grays
-  gray50: '#F8F9FB',
-  gray100: '#F3F4F6',
-  gray200: '#E5E7EB',
-  gray300: '#D1D5DB',
-  gray400: '#9CA3AF',
-  gray500: '#64748B',
-  gray600: '#4B5563',
-  gray700: '#374151',
-  gray800: '#1F2937',
-  gray900: '#1A1D29',
-  
-  // Background
-  background: '#F8F9FB',
-  surface: '#FFFFFF',
-  
-  // Text
-  textPrimary: '#1A1D29',
-  textSecondary: '#64748B',
-  textMuted: '#9CA3AF',
+};
+
+export const GRADIENTS = {
+  primary: ['#E91E63', '#9C27B0'],
+  secondary: ['#3B82F6', '#8B5CF6'],
+  success: ['#10B981', '#059669'],
+  warm: ['#F59E0B', '#D97706'],
+};
+
+export const FONTS = {
+  regular: 'Inter-Regular',
+  medium: 'Inter-Medium',
+  semiBold: 'Inter-SemiBold',
+  bold: 'Inter-Bold',
 };
 
 export const SPACING = {
   xs: 4,
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-  xxxl: 32,
-};
-
-export const FONT_SIZES = {
-  xs: 12,
-  sm: 14,
   md: 16,
-  lg: 18,
-  xl: 20,
-  xxl: 24,
-  xxxl: 28,
-  xxxxl: 32,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
 };
 
 export const BORDER_RADIUS = {
@@ -73,35 +62,105 @@ export const BORDER_RADIUS = {
   round: 50,
 };
 
-export const SHADOWS = {
+export const SHADOW = {
   small: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowColor: '#E91E63',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   medium: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowColor: '#E91E63',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  large: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 8,
   },
+  large: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+};
+
+export const ANIMATION = {
+  timing: {
+    fast: 150,
+    normal: 250,
+    slow: 350,
+  },
+  easing: {
+    easeInOut: 'ease-in-out',
+    easeOut: 'ease-out',
+    easeIn: 'ease-in',
+  },
+};
+
+export const PERMISSIONS = {
+  camera: 'Allow The Connection to access your camera to share photos and videos with your community.',
+  photos: 'Allow The Connection to access your photos to share with your community.',
+  location: 'Allow The Connection to use your location to connect you with nearby Christians and local events.',
+  notifications: 'Allow The Connection to send you notifications about prayer requests, messages, and community updates.',
+};
+
+export const APP_CONFIG = {
+  name: 'The Connection',
+  version: Constants.expoConfig?.version || '1.0.0',
+  buildNumber: Constants.expoConfig?.ios?.buildNumber || '1',
+  bundleId: Constants.expoConfig?.ios?.bundleIdentifier || 'com.theconnection.mobile',
+  androidPackage: Constants.expoConfig?.android?.package || 'com.theconnection.mobile',
+};
+
+export const SOCIAL_FEATURES = {
+  maxPostLength: 500,
+  maxCommentLength: 200,
+  maxBioLength: 150,
+  maxUsernameLength: 30,
+  minPasswordLength: 6,
+};
+
+export const PAGINATION = {
+  defaultLimit: 20,
+  maxLimit: 50,
+};
+
+export const CACHE_KEYS = {
+  user: 'user',
+  authToken: 'authToken',
+  preferences: 'preferences',
+  lastSeen: 'lastSeen',
+};
+
+export const ROUTES = {
+  auth: 'Auth',
+  home: 'Home',
+  microblogs: 'Microblogs',
+  communities: 'Communities',
+  prayerRequests: 'PrayerRequests',
+  events: 'Events',
+  bibleStudy: 'BibleStudy',
+  apologetics: 'Apologetics',
+  messages: 'Messages',
+  profile: 'Profile',
+};
+
+export default {
+  API_CONFIG,
+  SOCKET_CONFIG,
+  COLORS,
+  GRADIENTS,
+  FONTS,
+  SPACING,
+  BORDER_RADIUS,
+  SHADOW,
+  ANIMATION,
+  PERMISSIONS,
+  APP_CONFIG,
+  SOCIAL_FEATURES,
+  PAGINATION,
+  CACHE_KEYS,
+  ROUTES,
 };
