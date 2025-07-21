@@ -1166,6 +1166,26 @@ export type InsertVerseMemorization = z.infer<typeof insertVerseMemorizationSche
 export type UserPreferences = typeof userPreferences.$inferSelect;
 export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 
+// Messages table for private messaging between users
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  receiverId: integer("receiver_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof insertMessageSchema._input;
+
 export type ContentRecommendation = typeof contentRecommendations.$inferSelect;
 export type InsertContentRecommendation = z.infer<typeof insertContentRecommendationSchema>;
 
