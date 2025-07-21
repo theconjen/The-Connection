@@ -2095,5 +2095,1644 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   });
 
   return server;
-}
+    connectedClients.set(ws, clientData);
+    
+    ws.on('message', async (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('Received message:', data);
+        
+        // Handle different message types
+        switch (data.type) {
+          case 'auth':
+            // Authenticate the connection
+            if (data.userId && data.token) {
+              // In a real implementation, validate the token
+              // For now, just trust the client-provided data
+              clientData.userId = data.userId;
+              clientData.username = data.username;
+              
+              // Confirm authentication
+              ws.send(JSON.stringify({
+                type: 'auth_success',
+                userId: data.userId
+              }));
+            }
+            break;
+            
+          case 'join_room':
+            // Join a specific chat room
+            if (data.roomId) {
+              const roomId = data.roomId;
+              
+              // Get room to check if it's private and if the user can access it
+              const room = await storage.getCommunityRoom(roomId);
+              
+              if (!room) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'Room not found'
+                }));
+                break;
+              }
+              
+              // For private rooms, check if user is a community member
+              if (room.isPrivate && clientData.userId) {
+                const isMember = await storage.isCommunityMember(room.communityId, clientData.userId);
+                
+                if (!isMember) {
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    message: 'Access denied: Private room is only accessible to community members'
+                  }));
+                  break;
+                }
+              }
+              
+              // Add room to subscriptions
+              clientData.subscribedRooms.add(roomId);
+              
+              // Notify client
+              ws.send(JSON.stringify({
+                type: 'room_joined',
+                roomId: roomId
+              }));
+              
+              // Get recent messages
+              const recentMessages = await storage.getChatMessages(roomId, 20);
+              
+              // Add user info to messages
+              const messagesWithUsers = await Promise.all(
+                recentMessages.map(async (msg) => {
+                  const sender = await storage.getUser(msg.senderId);
+                  return { ...msg, sender };
+                })
+              );
+              
+              // Send recent messages
+              ws.send(JSON.stringify({
+                type: 'message_history',
+                roomId: roomId,
+                messages: messagesWithUsers.reverse() // Newest first
+              }));
+              
+              // Notify room that user joined
+              broadcastToRoom(roomId, {
+                type: 'system_message',
+                roomId: roomId,
+                message: `${clientData.username || 'A user'} joined the chat`
+              }, ws); // Don't send to the user who just joined
+            }
+            break;
+            
+          case 'leave_room':
+            // Leave a specific chat room
+            if (data.roomId) {
+              const roomId = data.roomId;
+              
+              // Remove room from subscriptions
+              clientData.subscribedRooms.delete(roomId);
+              
+              // Notify client
+              ws.send(JSON.stringify({
+                type: 'room_left',
+                roomId: roomId
+              }));
+              
+              // Notify room that user left (only if authenticated)
+              if (clientData.userId) {
+                broadcastToRoom(roomId, {
+                  type: 'system_message',
+                  roomId: roomId,
+                  message: `${clientData.username || 'A user'} left the chat`
+                }, ws);
+              }
+            }
+            break;
+            
+          case 'chat_message':
+            // Process a new chat message
+            if (data.roomId && data.content && clientData.userId) {
+              const roomId = data.roomId;
+              
+              // Check if user is subscribed to this room
+              if (!clientData.subscribedRooms.has(roomId)) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'You need to join the room before sending messages'
+                }));
+                break;
+              }
+              
+              // Get room to check if user can post
+              const room = await storage.getCommunityRoom(roomId);
+              
+              if (!room) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'Room not found'
+                }));
+                break;
+              }
+              
+              // Check if user is a member of the community
+              const isMember = await storage.isCommunityMember(room.communityId, clientData.userId);
+              
+              if (!isMember) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'Only community members can send messages'
+                }));
+                break;
+              }
+              
+              // Save message to database
+              const message = await storage.createChatMessage({
+                chatRoomId: roomId,
+                senderId: clientData.userId,
+                content: data.content,
+                isSystemMessage: false
+              });
+              
+              // Add sender info to the message
+              const sender = await storage.getUser(clientData.userId);
+              
+              // Broadcast message to all users in the room
+              broadcastToRoom(roomId, {
+                type: 'new_message',
+                roomId: roomId,
+                message: { ...message, sender }
+              });
+            } else {
+              ws.send(JSON.stringify({
+                type: 'error',
+                message: 'Authentication required to send messages'
+              }));
+            }
+            break;
+            
+          case 'typing':
+            // Notify others that user is typing
+            if (data.roomId && clientData.userId) {
+              const roomId = data.roomId;
+              
+              // Check if user is subscribed to this room
+              if (!clientData.subscribedRooms.has(roomId)) {
+                break;
+              }
+              
+              // Broadcast typing notification to all users in the room
+              broadcastToRoom(roomId, {
+                type: 'user_typing',
+                roomId: roomId,
+                userId: clientData.userId,
+                username: clientData.username
+              }, ws); // Don't send back to sender
+            }
+            break;
+            
+          case 'ping':
+            // Respond to ping with pong
+            ws.send(JSON.stringify({ type: 'pong' }));
+            break;
+            
+          case 'livestream':
+            // Forward livestream data to all clients (existing functionality)
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(data));
+              }
+            });
+            break;
+            
+          default:
+            console.log('Unknown message type:', data.type);
+        }
+      } catch (error) {
+        console.error('Error processing message:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+      
+      // Notify rooms that user left
+      if (clientData.userId) {
+        for (const roomId of clientData.subscribedRooms) {
+          broadcastToRoom(roomId, {
+            type: 'system_message',
+            roomId: roomId,
+            message: `${clientData.username || 'A user'} disconnected`
+          });
+        }
+      }
+      
+      // Remove client from connected clients
+      connectedClients.delete(ws);
+    });
+    
+    // Send initial connection confirmation
+    ws.send(JSON.stringify({
+      type: 'connected'
+    }));
+  });
+  
+  // Helper function to broadcast messages to all clients in a specific room
+  function broadcastToRoom(roomId, data, excludeClient = null) {
+    for (const [client, clientData] of connectedClients.entries()) {
+      if (client !== excludeClient && 
+          client.readyState === WebSocket.OPEN && 
+          clientData.subscribedRooms.has(roomId)) {
+        client.send(JSON.stringify(data));
+      }
+    }
+  }
+  
+  // ========================
+  // PRAYER REQUEST ROUTES
+  // ========================
+  
+  // Get all prayer requests (with privacy filter)
+  app.get("/api/prayer-requests", allowGuest, async (req, res) => {
+    try {
+      // If user is not authenticated, only return public prayers
+      if (!req.isAuthenticated()) {
+        const publicPrayers = await storage.getPublicPrayerRequests();
+        return res.json(publicPrayers);
+      }
+      
+      // Get filter from query string
+      const filter = req.query.filter as string;
+      const prayers = await storage.getAllPrayerRequests(filter);
+      
+      // Filter out non-public prayers that don't belong to the user
+      const userId = req.session.userId!;
+      const filteredPrayers = prayers.filter(prayer => {
+        // Public prayers are visible to all authenticated users
+        if (prayer.privacyLevel === 'public') return true;
+        
+        // User's own prayers are always visible to them
+        if (prayer.authorId === userId) return true;
+        
+        // Group-only prayers are only visible to group members
+        if (prayer.privacyLevel === 'group-only' && prayer.groupId) {
+          // We would need to check if user is in the group, but for simplicity
+          // we'll return true here and implement the check in the storage method
+          return true;
+        }
+        
+        // Hide all other prayers (e.g., friends-only would need a friends system)
+        return false;
+      });
+      
+      res.json(filteredPrayers);
+    } catch (error) {
+      console.error("Error getting prayer requests:", error);
+      res.status(500).json({ message: "Failed to get prayer requests" });
+    }
+  });
+  
+  // Get a specific prayer request
+  app.get("/api/prayer-requests/:id", allowGuest, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const prayer = await storage.getPrayerRequest(id);
+      
+      if (!prayer) {
+        return res.status(404).json({ message: "Prayer request not found" });
+      }
+      
+      // Check privacy settings
+      if (!req.isAuthenticated() && prayer.privacyLevel !== 'public') {
+        return res.status(403).json({ message: "Unauthorized to view this prayer request" });
+      }
+      
+      if (req.isAuthenticated() && prayer.privacyLevel === 'group-only' && prayer.groupId) {
+        // Check if user is a member of the group
+        // For simplicity, we're assuming this check happens in the storage method
+      }
+      
+      res.json(prayer);
+    } catch (error) {
+      console.error("Error getting prayer request:", error);
+      res.status(500).json({ message: "Failed to get prayer request" });
+    }
+  });
+  
+  // Get prayer requests for a user
+  app.get("/api/users/:userId/prayer-requests", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      
+      // Only allow users to see their own prayer requests or admins
+      if (req.session.userId! !== userId && !req.session.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const prayers = await storage.getUserPrayerRequests(userId);
+      res.json(prayers);
+    } catch (error) {
+      console.error("Error getting user prayer requests:", error);
+      res.status(500).json({ message: "Failed to get user prayer requests" });
+    }
+  });
+  
+  // Get prayer requests for a group
+  app.get("/api/groups/:groupId/prayer-requests", isAuthenticated, async (req, res) => {
+    try {
+      const groupId = req.params.groupId;
+      
+      // Check if user is a member of the group
+      const isGroupMember = await storage.isGroupMember(groupId, req.session.userId!);
+      if (!isGroupMember) {
+        return res.status(403).json({ message: "Unauthorized: Not a group member" });
+      }
+      
+      const prayers = await storage.getGroupPrayerRequests(groupId);
+      res.json(prayers);
+    } catch (error) {
+      console.error("Error getting group prayer requests:", error);
+      res.status(500).json({ message: "Failed to get group prayer requests" });
+    }
+  });
+  
+  // Create a new prayer request
+  app.post("/api/prayer-requests", isAuthenticated, async (req, res) => {
+    try {
+      const prayerData = insertPrayerRequestSchema.parse(req.body);
+      
+      // If group privacy, verify the user is a member of the group
+      if (prayerData.privacyLevel === 'group-only' && prayerData.groupId) {
+        const isGroupMember = await storage.isGroupMember(prayerData.groupId, req.session.userId!);
+        if (!isGroupMember) {
+          return res.status(403).json({ message: "Unauthorized: Not a group member" });
+        }
+      }
+      
+      // Set the author ID to the current user
+      const prayer = await storage.createPrayerRequest({
+        ...prayerData,
+        authorId: req.session.userId!
+      });
+      
+      res.status(201).json(prayer);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid prayer request data", errors: error.errors });
+      }
+      console.error("Error creating prayer request:", error);
+      res.status(500).json({ message: "Failed to create prayer request" });
+    }
+  });
+  
+  // Update a prayer request
+  app.patch("/api/prayer-requests/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const prayer = await storage.getPrayerRequest(id);
+      
+      if (!prayer) {
+        return res.status(404).json({ message: "Prayer request not found" });
+      }
+      
+      // Only allow the author or an admin to update the prayer
+      if (prayer.authorId !== req.session.userId! && !req.session.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updatedPrayer = await storage.updatePrayerRequest(id, req.body);
+      res.json(updatedPrayer);
+    } catch (error) {
+      console.error("Error updating prayer request:", error);
+      res.status(500).json({ message: "Failed to update prayer request" });
+    }
+  });
+  
+  // Mark a prayer request as answered
+  app.post("/api/prayer-requests/:id/answer", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { description } = req.body;
+      
+      const prayer = await storage.getPrayerRequest(id);
+      
+      if (!prayer) {
+        return res.status(404).json({ message: "Prayer request not found" });
+      }
+      
+      // Only allow the author to mark as answered
+      if (prayer.authorId !== req.session.userId!) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updatedPrayer = await storage.markPrayerRequestAsAnswered(id, description);
+      res.json(updatedPrayer);
+    } catch (error) {
+      console.error("Error marking prayer request as answered:", error);
+      res.status(500).json({ message: "Failed to mark prayer request as answered" });
+    }
+  });
+  
+  // Delete a prayer request
+  app.delete("/api/prayer-requests/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const prayer = await storage.getPrayerRequest(id);
+      
+      if (!prayer) {
+        return res.status(404).json({ message: "Prayer request not found" });
+      }
+      
+      // Only allow the author or an admin to delete the prayer
+      if (prayer.authorId !== req.session.userId! && !req.session.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const result = await storage.deletePrayerRequest(id);
+      
+      if (result) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: "Failed to delete prayer request" });
+      }
+    } catch (error) {
+      console.error("Error deleting prayer request:", error);
+      res.status(500).json({ message: "Failed to delete prayer request" });
+    }
+  });
+  
+  // Pray for a prayer request
+  app.post("/api/prayer-requests/:id/pray", isAuthenticated, async (req, res) => {
+    try {
+      const prayerRequestId = req.params.id;
+      const userId = req.session.userId!;
+      
+      const prayer = await storage.createPrayer({
+        prayerRequestId,
+        userId
+      });
+      
+      res.status(201).json(prayer);
+    } catch (error) {
+      console.error("Error praying for request:", error);
+      res.status(500).json({ message: "Failed to record prayer" });
+    }
+  });
+  
+  // Get all prayers for a prayer request
+  app.get("/api/prayer-requests/:id/prayers", allowGuest, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const prayers = await storage.getPrayersForRequest(id);
+      res.json(prayers);
+    } catch (error) {
+      console.error("Error getting prayers:", error);
+      res.status(500).json({ message: "Failed to get prayers" });
+    }
+  });
+  
+  // Get all prayer requests a user has prayed for
+  app.get("/api/users/:userId/prayed", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      
+      // Users can only see their own prayed requests
+      if (req.session.userId! !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const prayedRequestIds = await storage.getUserPrayedRequests(userId);
+      res.json(prayedRequestIds);
+    } catch (error) {
+      console.error("Error getting user's prayed requests:", error);
+      res.status(500).json({ message: "Failed to get user's prayed requests" });
+    }
+  });
 
+  // Community Events Calendar routes
+  app.get("/api/events", allowGuest, async (req, res) => {
+    try {
+      const filter = req.query.filter as string;
+      const events = await storage.getAllEvents(filter);
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting events:", error);
+      res.status(500).json({ message: "Failed to get events" });
+    }
+  });
+
+  app.get("/api/events/public", allowGuest, async (req, res) => {
+    try {
+      const events = await storage.getPublicEvents();
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting public events:", error);
+      res.status(500).json({ message: "Failed to get public events" });
+    }
+  });
+  
+  // ========================
+  // BIBLE STUDY TOOLS ROUTES
+  // ========================
+  
+  // Bible Reading Plans routes
+  app.get("/api/bible/reading-plans/public", allowGuest, async (req, res) => {
+    try {
+      const plans = await storage.getAllBibleReadingPlans();
+      res.json(plans);
+    } catch (error) {
+      console.error("Error getting public Bible reading plans:", error);
+      res.status(500).json({ message: "Failed to get reading plans" });
+    }
+  });
+  
+  app.get("/api/bible/reading-plans/user", isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.session.id;
+      const plans = await storage.getUserBibleReadingPlans(userId);
+      res.json(plans);
+    } catch (error) {
+      console.error("Error getting user's Bible reading plans:", error);
+      res.status(500).json({ message: "Failed to get user's reading plans" });
+    }
+  });
+  
+  app.get("/api/bible/reading-plans/group/:groupId", isAuthenticated, async (req, res) => {
+    try {
+      const groupId = req.params.groupId;
+      const plans = await storage.getGroupBibleReadingPlans(groupId);
+      res.json(plans);
+    } catch (error) {
+      console.error("Error getting group Bible reading plans:", error);
+      res.status(500).json({ message: "Failed to get group's reading plans" });
+    }
+  });
+  
+  app.post("/api/bible/reading-plans", isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const creatorId = req.session.id;
+      const readingPlan = {
+        ...req.body,
+        creatorId
+      };
+      const plan = await storage.createBibleReadingPlan(readingPlan);
+      res.status(201).json(plan);
+    } catch (error) {
+      console.error("Error creating Bible reading plan:", error);
+      res.status(500).json({ message: "Failed to create reading plan" });
+    }
+  });
+  
+  // Bible Reading Progress routes
+  app.get("/api/bible/reading-progress", isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.session.id;
+      const progress = await storage.getUserReadingProgress(userId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error getting user's reading progress:", error);
+      res.status(500).json({ message: "Failed to get reading progress" });
+    }
+  });
+  
+  app.post("/api/bible/reading-progress", isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.session.id;
+      const progressData = {
+        ...req.body,
+        userId
+      };
+      const progress = await storage.createBibleReadingProgress(progressData);
+      res.status(201).json(progress);
+    } catch (error) {
+      console.error("Error creating reading progress:", error);
+      res.status(500).json({ message: "Failed to create reading progress" });
+    }
+  });
+  
+  app.patch("/api/bible/reading-progress/:progressId/complete-day/:day", isAuthenticated, async (req, res) => {
+    try {
+      const progressId = req.params.progressId;
+      const day = req.params.day;
+      const progress = await storage.markDayCompleted(progressId, day);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error marking day as completed:", error);
+      res.status(500).json({ message: "Failed to update reading progress" });
+    }
+  });
+  
+  // Bible Study Notes routes
+  app.get("/api/bible/study-notes", isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.session.id;
+      const filter = { userId };
+      const notes = await storage.getBibleStudyNotes(filter);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error getting Bible study notes:", error);
+      res.status(500).json({ message: "Failed to get study notes" });
+    }
+  });
+  
+  app.get("/api/bible/study-notes/public", allowGuest, async (req, res) => {
+    try {
+      const filter = { isPublic: true };
+      const notes = await storage.getBibleStudyNotes(filter);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error getting public Bible study notes:", error);
+      res.status(500).json({ message: "Failed to get public study notes" });
+    }
+  });
+  
+  app.get("/api/bible/study-notes/group/:groupId", isAuthenticated, async (req, res) => {
+    try {
+      const groupId = req.params.groupId;
+      const filter = { groupId };
+      const notes = await storage.getBibleStudyNotes(filter);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error getting group Bible study notes:", error);
+      res.status(500).json({ message: "Failed to get group study notes" });
+    }
+  });
+  
+  app.post("/api/bible/study-notes", isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.session.id;
+      const noteData = {
+        ...req.body,
+        userId
+      };
+      const note = await storage.createBibleStudyNote(noteData);
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating Bible study note:", error);
+      res.status(500).json({ message: "Failed to create study note" });
+    }
+  });
+  
+  // Verse Memorization routes
+  app.get("/api/bible/memorization", isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.session.id;
+      const verses = await storage.getUserVerseMemorization(userId);
+      res.json(verses);
+    } catch (error) {
+      console.error("Error getting verse memorization:", error);
+      res.status(500).json({ message: "Failed to get memorization verses" });
+    }
+  });
+  
+  app.post("/api/bible/memorization", isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.session.id;
+      const verseData = {
+        ...req.body,
+        userId
+      };
+      const verse = await storage.createVerseMemorization(verseData);
+      res.status(201).json(verse);
+    } catch (error) {
+      console.error("Error creating verse memorization:", error);
+      res.status(500).json({ message: "Failed to create verse memorization" });
+    }
+  });
+  
+  app.patch("/api/bible/memorization/:id/mark-mastered", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const verse = await storage.markVerseMastered(id);
+      res.json(verse);
+    } catch (error) {
+      console.error("Error marking verse as mastered:", error);
+      res.status(500).json({ message: "Failed to update verse memorization" });
+    }
+  });
+  
+  app.patch("/api/bible/memorization/:id/add-review", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const verse = await storage.addVerseReviewDate(id);
+      res.json(verse);
+    } catch (error) {
+      console.error("Error adding verse review date:", error);
+      res.status(500).json({ message: "Failed to update verse memorization" });
+    }
+  });
+
+  app.get("/api/events/nearby", allowGuest, async (req, res) => {
+    try {
+      const { latitude, longitude, radius } = req.query;
+      
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "Latitude and longitude are required" });
+      }
+      
+      const radiusInKm = radius ? radius as string : 10; // Default to 10km
+      const events = await storage.getEventsNearby(
+        latitude as string,
+        longitude as string,
+        radiusInKm
+      );
+      
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting nearby events:", error);
+      res.status(500).json({ message: "Failed to get nearby events" });
+    }
+  });
+
+  app.get("/api/events/:id", allowGuest, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const event = await storage.getEvent(id);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // If event is not public and user is not authenticated, deny access
+      if (!event.isPublic && !req.isAuthenticated()) {
+        return res.status(403).json({ message: "This event is private" });
+      }
+      
+      res.json(event);
+    } catch (error) {
+      console.error("Error getting event:", error);
+      res.status(500).json({ message: "Failed to get event" });
+    }
+  });
+
+  app.get("/api/communities/:communityId/events", allowGuest, async (req, res) => {
+    try {
+      const communityId = req.params.communityId;
+      const events = await storage.getEventsByCommunity(communityId);
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting community events:", error);
+      res.status(500).json({ message: "Failed to get community events" });
+    }
+  });
+
+  app.get("/api/groups/:groupId/events", isAuthenticated, async (req, res) => {
+    try {
+      const groupId = req.params.groupId;
+      
+      // Check if user is a member of the group
+      const isMember = await storage.isGroupMember(req.session.id, groupId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You must be a member of the group to view its events" });
+      }
+      
+      const events = await storage.getEventsByGroup(groupId);
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting group events:", error);
+      res.status(500).json({ message: "Failed to get group events" });
+    }
+  });
+
+  app.get("/api/user/events", isAuthenticated, async (req, res) => {
+    try {
+      const events = await storage.getEventsByUser(req.session.id);
+      res.json(events);
+    } catch (error) {
+      console.error("Error getting user events:", error);
+      res.status(500).json({ message: "Failed to get user events" });
+    }
+  });
+
+  app.post("/api/events", isAuthenticated, async (req, res) => {
+    try {
+      // Validate the request data
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        creatorId: req.session.id
+      });
+      
+      // If this is a group event, check if user is a member of the group
+      if (eventData.groupId) {
+        const isMember = await storage.isGroupMember(req.session.id, eventData.groupId);
+        if (!isMember) {
+          return res.status(403).json({ message: "You must be a member of the group to create events for it" });
+        }
+      }
+      
+      // Create the event
+      const event = await storage.createEvent(eventData);
+      res.status(201).json(event);
+    } catch (error) {
+      console.error("Error creating event:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create event" });
+    }
+  });
+
+  app.patch("/api/events/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const event = await storage.getEvent(id);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // Only the creator can update the event
+      if (event.creatorId !== req.session.id) {
+        return res.status(403).json({ message: "You can only update events you created" });
+      }
+      
+      const updatedEvent = await storage.updateEvent(id, req.body);
+      res.json(updatedEvent);
+    } catch (error) {
+      console.error("Error updating event:", error);
+      res.status(500).json({ message: "Failed to update event" });
+    }
+  });
+
+  app.delete("/api/events/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const event = await storage.getEvent(id);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // Only the creator can delete the event
+      if (event.creatorId !== req.session.id) {
+        return res.status(403).json({ message: "You can only delete events you created" });
+      }
+      
+      await storage.deleteEvent(id);
+      res.json({ message: "Event deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      res.status(500).json({ message: "Failed to delete event" });
+    }
+  });
+
+  // Event RSVP routes
+  app.get("/api/events/:eventId/rsvps", allowGuest, async (req, res) => {
+    try {
+      const eventId = req.params.eventId;
+      const rsvps = await storage.getEventRsvps(eventId);
+      res.json(rsvps);
+    } catch (error) {
+      console.error("Error getting event RSVPs:", error);
+      res.status(500).json({ message: "Failed to get event RSVPs" });
+    }
+  });
+
+  app.get("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
+    try {
+      const eventId = req.params.eventId;
+      const rsvp = await storage.getUserEventRsvp(eventId, req.session.id);
+      
+      if (!rsvp) {
+        return res.status(404).json({ message: "RSVP not found" });
+      }
+      
+      res.json(rsvp);
+    } catch (error) {
+      console.error("Error getting user RSVP:", error);
+      res.status(500).json({ message: "Failed to get user RSVP" });
+    }
+  });
+
+  app.post("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
+    try {
+      const eventId = req.params.eventId;
+      const event = await storage.getEvent(eventId);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // If this is a group event, check if user is a member of the group
+      if (event.groupId) {
+        const isMember = await storage.isGroupMember(req.session.id, event.groupId);
+        if (!isMember) {
+          return res.status(403).json({ message: "You must be a member of the group to RSVP to its events" });
+        }
+      }
+      
+      // Check if user already has an RSVP
+      const existingRsvp = await storage.getUserEventRsvp(eventId, req.session.id);
+      if (existingRsvp) {
+        return res.status(400).json({ message: "You have already RSVP'd to this event" });
+      }
+      
+      // Create the RSVP
+      const { status } = req.body;
+      if (!status || !["going", "maybe", "not_going"].includes(status)) {
+        return res.status(400).json({ message: "Valid status (going, maybe, not_going) is required" });
+      }
+      
+      const rsvpData = insertEventRsvpSchema.parse({
+        eventId,
+        userId: req.session.id,
+        status
+      });
+      
+      const rsvp = await storage.createEventRsvp(rsvpData);
+      res.status(201).json(rsvp);
+    } catch (error) {
+      console.error("Error creating RSVP:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create RSVP" });
+    }
+  });
+
+  app.patch("/api/events/:eventId/rsvp", isAuthenticated, async (req, res) => {
+    try {
+      const eventId = req.params.eventId;
+      const rsvp = await storage.getUserEventRsvp(eventId, req.session.id);
+      
+      if (!rsvp) {
+        return res.status(404).json({ message: "RSVP not found" });
+      }
+      
+      const { status } = req.body;
+      if (!status || !["going", "maybe", "not_going"].includes(status)) {
+        return res.status(400).json({ message: "Valid status (going, maybe, not_going) is required" });
+      }
+      
+      const updatedRsvp = await storage.updateEventRsvp(rsvp.id, status);
+      res.json(updatedRsvp);
+    } catch (error) {
+      console.error("Error updating RSVP:", error);
+      res.status(500).json({ message: "Failed to update RSVP" });
+    }
+  });
+
+  // ========================
+  // BIBLE STUDY TOOLS ROUTES
+  // ========================
+
+  // Reading Plans
+  app.get("/api/bible-reading-plans", allowGuest, async (req, res) => {
+    try {
+      let plans;
+      const filter = req.query.filter as string;
+      
+      if (req.isAuthenticated() && req.query.mine === "true") {
+        plans = await storage.getUserBibleReadingPlans(req.session.id);
+      } else if (req.query.groupId) {
+        const groupId = req.query.groupId as string;
+        plans = await storage.getGroupBibleReadingPlans(groupId);
+      } else {
+        plans = await storage.getAllBibleReadingPlans(filter);
+      }
+      
+      res.json(plans);
+    } catch (error) {
+      console.error("Error getting reading plans:", error);
+      res.status(500).json({ message: "Failed to get reading plans" });
+    }
+  });
+
+  app.get("/api/bible-reading-plans/:id", allowGuest, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const plan = await storage.getBibleReadingPlan(id);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Reading plan not found" });
+      }
+      
+      // If not public and not creator, check if it's a group plan and user is member
+      if (!plan.isPublic && (!req.session || plan.creatorId !== req.session.id)) {
+        if (plan.groupId) {
+          const isMember = req.session && await storage.isGroupMember(req.session.id, plan.groupId);
+          if (!isMember) {
+            return res.status(403).json({ message: "You don't have access to this reading plan" });
+          }
+        } else {
+          return res.status(403).json({ message: "You don't have access to this reading plan" });
+        }
+      }
+      
+      res.json(plan);
+    } catch (error) {
+      console.error("Error getting reading plan:", error);
+      res.status(500).json({ message: "Failed to get reading plan" });
+    }
+  });
+
+  app.post("/api/bible-reading-plans", isAuthenticated, async (req, res) => {
+    try {
+      const planData = insertBibleReadingPlanSchema.parse({
+        ...req.body,
+        creatorId: req.session.id
+      });
+      
+      // If it's a group plan, verify the user is a member
+      if (planData.groupId) {
+        const isMember = await storage.isGroupMember(req.session.id, planData.groupId);
+        if (!isMember) {
+          return res.status(403).json({ message: "You must be a member of the group to create a reading plan for it" });
+        }
+      }
+      
+      const plan = await storage.createBibleReadingPlan(planData);
+      res.status(201).json(plan);
+    } catch (error) {
+      console.error("Error creating reading plan:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create reading plan" });
+    }
+  });
+
+  app.patch("/api/bible-reading-plans/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const plan = await storage.getBibleReadingPlan(id);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Reading plan not found" });
+      }
+      
+      // Only creator can update the plan
+      if (plan.creatorId !== req.session.id) {
+        return res.status(403).json({ message: "You don't have permission to update this reading plan" });
+      }
+      
+      const updates = {
+        ...req.body,
+        // Don't allow changing creator
+        creatorId: plan.creatorId
+      };
+      
+      const updatedPlan = await storage.updateBibleReadingPlan(id, updates);
+      res.json(updatedPlan);
+    } catch (error) {
+      console.error("Error updating reading plan:", error);
+      res.status(500).json({ message: "Failed to update reading plan" });
+    }
+  });
+
+  app.delete("/api/bible-reading-plans/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const plan = await storage.getBibleReadingPlan(id);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Reading plan not found" });
+      }
+      
+      // Only creator can delete the plan
+      if (plan.creatorId !== req.session.id) {
+        return res.status(403).json({ message: "You don't have permission to delete this reading plan" });
+      }
+      
+      await storage.deleteBibleReadingPlan(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting reading plan:", error);
+      res.status(500).json({ message: "Failed to delete reading plan" });
+    }
+  });
+
+  // Reading Progress
+  app.get("/api/bible-reading-progress", isAuthenticated, async (req, res) => {
+    try {
+      const progress = await storage.getUserReadingProgress(req.session.id);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error getting reading progress:", error);
+      res.status(500).json({ message: "Failed to get reading progress" });
+    }
+  });
+
+  app.get("/api/bible-reading-plans/:planId/progress", isAuthenticated, async (req, res) => {
+    try {
+      const planId = req.params.planId;
+      const progress = await storage.getBibleReadingProgress(req.session.id, planId);
+      
+      if (!progress) {
+        return res.status(404).json({ message: "Reading progress not found" });
+      }
+      
+      res.json(progress);
+    } catch (error) {
+      console.error("Error getting reading progress:", error);
+      res.status(500).json({ message: "Failed to get reading progress" });
+    }
+  });
+
+  app.post("/api/bible-reading-plans/:planId/progress", isAuthenticated, async (req, res) => {
+    try {
+      const planId = req.params.planId;
+      const plan = await storage.getBibleReadingPlan(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Reading plan not found" });
+      }
+      
+      // Check if user can access this plan
+      if (!plan.isPublic && plan.creatorId !== req.session.id) {
+        if (plan.groupId) {
+          const isMember = await storage.isGroupMember(req.session.id, plan.groupId);
+          if (!isMember) {
+            return res.status(403).json({ message: "You don't have access to this reading plan" });
+          }
+        } else {
+          return res.status(403).json({ message: "You don't have access to this reading plan" });
+        }
+      }
+      
+      // Check if progress already exists
+      const existingProgress = await storage.getBibleReadingProgress(req.session.id, planId);
+      if (existingProgress) {
+        return res.status(400).json({ message: "You've already started this reading plan" });
+      }
+      
+      const progressData = insertBibleReadingProgressSchema.parse({
+        planId,
+        userId: req.session.id
+      });
+      
+      const progress = await storage.createBibleReadingProgress(progressData);
+      res.status(201).json(progress);
+    } catch (error) {
+      console.error("Error starting reading progress:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to start reading progress" });
+    }
+  });
+
+  app.post("/api/bible-reading-progress/:progressId/complete-day", isAuthenticated, async (req, res) => {
+    try {
+      const progressId = req.params.progressId;
+      const { day } = req.body;
+      
+      if (!day || typeof day !== 'number' || day < 1) {
+        return res.status(400).json({ message: "Valid day number is required" });
+      }
+      
+      const progress = await storage.markDayCompleted(progressId, day);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error completing reading day:", error);
+      res.status(500).json({ message: "Failed to complete reading day" });
+    }
+  });
+
+  // Bible Study Notes
+  app.get("/api/bible-study-notes", allowGuest, async (req, res) => {
+    try {
+      const filter: { userId?: string, groupId?: string, isPublic?: boolean } = {};
+      
+      // Only fetch user's private notes when authenticated
+      if (req.query.mine === "true") {
+        if (!req.isAuthenticated()) {
+          return res.status(401).json({ message: "You must be logged in to view your notes" });
+        }
+        filter.userId = req.session.id;
+      }
+      
+      if (req.query.groupId) {
+        filter.groupId = req.query.groupId as string;
+      }
+      
+      if (req.query.public === "true") {
+        filter.isPublic = true;
+      }
+      
+      const notes = await storage.getBibleStudyNotes(filter);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error getting bible study notes:", error);
+      res.status(500).json({ message: "Failed to get bible study notes" });
+    }
+  });
+
+  app.get("/api/bible-study-notes/:id", allowGuest, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const note = await storage.getBibleStudyNote(id);
+      
+      if (!note) {
+        return res.status(404).json({ message: "Bible study note not found" });
+      }
+      
+      // Check if user can access this note
+      if (!note.isPublic && (!req.isAuthenticated() || note.userId !== req.session.id)) {
+        if (note.groupId) {
+          const isMember = req.isAuthenticated() && await storage.isGroupMember(req.session.id, note.groupId);
+          if (!isMember) {
+            return res.status(403).json({ message: "You don't have access to this note" });
+          }
+        } else {
+          return res.status(403).json({ message: "You don't have access to this note" });
+        }
+      }
+      
+      res.json(note);
+    } catch (error) {
+      console.error("Error getting bible study note:", error);
+      res.status(500).json({ message: "Failed to get bible study note" });
+    }
+  });
+
+  app.post("/api/bible-study-notes", isAuthenticated, async (req, res) => {
+    try {
+      const noteData = insertBibleStudyNotesSchema.parse({
+        ...req.body,
+        userId: req.session.id
+      });
+      
+      // If it's a group note, verify the user is a member
+      if (noteData.groupId) {
+        const isMember = await storage.isGroupMember(req.session.id, noteData.groupId);
+        if (!isMember) {
+          return res.status(403).json({ message: "You must be a member of the group to create a note for it" });
+        }
+      }
+      
+      const note = await storage.createBibleStudyNote(noteData);
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating bible study note:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create bible study note" });
+    }
+  });
+
+  app.patch("/api/bible-study-notes/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const note = await storage.getBibleStudyNote(id);
+      
+      if (!note) {
+        return res.status(404).json({ message: "Bible study note not found" });
+      }
+      
+      // Only owner can update the note
+      if (note.userId !== req.session.id) {
+        return res.status(403).json({ message: "You don't have permission to update this note" });
+      }
+      
+      const updates = {
+        ...req.body,
+        // Don't allow changing owner
+        userId: note.userId
+      };
+      
+      const updatedNote = await storage.updateBibleStudyNote(id, updates);
+      res.json(updatedNote);
+    } catch (error) {
+      console.error("Error updating bible study note:", error);
+      res.status(500).json({ message: "Failed to update bible study note" });
+    }
+  });
+
+  app.delete("/api/bible-study-notes/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const note = await storage.getBibleStudyNote(id);
+      
+      if (!note) {
+        return res.status(404).json({ message: "Bible study note not found" });
+      }
+      
+      // Only owner can delete the note
+      if (note.userId !== req.session.id) {
+        return res.status(403).json({ message: "You don't have permission to delete this note" });
+      }
+      
+      await storage.deleteBibleStudyNote(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting bible study note:", error);
+      res.status(500).json({ message: "Failed to delete bible study note" });
+    }
+  });
+
+  // Verse Memorization
+  app.get("/api/verse-memorization", isAuthenticated, async (req, res) => {
+    try {
+      const verses = await storage.getUserVerseMemorization(req.session.id);
+      res.json(verses);
+    } catch (error) {
+      console.error("Error getting verse memorization:", error);
+      res.status(500).json({ message: "Failed to get verse memorization" });
+    }
+  });
+
+  app.get("/api/verse-memorization/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const verse = await storage.getVerseMemorization(id);
+      
+      if (!verse) {
+        return res.status(404).json({ message: "Verse memorization not found" });
+      }
+      
+      // Only owner can view their verse memorization
+      if (verse.userId !== req.session.id) {
+        return res.status(403).json({ message: "You don't have permission to view this verse memorization" });
+      }
+      
+      res.json(verse);
+    } catch (error) {
+      console.error("Error getting verse memorization:", error);
+      res.status(500).json({ message: "Failed to get verse memorization" });
+    }
+  });
+
+  app.post("/api/verse-memorization", isAuthenticated, async (req, res) => {
+    try {
+      const verseData = insertVerseMemorizationSchema.parse({
+        ...req.body,
+        userId: req.session.id
+      });
+      
+      const verse = await storage.createVerseMemorization(verseData);
+      res.status(201).json(verse);
+    } catch (error) {
+      console.error("Error creating verse memorization:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create verse memorization" });
+    }
+  });
+
+  app.post("/api/verse-memorization/:id/mastered", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const verse = await storage.getVerseMemorization(id);
+      
+      if (!verse) {
+        return res.status(404).json({ message: "Verse memorization not found" });
+      }
+      
+      // Only owner can update their verse memorization
+      if (verse.userId !== req.session.id) {
+        return res.status(403).json({ message: "You don't have permission to update this verse memorization" });
+      }
+      
+      const updatedVerse = await storage.markVerseMastered(id);
+      res.json(updatedVerse);
+    } catch (error) {
+      console.error("Error marking verse as mastered:", error);
+      res.status(500).json({ message: "Failed to mark verse as mastered" });
+    }
+  });
+
+  app.post("/api/verse-memorization/:id/review", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const verse = await storage.getVerseMemorization(id);
+      
+      if (!verse) {
+        return res.status(404).json({ message: "Verse memorization not found" });
+      }
+      
+      // Only owner can update their verse memorization
+      if (verse.userId !== req.session.id) {
+        return res.status(403).json({ message: "You don't have permission to update this verse memorization" });
+      }
+      
+      const updatedVerse = await storage.addVerseReviewDate(id);
+      res.json(updatedVerse);
+    } catch (error) {
+      console.error("Error adding review date:", error);
+      res.status(500).json({ message: "Failed to add review date" });
+    }
+  });
+
+  app.delete("/api/verse-memorization/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const verse = await storage.getVerseMemorization(id);
+      
+      if (!verse) {
+        return res.status(404).json({ message: "Verse memorization not found" });
+      }
+      
+      // Only owner can delete their verse memorization
+      if (verse.userId !== req.session.id) {
+        return res.status(403).json({ message: "You don't have permission to delete this verse memorization" });
+      }
+      
+      await storage.deleteVerseMemorization(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting verse memorization:", error);
+      res.status(500).json({ message: "Failed to delete verse memorization" });
+    }
+  });
+
+  // ========================
+  // CONTENT RECOMMENDATIONS
+  // ========================
+
+  // Get personalized recommendations for the current user
+  app.get("/api/recommendations", allowGuest, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const limit = req.query.limit ? req.query.limit as string : 10;
+      
+      if (userId) {
+        // Get personalized recommendations for logged-in users
+        const recommendations = await getRecommendationsForUser(userId, limit);
+        res.json(recommendations);
+      } else {
+        // Get popular content for guests
+        const popularContent = await getRecommendationsForUser(0, limit); // 0 as a special case for guest users
+        res.json(popularContent);
+      }
+    } catch (error) {
+      console.error("Error getting recommendations:", error);
+      res.status(500).json({ message: "Failed to get recommendations" });
+    }
+  });
+
+  // Get user preferences
+  app.get("/api/user-preferences", isAuthenticated, async (req, res) => {
+    try {
+      const preferences = await storage.getUserPreferences(req.session.id);
+      
+      if (!preferences) {
+        return res.status(404).json({ message: "Preferences not found" });
+      }
+      
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error getting user preferences:", error);
+      res.status(500).json({ message: "Failed to get user preferences" });
+    }
+  });
+
+  // Update user preferences
+  app.patch("/api/user-preferences", isAuthenticated, async (req, res) => {
+    try {
+      const updateData = insertUserPreferencesSchema.partial().parse(req.body);
+      const preferences = await storage.updateUserPreferences(req.session.id, updateData);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error updating user preferences:", error);
+      res.status(500).json({ message: "Failed to update user preferences" });
+    }
+  });
+
+  // Get user by ID - public endpoint for author information
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Remove sensitive information for public user profile
+      const publicUser = {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        bio: user.bio,
+        createdAt: user.createdAt,
+        isVerifiedApologeticsAnswerer: user.isVerifiedApologeticsAnswerer
+      };
+      
+      res.json(publicUser);
+    } catch (error) {
+      console.error("Error getting user:", error);
+      res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  // Track content engagement (view, like, comment, etc.)
+  app.post("/api/recommendations/track-engagement", allowGuest, async (req, res) => {
+    try {
+      const { contentType, contentId, action } = req.body;
+      const userId = req.session.userId!;
+      
+      if (!userId) {
+        // Just acknowledge for guests, no tracking
+        return res.status(200).json({ success: true });
+      }
+      
+      if (!contentType || !contentId || !action) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Get user preferences to update engagement history
+      let preferences = await storage.getUserPreferences(userId);
+      
+      if (!preferences) {
+        // Create preferences if they don't exist
+        preferences = await storage.updateUserPreferences(userId, {
+          userId,
+          interests: [],
+          favoriteTopics: [],
+          engagementHistory: []
+        });
+      }
+      
+      // Update engagement history
+      const updatedHistory = [
+        {
+          timestamp: new Date(),
+          contentType,
+          contentId,
+          action
+        },
+        ...(preferences.engagementHistory || []).slice(0, 99) // Keep last 100 items
+      ];
+      
+      // Save updated engagement history
+      await storage.updateUserPreferences(userId, {
+        userId,
+        engagementHistory: updatedHistory
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error tracking engagement:", error);
+      res.status(500).json({ message: "Failed to track engagement" });
+    }
+  });
+
+  // Mark a recommendation as viewed
+  app.patch("/api/recommendations/:id/viewed", isAuthenticated, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const success = await storage.markRecommendationAsViewed(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Recommendation not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking recommendation as viewed:", error);
+      res.status(500).json({ message: "Failed to mark recommendation as viewed" });
+    }
+  });
+
+  // Add specific 404 handlers for common API paths
+  app.all('/api/users/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "User endpoint not found", path: req.path });
+  });
+
+  app.all('/api/communities/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Community endpoint not found", path: req.path });
+  });
+
+  app.all('/api/posts/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Post endpoint not found", path: req.path });
+  });
+
+  app.all('/api/microblogs/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Microblog endpoint not found", path: req.path });
+  });
+
+  app.all('/api/events/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Event endpoint not found", path: req.path });
+  });
+
+  app.all('/api/prayer-requests/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Prayer request endpoint not found", path: req.path });
+  });
+
+  app.all('/api/apologetics/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Apologetics endpoint not found", path: req.path });
+  });
+
+  app.all('/api/bible-reading/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Bible reading endpoint not found", path: req.path });
+  });
+
+  // Generic catch-all for any other API routes
+  app.all('/api/*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "API endpoint not found", path: req.path });
+  });
+
+  return server;
+}

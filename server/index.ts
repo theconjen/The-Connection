@@ -11,11 +11,14 @@ import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import { User } from "@shared/schema";
 import { APP_DOMAIN, BASE_URL } from "./config/domain";
+import { Server as SocketIOServer } from "socket.io";
+import { createServer } from "http";
 
 // Load environment variables from .env file
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
 
 // Set up PostgreSQL session store
 const PgSessionStore = connectPgSimple(session);
@@ -112,7 +115,7 @@ app.use((req, res, next) => {
     // Continue with server startup even if email template initialization fails
   }
   
-  const server = await registerRoutes(app);
+  const server = await registerRoutes(app, httpServer);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
