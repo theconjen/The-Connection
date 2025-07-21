@@ -136,6 +136,7 @@ The Connection is a comprehensive religious social platform built with TypeScrip
 - **Monitoring**: Built-in analytics and crash reporting
 
 ## Changelog
+- January 21, 2025: Implemented clean DM routing system with fetch and send message endpoints at /api/dm
 - January 21, 2025: Added messaging system schema to database for private user-to-user communications
 - January 21, 2025: Added comprehensive Settings page with user profile management, preferences, and church account integration
 - January 21, 2025: Created dedicated user settings API endpoints (GET/PUT /api/user/settings) with authentication
