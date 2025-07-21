@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, varchar, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, varchar, index, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1168,19 +1168,16 @@ export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 
 // Messages table for private messaging between users
 export const messages = pgTable("messages", {
-  id: serial("id").primaryKey(),
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   senderId: integer("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   receiverId: integer("receiver_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
-  isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
   createdAt: true,
-  updatedAt: true,
 });
 
 export type Message = typeof messages.$inferSelect;
