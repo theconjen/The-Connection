@@ -18,6 +18,7 @@ The Connection is a comprehensive religious social platform built with TypeScrip
 - **Framework**: Express.js with session-based authentication
 - **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
 - **Session Store**: PostgreSQL-backed sessions using connect-pg-simple
+- **Real-time**: Socket.IO integration for instant messaging with user rooms and authentication
 - **Email**: AWS SES integration with template support (mock mode enabled for development)
 
 ### Authentication Strategy
@@ -136,6 +137,9 @@ The Connection is a comprehensive religious social platform built with TypeScrip
 - **Monitoring**: Built-in analytics and crash reporting
 
 ## Changelog
+- January 21, 2025: Implemented real-time messaging with Socket.IO integration for instant message delivery
+- January 21, 2025: Added DMs component with URL parameter routing (/dms/:userId) for direct user conversations
+- January 21, 2025: Created Socket.IO server with user rooms, message broadcasting, and authentication
 - January 21, 2025: Updated DMs frontend to simple focused component design per user preference
 - January 21, 2025: Implemented clean DM routing system with fetch and send message endpoints at /api/dms
 - January 21, 2025: Added messaging system schema to database for private user-to-user communications

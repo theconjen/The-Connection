@@ -12,7 +12,7 @@ export default function DMs() {
   const socketRef = useRef<Socket | null>(null);
   
   // Get current user data
-  const { data: user } = useQuery({
+  const { data: user } = useQuery<{ id: number; username: string; email: string }>({
     queryKey: ['/api/user'],
     retry: false
   });
