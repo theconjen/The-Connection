@@ -7,6 +7,10 @@ const router = express.Router();
 
 // Fetch DMs between two users
 router.get("/:userId", async (req, res) => {
+  if (!req.session?.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
   const currentUserId = parseInt(req.session.userId); // Logged-in user
   const otherUserId = parseInt(req.params.userId);
 
@@ -22,6 +26,10 @@ router.get("/:userId", async (req, res) => {
 
 // Send a new DM
 router.post("/send", async (req, res) => {
+  if (!req.session?.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
   const senderId = parseInt(req.session.userId);
   const { receiverId, content } = req.body;
 
