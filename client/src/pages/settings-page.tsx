@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth, AuthContextType } from "@/hooks/use-auth";
@@ -48,14 +48,30 @@ export default function SettingsPage() {
   const { user, logout } = useAuth() as AuthContextType;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
 
   const [profileData, setProfileData] = useState({
-    displayName: user?.displayName || "",
-    bio: user?.bio || "",
-    city: user?.city || "",
-    state: user?.state || "",
-    zipCode: user?.zipCode || "",
+    displayName: "",
+    bio: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    email: "",
   });
+
+  // Fetch current user settings on component mount
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        displayName: user.displayName || "",
+        bio: user.bio || "",
+        city: user.city || "",
+        state: user.state || "",
+        zipCode: user.zipCode || "",
+        email: user.email || "",
+      });
+    }
+  }, [user]);
 
   const [preferences, setPreferences] = useState<UserPreferences>({
     emailNotifications: true,
@@ -119,10 +135,48 @@ export default function SettingsPage() {
     },
   });
 
-  const handleProfileUpdate = (e: React.FormEvent) => {
+  const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfileMutation.mutate(profileData);
+    setLoading(true);
+    
+    try {
+      await updateProfileMutation.mutateAsync(profileData);
+    } catch (error) {
+      // Error handling is done in the mutation
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Alternative simple save function matching your style
+  async function handleSave() {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/user/${user?.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profileData),
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Settings updated successfully!",
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      } else {
+        throw new Error("Failed to update settings");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update settings",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const handlePasswordUpdate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,17 +282,18 @@ export default function SettingsPage() {
                     <Input
                       id="displayName"
                       value={profileData.displayName}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, displayName: e.target.value }))}
+                      onChange={(e) => setProfileData({ ...profileData, displayName: e.target.value })}
                       placeholder="Your display name"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="username">Username (Read-only)</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
-                      id="username"
-                      value={user.username}
-                      disabled
-                      className="bg-gray-50"
+                      id="email"
+                      type="email"
+                      value={profileData.email}
+                      onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                      placeholder="your@email.com"
                     />
                   </div>
                 </div>
@@ -284,9 +339,14 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <Button type="submit" disabled={updateProfileMutation.isPending}>
-                  {updateProfileMutation.isPending ? "Updating..." : "Update Profile"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={loading}>
+                    {loading ? "Updating..." : "Update Profile"}
+                  </Button>
+                  <Button type="button" onClick={handleSave} disabled={loading} variant="outline">
+                    {loading ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>

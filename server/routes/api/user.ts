@@ -29,6 +29,7 @@ router.get('/profile', async (req, res, next) => {
 });
 
 // Update user profile
+// Update user profile - supports both /profile and /:id endpoints
 router.patch('/profile', async (req, res, next) => {
   try {
     const userId = req.session.userId;
@@ -36,15 +37,52 @@ router.patch('/profile', async (req, res, next) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    const { displayName, bio, avatarUrl } = req.body;
+    const { displayName, bio, avatarUrl, email, city, state, zipCode } = req.body;
     
     // Only allow updating specific fields
     const updateData: any = {};
     if (displayName !== undefined) updateData.displayName = displayName;
     if (bio !== undefined) updateData.bio = bio;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+    if (email !== undefined) updateData.email = email;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (zipCode !== undefined) updateData.zipCode = zipCode;
     
     const updatedUser = await storage.updateUser(userId, updateData);
+    
+    // Return updated user data without sensitive fields
+    const { password, ...userData } = updatedUser;
+    res.json(userData);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Alternative endpoint for updating user by ID (same functionality)
+router.patch('/:id', async (req, res, next) => {
+  try {
+    const userId = req.session.userId;
+    const targetUserId = parseInt(req.params.id);
+    
+    // Only allow users to update their own profile
+    if (!userId || userId !== targetUserId) {
+      return res.status(401).json({ message: 'Not authorized to update this profile' });
+    }
+    
+    const { displayName, bio, avatarUrl, email, city, state, zipCode } = req.body;
+    
+    // Only allow updating specific fields
+    const updateData: any = {};
+    if (displayName !== undefined) updateData.displayName = displayName;
+    if (bio !== undefined) updateData.bio = bio;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+    if (email !== undefined) updateData.email = email;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (zipCode !== undefined) updateData.zipCode = zipCode;
+    
+    const updatedUser = await storage.updateUser(targetUserId, updateData);
     
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;
