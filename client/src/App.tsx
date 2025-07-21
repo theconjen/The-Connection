@@ -33,7 +33,7 @@ import PrayerRequestsPage from "@/pages/prayer-requests-page";
 import EventsPage from "@/pages/events-page";
 import EventDetailPage from "@/pages/event-detail-page";
 import BibleStudyPage from "@/pages/bible-study-page";
-import SettingsPage from "@/pages/settings-page";
+import Settings from "@/pages/settings-page";
 import { useEffect } from "react";
 import { initGA } from "./lib/analytics";
 import { useAnalytics } from "./hooks/use-analytics";
@@ -96,7 +96,7 @@ function Router() {
       <ProtectedRoute path="/organizations/:id" component={withResponsiveLayout(OrganizationDashboardPage)} />
       <ProtectedRoute path="/groups" component={withResponsiveLayout(GroupsPage)} />
       <ProtectedRoute path="/profile" component={withResponsiveLayout(ProfilePage)} />
-      <ProtectedRoute path="/settings" component={withResponsiveLayout(SettingsPage)} />
+      <ProtectedRoute path="/settings" component={withResponsiveLayout(Settings)} />
       <ProtectedRoute path="/submit" component={withResponsiveLayout(SubmitPostPage)} />
       
       {/* Admin routes - directly use admin pages (they include AdminLayout inside) */}
