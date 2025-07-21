@@ -224,6 +224,90 @@
   }
 }
 
+/* Modern Mobile Design */
+@media (max-width: 768px) {
+  body {
+    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+    min-height: 100vh;
+  }
+  
+  /* Beautiful mobile cards */
+  .mobile-modern-card {
+    background: hsl(var(--card));
+    border-radius: 16px;
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    backdrop-filter: blur(8px);
+    margin: 8px;
+    transition: all 0.2s ease;
+  }
+  
+  .mobile-modern-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+  }
+  
+  /* Enhanced navigation bar */
+  .mobile-nav-modern {
+    background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--card))/95% 100%);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid hsl(var(--border));
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* Beautiful headers */
+  .mobile-header-modern {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Modern buttons */
+  .mobile-button-modern {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+  }
+  
+  .mobile-button-modern:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+  }
+  
+  .mobile-button-modern:active {
+    transform: translateY(0px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Clean text styles */
+  .mobile-text-modern {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+  }
+  
+  /* Beautiful input fields */
+  .mobile-input-modern {
+    background: hsl(var(--background));
+    border: 2px solid hsl(var(--border));
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 16px;
+    transition: all 0.2s ease;
+  }
+  
+  .mobile-input-modern:focus {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsla(var(--primary), 0.1);
+    outline: none;
+  }
+}
+
 /* Mobile optimizations */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);

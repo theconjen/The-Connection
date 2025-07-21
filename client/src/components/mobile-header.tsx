@@ -63,8 +63,8 @@ export default function MobileHeader({
   const showTitle = title || (!searchVisible && !backButton);
 
   return (
-    <header className="bg-background/95 border-b border-border/50 sticky top-0 z-50 shadow-sm backdrop-blur-md mobile-sticky safe-area-inset">
-      <div className="px-4 py-3 flex items-center justify-between w-full">
+    <header className="mobile-header-modern sticky top-0 z-50 shadow-lg safe-area-inset">
+      <div className="px-4 py-4 flex items-center justify-between w-full">
         {/* Left Section */}
         <div className="flex items-center flex-1">
           {backButton ? (
@@ -72,9 +72,9 @@ export default function MobileHeader({
               variant="ghost" 
               size="icon" 
               onClick={() => window.history.back()}
-              className="mr-3 touch-target active-scale"
+              className="mr-3 touch-target active-scale text-white hover:bg-white/20"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-6 w-6" />
             </Button>
           ) : searchVisible ? (
             <Button 
@@ -84,9 +84,9 @@ export default function MobileHeader({
                 setSearchVisible(false);
                 setSearchQuery("");
               }}
-              className="mr-3 touch-target active-scale"
+              className="mr-3 touch-target active-scale text-white hover:bg-white/20"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             </Button>
           ) : (
             <Link href="/" className="flex items-center mr-3">
@@ -103,17 +103,17 @@ export default function MobileHeader({
                 placeholder="Search posts, communities, people..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 mobile-input border-primary/20 focus:border-primary/40"
+                className="w-full h-12 mobile-input-modern border-white/30 text-white placeholder:text-white/70 focus:border-white/60"
               />
             </form>
           ) : showTitle && (
             <div className="flex-1">
               {title ? (
-                <h1 className="font-semibold text-lg text-foreground truncate mobile-text">
+                <h1 className="font-semibold text-xl text-white truncate mobile-text-modern">
                   {title}
                 </h1>
               ) : (
-                <span className="font-semibold text-lg text-gradient site-title">
+                <span className="font-bold text-2xl text-white mobile-text-modern">
                   The Connection
                 </span>
               )}
@@ -132,9 +132,9 @@ export default function MobileHeader({
               variant="ghost"
               size="icon"
               onClick={() => setSearchVisible(true)}
-              className="text-muted-foreground touch-target active-scale"
+              className="text-white hover:bg-white/20 touch-target active-scale"
             >
-              <Search className="h-5 w-5" />
+              <Search className="h-6 w-6" />
             </Button>
           )}
 
@@ -143,11 +143,11 @@ export default function MobileHeader({
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground touch-target active-scale relative"
+              className="text-white hover:bg-white/20 touch-target active-scale relative"
             >
-              <Bell className="h-5 w-5" />
+              <Bell className="h-6 w-6" />
               {/* Notification badge */}
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background"></div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
             </Button>
           )}
 
@@ -177,7 +177,7 @@ export default function MobileHeader({
               
               <Link href="/auth">
                 <Button 
-                  className="btn-gradient text-sm font-medium h-10 px-4 rounded-full hover:shadow-md hover:shadow-primary/25 transition-all touch-target mobile-button"
+                  className="bg-white text-primary font-semibold h-10 px-6 rounded-full hover:bg-white/90 transition-all touch-target mobile-button-modern shadow-lg"
                   size="sm"
                 >
                   Sign In

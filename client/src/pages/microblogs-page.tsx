@@ -94,10 +94,10 @@ export default function MicroblogsPage() {
       <>
         {/* Mobile Tabs */}
         <Tabs defaultValue="latest" className="w-full" onValueChange={setActiveTab}>
-          <div className="sticky top-[57px] bg-white/95 backdrop-blur-md z-10 border-b border-secondary/10">
-            <TabsList className="grid w-full grid-cols-2 p-1 mb-0">
-              <TabsTrigger value="latest" className="text-sm">Latest</TabsTrigger>
-              <TabsTrigger value="popular" className="text-sm">Popular</TabsTrigger>
+          <div className="sticky top-[57px] mobile-nav-modern z-10 p-2">
+            <TabsList className="grid w-full grid-cols-2 p-1 mb-0 mobile-modern-card">
+              <TabsTrigger value="latest" className="text-sm mobile-text-modern data-[state=active]:bg-primary data-[state=active]:text-white">Latest</TabsTrigger>
+              <TabsTrigger value="popular" className="text-sm mobile-text-modern data-[state=active]:bg-primary data-[state=active]:text-white">Popular</TabsTrigger>
             </TabsList>
           </div>
           

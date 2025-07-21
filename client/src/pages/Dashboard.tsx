@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { BookOpen, Shield, Video, Lightbulb, BookMarked, 
-         Map, Compass, Heart, Activity, Briefcase, GraduationCap, Palette } from 'lucide-react';
+         Map, Compass, Heart, Activity, Briefcase, GraduationCap, Palette, UserPlus, Calendar } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
@@ -113,58 +113,59 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Welcome, {user.displayName || user.username}!</h1>
-        <p className="text-muted-foreground mt-2">
+    <div className="container mx-auto px-4 py-6 space-y-6">
+      {/* Welcome Section */}
+      <div className="mobile-modern-card p-6">
+        <h1 className="text-2xl md:text-3xl font-bold mobile-text-modern">Welcome, {user.displayName || user.username}!</h1>
+        <p className="text-muted-foreground mt-2 mobile-text-modern">
           Connect with others and grow in your faith journey
         </p>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
-        <Button className="h-auto py-6 flex flex-col" asChild>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Button className="h-auto py-6 flex flex-col mobile-button-modern" asChild>
           <Link href="/discover">
             <Compass className="h-6 w-6 mb-2" />
-            <span>Discover Communities</span>
+            <span className="mobile-text-modern">Discover Communities</span>
           </Link>
         </Button>
-        <Button className="h-auto py-6 flex flex-col" variant="outline" asChild>
+        <Button className="h-auto py-6 flex flex-col mobile-modern-card border-2 border-primary/20 hover:border-primary/40 text-primary" variant="outline" asChild>
           <Link href="/groups/create">
             <UserPlus className="h-6 w-6 mb-2" />
-            <span>Start a Group</span>
+            <span className="mobile-text-modern">Start a Group</span>
           </Link>
         </Button>
-        <Button className="h-auto py-6 flex flex-col" variant="secondary" asChild>
+        <Button className="h-auto py-6 flex flex-col mobile-modern-card bg-secondary/10 hover:bg-secondary/20 text-secondary" variant="secondary" asChild>
           <Link href="/events/nearby">
             <Calendar className="h-6 w-6 mb-2" />
-            <span>Find Events Near Me</span>
+            <span className="mobile-text-modern">Find Events Near Me</span>
           </Link>
         </Button>
       </div>
 
       {/* Grow Section */}
-      <section className="mb-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Grow in Knowledge</h2>
-          <Button variant="ghost" asChild>
+      <section className="space-y-4">
+        <div className="mobile-modern-card p-4 flex items-center justify-between">
+          <h2 className="text-xl md:text-2xl font-bold mobile-text-modern">Grow in Knowledge</h2>
+          <Button variant="ghost" className="text-primary hover:bg-primary/10" asChild>
             <Link href="/grow">View All</Link>
           </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {growFeatures.slice(0, 3).map((feature, index) => (
-            <Card key={index} className={`${feature.color} border-none shadow-sm hover:shadow transition-shadow`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
+            <Card key={index} className={`mobile-modern-card ${feature.color} hover:shadow-lg transition-all duration-300 hover:-translate-y-1`}>
+              <CardHeader className="pb-2 p-4">
+                <div className="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-white shadow-sm mb-3">
                   {feature.icon}
                 </div>
-                <CardTitle className="mt-4">{feature.title}</CardTitle>
+                <CardTitle className="mobile-text-modern text-lg">{feature.title}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <CardDescription className="text-gray-700">{feature.description}</CardDescription>
+              <CardContent className="p-4 pt-0">
+                <CardDescription className="text-gray-700 mobile-text-modern text-sm">{feature.description}</CardDescription>
               </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full" asChild>
+              <CardFooter className="p-4 pt-0">
+                <Button variant="outline" className="w-full mobile-modern-card border-primary/30 text-primary hover:bg-primary/5" asChild>
                   <Link href={feature.link}>Explore</Link>
                 </Button>
               </CardFooter>
@@ -174,27 +175,27 @@ export default function Dashboard() {
       </section>
 
       {/* Connect Section */}
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Connect in Community</h2>
-          <Button variant="ghost" asChild>
+      <section className="space-y-4 pb-20">
+        <div className="mobile-modern-card p-4 flex items-center justify-between">
+          <h2 className="text-xl md:text-2xl font-bold mobile-text-modern">Connect in Community</h2>
+          <Button variant="ghost" className="text-primary hover:bg-primary/10" asChild>
             <Link href="/connect">View All</Link>
           </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {connectFeatures.slice(0, 3).map((feature, index) => (
-            <Card key={index} className={`${feature.color} border-none shadow-sm hover:shadow transition-shadow`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
+            <Card key={index} className={`mobile-modern-card ${feature.color} hover:shadow-lg transition-all duration-300 hover:-translate-y-1`}>
+              <CardHeader className="pb-2 p-4">
+                <div className="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-white shadow-sm mb-3">
                   {feature.icon}
                 </div>
-                <CardTitle className="mt-4">{feature.title}</CardTitle>
+                <CardTitle className="mobile-text-modern text-lg">{feature.title}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <CardDescription className="text-gray-700">{feature.description}</CardDescription>
+              <CardContent className="p-4 pt-0">
+                <CardDescription className="text-gray-700 mobile-text-modern text-sm">{feature.description}</CardDescription>
               </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full" asChild>
+              <CardFooter className="p-4 pt-0">
+                <Button variant="outline" className="w-full mobile-modern-card border-secondary/30 text-secondary hover:bg-secondary/5" asChild>
                   <Link href={feature.link}>Explore</Link>
                 </Button>
               </CardFooter>
