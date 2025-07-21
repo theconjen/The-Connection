@@ -183,7 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const userSettingsRoutes = (await import('./routes/userSettingsRoutes')).default;
   const dmRoutes = (await import('./routes/dmRoutes')).default;
   app.use("/api/user", userSettingsRoutes);
-  app.use('/api/dm', dmRoutes);
+  app.use('/api/dms', dmRoutes);
   
   // Register onboarding routes for locality and interests
   registerOnboardingRoutes(app);
