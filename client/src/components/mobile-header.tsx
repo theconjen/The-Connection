@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,9 @@ import {
   Search, 
   Menu, 
   X, 
-  ChevronLeft 
+  ChevronLeft,
+  Bell,
+  Settings
 } from "lucide-react";
 import { 
   Sheet, 
@@ -23,30 +25,54 @@ interface MobileHeaderProps {
   currentPath: string;
   backButton?: boolean;
   title?: string;
+  rightActions?: React.ReactNode;
+  searchEnabled?: boolean;
 }
 
 export default function MobileHeader({ 
   currentPath, 
   backButton = false,
-  title
+  title,
+  rightActions,
+  searchEnabled = true
 }: MobileHeaderProps) {
   const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+
+  // Auto-focus search input when visible
+  useEffect(() => {
+    if (searchVisible && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchVisible]);
+
+  // Handle search submission
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // Implement search navigation logic here
+      console.log("Searching for:", searchQuery);
+      setSearchVisible(false);
+      setSearchQuery("");
+    }
+  };
 
   // Determine if we should show the title in the header
   const showTitle = title || (!searchVisible && !backButton);
 
   return (
-    <header className="bg-card border-b border-border/50 sticky top-0 z-40 shadow-sm backdrop-blur-sm bg-opacity-80">
-      <div className="px-3 py-2.5 flex items-center justify-between w-full">
+    <header className="bg-background/95 border-b border-border/50 sticky top-0 z-50 shadow-sm backdrop-blur-md mobile-sticky safe-area-inset">
+      <div className="px-4 py-3 flex items-center justify-between w-full">
         {/* Left Section */}
-        <div className="flex items-center">
+        <div className="flex items-center flex-1">
           {backButton ? (
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => window.history.back()}
-              className="mr-2"
+              className="mr-3 touch-target active-scale"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
@@ -54,31 +80,40 @@ export default function MobileHeader({
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => setSearchVisible(false)}
-              className="mr-2"
+              onClick={() => {
+                setSearchVisible(false);
+                setSearchQuery("");
+              }}
+              className="mr-3 touch-target active-scale"
             >
               <X className="h-5 w-5" />
             </Button>
           ) : (
-            <Link href="/" className="flex items-center">
-              <img src={logoImage} alt="TC Logo" className="h-8 w-auto mr-2" />
+            <Link href="/" className="flex items-center mr-3">
+              <img src={logoImage} alt="TC Logo" className="h-8 w-auto" />
             </Link>
           )}
 
           {/* Title or Search Bar */}
           {searchVisible ? (
-            <div className="flex-1 ml-1">
+            <form onSubmit={handleSearchSubmit} className="flex-1">
               <Input
+                ref={searchInputRef}
                 type="text"
-                placeholder="Search..."
-                className="w-full h-9 py-2 pl-3 pr-3 rounded-lg border-secondary/20"
-                autoFocus
+                placeholder="Search posts, communities, people..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-10 mobile-input border-primary/20 focus:border-primary/40"
               />
-            </div>
+            </form>
           ) : showTitle && (
-            <div className="font-medium text-lg">
-              {title || (
-                <span className="font-medium text-gradient site-title">
+            <div className="flex-1">
+              {title ? (
+                <h1 className="font-semibold text-lg text-foreground truncate mobile-text">
+                  {title}
+                </h1>
+              ) : (
+                <span className="font-semibold text-lg text-gradient site-title">
                   The Connection
                 </span>
               )}
@@ -87,15 +122,32 @@ export default function MobileHeader({
         </div>
 
         {/* Right Section */}
-        <div className="flex items-center gap-1">
-          {!searchVisible && (
+        <div className="flex items-center gap-1 ml-2">
+          {/* Custom right actions */}
+          {rightActions}
+          
+          {/* Search button */}
+          {searchEnabled && !searchVisible && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSearchVisible(true)}
-              className="text-muted-foreground"
+              className="text-muted-foreground touch-target active-scale"
             >
               <Search className="h-5 w-5" />
+            </Button>
+          )}
+
+          {/* Notifications (for authenticated users) */}
+          {user && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground touch-target active-scale relative"
+            >
+              <Bell className="h-5 w-5" />
+              {/* Notification badge */}
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background"></div>
             </Button>
           )}
 
@@ -105,15 +157,15 @@ export default function MobileHeader({
             <div className="flex items-center gap-2">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" className="touch-target active-scale">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-[80vw] sm:w-[350px]">
+                <SheetContent side="right" className="w-[85vw] sm:w-[350px] mobile-spacing">
                   <div className="py-4">
                     <SheetClose asChild>
                       <div className="absolute right-4 top-4">
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" className="touch-target">
                           <X className="h-5 w-5" />
                         </Button>
                       </div>
@@ -125,7 +177,7 @@ export default function MobileHeader({
               
               <Link href="/auth">
                 <Button 
-                  className="btn-gradient text-sm font-medium h-9 px-4 rounded-full hover:shadow-sm hover:shadow-primary/25 transition-all"
+                  className="btn-gradient text-sm font-medium h-10 px-4 rounded-full hover:shadow-md hover:shadow-primary/25 transition-all touch-target mobile-button"
                   size="sm"
                 >
                   Sign In

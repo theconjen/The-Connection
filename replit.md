@@ -1,154 +1,76 @@
-# The Connection - Religious Social Platform
+# The Connection - Christian Community Platform
 
 ## Overview
-The Connection is a comprehensive religious social platform built with TypeScript, designed to foster Christian community through local connections, spiritual growth, and shared interests. The platform features communities, prayer requests, microblogs, events, apologetics resources, and user management with location-based matching.
+A comprehensive Christian community platform designed to foster digital spiritual engagement across web and mobile platforms, with advanced real-time communication infrastructure.
 
-## System Architecture
+The application provides a robust, privacy-respecting environment for spiritual growth, featuring direct messaging with real-time communication capabilities and dynamic routing for personalized user interactions. Supports seamless, secure digital community building with modern web technologies.
 
-### Frontend Architecture
-- **Framework**: React with TypeScript for type safety and component-based development
-- **Build Tool**: Vite for fast development and optimized production builds
-- **Routing**: Wouter for lightweight client-side routing
-- **State Management**: TanStack Query for server state management and caching
-- **Styling**: TailwindCSS with shadcn/ui components for consistent design system
-- **UI Components**: Radix UI primitives with custom styling via class-variance-authority
+## Technology Stack
+- **Frontend**: React with TypeScript, Vite
+- **Backend**: Express.js with TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Real-time**: Socket.IO for messaging
+- **Authentication**: Express sessions with Passport.js
+- **UI Framework**: Tailwind CSS with shadcn/ui components
+- **Mobile**: React Native with Expo (managed workflow)
 
-### Backend Architecture
-- **Runtime**: Node.js with TypeScript for full-stack type safety
-- **Framework**: Express.js with session-based authentication
-- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
-- **Session Store**: PostgreSQL-backed sessions using connect-pg-simple
-- **Real-time**: Socket.IO integration for instant messaging with user rooms and authentication
-- **Email**: AWS SES integration with template support (mock mode enabled for development)
+## Project Architecture
 
-### Authentication Strategy
-- Express sessions with PostgreSQL storage for persistence
-- Scrypt-based password hashing for security
-- Admin user support with role-based access control
-- Fallback authentication mechanisms for development testing
+### Database Schema
+- Users table with locality and interest features
+- Communities and groups for content organization
+- Messages table for direct messaging
+- Organizations for church/ministry management
+- Posts, comments, and social features
+- Livestreams and events
 
-## Key Components
+### Recent Changes (Jan 2025)
+✓ Fixed database migration issue - created missing messages table for direct messaging
+✓ Enhanced mobile UI optimizations with improved touch feedback
+✓ Added mobile-specific components:
+  - MobileChatInterface for optimized messaging
+  - TouchFeedback for haptic responses
+  - SwipeHandler for gesture navigation
+  - MobileCard for touch-friendly interfaces
+✓ Improved responsive layout with keyboard detection
+✓ Enhanced mobile navigation with floating action button
+✓ Added safe area insets for iOS compatibility
 
-### Database Layer
-- **ORM**: Drizzle with PostgreSQL driver for type-safe queries
-- **Schema**: Comprehensive schema covering users, communities, posts, events, prayer requests, and apologetics content
-- **Migrations**: Custom migration system for database schema updates
-- **Connection Pooling**: PostgreSQL connection pool for efficient database access
-
-### Core Features
-1. **User Management**: Registration, authentication, profiles with location data
-2. **Communities**: Interest-based and location-based community creation and management
-3. **Content Systems**: Posts, microblogs, comments with engagement tracking
-4. **Prayer Requests**: Privacy-controlled prayer sharing and response system
-5. **Events**: Community event creation with RSVP functionality
-6. **Apologetics Center**: Q&A system with verified answerers
-7. **Bible Study Tools**: Reading plans and study resources
-
-### Location-Based Features
-- User location data (city, state, coordinates) for local matching
-- Community location tagging for regional groups
-- Interest-based recommendation engine
-- Geographic search capabilities
-
-## Data Flow
-
-### Authentication Flow
-1. User submits credentials via `/api/auth/login`
-2. Server validates against database using scrypt password verification
-3. Session created and stored in PostgreSQL sessions table
-4. Client receives user data and maintains session via cookies
-
-### Content Creation Flow
-1. Authenticated users submit content through protected routes
-2. Content validated using Zod schemas
-3. Data stored via Drizzle ORM with proper relationships
-4. Real-time updates through query invalidation
-
-### Recommendation Engine
-1. User preferences and interaction history tracked
-2. Content similarity algorithms generate recommendations
-3. Location and interest matching for community suggestions
-4. Cached recommendations updated periodically
-
-## External Dependencies
-
-### Production Services
-- **AWS SES**: Email delivery service for notifications and communication
-- **PostgreSQL**: Primary database (can be Neon, AWS RDS, or self-hosted)
-- **Google Analytics**: User behavior tracking and analytics (optional)
-
-### Development Tools
-- **Replit**: Development environment with built-in PostgreSQL
-- **Vite**: Development server with hot module replacement
-- **Drizzle Kit**: Database schema management and migrations
-
-### Key Libraries
-- **Authentication**: express-session, passport, bcryptjs
-- **Database**: drizzle-orm, pg (PostgreSQL driver)
-- **Validation**: zod for runtime type checking
-- **UI**: @radix-ui components, tailwindcss
-- **Email**: @aws-sdk/client-ses, @sendgrid/mail (alternative)
-
-## Deployment Strategy
-
-### Replit Deployment
-- **Target**: Autoscale deployment for production
-- **Build Process**: `npm run build` compiles TypeScript and bundles client
-- **Runtime**: Node.js 20 with PostgreSQL 16 module
-- **Port Configuration**: Internal port 5000 mapped to external port 80
-
-### Environment Configuration
-- **Development**: Mock email mode, local PostgreSQL
-- **Production**: AWS SES integration, external PostgreSQL
-- **Session Management**: Secure cookies with configurable domain settings
-
-### Database Migrations
-- Custom migration system runs on startup
-- Locality and interests features added via migrations
-- Automatic table creation for missing schema elements
-
-## Mobile App Architecture
-
-### React Native Conversion
-- **Framework**: React Native with Expo for faster development and App Store deployment
-- **Navigation**: React Navigation with bottom tabs for main sections
-- **State Management**: React Context for authentication, AsyncStorage for local data
-- **API Integration**: Custom API service connecting to existing backend
-- **Build System**: EAS (Expo Application Services) for production builds and App Store submission
-
-### App Store Deployment Setup
-- **iOS Bundle ID**: com.theconnection.mobile (configurable)
-- **Android Package**: com.theconnection.mobile (configurable)  
-- **Target API Levels**: iOS 18 SDK, Android API 35 (2025 requirements)
-- **Build Profiles**: Development, preview, and production configurations
-- **Asset Requirements**: 1024x1024 icons, device-specific screenshots
-
-### Mobile App Features
-1. **Home Screen**: Feature cards leading to main sections
-2. **Communities Screen**: List of available communities with member counts
-3. **Feed Screen**: Microblog posts with like/comment functionality
-4. **Navigation**: Bottom tab navigation with consistent branding
-5. **Authentication**: Login/logout with token-based session management
-
-### Deployment Strategy
-- **Development**: Expo development client for testing
-- **Production**: EAS Build for App Store and Google Play submissions
-- **Updates**: Over-the-air updates for minor changes via EAS Update
-- **Monitoring**: Built-in analytics and crash reporting
-
-## Changelog
-- January 21, 2025: Implemented real-time messaging with Socket.IO integration for instant message delivery
-- January 21, 2025: Added DMs component with URL parameter routing (/dms/:userId) for direct user conversations
-- January 21, 2025: Created Socket.IO server with user rooms, message broadcasting, and authentication
-- January 21, 2025: Updated DMs frontend to simple focused component design per user preference
-- January 21, 2025: Implemented clean DM routing system with fetch and send message endpoints at /api/dms
-- January 21, 2025: Added messaging system schema to database for private user-to-user communications
-- January 21, 2025: Added comprehensive Settings page with user profile management, preferences, and church account integration
-- January 21, 2025: Created dedicated user settings API endpoints (GET/PUT /api/user/settings) with authentication
-- January 21, 2025: Production optimization - removed seed data for clean deployment
-- January 21, 2025: Complete mobile app implementation with all features and deployment configurations
-- January 21, 2025: Mobile app conversion completed with App Store deployment setup
-- June 24, 2025: Initial setup
+### Mobile Optimizations Implemented
+- Touch-friendly navigation with haptic feedback
+- Responsive layout that adapts to virtual keyboard
+- Mobile-optimized chat interface with smooth scrolling
+- Enhanced touch targets (44px minimum)
+- Swipe gesture support
+- Safe area handling for iOS devices
+- Improved typography for mobile readability
+- Active state feedback for all interactive elements
 
 ## User Preferences
-Preferred communication style: Simple, everyday language.
+- Focus on mobile-first design approach
+- Prioritize user experience and accessibility
+- Maintain Christian values and community-focused features
+- Ensure cross-platform compatibility
+
+## Development Guidelines
+- Follow the fullstack_js development guidelines
+- Use TypeScript for type safety
+- Implement responsive design patterns
+- Test across mobile and desktop platforms
+- Maintain clean, documented code
+- Prioritize accessibility and performance
+
+## Current Status
+The application is running successfully with:
+- Database migrations completed
+- Real-time messaging functional
+- Mobile optimizations implemented
+- User authentication working
+- Community features operational
+
+## Next Steps
+- Continue refining mobile user experience
+- Add more interactive features
+- Enhance real-time features
+- Implement push notifications
+- Add offline support for mobile

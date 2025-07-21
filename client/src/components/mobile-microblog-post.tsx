@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Heart, MessageCircle, Repeat, Share2, MoreHorizontal } from "lucide-react";
+import { Heart, MessageCircle, Repeat, Share2, MoreHorizontal, Bookmark, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Microblog, User } from "@shared/schema";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -17,15 +17,22 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { getInitials } from "@/lib/utils";
 import ShareButtons from "./share-buttons";
+import TouchFeedback from "./mobile-touch-feedback";
+import SwipeHandler from "./mobile-swipe-handler";
 
 interface MobileMicroblogPostProps {
   post: Microblog & {
     author?: User;
     isLiked?: boolean;
+    likeCount?: number;
+    commentCount?: number;
+    viewCount?: number;
   };
   showControls?: boolean;
   isAuthenticated?: boolean;
   isDetailView?: boolean;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
 }
 
 /**
@@ -36,11 +43,14 @@ export default function MobileMicroblogPost({
   post, 
   showControls = true, 
   isAuthenticated = false,
-  isDetailView = false
+  isDetailView = false,
+  onSwipeLeft,
+  onSwipeRight
 }: MobileMicroblogPostProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isSharing, setIsSharing] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -61,7 +71,7 @@ export default function MobileMicroblogPost({
           p.id === post.id 
             ? { 
                 ...p, 
-                likeCount: p.likeCount + (liked ? -1 : 1),
+                likeCount: (p.likeCount || 0) + (liked ? -1 : 1),
                 isLiked: !liked 
               } 
             : p
@@ -73,7 +83,7 @@ export default function MobileMicroblogPost({
         if (!oldData) return oldData;
         return {
           ...oldData,
-          likeCount: oldData.likeCount + (liked ? -1 : 1),
+          likeCount: (oldData.likeCount || 0) + (liked ? -1 : 1),
           isLiked: !liked
         };
       });
