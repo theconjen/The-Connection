@@ -152,8 +152,8 @@ export default function SettingsPage() {
   async function handleSave() {
     setLoading(true);
     try {
-      const response = await fetch(`/api/user/${user?.id}`, {
-        method: "PATCH",
+      const response = await fetch("/api/user/settings", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileData),
       });

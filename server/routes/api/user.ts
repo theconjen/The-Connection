@@ -82,7 +82,7 @@ router.patch('/:id', async (req, res, next) => {
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     
-    const updatedUser = await storage.updateUser(targetUserId, updateData);
+    const updatedUser = await storage.updateUser(targetUserId.toString(), updateData);
     
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;
