@@ -2,7 +2,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Community, Microblog, Event, PrayerRequest } from '../types';
 
-const API_BASE_URL = 'https://your-api-domain.com/api'; // Replace with your actual API URL
+import { API_CONFIG } from '../utils/constants';
+
+const API_BASE_URL = API_CONFIG.baseUrl;
 
 class ApiService {
   private async getAuthToken(): Promise<string | null> {

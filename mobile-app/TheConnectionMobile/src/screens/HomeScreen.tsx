@@ -55,6 +55,13 @@ export const HomeScreen: React.FC = () => {
       screenName: "Events",
       color: "#6366F1"
     },
+    {
+      title: "Apologetics",
+      description: "Explore answers to challenging questions about faith from verified Christian scholars.",
+      icon: <SimpleIcon name="apologetics" color="#F59E0B" />,
+      screenName: "Apologetics",
+      color: "#F59E0B"
+    },
   ];
 
   return (
