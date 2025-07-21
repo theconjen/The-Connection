@@ -113,7 +113,35 @@ export function MicroblogPost({
   });
 
   const formatDate = (date: Date) => {
-    return formatDistanceToNow(new Date(date), { addSuffix: true });
+    const now = new Date();
+    const postDate = new Date(date);
+    const diffInHours = (now.getTime() - postDate.getTime()) / (1000 * 60 * 60);
+    
+    // If less than 24 hours ago, show relative time
+    if (diffInHours < 24) {
+      return formatDistanceToNow(postDate, { addSuffix: true });
+    }
+    
+    // If this year, show month and day with time
+    if (postDate.getFullYear() === now.getFullYear()) {
+      return postDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+    
+    // If older, show full date with year
+    return postDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   const handleLikeToggle = () => {
