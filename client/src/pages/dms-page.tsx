@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'wouter';
 import io, { Socket } from 'socket.io-client';
 
 export default function DMsPage() {
+  const params = useParams();
+  const userIdFromUrl = params.userId;
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [messages, setMessages] = useState<any[]>([]);
   const [content, setContent] = useState("");
@@ -26,7 +29,12 @@ export default function DMsPage() {
       { id: "2", name: "Jane Smith", lastMessage: "How are you?" },
       { id: "15", name: "Admin", lastMessage: "Welcome to The Connection!" }
     ]);
-  }, [user?.id]);
+
+    // If there's a userId in the URL, automatically select that conversation
+    if (userIdFromUrl) {
+      setSelectedUserId(userIdFromUrl);
+    }
+  }, [user?.id, userIdFromUrl]);
 
   // Fetch DMs when user is selected
   useEffect(() => {
@@ -118,6 +126,9 @@ export default function DMsPage() {
               <h3 className="font-semibold">
                 {conversations.find(c => c.id === selectedUserId)?.name || `User ${selectedUserId}`}
               </h3>
+              {userIdFromUrl && (
+                <p className="text-sm text-gray-600">Direct conversation</p>
+              )}
             </div>
 
             {/* Messages */}
