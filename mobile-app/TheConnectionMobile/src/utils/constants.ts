@@ -6,10 +6,10 @@ export const APP_CONFIG = {
 };
 
 export const API_CONFIG = {
-  // Update this to your production API URL
+  // Update this to your production API URL before deployment
   baseUrl: __DEV__ 
     ? 'http://localhost:5000/api' 
-    : 'https://your-production-domain.com/api',
+    : 'https://your-replit-domain.replit.app/api', // Replace with your actual domain
   timeout: 10000,
 };
 
