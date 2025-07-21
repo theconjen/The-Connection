@@ -1,5 +1,7 @@
 import { 
-  User, InsertUser, 
+  User, InsertUser,
+  Organization, InsertOrganization,
+  OrganizationUser, InsertOrganizationUser, 
   Community, InsertCommunity,
   CommunityMember, InsertCommunityMember,
   CommunityChatRoom, InsertCommunityChatRoom,
@@ -60,7 +62,7 @@ import {
   ServiceTestimonial, InsertServiceTestimonial,
   
   // Database tables
-  users, communities, communityMembers, communityChatRooms, chatMessages, communityWallPosts,
+  users, organizations, organizationUsers, communities, communityMembers, communityChatRooms, chatMessages, communityWallPosts,
   posts, comments, groups, groupMembers, apologeticsResources, 
   livestreams, microblogs, microblogLikes,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
@@ -95,6 +97,17 @@ export interface IStorage {
   updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined>;
   setVerifiedApologeticsAnswerer(userId: string, isVerified: boolean): Promise<User>;
   getVerifiedApologeticsAnswerers(): Promise<User[]>;
+  
+  // Organization methods (Church accounts)
+  createOrganization(organization: InsertOrganization): Promise<Organization>;
+  getOrganization(id: string): Promise<Organization | undefined>;
+  getOrganizationsByUser(userId: string): Promise<Organization[]>;
+  updateOrganization(id: string, data: Partial<Organization>): Promise<Organization>;
+  addOrganizationMember(member: InsertOrganizationUser): Promise<OrganizationUser>;
+  removeOrganizationMember(organizationId: string, userId: string): Promise<boolean>;
+  getOrganizationMembers(organizationId: string): Promise<(OrganizationUser & { user: User })[]>;
+  isOrganizationAdmin(organizationId: string, userId: string): Promise<boolean>;
+  updateOrganizationPlan(id: string, plan: string, stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<Organization>;
   
   // Community methods
   getAllCommunities(): Promise<Community[]>;

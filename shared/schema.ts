@@ -50,6 +50,54 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdmin: true,
 });
 
+// Organizations table schema (Churches and ministries)
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  adminUserId: integer("admin_user_id").notNull().references(() => users.id),
+  plan: text("plan").default("free"), // free, standard, premium
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  website: text("website"),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  phone: text("phone"),
+  denomination: text("denomination"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertOrganizationSchema = createInsertSchema(organizations).pick({
+  name: true,
+  description: true,
+  adminUserId: true,
+  website: true,
+  address: true,
+  city: true,
+  state: true,
+  zipCode: true,
+  phone: true,
+  denomination: true,
+});
+
+// Organization members table
+export const organizationUsers = pgTable("organization_users", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  role: text("role").default("member"), // admin, pastor, leader, member
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+export const insertOrganizationUserSchema = createInsertSchema(organizationUsers).pick({
+  organizationId: true,
+  userId: true,
+  role: true,
+});
+
 // Communities table schema
 export const communities = pgTable("communities", {
   id: serial("id").primaryKey(),
@@ -105,6 +153,10 @@ export const insertCommunityMemberSchema = createInsertSchema(communityMembers).
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type OrganizationUser = typeof organizationUsers.$inferSelect;
+export type InsertOrganizationUser = z.infer<typeof insertOrganizationUserSchema>;
 export type Community = typeof communities.$inferSelect;
 export type InsertCommunity = z.infer<typeof insertCommunitySchema>;
 export type CommunityMember = typeof communityMembers.$inferSelect;

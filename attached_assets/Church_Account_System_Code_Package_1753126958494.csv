@@ -1,0 +1,176 @@
+File Path,Code Snippet
+server/db/schema/organizations.ts,"import { pgTable, text, timestamp, uuid } from ""drizzle-orm/pg-core"";
+
+export const organizations = pgTable(""organizations"", {
+  id: uuid(""id"").primaryKey().defaultRandom(),
+  name: text(""name"").notNull(),
+  adminUserId: uuid(""admin_user_id"").notNull(),
+  plan: text(""plan"").default(""free""),
+  createdAt: timestamp(""created_at"").defaultNow(),
+  updatedAt: timestamp(""updated_at"").defaultNow(),
+});
+
+export const organizationUsers = pgTable(""organization_users"", {
+  id: uuid(""id"").primaryKey().defaultRandom(),
+  organizationId: uuid(""organization_id"").notNull(),
+  userId: uuid(""user_id"").notNull(),
+  role: text(""role"").default(""member""),
+  joinedAt: timestamp(""joined_at"").defaultNow(),
+});
+"
+server/routes/organizationRoutes.ts,"import express from ""express"";
+import { db } from ""../db"";
+import { organizations, organizationUsers } from ""../db/schema/organizations"";
+import { eq } from ""drizzle-orm"";
+
+const router = express.Router();
+
+router.post(""/create"", async (req, res) => {
+  const { name, adminUserId } = req.body;
+  if (!name || !adminUserId) return res.status(400).send(""Missing fields"");
+
+  const [org] = await db.insert(organizations)
+    .values({ name, adminUserId, plan: ""free"" })
+    .returning();
+
+  await db.insert(organizationUsers)
+    .values({ organizationId: org.id, userId: adminUserId, role: ""admin"" });
+
+  res.json(org);
+});
+
+router.get(""/:id"", async (req, res) => {
+  const { id } = req.params;
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+  res.json(org);
+});
+
+router.post(""/:id/invite"", async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.body;
+  await db.insert(organizationUsers).values({ organizationId: id, userId });
+  res.json({ success: true });
+});
+
+export default router;
+"
+server/routes/stripeRoutes.ts,"import express from ""express"";
+import Stripe from ""stripe"";
+import { db } from ""../db"";
+import { organizations } from ""../db/schema/organizations"";
+import { eq } from ""drizzle-orm"";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: ""2023-10-16"" });
+const router = express.Router();
+
+router.post(""/checkout"", async (req, res) => {
+  const { organizationId, plan } = req.body;
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: [""card""],
+    mode: ""subscription"",
+    line_items: [{
+      price: plan === ""premium""
+        ? process.env.STRIPE_PREMIUM_PRICE!
+        : process.env.STRIPE_STANDARD_PRICE!,
+      quantity: 1
+    }],
+    success_url: `${process.env.FRONTEND_URL}/dashboard/org?success=true`,
+    cancel_url: `${process.env.FRONTEND_URL}/dashboard/org?canceled=true`,
+  });
+
+  res.json({ url: session.url });
+});
+
+router.post(""/webhook"", express.raw({ type: ""application/json"" }), async (req, res) => {
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      req.headers[""stripe-signature""]!,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
+  } catch (err: any) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === ""checkout.session.completed"") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const orgId = session.metadata?.organizationId;
+    if (orgId) {
+      await db.update(organizations)
+        .set({ plan: ""premium"" })
+        .where(eq(organizations.id, orgId));
+    }
+  }
+
+  res.json({ received: true });
+});
+
+export default router;
+"
+frontend/pages/ChurchSignup.tsx,"import { useState } from ""react"";
+
+export default function ChurchSignup() {
+  const [name, setName] = useState("""");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    const res = await fetch(""/api/organization/create"", {
+      method: ""POST"",
+      headers: { ""Content-Type"": ""application/json"" },
+      body: JSON.stringify({ name, adminUserId: ""currentUserIdHere"" }),
+    });
+    const data = await res.json();
+    alert(""Organization created: "" + data.name);
+    setLoading(false);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className=""p-4 max-w-md mx-auto"">
+      <h2 className=""text-xl font-bold mb-4"">Create Church Account</h2>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder=""Church Name""
+        className=""border p-2 w-full mb-3""
+      />
+      <button
+        type=""submit""
+        disabled={loading}
+        className=""bg-blue-500 text-white px-4 py-2 rounded""
+      >
+        {loading ? ""Creating..."" : ""Create Account""}
+      </button>
+    </form>
+  );
+}
+"
+frontend/pages/OrgDashboard.tsx,"import { useEffect, useState } from ""react"";
+
+export default function OrgDashboard({ orgId }: { orgId: string }) {
+  const [org, setOrg] = useState<any>(null);
+
+  useEffect(() => {
+    fetch(`/api/organization/${orgId}`)
+      .then((res) => res.json())
+      .then(setOrg);
+  }, [orgId]);
+
+  if (!org) return <p>Loading...</p>;
+
+  return (
+    <div className=""p-4"">
+      <h2 className=""text-2xl font-bold"">{org.name} Dashboard</h2>
+      <p>Current Plan: {org.plan}</p>
+      <button
+        onClick={() => alert(""Upgrade flow"")}
+        className=""bg-green-500 text-white px-4 py-2 mt-3""
+      >
+        Upgrade to Premium
+      </button>
+    </div>
+  );
+}
+"

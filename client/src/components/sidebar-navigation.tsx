@@ -11,7 +11,8 @@ import {
   Settings,
   HelpCircle,
   Sparkles,
-  Handshake
+  Handshake,
+  Building
 } from "lucide-react";
 
 interface SidebarNavigationProps {
@@ -48,6 +49,12 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
         { icon: <HelpCircle className="h-5 w-5" />, label: "FAQ", path: "/faq" },
         { icon: <Handshake className="h-5 w-5" />, label: "Support", path: "/support" },
         { icon: <Settings className="h-5 w-5" />, label: "Settings", path: "/settings" },
+      ],
+    },
+    {
+      title: "Organization",
+      items: [
+        { icon: <Building className="h-5 w-5" />, label: "Church Account", path: "/church-signup" },
       ],
     },
   ];

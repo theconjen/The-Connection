@@ -91,6 +91,11 @@ app.use((req, res, next) => {
   // Run migrations for locality and interest features
   try {
     await runAllMigrations();
+    
+    // Run organization migrations
+    const { runOrganizationMigrations } = await import("./run-migrations-organizations");
+    await runOrganizationMigrations();
+    
     console.log("✅ Database migrations completed");
   } catch (error) {
     console.error("❌ Error running database migrations:", error);

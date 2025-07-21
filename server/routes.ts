@@ -184,6 +184,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register location search routes for finding communities by city and interests
   registerLocationSearchRoutes(app);
+  
+  // Setup organization routes (Church accounts)
+  const organizationRoutes = (await import('./routes/organizations')).default;
+  const stripeRoutes = (await import('./routes/stripe')).default;
+  app.use('/api/organizations', organizationRoutes);
+  app.use('/api/stripe', stripeRoutes);
 
   // Communities routes
   app.get("/api/communities", async (req, res, next) => {

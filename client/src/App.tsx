@@ -24,6 +24,8 @@ import SubmitPostPage from "@/pages/submit-post-page";
 import LivestreamsPage from "@/pages/livestreams-page";
 import LivestreamerApplicationPage from "@/pages/livestreamer-application-page";
 import ApologistScholarApplicationPage from "@/pages/apologist-scholar-application-page";
+import ChurchSignupPage from "@/pages/church-signup-page";
+import OrganizationDashboardPage from "@/pages/organization-dashboard-page";
 import DiscoverPage from "@/pages/discover-page";
 import MicroblogsPage from "@/pages/microblogs-page";
 import MicroblogDetailPage from "@/pages/microblog-detail-page";
@@ -89,6 +91,8 @@ function Router() {
       {/* Protected routes with responsive layout */}
       <ProtectedRoute path="/livestreamer-application" component={withResponsiveLayout(LivestreamerApplicationPage)} />
       <ProtectedRoute path="/apologist-scholar-application" component={withResponsiveLayout(ApologistScholarApplicationPage)} />
+      <ProtectedRoute path="/church-signup" component={withResponsiveLayout(ChurchSignupPage)} />
+      <ProtectedRoute path="/organizations/:id" component={withResponsiveLayout(OrganizationDashboardPage)} />
       <ProtectedRoute path="/groups" component={withResponsiveLayout(GroupsPage)} />
       <ProtectedRoute path="/profile" component={withResponsiveLayout(ProfilePage)} />
       <ProtectedRoute path="/submit" component={withResponsiveLayout(SubmitPostPage)} />
