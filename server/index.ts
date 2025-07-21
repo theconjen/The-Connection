@@ -1,8 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { seedDatabase } from "./seed";
-import { seedBibleReadingPlans } from "./seed-bible-reading-plans";
+// Seed imports removed for production
 import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
 import dotenv from "dotenv";
@@ -97,8 +96,8 @@ app.use((req, res, next) => {
     console.error("❌ Error running database migrations:", error);
   }
 
-  // Skip database seeding for now due to connection issues
-  console.log("Skipping database seeding due to connection issues...");
+  // Production mode: No seed data needed
+  console.log("Production mode: Skipping database seeding");
   
   // Initialize email templates
   try {
