@@ -1,0 +1,36 @@
+{
+  "name": "theconnectionmobile",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "expo": "~53.0.20",
+    "expo-status-bar": "~2.2.3",
+    "expo-router": "~4.0.16",
+    "expo-constants": "~17.0.3",
+    "expo-font": "~13.0.1",
+    "expo-splash-screen": "~0.29.16",
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/stack": "^6.4.1",
+    "@react-navigation/bottom-tabs": "^6.6.1",
+    "react-native-screens": "~4.1.0",
+    "react-native-safe-area-context": "~5.0.7",
+    "react-native-gesture-handler": "~2.20.2",
+    "react-native-reanimated": "~3.16.1",
+    "@react-native-async-storage/async-storage": "~2.1.0",
+    "react-native-vector-icons": "^10.2.0",
+    "react": "19.0.0",
+    "react-native": "0.79.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@types/react": "~19.0.10",
+    "typescript": "~5.8.3"
+  },
+  "private": true
+}

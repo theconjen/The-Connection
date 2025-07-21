@@ -106,8 +106,38 @@ The Connection is a comprehensive religious social platform built with TypeScrip
 - Locality and interests features added via migrations
 - Automatic table creation for missing schema elements
 
+## Mobile App Architecture
+
+### React Native Conversion
+- **Framework**: React Native with Expo for faster development and App Store deployment
+- **Navigation**: React Navigation with bottom tabs for main sections
+- **State Management**: React Context for authentication, AsyncStorage for local data
+- **API Integration**: Custom API service connecting to existing backend
+- **Build System**: EAS (Expo Application Services) for production builds and App Store submission
+
+### App Store Deployment Setup
+- **iOS Bundle ID**: com.theconnection.mobile (configurable)
+- **Android Package**: com.theconnection.mobile (configurable)  
+- **Target API Levels**: iOS 18 SDK, Android API 35 (2025 requirements)
+- **Build Profiles**: Development, preview, and production configurations
+- **Asset Requirements**: 1024x1024 icons, device-specific screenshots
+
+### Mobile App Features
+1. **Home Screen**: Feature cards leading to main sections
+2. **Communities Screen**: List of available communities with member counts
+3. **Feed Screen**: Microblog posts with like/comment functionality
+4. **Navigation**: Bottom tab navigation with consistent branding
+5. **Authentication**: Login/logout with token-based session management
+
+### Deployment Strategy
+- **Development**: Expo development client for testing
+- **Production**: EAS Build for App Store and Google Play submissions
+- **Updates**: Over-the-air updates for minor changes via EAS Update
+- **Monitoring**: Built-in analytics and crash reporting
+
 ## Changelog
-- June 24, 2025. Initial setup
+- January 21, 2025: Mobile app conversion completed with App Store deployment setup
+- June 24, 2025: Initial setup
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
