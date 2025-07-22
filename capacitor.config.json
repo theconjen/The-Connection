@@ -1,0 +1,6 @@
+{
+  "appId": "com.theconjen.tconnect",
+  "appName": "TConnect",
+  "webDir": "dist/public",
+  "bundledWebRuntime": false
+}

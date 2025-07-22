@@ -186,7 +186,7 @@ export default function EventsList({
         /* List View Mode with Events */
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {filteredEvents.map((event) => (
-            <Card key={event.id} className="overflow-hidden transition-all hover:shadow-md border-border/80 card-hover">
+            <Card key={event.id} className="overflow-hidden transition-all hover:shadow-md  border/80 card-hover">
               <CardHeader className="bg-background pb-2">
                 <div className="text-overline flex items-center gap-1 mb-1">
                   <CalendarDays size={14} className="text-primary" />

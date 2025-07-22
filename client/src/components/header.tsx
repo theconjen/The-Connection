@@ -80,7 +80,7 @@ export default function Header() {
       className={`sticky top-0 z-40 backdrop-blur-sm transition-all duration-200
         ${scrolled 
           ? 'bg-background/90 shadow-md' 
-          : 'bg-background/70 border-b border-border/10'
+          : 'bg-background/70 border-b  border/10'
         }`}
     >
       <div className="container mx-auto">
@@ -102,7 +102,7 @@ export default function Header() {
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search posts, communities, Bible studies..."
-                className={`w-full h-10 bg-background/60 border-border/60 pl-10
+                className={`w-full h-10 bg-background/60  border/60 pl-10
                   focus:border-primary/40 focus:ring-primary/20 transition-all
                   ${searchVisible ? 'opacity-100' : 'opacity-70 hover:opacity-90 focus:opacity-100'}`}
                 onFocus={() => setSearchVisible(true)}
@@ -132,7 +132,7 @@ export default function Header() {
                       ref={searchInputRef}
                       type="text"
                       placeholder="Search The Connection..."
-                      className="w-full pl-10 pr-10 py-2 bg-card border-border/60 shadow-sm"
+                      className="w-full pl-10 pr-10 py-2 bg-card  border/60 shadow-sm"
                       autoComplete="off"
                     />
                     <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
@@ -230,7 +230,7 @@ export default function Header() {
                       <Menu className="h-5 w-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60 p-0 pt-0">
+                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l  border/60 p-0 pt-0">
                     <div className="h-full overflow-hidden flex flex-col">
                       <SheetHeader className="p-6 pb-2">
                         <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
@@ -295,7 +295,7 @@ export default function Header() {
                       <Menu className="h-5 w-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60 p-0 pt-0">
+                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l  border/60 p-0 pt-0">
                     <div className="h-full overflow-hidden flex flex-col">
                       <SheetHeader className="p-6 pb-2">
                         <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>

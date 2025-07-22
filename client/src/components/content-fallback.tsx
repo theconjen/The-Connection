@@ -23,7 +23,7 @@ export default function ContentFallback({
   children
 }: ContentFallbackProps) {
   return (
-    <div className="flex flex-col items-center justify-center p-6 text-center border border-border/40 rounded-md bg-card/30 min-h-[200px]">
+    <div className="flex flex-col items-center justify-center p-6 text-center border  border/40 rounded-md bg-card/30 min-h-[200px]">
       {icon}
       <h3 className="text-lg font-medium mt-4 mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground mb-4 max-w-md">

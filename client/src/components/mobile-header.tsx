@@ -63,8 +63,11 @@ export default function MobileHeader({
   const showTitle = title || (!searchVisible && !backButton);
 
   return (
+<<<<<<< HEAD
     <header className="mobile-header-modern sticky top-0 z-50 shadow-lg safe-area-inset">
       <div className="px-4 py-4 flex items-center justify-between w-full">
+
+>>>>>>> 0bbf419a21a1edfdfbbadc71761e6132c04091ac
         {/* Left Section */}
         <div className="flex items-center flex-1">
           {backButton ? (
