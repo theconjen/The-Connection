@@ -168,6 +168,43 @@ export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type CommunityWallPost = typeof communityWallPosts.$inferSelect;
 export type InsertCommunityWallPost = z.infer<typeof insertCommunityWallPostSchema>;
 
+// User Follows table schema for social graph
+export const userFollows = pgTable("user_follows", {
+  id: serial("id").primaryKey(),
+  followerId: integer("follower_id").references(() => users.id).notNull(),
+  followingId: integer("following_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserFollowSchema = createInsertSchema(userFollows).pick({
+  followerId: true,
+  followingId: true,
+});
+
+// User Interactions table for recommendation algorithm
+export const userInteractions = pgTable("user_interactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  contentId: integer("content_id").notNull(),
+  contentType: text("content_type").notNull(), // 'microblog', 'community', 'event'
+  interactionType: text("interaction_type").notNull(), // 'view', 'like', 'comment', 'share'
+  interactionStrength: integer("interaction_strength").default(1), // Weight of interaction
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserInteractionSchema = createInsertSchema(userInteractions).pick({
+  userId: true,
+  contentId: true,
+  contentType: true,
+  interactionType: true,
+  interactionStrength: true,
+});
+
+export type UserFollow = typeof userFollows.$inferSelect;
+export type InsertUserFollow = z.infer<typeof insertUserFollowSchema>;
+export type UserInteraction = typeof userInteractions.$inferSelect;
+export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
+
 
 
 // Community Chat Rooms schema

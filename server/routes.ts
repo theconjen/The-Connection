@@ -30,9 +30,6 @@ import {
   insertCommentSchema,
   insertGroupSchema,
   insertGroupMemberSchema,
-  // Recommendation schemas
-  insertUserPreferencesSchema,
-  insertContentRecommendationSchema,
   insertApologeticsResourceSchema,
   insertApologeticsTopicSchema,
   insertApologeticsQuestionSchema,
@@ -41,6 +38,9 @@ import {
   insertApologistScholarApplicationSchema,
   insertLivestreamSchema,
   insertMicroblogSchema,
+  // Recommendation system
+  insertUserFollowSchema,
+  insertUserInteractionSchema,
   
   // Community Events
   insertEventSchema,
@@ -2087,6 +2087,65 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
 
   app.all('/api/bible-reading/*', (req: Request, res: Response) => {
     res.status(404).json({ message: "Bible reading endpoint not found", path: req.path });
+  });
+
+  // Recommendation API endpoints
+  app.get("/api/recommendations/feed", isAuthenticated, async (req, res, next) => {
+    try {
+      const userId = req.session.userId!;
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      // Get microblogs and communities with basic scoring
+      const microblogs = await storage.getMicroblogs();
+      const communities = await storage.getCommunities();
+      
+      // Simple recommendation based on engagement
+      const scoredMicroblogs = microblogs.map(blog => ({
+        ...blog,
+        score: (blog.likeCount || 0) + (blog.replyCount || 0) * 2,
+        reason: 'Popular content',
+      })).sort((a, b) => b.score - a.score).slice(0, limit);
+      
+      // Add some basic community recommendations
+      const scoredCommunities = communities.map(community => ({
+        ...community,
+        score: (community.memberCount || 0) / 10,
+        reason: 'Popular community',
+      })).sort((a, b) => b.score - a.score).slice(0, Math.floor(limit / 3));
+      
+      res.json({
+        success: true,
+        data: {
+          microblogs: scoredMicroblogs,
+          communities: scoredCommunities,
+        },
+        algorithm: 'Basic engagement scoring',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/recommendations/interaction", isAuthenticated, async (req, res, next) => {
+    try {
+      const userId = req.session.userId!;
+      const { contentId, contentType, interactionType } = req.body;
+      
+      // Log interaction for future algorithm improvements
+      console.log(`Interaction recorded: User ${userId} -> ${interactionType} on ${contentType} ${contentId}`);
+      
+      res.json({ 
+        success: true, 
+        message: 'Interaction recorded for algorithm learning',
+        userId,
+        contentId,
+        contentType,
+        interactionType
+      });
+    } catch (error) {
+      next(error);
+    }
   });
 
   // Generic catch-all for any other API routes
