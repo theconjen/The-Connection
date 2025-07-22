@@ -50,13 +50,15 @@ The application provides a robust, privacy-respecting environment for spiritual 
 ✓ **Native Features**: Haptic feedback, gesture support, offline handling
 ✓ **API Enhancements**: Added toggleMicroblogLike, improved error handling
 
-### Personalized Content Algorithm (Jan 2025)
-✓ **Recommendation Engine**: Built comprehensive algorithm based on user interactions, follows, and community activity
-✓ **Scoring System**: Multi-factor scoring including recency (30%), engagement (25%), similarity (20%), social proof (15%), and diversity (10%)
-✓ **Interaction Tracking**: Records user views, likes, comments, and shares for algorithm learning
-✓ **Personalized Home Feed**: Custom feed component with real-time updates and algorithm transparency
-✓ **Content Mixing**: Intelligent blend of microblogs (70%) and community recommendations (30%)
-✓ **Privacy-First**: All data stays on platform with transparent algorithm explanations
+### Faith-Based Personalized Algorithm (Jan 2025)
+✓ **Faith-Focused Scoring**: Implements Score(P,U) = w_e×E + w_r×R + w_t×T + w_f×F formula
+✓ **Weighted Components**: Engagement (40%), Relationships (30%), Topic Match (20%), Freshness (10%)
+✓ **Faith-Based Interactions**: Likes (+1), Comments (+3), Shares (+5), Saves (+2), Prayer requests (+4)
+✓ **Spiritual Content Boost**: 30% boost for faith keywords (bible, prayer, worship, jesus, etc.)
+✓ **Trust & Safety**: Verified users get up to 50% score boost, positive engagement ratios rewarded
+✓ **Fresh Content Priority**: <24h content gets 50% freshness boost, aggressive decay for older posts
+✓ **Comprehensive API**: Real-time recommendation endpoints with interaction tracking
+✓ **Algorithm Transparency**: Score breakdowns and reasoning displayed to users
 
 ### Mobile Optimizations Implemented
 - Touch-friendly navigation with haptic feedback

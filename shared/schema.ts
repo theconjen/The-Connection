@@ -186,9 +186,10 @@ export const userInteractions = pgTable("user_interactions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
   contentId: integer("content_id").notNull(),
-  contentType: text("content_type").notNull(), // 'microblog', 'community', 'event'
-  interactionType: text("interaction_type").notNull(), // 'view', 'like', 'comment', 'share'
-  interactionStrength: integer("interaction_strength").default(1), // Weight of interaction
+  contentType: text("content_type").notNull(), // 'microblog', 'community', 'event', 'prayer_request', 'bible_study'
+  interactionType: text("interaction_type").notNull(), // 'view', 'like', 'comment', 'share', 'save', 'prayer_request', 'bible_study'
+  interactionStrength: integer("interaction_strength").default(1), // Weight of interaction based on faith-based scoring
+  metadata: jsonb("metadata"), // Store additional context like topic tags, sentiment
   createdAt: timestamp("created_at").defaultNow(),
 });
 

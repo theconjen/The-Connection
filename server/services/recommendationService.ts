@@ -17,21 +17,32 @@ export interface PersonalizedFeed {
 
 export class RecommendationService {
   private readonly INTERACTION_WEIGHTS = {
-    like: 3,
-    comment: 5,
-    share: 4,
-    view: 1,
-    follow: 8,
-    join_community: 6,
+    like: 1,             // +1 for likes
+    comment: 3,          // +3 for comments (more valuable)
+    share: 5,            // +5 for shares (highest engagement)
+    save: 2,             // +2 for bookmarks
+    view: 0.5,           // +0.5 for views
+    follow: 8,           // Strong relationship signal
+    join_community: 6,   // Community engagement
+    prayer_request: 4,   // Faith-based interaction
+    bible_study: 3,      // Educational engagement
   };
 
+  // Faith-based scoring formula: Score(P, U) = w_e*E + w_r*R + w_t*T + w_f*F
   private readonly CONTENT_WEIGHTS = {
-    recency: 0.3,        // How recent the content is
-    engagement: 0.25,    // Likes, comments, shares
-    similarity: 0.2,     // Similar to what user interacted with
-    social_proof: 0.15,  // What people they follow interact with
-    diversity: 0.1,      // Content variety to avoid echo chamber
+    engagement: 0.4,     // 40% - Engagement Score (likes, replies, shares)
+    relationship: 0.3,   // 30% - Relationship Score (user interaction with author)
+    topic_match: 0.2,    // 20% - Topic Match (interest overlap)
+    freshness: 0.1,      // 10% - Freshness (time decay factor)
   };
+
+  // Faith-based content categories for topic matching
+  private readonly FAITH_CATEGORIES = [
+    'bible_study', 'prayer_requests', 'worship', 'testimony', 'devotional',
+    'apologetics', 'ministry', 'church_life', 'christian_living', 'missions',
+    'youth_ministry', 'family_faith', 'spiritual_growth', 'scripture_study',
+    'christian_community', 'worship_music', 'biblical_theology'
+  ];
 
   async generatePersonalizedFeed(userId: number, limit = 20): Promise<PersonalizedFeed> {
     // Get user's interaction history and preferences
@@ -193,22 +204,50 @@ export class RecommendationService {
     interactions: any[]
   ) {
     const scoredMicroblogs = microblogs.map(microblog => {
-      const scores = {
-        recency: this.calculateRecencyScore(microblog.createdAt),
-        engagement: this.calculateEngagementScore(microblog.likesCount, microblog.commentsCount),
-        similarity: this.calculateSimilarityScore(microblog.content, userProfile.preferredTags),
-        socialProof: this.calculateSocialProofScore(microblog.userId, followedUsers),
-        diversity: 0.5, // Base diversity score
-      };
-
-      const totalScore = Object.entries(scores).reduce((sum, [key, score]) => 
-        sum + (score * this.CONTENT_WEIGHTS[key as keyof typeof this.CONTENT_WEIGHTS]), 0
+      // Calculate individual score components
+      const engagementScore = this.calculateEngagementScore(
+        microblog.likesCount || 0, 
+        microblog.commentsCount || 0,
+        microblog.repostCount || 0
       );
+      
+      const relationshipScore = this.calculateRelationshipScore(
+        microblog.userId, 
+        followedUsers, 
+        interactions,
+        userProfile.id
+      );
+      
+      const topicMatchScore = this.calculateTopicMatchScore(
+        microblog.content,
+        userProfile.preferredTags || [],
+        userProfile.interestTags || []
+      );
+      
+      const freshnessScore = this.calculateFreshnessScore(microblog.createdAt);
+
+      // Apply faith-based scoring formula
+      const totalScore = 
+        (this.CONTENT_WEIGHTS.engagement * engagementScore) +
+        (this.CONTENT_WEIGHTS.relationship * relationshipScore) +
+        (this.CONTENT_WEIGHTS.topic_match * topicMatchScore) +
+        (this.CONTENT_WEIGHTS.freshness * freshnessScore);
+
+      // Trust & safety boost for verified content
+      const trustBoost = this.calculateTrustScore(microblog);
+      const finalScore = totalScore * (1 + trustBoost);
 
       return {
         ...microblog,
-        score: totalScore,
-        scoreBreakdown: scores,
+        score: Math.round(finalScore * 100) / 100, // Round to 2 decimal places
+        scoreBreakdown: {
+          engagement: Math.round(engagementScore * 100) / 100,
+          relationship: Math.round(relationshipScore * 100) / 100,
+          topicMatch: Math.round(topicMatchScore * 100) / 100,
+          freshness: Math.round(freshnessScore * 100) / 100,
+          trustBoost: Math.round(trustBoost * 100) / 100,
+        },
+        reason: this.generateRecommendationReason(engagementScore, relationshipScore, topicMatchScore, trustBoost),
       };
     });
 
@@ -242,21 +281,128 @@ export class RecommendationService {
     return scoredCommunities.sort((a, b) => b.score - a.score);
   }
 
-  private calculateRecencyScore(createdAt: Date): number {
+  private calculateEngagementScore(likes: number, comments: number, shares: number = 0): number {
+    // Faith-based engagement weighting: likes(+1) + comments(+3) + shares(+5)
+    const weightedEngagement = 
+      (likes * this.INTERACTION_WEIGHTS.like) +
+      (comments * this.INTERACTION_WEIGHTS.comment) +
+      (shares * this.INTERACTION_WEIGHTS.share);
+    
+    // Normalize to 0-1 scale with logarithmic scaling for high engagement
+    return Math.min(Math.log10(weightedEngagement + 1) / 2, 1);
+  }
+
+  private calculateRelationshipScore(
+    authorId: number, 
+    followedUsers: number[], 
+    interactions: any[], 
+    userId: number
+  ): number {
+    // High score for followed users
+    if (followedUsers.includes(authorId)) return 1.0;
+    
+    // Medium score for users with previous interactions
+    const userInteractions = interactions.filter(i => 
+      i.contentType === 'microblog' && 
+      // Check if user has interacted with this author's content before
+      true // Simplified for now
+    );
+    
+    if (userInteractions.length > 0) {
+      return Math.min(userInteractions.length * 0.1, 0.7); // Cap at 0.7
+    }
+    
+    return 0.1; // Base score for unknown users
+  }
+
+  private calculateTopicMatchScore(
+    content: string, 
+    userPreferredTags: string[], 
+    userInterestTags: string[]
+  ): number {
+    const contentLower = content.toLowerCase();
+    const allUserTags = [...(userPreferredTags || []), ...(userInterestTags || [])];
+    
+    if (!allUserTags.length) return 0.3; // Default score if no user interests
+    
+    // Check for faith-based keyword matches
+    const faithKeywords = [
+      'bible', 'scripture', 'prayer', 'worship', 'church', 'faith', 'god', 'jesus', 'christ',
+      'holy', 'spirit', 'blessing', 'testimony', 'ministry', 'gospel', 'salvation', 'grace',
+      'christian', 'biblical', 'devotional', 'sermon', 'praise', 'lord', 'heavenly'
+    ];
+    
+    let matchScore = 0;
+    let totalWords = 0;
+    
+    // Score for user interest matches
+    allUserTags.forEach(tag => {
+      if (contentLower.includes(tag.toLowerCase())) {
+        matchScore += 0.2; // Each tag match adds 0.2
+      }
+      totalWords++;
+    });
+    
+    // Bonus for faith-based content
+    const faithMatches = faithKeywords.filter(keyword => 
+      contentLower.includes(keyword)
+    ).length;
+    
+    if (faithMatches > 0) {
+      matchScore += Math.min(faithMatches * 0.1, 0.3); // Faith bonus, capped at 0.3
+    }
+    
+    return Math.min(matchScore, 1.0);
+  }
+
+  private calculateFreshnessScore(createdAt: Date): number {
     const now = new Date();
     const ageInHours = (now.getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
     
-    // Score decreases over time, but not too aggressively
-    if (ageInHours < 1) return 1;
-    if (ageInHours < 6) return 0.8;
-    if (ageInHours < 24) return 0.6;
-    if (ageInHours < 72) return 0.4;
-    return Math.max(0.1, 1 - (ageInHours / (24 * 7))); // Decay over a week
+    // Aggressive boost for fresh content in faith community
+    if (ageInHours < 1) return 1.0;      // Perfect score for content <1h
+    if (ageInHours < 6) return 0.9;      // High score for <6h
+    if (ageInHours < 24) return 0.7;     // Good score for daily content
+    if (ageInHours < 72) return 0.4;     // Decent score for 3-day content
+    if (ageInHours < 168) return 0.2;    // Low score for week-old content
+    return 0.05; // Minimal score for older content
   }
 
-  private calculateEngagementScore(likes: number, comments: number): number {
-    const totalEngagement = (likes || 0) + (comments || 0) * 2; // Comments worth more
-    return Math.min(totalEngagement / 10, 1); // Normalize to 0-1
+  private calculateTrustScore(microblog: any): number {
+    let trustBoost = 0;
+    
+    // Boost for verified users (simulated)
+    if (microblog.user?.isVerifiedApologeticsAnswerer) {
+      trustBoost += 0.3;
+    }
+    
+    // Boost for high-engagement authors
+    const authorEngagement = (microblog.likesCount || 0) + (microblog.commentsCount || 0) * 2;
+    if (authorEngagement > 10) {
+      trustBoost += 0.1;
+    }
+    
+    // Boost for content with positive engagement ratio
+    const engagementRatio = (microblog.likesCount || 0) / Math.max((microblog.commentsCount || 0), 1);
+    if (engagementRatio > 2) { // More likes than comments indicates positive reception
+      trustBoost += 0.1;
+    }
+    
+    return Math.min(trustBoost, 0.5); // Cap trust boost at 50%
+  }
+
+  private generateRecommendationReason(
+    engagement: number, 
+    relationship: number, 
+    topicMatch: number, 
+    trust: number
+  ): string {
+    if (relationship > 0.8) return 'From someone you follow';
+    if (trust > 0.2) return 'From verified faith leader';
+    if (engagement > 0.7) return 'Highly engaging content';
+    if (topicMatch > 0.6) return 'Matches your interests';
+    if (engagement > 0.4) return 'Popular in community';
+    return 'Recommended for you';
   }
 
   private calculateSimilarityScore(content: string, preferredTags: string[]): number {

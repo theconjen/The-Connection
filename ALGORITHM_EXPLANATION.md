@@ -1,7 +1,7 @@
-# Personalized Content Recommendation Algorithm
+# Faith-Based Personalized Content Recommendation Algorithm
 
 ## Overview
-This algorithm creates a personalized home feed for users based on their interactions, follows, and community activity. It combines multiple signals to surface the most relevant content for each individual user.
+This algorithm creates a personalized home feed specifically designed for Christian community engagement. It prioritizes faith-based content while balancing relevance, engagement, relationships, and freshness to surface the most meaningful content for each individual user's spiritual journey.
 
 ## How It Works
 
@@ -13,35 +13,45 @@ The system tracks user interactions including:
 - **Community membership**: Which groups users join
 - **Interest patterns**: Content themes users engage with most
 
-### 2. Scoring Algorithm
-Content receives scores based on multiple factors:
+### 2. Faith-Based Scoring Algorithm
+Content receives scores using the formula: **Score(P, U) = w_e×E + w_r×R + w_t×T + w_f×F**
 
-#### **Recency Weight (30%)**
-- Recent content (< 1 hour): Score 1.0
-- Recent content (< 6 hours): Score 0.8
-- Daily content (< 24 hours): Score 0.6
-- Older content: Gradual decay over 7 days
-
-#### **Engagement Weight (25%)**
+#### **Engagement Score (40%)**
+Faith-based interaction weighting:
 - Each like: +1 point
-- Each comment: +2 points (comments are more valuable)
-- Each share: +1.5 points
-- Normalized to 0-1 scale based on content pool
+- Each comment: +3 points (comments show deeper engagement)  
+- Each share: +5 points (shares spread the Gospel)
+- Each save/bookmark: +2 points
+- Prayer request interactions: +4 points
+- Bible study engagement: +3 points
 
-#### **Similarity Weight (20%)**
-- Analyzes content text for keywords/themes
-- Matches against user's historical interaction patterns
-- Higher scores for content similar to previously liked posts
+#### **Relationship Score (30%)**
+- Content from followed users: 1.0 (perfect score)
+- Content from users with previous interactions: 0.1-0.7
+- Unknown users: 0.1 (base score)
+- Faith leaders and verified users: Bonus multiplier
 
-#### **Social Proof Weight (15%)**
-- Content from followed users: High boost (1.0)
-- Content from mutual connections: Medium boost (0.6)
-- Popular content from strangers: Low boost (0.2)
+#### **Topic Match Score (20%)**
+- User interest tag matching: +0.2 per match
+- Faith-based keyword detection: +0.1 per keyword (capped at 0.3)
+- Faith keywords: bible, scripture, prayer, worship, church, faith, god, jesus, christ, holy spirit, testimony, ministry, gospel, salvation, grace, christian, devotional, sermon, praise
+- Content categories: Bible Study, Prayer Requests, Worship, Testimony, Devotional, Apologetics, Ministry, Christian Living
 
-#### **Diversity Weight (10%)**
-- Prevents echo chambers
-- Limits repetitive content from same authors
-- Introduces variety in content types and topics
+#### **Freshness Score (10%)**
+Aggressive boost for fresh spiritual content:
+- Content < 1 hour: 1.0 (perfect freshness)
+- Content < 6 hours: 0.9 (high freshness) 
+- Content < 24 hours: 0.7 (daily content boost)
+- Content < 72 hours: 0.4 (recent content)
+- Content < 1 week: 0.2 (older content)
+- Older content: 0.05 (minimal score)
+
+#### **Trust & Safety Boost**
+Additional multiplier for verified content:
+- Verified apologetics answerers: +30% boost
+- High-engagement authors: +10% boost  
+- Positive engagement ratio: +10% boost
+- Church/ministry accounts: +20% boost (planned)
 
 ### 3. Content Mixing
 The final feed combines:

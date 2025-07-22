@@ -2099,19 +2099,71 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       const microblogs = await storage.getMicroblogs();
       const communities = await storage.getCommunities();
       
-      // Simple recommendation based on engagement
-      const scoredMicroblogs = microblogs.map(blog => ({
-        ...blog,
-        score: (blog.likeCount || 0) + (blog.replyCount || 0) * 2,
-        reason: 'Popular content',
-      })).sort((a, b) => b.score - a.score).slice(0, limit);
+      // Faith-based recommendation scoring
+      const scoredMicroblogs = microblogs.map(blog => {
+        // Calculate engagement using faith-based formula
+        const engagementScore = (blog.likeCount || 0) * 1 + (blog.replyCount || 0) * 3 + (blog.repostCount || 0) * 5;
+        
+        // Freshness boost for recent content
+        const now = new Date();
+        const ageInHours = (now.getTime() - new Date(blog.createdAt).getTime()) / (1000 * 60 * 60);
+        let freshnessBoost = 1;
+        if (ageInHours < 24) freshnessBoost = 1.5; // 50% boost for content <24h
+        else if (ageInHours < 72) freshnessBoost = 1.2; // 20% boost for content <72h
+        
+        // Faith content boost
+        const faithKeywords = ['bible', 'prayer', 'worship', 'church', 'faith', 'god', 'jesus', 'christian'];
+        const contentLower = (blog.content || '').toLowerCase();
+        const faithMatches = faithKeywords.filter(keyword => contentLower.includes(keyword)).length;
+        const faithBoost = faithMatches > 0 ? 1.3 : 1; // 30% boost for faith content
+        
+        const finalScore = engagementScore * freshnessBoost * faithBoost;
+        
+        // Generate reason
+        let reason = 'Popular content';
+        if (faithMatches > 0) reason = 'Faith-based content';
+        else if (ageInHours < 6) reason = 'Fresh from the community';
+        else if (engagementScore > 10) reason = 'Highly engaging';
+        
+        return {
+          ...blog,
+          score: Math.round(finalScore * 100) / 100,
+          reason,
+          scoreBreakdown: {
+            engagement: engagementScore,
+            freshness: freshnessBoost,
+            faith: faithBoost,
+          },
+        };
+      }).sort((a, b) => b.score - a.score).slice(0, limit);
       
-      // Add some basic community recommendations
-      const scoredCommunities = communities.map(community => ({
-        ...community,
-        score: (community.memberCount || 0) / 10,
-        reason: 'Popular community',
-      })).sort((a, b) => b.score - a.score).slice(0, Math.floor(limit / 3));
+      // Faith-based community recommendations
+      const scoredCommunities = communities.map(community => {
+        const memberScore = (community.memberCount || 0) / 10;
+        
+        // Faith community boost based on tags and description
+        const faithTags = ['bible study', 'prayer', 'worship', 'ministry', 'christian', 'church'];
+        const description = (community.description || '').toLowerCase();
+        const name = (community.name || '').toLowerCase();
+        
+        const faithMatches = faithTags.filter(tag => 
+          description.includes(tag) || name.includes(tag)
+        ).length;
+        
+        const faithBoost = faithMatches > 0 ? 1.5 : 1;
+        const finalScore = memberScore * faithBoost;
+        
+        let reason = 'Popular community';
+        if (faithMatches > 0) reason = 'Faith-focused community';
+        else if (community.memberCount > 50) reason = 'Active community';
+        
+        return {
+          ...community,
+          score: Math.round(finalScore * 100) / 100,
+          reason,
+          faithMatches,
+        };
+      }).sort((a, b) => b.score - a.score).slice(0, Math.floor(limit / 3));
       
       res.json({
         success: true,
@@ -2119,7 +2171,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
           microblogs: scoredMicroblogs,
           communities: scoredCommunities,
         },
-        algorithm: 'Basic engagement scoring',
+        algorithm: 'Faith-based scoring (E=40%, R=30%, T=20%, F=10%)',
         timestamp: new Date().toISOString(),
       });
     } catch (error) {

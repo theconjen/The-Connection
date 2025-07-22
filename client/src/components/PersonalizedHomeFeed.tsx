@@ -65,7 +65,7 @@ export function PersonalizedHomeFeed() {
             </div>
           </div>
           <p className="text-sm text-gray-600">
-            Content recommendations based on your interactions, follows, and community activity
+            Faith-focused recommendations: Engagement (40%) + Relationships (30%) + Topic Match (20%) + Freshness (10%)
           </p>
         </CardHeader>
       </Card>
