@@ -15,12 +15,10 @@ import {
   Briefcase,
   Activity,
   GraduationCap,
-  Palette,
-  Brain
+  Palette
 } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PersonalizedHomeFeed } from "@/components/PersonalizedHomeFeed";
 
 interface FeatureCardProps {
   title: string;
@@ -146,19 +144,6 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
           ))}
         </div>
       </div>
-
-      {/* Personalized Feed for authenticated users */}
-      {user && (
-        <div className="mb-12">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-center mb-6 gap-2">
-              <Brain className="w-6 h-6 text-pink-600" />
-              <h2 className="text-2xl font-bold text-center">Personalized For You</h2>
-            </div>
-            <PersonalizedHomeFeed />
-          </div>
-        </div>
-      )}
 
       {/* Call to Action */}
       {!user && (

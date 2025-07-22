@@ -35,6 +35,7 @@ The application provides a robust, privacy-respecting environment for spiritual 
 ✓ Improved responsive layout with keyboard detection
 ✓ Enhanced mobile navigation with floating action button
 ✓ Added safe area insets for iOS compatibility
+✓ Removed personalized content algorithm from home page per user request
 
 ### Latest Mobile App Optimizations (Jan 2025)
 ✓ **Enhanced Microblog Feed**: Smart timestamp formatting, pull-to-refresh, optimistic updates
