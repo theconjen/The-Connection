@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { FriendsSection } from "@/components/FriendsSection";
 
 interface FeatureCardProps {
   title: string;
@@ -144,6 +145,15 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
           ))}
         </div>
       </div>
+
+      {/* Friends Activity Section for authenticated users */}
+      {user && (
+        <div className="mb-12">
+          <div className="max-w-4xl mx-auto">
+            <FriendsSection />
+          </div>
+        </div>
+      )}
 
       {/* Call to Action */}
       {!user && (

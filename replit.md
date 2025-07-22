@@ -36,6 +36,10 @@ The application provides a robust, privacy-respecting environment for spiritual 
 ✓ Enhanced mobile navigation with floating action button
 ✓ Added safe area insets for iOS compatibility
 ✓ Removed personalized content algorithm from home page per user request
+✓ Re-enabled personalized algorithm for Forms, Feed, and Apologetics pages with "Recommended For You" sections
+✓ Added Friends feature to Home page showing prayer requests, posts, and apologetics recommendations
+✓ Optimized all recommendation components for native mobile app integration
+✓ Created mobile-specific FriendsActivity and RecommendedContent components for React Native
 
 ### Latest Mobile App Optimizations (Jan 2025)
 ✓ **Enhanced Microblog Feed**: Smart timestamp formatting, pull-to-refresh, optimistic updates

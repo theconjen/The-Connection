@@ -13,6 +13,7 @@ import FloatingActionButton from "@/components/floating-action-button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
+import { RecommendedForYou } from "@/components/RecommendedForYou";
 
 export default function MicroblogsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -92,6 +93,13 @@ export default function MicroblogsPage() {
   if (isMobile) {
     return (
       <>
+        {/* Mobile Recommendations Section */}
+        {user && (
+          <div className="p-4">
+            <RecommendedForYou section="feed" maxItems={3} showHeader={true} />
+          </div>
+        )}
+
         {/* Mobile Tabs */}
         <Tabs defaultValue="latest" className="w-full" onValueChange={setActiveTab}>
           <div className="sticky top-[57px] mobile-nav-modern z-10 p-2">
@@ -212,6 +220,13 @@ export default function MicroblogsPage() {
   return (
     <div className="container max-w-3xl py-6">
       <h1 className="text-3xl font-bold mb-6">Feed</h1>
+      
+      {/* Recommended Content Section */}
+      {user && (
+        <div className="mb-6">
+          <RecommendedForYou section="feed" maxItems={4} showHeader={true} />
+        </div>
+      )}
       
       {/* Composer at the top */}
       <MicroblogComposer />

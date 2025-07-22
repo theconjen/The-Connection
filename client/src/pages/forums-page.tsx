@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { RecommendedForYou } from "@/components/RecommendedForYou";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ForumsPageProps {
   isGuest?: boolean;
@@ -19,6 +21,7 @@ export default function ForumsPage({ isGuest = false }: ForumsPageProps) {
   const [filter, setFilter] = useState<string>("popular");
   const [page, setPage] = useState(1);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const { user } = useAuth();
   
   const { data: posts, isLoading, isFetching } = useQuery<(Post & { author?: User; community?: Community })[]>({
     queryKey: ["/api/posts", { filter, page }],
@@ -43,6 +46,13 @@ export default function ForumsPage({ isGuest = false }: ForumsPageProps) {
       <div className={`flex ${isMobile ? 'flex-col' : 'md:flex-row gap-6'}`}>
         {/* Main Feed Area */}
         <div className="flex-1">
+          {/* Recommended Content Section */}
+          {user && (
+            <div className="mb-6">
+              <RecommendedForYou section="forums" maxItems={4} showHeader={true} />
+            </div>
+          )}
+          
           <FeedFilters onFilterChange={handleFilterChange} currentFilter={filter} />
 
           {isLoading ? (

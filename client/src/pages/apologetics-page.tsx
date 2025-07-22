@@ -26,6 +26,7 @@ import {
   AtomIcon,
   HeartHandshakeIcon
 } from "lucide-react";
+import { RecommendedForYou } from "@/components/RecommendedForYou";
 
 // Helper function to format dates
 const formatDate = (dateString?: string | Date | null) => {
@@ -105,6 +106,13 @@ export default function ApologeticsPage() {
   return (
     <MainLayout>
       <div className="flex-1">
+        {/* Recommended Content Section */}
+        {user && (
+          <div className="mb-8">
+            <RecommendedForYou section="apologetics" maxItems={4} showHeader={true} />
+          </div>
+        )}
+
         {/* Hero Section */}
         <Card className="mb-8 overflow-hidden">
           <div className="bg-blue-100 text-primary-900 p-8 md:p-12">
