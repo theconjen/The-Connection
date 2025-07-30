@@ -1,128 +1,52 @@
+import React from 'react';
+import { View, Text, StyleSheet, StatusBar } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import React, { useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StatusBar, Alert } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-
-// Navigation components
-const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
-
-// Import React Native screens
-import { HomeScreen } from './src/screens/HomeScreen';
-import { AuthScreen } from './src/screens/AuthScreen';
-import { CommunitiesScreen } from './src/screens/CommunitiesScreen';
-import { MicroblogsScreen } from './src/screens/MicroblogsScreen';
-import { PrayerRequestsScreen } from './src/screens/PrayerRequestsScreen';
-import { EventsScreen } from './src/screens/EventsScreen';
-import { BibleStudyScreen } from './src/screens/BibleStudyScreen';
-import { ApologeticsScreen } from './src/screens/ApologeticsScreen';
-import { ProfileScreen } from './src/screens/ProfileScreen';
-
-// Auth context
-import { useAuth } from './src/hooks/useAuth';
-
-// Tab Navigator for main app screens
-function MainTabNavigator() {
-  return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarActiveTintColor: '#E91E63',
-        tabBarInactiveTintColor: '#666',
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Home',
-        }}
-      />
-      <Tab.Screen 
-        name="Feed" 
-        component={MicroblogsScreen}
-        options={{
-          tabBarLabel: 'Feed',
-        }}
-      />
-      <Tab.Screen 
-        name="Communities" 
-        component={CommunitiesScreen}
-        options={{
-          tabBarLabel: 'Communities',
-        }}
-      />
-      <Tab.Screen 
-        name="Prayer" 
-        component={PrayerRequestsScreen}
-        options={{
-          tabBarLabel: 'Prayer',
-        }}
-      />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-        }}
-      />
-    </Tab.Navigator>
-  );
-}
-
-// Main Stack Navigator
-function AppNavigator() {
-  const { user } = useAuth();
-
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {user ? (
-        // Authenticated screens
-        <>
-          <Stack.Screen name="Main" component={MainTabNavigator} />
-          <Stack.Screen name="Events" component={EventsScreen} />
-          <Stack.Screen name="BibleStudy" component={BibleStudyScreen} />
-          <Stack.Screen name="Apologetics" component={ApologeticsScreen} />
-        </>
-      ) : (
-        // Unauthenticated screens
-        <>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="Auth" component={AuthScreen} />
-        </>
-      )}
-    </Stack.Navigator>
-  );
-}
-
-function App() {
-  // Initialize app services
-  useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        console.log('React Native app initialized');
-      } catch (error) {
-        console.error('App initialization error:', error);
-        Alert.alert('Error', 'Failed to initialize app');
-      }
-    };
-
-    initializeApp();
-  }, []);
-
+export default function App() {
   return (
     <SafeAreaProvider>
-      <View style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#F8F9FB" />
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-      </View>
+        <View style={styles.content}>
+          <Text style={styles.title}>The Connection</Text>
+          <Text style={styles.subtitle}>Christian Community Platform</Text>
+          <Text style={styles.description}>
+            Welcome to The Connection mobile app! This is a minimal working version.
+          </Text>
+        </View>
+      </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
-export default App;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FB',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#666',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  description: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+});

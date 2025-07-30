@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
     "@aws-sdk/client-ses": "^3.808.0",
+    "@babel/core": "^7.28.0",
     "@capacitor/cli": "^7.4.0",
     "@capacitor/core": "^7.4.0",
     "@hookform/resolvers": "^3.10.0",
@@ -106,7 +107,7 @@
     "@types/node": "20.16.11",
     "@types/passport": "^1.0.16",
     "@types/passport-local": "^1.0.38",
-    "@types/react": "^18.3.11",
+    "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.1",
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.3.2",
@@ -116,7 +117,7 @@
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",
-    "typescript": "5.6.3",
+    "typescript": "^5.6.3",
     "vite": "^7.0.0"
   },
   "optionalDependencies": {

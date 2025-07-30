@@ -50,52 +50,6 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#F8F9FB",
-          "image": "./assets/splash-icon.png",
-          "dark": {
-            "backgroundColor": "#1A1625",
-            "image": "./assets/splash-icon.png"
-          }
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#E91E63",
-          "sounds": [
-            "./assets/notification-sound.wav"
-          ]
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow The Connection to access your camera to share photos and videos with your community."
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Allow The Connection to access your photos to share with your community.",
-          "cameraPermission": "Allow The Connection to access your camera to take photos and share with your community."
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "locationForegroundPermission": "Allow The Connection to use your location to connect you with nearby Christians and local events.",
-          "isAndroidBackgroundLocationEnabled": false
-        }
-      ]
-    ],
-    "experiments": {
-      "typedRoutes": true
-    }
+    "plugins": []
   }
 }
