@@ -1,135 +1,113 @@
-import { Switch, Route } from "wouter";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ProtectedRoute, ReadOnlyRoute, AdminRoute } from "@/lib/protected-route";
-import ResponsiveLayout from "@/components/layouts/responsive-layout";
-import HomePage from "@/pages/home-page";
-import NotFound from "@/pages/not-found";
-import AuthPage from "@/pages/auth-page";
-import AdminLoginPage from "@/pages/admin-login";
-import LoginTestPage from "@/pages/login-test";
-import SimpleLogin from "@/pages/simple-login";
-import Dashboard from "@/pages/Dashboard";
-import IntegratedDashboard from "@/pages/IntegratedDashboard";
-import Grow from "@/pages/Grow";
-import Connect from "@/pages/Connect";
-import NearMe from "@/pages/NearMe";
-import CommunityPage from "@/pages/community-page";
-import CommunitiesPage from "@/pages/communities-page";
-import ApologeticsPage from "@/pages/apologetics-page";
-import GroupsPage from "@/pages/groups-page";
-import ProfilePage from "@/pages/profile-page";
-import ForumsPage from "@/pages/forums-page";
-import PostDetailPage from "@/pages/post-detail-page";
-import SubmitPostPage from "@/pages/submit-post-page";
-import LivestreamsPage from "@/pages/livestreams-page";
-import LivestreamerApplicationPage from "@/pages/livestreamer-application-page";
-import ApologistScholarApplicationPage from "@/pages/apologist-scholar-application-page";
-import ChurchSignupPage from "@/pages/church-signup-page";
-import OrganizationDashboardPage from "@/pages/organization-dashboard-page";
-import DiscoverPage from "@/pages/discover-page";
-import MicroblogsPage from "@/pages/microblogs-page";
-import MicroblogDetailPage from "@/pages/microblog-detail-page";
-import PrayerRequestsPage from "@/pages/prayer-requests-page";
-import EventsPage from "@/pages/events-page";
-import EventDetailPage from "@/pages/event-detail-page";
-import BibleStudyPage from "@/pages/bible-study-page";
-import Settings from "@/pages/settings-page";
-import DMsPage from "@/pages/dms-page";
-import DMs from "@/pages/DMs";
-import { useEffect } from "react";
-import { initGA } from "./lib/analytics";
-import { useAnalytics } from "./hooks/use-analytics";
+import React, { useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, Text, StatusBar, Alert } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-// Admin pages
-import AdminDashboard from "@/pages/admin";
-import AdminLivestreamerApplications from "@/pages/admin/livestreamer-applications";
-import AdminApologistScholarApplications from "@/pages/admin/apologist-scholar-applications";
+// Navigation components
+const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
-/**
- * Wraps components with the responsive layout
- * This function helps avoid repetition of the ResponsiveLayout wrapper 
- * in each route definition
- */
-const withResponsiveLayout = (Component: React.ComponentType) => {
-  return () => (
-    <ResponsiveLayout>
-      <Component />
-    </ResponsiveLayout>
-  );
-};
+// Import your React Native screens here (you'll need to create these)
+import HomeScreen from './screens/HomeScreen';
+import AuthScreen from './screens/AuthScreen';
+import DashboardScreen from './screens/DashboardScreen';
+import CommunitiesScreen from './screens/CommunitiesScreen';
+import ProfileScreen from './screens/ProfileScreen';
+import SettingsScreen from './screens/SettingsScreen';
 
-function Router() {
-  // Use analytics hook to track page views
-  useAnalytics();
-  
+// Auth context (you'll need to adapt this for React Native)
+import { useAuth } from './hooks/useAuth';
+
+// Tab Navigator for main app screens
+function MainTabNavigator() {
   return (
-    <Switch>
-      {/* Auth pages don't use the main layout */}
-      <Route path="/auth" component={AuthPage} />
-      <Route path="/admin-login" component={AdminLoginPage} />
-      <Route path="/login-test" component={LoginTestPage} />
-      <Route path="/simple-login" component={SimpleLogin} />
-      <ProtectedRoute path="/dashboard" component={withResponsiveLayout(IntegratedDashboard)} />
-      <ProtectedRoute path="/grow" component={withResponsiveLayout(Grow)} />
-      <ProtectedRoute path="/connect" component={withResponsiveLayout(Connect)} />
-      <ProtectedRoute path="/near-me" component={withResponsiveLayout(NearMe)} />
-      
-      {/* Public routes with responsive layout */}
-      <ReadOnlyRoute path="/" component={withResponsiveLayout(IntegratedDashboard)} />
-      <ReadOnlyRoute path="/communities" component={withResponsiveLayout(CommunitiesPage)} />
-      <ReadOnlyRoute path="/apologetics" component={withResponsiveLayout(ApologeticsPage)} />
-      <ReadOnlyRoute path="/prayer-requests" component={withResponsiveLayout(PrayerRequestsPage)} />
-      <ReadOnlyRoute path="/discover" component={withResponsiveLayout(DiscoverPage)} />
-      <ReadOnlyRoute path="/livestreams" component={withResponsiveLayout(LivestreamsPage)} />
-      <ReadOnlyRoute path="/forums" component={withResponsiveLayout(ForumsPage)} />
-      <ReadOnlyRoute path="/c/:slug" component={withResponsiveLayout(CommunityPage)} />
-      <ReadOnlyRoute path="/c/:id" component={withResponsiveLayout(PostDetailPage)} />
-      <ReadOnlyRoute path="/posts/:id" component={withResponsiveLayout(PostDetailPage)} />
-      <ReadOnlyRoute path="/microblogs" component={withResponsiveLayout(MicroblogsPage)} />
-      <ReadOnlyRoute path="/microblogs/:id" component={withResponsiveLayout(MicroblogDetailPage)} />
-      <ReadOnlyRoute path="/events" component={withResponsiveLayout(EventsPage)} />
-      <ReadOnlyRoute path="/events/:id" component={withResponsiveLayout(EventDetailPage)} />
-      <ReadOnlyRoute path="/bible-study" component={withResponsiveLayout(BibleStudyPage)} />
-      
-      {/* Protected routes with responsive layout */}
-      <ProtectedRoute path="/livestreamer-application" component={withResponsiveLayout(LivestreamerApplicationPage)} />
-      <ProtectedRoute path="/apologist-scholar-application" component={withResponsiveLayout(ApologistScholarApplicationPage)} />
-      <ProtectedRoute path="/church-signup" component={withResponsiveLayout(ChurchSignupPage)} />
-      <ProtectedRoute path="/organizations/:id" component={withResponsiveLayout(OrganizationDashboardPage)} />
-      <ProtectedRoute path="/groups" component={withResponsiveLayout(GroupsPage)} />
-      <ProtectedRoute path="/profile" component={withResponsiveLayout(ProfilePage)} />
-      <ProtectedRoute path="/settings" component={withResponsiveLayout(Settings)} />
-      <ProtectedRoute path="/messages" component={withResponsiveLayout(DMsPage)} />
-      <ProtectedRoute path="/dms/:userId" component={withResponsiveLayout(DMs)} />
-      <ProtectedRoute path="/submit" component={withResponsiveLayout(SubmitPostPage)} />
-      
-      {/* Admin routes - directly use admin pages (they include AdminLayout inside) */}
-      <AdminRoute path="/admin" component={AdminDashboard} />
-      <AdminRoute path="/admin/livestreamer-applications" component={AdminLivestreamerApplications} />
-      <AdminRoute path="/admin/apologist-scholar-applications" component={AdminApologistScholarApplications} />
-      
-      {/* Not found page */}
-      <Route component={withResponsiveLayout(NotFound)} />
-    </Switch>
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#E91E63',
+        tabBarInactiveTintColor: '#666',
+        headerShown: false,
+      }}
+    >
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{
+          tabBarLabel: 'Home',
+        }}
+      />
+      <Tab.Screen 
+        name="Communities" 
+        component={CommunitiesScreen}
+        options={{
+          tabBarLabel: 'Communities',
+        }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
+        }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          tabBarLabel: 'Settings',
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+// Main Stack Navigator
+function AppNavigator() {
+  const { user } = useAuth();
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {user ? (
+        // Authenticated screens
+        <Stack.Screen name="Main" component={MainTabNavigator} />
+      ) : (
+        // Unauthenticated screens
+        <>
+          <Stack.Screen name="Auth" component={AuthScreen} />
+          <Stack.Screen name="Home" component={HomeScreen} />
+        </>
+      )}
+    </Stack.Navigator>
   );
 }
 
 function App() {
-  // Initialize Google Analytics when app loads
+  // Initialize analytics or other services
   useEffect(() => {
-    // Verify required environment variable is present
-    if (!import.meta.env.VITE_GA_MEASUREMENT_ID) {
-      console.warn('Missing required Google Analytics key: VITE_GA_MEASUREMENT_ID');
-    } else {
-      initGA();
-      console.log('Google Analytics initialized with ID:', import.meta.env.VITE_GA_MEASUREMENT_ID);
-    }
+    // Initialize any React Native specific services
+    const initializeApp = async () => {
+      try {
+        // Replace web analytics with React Native compatible analytics
+        console.log('App initialized');
+      } catch (error) {
+        console.error('App initialization error:', error);
+        Alert.alert('Error', 'Failed to initialize app');
+      }
+    };
+
+    initializeApp();
   }, []);
 
   return (
-    <TooltipProvider>
-      <Router />
-    </TooltipProvider>
+    <SafeAreaProvider>
+      <View style={{ flex: 1 }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FB" />
+        <NavigationContainer>
+          <AppNavigator />
+        </NavigationContainer>
+      </View>
+    </SafeAreaProvider>
   );
 }
 
