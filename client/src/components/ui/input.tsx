@@ -1,22 +1,66 @@
+
 import * as React from "react"
+import { TextInput, TextInputProps, StyleSheet } from "react-native"
 
-import { cn } from "@/lib/utils"
+interface InputProps extends TextInputProps {
+  variant?: 'default' | 'outline' | 'filled';
+}
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+const Input = React.forwardRef<TextInput, InputProps>(
+  ({ style, variant = 'default', ...props }, ref) => {
+    const getVariantStyle = () => {
+      switch (variant) {
+        case 'outline':
+          return styles.outline;
+        case 'filled':
+          return styles.filled;
+        default:
+          return styles.default;
+      }
+    };
+
     return (
-      <input
-        type={type}
-        className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-          className
-        )}
+      <TextInput
         ref={ref}
+        style={[
+          styles.base,
+          getVariantStyle(),
+          style
+        ]}
+        placeholderTextColor="#6B7280"
         {...props}
       />
     )
   }
 )
+
 Input.displayName = "Input"
+
+const styles = StyleSheet.create({
+  base: {
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+    fontFamily: 'System',
+  },
+  default: {
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    color: '#111827',
+  },
+  outline: {
+    borderColor: '#6B7280',
+    backgroundColor: 'transparent',
+    color: '#111827',
+  },
+  filled: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    color: '#111827',
+  },
+});
 
 export { Input }
