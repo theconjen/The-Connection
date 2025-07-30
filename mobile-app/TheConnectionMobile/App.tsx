@@ -1,90 +1,128 @@
+
 import React, { useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, Text, StatusBar, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import * as SplashScreen from 'expo-splash-screen';
-import * as Font from 'expo-font';
-import * as Notifications from 'expo-notifications';
-import { AuthContext, useAuthProvider } from './src/hooks/useAuth';
-import { AppNavigator } from './src/navigation/AppNavigator';
 
-// Keep the splash screen visible while we fetch resources
-SplashScreen.preventAutoHideAsync();
+// Navigation components
+const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
-// Configure notifications
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Import React Native screens
+import { HomeScreen } from './src/screens/HomeScreen';
+import { AuthScreen } from './src/screens/AuthScreen';
+import { CommunitiesScreen } from './src/screens/CommunitiesScreen';
+import { MicroblogsScreen } from './src/screens/MicroblogsScreen';
+import { PrayerRequestsScreen } from './src/screens/PrayerRequestsScreen';
+import { EventsScreen } from './src/screens/EventsScreen';
+import { BibleStudyScreen } from './src/screens/BibleStudyScreen';
+import { ApologeticsScreen } from './src/screens/ApologeticsScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 
-// Create a client for React Query
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 2,
-    },
-  },
-});
+// Auth context
+import { useAuth } from './src/hooks/useAuth';
 
-export default function App() {
-  const authValue = useAuthProvider();
-  const [appIsReady, setAppIsReady] = React.useState(false);
-
-  useEffect(() => {
-    async function prepare() {
-      try {
-        // Request notification permissions
-        const { status } = await Notifications.requestPermissionsAsync();
-        if (status !== 'granted') {
-          console.log('Notification permissions not granted');
-        }
-      } catch (e) {
-        console.warn('Error loading app resources:', e);
-      } finally {
-        // Tell the application to render
-        setAppIsReady(true);
-      }
-    }
-
-    prepare();
-  }, []);
-
-  const onLayoutRootView = React.useCallback(async () => {
-    if (appIsReady) {
-      // This tells the splash screen to hide immediately
-      await SplashScreen.hideAsync();
-    }
-  }, [appIsReady]);
-
-  if (!appIsReady) {
-    return null;
-  }
-
+// Tab Navigator for main app screens
+function MainTabNavigator() {
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthContext.Provider value={authValue}>
-            <View style={styles.container} onLayout={onLayoutRootView}>
-              <StatusBar style="light" backgroundColor="#E91E63" />
-              <AppNavigator />
-            </View>
-          </AuthContext.Provider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#E91E63',
+        tabBarInactiveTintColor: '#666',
+        headerShown: false,
+      }}
+    >
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{
+          tabBarLabel: 'Home',
+        }}
+      />
+      <Tab.Screen 
+        name="Feed" 
+        component={MicroblogsScreen}
+        options={{
+          tabBarLabel: 'Feed',
+        }}
+      />
+      <Tab.Screen 
+        name="Communities" 
+        component={CommunitiesScreen}
+        options={{
+          tabBarLabel: 'Communities',
+        }}
+      />
+      <Tab.Screen 
+        name="Prayer" 
+        component={PrayerRequestsScreen}
+        options={{
+          tabBarLabel: 'Prayer',
+        }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
+        }}
+      />
+    </Tab.Navigator>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FB',
-  },
-});
+// Main Stack Navigator
+function AppNavigator() {
+  const { user } = useAuth();
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {user ? (
+        // Authenticated screens
+        <>
+          <Stack.Screen name="Main" component={MainTabNavigator} />
+          <Stack.Screen name="Events" component={EventsScreen} />
+          <Stack.Screen name="BibleStudy" component={BibleStudyScreen} />
+          <Stack.Screen name="Apologetics" component={ApologeticsScreen} />
+        </>
+      ) : (
+        // Unauthenticated screens
+        <>
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Auth" component={AuthScreen} />
+        </>
+      )}
+    </Stack.Navigator>
+  );
+}
+
+function App() {
+  // Initialize app services
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        console.log('React Native app initialized');
+      } catch (error) {
+        console.error('App initialization error:', error);
+        Alert.alert('Error', 'Failed to initialize app');
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  return (
+    <SafeAreaProvider>
+      <View style={{ flex: 1 }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FB" />
+        <NavigationContainer>
+          <AppNavigator />
+        </NavigationContainer>
+      </View>
+    </SafeAreaProvider>
+  );
+}
+
+export default App;
