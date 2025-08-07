@@ -28,12 +28,14 @@ import {
 } from "@/components/ui/sheet";
 import UserMenu from "@/components/user-menu";
 import SidebarNavigation from "@/components/sidebar-navigation";
+import GlobalSearch from "@/components/GlobalSearch";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 export default function Header() {
   const [location] = useLocation();
   const [searchVisible, setSearchVisible] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { user } = useAuth() as AuthContextType;
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isTablet = useMediaQuery("(min-width: 769px) and (max-width: 1023px)");
@@ -95,90 +97,55 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Search Bar - Tablet & Desktop */}
+          {/* Search Bar - Desktop & Tablet */}
           <div className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8">
-            <div className="relative w-full">
-              <Input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search posts, communities, Bible studies..."
-                className={`w-full h-10 bg-background/60  border/60 pl-10
-                  focus:border-primary/40 focus:ring-primary/20 transition-all
-                  ${searchVisible ? 'opacity-100' : 'opacity-70 hover:opacity-90 focus:opacity-100'}`}
-                onFocus={() => setSearchVisible(true)}
-              />
-              <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              {searchVisible && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setSearchVisible(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+            <Button
+              variant="ghost"
+              onClick={() => setSearchVisible(true)}
+              className="w-full h-10 justify-start bg-background/60 border border-border/60 hover:bg-background/80 text-muted-foreground hover:text-foreground"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              <span>Search posts, communities, people...</span>
+            </Button>
           </div>
 
           {/* Navigation, Notifications, and Profile Section */}
           <div className="flex items-center space-x-2 md:space-x-3">
             {/* Mobile Search Button */}
             <div className="md:hidden">
-              {searchVisible ? (
-                <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col items-start justify-start pt-16 px-4 safe-area-inset">
-                  <div className="relative w-full max-w-md mx-auto">
-                    <Input
-                      ref={searchInputRef}
-                      type="text"
-                      placeholder="Search The Connection..."
-                      className="w-full pl-10 pr-10 py-2 bg-card  border/60 shadow-sm"
-                      autoComplete="off"
-                    />
-                    <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                      onClick={() => setSearchVisible(false)}
-                    >
-                      <X className="h-5 w-5" />
-                    </Button>
-                  </div>
-                  
-                  {/* Quick search categories on mobile */}
-                  <div className="mt-4 w-full px-2">
-                    <div className="text-sm font-medium mb-2 px-2">Popular Searches</div>
-                    <div className="flex flex-wrap gap-2">
-                      {['Bible Verses', 'Prayer Requests', 'Communities', 'Events', 'Bible Studies'].map((cat) => (
-                        <Button key={cat} variant="outline" size="sm" className="text-xs rounded-full">
-                          {cat}
-                        </Button>
-                      ))}
-                    </div>
-                    
-                    <div className="text-sm font-medium my-3 px-2">Recent Searches</div>
-                    <div className="space-y-2 bg-background/80 rounded-lg p-2">
-                      {['How to pray effectively', 'Bible study groups', 'Local church events'].map((search, i) => (
-                        <div key={i} className="flex items-center gap-2 p-2 hover:bg-muted/30 rounded cursor-pointer">
-                          <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-sm">{search}</span>
-                        </div>
-                      ))}
-                    </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSearchVisible(true)}
+                className="text-muted-foreground hover:text-foreground active-scale touch-target"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Hamburger Menu Button - Available on all screen sizes */}
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-muted-foreground hover:text-foreground hover:bg-background/60"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60 p-0">
+                <div className="h-full overflow-hidden flex flex-col">
+                  <SheetHeader className="p-6 pb-2">
+                    <SheetTitle className="text-xl font-medium text-foreground">The Connection</SheetTitle>
+                    <SheetDescription className="text-muted-foreground">Navigate to any section of the app</SheetDescription>
+                  </SheetHeader>
+                  <div className="flex-1 overflow-y-auto py-4 px-6">
+                    <SidebarNavigation currentPath={location} />
                   </div>
                 </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSearchVisible(true)}
-                  className="text-muted-foreground hover:text-foreground active-scale touch-target"
-                >
-                  <Search className="h-5 w-5" />
-                </Button>
-              )}
-            </div>
+              </SheetContent>
+            </Sheet>
             
             {/* Desktop navigation has been removed in favor of homepage grid navigation */}
 
@@ -322,6 +289,12 @@ export default function Header() {
           </div>
         </div>
       </div>
+      
+      {/* Global Search Modal */}
+      <GlobalSearch 
+        isVisible={searchVisible} 
+        onClose={() => setSearchVisible(false)} 
+      />
     </header>
   );
 }
