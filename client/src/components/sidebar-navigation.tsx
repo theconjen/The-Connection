@@ -83,14 +83,16 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       </div>
       
       {user && (
-        <div className="rounded-lg border border-secondary/20 px-3 py-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">{user.username}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
+        <Link href="/profile">
+          <div className="rounded-lg border border-secondary/20 px-3 py-2 hover:bg-secondary/10 transition-colors cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{user.displayName || user.username}</p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
       )}
 
       <div className="space-y-4 overflow-y-auto">

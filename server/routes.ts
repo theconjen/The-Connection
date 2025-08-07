@@ -10,6 +10,11 @@ import authRoutes from "./routes/api/auth";
 import userRoutes from './routes/api/user';
 import { registerOnboardingRoutes } from './routes/api/user-onboarding';
 import registerLocationSearchRoutes from './routes/api/location-search';
+import {
+  ObjectStorageService,
+  ObjectNotFoundError,
+} from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
 import { format } from "date-fns";
 import { 
   createEmailTemplate, 
@@ -1998,6 +2003,147 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       res.json(tiers);
     } catch (error) {
       next(error);
+    }
+  });
+
+  // Photo Upload Routes
+  // Serve public objects (for images uploaded to communities, profiles, etc.)
+  app.get("/public-objects/:filePath(*)", async (req, res) => {
+    const filePath = req.params.filePath;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const file = await objectStorageService.searchPublicObject(filePath);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      objectStorageService.downloadObject(file, res);
+    } catch (error) {
+      console.error("Error searching for public object:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Serve private objects (user uploads with authentication)
+  app.get("/objects/:objectPath(*)", isAuthenticated, async (req, res) => {
+    const userId = req.session!.userId!;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        req.path,
+      );
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId: userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      if (!canAccess) {
+        return res.sendStatus(401);
+      }
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // Get upload URL for photo uploads
+  app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  // Update user avatar after photo upload
+  app.put("/api/user/avatar", isAuthenticated, async (req, res) => {
+    if (!req.body.avatarURL) {
+      return res.status(400).json({ error: "avatarURL is required" });
+    }
+
+    const userId = req.session!.userId!;
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.avatarURL,
+        {
+          owner: userId,
+          visibility: "public", // Profile photos are public
+        },
+      );
+
+      // Update user's avatar in database
+      const updatedUser = await storage.updateUser(parseInt(userId), {
+        avatarUrl: objectPath
+      });
+
+      res.status(200).json({
+        objectPath: objectPath,
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error("Error setting avatar:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Update community banner/image after photo upload
+  app.put("/api/communities/:id/image", isAuthenticated, async (req, res) => {
+    if (!req.body.imageURL) {
+      return res.status(400).json({ error: "imageURL is required" });
+    }
+
+    const communityId = parseInt(req.params.id);
+    const userId = req.session!.userId!;
+
+    try {
+      // Check if user can update this community (is member/admin)
+      const member = await storage.getCommunityMember(communityId, parseInt(userId));
+      if (!member) {
+        return res.status(403).json({ error: "Not authorized to update this community" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.imageURL,
+        {
+          owner: userId,
+          visibility: "public", // Community images are public
+        },
+      );
+
+      res.status(200).json({
+        objectPath: objectPath,
+      });
+    } catch (error) {
+      console.error("Error setting community image:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Update user profile
+  app.patch("/api/users/:id", isAuthenticated, async (req, res) => {
+    const userId = req.params.id;
+    const currentUserId = req.session!.userId!;
+
+    // Users can only update their own profile
+    if (userId !== currentUserId) {
+      return res.status(403).json({ error: "Can only update your own profile" });
+    }
+
+    try {
+      const updatedUser = await storage.updateUser(userId, req.body);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      res.status(500).json({ error: "Failed to update profile" });
     }
   });
 
