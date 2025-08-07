@@ -186,30 +186,6 @@ export default function Header() {
                   </Button>
                 </Link>
                 
-                {/* Menu button - only on mobile */}
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="md:hidden text-muted-foreground hover:text-foreground hover:bg-background/60"
-                    >
-                      <Menu className="h-5 w-5" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l  border/60 p-0 pt-0">
-                    <div className="h-full overflow-hidden flex flex-col">
-                      <SheetHeader className="p-6 pb-2">
-                        <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
-                        <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
-                      </SheetHeader>
-                      <div className="flex-1 overflow-y-auto py-4 px-6">
-                        <SidebarNavigation currentPath={location} />
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-                
                 {/* User Menu - Optimized for both desktop and mobile */}
                 <UserMenu user={user} />
               </>
@@ -250,30 +226,6 @@ export default function Header() {
                     Create
                   </Button>
                 </Link>
-
-                {/* Menu button - only on mobile */}
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="md:hidden text-muted-foreground hover:text-foreground hover:bg-background/60"
-                    >
-                      <Menu className="h-5 w-5" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l  border/60 p-0 pt-0">
-                    <div className="h-full overflow-hidden flex flex-col">
-                      <SheetHeader className="p-6 pb-2">
-                        <SheetTitle className="text-xl font-medium text-foreground site-title">The Connection</SheetTitle>
-                        <SheetDescription className="text-muted-foreground">Explore all sections of the application</SheetDescription>
-                      </SheetHeader>
-                      <div className="flex-1 overflow-y-auto py-4 px-6">
-                        <SidebarNavigation currentPath={location} />
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
 
                 {/* Sign In button */}
                 <Link href="/auth">
