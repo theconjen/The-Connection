@@ -77,13 +77,13 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
       path: "/communities",
       color: "bg-purple-500"
     },
-    {
-      title: "Bible Study",
-      description: "Dive into God's Word with Bible study plans, devotionals, and reading tools.",
-      icon: <BookOpen className="h-6 w-6 text-green-600" />,
-      path: "/bible-study",
-      color: "bg-green-500"
-    },
+    // {
+    //   title: "Bible Study",
+    //   description: "Dive into God's Word with Bible study plans, devotionals, and reading tools.",
+    //   icon: <BookOpen className="h-6 w-6 text-green-600" />,
+    //   path: "/bible-study",
+    //   color: "bg-green-500"
+    // }, // Hidden for MVP
     {
       title: "Prayer Requests",
       description: "Share your prayer needs or pray for others in our supportive prayer community.",
@@ -98,13 +98,13 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
       path: "/apologetics",
       color: "bg-amber-500"
     },
-    {
-      title: "Livestreams",
-      description: "Watch live services, teachings, and special events from Christian speakers and churches.",
-      icon: <Tv className="h-6 w-6 text-sky-600" />,
-      path: "/livestreams",
-      color: "bg-sky-500"
-    },
+    // {
+    //   title: "Livestreams",
+    //   description: "Watch live services, teachings, and special events from Christian speakers and churches.",
+    //   icon: <Tv className="h-6 w-6 text-sky-600" />,
+    //   path: "/livestreams",
+    //   color: "bg-sky-500"
+    // }, // Hidden for MVP
     {
       title: "Events",
       description: "Discover upcoming in-person and virtual events to connect with the Christian community.",

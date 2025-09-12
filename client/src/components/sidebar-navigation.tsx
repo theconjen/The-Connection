@@ -29,7 +29,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       items: [
         { icon: <Home className="h-5 w-5" />, label: "Home", path: "/" },
         { icon: <MessageCircle className="h-5 w-5" />, label: "Feed", path: "/microblogs" },
-        { icon: <BookOpen className="h-5 w-5" />, label: "Bible Study", path: "/bible-study" },
+        // { icon: <BookOpen className="h-5 w-5" />, label: "Bible Study", path: "/bible-study" }, // Hidden for MVP
         { icon: <Users className="h-5 w-5" />, label: "Communities", path: "/communities" },
         { icon: <FileHeart className="h-5 w-5" />, label: "Forums", path: "/forums" },
       ],
@@ -39,7 +39,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       items: [
         { icon: <Calendar className="h-5 w-5" />, label: "Events", path: "/events" },
         { icon: <FileHeart className="h-5 w-5" />, label: "Prayer Requests", path: "/prayer-requests" },
-        { icon: <Tv className="h-5 w-5" />, label: "Livestreams", path: "/livestreams" },
+        // { icon: <Tv className="h-5 w-5" />, label: "Livestreams", path: "/livestreams" }, // Hidden for MVP
         { icon: <Sparkles className="h-5 w-5" />, label: "Apologetics", path: "/apologetics" },
       ],
     },
@@ -65,7 +65,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       title: "Administration",
       items: [
         { icon: <Settings className="h-5 w-5" />, label: "Admin Dashboard", path: "/admin" },
-        { icon: <Tv className="h-5 w-5" />, label: "Livestreamer Apps", path: "/admin/livestreamer-applications" },
+        // { icon: <Tv className="h-5 w-5" />, label: "Livestreamer Apps", path: "/admin/livestreamer-applications" }, // Hidden for MVP
         { icon: <BookOpen className="h-5 w-5" />, label: "Apologist Apps", path: "/admin/apologist-scholar-applications" },
       ],
     });
