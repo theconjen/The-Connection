@@ -111,11 +111,12 @@ export interface IStorage {
   
   // Community methods
   getAllCommunities(): Promise<Community[]>;
+  getPublicCommunitiesAndUserCommunities(userId?: string): Promise<Community[]>;
   getCommunity(id: string): Promise<Community | undefined>;
   getCommunityBySlug(slug: string): Promise<Community | undefined>;
   createCommunity(community: InsertCommunity): Promise<Community>;
   updateCommunity(id: string, community: Partial<Community>): Promise<Community>;
-  deleteCommunity(id: string): Promise<boolean>;
+  deleteCommunity(id: number): Promise<boolean>;
   
   // Community Members & Roles
   getCommunityMembers(communityId: string): Promise<(CommunityMember & { user: User })[]>;
@@ -131,23 +132,23 @@ export interface IStorage {
   // Community Chat Rooms
   getCommunityRooms(communityId: string): Promise<CommunityChatRoom[]>;
   getPublicCommunityRooms(communityId: string): Promise<CommunityChatRoom[]>;
-  getCommunityRoom(id: string): Promise<CommunityChatRoom | undefined>;
+  getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined>;
   createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom>;
   updateCommunityRoom(id: string, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom>;
-  deleteCommunityRoom(id: string): Promise<boolean>;
+  deleteCommunityRoom(id: number): Promise<boolean>;
   
   // Chat Messages
   getChatMessages(roomId: string, limit?: string): Promise<(ChatMessage & { sender: User })[]>;
   getChatMessagesAfter(roomId: string, afterId: string): Promise<(ChatMessage & { sender: User })[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
-  deleteChatMessage(id: string): Promise<boolean>;
+  deleteChatMessage(id: number): Promise<boolean>;
   
   // Community Wall Posts
   getCommunityWallPosts(communityId: string, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]>;
-  getCommunityWallPost(id: string): Promise<(CommunityWallPost & { author: User }) | undefined>;
+  getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined>;
   createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost>;
   updateCommunityWallPost(id: string, data: Partial<CommunityWallPost>): Promise<CommunityWallPost>;
-  deleteCommunityWallPost(id: string): Promise<boolean>;
+  deleteCommunityWallPost(id: number): Promise<boolean>;
   
   // Post methods
   getAllPosts(filter?: string): Promise<Post[]>;
@@ -490,23 +491,23 @@ export class MemStorage implements IStorage {
   private events: Map<number, Event>;
   private eventRsvps: Map<number, EventRsvp>;
   
-  private userIdCounter: string;
-  private communityIdCounter: string;
-  private communityMemberIdCounter: string;
-  private communityChatRoomIdCounter: string;
-  private chatMessageIdCounter: string;
-  private communityWallPostIdCounter: string;
-  private postIdCounter: string;
-  private commentIdCounter: string;
-  private groupIdCounter: string;
-  private groupMemberIdCounter: string;
-  private apologeticsResourceIdCounter: string;
-  private prayerRequestIdCounter: string;
-  private prayerIdCounter: string;
-  private eventIdCounter: string;
-  private eventRsvpIdCounter: string;
-  private userPreferencesIdCounter: string;
-  private contentRecommendationIdCounter: string;
+  private userIdCounter: number;
+  private communityIdCounter: number;
+  private communityMemberIdCounter: number;
+  private communityChatRoomIdCounter: number;
+  private chatMessageIdCounter: number;
+  private communityWallPostIdCounter: number;
+  private postIdCounter: number;
+  private commentIdCounter: number;
+  private groupIdCounter: number;
+  private groupMemberIdCounter: number;
+  private apologeticsResourceIdCounter: number;
+  private prayerRequestIdCounter: number;
+  private prayerIdCounter: number;
+  private eventIdCounter: number;
+  private eventRsvpIdCounter: number;
+  private userPreferencesIdCounter: number;
+  private contentRecommendationIdCounter: number;
   
   sessionStore: any;
   constructor() {
@@ -693,6 +694,32 @@ export class MemStorage implements IStorage {
   async getAllCommunities(): Promise<Community[]> {
     return Array.from(this.communities.values());
   }
+  
+  async getPublicCommunitiesAndUserCommunities(userId?: string): Promise<Community[]> {
+    const allCommunities = Array.from(this.communities.values());
+    
+    if (!userId) {
+      // For unauthenticated users, only return public communities
+      return allCommunities.filter(community => !community.isPrivate);
+    }
+    
+    // For authenticated users, return public communities + private communities they're members of
+    const result = [];
+    for (const community of allCommunities) {
+      if (!community.isPrivate) {
+        // Always include public communities
+        result.push(community);
+      } else {
+        // For private communities, check membership
+        const isMember = await this.isCommunityMember(community.id.toString(), userId);
+        if (isMember) {
+          result.push(community);
+        }
+      }
+    }
+    
+    return result;
+  }
   async getCommunity(id: string): Promise<Community | undefined> {
     return this.communities.get(parseInt(id));
   }
@@ -702,6 +729,25 @@ export class MemStorage implements IStorage {
     );
   }
   async createCommunity(insertCommunity: InsertCommunity): Promise<Community> {
+    // Check for name uniqueness
+    const existingByName = Array.from(this.communities.values())
+      .find(community => community.name.toLowerCase() === insertCommunity.name.toLowerCase());
+    if (existingByName) {
+      throw new Error('A community with this name already exists');
+    }
+    
+    // Check for slug uniqueness
+    const existingBySlug = Array.from(this.communities.values())
+      .find(community => community.slug === insertCommunity.slug);
+    if (existingBySlug) {
+      throw new Error('A community with this URL already exists');
+    }
+    
+    // Validate wall requirements - at least one wall must be enabled
+    if (!insertCommunity.hasPrivateWall && !insertCommunity.hasPublicWall) {
+      throw new Error('At least one wall (private or public) must be enabled');
+    }
+    
     const id = this.communityIdCounter++;
     const now = new Date();
     const community: Community = {
@@ -713,6 +759,16 @@ export class MemStorage implements IStorage {
       hasPublicWall: insertCommunity.hasPublicWall !== false // default to true if not specified
     };
     this.communities.set(id, community);
+    
+    // Automatically add the creator as owner
+    if (insertCommunity.createdBy) {
+      await this.addCommunityMember({
+        communityId: id,
+        userId: insertCommunity.createdBy,
+        role: 'owner'
+      });
+    }
+    
     return community;
   }
   
@@ -2106,6 +2162,50 @@ export class DatabaseStorage implements IStorage {
   async getAllCommunities(): Promise<Community[]> {
     return await db.select().from(communities);
   }
+  
+  async getPublicCommunitiesAndUserCommunities(userId?: string): Promise<Community[]> {
+    if (!userId) {
+      // Guest user - only return public communities
+      return await db.select().from(communities).where(eq(communities.isPrivate, false));
+    } else {
+      // Authenticated user - return public communities + user's private communities
+      const publicCommunities = await db.select().from(communities).where(eq(communities.isPrivate, false));
+      
+      const userPrivateCommunities = await db.select({
+        id: communities.id,
+        name: communities.name,
+        description: communities.description,
+        slug: communities.slug,
+        iconName: communities.iconName,
+        iconColor: communities.iconColor,
+        interestTags: communities.interestTags,
+        city: communities.city,
+        state: communities.state,
+        isLocalCommunity: communities.isLocalCommunity,
+        latitude: communities.latitude,
+        longitude: communities.longitude,
+        memberCount: communities.memberCount,
+        isPrivate: communities.isPrivate,
+        hasPrivateWall: communities.hasPrivateWall,
+        hasPublicWall: communities.hasPublicWall,
+        createdAt: communities.createdAt,
+        createdBy: communities.createdBy,
+      })
+      .from(communities)
+      .innerJoin(communityMembers, eq(communities.id, communityMembers.communityId))
+      .where(and(
+        eq(communities.isPrivate, true),
+        eq(communityMembers.userId, parseInt(userId))
+      ));
+      
+      // Combine and deduplicate by id
+      const allCommunities = [...publicCommunities, ...userPrivateCommunities];
+      const deduplicatedMap = new Map();
+      allCommunities.forEach(community => deduplicatedMap.set(community.id, community));
+      return Array.from(deduplicatedMap.values());
+    }
+  }
+  
   async getCommunity(id: string): Promise<Community | undefined> {
     const result = await db.select().from(communities).where(eq(communities.id, parseInt(id)));
     return result[0];

@@ -1,11 +1,22 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import {
   Card,
   CardContent,
@@ -26,6 +37,7 @@ import {
 import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { insertCommunitySchema, type InsertCommunity } from "@shared/schema";
 
 interface Community {
   id: number;
@@ -35,24 +47,47 @@ interface Community {
   iconName: string;
   iconColor: string;
   memberCount: number | null;
+  isPrivate: boolean | null;
   hasPrivateWall: boolean | null;
   hasPublicWall: boolean | null;
   createdAt: Date | null;
   createdBy: number | null;
 }
 
+// Community form schema with frontend validation
+const createCommunitySchema = insertCommunitySchema.omit({ createdBy: true, slug: true }).extend({
+  name: z.string().min(1, "Community name is required").max(100, "Name must be less than 100 characters"),
+  description: z.string().min(1, "Description is required").max(500, "Description must be less than 500 characters"),
+  iconName: z.string().default("users"),
+  iconColor: z.string().default("#3b82f6"),
+  isPrivate: z.boolean().default(false),
+  hasPrivateWall: z.boolean().default(true),
+  hasPublicWall: z.boolean().default(true),
+}).refine((data) => data.hasPrivateWall || data.hasPublicWall, {
+  message: "At least one wall (private or public) must be enabled",
+  path: ["hasPublicWall"], // Show error on public wall field
+});
+
+type CreateCommunityForm = z.infer<typeof createCommunitySchema>;
+
 export default function CommunitiesPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [newCommunity, setNewCommunity] = useState({
-    name: "",
-    description: "",
-    iconName: "users",
-    iconColor: "#3b82f6",
-    hasPrivateWall: true,
-    hasPublicWall: true,
+  
+  // Form setup with validation
+  const form = useForm<CreateCommunityForm>({
+    resolver: zodResolver(createCommunitySchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      iconName: "users",
+      iconColor: "#3b82f6",
+      isPrivate: false,
+      hasPrivateWall: true,
+      hasPublicWall: true,
+    },
   });
   
   // Fetch communities
@@ -62,15 +97,20 @@ export default function CommunitiesPage() {
   
   // Create community mutation
   const createMutation = useMutation({
-    mutationFn: async (data: typeof newCommunity) => {
-      const res = await apiRequest(
-        "POST",
-        "/api/communities",
-        {
-          ...data,
-          slug: data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-        }
-      );
+    mutationFn: async (data: CreateCommunityForm) => {
+      const payload: InsertCommunity = {
+        ...data,
+        slug: data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        createdBy: undefined, // Will be set by backend
+      };
+      
+      const res = await apiRequest("POST", "/api/communities", payload);
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to create community');
+      }
+      
       return await res.json();
     },
     onSuccess: (data) => {
@@ -80,7 +120,7 @@ export default function CommunitiesPage() {
         description: `"${data.name}" has been created successfully.`,
       });
       setOpen(false);
-      resetForm();
+      form.reset();
       navigate(`/community/${data.slug}`);
     },
     onError: (error: Error) => {
@@ -92,39 +132,15 @@ export default function CommunitiesPage() {
     },
   });
   
-  const resetForm = () => {
-    setNewCommunity({
-      name: "",
-      description: "",
-      iconName: "users",
-      iconColor: "#3b82f6",
-      hasPrivateWall: true,
-      hasPublicWall: true,
-    });
+  const handleCreateCommunity = (data: CreateCommunityForm) => {
+    createMutation.mutate(data);
   };
   
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewCommunity(prev => ({ ...prev, [name]: value }));
-  };
-  
-  const handleSwitchChange = (name: string, checked: boolean) => {
-    setNewCommunity(prev => ({ ...prev, [name]: checked }));
-  };
-  
-  const handleCreateCommunity = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newCommunity.name.trim()) {
-      toast({
-        title: "Name required",
-        description: "Please provide a name for the community.",
-        variant: "destructive",
-      });
-      return;
+  const handleDialogClose = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      form.reset();
     }
-    
-    createMutation.mutate(newCommunity);
   };
   
   // Loading state
@@ -194,14 +210,14 @@ export default function CommunitiesPage() {
         </div>
         
         {user && (
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Community
               </Button>
             </DialogTrigger>
-            <DialogContent onEscapeKeyDown={() => setOpen(false)}>
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Community</DialogTitle>
                 <DialogDescription>
@@ -209,68 +225,142 @@ export default function CommunitiesPage() {
                 </DialogDescription>
               </DialogHeader>
               
-              <form onSubmit={handleCreateCommunity}>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Community Name</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      value={newCommunity.name}
-                      onChange={handleInputChange}
-                      placeholder="Bible Study Group"
-                      required
-                    />
-                  </div>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleCreateCommunity)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Community Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Bible Study Group"
+                            data-testid="input-community-name"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Input
-                      id="description"
-                      name="description"
-                      value={newCommunity.description}
-                      onChange={handleInputChange}
-                      placeholder="A community for those interested in studying the Bible together"
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="A community for those interested in studying the Bible together"
+                            data-testid="input-community-description"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="hasPublicWall"
-                        checked={newCommunity.hasPublicWall}
-                        onCheckedChange={(checked) => handleSwitchChange('hasPublicWall', checked)}
+                  {/* Community Privacy Setting */}
+                  <FormField
+                    control={form.control}
+                    name="isPrivate"
+                    render={({ field }) => (
+                      <FormItem className="p-4 border rounded-lg bg-muted/30">
+                        <div className="flex items-center space-x-2">
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-private-community"
+                            />
+                          </FormControl>
+                          <FormLabel className="font-semibold">Invite Only Community</FormLabel>
+                        </div>
+                        <p className="text-sm text-muted-foreground ml-6">
+                          {field.value 
+                            ? "Only people with invitations can join this community. You can invite members after creation."
+                            : "Anyone can discover and join this community freely."}
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Wall Settings */}
+                  <div className="grid gap-3">
+                    <Label className="font-semibold">Community Wall Settings</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="hasPublicWall"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-center space-x-2">
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  data-testid="switch-public-wall"
+                                />
+                              </FormControl>
+                              <FormLabel>Public Wall</FormLabel>
+                            </div>
+                          </FormItem>
+                        )}
                       />
-                      <Label htmlFor="hasPublicWall">Public Wall</Label>
+                      
+                      <FormField
+                        control={form.control}
+                        name="hasPrivateWall"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-center space-x-2">
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  data-testid="switch-private-wall"
+                                />
+                              </FormControl>
+                              <FormLabel>Private Wall</FormLabel>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="hasPrivateWall"
-                        checked={newCommunity.hasPrivateWall}
-                        onCheckedChange={(checked) => handleSwitchChange('hasPrivateWall', checked)}
-                      />
-                      <Label htmlFor="hasPrivateWall">Private Wall</Label>
-                    </div>
-                  </div>
-                </div>
-                
-                <DialogFooter>
-                  <Button 
-                    type="submit"
-                    disabled={createMutation.isPending}
-                  >
-                    {createMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      "Create Community"
+                    {/* Show wall validation error */}
+                    {form.formState.errors.hasPublicWall && (
+                      <p className="text-sm text-red-600">
+                        {form.formState.errors.hasPublicWall.message}
+                      </p>
                     )}
-                  </Button>
-                </DialogFooter>
-              </form>
+                    
+                    <p className="text-sm text-muted-foreground">
+                      Wall settings control where members can post content within the community.
+                    </p>
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button 
+                      type="submit"
+                      disabled={createMutation.isPending}
+                      data-testid="button-create-community"
+                    >
+                      {createMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        "Create Community"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         )}
@@ -356,9 +446,18 @@ export default function CommunitiesPage() {
               <CardHeader className="pb-2 md:pb-2 p-4 md:p-6">
                 <CardTitle className="flex items-center justify-between text-lg md:text-xl">
                   <span>{community.name}</span>
-                  {community.hasPrivateWall && (
-                    <Lock className="h-4 w-4 text-amber-500" />
-                  )}
+                  <div className="flex items-center gap-1">
+                    {community.isPrivate && (
+                      <span title="Invite Only">
+                        <Lock className="h-4 w-4 text-red-500" />
+                      </span>
+                    )}
+                    {community.hasPrivateWall && (
+                      <span title="Has Private Wall">
+                        <Lock className="h-4 w-4 text-amber-500" />
+                      </span>
+                    )}
+                  </div>
                 </CardTitle>
                 <CardDescription className="line-clamp-2 text-sm">
                   {community.description}
