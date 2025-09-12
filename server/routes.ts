@@ -1406,9 +1406,15 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
     }
   });
   
-  app.get("/api/users/:userId/microblogs", async (req, res, next) => {
+  app.get("/api/users/:userId/microblogs", isAuthenticated, async (req, res, next) => {
     try {
       const userId = req.params.userId;
+      
+      // Only allow users to see their own microblogs or admin users
+      if (req.session.userId !== userId && !req.session.isAdmin) {
+        return res.status(403).json({ message: "Forbidden: Can only view your own microblogs" });
+      }
+      
       const microblogs = await storage.getMicroblogsByUserId(userId);
       res.json(microblogs);
     } catch (error) {
@@ -1417,12 +1423,16 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   });
   
   // Get microblogs liked by a user
-  app.get("/api/users/:userId/liked-microblogs", async (req, res, next) => {
+  app.get("/api/users/:userId/liked-microblogs", isAuthenticated, async (req, res, next) => {
     try {
       const userId = req.params.userId;
       
-      // Optional auth check - users can only see their own liked posts when authenticated
-      if (req.session.userId! !== userId) {
+      // Only allow users to see their own liked posts or admin users
+      if (req.session.userId !== userId && !req.session.isAdmin) {
+        return res.status(403).json({ message: "Forbidden: Can only view your own liked microblogs" });
+      }
+      
+      if (req.session.userId !== userId) {
         // For public profiles, we can still show liked posts
         // If stricter privacy is needed, uncomment this:
         // return res.status(403).json({ message: "Unauthorized" });

@@ -39,7 +39,7 @@ export default function ProfilePage() {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (userData: Partial<UserType>) => {
-      const response = await apiRequest("PATCH", `/api/users/${user?.id}`, userData);
+      const response = await apiRequest("PATCH", `/api/user/${user?.id}`, userData);
       return response.json();
     },
     onSuccess: () => {
