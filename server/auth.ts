@@ -88,12 +88,20 @@ export function setupAuth(app: Express) {
       req.session.username = user.username;
       req.session.isAdmin = user.isAdmin || false;
       
+      console.log(`[REGISTRATION] Setting session data for new user ${user.username}:`, {
+        userId: req.session.userId,
+        username: req.session.username,
+        sessionID: req.sessionID
+      });
+      
       // Save session and return user data
       req.session.save((err) => {
         if (err) {
           console.error("Session save error:", err);
           return res.status(500).json({ message: "Error creating session" });
         }
+        
+        console.log(`[REGISTRATION] Session saved successfully for user ${user.username} (ID: ${user.id}), Session ID: ${req.sessionID}`);
         
         // Return user data without password
         const { password, ...userWithoutPassword } = user;

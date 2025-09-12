@@ -26,10 +26,8 @@ export default function ProfilePage() {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (userData: Partial<UserType>) => {
-      return apiRequest(`/api/users/${user?.id}`, {
-        method: "PATCH",
-        body: userData,
-      });
+      const response = await apiRequest("PATCH", `/api/users/${user?.id}`, userData);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
@@ -168,7 +166,7 @@ export default function ProfilePage() {
                     
                     <div className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      Joined {new Date(user.createdAt).toLocaleDateString()}
+                      Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Recently'}
                     </div>
                   </div>
 

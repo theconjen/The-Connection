@@ -139,7 +139,7 @@ export function useAuth(): AuthContextType {
       // Delay navigation slightly to ensure state is updated
       setTimeout(() => {
         import("wouter/use-browser-location").then(({ navigate }) => {
-          navigate("/onboarding");
+          navigate("/profile");
         });
       }, 100);
     },
