@@ -68,12 +68,20 @@ export function setupAuth(app: Express) {
       }
 
       // Create user
+      console.log(`[REGISTRATION] Creating user with data:`, { username, email, displayName: displayName || username });
       const user = await storage.createUser({
         username,
         email,
         password, // Store plaintext password for testing
         displayName: displayName || username,
         isAdmin: false,
+      });
+      
+      console.log(`[REGISTRATION] User created successfully:`, { 
+        id: user.id, 
+        username: user.username, 
+        idType: typeof user.id,
+        userObject: JSON.stringify(user, null, 2)
       });
 
       // Send welcome email (ignore errors)
@@ -83,25 +91,47 @@ export function setupAuth(app: Express) {
         console.error("Failed to send welcome email:", error);
       }
 
-      // Log the user in
+      // Log the user in - ensure session exists first
+      if (!req.session) {
+        console.error("[REGISTRATION] No session available on request");
+        return res.status(500).json({ message: "Session initialization failed" });
+      }
+      
+      console.log(`[REGISTRATION] Before setting session data - Current session:`, {
+        sessionID: req.sessionID,
+        sessionExists: !!req.session,
+        currentUserId: req.session?.userId,
+        currentUsername: req.session?.username
+      });
+      
       req.session.userId = user.id.toString();
       req.session.username = user.username;
       req.session.isAdmin = user.isAdmin || false;
       
-      console.log(`[REGISTRATION] Setting session data for new user ${user.username}:`, {
+      console.log(`[REGISTRATION] After setting session data for user ${user.username}:`, {
         userId: req.session.userId,
         username: req.session.username,
-        sessionID: req.sessionID
+        isAdmin: req.session.isAdmin,
+        sessionID: req.sessionID,
+        userIdType: typeof req.session.userId,
+        originalUserId: user.id,
+        originalUserIdType: typeof user.id
       });
       
       // Save session and return user data
       req.session.save((err) => {
         if (err) {
-          console.error("Session save error:", err);
+          console.error("[REGISTRATION] Session save error:", err);
           return res.status(500).json({ message: "Error creating session" });
         }
         
         console.log(`[REGISTRATION] Session saved successfully for user ${user.username} (ID: ${user.id}), Session ID: ${req.sessionID}`);
+        console.log(`[REGISTRATION] Final session state after save:`, {
+          userId: req.session?.userId,
+          username: req.session?.username,
+          isAdmin: req.session?.isAdmin,
+          sessionID: req.sessionID
+        });
         
         // Return user data without password
         const { password, ...userWithoutPassword } = user;

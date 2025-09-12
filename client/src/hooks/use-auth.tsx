@@ -30,8 +30,9 @@ export function useAuth(): AuthContextType {
   } = useQuery<SelectUser | undefined>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    staleTime: 0, // Always consider stale for auth queries
-    refetchOnWindowFocus: true, // Refetch when window regains focus
+    staleTime: 5 * 60 * 1000, // 5 minutes - don't refetch too aggressively
+    refetchOnWindowFocus: false, // Don't refetch on window focus to preserve session
+    enabled: true, // Always enabled but controlled by staleTime
   });
 
   const loginMutation = useMutation({
@@ -126,9 +127,13 @@ export function useAuth(): AuthContextType {
       }
     },
     onSuccess: (user: SelectUser) => {
+      console.log("Registration successful, setting auth state:", user);
+      
+      // Set the query data immediately and don't invalidate
       queryClient.setQueryData(["/api/user"], user);
-      // Force refresh user data
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      
+      // Store user info in local storage as fallback
+      localStorage.setItem('currentUser', JSON.stringify(user));
       
       toast({
         title: "Account created!",
@@ -136,12 +141,10 @@ export function useAuth(): AuthContextType {
         variant: "default",
       });
       
-      // Delay navigation slightly to ensure state is updated
-      setTimeout(() => {
-        import("wouter/use-browser-location").then(({ navigate }) => {
-          navigate("/profile");
-        });
-      }, 100);
+      // Navigate immediately since we have the user data
+      import("wouter/use-browser-location").then(({ navigate }) => {
+        navigate("/profile");
+      });
     },
     onError: (error: Error) => {
       toast({
