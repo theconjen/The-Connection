@@ -120,6 +120,7 @@ export interface IStorage {
   // Community Members & Roles
   getCommunityMembers(communityId: string): Promise<(CommunityMember & { user: User })[]>;
   getCommunityMember(communityId: string, userId: string): Promise<CommunityMember | undefined>;
+  getUserCommunities(userId: string): Promise<(Community & { memberCount: number })[]>;
   addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember>;
   updateCommunityMemberRole(id: string, role: string): Promise<CommunityMember>;
   removeCommunityMember(communityId: string, userId: string): Promise<boolean>;
@@ -153,6 +154,7 @@ export interface IStorage {
   getPost(id: number): Promise<Post | undefined>;
   getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]>;
   getPostsByGroupId(groupId: string, filter?: string): Promise<Post[]>;
+  getUserPosts(userId: string): Promise<any[]>; // Returns all types of posts by user
   createPost(post: InsertPost): Promise<Post>;
   upvotePost(id: number): Promise<Post>;
   
@@ -783,6 +785,26 @@ export class MemStorage implements IStorage {
     return Array.from(this.communityMembers.values())
       .find(member => member.communityId === communityId && member.userId === userId);
   }
+
+  async getUserCommunities(userId: string): Promise<(Community & { memberCount: number })[]> {
+    // Get all community memberships for this user
+    const memberships = Array.from(this.communityMembers.values())
+      .filter(member => member.userId === userId);
+    
+    // Get the communities
+    const communities = [];
+    for (const membership of memberships) {
+      const community = await this.getCommunity(membership.communityId);
+      if (community) {
+        communities.push({
+          ...community,
+          memberCount: community.memberCount || 0
+        });
+      }
+    }
+    
+    return communities.sort((a, b) => b.memberCount - a.memberCount); // Sort by member count
+  }
   
   async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
     const id = this.communityMemberIdCounter++;
@@ -1127,6 +1149,63 @@ export class MemStorage implements IStorage {
         return bScore - aScore;
       });
     }
+  }
+
+  async getUserPosts(userId: string): Promise<any[]> {
+    const allPosts = [];
+
+    // 1. Regular forum posts
+    const forumPosts = Array.from(this.posts.values())
+      .filter(post => post.authorId === userId)
+      .map(post => ({
+        ...post,
+        type: 'forum_post',
+        title: post.title,
+        content: post.content,
+        engagementCount: post.upvotes + (post.commentCount || 0),
+        link: `/posts/${post.id}`
+      }));
+
+    // 2. Microblogs
+    const microblogs = Array.from(this.microblogs.values())
+      .filter(microblog => microblog.authorId === userId)
+      .map(microblog => ({
+        ...microblog,
+        type: 'microblog',
+        title: microblog.content.substring(0, 50) + (microblog.content.length > 50 ? '...' : ''),
+        content: microblog.content,
+        engagementCount: microblog.likeCount + (microblog.replyCount || 0),
+        link: `/microblogs/${microblog.id}`
+      }));
+
+    // 3. Prayer requests
+    const prayerRequests = Array.from(this.prayerRequests.values())
+      .filter(request => request.authorId === userId)
+      .map(request => ({
+        ...request,
+        type: 'prayer_request',
+        title: `Prayer Request: ${request.title}`,
+        content: request.description,
+        engagementCount: request.prayerCount || 0,
+        link: `/prayer-requests/${request.id}`
+      }));
+
+    // 4. Community wall posts
+    const wallPosts = Array.from(this.communityWallPosts.values())
+      .filter(post => post.authorId === userId)
+      .map(post => ({
+        ...post,
+        type: 'community_wall_post',
+        title: post.content.substring(0, 50) + (post.content.length > 50 ? '...' : ''),
+        content: post.content,
+        engagementCount: 0, // Wall posts don't have likes yet
+        link: `/communities/${post.communityId}/wall/${post.id}`
+      }));
+
+    // Combine all posts and sort by creation date
+    allPosts.push(...forumPosts, ...microblogs, ...prayerRequests, ...wallPosts);
+    
+    return allPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
   async createPost(insertPost: InsertPost): Promise<Post> {
     const id = this.postIdCounter++;
@@ -2094,6 +2173,36 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result[0];
   }
+
+  async getUserCommunities(userId: string): Promise<(Community & { memberCount: number })[]> {
+    const result = await db.select({
+      id: communities.id,
+      name: communities.name,
+      description: communities.description,
+      slug: communities.slug,
+      iconName: communities.iconName,
+      iconColor: communities.iconColor,
+      interestTags: communities.interestTags,
+      city: communities.city,
+      state: communities.state,
+      isLocalCommunity: communities.isLocalCommunity,
+      latitude: communities.latitude,
+      longitude: communities.longitude,
+      memberCount: communities.memberCount,
+      hasPrivateWall: communities.hasPrivateWall,
+      hasPublicWall: communities.hasPublicWall,
+      createdAt: communities.createdAt,
+      createdBy: communities.createdBy,
+    })
+    .from(communityMembers)
+    .innerJoin(communities, eq(communityMembers.communityId, communities.id))
+    .where(eq(communityMembers.userId, parseInt(userId)));
+    
+    return result.map(community => ({
+      ...community,
+      memberCount: community.memberCount || 0
+    }));
+  }
   async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
     const result = await db.insert(communityMembers).values(member).returning();
     return result[0];
@@ -2493,6 +2602,59 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query;
+  }
+
+  async getUserPosts(userId: string): Promise<any[]> {
+    const allPosts = [];
+
+    // 1. Regular forum posts
+    const forumPosts = await db.select().from(posts).where(eq(posts.authorId, parseInt(userId)));
+    const formattedForumPosts = forumPosts.map(post => ({
+      ...post,
+      type: 'forum_post',
+      title: post.title,
+      content: post.content,
+      engagementCount: (post.upvotes || 0) + (post.commentCount || 0),
+      link: `/posts/${post.id}`
+    }));
+
+    // 2. Microblogs
+    const microblogs = await db.select().from(microblogs).where(eq(microblogs.authorId, parseInt(userId)));
+    const formattedMicroblogs = microblogs.map(microblog => ({
+      ...microblog,
+      type: 'microblog',
+      title: microblog.content.substring(0, 50) + (microblog.content.length > 50 ? '...' : ''),
+      content: microblog.content,
+      engagementCount: (microblog.likeCount || 0) + (microblog.replyCount || 0),
+      link: `/microblogs/${microblog.id}`
+    }));
+
+    // 3. Prayer requests
+    const prayerRequests = await db.select().from(prayerRequests).where(eq(prayerRequests.authorId, parseInt(userId)));
+    const formattedPrayerRequests = prayerRequests.map(request => ({
+      ...request,
+      type: 'prayer_request',
+      title: `Prayer Request: ${request.title}`,
+      content: request.description,
+      engagementCount: request.prayerCount || 0,
+      link: `/prayer-requests/${request.id}`
+    }));
+
+    // 4. Community wall posts
+    const wallPosts = await db.select().from(communityWallPosts).where(eq(communityWallPosts.authorId, parseInt(userId)));
+    const formattedWallPosts = wallPosts.map(post => ({
+      ...post,
+      type: 'community_wall_post',
+      title: post.content.substring(0, 50) + (post.content.length > 50 ? '...' : ''),
+      content: post.content,
+      engagementCount: (post.likeCount || 0) + (post.commentCount || 0),
+      link: `/communities/${post.communityId}/wall/${post.id}`
+    }));
+
+    // Combine all posts and sort by creation date
+    allPosts.push(...formattedForumPosts, ...formattedMicroblogs, ...formattedPrayerRequests, ...formattedWallPosts);
+    
+    return allPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
   async createPost(post: InsertPost): Promise<Post> {
     const result = await db.insert(posts).values(post).returning();

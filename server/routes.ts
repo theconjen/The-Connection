@@ -210,6 +210,23 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
     }
   });
 
+  // Get communities for a specific user
+  app.get("/api/users/:userId/communities", isAuthenticated, async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      
+      // Only allow users to see their own communities or admin users
+      if (req.session.userId !== userId && !req.session.isAdmin) {
+        return res.status(403).json({ message: "Forbidden: Can only view your own communities" });
+      }
+      
+      const userCommunities = await storage.getUserCommunities(userId);
+      res.json(userCommunities);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.get("/api/communities/:slug", async (req, res, next) => {
     try {
       const community = await storage.getCommunityBySlug(req.params.slug);
@@ -976,6 +993,23 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       }
       
       res.json(posts);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get all posts for a specific user
+  app.get("/api/users/:userId/posts", isAuthenticated, async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      
+      // Only allow users to see their own posts or admin users
+      if (req.session.userId !== userId && !req.session.isAdmin) {
+        return res.status(403).json({ message: "Forbidden: Can only view your own posts" });
+      }
+      
+      const userPosts = await storage.getUserPosts(userId);
+      res.json(userPosts);
     } catch (error) {
       next(error);
     }
