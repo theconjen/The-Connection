@@ -141,6 +141,35 @@
     @apply text-sm text-muted-foreground;
   }
   
+  /* Community page mobile improvements */
+  @media (max-width: 768px) {
+    .community-tabs [data-state="active"] {
+      font-size: 0.875rem;
+    }
+    
+    .community-tabs .lucide {
+      width: 1rem;
+      height: 1rem;
+    }
+    
+    .community-tabs [role="tablist"] {
+      gap: 0.25rem;
+    }
+    
+    .community-tabs [role="tab"] {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      flex-direction: column;
+      height: auto;
+      min-height: 2.5rem;
+    }
+    
+    .community-tabs [role="tab"] .lucide {
+      margin-right: 0;
+      margin-bottom: 0.25rem;
+    }
+  }
+
   /* Section styling */
   .section-title {
     @apply text-2xl md:text-3xl font-bold mb-2;

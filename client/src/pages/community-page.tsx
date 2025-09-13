@@ -43,7 +43,9 @@ import {
   ShieldAlert,
   Lock,
   Trash,
-  AlertTriangle
+  AlertTriangle,
+  CalendarDays,
+  Hash
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -51,6 +53,9 @@ import { MemberList } from "@/components/community/MemberList";
 import { ChatRoomList } from "@/components/community/ChatRoomList";
 import { InviteUserDialog } from "@/components/community/InviteUserDialog";
 import { InvitationManager } from "@/components/community/InvitationManager";
+import { CommunityFeed } from "@/components/community/CommunityFeed";
+import { CommunityForum } from "@/components/community/CommunityForum";
+import { CommunityEvents } from "@/components/community/CommunityEvents";
 import type { Community, CommunityMember } from "@shared/schema";
 
 export default function CommunityPage() {
@@ -95,6 +100,7 @@ export default function CommunityPage() {
   // Join community mutation
   const joinMutation = useMutation({
     mutationFn: async () => {
+      if (!community) throw new Error("Community not found");
       const res = await apiRequest(
         "POST",
         `/api/communities/${community.id}/members`,
@@ -103,6 +109,7 @@ export default function CommunityPage() {
       return await res.json();
     },
     onSuccess: () => {
+      if (!community) return;
       queryClient.invalidateQueries({ queryKey: [`/api/communities/${community.id}/members`] });
       toast({
         title: "Joined community",
@@ -122,13 +129,14 @@ export default function CommunityPage() {
   // Leave community mutation
   const leaveMutation = useMutation({
     mutationFn: async () => {
-      if (!user) return;
+      if (!user || !community) return;
       await apiRequest(
         "DELETE",
         `/api/communities/${community.id}/members/${user.id}`
       );
     },
     onSuccess: () => {
+      if (!community) return;
       queryClient.invalidateQueries({ queryKey: [`/api/communities/${community.id}/members`] });
       toast({
         title: "Left community",
@@ -148,12 +156,14 @@ export default function CommunityPage() {
   // Delete community mutation
   const deleteMutation = useMutation({
     mutationFn: async () => {
+      if (!community) throw new Error("Community not found");
       await apiRequest(
         "DELETE",
         `/api/communities/${community.id}`
       );
     },
     onSuccess: () => {
+      if (!community) return;
       queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
       toast({
         title: "Community deleted",
@@ -449,21 +459,58 @@ export default function CommunityPage() {
           </div>
         </div>
       ) : (
-        <Tabs defaultValue="chat">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue="feed" className="space-y-6 community-tabs">
+          <div className="overflow-x-auto">
+            <TabsList className="grid w-full grid-cols-5 min-w-fit lg:grid-cols-5 md:grid-cols-5 sm:grid-cols-3">
+            <TabsTrigger value="forum">
+              <Hash className="h-4 w-4 mr-2" />
+              Forum
+            </TabsTrigger>
+            <TabsTrigger value="events">
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Events
+            </TabsTrigger>
+            <TabsTrigger value="feed">
+              <LayoutList className="h-4 w-4 mr-2" />
+              Feed
+            </TabsTrigger>
             <TabsTrigger value="chat">
               <MessageSquareText className="h-4 w-4 mr-2" />
-              Chat Rooms
-            </TabsTrigger>
-            <TabsTrigger value="wall">
-              <LayoutList className="h-4 w-4 mr-2" />
-              Wall
+              Chat
             </TabsTrigger>
             <TabsTrigger value="members">
               <Users className="h-4 w-4 mr-2" />
               Members
             </TabsTrigger>
-          </TabsList>
+            </TabsList>
+          </div>
+        
+        <TabsContent value="forum" className="mt-6">
+          <CommunityForum 
+            community={community}
+            isMember={isMember}
+            isOwner={isOwner}
+            isModerator={isModerator}
+          />
+        </TabsContent>
+        
+        <TabsContent value="events" className="mt-6">
+          <CommunityEvents 
+            community={community}
+            isMember={isMember}
+            isOwner={isOwner}
+            isModerator={isModerator}
+          />
+        </TabsContent>
+        
+        <TabsContent value="feed" className="mt-6">
+          <CommunityFeed 
+            community={community}
+            isMember={isMember}
+            isOwner={isOwner}
+            isModerator={isModerator}
+          />
+        </TabsContent>
         
         <TabsContent value="chat" className="mt-6">
           <ChatRoomList 
@@ -472,26 +519,6 @@ export default function CommunityPage() {
             isModerator={isModerator} 
             isMember={isMember} 
           />
-        </TabsContent>
-        
-        <TabsContent value="wall" className="mt-6">
-          {(community.hasPrivateWall || community.hasPublicWall) ? (
-            <div className="p-10 text-center">
-              <Eye className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Wall Content Coming Soon</h2>
-              <p className="text-muted-foreground mb-4">
-                The community wall feature is currently being implemented.
-              </p>
-            </div>
-          ) : (
-            <div className="text-center py-6 border rounded-md">
-              <LayoutList className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <h4 className="text-lg font-medium">No Wall Available</h4>
-              <p className="text-muted-foreground">
-                This community does not have a public or private wall enabled.
-              </p>
-            </div>
-          )}
         </TabsContent>
         
         <TabsContent value="members" className="mt-6">

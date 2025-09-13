@@ -26,7 +26,8 @@ import {
 } from "./email";
 import { 
   // Existing schemas
-  insertCommunitySchema, 
+  insertCommunitySchema,
+  insertCommunityObjectSchema,
   insertCommunityMemberSchema,
   insertCommunityInvitationSchema,
   insertCommunityChatRoomSchema,
@@ -289,7 +290,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         return res.status(404).json({ message: "Community not found" });
       }
       
-      const validatedData = insertCommunitySchema.partial().parse(req.body);
+      const validatedData = insertCommunityObjectSchema.partial().parse(req.body);
       const updatedCommunity = await storage.updateCommunity(communityId, validatedData);
       
       res.json(updatedCommunity);
@@ -966,7 +967,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         }
       }
       
-      const messages = await storage.getChatMessages(String(roomId), limit ? String(limit) : undefined);
+      const messages = await storage.getChatMessages(String(roomId), limit);
       res.json(messages);
     } catch (error) {
       next(error);
@@ -1141,7 +1142,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   app.get("/api/wall-posts/:id", async (req, res, next) => {
     try {
       const postId = req.params.id;
-      const post = await storage.getCommunityWallPost(postId);
+      const post = await storage.getCommunityWallPost(Number(postId));
       
       if (!post) {
         return res.status(404).json({ message: "Wall post not found" });
@@ -1154,7 +1155,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
           return res.status(401).json({ message: "Unauthorized" });
         }
         
-        const isMember = await storage.isCommunityMember(post.communityId, userId);
+        const isMember = await storage.isCommunityMember(String(post.communityId), String(userId));
         if (!isMember) {
           return res.status(403).json({ message: "Forbidden: Private posts are only accessible to community members" });
         }
@@ -1232,15 +1233,15 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const post = await storage.getCommunityWallPost(postId);
+      const post = await storage.getCommunityWallPost(Number(postId));
       if (!post) {
         return res.status(404).json({ message: "Wall post not found" });
       }
       
       // Check if user is authorized (author, owner, or moderator)
-      const isAuthor = post.authorId === userId;
-      const isOwner = await storage.isCommunityOwner(post.communityId, userId);
-      const isModerator = await storage.isCommunityModerator(post.communityId, userId);
+      const isAuthor = post.authorId === parseInt(userId);
+      const isOwner = await storage.isCommunityOwner(String(post.communityId), userId);
+      const isModerator = await storage.isCommunityModerator(String(post.communityId), userId);
       
       if (!isAuthor && !isOwner && !isModerator) {
         return res.status(403).json({ 
@@ -1257,7 +1258,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       const updatedPost = await storage.updateCommunityWallPost(postId, validatedData);
       
       // Include author in response
-      const author = await storage.getUser(updatedPost.authorId);
+      const author = await storage.getUser(String(updatedPost.authorId));
       
       res.json({
         ...updatedPost,
@@ -1280,15 +1281,15 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const post = await storage.getCommunityWallPost(postId);
+      const post = await storage.getCommunityWallPost(Number(postId));
       if (!post) {
         return res.status(404).json({ message: "Wall post not found" });
       }
       
       // Check if user is authorized (author, owner, or moderator)
-      const isAuthor = post.authorId === userId;
-      const isOwner = await storage.isCommunityOwner(post.communityId, userId);
-      const isModerator = await storage.isCommunityModerator(post.communityId, userId);
+      const isAuthor = post.authorId === parseInt(userId);
+      const isOwner = await storage.isCommunityOwner(String(post.communityId), userId);
+      const isModerator = await storage.isCommunityModerator(String(post.communityId), userId);
       
       if (!isAuthor && !isOwner && !isModerator) {
         return res.status(403).json({ 
@@ -1296,7 +1297,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         });
       }
       
-      const success = await storage.deleteCommunityWallPost(postId);
+      const success = await storage.deleteCommunityWallPost(Number(postId));
       if (!success) {
         return res.status(404).json({ message: "Wall post not found" });
       }
@@ -1335,11 +1336,11 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       const { userId } = req.params;
       
       // Only allow users to see their own posts or admin users
-      if (req.session.userId !== userId && !req.session.isAdmin) {
+      if (req.session.userId !== parseInt(userId) && !req.session.isAdmin) {
         return res.status(403).json({ message: "Forbidden: Can only view your own posts" });
       }
       
-      const userPosts = await storage.getUserPosts(userId);
+      const userPosts = await storage.getUserPosts(Number(userId));
       res.json(userPosts);
     } catch (error) {
       next(error);
@@ -1349,7 +1350,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   app.get("/api/posts/:id", async (req, res, next) => {
     try {
       const postId = req.params.id;
-      const post = await storage.getPost(postId);
+      const post = await storage.getPost(Number(postId));
       
       if (!post) {
         return res.status(404).json({ message: "Post not found" });
@@ -1429,7 +1430,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       // Add creator as admin member
       await storage.addGroupMember({
         groupId: group.id,
-        userId: req.session!.id,
+        userId: req.session.userId!,
         isAdmin: true
       });
       
@@ -1705,7 +1706,19 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   app.get("/api/microblogs", async (req, res, next) => {
     try {
       const filter = req.query.filter as string || 'recent';
-      const microblogs = await storage.getAllMicroblogs(filter);
+      const communityId = req.query.communityId as string;
+      const category = req.query.category as string;
+      const sort = req.query.sort as string;
+      const type = req.query.type as string;
+      
+      let microblogs;
+      if (communityId) {
+        microblogs = await storage.getMicroblogsByCommunityId(communityId);
+        // Apply additional filtering if needed (basic implementation for now)
+      } else {
+        microblogs = await storage.getAllMicroblogs(filter);
+      }
+      
       res.json(microblogs);
     } catch (error) {
       next(error);
@@ -2592,6 +2605,68 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
 
   app.all('/api/microblogs/*', (req: Request, res: Response) => {
     res.status(404).json({ message: "Microblog endpoint not found", path: req.path });
+  });
+
+  // Events routes
+  app.get("/api/events", async (req, res, next) => {
+    try {
+      const filter = req.query.filter as string || 'upcoming';
+      const communityId = req.query.communityId as string;
+      
+      let events;
+      if (communityId) {
+        events = await storage.getEventsByCommunity(communityId);
+        // Apply filter to community events
+        if (filter && filter !== 'all') {
+          const now = new Date();
+          events = events.filter(event => {
+            const eventDate = new Date(event.eventDate);
+            if (filter === 'upcoming') return eventDate >= now;
+            if (filter === 'past') return eventDate < now;
+            if (filter === 'attending') return event.userRsvp?.status === 'attending';
+            if (filter === 'hosting') return event.creatorId === parseInt(req.session?.userId || '0');
+            return true;
+          });
+        }
+      } else {
+        events = await storage.getAllEvents(filter);
+      }
+      
+      res.json(events);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/events", isAuthenticated, async (req, res, next) => {
+    try {
+      const validatedData = insertEventSchema.parse({
+        ...req.body,
+        creatorId: req.session.userId!
+      });
+      
+      const event = await storage.createEvent(validatedData);
+      res.status(201).json(event);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/events/:id/rsvp", isAuthenticated, async (req, res, next) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      const userId = req.session.userId!;
+      const { status } = req.body;
+      
+      if (!['attending', 'maybe', 'declined'].includes(status)) {
+        return res.status(400).json({ message: "Invalid RSVP status" });
+      }
+      
+      const rsvp = await storage.updateEventRsvp(eventId, userId, status);
+      res.json(rsvp);
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.all('/api/events/*', (req: Request, res: Response) => {

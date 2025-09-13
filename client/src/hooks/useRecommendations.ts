@@ -44,8 +44,8 @@ export function usePersonalizedFeed(limit = 20) {
   return useQuery({
     queryKey: ['/api/recommendations/feed', limit],
     queryFn: async (): Promise<PersonalizedFeedData> => {
-      const response = await apiRequest(`/api/recommendations/feed?limit=${limit}`);
-      return response.data;
+      const response = await apiRequest('GET', `/api/recommendations/feed?limit=${limit}`);
+      return response.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
