@@ -38,6 +38,8 @@ import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertCommunityObjectSchema, type InsertCommunity } from "@shared/schema";
+import { IconPicker } from "@/components/ui/icon-picker";
+import { ColorPicker } from "@/components/ui/color-picker";
 
 interface Community {
   id: number;
@@ -186,7 +188,7 @@ export default function CommunitiesPage() {
     );
   }
   
-  // Color rotation system for community cards
+  // Color rotation system for community cards (fallback for communities without stored colors)
   const communityColors = [
     { bg: "bg-gradient-to-br from-pink-50 to-pink-100", iconColor: "text-pink-600" },
     { bg: "bg-gradient-to-br from-blue-50 to-blue-100", iconColor: "text-blue-600" },
@@ -200,9 +202,42 @@ export default function CommunitiesPage() {
     { bg: "bg-gradient-to-br from-red-50 to-red-100", iconColor: "text-red-600" },
   ];
 
+  // Utility functions for color handling
+  const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  };
+
+  const createGradientFromHex = (hex: string): React.CSSProperties => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) {
+      return {
+        background: 'linear-gradient(to bottom right, rgba(156, 163, 175, 0.1), rgba(156, 163, 175, 0.2))'
+      };
+    }
+    
+    // Create lighter versions for gradient background
+    const lightAlpha = 0.1; // Very light background
+    const mediumAlpha = 0.2; // Slightly stronger end of gradient
+    
+    return {
+      background: `linear-gradient(to bottom right, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${lightAlpha}), rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${mediumAlpha}))`
+    };
+  };
+
+  const isValidHexColor = (hex: string): boolean => {
+    return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex);
+  };
+
   // Icon mapping for communities based on iconName
-  const getIconComponent = (iconName: string, colorClass: string) => {
-    const iconProps = { className: `h-6 w-6 ${colorClass}` };
+  const getIconComponent = (iconName: string, colorStyle: string | object) => {
+    const iconProps = typeof colorStyle === 'string' 
+      ? { className: `h-6 w-6 ${colorStyle}` }
+      : { className: 'h-6 w-6', style: colorStyle };
     
     switch (iconName.toLowerCase()) {
       case 'users': return <Users {...iconProps} />;
@@ -231,8 +266,27 @@ export default function CommunitiesPage() {
   };
 
   // Helper function to get color scheme for a community
-  const getCommunityColorScheme = (communityId: number) => {
-    return communityColors[communityId % communityColors.length];
+  const getCommunityColorScheme = (community: Community) => {
+    // Use stored colors if available and valid
+    if (community.iconColor && isValidHexColor(community.iconColor)) {
+      return {
+        bg: null, // Will use inline style
+        bgStyle: createGradientFromHex(community.iconColor),
+        iconStyle: { color: community.iconColor },
+        iconColor: undefined, // Ensure this property exists
+        isCustom: true
+      };
+    }
+    
+    // Fall back to rotation system for communities without stored colors
+    const fallbackScheme = communityColors[community.id % communityColors.length];
+    return {
+      bg: fallbackScheme.bg,
+      bgStyle: null,
+      iconColor: fallbackScheme.iconColor,
+      iconStyle: undefined, // Ensure this property exists
+      isCustom: false
+    };
   };
 
   // Featured interest-based categories
@@ -330,6 +384,43 @@ export default function CommunitiesPage() {
                       </FormItem>
                     )}
                   />
+                  
+                  {/* Icon and Color Selection */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="iconName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <IconPicker
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              disabled={createMutation.isPending}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="iconColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <ColorPicker
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              disabled={createMutation.isPending}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
                   {/* Community Privacy Setting */}
                   <FormField
@@ -555,13 +646,24 @@ export default function CommunitiesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {communities.map((community: Community) => {
-            const colorScheme = getCommunityColorScheme(community.id);
-            const communityIcon = getIconComponent(community.iconName || 'users', colorScheme.iconColor);
+            const colorScheme = getCommunityColorScheme(community);
+            const communityIcon = getIconComponent(
+              community.iconName || 'users', 
+              (colorScheme.isCustom ? colorScheme.iconStyle : colorScheme.iconColor) || 'text-gray-600'
+            );
+            
+            const cardProps = colorScheme.isCustom && colorScheme.bgStyle
+              ? { style: colorScheme.bgStyle }
+              : {};
+            const cardClassName = colorScheme.isCustom 
+              ? "cursor-pointer hover:shadow-md transition-shadow border-none"
+              : `cursor-pointer hover:shadow-md transition-shadow ${colorScheme.bg} border-none`;
             
             return (
               <Card 
                 key={community.id} 
-                className={`cursor-pointer hover:shadow-md transition-shadow ${colorScheme.bg} border-none`}
+                className={cardClassName}
+                {...cardProps}
                 onClick={() => navigate(`/community/${community.slug}`)}
               >
                 <CardHeader className="pb-2">
