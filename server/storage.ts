@@ -4,6 +4,7 @@ import {
   OrganizationUser, InsertOrganizationUser, 
   Community, InsertCommunity,
   CommunityMember, InsertCommunityMember,
+  CommunityInvitation, InsertCommunityInvitation,
   CommunityChatRoom, InsertCommunityChatRoom,
   ChatMessage, InsertChatMessage,
   CommunityWallPost, InsertCommunityWallPost,
@@ -62,7 +63,7 @@ import {
   ServiceTestimonial, InsertServiceTestimonial,
   
   // Database tables
-  users, organizations, organizationUsers, communities, communityMembers, communityChatRooms, chatMessages, communityWallPosts,
+  users, organizations, organizationUsers, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
   posts, comments, groups, groupMembers, apologeticsResources, 
   livestreams, microblogs, microblogLikes,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
@@ -111,7 +112,7 @@ export interface IStorage {
   
   // Community methods
   getAllCommunities(): Promise<Community[]>;
-  getPublicCommunitiesAndUserCommunities(userId?: string): Promise<Community[]>;
+  getPublicCommunitiesAndUserCommunities(userId?: string, searchQuery?: string): Promise<Community[]>;
   getCommunity(id: string): Promise<Community | undefined>;
   getCommunityBySlug(slug: string): Promise<Community | undefined>;
   createCommunity(community: InsertCommunity): Promise<Community>;
@@ -128,6 +129,15 @@ export interface IStorage {
   isCommunityMember(communityId: string, userId: string): Promise<boolean>;
   isCommunityOwner(communityId: string, userId: string): Promise<boolean>;
   isCommunityModerator(communityId: string, userId: string): Promise<boolean>;
+  
+  // Community Invitations
+  createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation>;
+  getCommunityInvitations(communityId: string): Promise<(CommunityInvitation & { inviter: User })[]>;
+  getCommunityInvitationByToken(token: string): Promise<CommunityInvitation | undefined>;
+  getCommunityInvitationById(id: string): Promise<CommunityInvitation | undefined>;
+  updateCommunityInvitationStatus(id: string, status: string): Promise<CommunityInvitation>;
+  deleteCommunityInvitation(id: string): Promise<boolean>;
+  getCommunityInvitationByEmailAndCommunity(email: string, communityId: string): Promise<CommunityInvitation | undefined>;
   
   // Community Chat Rooms
   getCommunityRooms(communityId: string): Promise<CommunityChatRoom[]>;
@@ -695,17 +705,37 @@ export class MemStorage implements IStorage {
     return Array.from(this.communities.values());
   }
   
-  async getPublicCommunitiesAndUserCommunities(userId?: string): Promise<Community[]> {
+  async getPublicCommunitiesAndUserCommunities(userId?: string, searchQuery?: string): Promise<Community[]> {
     const allCommunities = Array.from(this.communities.values());
     
+    // Helper function to check if a community matches search query
+    const matchesSearch = (community: Community): boolean => {
+      if (!searchQuery || searchQuery.trim() === '') {
+        return true;
+      }
+      
+      const query = searchQuery.toLowerCase().trim();
+      const name = community.name.toLowerCase();
+      const description = community.description.toLowerCase();
+      const tags = community.interestTags ? community.interestTags.map(tag => tag.toLowerCase()).join(' ') : '';
+      
+      return name.includes(query) || 
+             description.includes(query) || 
+             tags.includes(query);
+    };
+    
     if (!userId) {
-      // For unauthenticated users, only return public communities
-      return allCommunities.filter(community => !community.isPrivate);
+      // For unauthenticated users, only return public communities that match search
+      return allCommunities.filter(community => !community.isPrivate && matchesSearch(community));
     }
     
-    // For authenticated users, return public communities + private communities they're members of
+    // For authenticated users, return public communities + private communities they're members of (both filtered by search)
     const result = [];
     for (const community of allCommunities) {
+      if (!matchesSearch(community)) {
+        continue; // Skip communities that don't match search
+      }
+      
       if (!community.isPrivate) {
         // Always include public communities
         result.push(community);
@@ -2163,12 +2193,15 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(communities);
   }
   
-  async getPublicCommunitiesAndUserCommunities(userId?: string): Promise<Community[]> {
+  async getPublicCommunitiesAndUserCommunities(userId?: string, searchQuery?: string): Promise<Community[]> {
+    // Get base communities based on user authentication status
+    let allCommunities: Community[];
+    
     if (!userId) {
-      // Guest user - only return public communities
-      return await db.select().from(communities).where(eq(communities.isPrivate, false));
+      // Guest user - only get public communities
+      allCommunities = await db.select().from(communities).where(eq(communities.isPrivate, false));
     } else {
-      // Authenticated user - return public communities + user's private communities
+      // Authenticated user - get public communities + user's private communities
       const publicCommunities = await db.select().from(communities).where(eq(communities.isPrivate, false));
       
       const userPrivateCommunities = await db.select({
@@ -2199,11 +2232,28 @@ export class DatabaseStorage implements IStorage {
       ));
       
       // Combine and deduplicate by id
-      const allCommunities = [...publicCommunities, ...userPrivateCommunities];
+      const combinedCommunities = [...publicCommunities, ...userPrivateCommunities];
       const deduplicatedMap = new Map();
-      allCommunities.forEach(community => deduplicatedMap.set(community.id, community));
-      return Array.from(deduplicatedMap.values());
+      combinedCommunities.forEach(community => deduplicatedMap.set(community.id, community));
+      allCommunities = Array.from(deduplicatedMap.values());
     }
+    
+    // Apply search filtering if search query is provided
+    if (searchQuery && searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase().trim();
+      
+      allCommunities = allCommunities.filter(community => {
+        const name = community.name.toLowerCase();
+        const description = community.description.toLowerCase();
+        const tags = community.interestTags ? community.interestTags.map(tag => tag.toLowerCase()).join(' ') : '';
+        
+        return name.includes(query) || 
+               description.includes(query) || 
+               tags.includes(query);
+      });
+    }
+    
+    return allCommunities;
   }
   
   async getCommunity(id: string): Promise<Community | undefined> {
@@ -2215,8 +2265,25 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   async createCommunity(community: InsertCommunity): Promise<Community> {
+    // Create the community
     const result = await db.insert(communities).values(community).returning();
-    return result[0];
+    const newCommunity = result[0];
+    
+    // Automatically add the creator as community owner
+    if (community.createdBy) {
+      await db.insert(communityMembers).values({
+        communityId: newCommunity.id,
+        userId: community.createdBy,
+        role: "owner"
+      });
+      
+      // Update member count
+      await db.update(communities)
+        .set({ memberCount: 1 })
+        .where(eq(communities.id, newCommunity.id));
+    }
+    
+    return newCommunity;
   }
   async updateCommunity(id: string, community: Partial<Community>): Promise<Community> {
     const result = await db.update(communities)
@@ -2348,6 +2415,91 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result.length > 0;
   }
+
+  // Community invitation methods
+  async createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation> {
+    const [result] = await db.insert(communityInvitations).values(invitation).returning();
+    return result;
+  }
+
+  async getCommunityInvitations(communityId: string): Promise<(CommunityInvitation & { inviter: User })[]> {
+    return await db.select({
+      id: communityInvitations.id,
+      communityId: communityInvitations.communityId,
+      inviterUserId: communityInvitations.inviterUserId,
+      inviteeEmail: communityInvitations.inviteeEmail,
+      inviteeUserId: communityInvitations.inviteeUserId,
+      status: communityInvitations.status,
+      token: communityInvitations.token,
+      createdAt: communityInvitations.createdAt,
+      expiresAt: communityInvitations.expiresAt,
+      inviter: {
+        id: users.id,
+        username: users.username,
+        displayName: users.displayName,
+        email: users.email,
+        avatarUrl: users.avatarUrl,
+        password: users.password,
+        bio: users.bio,
+        city: users.city,
+        state: users.state,
+        zipCode: users.zipCode,
+        latitude: users.latitude,
+        longitude: users.longitude,
+        onboardingCompleted: users.onboardingCompleted,
+        isVerifiedApologeticsAnswerer: users.isVerifiedApologeticsAnswerer,
+        isAdmin: users.isAdmin,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      }
+    })
+      .from(communityInvitations)
+      .leftJoin(users, eq(communityInvitations.inviterUserId, users.id))
+      .where(eq(communityInvitations.communityId, parseInt(communityId)));
+  }
+
+  async getCommunityInvitationByToken(token: string): Promise<CommunityInvitation | undefined> {
+    const result = await db.select()
+      .from(communityInvitations)
+      .where(eq(communityInvitations.token, token))
+      .limit(1);
+    return result[0];
+  }
+
+  async getCommunityInvitationById(id: string): Promise<CommunityInvitation | undefined> {
+    const result = await db.select()
+      .from(communityInvitations)
+      .where(eq(communityInvitations.id, parseInt(id)))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateCommunityInvitationStatus(id: string, status: string): Promise<CommunityInvitation> {
+    const [result] = await db.update(communityInvitations)
+      .set({ status })
+      .where(eq(communityInvitations.id, parseInt(id)))
+      .returning();
+    return result;
+  }
+
+  async deleteCommunityInvitation(id: string): Promise<boolean> {
+    const result = await db.delete(communityInvitations)
+      .where(eq(communityInvitations.id, parseInt(id)));
+    return result.rowCount > 0;
+  }
+
+  async getCommunityInvitationByEmailAndCommunity(email: string, communityId: string): Promise<CommunityInvitation | undefined> {
+    const result = await db.select()
+      .from(communityInvitations)
+      .where(and(
+        eq(communityInvitations.inviteeEmail, email),
+        eq(communityInvitations.communityId, parseInt(communityId)),
+        eq(communityInvitations.status, 'pending')
+      ))
+      .limit(1);
+    return result[0];
+  }
+
   // Community Chat Room Management
   async getCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
     return await db.select()

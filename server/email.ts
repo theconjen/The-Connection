@@ -303,7 +303,8 @@ export const DEFAULT_TEMPLATES = {
   NOTIFICATION: 'TheConnection_Notification',
   LIVESTREAM_INVITE: 'TheConnection_LivestreamInvite',
   APPLICATION_NOTIFICATION: 'TheConnection_LivestreamerApplicationNotification',
-  APPLICATION_STATUS_UPDATE: 'TheConnection_ApplicationStatusUpdate'
+  APPLICATION_STATUS_UPDATE: 'TheConnection_ApplicationStatusUpdate',
+  COMMUNITY_INVITATION: 'TheConnection_CommunityInvitation'
 };
 
 /**
@@ -323,6 +324,7 @@ export async function initializeEmailTemplates(): Promise<void> {
     console.log('✓ Livestream invite template setup complete (mock)');
     console.log('✓ Application notification template setup complete (mock)');
     console.log('✓ Application status update template setup complete (mock)');
+    console.log('✓ Community invitation template setup complete (mock)');
     console.log('✓ All email templates successfully initialized in mock mode.');
     return;
   }
@@ -368,6 +370,10 @@ export async function initializeEmailTemplates(): Promise<void> {
     
     await setupApplicationStatusUpdateTemplate();
     console.log('✓ Application status update template setup complete');
+    
+    // Community invitation template
+    await setupCommunityInvitationTemplate();
+    console.log('✓ Community invitation template setup complete');
     
     console.log('✓ All email templates successfully initialized.');
   } catch (error) {
@@ -833,6 +839,138 @@ export async function sendLivestreamInviteEmail(params: LivestreamInviteEmailPar
             <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
               This email was sent to ${params.email}.<br>
               You're receiving this invitation because you're a member of The Connection community.
+            </p>
+          </div>
+        </div>
+      `
+    });
+  }
+}
+
+// Create or update the community invitation template
+export async function setupCommunityInvitationTemplate(): Promise<boolean> {
+  const templateName = DEFAULT_TEMPLATES.COMMUNITY_INVITATION;
+  const subjectPart = 'You\'re invited to join "{{communityName}}" - The Connection';
+  const htmlPart = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">The Connection</h1>
+      </div>
+      <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
+        <h2>You've Been Invited!</h2>
+        <p>Hello {{recipientName}},</p>
+        <p>{{inviterName}} has invited you to join the private community <strong>"{{communityName}}"</strong> on The Connection.</p>
+        
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #6d28d9;">{{communityName}}</h3>
+          <p style="margin: 5px 0;"><strong>Description:</strong> {{communityDescription}}</p>
+          <p style="margin: 5px 0;"><strong>Invited by:</strong> {{inviterName}}</p>
+          <p style="margin: 5px 0; font-size: 14px; color: #666;"><strong>Invitation expires:</strong> {{expirationDate}}</p>
+        </div>
+        
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="{{invitationUrl}}" style="background-color: #6d28d9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
+        </div>
+        
+        <p style="margin-top: 20px;">This is a private community, so you'll need to use this special invitation link to join. Click the button above to accept the invitation and become a member.</p>
+        
+        <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
+          This invitation was sent to {{email}} by {{inviterName}}.<br>
+          If you don't want to join this community, you can safely ignore this email.<br>
+          This invitation will expire on {{expirationDate}}.
+        </p>
+      </div>
+    </div>
+  `;
+  
+  try {
+    // Check if template exists first
+    const template = await getEmailTemplate(templateName);
+    if (template) {
+      return updateEmailTemplate({
+        TemplateName: templateName,
+        SubjectPart: subjectPart,
+        HtmlPart: htmlPart
+      });
+    } else {
+      return createEmailTemplate({
+        TemplateName: templateName,
+        SubjectPart: subjectPart,
+        HtmlPart: htmlPart
+      });
+    }
+  } catch (error) {
+    console.error(`Error setting up ${templateName}:`, error);
+    return false;
+  }
+}
+
+export interface CommunityInvitationEmailParams {
+  email: string;
+  recipientName?: string;
+  inviterName: string;
+  communityName: string;
+  communityDescription: string;
+  invitationUrl: string;
+  expirationDate: string;
+}
+
+export async function sendCommunityInvitationEmail(params: CommunityInvitationEmailParams): Promise<boolean> {
+  const recipientName = params.recipientName || params.email.split('@')[0];
+  const from = EMAIL_FROM;
+  
+  // Check if we have templates enabled and available
+  const template = await getEmailTemplate(DEFAULT_TEMPLATES.COMMUNITY_INVITATION);
+  
+  if (template) {
+    // Send using template
+    return sendTemplatedEmail({
+      to: params.email,
+      from,
+      templateName: DEFAULT_TEMPLATES.COMMUNITY_INVITATION,
+      templateData: {
+        recipientName,
+        email: params.email,
+        inviterName: params.inviterName,
+        communityName: params.communityName,
+        communityDescription: params.communityDescription,
+        invitationUrl: params.invitationUrl,
+        expirationDate: params.expirationDate
+      }
+    });
+  } else {
+    // Fall back to regular email
+    return sendEmail({
+      to: params.email,
+      from: from,
+      subject: `You're invited to join "${params.communityName}" - The Connection`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">The Connection</h1>
+          </div>
+          <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
+            <h2>You've Been Invited!</h2>
+            <p>Hello ${recipientName},</p>
+            <p>${params.inviterName} has invited you to join the private community <strong>"${params.communityName}"</strong> on The Connection.</p>
+            
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #6d28d9;">${params.communityName}</h3>
+              <p style="margin: 5px 0;"><strong>Description:</strong> ${params.communityDescription}</p>
+              <p style="margin: 5px 0;"><strong>Invited by:</strong> ${params.inviterName}</p>
+              <p style="margin: 5px 0; font-size: 14px; color: #666;"><strong>Invitation expires:</strong> ${params.expirationDate}</p>
+            </div>
+            
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${params.invitationUrl}" style="background-color: #6d28d9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
+            </div>
+            
+            <p style="margin-top: 20px;">This is a private community, so you'll need to use this special invitation link to join. Click the button above to accept the invitation and become a member.</p>
+            
+            <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
+              This invitation was sent to ${params.email} by ${params.inviterName}.<br>
+              If you don't want to join this community, you can safely ignore this email.<br>
+              This invitation will expire on ${params.expirationDate}.
             </p>
           </div>
         </div>

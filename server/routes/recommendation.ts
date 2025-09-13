@@ -1,14 +1,20 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { RecommendationService } from '../services/recommendationService';
 import { requireAuth } from '../middleware/auth';
+import { User } from '@shared/schema';
+
+// Custom interface for authenticated requests
+interface AuthenticatedRequest extends Request {
+  currentUser?: User;
+}
 
 const router = Router();
 const recommendationService = new RecommendationService();
 
 // Get personalized feed for authenticated user
-router.get('/feed', requireAuth, async (req, res) => {
+router.get('/feed', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.currentUser?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -31,9 +37,9 @@ router.get('/feed', requireAuth, async (req, res) => {
 });
 
 // Record user interaction for recommendation training
-router.post('/interaction', requireAuth, async (req, res) => {
+router.post('/interaction', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.currentUser?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -82,9 +88,9 @@ router.post('/interaction', requireAuth, async (req, res) => {
 });
 
 // Get user's interaction history (for debugging/analytics)
-router.get('/interactions', requireAuth, async (req, res) => {
+router.get('/interactions', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.currentUser?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -106,9 +112,9 @@ router.get('/interactions', requireAuth, async (req, res) => {
 });
 
 // Follow/unfollow user endpoint
-router.post('/follow/:targetUserId', requireAuth, async (req, res) => {
+router.post('/follow/:targetUserId', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.currentUser?.id;
     const targetUserId = parseInt(req.params.targetUserId);
 
     if (!userId || !targetUserId || userId === targetUserId) {

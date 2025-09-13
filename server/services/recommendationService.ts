@@ -99,7 +99,7 @@ export class RecommendationService {
     return {
       ...user[0],
       preferredTags: interactionTags.map(t => t.tag).filter(tag => 
-        tag && tag.length > 3 && !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all'].includes(tag.toLowerCase())
+        tag && typeof tag === 'string' && tag.length > 3 && !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all'].includes(tag.toLowerCase())
       ),
     };
   }

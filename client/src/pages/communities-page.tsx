@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette } from "lucide-react";
+import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertCommunitySchema, type InsertCommunity } from "@shared/schema";
@@ -75,6 +75,17 @@ export default function CommunitiesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  
+  // Debounce search query for performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   
   // Form setup with validation
   const form = useForm<CreateCommunityForm>({
@@ -90,9 +101,17 @@ export default function CommunitiesPage() {
     },
   });
   
-  // Fetch communities
+  // Fetch communities with search support
   const { data: communities, isLoading, error } = useQuery<Community[]>({
-    queryKey: ['/api/communities'],
+    queryKey: ['/api/communities', debouncedSearchQuery],
+    queryFn: async () => {
+      const searchParam = debouncedSearchQuery ? `?search=${encodeURIComponent(debouncedSearchQuery)}` : '';
+      const response = await fetch(`/api/communities${searchParam}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch communities');
+      }
+      return response.json();
+    },
   });
   
   // Create community mutation
@@ -366,6 +385,37 @@ export default function CommunitiesPage() {
         )}
       </div>
       
+      {/* Search Section */}
+      <div className="mb-8">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search communities..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10"
+            data-testid="input-search-communities"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted"
+              onClick={() => setSearchQuery("")}
+              data-testid="button-clear-search"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        {debouncedSearchQuery && (
+          <p className="text-sm text-muted-foreground mt-2">
+            Searching for: <span className="font-medium">"{debouncedSearchQuery}"</span>
+          </p>
+        )}
+      </div>
+      
       {/* Interest-based categories section */}
       <div className="mb-10">
         <div className="flex items-center mb-5">
@@ -419,20 +469,38 @@ export default function CommunitiesPage() {
       {!communities || communities.length === 0 ? (
         <div className="text-center py-12">
           <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-2xl font-bold mb-2">No Communities Yet</h2>
-          <p className="text-muted-foreground mb-4">
-            Be the first to create a community!
-          </p>
-          
-          {user ? (
-            <Button onClick={() => setOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Community
-            </Button>
+          {debouncedSearchQuery ? (
+            <>
+              <h2 className="text-2xl font-bold mb-2">No Communities Found</h2>
+              <p className="text-muted-foreground mb-4">
+                No communities match your search for "{debouncedSearchQuery}". Try a different search term.
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => setSearchQuery("")}
+                data-testid="button-clear-search-results"
+              >
+                Clear Search
+              </Button>
+            </>
           ) : (
-            <Button onClick={() => navigate('/auth')}>
-              Sign In to Create
-            </Button>
+            <>
+              <h2 className="text-2xl font-bold mb-2">No Communities Yet</h2>
+              <p className="text-muted-foreground mb-4">
+                Be the first to create a community!
+              </p>
+              
+              {user ? (
+                <Button onClick={() => setOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Community
+                </Button>
+              ) : (
+                <Button onClick={() => navigate('/auth')}>
+                  Sign In to Create
+                </Button>
+              )}
+            </>
           )}
         </div>
       ) : (

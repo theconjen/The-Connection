@@ -49,6 +49,9 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { MemberList } from "@/components/community/MemberList";
 import { ChatRoomList } from "@/components/community/ChatRoomList";
+import { InviteUserDialog } from "@/components/community/InviteUserDialog";
+import { InvitationManager } from "@/components/community/InvitationManager";
+import type { Community, CommunityMember } from "@shared/schema";
 
 export default function CommunityPage() {
   const params = useParams();
@@ -65,7 +68,7 @@ export default function CommunityPage() {
     data: community, 
     isLoading: isLoadingCommunity, 
     error: communityError 
-  } = useQuery({
+  } = useQuery<Community>({
     queryKey: [`/api/communities/${slug}`],
     enabled: !!slug,
   });
@@ -78,9 +81,9 @@ export default function CommunityPage() {
   } = useQuery({
     queryKey: [`/api/communities/${community?.id}/members`],
     enabled: !!community?.id && !!user,
-    select: (data) => {
+    select: (data: CommunityMember[]) => {
       if (!user) return null;
-      return data.find((member: any) => member.userId === user.id);
+      return data.find((member) => member.userId === user.id) || null;
     },
   });
   
@@ -239,7 +242,14 @@ export default function CommunityPage() {
               <span>{community.memberCount || 0} members</span>
             </div>
             
-            {community.hasPrivateWall && (
+            {community.isPrivate && (
+              <div className="flex items-center text-amber-500">
+                <Lock className="mr-1 h-4 w-4" />
+                <span>Private Community</span>
+              </div>
+            )}
+            
+            {community.hasPrivateWall && !community.isPrivate && (
               <div className="flex items-center text-amber-500">
                 <Lock className="mr-1 h-4 w-4" />
                 <span>Private Wall</span>
@@ -292,10 +302,20 @@ export default function CommunityPage() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+            ) : community.isPrivate ? (
+              <div className="text-center">
+                <Button variant="outline" disabled data-testid="button-invitation-required">
+                  <Lock className="mr-2 h-4 w-4" />
+                  Invitation Required
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This is a private community
+                </p>
+              </div>
             ) : (
               <Dialog open={showJoinConfirm} onOpenChange={setShowJoinConfirm}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button data-testid="button-join-community">
                     <UserPlus className="mr-2 h-4 w-4" />
                     Join
                   </Button>
@@ -311,6 +331,7 @@ export default function CommunityPage() {
                     <Button 
                       onClick={handleJoinCommunity}
                       disabled={joinMutation.isPending}
+                      data-testid="button-confirm-join"
                     >
                       {joinMutation.isPending ? (
                         <>
@@ -339,6 +360,16 @@ export default function CommunityPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <InviteUserDialog
+                  communityId={community.id.toString()}
+                  communityName={community.name}
+                >
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} data-testid="menu-invite-member">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    <span>Invite Member</span>
+                  </DropdownMenuItem>
+                </InviteUserDialog>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <PencilLine className="mr-2 h-4 w-4" />
                   <span>Edit Community</span>
@@ -398,21 +429,41 @@ export default function CommunityPage() {
         </div>
       </div>
       
-      <Tabs defaultValue="chat">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="chat">
-            <MessageSquareText className="h-4 w-4 mr-2" />
-            Chat Rooms
-          </TabsTrigger>
-          <TabsTrigger value="wall">
-            <LayoutList className="h-4 w-4 mr-2" />
-            Wall
-          </TabsTrigger>
-          <TabsTrigger value="members">
-            <Users className="h-4 w-4 mr-2" />
-            Members
-          </TabsTrigger>
-        </TabsList>
+      {/* Private Community Access Check */}
+      {community.isPrivate && !isMember ? (
+        <div className="text-center py-16">
+          <div className="mx-auto mb-6 p-4 rounded-full bg-amber-50 w-fit">
+            <Lock className="h-12 w-12 text-amber-600" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Private Community</h2>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            This is a private community. You need an invitation from a community administrator to join and access the content.
+          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              If you have received an invitation email, click the invitation link to join.
+            </p>
+            <Button onClick={() => navigate('/communities')} variant="outline" data-testid="button-browse-other-communities">
+              Browse Other Communities
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Tabs defaultValue="chat">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="chat">
+              <MessageSquareText className="h-4 w-4 mr-2" />
+              Chat Rooms
+            </TabsTrigger>
+            <TabsTrigger value="wall">
+              <LayoutList className="h-4 w-4 mr-2" />
+              Wall
+            </TabsTrigger>
+            <TabsTrigger value="members">
+              <Users className="h-4 w-4 mr-2" />
+              Members
+            </TabsTrigger>
+          </TabsList>
         
         <TabsContent value="chat" className="mt-6">
           <ChatRoomList 
@@ -444,13 +495,22 @@ export default function CommunityPage() {
         </TabsContent>
         
         <TabsContent value="members" className="mt-6">
-          <MemberList 
-            communityId={community.id} 
-            isOwner={isOwner} 
-            isModerator={isModerator} 
-          />
+          <div className="space-y-6">
+            {(isOwner || isModerator) && (
+              <InvitationManager
+                communityId={community.id.toString()}
+                communityName={community.name}
+              />
+            )}
+            <MemberList 
+              communityId={community.id} 
+              isOwner={isOwner} 
+              isModerator={isModerator} 
+            />
+          </div>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      )}
     </div>
   );
 }

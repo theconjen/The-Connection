@@ -136,6 +136,12 @@ export const insertCommunitySchema = createInsertSchema(communities).pick({
   hasPrivateWall: true,
   hasPublicWall: true,
   createdBy: true,
+}).refine((data) => data.name && data.name.trim().length > 0, {
+  message: "Community name is required and cannot be empty",
+  path: ["name"]
+}).refine((data) => data.hasPrivateWall || data.hasPublicWall, {
+  message: "At least one wall (private or public) must be enabled",
+  path: ["hasPublicWall"]
 });
 
 // Community members table schema with roles
@@ -159,10 +165,35 @@ export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type OrganizationUser = typeof organizationUsers.$inferSelect;
 export type InsertOrganizationUser = z.infer<typeof insertOrganizationUserSchema>;
+// Community invitations table schema
+export const communityInvitations = pgTable("community_invitations", {
+  id: serial("id").primaryKey(),
+  communityId: integer("community_id").references(() => communities.id).notNull(),
+  inviterUserId: integer("inviter_user_id").references(() => users.id).notNull(),
+  inviteeEmail: text("invitee_email").notNull(),
+  inviteeUserId: integer("invitee_user_id").references(() => users.id), // Optional - set when user exists
+  status: text("status").notNull().default("pending"), // "pending", "accepted", "declined", "expired"
+  token: text("token").notNull().unique(), // Secure token for invitation links
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export const insertCommunityInvitationSchema = createInsertSchema(communityInvitations).pick({
+  communityId: true,
+  inviterUserId: true,
+  inviteeEmail: true,
+  inviteeUserId: true,
+  status: true,
+  token: true,
+  expiresAt: true,
+});
+
 export type Community = typeof communities.$inferSelect;
 export type InsertCommunity = z.infer<typeof insertCommunitySchema>;
 export type CommunityMember = typeof communityMembers.$inferSelect;
 export type InsertCommunityMember = z.infer<typeof insertCommunityMemberSchema>;
+export type CommunityInvitation = typeof communityInvitations.$inferSelect;
+export type InsertCommunityInvitation = z.infer<typeof insertCommunityInvitationSchema>;
 export type CommunityChatRoom = typeof communityChatRooms.$inferSelect;
 export type InsertCommunityChatRoom = z.infer<typeof insertCommunityChatRoomSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;

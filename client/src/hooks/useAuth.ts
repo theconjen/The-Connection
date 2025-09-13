@@ -28,57 +28,17 @@ export function useAuth() {
           localStorage.removeItem('currentUser');
         }
       }
-    };
-
-    // Check for direct admin access
-    const checkDirectAdminAccess = async () => {
-      const adminKey = localStorage.getItem('adminKey');
       
-      if (adminKey) {
-        try {
-          // First try server-side validation
-          const response = await fetch(`/api/direct-admin?key=${encodeURIComponent(adminKey)}`);
-          if (response.ok) {
-            const userData = await response.json();
-            setAdminUser(userData);
-          } else {
-            // If server validation fails, check if the key matches admin email
-            // This is our local fallback for when the server is down
-            const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@example.com';
-            if (adminKey === adminEmail) {
-              setAdminUser({
-                id: 1,
-                username: "admin",
-                email: adminEmail,
-                isAdmin: true
-              });
-            } else {
-              // Invalid key, remove it
-              localStorage.removeItem('adminKey');
-            }
-          }
-        } catch (error) {
-          console.error("Admin check failed:", error);
-          // Try local fallback
-          const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@example.com';
-          if (adminKey === adminEmail) {
-            setAdminUser({
-              id: 1, 
-              username: "admin",
-              email: adminEmail,
-              isAdmin: true
-            });
-          } else {
-            localStorage.removeItem('adminKey');
-          }
-        }
+      // Clean up any leftover admin keys from the old insecure system
+      if (localStorage.getItem('adminKey')) {
+        console.log("Removing legacy admin key for security");
+        localStorage.removeItem('adminKey');
       }
       
       setAuthCheckComplete(true);
     };
     
     checkLocalAuth();
-    checkDirectAdminAccess();
   }, [user]);
 
   // Check for test users in development mode

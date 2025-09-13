@@ -28,6 +28,7 @@ import AdminDashboard from "@/pages/admin";
 import AdminApologistApplications from "@/pages/admin/apologist-scholar-applications";
 import AdminLivestreamerApplications from "@/pages/admin/livestreamer-applications";
 import OrganizationDashboardPage from "@/pages/organization-dashboard-page";
+import AcceptInvitationPage from "@/pages/accept-invitation-page";
 import { useAuth } from "@/hooks/use-auth";
 
 function App() {
@@ -57,6 +58,7 @@ function App() {
           <Route path="/bible-study" component={BibleStudyPage} />
           <Route path="/communities" component={CommunitiesPage} />
           <Route path="/communities/:id" component={CommunityPage} />
+          <Route path="/invitations/:token/accept" component={AcceptInvitationPage} />
           <Route path="/forums" component={() => <ForumsPage />} />
           <Route path="/posts" component={() => <PostsPage />} />
           <Route path="/posts/:id" component={PostDetailPage} />

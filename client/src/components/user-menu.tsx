@@ -59,7 +59,7 @@ export default function UserMenu({ user }: UserMenuProps) {
               Profile
             </DropdownMenuItem>
           </Link>
-          <Link href="/messages">
+          <Link href="/dms">
             <DropdownMenuItem className="cursor-pointer rounded-md py-2.5 active-scale touch-target">
               Messages
             </DropdownMenuItem>

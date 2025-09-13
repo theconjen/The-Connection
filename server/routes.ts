@@ -28,6 +28,7 @@ import {
   // Existing schemas
   insertCommunitySchema, 
   insertCommunityMemberSchema,
+  insertCommunityInvitationSchema,
   insertCommunityChatRoomSchema,
   insertChatMessageSchema,
   insertCommunityWallPostSchema,
@@ -84,6 +85,9 @@ import {
 } from "@shared/schema";
 import { livestreamerApplications, apologistScholarApplications } from "@shared/schema";
 import { ZodError } from "zod";
+import crypto from "crypto";
+import { sendCommunityInvitationEmail, CommunityInvitationEmailParams } from "./email";
+import { BASE_URL } from "./config/domain";
 
 // Utility functions
 const comparePasswords = async (plaintext: string, hash: string): Promise<boolean> => {
@@ -125,22 +129,6 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       }
     }
     return res.status(401).json({ message: "Not authenticated" });
-  });
-  
-  // TEMPORARY: Direct admin access endpoint (bypasses database and sessions)
-  app.get("/api/direct-admin", (req, res) => {
-    const adminKey = req.query.key;
-    // Check if admin key matches ADMIN_EMAIL
-    if (adminKey === process.env.ADMIN_EMAIL) {
-      res.json({ 
-        isAdmin: true,
-        id: 0,
-        username: "admin",
-        email: process.env.ADMIN_EMAIL
-      });
-    } else {
-      res.status(401).json({ message: "Unauthorized" });
-    }
   });
   
   // Admin login endpoint
@@ -205,7 +193,8 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
     try {
       // Filter communities based on user authentication and membership
       const userId = req.session?.userId;
-      const communities = await storage.getPublicCommunitiesAndUserCommunities(userId);
+      const searchQuery = req.query.search as string;
+      const communities = await storage.getPublicCommunitiesAndUserCommunities(userId, searchQuery);
       res.json(communities);
     } catch (error) {
       next(error);
@@ -243,10 +232,14 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
 
   app.post("/api/communities", isAuthenticated, async (req, res, next) => {
     try {
+      // Auto-generate slug from community name
+      const slug = req.body.name ? req.body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : '';
+      
       // Validate and parse the request data
       const validatedData = insertCommunitySchema.parse({
         ...req.body,
-        createdBy: req.session.userId!
+        slug: slug,
+        createdBy: parseInt(req.session.userId!)
       });
       
       const community = await storage.createCommunity(validatedData);
@@ -334,7 +327,327 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       next(error);
     }
   });
+
+  // Community Invitation routes
   
+  // Send invitation to join a private community
+  app.post("/api/communities/:id/invite", isAuthenticated, async (req, res, next) => {
+    try {
+      const communityId = req.params.id;
+      const userId = String(req.session.userId!);
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      // Enhanced email validation and sanitization
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      const sanitizedEmail = email.trim().toLowerCase();
+      
+      if (!sanitizedEmail) {
+        return res.status(400).json({ message: "Email address is required" });
+      }
+      
+      if (sanitizedEmail.length > 254) {
+        return res.status(400).json({ message: "Email address is too long (max 254 characters)" });
+      }
+      
+      if (!emailRegex.test(sanitizedEmail)) {
+        return res.status(400).json({ 
+          message: "Please enter a valid email address",
+          details: "Email must be in format: user@example.com"
+        });
+      }
+      
+      // Check if user is authorized (owner or moderator)
+      const isOwner = await storage.isCommunityOwner(communityId, userId);
+      const isModerator = await storage.isCommunityModerator(communityId, userId);
+      
+      if (!isOwner && !isModerator) {
+        return res.status(403).json({ message: "Forbidden: Only community owners or moderators can send invitations" });
+      }
+      
+      // Check if community exists and is private
+      const community = await storage.getCommunity(communityId);
+      if (!community) {
+        return res.status(404).json({ message: "Community not found" });
+      }
+      
+      if (!community.isPrivate) {
+        return res.status(400).json({ message: "Invitations are only available for private communities" });
+      }
+      
+      // Check if user is already a member (using sanitized email)
+      const inviteeUser = await storage.getUserByEmail(sanitizedEmail);
+      if (inviteeUser) {
+        const isMember = await storage.isCommunityMember(communityId, String(inviteeUser.id));
+        if (isMember) {
+          return res.status(409).json({ 
+            message: "User is already a member of this community",
+            details: "This user has already joined the community"
+          });
+        }
+      }
+      
+      // Check if there's already a pending invitation (using sanitized email)
+      const existingInvitation = await storage.getCommunityInvitationByEmailAndCommunity(sanitizedEmail, communityId);
+      if (existingInvitation) {
+        if (existingInvitation.status === 'pending') {
+          return res.status(409).json({ 
+            message: "A pending invitation has already been sent to this email address",
+            details: "Please wait for the recipient to accept the existing invitation or cancel it first"
+          });
+        } else if (existingInvitation.status === 'expired') {
+          // Delete expired invitation and allow new one
+          await storage.deleteCommunityInvitation(String(existingInvitation.id));
+        }
+      }
+      
+      // Generate secure token and expiration (7 days from now)
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      
+      const validatedData = insertCommunityInvitationSchema.parse({
+        communityId: parseInt(communityId),
+        inviterUserId: parseInt(userId),
+        inviteeEmail: sanitizedEmail, // Use sanitized email
+        inviteeUserId: inviteeUser ? inviteeUser.id : null,
+        status: 'pending',
+        token,
+        expiresAt
+      });
+      
+      const invitation = await storage.createCommunityInvitation(validatedData);
+      
+      // Send invitation email
+      const inviterUser = await storage.getUserById(userId);
+      const invitationUrl = `${BASE_URL}/invitations/${token}/accept`;
+      const expirationDate = new Intl.DateTimeFormat('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(expiresAt);
+      
+      const emailParams: CommunityInvitationEmailParams = {
+        email: email,
+        recipientName: inviteeUser?.displayName || inviteeUser?.username,
+        inviterName: inviterUser?.displayName || inviterUser?.username || 'A community member',
+        communityName: community.name,
+        communityDescription: community.description,
+        invitationUrl: invitationUrl,
+        expirationDate: expirationDate
+      };
+      
+      try {
+        await sendCommunityInvitationEmail(emailParams);
+        console.log(`Community invitation email sent to ${email}`);
+      } catch (emailError) {
+        console.error('Failed to send invitation email:', emailError);
+        // Don't fail the invitation creation if email fails
+      }
+      
+      res.status(201).json({ 
+        message: "Invitation sent successfully",
+        invitationId: invitation.id,
+        invitationUrl: invitationUrl
+      });
+      
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  // Get pending invitations for a community (admin only)
+  app.get("/api/communities/:id/invitations", isAuthenticated, async (req, res, next) => {
+    try {
+      const communityId = req.params.id;
+      const userId = String(req.session.userId!);
+      
+      // Check if user is authorized (owner or moderator)
+      const isOwner = await storage.isCommunityOwner(communityId, userId);
+      const isModerator = await storage.isCommunityModerator(communityId, userId);
+      
+      if (!isOwner && !isModerator) {
+        return res.status(403).json({ message: "Forbidden: Only community owners or moderators can view invitations" });
+      }
+      
+      const invitations = await storage.getCommunityInvitations(communityId);
+      
+      // Filter out expired invitations and update status
+      const currentTime = new Date();
+      const activeInvitations = [];
+      
+      for (const invitation of invitations) {
+        if (invitation.expiresAt && new Date(invitation.expiresAt) < currentTime && invitation.status === 'pending') {
+          // Mark as expired
+          await storage.updateCommunityInvitationStatus(String(invitation.id), 'expired');
+          activeInvitations.push({ ...invitation, status: 'expired' });
+        } else {
+          activeInvitations.push(invitation);
+        }
+      }
+      
+      res.json(activeInvitations);
+      
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Accept invitation using token
+  app.post("/api/invitations/:token/accept", isAuthenticated, async (req, res, next) => {
+    try {
+      const { token } = req.params;
+      const userId = String(req.session.userId!);
+      
+      // Get user details
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      // Find invitation by token
+      const invitation = await storage.getCommunityInvitationByToken(token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invalid or expired invitation link" });
+      }
+      
+      // Check if invitation is still valid
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ message: "This invitation is no longer valid" });
+      }
+      
+      // Check if invitation has expired
+      if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+        await storage.updateCommunityInvitationStatus(String(invitation.id), 'expired');
+        return res.status(400).json({ message: "This invitation has expired" });
+      }
+      
+      // Check if the invitation is for this user's email
+      if (invitation.inviteeEmail !== user.email) {
+        return res.status(403).json({ message: "This invitation is not for your email address" });
+      }
+      
+      // Check if user is already a member
+      const isMember = await storage.isCommunityMember(String(invitation.communityId), userId);
+      if (isMember) {
+        // Mark invitation as accepted even if already a member
+        await storage.updateCommunityInvitationStatus(String(invitation.id), 'accepted');
+        return res.status(409).json({ message: "You are already a member of this community" });
+      }
+      
+      // Add user to community
+      const memberData = insertCommunityMemberSchema.parse({
+        communityId: invitation.communityId,
+        userId: parseInt(userId),
+        role: 'member'
+      });
+      
+      await storage.addCommunityMember(memberData);
+      
+      // Mark invitation as accepted
+      await storage.updateCommunityInvitationStatus(String(invitation.id), 'accepted');
+      
+      res.json({ 
+        message: "Successfully joined the community",
+        communityId: invitation.communityId
+      });
+      
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  // Cancel invitation (admin only)
+  app.delete("/api/invitations/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const invitationId = req.params.id;
+      const userId = String(req.session.userId!);
+      
+      // Get invitation details
+      const invitation = await storage.getCommunityInvitationById(invitationId);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      
+      // Check if user is authorized (owner, moderator, or the inviter)
+      const communityId = String(invitation.communityId);
+      const isOwner = await storage.isCommunityOwner(communityId, userId);
+      const isModerator = await storage.isCommunityModerator(communityId, userId);
+      const isInviter = invitation.inviterUserId === parseInt(userId);
+      
+      if (!isOwner && !isModerator && !isInviter) {
+        return res.status(403).json({ message: "Forbidden: Only community admins or the person who sent the invitation can cancel it" });
+      }
+      
+      // Delete the invitation
+      const success = await storage.deleteCommunityInvitation(invitationId);
+      if (!success) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      
+      res.status(204).end();
+      
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // GET /api/invitations/:token - Get invitation details (for preview)
+  app.get("/api/invitations/:token", async (req, res, next) => {
+    try {
+      const { token } = req.params;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Token is required" });
+      }
+      
+      // Find invitation by token
+      const invitation = await storage.getCommunityInvitationByToken(token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invalid or expired invitation link" });
+      }
+      
+      // Get community details
+      const community = await storage.getCommunity(String(invitation.communityId));
+      if (!community) {
+        return res.status(404).json({ message: "Community not found" });
+      }
+      
+      // Return invitation and community details (excluding sensitive data)
+      res.json({
+        id: invitation.id,
+        communityId: invitation.communityId,
+        inviteeEmail: invitation.inviteeEmail,
+        status: invitation.status,
+        expiresAt: invitation.expiresAt,
+        createdAt: invitation.createdAt,
+        community: {
+          id: community.id,
+          name: community.name,
+          description: community.description,
+          slug: community.slug,
+          memberCount: community.memberCount,
+          isPrivate: community.isPrivate,
+          hasPrivateWall: community.hasPrivateWall
+        }
+      });
+      
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Community Members routes
   app.get("/api/communities/:id/members", async (req, res, next) => {
     try {

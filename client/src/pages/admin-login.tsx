@@ -52,52 +52,16 @@ export default function AdminLoginPage() {
   const onSubmit = async (data: AdminLoginFormValues) => {
     setIsLoading(true);
     try {
-      // Check if this is the admin user (matches ADMIN_EMAIL environment variable)
-      if (data.username === "admin") {
-        // First try the normal login
-        try {
-          await apiRequest("POST", "/api/admin-login", data);
-          
-          toast({
-            title: "Admin login successful",
-            description: "You are now logged in as an administrator.",
-            variant: "default",
-          });
-          
-          // Redirect to admin dashboard
-          setLocation("/admin");
-          return;
-        } catch (error) {
-          // If regular login fails, try direct access
-          console.log("Regular admin login failed, trying direct access");
-          // Use the Direct Admin Access method instead
-          const adminKey = window.prompt("Enter admin key for direct access");
-          if (adminKey) {
-            localStorage.setItem('adminKey', adminKey);
-            
-            // Test access
-            const response = await fetch(`/api/direct-admin?key=${encodeURIComponent(adminKey)}`);
-            if (response.ok) {
-              toast({
-                title: "Admin access granted",
-                description: "You now have direct admin access.",
-                variant: "default",
-              });
-              
-              // Redirect to admin dashboard
-              setLocation("/admin");
-              return;
-            }
-          }
-        }
-      }
+      await apiRequest("POST", "/api/admin-login", data);
       
-      // If we got here, authentication failed
       toast({
-        title: "Login failed",
-        description: "Invalid admin credentials. Please try again.",
-        variant: "destructive",
+        title: "Admin login successful",
+        description: "You are now logged in as an administrator.",
+        variant: "default",
       });
+      
+      // Redirect to admin dashboard
+      setLocation("/admin");
     } catch (error) {
       toast({
         title: "Login failed",
@@ -193,63 +157,6 @@ export default function AdminLoginPage() {
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4 pt-0">
-          <div className="relative w-full">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t"></span>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or use direct access
-              </span>
-            </div>
-          </div>
-          <Button 
-            variant="outline"
-            className="w-full flex items-center gap-2"
-            onClick={async () => {
-              setIsLoading(true);
-              try {
-                const adminKey = window.prompt("Enter admin key");
-                if (!adminKey) {
-                  throw new Error("Admin key required");
-                }
-                
-                // Store admin key in localStorage
-                localStorage.setItem('adminKey', adminKey);
-                
-                // Test access
-                const response = await fetch(`/api/direct-admin?key=${encodeURIComponent(adminKey)}`);
-                if (response.ok) {
-                  const userData = await response.json();
-                  
-                  toast({
-                    title: "Admin access granted",
-                    description: "You now have direct admin access.",
-                    variant: "default",
-                  });
-                  
-                  // Redirect to admin dashboard
-                  setLocation("/admin");
-                } else {
-                  throw new Error("Access denied");
-                }
-              } catch (error) {
-                toast({
-                  title: "Access denied",
-                  description: "Invalid admin key. Please try again.",
-                  variant: "destructive",
-                });
-                localStorage.removeItem('adminKey');
-              } finally {
-                setIsLoading(false);
-              }
-            }}
-          >
-            <Key className="h-4 w-4" />
-            Direct Admin Access
-          </Button>
-        </CardFooter>
       </Card>
     </div>
   );
