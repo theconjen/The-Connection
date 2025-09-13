@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X } from "lucide-react";
+import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X, BookOpen, Heart, Music, Camera, Coffee, Globe, Star, Home, MessageCircle, Calendar, Map, Shield, Zap, Target } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertCommunityObjectSchema, type InsertCommunity } from "@shared/schema";
@@ -186,6 +186,55 @@ export default function CommunitiesPage() {
     );
   }
   
+  // Color rotation system for community cards
+  const communityColors = [
+    { bg: "bg-gradient-to-br from-pink-50 to-pink-100", iconColor: "text-pink-600" },
+    { bg: "bg-gradient-to-br from-blue-50 to-blue-100", iconColor: "text-blue-600" },
+    { bg: "bg-gradient-to-br from-emerald-50 to-emerald-100", iconColor: "text-emerald-600" },
+    { bg: "bg-gradient-to-br from-amber-50 to-amber-100", iconColor: "text-amber-600" },
+    { bg: "bg-gradient-to-br from-purple-50 to-purple-100", iconColor: "text-purple-600" },
+    { bg: "bg-gradient-to-br from-indigo-50 to-indigo-100", iconColor: "text-indigo-600" },
+    { bg: "bg-gradient-to-br from-green-50 to-green-100", iconColor: "text-green-600" },
+    { bg: "bg-gradient-to-br from-orange-50 to-orange-100", iconColor: "text-orange-600" },
+    { bg: "bg-gradient-to-br from-teal-50 to-teal-100", iconColor: "text-teal-600" },
+    { bg: "bg-gradient-to-br from-red-50 to-red-100", iconColor: "text-red-600" },
+  ];
+
+  // Icon mapping for communities based on iconName
+  const getIconComponent = (iconName: string, colorClass: string) => {
+    const iconProps = { className: `h-6 w-6 ${colorClass}` };
+    
+    switch (iconName.toLowerCase()) {
+      case 'users': return <Users {...iconProps} />;
+      case 'bookopen':
+      case 'book': return <BookOpen {...iconProps} />;
+      case 'heart': return <Heart {...iconProps} />;
+      case 'music': return <Music {...iconProps} />;
+      case 'camera': return <Camera {...iconProps} />;
+      case 'coffee': return <Coffee {...iconProps} />;
+      case 'globe': return <Globe {...iconProps} />;
+      case 'star': return <Star {...iconProps} />;
+      case 'home': return <Home {...iconProps} />;
+      case 'messagecircle':
+      case 'message': return <MessageCircle {...iconProps} />;
+      case 'calendar': return <Calendar {...iconProps} />;
+      case 'map': return <Map {...iconProps} />;
+      case 'shield': return <Shield {...iconProps} />;
+      case 'zap': return <Zap {...iconProps} />;
+      case 'target': return <Target {...iconProps} />;
+      case 'palette': return <Palette {...iconProps} />;
+      case 'briefcase': return <Briefcase {...iconProps} />;
+      case 'activity': return <Activity {...iconProps} />;
+      case 'graduationcap': return <GraduationCap {...iconProps} />;
+      default: return <Users {...iconProps} />;
+    }
+  };
+
+  // Helper function to get color scheme for a community
+  const getCommunityColorScheme = (communityId: number) => {
+    return communityColors[communityId % communityColors.length];
+  };
+
   // Featured interest-based categories
   const interestCategories = [
     {
@@ -504,55 +553,61 @@ export default function CommunitiesPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {communities.map((community: Community) => (
-            <Card 
-              key={community.id} 
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate(`/community/${community.slug}`)}
-            >
-              <CardHeader className="pb-2 md:pb-2 p-4 md:p-6">
-                <CardTitle className="flex items-center justify-between text-lg md:text-xl">
-                  <span>{community.name}</span>
-                  <div className="flex items-center gap-1">
-                    {community.isPrivate && (
-                      <span title="Invite Only">
-                        <Lock className="h-4 w-4 text-red-500" />
-                      </span>
-                    )}
-                    {community.hasPrivateWall && (
-                      <span title="Has Private Wall">
-                        <Lock className="h-4 w-4 text-amber-500" />
-                      </span>
-                    )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {communities.map((community: Community) => {
+            const colorScheme = getCommunityColorScheme(community.id);
+            const communityIcon = getIconComponent(community.iconName || 'users', colorScheme.iconColor);
+            
+            return (
+              <Card 
+                key={community.id} 
+                className={`cursor-pointer hover:shadow-md transition-shadow ${colorScheme.bg} border-none`}
+                onClick={() => navigate(`/community/${community.slug}`)}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    {communityIcon}
+                    <CardTitle className="text-lg flex-1">{community.name}</CardTitle>
+                    <div className="flex items-center gap-1 ml-2">
+                      {community.isPrivate && (
+                        <span title="Invite Only">
+                          <Lock className="h-4 w-4 text-red-500" />
+                        </span>
+                      )}
+                      {community.hasPrivateWall && (
+                        <span title="Has Private Wall">
+                          <Lock className="h-4 w-4 text-amber-500" />
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </CardTitle>
-                <CardDescription className="line-clamp-2 text-sm">
-                  {community.description}
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent className="px-4 md:px-6 py-2">
-                <div className="flex items-center text-muted-foreground text-sm">
-                  <Users className="mr-1 h-4 w-4 flex-shrink-0" />
-                  <span>{community.memberCount || 0} members</span>
-                </div>
-              </CardContent>
-              
-              <CardFooter className="px-4 md:px-6 py-4">
-                <Button 
-                  variant="secondary"
-                  className="w-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/c/${community.slug}`);
-                  }}
-                >
-                  View Community
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+                </CardHeader>
+                
+                <CardContent>
+                  <p className="text-sm text-gray-700 line-clamp-2 mb-3">
+                    {community.description}
+                  </p>
+                  <div className="flex items-center text-gray-600 text-sm">
+                    <Users className="mr-1 h-4 w-4 flex-shrink-0" />
+                    <span>{community.memberCount || 0} members</span>
+                  </div>
+                </CardContent>
+                
+                <CardFooter className="pt-0">
+                  <Button 
+                    variant="outline"
+                    className="w-full bg-white/70 hover:bg-white/90"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/community/${community.slug}`);
+                    }}
+                  >
+                    Explore
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
