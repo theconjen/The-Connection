@@ -37,7 +37,7 @@ import {
 import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { insertCommunitySchema, type InsertCommunity } from "@shared/schema";
+import { insertCommunityObjectSchema, type InsertCommunity } from "@shared/schema";
 
 interface Community {
   id: number;
@@ -55,7 +55,7 @@ interface Community {
 }
 
 // Community form schema with frontend validation
-const createCommunitySchema = insertCommunitySchema.omit({ createdBy: true, slug: true }).extend({
+const createCommunitySchema = insertCommunityObjectSchema.omit({ createdBy: true, slug: true }).extend({
   name: z.string().min(1, "Community name is required").max(100, "Name must be less than 100 characters"),
   description: z.string().min(1, "Description is required").max(500, "Description must be less than 500 characters"),
   iconName: z.string().default("users"),

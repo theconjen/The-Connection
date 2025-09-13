@@ -120,29 +120,23 @@ export const communities = pgTable("communities", {
   createdBy: integer("created_by").references(() => users.id),
 });
 
-export const insertCommunitySchema = createInsertSchema(communities).pick({
-  name: true,
-  description: true,
-  slug: true,
-  iconName: true, 
-  iconColor: true,
-  interestTags: true,
-  city: true,
-  state: true,
-  isLocalCommunity: true,
-  latitude: true,
-  longitude: true,
-  isPrivate: true,
-  hasPrivateWall: true,
-  hasPublicWall: true,
-  createdBy: true,
-}).refine((data) => data.name && data.name.trim().length > 0, {
-  message: "Community name is required and cannot be empty",
-  path: ["name"]
-}).refine((data) => data.hasPrivateWall || data.hasPublicWall, {
-  message: "At least one wall (private or public) must be enabled",
-  path: ["hasPublicWall"]
+// Base schema without refinements - for frontend transformations
+export const insertCommunityObjectSchema = createInsertSchema(communities).omit({
+  id: true,
+  memberCount: true,
+  createdAt: true,
 });
+
+// Refined schema with validation - for server use
+export const insertCommunitySchema = insertCommunityObjectSchema
+  .refine((data) => data.name && data.name.trim().length > 0, {
+    message: "Community name is required and cannot be empty",
+    path: ["name"]
+  })
+  .refine((data) => data.hasPrivateWall || data.hasPublicWall, {
+    message: "At least one wall (private or public) must be enabled",
+    path: ["hasPublicWall"]
+  });
 
 // Community members table schema with roles
 export const communityMembers = pgTable("community_members", {
