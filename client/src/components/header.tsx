@@ -123,30 +123,6 @@ export default function Header() {
               </Button>
             </div>
 
-            {/* Hamburger Menu Button - Available on all screen sizes */}
-            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-              <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-muted-foreground hover:text-foreground hover:bg-background/60"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60 p-0">
-                <div className="h-full overflow-hidden flex flex-col">
-                  <SheetHeader className="p-6 pb-2">
-                    <SheetTitle className="text-xl font-medium text-foreground">The Connection</SheetTitle>
-                    <SheetDescription className="text-muted-foreground">Navigate to any section of the app</SheetDescription>
-                  </SheetHeader>
-                  <div className="flex-1 overflow-y-auto py-4 px-6">
-                    <SidebarNavigation currentPath={location} />
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-            
             {/* Desktop navigation has been removed in favor of homepage grid navigation */}
 
             {user ? (
@@ -174,6 +150,30 @@ export default function Header() {
                   {/* Notification indicator dot - show when there are unread notifications */}
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                 </Button>
+
+                {/* Hamburger Menu Button - Available on all screen sizes */}
+                <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+                  <SheetTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-muted-foreground hover:text-foreground hover:bg-background/60"
+                    >
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60 p-0">
+                    <div className="h-full overflow-hidden flex flex-col">
+                      <SheetHeader className="p-6 pb-2">
+                        <SheetTitle className="text-xl font-medium text-foreground">The Connection</SheetTitle>
+                        <SheetDescription className="text-muted-foreground">Navigate to any section of the app</SheetDescription>
+                      </SheetHeader>
+                      <div className="flex-1 overflow-y-auto py-4 px-6">
+                        <SidebarNavigation currentPath={location} />
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
 
                 {/* Create Button - Desktop & Tablet only */}
                 <Link href="/submit-post">
@@ -214,6 +214,30 @@ export default function Header() {
                     <BellIcon className="h-5 w-5" />
                   </Button>
                 </Link>
+
+                {/* Hamburger Menu Button - Available on all screen sizes */}
+                <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+                  <SheetTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-muted-foreground hover:text-foreground hover:bg-background/60"
+                    >
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-[85vw] sm:w-[350px] border-l border-border/60 p-0">
+                    <div className="h-full overflow-hidden flex flex-col">
+                      <SheetHeader className="p-6 pb-2">
+                        <SheetTitle className="text-xl font-medium text-foreground">The Connection</SheetTitle>
+                        <SheetDescription className="text-muted-foreground">Navigate to any section of the app</SheetDescription>
+                      </SheetHeader>
+                      <div className="flex-1 overflow-y-auto py-4 px-6">
+                        <SidebarNavigation currentPath={location} />
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
 
                 {/* Create Button - Desktop & Tablet only */}
                 <Link href="/auth">
