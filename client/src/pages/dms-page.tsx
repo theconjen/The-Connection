@@ -95,7 +95,7 @@ export default function DMsPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-180px)] max-w-6xl mx-auto p-4 gap-4">
+    <div className="flex h-[calc(100vh-280px)] max-w-6xl mx-auto p-4 gap-4">
       {/* Conversations List */}
       <div className="w-1/3 border rounded-lg p-4 bg-white">
         <h2 className="text-xl font-bold mb-4">Conversations</h2>
