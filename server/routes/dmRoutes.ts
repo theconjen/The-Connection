@@ -1,7 +1,5 @@
 import express from "express";
-import { db } from "../db";
-import { messages } from "../../shared/schema";
-import { eq, or, and } from "drizzle-orm";
+import { storage } from "../storage";
 
 const router = express.Router();
 
@@ -14,14 +12,13 @@ router.get("/:userId", async (req, res) => {
   const currentUserId = parseInt(req.session.userId); // Logged-in user
   const otherUserId = parseInt(req.params.userId);
 
-  const chat = await db.select().from(messages).where(
-    or(
-      and(eq(messages.senderId, currentUserId), eq(messages.receiverId, otherUserId)),
-      and(eq(messages.senderId, otherUserId), eq(messages.receiverId, currentUserId))
-    )
-  ).orderBy(messages.createdAt);
-
-  res.json(chat);
+  try {
+    const chat = await storage.getDirectMessages(currentUserId, otherUserId);
+    res.json(chat);
+  } catch (error) {
+    console.error('Error fetching direct messages:', error);
+    res.status(500).json({ message: 'Error fetching messages' });
+  }
 });
 
 // Send a new DM
@@ -35,11 +32,18 @@ router.post("/send", async (req, res) => {
 
   if (!content) return res.status(400).send("Message content required");
 
-  const [message] = await db.insert(messages)
-    .values({ senderId: senderId, receiverId: parseInt(receiverId), content })
-    .returning();
+  try {
+    const message = await storage.createDirectMessage({
+      senderId: senderId,
+      receiverId: parseInt(receiverId),
+      content: content
+    });
 
-  res.json(message);
+    res.json(message);
+  } catch (error) {
+    console.error('Error sending direct message:', error);
+    res.status(500).json({ message: 'Error sending message' });
+  }
 });
 
 export default router;

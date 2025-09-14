@@ -8,6 +8,7 @@ import {
   CommunityChatRoom, InsertCommunityChatRoom,
   ChatMessage, InsertChatMessage,
   CommunityWallPost, InsertCommunityWallPost,
+  Message, InsertMessage,
   Post, InsertPost,
   Comment, InsertComment,
   Group, InsertGroup,
@@ -64,7 +65,7 @@ import {
   
   // Database tables
   users, organizations, organizationUsers, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
-  posts, comments, groups, groupMembers, apologeticsResources, 
+  messages, posts, comments, groups, groupMembers, apologeticsResources, 
   livestreams, microblogs, microblogLikes,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
   events, eventRsvps, prayerRequests, prayers,
@@ -83,6 +84,7 @@ import connectPg from "connect-pg-simple";
 import { db } from "./db";
 import { eq, and, or, desc, SQL, sql, inArray, isNull } from "drizzle-orm";
 import { pool } from './db';
+import crypto from 'crypto';
 const MemoryStore = createMemoryStore(session);
 const PostgresSessionStore = connectPg(session);
 // Storage interface
@@ -152,6 +154,11 @@ export interface IStorage {
   getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   deleteChatMessage(id: number): Promise<boolean>;
+  
+  // Direct Messages
+  getDirectMessages(userId1: number, userId2: number): Promise<(Message & { sender: User, receiver: User })[]>;
+  createDirectMessage(message: InsertMessage): Promise<Message>;
+  getDirectMessagesForUser(userId: number): Promise<(Message & { sender: User, receiver: User })[]>;
   
   // Community Wall Posts
   getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]>;
@@ -566,6 +573,7 @@ export class MemStorage implements IStorage {
   private communityChatRooms: Map<number, CommunityChatRoom>;
   private chatMessages: Map<number, ChatMessage>;
   private communityWallPosts: Map<number, CommunityWallPost>;
+  private directMessages: Map<string, Message>;
   private posts: Map<number, Post>;
   private comments: Map<number, Comment>;
   private groups: Map<number, Group>;
@@ -604,6 +612,7 @@ export class MemStorage implements IStorage {
     this.communityChatRooms = new Map();
     this.chatMessages = new Map();
     this.communityWallPosts = new Map();
+    this.directMessages = new Map();
     this.posts = new Map();
     this.comments = new Map();
     this.groups = new Map();
@@ -1193,6 +1202,56 @@ export class MemStorage implements IStorage {
       this.chatMessages.delete(id);
     }
     return exists;
+  }
+  
+  // Direct Messages methods
+  async getDirectMessages(userId1: number, userId2: number): Promise<(Message & { sender: User, receiver: User })[]> {
+    const messagesArray = Array.from(this.directMessages.values())
+      .filter(msg => 
+        (msg.senderId === userId1 && msg.receiverId === userId2) ||
+        (msg.senderId === userId2 && msg.receiverId === userId1)
+      )
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+    const result = [];
+    for (const message of messagesArray) {
+      const sender = await this.getUser(message.senderId);
+      const receiver = await this.getUser(message.receiverId);
+      if (sender && receiver) {
+        result.push({ ...message, sender, receiver });
+      }
+    }
+    return result;
+  }
+
+  async createDirectMessage(message: InsertMessage): Promise<Message> {
+    const id = crypto.randomUUID();
+    const now = new Date();
+    
+    const newMessage: Message = {
+      ...message,
+      id,
+      createdAt: now,
+    };
+    
+    this.directMessages.set(id, newMessage);
+    return newMessage;
+  }
+
+  async getDirectMessagesForUser(userId: number): Promise<(Message & { sender: User, receiver: User })[]> {
+    const messagesArray = Array.from(this.directMessages.values())
+      .filter(msg => msg.senderId === userId || msg.receiverId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const result = [];
+    for (const message of messagesArray) {
+      const sender = await this.getUser(message.senderId);
+      const receiver = await this.getUser(message.receiverId);
+      if (sender && receiver) {
+        result.push({ ...message, sender, receiver });
+      }
+    }
+    return result;
   }
   
   // Community Wall Posts methods
@@ -2665,6 +2724,96 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(chatMessages).where(eq(chatMessages.id, id));
     return result.rowCount > 0;
   }
+  
+  // Direct Messages methods
+  async getDirectMessages(userId1: number, userId2: number): Promise<(Message & { sender: User, receiver: User })[]> {
+    const result = await db.select({
+      id: messages.id,
+      senderId: messages.senderId,
+      receiverId: messages.receiverId,
+      content: messages.content,
+      createdAt: messages.createdAt,
+      sender: {
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+      },
+      receiver: {
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+      }
+    })
+    .from(messages)
+    .leftJoin(users, eq(messages.senderId, users.id))
+    .leftJoin(users, eq(messages.receiverId, users.id))
+    .where(
+      or(
+        and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
+        and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
+      )
+    )
+    .orderBy(messages.createdAt);
+
+    return result.map(row => ({
+      id: row.id,
+      senderId: row.senderId,
+      receiverId: row.receiverId,
+      content: row.content,
+      createdAt: row.createdAt,
+      sender: row.sender,
+      receiver: row.receiver
+    }));
+  }
+
+  async createDirectMessage(message: InsertMessage): Promise<Message> {
+    const result = await db.insert(messages).values(message).returning();
+    return result[0];
+  }
+
+  async getDirectMessagesForUser(userId: number): Promise<(Message & { sender: User, receiver: User })[]> {
+    const result = await db.select({
+      id: messages.id,
+      senderId: messages.senderId,
+      receiverId: messages.receiverId,
+      content: messages.content,
+      createdAt: messages.createdAt,
+      sender: {
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+      },
+      receiver: {
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+      }
+    })
+    .from(messages)
+    .leftJoin(users, eq(messages.senderId, users.id))
+    .leftJoin(users, eq(messages.receiverId, users.id))
+    .where(or(eq(messages.senderId, userId), eq(messages.receiverId, userId)))
+    .orderBy(desc(messages.createdAt));
+
+    return result.map(row => ({
+      id: row.id,
+      senderId: row.senderId,
+      receiverId: row.receiverId,
+      content: row.content,
+      createdAt: row.createdAt,
+      sender: row.sender,
+      receiver: row.receiver
+    }));
+  }
+  
   // Community Wall Posts
   async getCommunityWallPosts(communityId: string, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
     let whereCondition = eq(communityWallPosts.communityId, parseInt(communityId));
