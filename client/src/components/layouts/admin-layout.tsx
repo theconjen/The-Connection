@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "../../hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { useLocation, Link } from "wouter";

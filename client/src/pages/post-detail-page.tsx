@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import MainLayout from "@/components/layouts/main-layout";
 import { Post, User, Community, Comment, InsertComment } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "../hooks/use-auth";
 import {
   Card,
   CardContent,
@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import ShareButtons from "@/components/share-buttons";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../hooks/use-toast";
 import { z } from "zod";
 import { format } from "date-fns";
 import { insertCommentSchema } from "@shared/schema";

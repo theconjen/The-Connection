@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
-import { useMediaQuery } from '@/hooks/use-media-query';
+import { useMediaQuery } from '../hooks/use-media-query';
 import io, { Socket } from 'socket.io-client';
 import MobileChatInterface from '@/components/mobile-chat-interface';
 import { Button } from '@/components/ui/button';

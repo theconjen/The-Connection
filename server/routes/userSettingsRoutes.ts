@@ -1,7 +1,5 @@
 import express from "express";
-import { DatabaseStorage } from "../storage";
-
-const storage = new DatabaseStorage();
+import { storage } from "../storage";
 // Authentication middleware
 const isAuthenticated = (req: any, res: any, next: any) => {
   if (!req.session || !req.session.userId) {
@@ -23,7 +21,7 @@ router.get("/settings", async (req, res) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    const user = await storage.getUser(userId);
+    const user = await storage.getUser(Number(userId));
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -56,7 +54,7 @@ router.put("/settings", async (req, res) => {
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     
-    await storage.updateUser(userId, updateData);
+    await storage.updateUser(Number(userId), updateData);
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating user settings:', error);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { useChatWebsocket, ChatMessage } from "@/hooks/use-chat-websocket";
+import { useAuth } from "../../hooks/use-auth";
+import { useChatWebsocket, ChatMessage } from "../../hooks/use-chat-websocket";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

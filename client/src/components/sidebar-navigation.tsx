@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useAuth, AuthContextType } from "@/hooks/use-auth";
+import { useAuth, AuthContextType } from "../hooks/use-auth";
 import { 
   Home,
   MessageCircle,

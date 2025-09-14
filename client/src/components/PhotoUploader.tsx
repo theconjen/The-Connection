@@ -4,7 +4,7 @@ import { ObjectUploader } from "./ObjectUploader";
 import type { UploadResult } from "@uppy/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../hooks/use-toast";
 import { Camera, Upload } from "lucide-react";
 
 interface PhotoUploaderProps {

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { useAuth, AuthContextType } from "@/hooks/use-auth";
+import { useAuth, AuthContextType } from "../hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import logoImage from "@assets/TC Logo - Color.png";
@@ -29,7 +29,7 @@ import {
 import UserMenu from "@/components/user-menu";
 import SidebarNavigation from "@/components/sidebar-navigation";
 import GlobalSearch from "@/components/GlobalSearch";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useMediaQuery } from "../hooks/use-media-query";
 
 export default function Header() {
   const [location] = useLocation();

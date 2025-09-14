@@ -102,7 +102,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         
         // Create message in database
         const newMessage = await storage.createChatMessage({
-          roomId: parseInt(roomId),
+          chatRoomId: parseInt(roomId),
           senderId: parseInt(senderId),
           content: content,
         });
@@ -164,10 +164,20 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       if (req.query.search) {
         const searchTerm = req.query.search as string;
         const users = await storage.searchUsers(searchTerm);
-        return res.json(users);
+        // Remove password and other sensitive fields from each user
+        const sanitizedUsers = users.map(user => {
+          const { password, ...userData } = user;
+          return userData;
+        });
+        return res.json(sanitizedUsers);
       }
       const users = await storage.getAllUsers();
-      res.json(users);
+      // Remove password and other sensitive fields from each user
+      const sanitizedUsers = users.map(user => {
+        const { password, ...userData } = user;
+        return userData;
+      });
+      res.json(sanitizedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       res.status(500).json({ message: 'Error fetching users' });
@@ -214,24 +224,22 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.get('/api/communities/:id', async (req, res) => {
+  app.get('/api/communities/:idOrSlug', async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
-      const community = await storage.getCommunity(communityId);
-      if (!community) {
-        return res.status(404).json({ message: 'Community not found' });
+      const { idOrSlug } = req.params;
+      
+      // Check if it's a numeric ID first
+      const isNumeric = /^\d+$/.test(idOrSlug);
+      let community;
+      
+      if (isNumeric) {
+        const communityId = parseInt(idOrSlug);
+        community = await storage.getCommunity(communityId);
+      } else {
+        // Treat as slug
+        community = await storage.getCommunityBySlug(idOrSlug);
       }
-      res.json(community);
-    } catch (error) {
-      console.error('Error fetching community:', error);
-      res.status(500).json({ message: 'Error fetching community' });
-    }
-  });
-
-  app.get('/api/communities/:slug', async (req, res) => {
-    try {
-      const slug = req.params.slug;
-      const community = await storage.getCommunityBySlug(slug);
+      
       if (!community) {
         return res.status(404).json({ message: 'Community not found' });
       }
@@ -266,9 +274,21 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/communities/:id/join', isAuthenticated, async (req, res) => {
+  app.post('/api/communities/:idOrSlug/join', isAuthenticated, async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const { idOrSlug } = req.params;
+      
+      // Get community ID whether provided as ID or slug
+      let communityId: number;
+      if (/^\d+$/.test(idOrSlug)) {
+        communityId = parseInt(idOrSlug);
+      } else {
+        const community = await storage.getCommunityBySlug(idOrSlug);
+        if (!community) {
+          return res.status(404).json({ message: 'Community not found' });
+        }
+        communityId = community.id;
+      }
       const userId = req.session!.userId!;
 
       // Check if user is already a member
@@ -290,9 +310,21 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/communities/:id/leave', isAuthenticated, async (req, res) => {
+  app.post('/api/communities/:idOrSlug/leave', isAuthenticated, async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const { idOrSlug } = req.params;
+      
+      // Get community ID whether provided as ID or slug
+      let communityId: number;
+      if (/^\d+$/.test(idOrSlug)) {
+        communityId = parseInt(idOrSlug);
+      } else {
+        const community = await storage.getCommunityBySlug(idOrSlug);
+        if (!community) {
+          return res.status(404).json({ message: 'Community not found' });
+        }
+        communityId = community.id;
+      }
       const userId = req.session!.userId!;
 
       await storage.removeCommunityMember(communityId, userId);
@@ -303,9 +335,21 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.get('/api/communities/:id/members', async (req, res) => {
+  app.get('/api/communities/:idOrSlug/members', async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const { idOrSlug } = req.params;
+      
+      // Get community ID whether provided as ID or slug
+      let communityId: number;
+      if (/^\d+$/.test(idOrSlug)) {
+        communityId = parseInt(idOrSlug);
+      } else {
+        const community = await storage.getCommunityBySlug(idOrSlug);
+        if (!community) {
+          return res.status(404).json({ message: 'Community not found' });
+        }
+        communityId = community.id;
+      }
       const members = await storage.getCommunityMembers(communityId);
       res.json(members);
     } catch (error) {
@@ -314,9 +358,21 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/communities/:id/invite', isAuthenticated, async (req, res) => {
+  app.post('/api/communities/:idOrSlug/invite', isAuthenticated, async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const { idOrSlug } = req.params;
+      
+      // Get community ID whether provided as ID or slug
+      let communityId: number;
+      if (/^\d+$/.test(idOrSlug)) {
+        communityId = parseInt(idOrSlug);
+      } else {
+        const community = await storage.getCommunityBySlug(idOrSlug);
+        if (!community) {
+          return res.status(404).json({ message: 'Community not found' });
+        }
+        communityId = community.id;
+      }
       const userId = req.session!.userId!;
       const { email } = req.body;
 
@@ -371,9 +427,21 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.delete('/api/communities/:id/members/:userId', isAuthenticated, async (req, res) => {
+  app.delete('/api/communities/:idOrSlug/members/:userId', isAuthenticated, async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const { idOrSlug } = req.params;
+      
+      // Get community ID whether provided as ID or slug
+      let communityId: number;
+      if (/^\d+$/.test(idOrSlug)) {
+        communityId = parseInt(idOrSlug);
+      } else {
+        const community = await storage.getCommunityBySlug(idOrSlug);
+        if (!community) {
+          return res.status(404).json({ message: 'Community not found' });
+        }
+        communityId = community.id;
+      }
       const targetUserId = parseInt(req.params.userId);
       const currentUserId = req.session!.userId!;
 
@@ -454,9 +522,21 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   // Community chat rooms
-  app.get('/api/communities/:id/chat-rooms', async (req, res) => {
+  app.get('/api/communities/:idOrSlug/chat-rooms', async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const { idOrSlug } = req.params;
+      
+      // Get community ID whether provided as ID or slug
+      let communityId: number;
+      if (/^\d+$/.test(idOrSlug)) {
+        communityId = parseInt(idOrSlug);
+      } else {
+        const community = await storage.getCommunityBySlug(idOrSlug);
+        if (!community) {
+          return res.status(404).json({ message: 'Community not found' });
+        }
+        communityId = community.id;
+      }
       const userId = req.session?.userId;
 
       // Check if user is a member of the community or get public rooms
@@ -473,9 +553,21 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/communities/:id/chat-rooms', isAuthenticated, async (req, res) => {
+  app.post('/api/communities/:idOrSlug/chat-rooms', isAuthenticated, async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const { idOrSlug } = req.params;
+      
+      // Get community ID whether provided as ID or slug
+      let communityId: number;
+      if (/^\d+$/.test(idOrSlug)) {
+        communityId = parseInt(idOrSlug);
+      } else {
+        const community = await storage.getCommunityBySlug(idOrSlug);
+        if (!community) {
+          return res.status(404).json({ message: 'Community not found' });
+        }
+        communityId = community.id;
+      }
       const userId = req.session!.userId!;
       const { name, description, isPrivate } = req.body;
 
@@ -618,9 +710,21 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   // Community wall posts
-  app.get('/api/communities/:id/wall', async (req, res) => {
+  app.get('/api/communities/:idOrSlug/wall', async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const { idOrSlug } = req.params;
+      
+      // Get community ID whether provided as ID or slug
+      let communityId: number;
+      if (/^\d+$/.test(idOrSlug)) {
+        communityId = parseInt(idOrSlug);
+      } else {
+        const community = await storage.getCommunityBySlug(idOrSlug);
+        if (!community) {
+          return res.status(404).json({ message: 'Community not found' });
+        }
+        communityId = community.id;
+      }
       const posts = await storage.getCommunityWallPosts(communityId);
       res.json(posts);
     } catch (error) {
@@ -629,9 +733,21 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/communities/:id/wall', isAuthenticated, async (req, res) => {
+  app.post('/api/communities/:idOrSlug/wall', isAuthenticated, async (req, res) => {
     try {
-      const communityId = parseInt(req.params.id);
+      const { idOrSlug } = req.params;
+      
+      // Get community ID whether provided as ID or slug
+      let communityId: number;
+      if (/^\d+$/.test(idOrSlug)) {
+        communityId = parseInt(idOrSlug);
+      } else {
+        const community = await storage.getCommunityBySlug(idOrSlug);
+        if (!community) {
+          return res.status(404).json({ message: 'Community not found' });
+        }
+        communityId = community.id;
+      }
       const userId = req.session!.userId!;
       const { content, isPrivate } = req.body;
 

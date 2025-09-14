@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Heart, MessageCircle, Share, Users, Star, TrendingUp } from 'lucide-react';
-import { useContentTracking } from '@/hooks/useRecommendations';
-import type { RecommendedMicroblog, RecommendedCommunity } from '@/hooks/useRecommendations';
+import { useContentTracking } from '../hooks/useRecommendations';
+import type { RecommendedMicroblog, RecommendedCommunity } from '../hooks/useRecommendations';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PersonalizedFeedCardProps {

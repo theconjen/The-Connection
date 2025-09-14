@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useMediaQuery } from "../../hooks/use-media-query";
 import MobileNavigation from "../mobile-navigation";
 
 type MainLayoutProps = {

@@ -1,14 +1,11 @@
 import { 
-  User, InsertUser,
-  Organization, InsertOrganization,
-  OrganizationUser, InsertOrganizationUser, 
+  User, InsertUser, 
   Community, InsertCommunity,
   CommunityMember, InsertCommunityMember,
   CommunityInvitation, InsertCommunityInvitation,
   CommunityChatRoom, InsertCommunityChatRoom,
   ChatMessage, InsertChatMessage,
   CommunityWallPost, InsertCommunityWallPost,
-  Message, InsertMessage,
   Post, InsertPost,
   Comment, InsertComment,
   Group, InsertGroup,
@@ -17,11 +14,9 @@ import {
   Livestream, InsertLivestream,
   LivestreamerApplication, InsertLivestreamerApplication,
   ApologistScholarApplication, InsertApologistScholarApplication,
-  CreatorTier, VirtualGift, LivestreamGift,
   Microblog, InsertMicroblog,
   MicroblogLike, InsertMicroblogLike,
   UserPreferences, InsertUserPreferences,
-  ContentRecommendation, InsertContentRecommendation,
   
   // Apologetics system
   ApologeticsTopic, InsertApologeticsTopic,
@@ -36,57 +31,24 @@ import {
   PrayerRequest, InsertPrayerRequest,
   Prayer, InsertPrayer,
   
-  // Mentorship system
-  MentorProfile, InsertMentorProfile,
-  MentorshipRequest, InsertMentorshipRequest,
-  MentorshipRelationship, InsertMentorshipRelationship,
-  
   // Bible study tools
   BibleReadingPlan, InsertBibleReadingPlan,
   BibleReadingProgress, InsertBibleReadingProgress,
   BibleStudyNote, InsertBibleStudyNote,
-  VerseMemorization, InsertVerseMemorization,
-  
-  // Community challenges
-  Challenge, InsertChallenge,
-  ChallengeParticipant, InsertChallengeParticipant,
-  ChallengeTestimonial, InsertChallengeTestimonial,
-  
-  // Resource sharing
-  Resource, InsertResource,
-  ResourceRating, InsertResourceRating,
-  ResourceCollection, InsertResourceCollection,
-  CollectionResource, InsertCollectionResource,
-  
-  // Community service
-  ServiceProject, InsertServiceProject,
-  ServiceVolunteer, InsertServiceVolunteer,
-  ServiceTestimonial, InsertServiceTestimonial,
   
   // Database tables
-  users, organizations, organizationUsers, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
-  messages, posts, comments, groups, groupMembers, apologeticsResources, 
+  users, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
+  posts, comments, groups, groupMembers, apologeticsResources, 
   livestreams, microblogs, microblogLikes,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
   events, eventRsvps, prayerRequests, prayers,
-  mentorProfiles, mentorshipRequests, mentorshipRelationships,
-  bibleReadingPlans, bibleReadingProgress, bibleStudyNotes, verseMemorization,
-  challenges, challengeParticipants, challengeTestimonials,
-  resources, resourceRatings, resourceCollections, collectionResources,
-  serviceProjects, serviceVolunteers, serviceTestimonials,
+  bibleReadingPlans, bibleReadingProgress, bibleStudyNotes,
   livestreamerApplications, apologistScholarApplications,
-  // Recommendation system
-  userPreferences, contentRecommendations
+  userPreferences
 } from "@shared/schema";
-import createMemoryStore from "memorystore";
-import session from "express-session";
-import connectPg from "connect-pg-simple";
 import { db } from "./db";
-import { eq, and, or, desc, SQL, sql, inArray, isNull } from "drizzle-orm";
-import { pool } from './db';
-import crypto from 'crypto';
-const MemoryStore = createMemoryStore(session);
-const PostgresSessionStore = connectPg(session);
+import { eq, and, or, desc, sql, inArray, like } from "drizzle-orm";
+
 // Storage interface
 export interface IStorage {
   // User methods
@@ -94,6 +56,8 @@ export interface IStorage {
   getUserById(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  searchUsers(searchTerm: string): Promise<User[]>;
+  getAllUsers(): Promise<User[]>;
   updateUser(id: number, userData: Partial<User>): Promise<User>;
   updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences>;
   createUser(user: InsertUser): Promise<User>;
@@ -101,25 +65,24 @@ export interface IStorage {
   setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User>;
   getVerifiedApologeticsAnswerers(): Promise<User[]>;
   
-  // Organization methods (Church accounts)
-  createOrganization(organization: InsertOrganization): Promise<Organization>;
-  getOrganization(id: number): Promise<Organization | undefined>;
-  getOrganizationsByUser(userId: number): Promise<Organization[]>;
-  updateOrganization(id: number, data: Partial<Organization>): Promise<Organization>;
-  addOrganizationMember(member: InsertOrganizationUser): Promise<OrganizationUser>;
-  removeOrganizationMember(organizationId: number, userId: number): Promise<boolean>;
-  getOrganizationMembers(organizationId: number): Promise<(OrganizationUser & { user: User })[]>;
-  isOrganizationAdmin(organizationId: number, userId: number): Promise<boolean>;
-  updateOrganizationPlan(id: number, plan: string, stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<Organization>;
-  
   // Community methods
   getAllCommunities(): Promise<Community[]>;
+  searchCommunities(searchTerm: string): Promise<Community[]>;
   getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]>;
   getCommunity(id: number): Promise<Community | undefined>;
   getCommunityBySlug(slug: string): Promise<Community | undefined>;
   createCommunity(community: InsertCommunity): Promise<Community>;
   updateCommunity(id: number, community: Partial<Community>): Promise<Community>;
   deleteCommunity(id: number): Promise<boolean>;
+  
+  // Community Invitations
+  createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation>;
+  getCommunityInvitations(communityId: number): Promise<(CommunityInvitation & { inviter: User })[]>;
+  getCommunityInvitationByToken(token: string): Promise<CommunityInvitation | undefined>;
+  getCommunityInvitationById(id: number): Promise<CommunityInvitation | undefined>;
+  updateCommunityInvitationStatus(id: number, status: string): Promise<CommunityInvitation>;
+  deleteCommunityInvitation(id: number): Promise<boolean>;
+  getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined>;
   
   // Community Members & Roles
   getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]>;
@@ -131,15 +94,6 @@ export interface IStorage {
   isCommunityMember(communityId: number, userId: number): Promise<boolean>;
   isCommunityOwner(communityId: number, userId: number): Promise<boolean>;
   isCommunityModerator(communityId: number, userId: number): Promise<boolean>;
-  
-  // Community Invitations
-  createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation>;
-  getCommunityInvitations(communityId: number): Promise<(CommunityInvitation & { inviter: User })[]>;
-  getCommunityInvitationByToken(token: string): Promise<CommunityInvitation | undefined>;
-  getCommunityInvitationById(id: number): Promise<CommunityInvitation | undefined>;
-  updateCommunityInvitationStatus(id: number, status: string): Promise<CommunityInvitation>;
-  deleteCommunityInvitation(id: number): Promise<boolean>;
-  getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined>;
   
   // Community Chat Rooms
   getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]>;
@@ -155,11 +109,6 @@ export interface IStorage {
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   deleteChatMessage(id: number): Promise<boolean>;
   
-  // Direct Messages
-  getDirectMessages(userId1: number, userId2: number): Promise<(Message & { sender: User, receiver: User })[]>;
-  createDirectMessage(message: InsertMessage): Promise<Message>;
-  getDirectMessagesForUser(userId: number): Promise<(Message & { sender: User, receiver: User })[]>;
-  
   // Community Wall Posts
   getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]>;
   getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined>;
@@ -172,7 +121,7 @@ export interface IStorage {
   getPost(id: number): Promise<Post | undefined>;
   getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]>;
   getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]>;
-  getUserPosts(userId: number): Promise<any[]>; // Returns all types of posts by user
+  getUserPosts(userId: number): Promise<any[]>;
   createPost(post: InsertPost): Promise<Post>;
   upvotePost(id: number): Promise<Post>;
   
@@ -196,6 +145,7 @@ export interface IStorage {
   // Apologetics resource methods
   getAllApologeticsResources(): Promise<ApologeticsResource[]>;
   getApologeticsResource(id: number): Promise<ApologeticsResource | undefined>;
+  createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
   
   // Prayer Request methods
   getPublicPrayerRequests(): Promise<PrayerRequest[]>;
@@ -212,7 +162,6 @@ export interface IStorage {
   createPrayer(prayer: InsertPrayer): Promise<Prayer>;
   getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]>;
   getUserPrayedRequests(userId: number): Promise<number[]>;
-  createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
   
   // Apologetics Q&A methods
   getAllApologeticsTopics(): Promise<ApologeticsTopic[]>;
@@ -225,30 +174,37 @@ export interface IStorage {
   getApologeticsQuestionsByTopic(topicId: number): Promise<ApologeticsQuestion[]>;
   createApologeticsQuestion(question: InsertApologeticsQuestion): Promise<ApologeticsQuestion>;
   updateApologeticsQuestionStatus(id: number, status: string): Promise<ApologeticsQuestion>;
-  incrementApologeticsQuestionViewCount(id: number): Promise<ApologeticsQuestion>;
   
   getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]>;
   createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer>;
-  upvoteApologeticsAnswer(id: number): Promise<ApologeticsAnswer>;
   
-  // Microblog (Twitter-like posts) methods
-  getAllMicroblogs(filterType?: string): Promise<Microblog[]>;
+  // Event methods
+  getAllEvents(): Promise<Event[]>;
+  getEvent(id: number): Promise<Event | undefined>;
+  getUserEvents(userId: number): Promise<Event[]>;
+  createEvent(event: InsertEvent): Promise<Event>;
+  updateEvent(id: number, data: Partial<Event>): Promise<Event>;
+  deleteEvent(id: number): Promise<boolean>;
+  
+  // Event RSVP methods
+  createEventRSVP(rsvp: InsertEventRsvp): Promise<EventRsvp>;
+  getEventRSVPs(eventId: number): Promise<EventRsvp[]>;
+  getUserEventRSVP(eventId: number, userId: number): Promise<EventRsvp | undefined>;
+  updateEventRSVP(id: number, status: string): Promise<EventRsvp>;
+  deleteEventRSVP(id: number): Promise<boolean>;
+  
+  // Microblog methods
+  getAllMicroblogs(): Promise<Microblog[]>;
   getMicroblog(id: number): Promise<Microblog | undefined>;
-  getMicroblogsByUserId(userId: number): Promise<Microblog[]>;
-  getMicroblogsByAuthors(userIds: number[]): Promise<Microblog[]>;
-  getMicroblogsByCommunityId(communityId: number): Promise<Microblog[]>;
-  getMicroblogsByGroupId(groupId: number): Promise<Microblog[]>;
-  getMicroblogReplies(microblogId: number): Promise<Microblog[]>;
+  getUserMicroblogs(userId: number): Promise<Microblog[]>;
   createMicroblog(microblog: InsertMicroblog): Promise<Microblog>;
+  updateMicroblog(id: number, data: Partial<Microblog>): Promise<Microblog>;
+  deleteMicroblog(id: number): Promise<boolean>;
+  
+  // Microblog like methods
   likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike>;
   unlikeMicroblog(microblogId: number, userId: number): Promise<boolean>;
-  getUserLikedMicroblogs(userId: number): Promise<number[]>; // returns IDs of microblogs user has liked
-  
-  // Livestream methods
-  getLivestreams(status?: string): Promise<Livestream[]>;
-  getLivestream(id: number): Promise<Livestream | undefined>;
-  createLivestream(livestream: InsertLivestream): Promise<Livestream>;
-  updateLivestreamStatus(id: number, status: string): Promise<Livestream>;
+  getUserLikedMicroblogs(userId: number): Promise<Microblog[]>;
   
   // Livestreamer application methods
   getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined>;
@@ -262,4359 +218,1207 @@ export interface IStorage {
   getPendingApologistScholarApplications(): Promise<ApologistScholarApplication[]>;
   createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication>;
   updateApologistScholarApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<ApologistScholarApplication>;
-  isApprovedApologistScholar(userId: number): Promise<boolean>;
   
-  // Creator tier methods
-  getAllCreatorTiers(): Promise<CreatorTier[]>;
-  getCreatorTier(id: number): Promise<CreatorTier | undefined>;
-  
-  // Virtual gift methods
-  getActiveVirtualGifts(): Promise<VirtualGift[]>;
-  getVirtualGift(id: number): Promise<VirtualGift | undefined>;
-  sendGiftToLivestream(gift: { livestreamId: number, giftId: number, senderId: number, receiverId: number, message?: string }): Promise<LivestreamGift>;
-  
-  // ========================
-  // COMMUNITY EVENTS
-  // ========================
-  getAllEvents(filter?: string): Promise<Event[]>;
-  getPublicEvents(): Promise<Event[]>;
-  getEventsNearby(latitude: string, longitude: string, radiusInKm: string): Promise<Event[]>;
-  getEvent(id: number): Promise<Event | undefined>;
-  getEventsByCommunity(communityId: number): Promise<Event[]>;
-  getEventsByGroup(groupId: number): Promise<Event[]>;
-  getEventsByUser(userId: number): Promise<Event[]>;
-  createEvent(event: InsertEvent): Promise<Event>;
-  updateEvent(id: number, eventData: Partial<Event>): Promise<Event>;
-  deleteEvent(id: number): Promise<boolean>;
-  
-  // Event RSVP methods
-  getEventRsvps(eventId: number): Promise<EventRsvp[]>;
-  getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined>;
-  createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp>;
-  updateEventRsvp(id: number, status: string): Promise<EventRsvp>;
-  
-  // ========================
-  // PRAYER REQUESTS
-  // ========================
-  getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]>;
-  getPrayerRequest(id: number): Promise<PrayerRequest | undefined>;
-  getUserPrayerRequests(userId: number): Promise<PrayerRequest[]>;
-  getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]>;
-  getPublicPrayerRequests(): Promise<PrayerRequest[]>;
-  createPrayerRequest(request: InsertPrayerRequest): Promise<PrayerRequest>;
-  updatePrayerRequest(id: number, data: Partial<PrayerRequest>): Promise<PrayerRequest>;
-  markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest>;
-  deletePrayerRequest(id: number): Promise<boolean>;
-  
-  // Prayer methods (praying for requests)
-  getPrayersForRequest(requestId: string): Promise<Prayer[]>;
-  createPrayer(prayer: InsertPrayer): Promise<Prayer>;
-  getUserPrayedRequests(userId: number): Promise<number[]>; // returns prayer request IDs
-  
-  // ========================
-  // MENTORSHIP PROGRAM
-  // ========================
-  getAllMentorProfiles(): Promise<MentorProfile[]>;
-  getMentorProfile(id: number): Promise<MentorProfile | undefined>;
-  getMentorProfileByUserId(userId: number): Promise<MentorProfile | undefined>;
-  createMentorProfile(profile: InsertMentorProfile): Promise<MentorProfile>;
-  updateMentorProfile(id: number, data: Partial<MentorProfile>): Promise<MentorProfile>;
-  
-  // Mentorship requests
-  getMentorshipRequests(filter: { mentorId?: number, menteeId?: number, status?: string }): Promise<MentorshipRequest[]>;
-  getMentorshipRequest(id: number): Promise<MentorshipRequest | undefined>;
-  createMentorshipRequest(request: InsertMentorshipRequest): Promise<MentorshipRequest>;
-  updateMentorshipRequestStatus(id: number, status: string): Promise<MentorshipRequest>;
-  
-  // Mentorship relationships
-  getMentorshipRelationships(filter: { mentorId?: number, menteeId?: number, isActive?: boolean }): Promise<MentorshipRelationship[]>;
-  getMentorshipRelationship(id: number): Promise<MentorshipRelationship | undefined>;
-  createMentorshipRelationship(relationship: InsertMentorshipRelationship): Promise<MentorshipRelationship>;
-  updateMentorshipRelationship(id: number, data: Partial<MentorshipRelationship>): Promise<MentorshipRelationship>;
-  endMentorshipRelationship(id: number): Promise<MentorshipRelationship>;
-  
-  // ========================
-  // BIBLE STUDY TOOLS
-  // ========================
-  getAllBibleReadingPlans(filter?: string): Promise<BibleReadingPlan[]>;
+  // Bible Reading Plan methods
+  getAllBibleReadingPlans(): Promise<BibleReadingPlan[]>;
   getBibleReadingPlan(id: number): Promise<BibleReadingPlan | undefined>;
-  getGroupBibleReadingPlans(groupId: number): Promise<BibleReadingPlan[]>;
-  getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]>;
   createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan>;
-  updateBibleReadingPlan(id: number, data: Partial<BibleReadingPlan>): Promise<BibleReadingPlan>;
-  deleteBibleReadingPlan(id: number): Promise<boolean>;
   
-  // Bible reading progress
+  // Bible Reading Progress methods
   getBibleReadingProgress(userId: number, planId: number): Promise<BibleReadingProgress | undefined>;
-  getUserReadingProgress(userId: number): Promise<BibleReadingProgress[]>;
   createBibleReadingProgress(progress: InsertBibleReadingProgress): Promise<BibleReadingProgress>;
-  updateBibleReadingProgress(id: number, data: Partial<BibleReadingProgress>): Promise<BibleReadingProgress>;
   markDayCompleted(progressId: number, day: string): Promise<BibleReadingProgress>;
   
-  // Bible study notes
-  getBibleStudyNotes(filter: { userId?: number, groupId?: number, isPublic?: boolean }): Promise<BibleStudyNote[]>;
+  // Bible Study Note methods
+  getBibleStudyNotes(userId: number): Promise<BibleStudyNote[]>;
   getBibleStudyNote(id: number): Promise<BibleStudyNote | undefined>;
   createBibleStudyNote(note: InsertBibleStudyNote): Promise<BibleStudyNote>;
   updateBibleStudyNote(id: number, data: Partial<BibleStudyNote>): Promise<BibleStudyNote>;
   deleteBibleStudyNote(id: number): Promise<boolean>;
-  
-  // Verse memorization
-  getUserVerseMemorization(userId: number): Promise<VerseMemorization[]>;
-  getVerseMemorization(id: number): Promise<VerseMemorization | undefined>;
-  createVerseMemorization(verseMemorization: InsertVerseMemorization): Promise<VerseMemorization>;
-  updateVerseMemorization(id: number, data: Partial<VerseMemorization>): Promise<VerseMemorization>;
-  markVerseMastered(id: number): Promise<VerseMemorization>;
-  addVerseReviewDate(id: number, date: Date): Promise<VerseMemorization>;
-  deleteVerseMemorization(id: number): Promise<boolean>;
-  
-  // ========================
-  // COMMUNITY CHALLENGES
-  // ========================
-  getAllChallenges(filter?: string): Promise<Challenge[]>;
-  getChallenge(id: number): Promise<Challenge | undefined>;
-  getChallengesByCommunity(communityId: number): Promise<Challenge[]>;
-  getChallengesByGroup(groupId: number): Promise<Challenge[]>;
-  getActiveChallenges(): Promise<Challenge[]>;
-  createChallenge(challenge: InsertChallenge): Promise<Challenge>;
-  updateChallenge(id: number, data: Partial<Challenge>): Promise<Challenge>;
-  deleteChallenge(id: number): Promise<boolean>;
-  
-  // Challenge participants
-  getChallengeParticipants(challengeId: number): Promise<ChallengeParticipant[]>;
-  getUserChallenges(userId: number): Promise<{ challenge: Challenge, participant: ChallengeParticipant }[]>;
-  joinChallenge(participant: InsertChallengeParticipant): Promise<ChallengeParticipant>;
-  updateChallengeProgress(participantId: number, progress: Record<string, any>): Promise<ChallengeParticipant>;
-  completeChallenge(participantId: number): Promise<ChallengeParticipant>;
-  leaveChallenge(participantId: number): Promise<boolean>;
-  
-  // Challenge testimonials
-  getChallengeTestimonials(challengeId: number): Promise<ChallengeTestimonial[]>;
-  getUserChallengeTestimonial(challengeId: number, userId: number): Promise<ChallengeTestimonial | undefined>;
-  createChallengeTestimonial(testimonial: InsertChallengeTestimonial): Promise<ChallengeTestimonial>;
-  updateChallengeTestimonial(id: number, content: string): Promise<ChallengeTestimonial>;
-  deleteChallengeTestimonial(id: number): Promise<boolean>;
-  
-  // ========================
-  // RESOURCE SHARING
-  // ========================
-  getAllResources(filter?: string): Promise<Resource[]>;
-  getResource(id: number): Promise<Resource | undefined>;
-  getResourcesByType(type: string): Promise<Resource[]>;
-  getResourcesByTags(tags: string[]): Promise<Resource[]>;
-  createResource(resource: InsertResource): Promise<Resource>;
-  updateResource(id: number, data: Partial<Resource>): Promise<Resource>;
-  deleteResource(id: number): Promise<boolean>;
-  
-  // Resource ratings
-  getResourceRatings(resourceId: number): Promise<ResourceRating[]>;
-  getUserResourceRating(resourceId: number, userId: number): Promise<ResourceRating | undefined>;
-  createResourceRating(rating: InsertResourceRating): Promise<ResourceRating>;
-  updateResourceRating(id: number, data: Partial<ResourceRating>): Promise<ResourceRating>;
-  deleteResourceRating(id: number): Promise<boolean>;
-  
-  // Resource collections
-  getAllResourceCollections(isPublic?: boolean): Promise<ResourceCollection[]>;
-  getUserResourceCollections(userId: number): Promise<ResourceCollection[]>;
-  getResourceCollection(id: number): Promise<ResourceCollection | undefined>;
-  createResourceCollection(collection: InsertResourceCollection): Promise<ResourceCollection>;
-  updateResourceCollection(id: number, data: Partial<ResourceCollection>): Promise<ResourceCollection>;
-  deleteResourceCollection(id: number): Promise<boolean>;
-  
-  // Collection resources
-  getCollectionResources(collectionId: number): Promise<Resource[]>;
-  addResourceToCollection(collectionResource: InsertCollectionResource): Promise<CollectionResource>;
-  removeResourceFromCollection(collectionId: number, resourceId: number): Promise<boolean>;
-  
-  // ========================
-  // COMMUNITY SERVICE
-  // ========================
-  getAllServiceProjects(filter?: string): Promise<ServiceProject[]>;
-  getServiceProject(id: number): Promise<ServiceProject | undefined>;
-  getServiceProjectsByCommunity(communityId: number): Promise<ServiceProject[]>;
-  getServiceProjectsByGroup(groupId: number): Promise<ServiceProject[]>;
-  getUpcomingServiceProjects(): Promise<ServiceProject[]>;
-  createServiceProject(project: InsertServiceProject): Promise<ServiceProject>;
-  updateServiceProject(id: number, data: Partial<ServiceProject>): Promise<ServiceProject>;
-  deleteServiceProject(id: number): Promise<boolean>;
-  
-  // Service volunteers
-  getServiceVolunteers(projectId: number): Promise<ServiceVolunteer[]>;
-  getUserServiceProjects(userId: number): Promise<{ project: ServiceProject, volunteer: ServiceVolunteer }[]>;
-  signUpForProject(volunteer: InsertServiceVolunteer): Promise<ServiceVolunteer>;
-  updateVolunteerStatus(id: number, status: string, hoursServed?: string): Promise<ServiceVolunteer>;
-  removeVolunteerFromProject(id: number): Promise<boolean>;
-  
-  // Service testimonials
-  getServiceTestimonials(projectId: number): Promise<ServiceTestimonial[]>;
-  getUserServiceTestimonial(projectId: number, userId: number): Promise<ServiceTestimonial | undefined>;
-  createServiceTestimonial(testimonial: InsertServiceTestimonial): Promise<ServiceTestimonial>;
-  updateServiceTestimonial(id: number, data: Partial<ServiceTestimonial>): Promise<ServiceTestimonial>;
-  deleteServiceTestimonial(id: number): Promise<boolean>;
-  
-  // Event methods
-  getAllEvents(filter?: string): Promise<Event[]>;
-  getPublicEvents(): Promise<Event[]>;
-  getEventsNearby(latitude: string, longitude: string, radiusInKm: string): Promise<Event[]>;
-  getEvent(id: number): Promise<Event | undefined>;
-  getEventsByCommunity(communityId: number): Promise<Event[]>;
-  getEventsByGroup(groupId: number): Promise<Event[]>;
-  getEventsByUser(userId: number): Promise<Event[]>;
-  createEvent(event: InsertEvent): Promise<Event>;
-  updateEvent(id: number, eventData: Partial<Event>): Promise<Event>;
-  deleteEvent(id: number): Promise<boolean>;
-  
-  // Event RSVP methods
-  getEventRsvps(eventId: number): Promise<EventRsvp[]>;
-  getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined>;
-  createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp>;
-  updateEventRsvp(id: number, status: string): Promise<EventRsvp>;
-  
-  // ========================
-  // CONTENT RECOMMENDATIONS
-  // ========================
-  // Session store
-  sessionStore: any; // Using any to avoid typing issues with session store
-  
-  // Content Recommendation methods
-  getUserPreferences(userId: number): Promise<UserPreferences | undefined>;
-  updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
-  getAllRecommendations(userId: number): Promise<ContentRecommendation[]>;
-  getRecommendation(id: number): Promise<ContentRecommendation | undefined>;
-  addContentRecommendation(recommendation: InsertContentRecommendation): Promise<ContentRecommendation>;
-  markRecommendationAsViewed(id: number): Promise<boolean>;
-  
-  // Content retrieval for recommendations
-  getTopPosts(limit: number): Promise<Post[]>;
-  getTopMicroblogs(limit: number): Promise<Microblog[]>;
-  getUpcomingEvents(limit: number): Promise<Event[]>;
-  getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]>;
 }
 
-// ========================
-// PHASE 2: SCHEMA-COMPLIANT MAPPING HELPERS
-// ========================
-
-/**
- * Maps user data to ensure schema compliance
- * Sets required fields like isVerifiedApologeticsAnswerer (default false), 
- * updatedAt (Date or null), city/state/zipCode (null if undefined)
- */
-function mapUser(userData: Partial<User>): User {
-  const now = new Date();
-  return {
-    id: userData.id ?? 0,
-    username: userData.username ?? '',
-    email: userData.email ?? '',
-    password: userData.password ?? '',
-    displayName: userData.displayName ?? null,
-    bio: userData.bio ?? null,
-    avatarUrl: userData.avatarUrl ?? null,
-    city: userData.city ?? null,
-    state: userData.state ?? null,
-    zipCode: userData.zipCode ?? null,
-    latitude: userData.latitude ?? null,
-    longitude: userData.longitude ?? null,
-    onboardingCompleted: userData.onboardingCompleted ?? false,
-    isVerifiedApologeticsAnswerer: userData.isVerifiedApologeticsAnswerer ?? false,
-    isAdmin: userData.isAdmin ?? false,
-    createdAt: userData.createdAt ?? now,
-    updatedAt: userData.updatedAt ?? now,
-  };
-}
-
-/**
- * Maps community data to ensure schema compliance
- * Ensures city/state/latitude/longitude are null (not undefined), 
- * createdBy defaults properly, memberCount defaults to 0
- */
-function mapCommunity(communityData: Partial<Community>): Community {
-  const now = new Date();
-  return {
-    id: communityData.id ?? 0,
-    name: communityData.name ?? '',
-    description: communityData.description ?? '',
-    slug: communityData.slug ?? '',
-    iconName: communityData.iconName ?? '',
-    iconColor: communityData.iconColor ?? '',
-    interestTags: communityData.interestTags ?? null,
-    city: communityData.city ?? null,
-    state: communityData.state ?? null,
-    isLocalCommunity: communityData.isLocalCommunity ?? false,
-    latitude: communityData.latitude ?? null,
-    longitude: communityData.longitude ?? null,
-    memberCount: communityData.memberCount ?? 0,
-    isPrivate: communityData.isPrivate ?? false,
-    hasPrivateWall: communityData.hasPrivateWall ?? false,
-    hasPublicWall: communityData.hasPublicWall ?? true,
-    createdAt: communityData.createdAt ?? now,
-    createdBy: communityData.createdBy ?? null,
-  };
-}
-
-/**
- * Maps community member data to ensure schema compliance
- * Ensures role defaults to "member", joinedAt is proper Date or null
- */
-function mapCommunityMember(memberData: Partial<CommunityMember>): CommunityMember {
-  const now = new Date();
-  return {
-    id: memberData.id ?? 0,
-    communityId: memberData.communityId ?? 0,
-    userId: memberData.userId ?? 0,
-    role: memberData.role ?? 'member',
-    joinedAt: memberData.joinedAt ?? now,
-  };
-}
-
+// In-memory storage implementation
 export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private communities: Map<number, Community>;
-  private communityMembers: Map<number, CommunityMember>;
-  private communityChatRooms: Map<number, CommunityChatRoom>;
-  private chatMessages: Map<number, ChatMessage>;
-  private communityWallPosts: Map<number, CommunityWallPost>;
-  private directMessages: Map<string, Message>;
-  private posts: Map<number, Post>;
-  private comments: Map<number, Comment>;
-  private groups: Map<number, Group>;
-  private groupMembers: Map<number, GroupMember>;
-  private userPreferences: Map<number, UserPreferences>;
-  private contentRecommendations: Map<number, ContentRecommendation>;
-  private apologeticsResources: Map<number, ApologeticsResource>;
-  private prayerRequests: Map<number, PrayerRequest>;
-  private prayers: Map<number, Prayer>;
-  private events: Map<number, Event>;
-  private eventRsvps: Map<number, EventRsvp>;
+  private data = {
+    users: [] as User[],
+    communities: [] as Community[],
+    communityMembers: [] as CommunityMember[],
+    communityInvitations: [] as CommunityInvitation[],
+    communityChatRooms: [] as CommunityChatRoom[],
+    chatMessages: [] as ChatMessage[],
+    communityWallPosts: [] as CommunityWallPost[],
+    posts: [] as Post[],
+    comments: [] as Comment[],
+    groups: [] as Group[],
+    groupMembers: [] as GroupMember[],
+    apologeticsResources: [] as ApologeticsResource[],
+    prayerRequests: [] as PrayerRequest[],
+    prayers: [] as Prayer[],
+    apologeticsTopics: [] as ApologeticsTopic[],
+    apologeticsQuestions: [] as ApologeticsQuestion[],
+    apologeticsAnswers: [] as ApologeticsAnswer[],
+    events: [] as Event[],
+    eventRsvps: [] as EventRsvp[],
+    microblogs: [] as Microblog[],
+    microblogLikes: [] as MicroblogLike[],
+    livestreamerApplications: [] as LivestreamerApplication[],
+    apologistScholarApplications: [] as ApologistScholarApplication[],
+    bibleReadingPlans: [] as BibleReadingPlan[],
+    bibleReadingProgress: [] as BibleReadingProgress[],
+    bibleStudyNotes: [] as BibleStudyNote[],
+    userPreferences: [] as UserPreferences[]
+  };
   
-  private userIdCounter: number;
-  private communityIdCounter: number;
-  private communityMemberIdCounter: number;
-  private communityChatRoomIdCounter: number;
-  private chatMessageIdCounter: number;
-  private communityWallPostIdCounter: number;
-  private postIdCounter: number;
-  private commentIdCounter: number;
-  private groupIdCounter: number;
-  private groupMemberIdCounter: number;
-  private apologeticsResourceIdCounter: number;
-  private prayerRequestIdCounter: number;
-  private prayerIdCounter: number;
-  private eventIdCounter: number;
-  private eventRsvpIdCounter: number;
-  private userPreferencesIdCounter: number;
-  private contentRecommendationIdCounter: number;
+  private nextId = 1;
   
-  sessionStore: any;
-  constructor() {
-    this.users = new Map();
-    this.communities = new Map();
-    this.communityMembers = new Map();
-    this.communityChatRooms = new Map();
-    this.chatMessages = new Map();
-    this.communityWallPosts = new Map();
-    this.directMessages = new Map();
-    this.posts = new Map();
-    this.comments = new Map();
-    this.groups = new Map();
-    this.groupMembers = new Map();
-    this.prayerRequests = new Map();
-    this.prayers = new Map();
-    this.userPreferences = new Map();
-    this.contentRecommendations = new Map();
-    this.apologeticsResources = new Map();
-    this.events = new Map();
-    this.eventRsvps = new Map();
-    
-    this.userIdCounter = 1;
-    this.communityIdCounter = 1;
-    this.communityMemberIdCounter = 1;
-    this.communityChatRoomIdCounter = 1;
-    this.chatMessageIdCounter = 1;
-    this.communityWallPostIdCounter = 1;
-    this.postIdCounter = 1;
-    this.commentIdCounter = 1;
-    this.groupIdCounter = 1;
-    this.groupMemberIdCounter = 1;
-    this.apologeticsResourceIdCounter = 1;
-    this.prayerRequestIdCounter = 1;
-    this.prayerIdCounter = 1;
-    this.eventIdCounter = 1;
-    this.eventRsvpIdCounter = 1;
-    this.userPreferencesIdCounter = 1;
-    this.contentRecommendationIdCounter = 1;
-    
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000, // 24 hours
-    });
-    
-    // Initialize with sample data
-    this.initializeData();
-  }
-  private initializeData() {
-    // Sample communities
-    this.createCommunity({
-      name: "Prayer Requests",
-      description: "Share your prayer requests and pray for others in the community.",
-      slug: "prayer-requests",
-      iconName: "pray",
-      iconColor: "primary",
-      createdBy: 1
-    });
-    
-    this.createCommunity({
-      name: "Bible Study",
-      description: "Discuss and study the Bible together with fellow believers.",
-      slug: "bible-study",
-      iconName: "book",
-      iconColor: "secondary",
-      createdBy: 1
-    });
-    
-    this.createCommunity({
-      name: "Theology",
-      description: "Dive deep into theological discussions and doctrinal topics.",
-      slug: "theology",
-      iconName: "church",
-      iconColor: "accent",
-      createdBy: 1
-    });
-    
-    this.createCommunity({
-      name: "Christian Life",
-      description: "Share experiences and advice about living as a Christian in today's world.",
-      slug: "christian-life",
-      iconName: "heart",
-      iconColor: "red",
-      createdBy: 1
-    });
-    
-    // Sample apologetics resources
-    this.createApologeticsResource({
-      title: "Introduction to Christian Apologetics",
-      description: "A beginner's guide to defending the faith with reason and evidence.",
-      type: "book",
-      iconName: "book-reader",
-      url: "#"
-    });
-    
-    this.createApologeticsResource({
-      title: "Responding to Common Objections",
-      description: "Learn how to address common challenges to the Christian faith.",
-      type: "video",
-      iconName: "video",
-      url: "#"
-    });
-    
-    this.createApologeticsResource({
-      title: "Faith in a Skeptical World",
-      description: "A podcast exploring faith in a world of doubt and questioning.",
-      type: "podcast",
-      iconName: "headphones",
-      url: "#"
-    });
-  }
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    return this.data.users.find(u => u.id === id);
   }
+  
   async getUserById(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    return this.getUser(id);
   }
+  
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username.toLowerCase() === username.toLowerCase(),
-    );
+    return this.data.users.find(u => u.username === username);
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email?.toLowerCase() === email.toLowerCase(),
+    return this.data.users.find(u => u.email === email);
+  }
+  
+  async searchUsers(searchTerm: string): Promise<User[]> {
+    const term = searchTerm.toLowerCase();
+    return this.data.users.filter(u => 
+      u.username.toLowerCase().includes(term) ||
+      u.email.toLowerCase().includes(term) ||
+      u.displayName?.toLowerCase().includes(term)
     );
   }
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userIdCounter++;
-    const now = new Date();
-    const userData = { 
-      ...insertUser, 
-      id,
-      createdAt: now,
-      updatedAt: now
-    };
-    // Apply mapping function to ensure schema compliance
-    const user = mapUser(userData);
-    this.users.set(id, user);
-    return user;
+  
+  async getAllUsers(): Promise<User[]> {
+    return [...this.data.users];
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User> {
-    const user = this.users.get(id);
-    if (!user) {
-      throw new Error(`User with ID ${id} not found`);
-    }
+    const userIndex = this.data.users.findIndex(u => u.id === id);
+    if (userIndex === -1) throw new Error('User not found');
     
-    // Update user data with mapping to ensure schema compliance
-    const updatedUserData = {
-      ...user,
-      ...userData,
-      updatedAt: new Date()
-    };
-    
-    // Apply mapping function to ensure schema compliance
-    const updatedUser = mapUser(updatedUserData);
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    this.data.users[userIndex] = { ...this.data.users[userIndex], ...userData };
+    return this.data.users[userIndex];
   }
   
   async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
-    // Get existing preferences or create new ones with null check
-    let userPrefs = Array.from(this.userPreferences.values()).find(p => p.userId === userId) ?? null;
+    let userPref = this.data.userPreferences.find(p => p.userId === userId);
     
-    if (userPrefs) {
-      // Update existing preferences
-      userPrefs = {
-        ...userPrefs,
-        ...preferences,
+    if (!userPref) {
+      userPref = {
+        id: this.nextId++,
+        userId,
+        interests: null,
+        favoriteTopics: null,
+        engagementHistory: null,
+        createdAt: new Date(),
         updatedAt: new Date()
       };
-    } else {
-      // Create new preferences with proper defaults
-      const id = Math.max(0, ...Array.from(this.userPreferences.values()).map(p => p.id ?? 0)) + 1;
-      userPrefs = {
-        id,
-        userId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        interests: {},
-        favoriteTopics: {},
-        engagementHistory: {},
-        ...preferences
-      };
+      this.data.userPreferences.push(userPref);
     }
     
-    this.userPreferences.set(userPrefs.id, userPrefs);
-    return userPrefs;
+    Object.assign(userPref, preferences, { updatedAt: new Date() });
+    return userPref;
+  }
+  
+  async createUser(user: InsertUser): Promise<User> {
+    const newUser: User = {
+      id: this.nextId++,
+      ...user,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.data.users.push(newUser);
+    return newUser;
+  }
+  
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined> {
+    const user = this.data.users.find(u => u.id === userId);
+    if (user) {
+      user.password = hashedPassword;
+      return user;
+    }
+    return undefined;
+  }
+  
+  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User> {
+    const user = this.data.users.find(u => u.id === userId);
+    if (!user) throw new Error('User not found');
+    
+    user.isVerifiedApologeticsAnswerer = isVerified;
+    return user;
+  }
+  
+  async getVerifiedApologeticsAnswerers(): Promise<User[]> {
+    return this.data.users.filter(u => u.isVerifiedApologeticsAnswerer);
   }
   
   // Community methods
   async getAllCommunities(): Promise<Community[]> {
-    return Array.from(this.communities.values());
+    return [...this.data.communities];
+  }
+  
+  async searchCommunities(searchTerm: string): Promise<Community[]> {
+    const term = searchTerm.toLowerCase();
+    return this.data.communities.filter(c => 
+      c.name.toLowerCase().includes(term) ||
+      c.description.toLowerCase().includes(term)
+    );
   }
   
   async getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]> {
-    const allCommunities = Array.from(this.communities.values());
+    let communities = this.data.communities.filter(c => !c.isPrivate);
     
-    // Helper function to check if a community matches search query
-    const matchesSearch = (community: Community): boolean => {
-      if (!searchQuery || searchQuery.trim() === '') {
-        return true;
-      }
+    if (userId) {
+      const userCommunities = this.data.communityMembers
+        .filter(m => m.userId === userId)
+        .map(m => this.data.communities.find(c => c.id === m.communityId))
+        .filter(Boolean) as Community[];
       
-      const query = searchQuery.toLowerCase().trim();
-      const name = community.name.toLowerCase();
-      const description = community.description.toLowerCase();
-      const tags = community.interestTags ? community.interestTags.map(tag => tag.toLowerCase()).join(' ') : '';
-      
-      return name.includes(query) || 
-             description.includes(query) || 
-             tags.includes(query);
-    };
-    
-    if (!userId) {
-      // For unauthenticated users, only return public communities that match search
-      return allCommunities.filter(community => !community.isPrivate && matchesSearch(community));
+      // Merge and deduplicate
+      const communityMap = new Map();
+      [...communities, ...userCommunities].forEach(c => communityMap.set(c.id, c));
+      communities = Array.from(communityMap.values());
     }
     
-    // For authenticated users, return public communities + private communities they're members of (both filtered by search)
-    const result = [];
-    for (const community of allCommunities) {
-      if (!matchesSearch(community)) {
-        continue; // Skip communities that don't match search
-      }
-      
-      if (!community.isPrivate) {
-        // Always include public communities
-        result.push(community);
-      } else {
-        // For private communities, check membership
-        const isMember = await this.isCommunityMember(community.id.toString(), userId);
-        if (isMember) {
-          result.push(community);
-        }
-      }
+    if (searchQuery) {
+      const term = searchQuery.toLowerCase();
+      communities = communities.filter(c => 
+        c.name.toLowerCase().includes(term) ||
+        c.description.toLowerCase().includes(term)
+      );
     }
     
-    return result;
-  }
-  async getCommunity(id: number): Promise<Community | undefined> {
-    return this.communities.get(id);
-  }
-  async getCommunityBySlug(slug: string): Promise<Community | undefined> {
-    return Array.from(this.communities.values()).find(
-      (community) => community.slug === slug,
-    );
-  }
-  async createCommunity(insertCommunity: InsertCommunity): Promise<Community> {
-    // Check for name uniqueness
-    const existingByName = Array.from(this.communities.values())
-      .find(community => community.name.toLowerCase() === insertCommunity.name.toLowerCase());
-    if (existingByName) {
-      throw new Error('A community with this name already exists');
-    }
-    
-    // Check for slug uniqueness
-    const existingBySlug = Array.from(this.communities.values())
-      .find(community => community.slug === insertCommunity.slug);
-    if (existingBySlug) {
-      throw new Error('A community with this URL already exists');
-    }
-    
-    // Validate wall requirements - at least one wall must be enabled
-    if (!insertCommunity.hasPrivateWall && !insertCommunity.hasPublicWall) {
-      throw new Error('At least one wall (private or public) must be enabled');
-    }
-    
-    const id = this.communityIdCounter++;
-    const now = new Date();
-    const communityData = {
-      ...insertCommunity,
-      id,
-      memberCount: 0,
-      createdAt: now,
-      hasPrivateWall: insertCommunity.hasPrivateWall || false,
-      hasPublicWall: insertCommunity.hasPublicWall !== false // default to true if not specified
-    };
-    // Apply mapping function to ensure schema compliance
-    const community = mapCommunity(communityData);
-    this.communities.set(id, community);
-    
-    // Automatically add the creator as owner
-    if (insertCommunity.createdBy) {
-      await this.addCommunityMember({
-        communityId: id,
-        userId: insertCommunity.createdBy,
-        role: 'owner'
-      });
-    }
-    
-    return community;
+    return communities;
   }
   
-  async updateCommunity(id: number, communityData: Partial<Community>): Promise<Community> {
-    const community = await this.getCommunity(id);
-    if (!community) {
-      throw new Error(`Community with ID ${id} not found`);
-    }
-    
-    const updatedCommunity = {
+  async getCommunity(id: number): Promise<Community | undefined> {
+    return this.data.communities.find(c => c.id === id);
+  }
+  
+  async getCommunityBySlug(slug: string): Promise<Community | undefined> {
+    return this.data.communities.find(c => c.slug === slug);
+  }
+  
+  async createCommunity(community: InsertCommunity): Promise<Community> {
+    const newCommunity: Community = {
+      id: this.nextId++,
       ...community,
-      ...communityData
+      memberCount: 0,
+      createdAt: new Date()
     };
+    this.data.communities.push(newCommunity);
+    return newCommunity;
+  }
+  
+  async updateCommunity(id: number, community: Partial<Community>): Promise<Community> {
+    const index = this.data.communities.findIndex(c => c.id === id);
+    if (index === -1) throw new Error('Community not found');
     
-    this.communities.set(id, updatedCommunity);
-    return updatedCommunity;
+    this.data.communities[index] = { ...this.data.communities[index], ...community };
+    return this.data.communities[index];
   }
   
   async deleteCommunity(id: number): Promise<boolean> {
-    const exists = this.communities.has(id);
-    if (exists) {
-      // Delete all related data
-      // 1. Delete community members
-      const communityMembers = Array.from(this.communityMembers.values())
-        .filter(member => member.communityId === id);
-      for (const member of communityMembers) {
-        this.communityMembers.delete(member.id);
-      }
-      
-      // 2. Delete chat rooms and their messages
-      const chatRooms = Array.from(this.communityChatRooms.values())
-        .filter(room => room.communityId === id);
-      for (const room of chatRooms) {
-        const messages = Array.from(this.chatMessages.values())
-          .filter(msg => msg.chatRoomId === room.id);
-        for (const message of messages) {
-          this.chatMessages.delete(message.id);
-        }
-        this.communityChatRooms.delete(room.id);
-      }
-      
-      // 3. Delete wall posts
-      const wallPosts = Array.from(this.communityWallPosts.values())
-        .filter(post => post.communityId === id);
-      for (const post of wallPosts) {
-        this.communityWallPosts.delete(post.id);
-      }
-      
-      // 4. Delete community itself
-      this.communities.delete(id);
-    }
-    return exists;
+    const index = this.data.communities.findIndex(c => c.id === id);
+    if (index === -1) return false;
+    
+    this.data.communities.splice(index, 1);
+    return true;
   }
   
-  // Community Members methods
+  // Community invitation methods
+  async createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation> {
+    const newInvitation: CommunityInvitation = {
+      id: this.nextId++,
+      ...invitation,
+      createdAt: new Date()
+    };
+    this.data.communityInvitations.push(newInvitation);
+    return newInvitation;
+  }
+  
+  async getCommunityInvitations(communityId: number): Promise<(CommunityInvitation & { inviter: User })[]> {
+    return this.data.communityInvitations
+      .filter(i => i.communityId === communityId)
+      .map(i => ({
+        ...i,
+        inviter: this.data.users.find(u => u.id === i.inviterUserId)!
+      }));
+  }
+  
+  async getCommunityInvitationByToken(token: string): Promise<CommunityInvitation | undefined> {
+    return this.data.communityInvitations.find(i => i.token === token);
+  }
+  
+  async getCommunityInvitationById(id: number): Promise<CommunityInvitation | undefined> {
+    return this.data.communityInvitations.find(i => i.id === id);
+  }
+  
+  async updateCommunityInvitationStatus(id: number, status: string): Promise<CommunityInvitation> {
+    const invitation = this.data.communityInvitations.find(i => i.id === id);
+    if (!invitation) throw new Error('Invitation not found');
+    
+    invitation.status = status;
+    return invitation;
+  }
+  
+  async deleteCommunityInvitation(id: number): Promise<boolean> {
+    const index = this.data.communityInvitations.findIndex(i => i.id === id);
+    if (index === -1) return false;
+    
+    this.data.communityInvitations.splice(index, 1);
+    return true;
+  }
+  
+  async getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined> {
+    return this.data.communityInvitations.find(i => i.inviteeEmail === email && i.communityId === communityId);
+  }
+  
+  // Community member methods
   async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
-    const members = Array.from(this.communityMembers.values())
-      .filter(member => member.communityId === communityId);
-      
-    return Promise.all(members.map(async member => {
-      const user = await this.getUser(member.userId);
-      if (!user) {
-        throw new Error(`User with ID ${member.userId} not found`);
-      }
-      return { ...member, user };
-    }));
+    return this.data.communityMembers
+      .filter(m => m.communityId === communityId)
+      .map(m => ({
+        ...m,
+        user: this.data.users.find(u => u.id === m.userId)!
+      }));
   }
   
   async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
-    return Array.from(this.communityMembers.values())
-      .find(member => member.communityId === communityId && member.userId === userId);
+    return this.data.communityMembers.find(m => m.communityId === communityId && m.userId === userId);
   }
-
+  
   async getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]> {
-    // Get all community memberships for this user
-    const memberships = Array.from(this.communityMembers.values())
-      .filter(member => member.userId === userId);
-    
-    // Get the communities
-    const communities = [];
-    for (const membership of memberships) {
-      const community = await this.getCommunity(membership.communityId);
-      if (community) {
-        communities.push({
-          ...community,
-          memberCount: community.memberCount || 0
-        });
-      }
-    }
-    
-    return communities.sort((a, b) => b.memberCount - a.memberCount); // Sort by member count
+    const userMemberships = this.data.communityMembers.filter(m => m.userId === userId);
+    return userMemberships.map(m => {
+      const community = this.data.communities.find(c => c.id === m.communityId)!;
+      const memberCount = this.data.communityMembers.filter(mem => mem.communityId === community.id).length;
+      return { ...community, memberCount };
+    });
   }
   
   async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
-    const id = this.communityMemberIdCounter++;
-    const now = new Date();
-    const memberData = {
+    const newMember: CommunityMember = {
+      id: this.nextId++,
       ...member,
-      id,
-      joinedAt: now
+      joinedAt: new Date()
     };
-    // Apply mapping function to ensure schema compliance
-    const newMember = mapCommunityMember(memberData);
+    this.data.communityMembers.push(newMember);
     
-    this.communityMembers.set(id, newMember);
-    
-    // Update community member count
-    const community = await this.getCommunity(member.communityId);
+    // Update member count
+    const community = this.data.communities.find(c => c.id === member.communityId);
     if (community) {
-      await this.updateCommunity(community.id, { 
-        memberCount: (community.memberCount || 0) + 1 
-      });
+      community.memberCount = (community.memberCount || 0) + 1;
     }
     
     return newMember;
   }
   
   async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
-    const member = this.communityMembers.get(id);
-    if (!member) {
-      throw new Error(`Community member with ID ${id} not found`);
-    }
+    const member = this.data.communityMembers.find(m => m.id === id);
+    if (!member) throw new Error('Member not found');
     
-    const updatedMember = { ...member, role };
-    this.communityMembers.set(id, updatedMember);
-    return updatedMember;
+    member.role = role;
+    return member;
   }
   
   async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
-    const member = Array.from(this.communityMembers.values())
-      .find(m => m.communityId === communityId && m.userId === userId);
-      
-    if (member) {
-      this.communityMembers.delete(member.id);
-      
-      // Update community member count
-      const community = await this.getCommunity(communityId);
-      if (community && community.memberCount && community.memberCount > 0) {
-        await this.updateCommunity(community.id, { 
-          memberCount: community.memberCount - 1 
-        });
-      }
-      
-      return true;
+    const index = this.data.communityMembers.findIndex(m => m.communityId === communityId && m.userId === userId);
+    if (index === -1) return false;
+    
+    this.data.communityMembers.splice(index, 1);
+    
+    // Update member count
+    const community = this.data.communities.find(c => c.id === communityId);
+    if (community && community.memberCount > 0) {
+      community.memberCount--;
     }
     
-    return false;
+    return true;
   }
   
   async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
-    const member = await this.getCommunityMember(communityId, userId);
-    return !!member;
+    return this.data.communityMembers.some(m => m.communityId === communityId && m.userId === userId);
   }
   
   async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
     const member = await this.getCommunityMember(communityId, userId);
-    return !!member && member.role === 'owner';
+    return member?.role === 'owner';
   }
   
   async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
     const member = await this.getCommunityMember(communityId, userId);
-    return !!member && (member.role === 'moderator' || member.role === 'owner');
+    return member?.role === 'moderator' || member?.role === 'owner';
   }
   
-  // Community Chat Room methods
+  // Community chat room methods
   async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
-    return Array.from(this.communityChatRooms.values())
-      .filter(room => room.communityId === communityId);
+    return this.data.communityChatRooms.filter(r => r.communityId === communityId);
   }
   
   async getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
-    return Array.from(this.communityChatRooms.values())
-      .filter(room => room.communityId === communityId && !room.isPrivate);
+    return this.data.communityChatRooms.filter(r => r.communityId === communityId && !r.isPrivate);
   }
   
   async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
-    return this.communityChatRooms.get(id);
+    return this.data.communityChatRooms.find(r => r.id === id);
   }
   
   async createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom> {
-    const id = this.communityChatRoomIdCounter++;
-    const now = new Date();
-    
     const newRoom: CommunityChatRoom = {
+      id: this.nextId++,
       ...room,
-      id,
-      createdAt: now,
-      isPrivate: room.isPrivate || false
+      createdAt: new Date()
     };
-    
-    this.communityChatRooms.set(id, newRoom);
+    this.data.communityChatRooms.push(newRoom);
     return newRoom;
   }
   
   async updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
-    const room = this.communityChatRooms.get(id);
-    if (!room) {
-      throw new Error(`Community chat room with ID ${id} not found`);
-    }
+    const room = this.data.communityChatRooms.find(r => r.id === id);
+    if (!room) throw new Error('Room not found');
     
-    const updatedRoom = { ...room, ...data };
-    this.communityChatRooms.set(id, updatedRoom);
-    return updatedRoom;
+    Object.assign(room, data);
+    return room;
   }
   
   async deleteCommunityRoom(id: number): Promise<boolean> {
-    const exists = this.communityChatRooms.has(id);
+    const index = this.data.communityChatRooms.findIndex(r => r.id === id);
+    if (index === -1) return false;
     
-    if (exists) {
-      // Delete all messages in this room
-      const messages = Array.from(this.chatMessages.values())
-        .filter(msg => msg.chatRoomId === id);
-      
-      for (const message of messages) {
-        this.chatMessages.delete(message.id);
-      }
-      
-      // Delete the room itself
-      this.communityChatRooms.delete(id);
-    }
-    
-    return exists;
+    this.data.communityChatRooms.splice(index, 1);
+    return true;
   }
   
-  // Chat Messages methods
+  // Chat message methods
   async getChatMessages(roomId: number, limit?: number): Promise<(ChatMessage & { sender: User })[]> {
-    const actualLimit = limit || 50;
-    const messages = Array.from(this.chatMessages.values())
-      .filter(msg => msg.chatRoomId === roomId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) // Oldest first
-      .slice(-actualLimit); // Get the most recent messages up to the limit
-      
-    return Promise.all(messages.map(async message => {
-      const sender = await this.getUser(message.senderId);
-      if (!sender && !message.isSystemMessage) {
-        throw new Error(`User with ID ${message.senderId} not found`);
-      }
-      return { 
-        ...message, 
-        sender: sender || { 
-          id: 0, 
-          username: "System", 
-          email: "", 
-          password: "",
-          displayName: "System",
-          bio: null,
-          avatarUrl: null,
-          isVerifiedApologeticsAnswerer: null,
-          createdAt: null
-        } 
-      };
-    }));
+    const messages = this.data.chatMessages
+      .filter(m => m.chatRoomId === roomId)
+      .sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime())
+      .map(m => ({
+        ...m,
+        sender: this.data.users.find(u => u.id === m.senderId)!
+      }));
+    
+    return limit ? messages.slice(-limit) : messages;
   }
   
   async getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]> {
-    const afterMessage = this.chatMessages.get(afterId);
-    if (!afterMessage) {
-      return [];
-    }
+    const afterMessage = this.data.chatMessages.find(m => m.id === afterId);
+    if (!afterMessage) return [];
     
-    const messages = Array.from(this.chatMessages.values())
-      .filter(msg => 
-        msg.chatRoomId === roomId && 
-        msg.createdAt.getTime() > afterMessage.createdAt.getTime()
-      )
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-      
-    return Promise.all(messages.map(async message => {
-      const sender = await this.getUser(message.senderId);
-      if (!sender && !message.isSystemMessage) {
-        throw new Error(`User with ID ${message.senderId} not found`);
-      }
-      return { 
-        ...message, 
-        sender: sender || { 
-          id: 0, 
-          username: "System", 
-          email: "", 
-          password: "",
-          displayName: "System",
-          bio: null,
-          avatarUrl: null,
-          isVerifiedApologeticsAnswerer: null,
-          createdAt: null
-        } 
-      };
-    }));
+    return this.data.chatMessages
+      .filter(m => m.chatRoomId === roomId && new Date(m.createdAt!).getTime() > new Date(afterMessage.createdAt!).getTime())
+      .sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime())
+      .map(m => ({
+        ...m,
+        sender: this.data.users.find(u => u.id === m.senderId)!
+      }));
   }
   
   async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
-    const id = this.chatMessageIdCounter++;
-    const now = new Date();
-    
     const newMessage: ChatMessage = {
+      id: this.nextId++,
       ...message,
-      id,
-      createdAt: now,
-      isSystemMessage: message.isSystemMessage || false
+      createdAt: new Date()
     };
-    
-    this.chatMessages.set(id, newMessage);
+    this.data.chatMessages.push(newMessage);
     return newMessage;
   }
   
   async deleteChatMessage(id: number): Promise<boolean> {
-    const exists = this.chatMessages.has(id);
-    if (exists) {
-      this.chatMessages.delete(id);
-    }
-    return exists;
+    const index = this.data.chatMessages.findIndex(m => m.id === id);
+    if (index === -1) return false;
+    
+    this.data.chatMessages.splice(index, 1);
+    return true;
   }
   
-  // Direct Messages methods
-  async getDirectMessages(userId1: number, userId2: number): Promise<(Message & { sender: User, receiver: User })[]> {
-    const messagesArray = Array.from(this.directMessages.values())
-      .filter(msg => 
-        (msg.senderId === userId1 && msg.receiverId === userId2) ||
-        (msg.senderId === userId2 && msg.receiverId === userId1)
-      )
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-
-    const result = [];
-    for (const message of messagesArray) {
-      const sender = await this.getUser(message.senderId);
-      const receiver = await this.getUser(message.receiverId);
-      if (sender && receiver) {
-        result.push({ ...message, sender, receiver });
-      }
-    }
-    return result;
-  }
-
-  async createDirectMessage(message: InsertMessage): Promise<Message> {
-    const id = crypto.randomUUID();
-    const now = new Date();
-    
-    const newMessage: Message = {
-      ...message,
-      id,
-      createdAt: now,
-    };
-    
-    this.directMessages.set(id, newMessage);
-    return newMessage;
-  }
-
-  async getDirectMessagesForUser(userId: number): Promise<(Message & { sender: User, receiver: User })[]> {
-    const messagesArray = Array.from(this.directMessages.values())
-      .filter(msg => msg.senderId === userId || msg.receiverId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const result = [];
-    for (const message of messagesArray) {
-      const sender = await this.getUser(message.senderId);
-      const receiver = await this.getUser(message.receiverId);
-      if (sender && receiver) {
-        result.push({ ...message, sender, receiver });
-      }
-    }
-    return result;
-  }
-  
-  // Community Wall Posts methods
+  // Community wall post methods
   async getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
-    let posts = Array.from(this.communityWallPosts.values())
-      .filter(post => post.communityId === communityId);
-      
-    if (isPrivate !== undefined) {
-      posts = posts.filter(post => post.isPrivate === isPrivate);
-    }
+    const posts = this.data.communityWallPosts
+      .filter(p => p.communityId === communityId && (isPrivate === undefined || p.isPrivate === isPrivate))
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+      .map(p => ({
+        ...p,
+        author: this.data.users.find(u => u.id === p.authorId)!
+      }));
     
-    posts.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)); // Newest first
-    
-    return Promise.all(posts.map(async post => {
-      const author = await this.getUser(post.authorId);
-      if (!author) {
-        throw new Error(`User with ID ${post.authorId} not found`);
-      }
-      return { ...post, author };
-    }));
+    return posts;
   }
   
   async getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined> {
-    const post = this.communityWallPosts.get(id);
-    if (!post) {
-      return undefined;
-    }
+    const post = this.data.communityWallPosts.find(p => p.id === id);
+    if (!post) return undefined;
     
-    const author = await this.getUser(post.authorId);
-    if (!author) {
-      throw new Error(`User with ID ${post.authorId} not found`);
-    }
-    
-    return { ...post, author };
+    return {
+      ...post,
+      author: this.data.users.find(u => u.id === post.authorId)!
+    };
   }
   
   async createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost> {
-    const id = this.communityWallPostIdCounter++;
-    const now = new Date();
-    
     const newPost: CommunityWallPost = {
+      id: this.nextId++,
       ...post,
-      id,
-      createdAt: now,
-      isPrivate: post.isPrivate || false,
       likeCount: 0,
-      commentCount: 0
+      commentCount: 0,
+      createdAt: new Date()
     };
-    
-    this.communityWallPosts.set(id, newPost);
+    this.data.communityWallPosts.push(newPost);
     return newPost;
   }
   
   async updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
-    const post = this.communityWallPosts.get(id);
-    if (!post) {
-      throw new Error(`Community wall post with ID ${id} not found`);
-    }
+    const post = this.data.communityWallPosts.find(p => p.id === id);
+    if (!post) throw new Error('Post not found');
     
-    const updatedPost = { ...post, ...data };
-    this.communityWallPosts.set(id, updatedPost);
-    return updatedPost;
+    Object.assign(post, data);
+    return post;
   }
   
   async deleteCommunityWallPost(id: number): Promise<boolean> {
-    const exists = this.communityWallPosts.has(id);
-    if (exists) {
-      this.communityWallPosts.delete(id);
-    }
-    return exists;
-  }
-  // Post methods
-  async getAllPosts(filter: string = "popular"): Promise<Post[]> {
-    const posts = Array.from(this.posts.values());
+    const index = this.data.communityWallPosts.findIndex(p => p.id === id);
+    if (index === -1) return false;
     
-    if (filter === "latest") {
-      return posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    } else if (filter === "top") {
-      return posts.sort((a, b) => b.upvotes - a.upvotes);
-    } else {
-      // Default: popular - combination of recency and upvotes
-      return posts.sort((a, b) => {
-        const aScore = a.upvotes + (Date.now() - a.createdAt.getTime()) / 86400000;
-        const bScore = b.upvotes + (Date.now() - b.createdAt.getTime()) / 86400000;
+    this.data.communityWallPosts.splice(index, 1);
+    return true;
+  }
+  
+  // Post methods
+  async getAllPosts(filter?: string): Promise<Post[]> {
+    let posts = [...this.data.posts];
+    
+    if (filter === 'top') {
+      posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+    } else if (filter === 'hot') {
+      posts.sort((a, b) => {
+        const aScore = (a.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(a.createdAt!).getTime()) / (1000 * 60 * 60)));
+        const bScore = (b.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(b.createdAt!).getTime()) / (1000 * 60 * 60)));
         return bScore - aScore;
       });
+    } else {
+      posts.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
     }
+    
+    return posts;
   }
+  
   async getPost(id: number): Promise<Post | undefined> {
-    return this.posts.get(id);
+    return this.data.posts.find(p => p.id === id);
   }
-  async getPostsByCommunitySlug(communitySlug: string, filter: string = "popular"): Promise<Post[]> {
-    const community = await this.getCommunityBySlug(communitySlug);
+  
+  async getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]> {
+    // For in-memory storage, we'll need to find the community first
+    const community = this.data.communities.find(c => c.slug === communitySlug);
     if (!community) return [];
     
-    const posts = Array.from(this.posts.values()).filter(
-      (post) => post.communityId === community.id
-    );
+    let posts = this.data.posts.filter(p => p.communityId === community.id);
     
-    if (filter === "latest") {
-      return posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    } else if (filter === "top") {
-      return posts.sort((a, b) => b.upvotes - a.upvotes);
-    } else {
-      // Default: popular
-      return posts.sort((a, b) => {
-        const aScore = a.upvotes + (Date.now() - a.createdAt.getTime()) / 86400000;
-        const bScore = b.upvotes + (Date.now() - b.createdAt.getTime()) / 86400000;
+    if (filter === 'top') {
+      posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+    } else if (filter === 'hot') {
+      posts.sort((a, b) => {
+        const aScore = (a.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(a.createdAt!).getTime()) / (1000 * 60 * 60)));
+        const bScore = (b.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(b.createdAt!).getTime()) / (1000 * 60 * 60)));
         return bScore - aScore;
       });
-    }
-  }
-  async getPostsByGroupId(groupId: number, filter: string = "popular"): Promise<Post[]> {
-    const posts = Array.from(this.posts.values()).filter(
-      (post) => post.groupId === groupId
-    );
-    
-    if (filter === "latest") {
-      return posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    } else if (filter === "top") {
-      return posts.sort((a, b) => b.upvotes - a.upvotes);
     } else {
-      // Default: popular
-      return posts.sort((a, b) => {
-        const aScore = a.upvotes + (Date.now() - a.createdAt.getTime()) / 86400000;
-        const bScore = b.upvotes + (Date.now() - b.createdAt.getTime()) / 86400000;
+      posts.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+    }
+    
+    return posts;
+  }
+  
+  async getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]> {
+    let posts = this.data.posts.filter(p => p.groupId === groupId);
+    
+    if (filter === 'top') {
+      posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+    } else if (filter === 'hot') {
+      posts.sort((a, b) => {
+        const aScore = (a.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(a.createdAt!).getTime()) / (1000 * 60 * 60)));
+        const bScore = (b.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(b.createdAt!).getTime()) / (1000 * 60 * 60)));
         return bScore - aScore;
       });
+    } else {
+      posts.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
     }
+    
+    return posts;
   }
-
+  
   async getUserPosts(userId: number): Promise<any[]> {
-    const allPosts = [];
-
-    // 1. Regular forum posts
-    const forumPosts = Array.from(this.posts.values())
-      .filter(post => post.authorId === userId)
-      .map(post => ({
-        ...post,
-        type: 'forum_post',
-        title: post.title,
-        content: post.content,
-        engagementCount: post.upvotes + (post.commentCount || 0),
-        link: `/posts/${post.id}`
-      }));
-
-    // 2. Microblogs
-    const microblogs = Array.from(this.microblogs.values())
-      .filter(microblog => microblog.authorId === userId)
-      .map(microblog => ({
-        ...microblog,
-        type: 'microblog',
-        title: microblog.content.substring(0, 50) + (microblog.content.length > 50 ? '...' : ''),
-        content: microblog.content,
-        engagementCount: microblog.likeCount + (microblog.replyCount || 0),
-        link: `/microblogs/${microblog.id}`
-      }));
-
-    // 3. Prayer requests
-    const prayerRequests = Array.from(this.prayerRequests.values())
-      .filter(request => request.authorId === userId)
-      .map(request => ({
-        ...request,
-        type: 'prayer_request',
-        title: `Prayer Request: ${request.title}`,
-        content: request.description,
-        engagementCount: request.prayerCount || 0,
-        link: `/prayer-requests/${request.id}`
-      }));
-
-    // 4. Community wall posts
-    const wallPosts = Array.from(this.communityWallPosts.values())
-      .filter(post => post.authorId === userId)
-      .map(post => ({
-        ...post,
-        type: 'community_wall_post',
-        title: post.content.substring(0, 50) + (post.content.length > 50 ? '...' : ''),
-        content: post.content,
-        engagementCount: 0, // Wall posts don't have likes yet
-        link: `/communities/${post.communityId}/wall/${post.id}`
-      }));
-
-    // Combine all posts and sort by creation date
-    allPosts.push(...forumPosts, ...microblogs, ...prayerRequests, ...wallPosts);
+    const posts = this.data.posts.filter(p => p.authorId === userId);
+    const microblogs = this.data.microblogs.filter(m => m.authorId === userId);
+    const wallPosts = this.data.communityWallPosts.filter(p => p.authorId === userId);
     
-    return allPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return [
+      ...posts.map(p => ({ ...p, type: 'post' })),
+      ...microblogs.map(m => ({ ...m, type: 'microblog' })),
+      ...wallPosts.map(p => ({ ...p, type: 'wall_post' }))
+    ].sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
-  async createPost(insertPost: InsertPost): Promise<Post> {
-    const id = this.postIdCounter++;
-    const now = new Date();
-    const post: Post = {
-      ...insertPost,
-      id,
+  
+  async createPost(post: InsertPost): Promise<Post> {
+    const newPost: Post = {
+      id: this.nextId++,
+      ...post,
       upvotes: 0,
       commentCount: 0,
-      createdAt: now
+      createdAt: new Date()
     };
-    this.posts.set(id, post);
+    this.data.posts.push(newPost);
+    return newPost;
+  }
+  
+  async upvotePost(id: number): Promise<Post> {
+    const post = this.data.posts.find(p => p.id === id);
+    if (!post) throw new Error('Post not found');
+    
+    post.upvotes = (post.upvotes || 0) + 1;
     return post;
   }
-  async upvotePost(id: number): Promise<Post> {
-    const post = this.posts.get(id);
-    if (!post) {
-      throw new Error("Post not found");
-    }
-    
-    const updatedPost = { ...post, upvotes: post.upvotes + 1 };
-    this.posts.set(id, updatedPost);
-    return updatedPost;
-  }
+  
   // Comment methods
   async getComment(id: number): Promise<Comment | undefined> {
-    return this.comments.get(id);
+    return this.data.comments.find(c => c.id === id);
   }
+  
   async getCommentsByPostId(postId: number): Promise<Comment[]> {
-    return Array.from(this.comments.values())
-      .filter((comment) => comment.postId === postId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return this.data.comments
+      .filter(c => c.postId === postId)
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
-  async createComment(insertComment: InsertComment): Promise<Comment> {
-    const id = this.commentIdCounter++;
-    const now = new Date();
-    const comment: Comment = {
-      ...insertComment,
-      id,
+  
+  async createComment(comment: InsertComment): Promise<Comment> {
+    const newComment: Comment = {
+      id: this.nextId++,
+      ...comment,
       upvotes: 0,
-      createdAt: now
+      createdAt: new Date()
     };
-    this.comments.set(id, comment);
+    this.data.comments.push(newComment);
     
     // Update post comment count
-    const post = this.posts.get(insertComment.postId);
+    const post = this.data.posts.find(p => p.id === comment.postId);
     if (post) {
-      const updatedPost = { ...post, commentCount: post.commentCount + 1 };
-      this.posts.set(post.id, updatedPost);
+      post.commentCount = (post.commentCount || 0) + 1;
     }
     
+    return newComment;
+  }
+  
+  async upvoteComment(id: number): Promise<Comment> {
+    const comment = this.data.comments.find(c => c.id === id);
+    if (!comment) throw new Error('Comment not found');
+    
+    comment.upvotes = (comment.upvotes || 0) + 1;
     return comment;
   }
-  async upvoteComment(id: number): Promise<Comment> {
-    const comment = this.comments.get(id);
-    if (!comment) {
-      throw new Error("Comment not found");
-    }
-    
-    const updatedComment = { ...comment, upvotes: comment.upvotes + 1 };
-    this.comments.set(id, updatedComment);
-    return updatedComment;
-  }
+  
   // Group methods
   async getGroup(id: number): Promise<Group | undefined> {
-    return this.groups.get(id);
+    return this.data.groups.find(g => g.id === id);
   }
+  
   async getGroupsByUserId(userId: number): Promise<Group[]> {
-    // Get all group memberships for this user
-    const memberships = Array.from(this.groupMembers.values())
-      .filter((member) => member.userId === userId);
-    
-    // Get the groups
-    const groupIds = memberships.map((member) => member.groupId);
-    return Array.from(this.groups.values())
-      .filter((group) => groupIds.includes(group.id));
+    const userGroups = this.data.groupMembers.filter(m => m.userId === userId);
+    return userGroups.map(m => this.data.groups.find(g => g.id === m.groupId)!);
   }
-  async createGroup(insertGroup: InsertGroup): Promise<Group> {
-    const id = this.groupIdCounter++;
-    const now = new Date();
-    const group: Group = {
-      ...insertGroup,
-      id,
-      createdAt: now
+  
+  async createGroup(group: InsertGroup): Promise<Group> {
+    const newGroup: Group = {
+      id: this.nextId++,
+      ...group,
+      createdAt: new Date()
     };
-    this.groups.set(id, group);
-    return group;
+    this.data.groups.push(newGroup);
+    return newGroup;
   }
+  
   // Group member methods
-  async addGroupMember(insertMember: InsertGroupMember): Promise<GroupMember> {
-    const id = this.groupMemberIdCounter++;
-    const now = new Date();
-    const member: GroupMember = {
-      ...insertMember,
-      id,
-      joinedAt: now
+  async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
+    const newMember: GroupMember = {
+      id: this.nextId++,
+      ...member,
+      joinedAt: new Date()
     };
-    this.groupMembers.set(id, member);
-    return member;
+    this.data.groupMembers.push(newMember);
+    return newMember;
   }
+  
   async getGroupMembers(groupId: number): Promise<GroupMember[]> {
-    return Array.from(this.groupMembers.values())
-      .filter((member) => member.groupId === groupId);
+    return this.data.groupMembers.filter(m => m.groupId === groupId);
   }
+  
   async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
-    const member = Array.from(this.groupMembers.values()).find(
-      (m) => m.groupId === groupId && m.userId === userId
-    );
-    return member ? (member.isAdmin || false) : false;
+    const member = this.data.groupMembers.find(m => m.groupId === groupId && m.userId === userId);
+    return member?.isAdmin === true;
   }
+  
+  async isGroupMember(groupId: number, userId: number): Promise<boolean> {
+    return this.data.groupMembers.some(m => m.groupId === groupId && m.userId === userId);
+  }
+  
   // Apologetics resource methods
   async getAllApologeticsResources(): Promise<ApologeticsResource[]> {
-    return Array.from(this.apologeticsResources.values());
+    return [...this.data.apologeticsResources];
   }
+  
   async getApologeticsResource(id: number): Promise<ApologeticsResource | undefined> {
-    return this.apologeticsResources.get(id);
+    return this.data.apologeticsResources.find(r => r.id === id);
   }
-  async createApologeticsResource(insertResource: InsertApologeticsResource): Promise<ApologeticsResource> {
-    const id = this.apologeticsResourceIdCounter++;
-    const now = new Date();
-    const resource: ApologeticsResource = {
-      ...insertResource,
-      id,
-      createdAt: now
+  
+  async createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource> {
+    const newResource: ApologeticsResource = {
+      id: this.nextId++,
+      ...resource,
+      createdAt: new Date()
     };
-    this.apologeticsResources.set(id, resource);
-    return resource;
+    this.data.apologeticsResources.push(newResource);
+    return newResource;
   }
+  
   // Prayer request methods
   async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
-    return Array.from(this.prayerRequests.values())
-      .filter(prayer => prayer.privacyLevel === 'public')
-      .sort((a, b) => {
-        if (!a.createdAt || !b.createdAt) return 0;
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      });
+    return this.data.prayerRequests
+      .filter(p => p.privacyLevel === 'public')
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
   
   async getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]> {
-    let prayers = Array.from(this.prayerRequests.values());
+    let requests = [...this.data.prayerRequests];
     
-    // Apply filtering if provided
     if (filter === 'answered') {
-      prayers = prayers.filter(prayer => prayer.isAnswered === true);
+      requests = requests.filter(p => p.isAnswered);
     } else if (filter === 'unanswered') {
-      prayers = prayers.filter(prayer => prayer.isAnswered !== true);
+      requests = requests.filter(p => !p.isAnswered);
     }
     
-    return prayers.sort((a, b) => {
-      if (!a.createdAt || !b.createdAt) return 0;
-      return b.createdAt.getTime() - a.createdAt.getTime();
-    });
+    // Add description field from title for compatibility
+    return requests.map(p => ({ ...p, description: p.title }));
   }
   
   async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
-    return this.prayerRequests.get(id);
+    const request = this.data.prayerRequests.find(p => p.id === id);
+    return request ? { ...request, description: request.title } : undefined;
   }
   
   async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
-    return Array.from(this.prayerRequests.values())
-      .filter(prayer => prayer.authorId === userId)
-      .sort((a, b) => {
-        if (!a.createdAt || !b.createdAt) return 0;
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      });
+    return this.data.prayerRequests
+      .filter(p => p.authorId === userId)
+      .map(p => ({ ...p, description: p.title }));
   }
   
   async getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]> {
-    return Array.from(this.prayerRequests.values())
-      .filter(prayer => prayer.groupId === groupId)
-      .sort((a, b) => {
-        if (!a.createdAt || !b.createdAt) return 0;
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      });
+    return this.data.prayerRequests
+      .filter(p => p.groupId === groupId)
+      .map(p => ({ ...p, description: p.title }));
   }
   
   async createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest> {
-    const id = this.prayerRequestIdCounter++;
-    const createdAt = new Date();
     const newPrayer: PrayerRequest = {
-      id,
-      createdAt,
-      updatedAt: null,
+      id: this.nextId++,
+      ...prayer,
       prayerCount: 0,
       isAnswered: false,
       answeredDescription: null,
-      ...prayer
+      createdAt: new Date(),
+      updatedAt: null
     };
-    this.prayerRequests.set(id, newPrayer);
+    this.data.prayerRequests.push(newPrayer);
     return newPrayer;
   }
   
-  async updatePrayerRequest(id: number, data: Partial<PrayerRequest>): Promise<PrayerRequest> {
-    const prayer = this.prayerRequests.get(id);
-    if (!prayer) {
-      throw new Error(`Prayer request with ID ${id} not found`);
-    }
+  async updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest> {
+    const request = this.data.prayerRequests.find(p => p.id === id);
+    if (!request) throw new Error('Prayer request not found');
     
-    const updatedPrayer = {
-      ...prayer,
-      ...data,
-      updatedAt: new Date()
-    };
-    
-    this.prayerRequests.set(id, updatedPrayer);
-    return updatedPrayer;
+    Object.assign(request, prayer, { updatedAt: new Date() });
+    return request;
   }
   
-  async markPrayerRequestAsAnswered(id: number, answeredDescription: string): Promise<PrayerRequest> {
-    const prayer = this.prayerRequests.get(id);
-    if (!prayer) {
-      throw new Error(`Prayer request with ID ${id} not found`);
-    }
+  async markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest> {
+    const request = this.data.prayerRequests.find(p => p.id === id);
+    if (!request) throw new Error('Prayer request not found');
     
-    const updatedPrayer = {
-      ...prayer,
-      isAnswered: true,
-      answeredDescription,
-      updatedAt: new Date()
-    };
+    request.isAnswered = true;
+    request.answeredDescription = description;
+    request.updatedAt = new Date();
     
-    this.prayerRequests.set(id, updatedPrayer);
-    return updatedPrayer;
+    return request;
   }
   
   async deletePrayerRequest(id: number): Promise<boolean> {
-    return this.prayerRequests.delete(id);
+    const index = this.data.prayerRequests.findIndex(p => p.id === id);
+    if (index === -1) return false;
+    
+    this.data.prayerRequests.splice(index, 1);
+    return true;
   }
   
+  // Prayer methods
   async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
-    const id = this.prayerIdCounter++;
-    const createdAt = new Date();
     const newPrayer: Prayer = {
-      id,
-      createdAt,
-      ...prayer
+      id: this.nextId++,
+      ...prayer,
+      createdAt: new Date()
     };
+    this.data.prayers.push(newPrayer);
     
-    this.prayers.set(id, newPrayer);
-    
-    // Update the prayer count on the request
-    const prayerRequest = this.prayerRequests.get(prayer.prayerRequestId);
-    if (prayerRequest) {
-      const prayerCount = (prayerRequest.prayerCount || 0) + 1;
-      this.prayerRequests.set(prayerRequest.id, {
-        ...prayerRequest,
-        prayerCount
-      });
+    // Increment prayer count on the request
+    const request = this.data.prayerRequests.find(p => p.id === prayer.prayerRequestId);
+    if (request) {
+      request.prayerCount = (request.prayerCount || 0) + 1;
     }
     
     return newPrayer;
   }
   
   async getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]> {
-    return Array.from(this.prayers.values())
-      .filter(prayer => prayer.prayerRequestId === prayerRequestId)
-      .sort((a, b) => {
-        if (!a.createdAt || !b.createdAt) return 0;
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      });
+    return this.data.prayers.filter(p => p.prayerRequestId === prayerRequestId);
   }
   
   async getUserPrayedRequests(userId: number): Promise<number[]> {
-    return Array.from(this.prayers.values())
-      .filter(prayer => prayer.userId === userId)
-      .map(prayer => prayer.prayerRequestId);
-  }
-  // Helper method to check if a user is member of a group
-  async isGroupMember(userId: number, groupId: number): Promise<boolean> {
-    return Array.from(this.groupMembers.values())
-      .some(member => member.userId === userId && member.groupId === groupId);
-  }
-  // ========================
-  // EVENT METHODS
-  // ========================
-  async getAllEvents(filter?: string): Promise<Event[]> {
-    let events = Array.from(this.events.values());
-    
-    if (filter) {
-      const lowerFilter = filter.toLowerCase();
-      events = events.filter(event => 
-        event.title.toLowerCase().includes(lowerFilter) || 
-        event.description.toLowerCase().includes(lowerFilter) ||
-        (event.location && event.location.toLowerCase().includes(lowerFilter))
-      );
-    }
-    
-    // Sort events by date, most recent first
-    return events.sort((a, b) => {
-      const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
-      const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
-      return dateA.getTime() - dateB.getTime();
-    });
-  }
-  async getPublicEvents(): Promise<Event[]> {
-    const events = Array.from(this.events.values());
-    
-    // Filter out only public events
-    const publicEvents = events.filter(event => event.isPublic);
-    
-    // Sort events by date, most recent first
-    return publicEvents.sort((a, b) => {
-      const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
-      const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
-      return dateA.getTime() - dateB.getTime();
-    });
-  }
-  async getEventsNearby(latitude: string, longitude: string, radiusInKm: string): Promise<Event[]> {
-    const events = await this.getPublicEvents();
-    
-    if (!latitude || !longitude) {
-      return events;
-    }
-    
-    const userLat = parseFloat(latitude);
-    const userLng = parseFloat(longitude);
-    
-    // Filter events that have location coordinates
-    return events.filter(event => {
-      if (!event.latitude || !event.longitude) return false;
-      
-      const eventLat = parseFloat(event.latitude);
-      const eventLng = parseFloat(event.longitude);
-      
-      // Calculate distance using the Haversine formula
-      const distance = this.calculateDistance(userLat, userLng, eventLat, eventLng);
-      
-      // Return true if the event is within the specified radius
-      return distance <= parseFloat(radiusInKm);
-    });
+    const userPrayers = this.data.prayers.filter(p => p.userId === userId);
+    return [...new Set(userPrayers.map(p => p.prayerRequestId))];
   }
   
-  // Helper function to calculate distance between two coordinates using Haversine formula
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371; // Radius of the earth in km
-    const dLat = this.deg2rad(lat2 - lat1);
-    const dLon = this.deg2rad(lon2 - lon1);
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2); 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    const distance = R * c; // Distance in km
-    return distance;
+  // Apologetics Q&A methods
+  async getAllApologeticsTopics(): Promise<ApologeticsTopic[]> {
+    return [...this.data.apologeticsTopics];
   }
   
-  private deg2rad(deg: number): number {
-    return deg * (Math.PI/180);
-  }
-  async getEvent(id: number): Promise<Event | undefined> {
-    return this.events.get(id);
-  }
-  async getEventsByCommunity(communityId: number): Promise<Event[]> {
-    const events = Array.from(this.events.values());
-    return events
-      .filter(event => event.communityId === communityId)
-      .sort((a, b) => {
-        const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
-        const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
-        return dateA.getTime() - dateB.getTime();
-      });
-  }
-  async getEventsByGroup(groupId: number): Promise<Event[]> {
-    const events = Array.from(this.events.values());
-    return events
-      .filter(event => event.groupId === groupId)
-      .sort((a, b) => {
-        const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
-        const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
-        return dateA.getTime() - dateB.getTime();
-      });
-  }
-  async getEventsByUser(userId: number): Promise<Event[]> {
-    const events = Array.from(this.events.values());
-    return events
-      .filter(event => event.creatorId === userId)
-      .sort((a, b) => {
-        const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
-        const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
-        return dateA.getTime() - dateB.getTime();
-      });
+  async getApologeticsTopic(id: number): Promise<ApologeticsTopic | undefined> {
+    return this.data.apologeticsTopics.find(t => t.id === id);
   }
   
-  async getPublicEvents(): Promise<Event[]> {
-    const events = Array.from(this.events.values());
-    const now = new Date();
-    
-    return events
-      .filter(event => {
-        // Public events are those with no groupId (open to all) and are upcoming
-        const eventDate = new Date(`${event.eventDate.toString()}T${event.endTime.toString()}`);
-        return !event.groupId && eventDate >= now;
-      })
-      .sort((a, b) => {
-        const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
-        const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
-        return dateA.getTime() - dateB.getTime();
-      });
+  async getApologeticsTopicBySlug(slug: string): Promise<ApologeticsTopic | undefined> {
+    return this.data.apologeticsTopics.find(t => t.slug === slug);
   }
-  async createEvent(event: InsertEvent): Promise<Event> {
-    const id = this.eventIdCounter++;
-    const newEvent: Event = {
-      ...event,
-      id,
-      createdAt: new Date(),
+  
+  async createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic> {
+    const newTopic: ApologeticsTopic = {
+      id: this.nextId++,
+      ...topic,
+      questionCount: 0,
+      createdAt: new Date()
     };
+    this.data.apologeticsTopics.push(newTopic);
+    return newTopic;
+  }
+  
+  async getAllApologeticsQuestions(filterByStatus?: string): Promise<ApologeticsQuestion[]> {
+    let questions = [...this.data.apologeticsQuestions];
     
-    this.events.set(id, newEvent);
+    if (filterByStatus) {
+      questions = questions.filter(q => q.status === filterByStatus);
+    }
+    
+    return questions.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+  }
+  
+  async getApologeticsQuestion(id: number): Promise<ApologeticsQuestion | undefined> {
+    return this.data.apologeticsQuestions.find(q => q.id === id);
+  }
+  
+  async getApologeticsQuestionsByTopic(topicId: number): Promise<ApologeticsQuestion[]> {
+    return this.data.apologeticsQuestions.filter(q => q.topicId === topicId);
+  }
+  
+  async createApologeticsQuestion(question: InsertApologeticsQuestion): Promise<ApologeticsQuestion> {
+    const newQuestion: ApologeticsQuestion = {
+      id: this.nextId++,
+      ...question,
+      views: 0,
+      createdAt: new Date()
+    };
+    this.data.apologeticsQuestions.push(newQuestion);
+    
+    // Update topic question count
+    const topic = this.data.apologeticsTopics.find(t => t.id === question.topicId);
+    if (topic) {
+      topic.questionCount = (topic.questionCount || 0) + 1;
+    }
+    
+    return newQuestion;
+  }
+  
+  async updateApologeticsQuestionStatus(id: number, status: string): Promise<ApologeticsQuestion> {
+    const question = this.data.apologeticsQuestions.find(q => q.id === id);
+    if (!question) throw new Error('Question not found');
+    
+    question.status = status;
+    return question;
+  }
+  
+  async getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]> {
+    return this.data.apologeticsAnswers
+      .filter(a => a.questionId === questionId)
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+  }
+  
+  async createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer> {
+    const newAnswer: ApologeticsAnswer = {
+      id: this.nextId++,
+      ...answer,
+      upvotes: 0,
+      downvotes: 0,
+      createdAt: new Date()
+    };
+    this.data.apologeticsAnswers.push(newAnswer);
+    return newAnswer;
+  }
+  
+  // Event methods
+  async getAllEvents(): Promise<Event[]> {
+    return [...this.data.events].sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+  }
+  
+  async getEvent(id: number): Promise<Event | undefined> {
+    return this.data.events.find(e => e.id === id);
+  }
+  
+  async getUserEvents(userId: number): Promise<Event[]> {
+    return this.data.events.filter(e => e.creatorId === userId);
+  }
+  
+  async createEvent(event: InsertEvent): Promise<Event> {
+    const newEvent: Event = {
+      id: this.nextId++,
+      ...event,
+      rsvpCount: 0,
+      createdAt: new Date()
+    };
+    this.data.events.push(newEvent);
     return newEvent;
   }
-  async updateEvent(id: number, eventData: Partial<Event>): Promise<Event> {
-    const event = await this.getEvent(id);
-    if (!event) {
-      throw new Error(`Event with id ${id} not found`);
-    }
+  
+  async updateEvent(id: number, data: Partial<Event>): Promise<Event> {
+    const event = this.data.events.find(e => e.id === id);
+    if (!event) throw new Error('Event not found');
     
-    const updatedEvent = { ...event, ...eventData };
-    this.events.set(id, updatedEvent);
-    
-    return updatedEvent;
+    Object.assign(event, data);
+    return event;
   }
+  
   async deleteEvent(id: number): Promise<boolean> {
-    const exists = this.events.has(id);
-    if (!exists) {
-      return false;
+    const index = this.data.events.findIndex(e => e.id === id);
+    if (index === -1) return false;
+    
+    this.data.events.splice(index, 1);
+    return true;
+  }
+  
+  // Event RSVP methods
+  async createEventRSVP(rsvp: InsertEventRsvp): Promise<EventRsvp> {
+    const newRsvp: EventRsvp = {
+      id: this.nextId++,
+      ...rsvp,
+      createdAt: new Date()
+    };
+    this.data.eventRsvps.push(newRsvp);
+    
+    // Update event RSVP count
+    const event = this.data.events.find(e => e.id === rsvp.eventId);
+    if (event) {
+      event.rsvpCount = (event.rsvpCount || 0) + 1;
     }
     
-    this.events.delete(id);
+    return newRsvp;
+  }
+  
+  async getEventRSVPs(eventId: number): Promise<EventRsvp[]> {
+    return this.data.eventRsvps.filter(r => r.eventId === eventId);
+  }
+  
+  async getUserEventRSVP(eventId: number, userId: number): Promise<EventRsvp | undefined> {
+    return this.data.eventRsvps.find(r => r.eventId === eventId && r.userId === userId);
+  }
+  
+  async updateEventRSVP(id: number, status: string): Promise<EventRsvp> {
+    const rsvp = this.data.eventRsvps.find(r => r.id === id);
+    if (!rsvp) throw new Error('RSVP not found');
     
-    // Delete associated RSVPs as well
-    const rsvps = Array.from(this.eventRsvps.values());
-    const eventRsvps = rsvps.filter(rsvp => rsvp.eventId === id);
+    rsvp.status = status;
+    return rsvp;
+  }
+  
+  async deleteEventRSVP(id: number): Promise<boolean> {
+    const index = this.data.eventRsvps.findIndex(r => r.id === id);
+    if (index === -1) return false;
     
-    for (const rsvp of eventRsvps) {
-      this.eventRsvps.delete(rsvp.id);
+    const rsvp = this.data.eventRsvps[index];
+    this.data.eventRsvps.splice(index, 1);
+    
+    // Update event RSVP count
+    const event = this.data.events.find(e => e.id === rsvp.eventId);
+    if (event && event.rsvpCount > 0) {
+      event.rsvpCount--;
     }
     
     return true;
   }
-  // Event RSVP methods
-  async getEventRsvps(eventId: number): Promise<EventRsvp[]> {
-    const rsvps = Array.from(this.eventRsvps.values());
-    return rsvps.filter(rsvp => rsvp.eventId === eventId);
+  
+  // Microblog methods
+  async getAllMicroblogs(): Promise<Microblog[]> {
+    return [...this.data.microblogs].sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
-  async getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined> {
-    const rsvps = Array.from(this.eventRsvps.values());
-    return rsvps.find(rsvp => rsvp.eventId === eventId && rsvp.userId === userId);
+  
+  async getMicroblog(id: number): Promise<Microblog | undefined> {
+    return this.data.microblogs.find(m => m.id === id);
   }
-  async createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp> {
-    const id = this.eventRsvpIdCounter++;
-    const newRsvp: EventRsvp = {
-      ...rsvp,
-      id,
-      createdAt: new Date(),
+  
+  async getUserMicroblogs(userId: number): Promise<Microblog[]> {
+    return this.data.microblogs
+      .filter(m => m.authorId === userId)
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+  }
+  
+  async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
+    const newMicroblog: Microblog = {
+      id: this.nextId++,
+      ...microblog,
+      likeCount: 0,
+      createdAt: new Date()
     };
-    
-    this.eventRsvps.set(id, newRsvp);
-    return newRsvp;
-  }
-  async updateEventRsvp(id: number, status: string): Promise<EventRsvp> {
-    const rsvp = this.eventRsvps.get(id);
-    if (!rsvp) {
-      throw new Error(`RSVP with id ${id} not found`);
-    }
-    
-    const updatedRsvp = { ...rsvp, status };
-    this.eventRsvps.set(id, updatedRsvp);
-    
-    return updatedRsvp;
+    this.data.microblogs.push(newMicroblog);
+    return newMicroblog;
   }
   
-  // ========================
-  // BIBLE STUDY TOOLS IMPLEMENTATION
-  // ========================
-  
-  // Bible Reading Plans
-  private bibleReadingPlans = new Map<number, BibleReadingPlan>();
-  private bibleReadingPlanIdCounter = 1;
-  
-  async getAllBibleReadingPlans(filter?: string): Promise<BibleReadingPlan[]> {
-    const plans = Array.from(this.bibleReadingPlans.values());
+  async updateMicroblog(id: number, data: Partial<Microblog>): Promise<Microblog> {
+    const microblog = this.data.microblogs.find(m => m.id === id);
+    if (!microblog) throw new Error('Microblog not found');
     
-    if (filter === 'public') {
-      return plans.filter(plan => plan.isPublic);
-    } else if (filter === 'private') {
-      return plans.filter(plan => !plan.isPublic);
+    Object.assign(microblog, data);
+    return microblog;
+  }
+  
+  async deleteMicroblog(id: number): Promise<boolean> {
+    const index = this.data.microblogs.findIndex(m => m.id === id);
+    if (index === -1) return false;
+    
+    this.data.microblogs.splice(index, 1);
+    return true;
+  }
+  
+  // Microblog like methods
+  async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
+    // Check if already liked
+    const existingLike = this.data.microblogLikes.find(l => l.microblogId === microblogId && l.userId === userId);
+    if (existingLike) {
+      throw new Error('Already liked');
     }
     
-    return plans;
+    const newLike: MicroblogLike = {
+      id: this.nextId++,
+      microblogId,
+      userId,
+      createdAt: new Date()
+    };
+    this.data.microblogLikes.push(newLike);
+    
+    // Update microblog like count
+    const microblog = this.data.microblogs.find(m => m.id === microblogId);
+    if (microblog) {
+      microblog.likeCount = (microblog.likeCount || 0) + 1;
+    }
+    
+    return newLike;
+  }
+  
+  async unlikeMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    const index = this.data.microblogLikes.findIndex(l => l.microblogId === microblogId && l.userId === userId);
+    if (index === -1) return false;
+    
+    this.data.microblogLikes.splice(index, 1);
+    
+    // Update microblog like count
+    const microblog = this.data.microblogs.find(m => m.id === microblogId);
+    if (microblog && microblog.likeCount > 0) {
+      microblog.likeCount--;
+    }
+    
+    return true;
+  }
+  
+  async getUserLikedMicroblogs(userId: number): Promise<Microblog[]> {
+    const userLikes = this.data.microblogLikes.filter(l => l.userId === userId);
+    return userLikes.map(l => this.data.microblogs.find(m => m.id === l.microblogId)!);
+  }
+  
+  // Livestreamer application methods
+  async getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined> {
+    return this.data.livestreamerApplications.find(a => a.userId === userId);
+  }
+  
+  async getPendingLivestreamerApplications(): Promise<LivestreamerApplication[]> {
+    return this.data.livestreamerApplications.filter(a => a.status === 'pending');
+  }
+  
+  async createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication> {
+    const newApplication: LivestreamerApplication = {
+      id: this.nextId++,
+      ...application,
+      status: 'pending',
+      reviewNotes: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      submittedAt: new Date()
+    };
+    this.data.livestreamerApplications.push(newApplication);
+    return newApplication;
+  }
+  
+  async updateLivestreamerApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<LivestreamerApplication> {
+    const application = this.data.livestreamerApplications.find(a => a.id === id);
+    if (!application) throw new Error('Application not found');
+    
+    application.status = status;
+    application.reviewNotes = reviewNotes;
+    application.reviewedBy = reviewerId;
+    application.reviewedAt = new Date();
+    
+    return application;
+  }
+  
+  async isApprovedLivestreamer(userId: number): Promise<boolean> {
+    const application = this.data.livestreamerApplications.find(a => a.userId === userId && a.status === 'approved');
+    return !!application;
+  }
+  
+  // Apologist Scholar application methods
+  async getApologistScholarApplicationByUserId(userId: number): Promise<ApologistScholarApplication | undefined> {
+    return this.data.apologistScholarApplications.find(a => a.userId === userId);
+  }
+  
+  async getPendingApologistScholarApplications(): Promise<ApologistScholarApplication[]> {
+    return this.data.apologistScholarApplications.filter(a => a.status === 'pending');
+  }
+  
+  async createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication> {
+    const newApplication: ApologistScholarApplication = {
+      id: this.nextId++,
+      ...application,
+      status: 'pending',
+      reviewNotes: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      submittedAt: new Date()
+    };
+    this.data.apologistScholarApplications.push(newApplication);
+    return newApplication;
+  }
+  
+  async updateApologistScholarApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<ApologistScholarApplication> {
+    const application = this.data.apologistScholarApplications.find(a => a.id === id);
+    if (!application) throw new Error('Application not found');
+    
+    application.status = status;
+    application.reviewNotes = reviewNotes;
+    application.reviewedBy = reviewerId;
+    application.reviewedAt = new Date();
+    
+    return application;
+  }
+  
+  // Bible Reading Plan methods
+  async getAllBibleReadingPlans(): Promise<BibleReadingPlan[]> {
+    return [...this.data.bibleReadingPlans];
   }
   
   async getBibleReadingPlan(id: number): Promise<BibleReadingPlan | undefined> {
-    return this.bibleReadingPlans.get(id);
-  }
-  
-  async getGroupBibleReadingPlans(groupId: number): Promise<BibleReadingPlan[]> {
-    const plans = Array.from(this.bibleReadingPlans.values());
-    return plans.filter(plan => plan.groupId === groupId);
-  }
-  
-  async getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]> {
-    const plans = Array.from(this.bibleReadingPlans.values());
-    return plans.filter(plan => plan.creatorId === userId);
+    return this.data.bibleReadingPlans.find(p => p.id === id);
   }
   
   async createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan> {
-    const id = this.bibleReadingPlanIdCounter++;
     const newPlan: BibleReadingPlan = {
+      id: this.nextId++,
       ...plan,
-      id,
-      createdAt: new Date(),
+      createdAt: new Date()
     };
-    
-    this.bibleReadingPlans.set(id, newPlan);
+    this.data.bibleReadingPlans.push(newPlan);
     return newPlan;
   }
   
-  async updateBibleReadingPlan(id: number, data: Partial<BibleReadingPlan>): Promise<BibleReadingPlan> {
-    const plan = this.bibleReadingPlans.get(id);
-    if (!plan) {
-      throw new Error(`Bible reading plan with id ${id} not found`);
-    }
-    
-    const updatedPlan = { ...plan, ...data };
-    this.bibleReadingPlans.set(id, updatedPlan);
-    
-    return updatedPlan;
-  }
-  
-  async deleteBibleReadingPlan(id: number): Promise<boolean> {
-    const exists = this.bibleReadingPlans.has(id);
-    if (!exists) {
-      return false;
-    }
-    
-    this.bibleReadingPlans.delete(id);
-    
-    // Also delete associated progress
-    const allProgress = Array.from(this.bibleReadingProgress.values());
-    const planProgress = allProgress.filter(p => p.planId === id);
-    
-    for (const progress of planProgress) {
-      this.bibleReadingProgress.delete(progress.id);
-    }
-    
-    return true;
-  }
-  
-  // Bible Reading Progress
-  private bibleReadingProgress = new Map<number, BibleReadingProgress>();
-  private bibleReadingProgressIdCounter = 1;
-  
-  async getBibleReadingProgress(userId: number, planId: string): Promise<BibleReadingProgress | undefined> {
-    const allProgress = Array.from(this.bibleReadingProgress.values());
-    return allProgress.find(p => p.userId === userId && p.planId === planId);
-  }
-  
-  async getUserReadingProgress(userId: number): Promise<BibleReadingProgress[]> {
-    const allProgress = Array.from(this.bibleReadingProgress.values());
-    return allProgress.filter(p => p.userId === userId);
+  // Bible Reading Progress methods
+  async getBibleReadingProgress(userId: number, planId: number): Promise<BibleReadingProgress | undefined> {
+    return this.data.bibleReadingProgress.find(p => p.userId === userId && p.planId === planId);
   }
   
   async createBibleReadingProgress(progress: InsertBibleReadingProgress): Promise<BibleReadingProgress> {
-    const id = this.bibleReadingProgressIdCounter++;
     const newProgress: BibleReadingProgress = {
+      id: this.nextId++,
       ...progress,
-      id,
       currentDay: 1,
       completedDays: [],
       startedAt: new Date(),
-      completedAt: null,
+      completedAt: null
     };
-    
-    this.bibleReadingProgress.set(id, newProgress);
+    this.data.bibleReadingProgress.push(newProgress);
     return newProgress;
   }
   
-  async updateBibleReadingProgress(id: number, data: Partial<BibleReadingProgress>): Promise<BibleReadingProgress> {
-    const progress = this.bibleReadingProgress.get(id);
-    if (!progress) {
-      throw new Error(`Bible reading progress with id ${id} not found`);
-    }
+  async markDayCompleted(progressId: number, day: string): Promise<BibleReadingProgress> {
+    const progress = this.data.bibleReadingProgress.find(p => p.id === progressId);
+    if (!progress) throw new Error('Progress not found');
     
-    const updatedProgress = { ...progress, ...data };
-    this.bibleReadingProgress.set(id, updatedProgress);
-    
-    return updatedProgress;
-  }
-  
-  async markDayCompleted(progressId: string, day: string): Promise<BibleReadingProgress> {
-    const progress = this.bibleReadingProgress.get(progressId);
-    if (!progress) {
-      throw new Error(`Bible reading progress with id ${progressId} not found`);
-    }
-    
-    // Make sure we don't add duplicate days
-    if (!progress.completedDays.includes(day)) {
-      const completedDays = [...progress.completedDays, day];
-      completedDays.sort((a, b) => a - b); // Keep array sorted
-      
-      // Get the reading plan
-      const plan = await this.getBibleReadingPlan(progress.planId);
-      if (!plan) {
-        throw new Error(`Reading plan with id ${progress.planId} not found`);
-      }
-      
-      // Check if all days are completed
-      let completedAt = progress.completedAt;
-      let currentDay = progress.currentDay;
-      
-      if (completedDays.length >= plan.duration) {
-        completedAt = new Date();
-      } else {
-        // Set current day to the next uncompleted day
-        for (let i = 1; i <= plan.duration; i++) {
-          if (!completedDays.includes(i)) {
-            currentDay = i;
-            break;
-          }
-        }
-      }
-      
-      const updatedProgress = { 
-        ...progress, 
-        completedDays, 
-        completedAt,
-        currentDay 
-      };
-      
-      this.bibleReadingProgress.set(progressId, updatedProgress);
-      return updatedProgress;
+    const completedDays = Array.isArray(progress.completedDays) ? progress.completedDays : [];
+    if (!completedDays.includes(day)) {
+      completedDays.push(day);
+      progress.completedDays = completedDays;
+      progress.currentDay = (progress.currentDay || 1) + 1;
     }
     
     return progress;
   }
   
-  // Bible Study Notes
-  private bibleStudyNotes = new Map<number, BibleStudyNote>();
-  private bibleStudyNoteIdCounter = 1;
-  
-  async getBibleStudyNotes(filter: { userId?: string, groupId?: string, isPublic?: boolean }): Promise<BibleStudyNote[]> {
-    const notes = Array.from(this.bibleStudyNotes.values());
-    
-    return notes.filter(note => {
-      if (filter.userId !== undefined && note.userId !== filter.userId) {
-        return false;
-      }
-      
-      if (filter.groupId !== undefined && note.groupId !== filter.groupId) {
-        return false;
-      }
-      
-      if (filter.isPublic !== undefined && note.isPublic !== filter.isPublic) {
-        return false;
-      }
-      
-      return true;
-    }).sort((a, b) => {
-      if (!a.createdAt || !b.createdAt) return 0;
-      return b.createdAt.getTime() - a.createdAt.getTime(); // most recent first
-    });
+  // Bible Study Note methods
+  async getBibleStudyNotes(userId: number): Promise<BibleStudyNote[]> {
+    return this.data.bibleStudyNotes.filter(n => n.userId === userId);
   }
   
   async getBibleStudyNote(id: number): Promise<BibleStudyNote | undefined> {
-    return this.bibleStudyNotes.get(id);
+    return this.data.bibleStudyNotes.find(n => n.id === id);
   }
   
   async createBibleStudyNote(note: InsertBibleStudyNote): Promise<BibleStudyNote> {
-    const id = this.bibleStudyNoteIdCounter++;
-    const now = new Date();
     const newNote: BibleStudyNote = {
+      id: this.nextId++,
       ...note,
-      id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
-    
-    this.bibleStudyNotes.set(id, newNote);
+    this.data.bibleStudyNotes.push(newNote);
     return newNote;
   }
   
   async updateBibleStudyNote(id: number, data: Partial<BibleStudyNote>): Promise<BibleStudyNote> {
-    const note = this.bibleStudyNotes.get(id);
-    if (!note) {
-      throw new Error(`Bible study note with id ${id} not found`);
-    }
+    const note = this.data.bibleStudyNotes.find(n => n.id === id);
+    if (!note) throw new Error('Note not found');
     
-    const updatedNote = { 
-      ...note, 
-      ...data,
-      updatedAt: new Date()
-    };
-    
-    this.bibleStudyNotes.set(id, updatedNote);
-    return updatedNote;
+    Object.assign(note, data, { updatedAt: new Date() });
+    return note;
   }
   
   async deleteBibleStudyNote(id: number): Promise<boolean> {
-    const exists = this.bibleStudyNotes.has(id);
-    if (!exists) {
-      return false;
-    }
+    const index = this.data.bibleStudyNotes.findIndex(n => n.id === id);
+    if (index === -1) return false;
     
-    this.bibleStudyNotes.delete(id);
-    return true;
-  }
-  
-  // Verse Memorization
-  private verseMemorization = new Map<number, VerseMemorization>();
-  private verseMemorizationIdCounter = 1;
-  
-  async getUserVerseMemorization(userId: number): Promise<VerseMemorization[]> {
-    const verses = Array.from(this.verseMemorization.values());
-    return verses
-      .filter(verse => verse.userId === userId)
-      .sort((a, b) => {
-        if (!a.startDate || !b.startDate) return 0;
-        return b.startDate.getTime() - a.startDate.getTime();
-      });
-  }
-  
-  async getVerseMemorization(id: number): Promise<VerseMemorization | undefined> {
-    return this.verseMemorization.get(id);
-  }
-  
-  async createVerseMemorization(verse: InsertVerseMemorization): Promise<VerseMemorization> {
-    const id = this.verseMemorizationIdCounter++;
-    const newVerse: VerseMemorization = {
-      ...verse,
-      id,
-      startDate: new Date(),
-      masteredDate: null,
-      reviewDates: [],
-    };
-    
-    this.verseMemorization.set(id, newVerse);
-    return newVerse;
-  }
-  
-  async updateVerseMemorization(id: number, data: Partial<VerseMemorization>): Promise<VerseMemorization> {
-    const verse = this.verseMemorization.get(id);
-    if (!verse) {
-      throw new Error(`Verse memorization with id ${id} not found`);
-    }
-    
-    const updatedVerse = { ...verse, ...data };
-    this.verseMemorization.set(id, updatedVerse);
-    
-    return updatedVerse;
-  }
-  
-  async markVerseMastered(id: number): Promise<VerseMemorization> {
-    const verse = this.verseMemorization.get(id);
-    if (!verse) {
-      throw new Error(`Verse memorization with id ${id} not found`);
-    }
-    
-    const updatedVerse = { 
-      ...verse, 
-      masteredDate: new Date() 
-    };
-    
-    this.verseMemorization.set(id, updatedVerse);
-    return updatedVerse;
-  }
-  
-  async addVerseReviewDate(id: number): Promise<VerseMemorization> {
-    const verse = this.verseMemorization.get(id);
-    if (!verse) {
-      throw new Error(`Verse memorization with id ${id} not found`);
-    }
-    
-    const reviewDates = [...verse.reviewDates, new Date()];
-    
-    const updatedVerse = { ...verse, reviewDates };
-    this.verseMemorization.set(id, updatedVerse);
-    
-    return updatedVerse;
-  }
-  
-  async deleteVerseMemorization(id: number): Promise<boolean> {
-    const exists = this.verseMemorization.has(id);
-    if (!exists) {
-      return false;
-    }
-    
-    this.verseMemorization.delete(id);
+    this.data.bibleStudyNotes.splice(index, 1);
     return true;
   }
 }
-// Database storage implementation
-export class DatabaseStorage implements IStorage {
-  
-  // Check if user is an admin
-  async checkUserIsAdmin(userId: number): Promise<boolean> {
-    const [user] = await db.select({ isAdmin: users.isAdmin })
-      .from(users)
-      .where(eq(users.id, parseInt(userId)));
-    
-    return user?.isAdmin || false;
-  }
-  // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, parseInt(id)));
-    return result[0];
-  }
-  async getUserById(id: number): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, parseInt(id)));
-    return result[0];
-  }
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username));
-    return result[0];
-  }
-  
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email));
-    return result[0];
-  }
-  
-  async createUser(user: InsertUser): Promise<User> {
-    // Add created_at and updated_at if not provided
-    const now = new Date();
-    const userData = {
-      ...user,
-      createdAt: user.createdAt || now,
-      updatedAt: now
-    };
-    
-    const result = await db.insert(users).values(userData).returning();
-    return result[0];
-  }
-  
-  async updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined> {
-    try {
-      const now = new Date();
-      const result = await db
-        .update(users)
-        .set({ 
-          password: hashedPassword,
-          updatedAt: now
-        })
-        .where(eq(users.id, parseInt(userId)))
-        .returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error updating user password:", error);
-      return undefined;
-    }
-  }
-  // Community methods
-  async getAllCommunities(): Promise<Community[]> {
-    return await db.select().from(communities);
-  }
-  
-  async getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]> {
-    // Get base communities based on user authentication status
-    let allCommunities: Community[];
-    
-    if (!userId) {
-      // Guest user - only get public communities
-      allCommunities = await db.select().from(communities).where(eq(communities.isPrivate, false));
-    } else {
-      // Authenticated user - get public communities + user's private communities
-      const publicCommunities = await db.select().from(communities).where(eq(communities.isPrivate, false));
-      
-      const userPrivateCommunities = await db.select({
-        id: communities.id,
-        name: communities.name,
-        description: communities.description,
-        slug: communities.slug,
-        iconName: communities.iconName,
-        iconColor: communities.iconColor,
-        interestTags: communities.interestTags,
-        city: communities.city,
-        state: communities.state,
-        isLocalCommunity: communities.isLocalCommunity,
-        latitude: communities.latitude,
-        longitude: communities.longitude,
-        memberCount: communities.memberCount,
-        isPrivate: communities.isPrivate,
-        hasPrivateWall: communities.hasPrivateWall,
-        hasPublicWall: communities.hasPublicWall,
-        createdAt: communities.createdAt,
-        createdBy: communities.createdBy,
-      })
-      .from(communities)
-      .innerJoin(communityMembers, eq(communities.id, communityMembers.communityId))
-      .where(and(
-        eq(communities.isPrivate, true),
-        eq(communityMembers.userId, parseInt(userId))
-      ));
-      
-      // Combine and deduplicate by id
-      const combinedCommunities = [...publicCommunities, ...userPrivateCommunities];
-      const deduplicatedMap = new Map();
-      combinedCommunities.forEach(community => deduplicatedMap.set(community.id, community));
-      allCommunities = Array.from(deduplicatedMap.values());
-    }
-    
-    // Apply search filtering if search query is provided
-    if (searchQuery && searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase().trim();
-      
-      allCommunities = allCommunities.filter(community => {
-        const name = community.name.toLowerCase();
-        const description = community.description.toLowerCase();
-        const tags = community.interestTags ? community.interestTags.map(tag => tag.toLowerCase()).join(' ') : '';
-        
-        return name.includes(query) || 
-               description.includes(query) || 
-               tags.includes(query);
-      });
-    }
-    
-    return allCommunities;
-  }
-  
-  async getCommunity(id: number): Promise<Community | undefined> {
-    const result = await db.select().from(communities).where(eq(communities.id, parseInt(id)));
-    return result[0];
-  }
-  async getCommunityBySlug(slug: string): Promise<Community | undefined> {
-    const result = await db.select().from(communities).where(eq(communities.slug, slug));
-    return result[0];
-  }
-  async createCommunity(community: InsertCommunity): Promise<Community> {
-    // Create the community
-    const result = await db.insert(communities).values(community).returning();
-    const newCommunity = result[0];
-    
-    // Automatically add the creator as community owner
-    if (community.createdBy) {
-      await db.insert(communityMembers).values({
-        communityId: newCommunity.id,
-        userId: community.createdBy,
-        role: "owner"
-      });
-      
-      // Update member count
-      await db.update(communities)
-        .set({ memberCount: 1 })
-        .where(eq(communities.id, newCommunity.id));
-    }
-    
-    return newCommunity;
-  }
-  async updateCommunity(id: number, community: Partial<Community>): Promise<Community> {
-    const result = await db.update(communities)
-      .set({ ...community, updatedAt: new Date() })
-      .where(eq(communities.id, parseInt(id)))
-      .returning();
-    return result[0];
-  }
-  async deleteCommunity(id: number): Promise<boolean> {
-    const result = await db.delete(communities).where(eq(communities.id, parseInt(id)));
-    return result.rowCount > 0;
-  }
-  async updateUser(id: number, userData: Partial<User>): Promise<User> {
-    const result = await db.update(users)
-      .set({ ...userData, updatedAt: new Date() })
-      .where(eq(users.id, parseInt(id)))
-      .returning();
-    return result[0];
-  }
-  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User> {
-    const result = await db.update(users)
-      .set({ isVerifiedApologeticsAnswerer: isVerified, updatedAt: new Date() })
-      .where(eq(users.id, parseInt(userId)))
-      .returning();
-    return result[0];
-  }
-  async getVerifiedApologeticsAnswerers(): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.isVerifiedApologeticsAnswerer, true));
-  }
-  async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
-    // For now, return a placeholder as this table might not exist yet
-    return {} as UserPreferences;
-  }
-  // Community Member Management
-  async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
-    const result = await db.select({
-      id: communityMembers.id,
-      communityId: communityMembers.communityId,
-      userId: communityMembers.userId,
-      role: communityMembers.role,
-      joinedAt: communityMembers.joinedAt,
-      user: users
-    })
-    .from(communityMembers)
-    .innerJoin(users, eq(communityMembers.userId, users.id))
-    .where(eq(communityMembers.communityId, communityId));
-    
-    return result;
-  }
-  async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
-    const result = await db.select()
-      .from(communityMembers)
-      .where(and(eq(communityMembers.communityId, parseInt(communityId)), eq(communityMembers.userId, parseInt(userId))))
-      .limit(1);
-    return result[0];
-  }
 
-  async getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]> {
-    const result = await db.select({
-      id: communities.id,
-      name: communities.name,
-      description: communities.description,
-      slug: communities.slug,
-      iconName: communities.iconName,
-      iconColor: communities.iconColor,
-      interestTags: communities.interestTags,
-      city: communities.city,
-      state: communities.state,
-      isLocalCommunity: communities.isLocalCommunity,
-      latitude: communities.latitude,
-      longitude: communities.longitude,
-      memberCount: communities.memberCount,
-      hasPrivateWall: communities.hasPrivateWall,
-      hasPublicWall: communities.hasPublicWall,
-      createdAt: communities.createdAt,
-      createdBy: communities.createdBy,
-    })
-    .from(communityMembers)
-    .innerJoin(communities, eq(communityMembers.communityId, communities.id))
-    .where(eq(communityMembers.userId, parseInt(userId)));
-    
-    return result.map(community => ({
-      ...community,
-      memberCount: community.memberCount || 0
-    }));
-  }
-  async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
-    const result = await db.insert(communityMembers).values(member).returning();
-    return result[0];
-  }
-  async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
-    const result = await db.update(communityMembers)
-      .set({ role })
-      .where(eq(communityMembers.id, id))
-      .returning();
-    return result[0];
-  }
-  async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
-    const result = await db.delete(communityMembers)
-      .where(and(eq(communityMembers.communityId, parseInt(communityId)), eq(communityMembers.userId, parseInt(userId))));
-    return result.rowCount > 0;
-  }
-  async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
-    const result = await db.select({ id: communityMembers.id })
-      .from(communityMembers)
-      .where(and(eq(communityMembers.communityId, parseInt(communityId)), eq(communityMembers.userId, parseInt(userId))))
-      .limit(1);
-    return result.length > 0;
-  }
-  async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
-    const result = await db.select({ role: communityMembers.role })
-      .from(communityMembers)
-      .where(and(
-        eq(communityMembers.communityId, parseInt(communityId)), 
-        eq(communityMembers.userId, parseInt(userId)),
-        eq(communityMembers.role, "owner")
-      ))
-      .limit(1);
-    return result.length > 0;
-  }
-  async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
-    const result = await db.select({ role: communityMembers.role })
-      .from(communityMembers)
-      .where(and(
-        eq(communityMembers.communityId, parseInt(communityId)), 
-        eq(communityMembers.userId, parseInt(userId)),
-        or(eq(communityMembers.role, "moderator"), eq(communityMembers.role, "owner"))
-      ))
-      .limit(1);
-    return result.length > 0;
-  }
-
-  // Community invitation methods
-  async createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation> {
-    const [result] = await db.insert(communityInvitations).values(invitation).returning();
-    return result;
-  }
-
-  async getCommunityInvitations(communityId: number): Promise<(CommunityInvitation & { inviter: User })[]> {
-    return await db.select({
-      id: communityInvitations.id,
-      communityId: communityInvitations.communityId,
-      inviterUserId: communityInvitations.inviterUserId,
-      inviteeEmail: communityInvitations.inviteeEmail,
-      inviteeUserId: communityInvitations.inviteeUserId,
-      status: communityInvitations.status,
-      token: communityInvitations.token,
-      createdAt: communityInvitations.createdAt,
-      expiresAt: communityInvitations.expiresAt,
-      inviter: {
-        id: users.id,
-        username: users.username,
-        displayName: users.displayName,
-        email: users.email,
-        avatarUrl: users.avatarUrl,
-        password: users.password,
-        bio: users.bio,
-        city: users.city,
-        state: users.state,
-        zipCode: users.zipCode,
-        latitude: users.latitude,
-        longitude: users.longitude,
-        onboardingCompleted: users.onboardingCompleted,
-        isVerifiedApologeticsAnswerer: users.isVerifiedApologeticsAnswerer,
-        isAdmin: users.isAdmin,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      }
-    })
-      .from(communityInvitations)
-      .leftJoin(users, eq(communityInvitations.inviterUserId, users.id))
-      .where(eq(communityInvitations.communityId, parseInt(communityId)));
-  }
-
-  async getCommunityInvitationByToken(token: string): Promise<CommunityInvitation | undefined> {
-    const result = await db.select()
-      .from(communityInvitations)
-      .where(eq(communityInvitations.token, token))
-      .limit(1);
-    return result[0];
-  }
-
-  async getCommunityInvitationById(id: number): Promise<CommunityInvitation | undefined> {
-    const result = await db.select()
-      .from(communityInvitations)
-      .where(eq(communityInvitations.id, parseInt(id)))
-      .limit(1);
-    return result[0];
-  }
-
-  async updateCommunityInvitationStatus(id: number, status: string): Promise<CommunityInvitation> {
-    const [result] = await db.update(communityInvitations)
-      .set({ status })
-      .where(eq(communityInvitations.id, parseInt(id)))
-      .returning();
-    return result;
-  }
-
-  async deleteCommunityInvitation(id: number): Promise<boolean> {
-    const result = await db.delete(communityInvitations)
-      .where(eq(communityInvitations.id, parseInt(id)));
-    return result.rowCount > 0;
-  }
-
-  async getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined> {
-    const result = await db.select()
-      .from(communityInvitations)
-      .where(and(
-        eq(communityInvitations.inviteeEmail, email),
-        eq(communityInvitations.communityId, parseInt(communityId)),
-        eq(communityInvitations.status, 'pending')
-      ))
-      .limit(1);
-    return result[0];
-  }
-
-  // Community Chat Room Management
-  async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
-    return await db.select()
-      .from(communityChatRooms)
-      .where(eq(communityChatRooms.communityId, communityId));
-  }
-  async getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
-    return await db.select()
-      .from(communityChatRooms)
-      .where(and(eq(communityChatRooms.communityId, parseInt(communityId)), eq(communityChatRooms.isPrivate, false)));
-  }
-  async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
-    const result = await db.select()
-      .from(communityChatRooms)
-      .where(eq(communityChatRooms.id, id))
-      .limit(1);
-    return result[0];
-  }
-  async createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom> {
-    const result = await db.insert(communityChatRooms).values(room).returning();
-    return result[0];
-  }
-  async updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
-    const result = await db.update(communityChatRooms)
-      .set(data)
-      .where(eq(communityChatRooms.id, parseInt(id)))
-      .returning();
-    return result[0];
-  }
-  async deleteCommunityRoom(id: number): Promise<boolean> {
-    const result = await db.delete(communityChatRooms)
-      .where(eq(communityChatRooms.id, id));
-    return result.rowCount > 0;
-  }
-  // Chat Messages
-  async getChatMessages(roomId: number, limit = 50): Promise<(ChatMessage & { sender: User })[]> {
-    const result = await db.select({
-      id: chatMessages.id,
-      content: chatMessages.content,
-      chatRoomId: chatMessages.chatRoomId,
-      senderId: chatMessages.senderId,
-      isSystemMessage: chatMessages.isSystemMessage,
-      createdAt: chatMessages.createdAt,
-      sender: users
-    })
-    .from(chatMessages)
-    .innerJoin(users, eq(chatMessages.senderId, users.id))
-    .where(eq(chatMessages.chatRoomId, roomId))
-    .orderBy(desc(chatMessages.createdAt))
-    .limit(limit);
-    
-    return result;
-  }
-  async getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]> {
-    const result = await db.select({
-      id: chatMessages.id,
-      content: chatMessages.content,
-      chatRoomId: chatMessages.chatRoomId,
-      senderId: chatMessages.senderId,
-      isSystemMessage: chatMessages.isSystemMessage,
-      createdAt: chatMessages.createdAt,
-      sender: users
-    })
-    .from(chatMessages)
-    .innerJoin(users, eq(chatMessages.senderId, users.id))
-    .where(and(eq(chatMessages.chatRoomId, roomId), sql`${chatMessages.id} > ${afterId}`))
-    .orderBy(chatMessages.createdAt);
-    
-    return result;
-  }
-  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
-    const result = await db.insert(chatMessages).values(message).returning();
-    return result[0];
-  }
-  async deleteChatMessage(id: number): Promise<boolean> {
-    const result = await db.delete(chatMessages).where(eq(chatMessages.id, id));
-    return result.rowCount > 0;
-  }
-  
-  // Direct Messages methods
-  async getDirectMessages(userId1: number, userId2: number): Promise<(Message & { sender: User, receiver: User })[]> {
-    const result = await db.select({
-      id: messages.id,
-      senderId: messages.senderId,
-      receiverId: messages.receiverId,
-      content: messages.content,
-      createdAt: messages.createdAt,
-      sender: {
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-      },
-      receiver: {
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-      }
-    })
-    .from(messages)
-    .leftJoin(users, eq(messages.senderId, users.id))
-    .leftJoin(users, eq(messages.receiverId, users.id))
-    .where(
-      or(
-        and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
-        and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
-      )
-    )
-    .orderBy(messages.createdAt);
-
-    return result.map(row => ({
-      id: row.id,
-      senderId: row.senderId,
-      receiverId: row.receiverId,
-      content: row.content,
-      createdAt: row.createdAt,
-      sender: row.sender,
-      receiver: row.receiver
-    }));
-  }
-
-  async createDirectMessage(message: InsertMessage): Promise<Message> {
-    const result = await db.insert(messages).values(message).returning();
-    return result[0];
-  }
-
-  async getDirectMessagesForUser(userId: number): Promise<(Message & { sender: User, receiver: User })[]> {
-    const result = await db.select({
-      id: messages.id,
-      senderId: messages.senderId,
-      receiverId: messages.receiverId,
-      content: messages.content,
-      createdAt: messages.createdAt,
-      sender: {
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-      },
-      receiver: {
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-      }
-    })
-    .from(messages)
-    .leftJoin(users, eq(messages.senderId, users.id))
-    .leftJoin(users, eq(messages.receiverId, users.id))
-    .where(or(eq(messages.senderId, userId), eq(messages.receiverId, userId)))
-    .orderBy(desc(messages.createdAt));
-
-    return result.map(row => ({
-      id: row.id,
-      senderId: row.senderId,
-      receiverId: row.receiverId,
-      content: row.content,
-      createdAt: row.createdAt,
-      sender: row.sender,
-      receiver: row.receiver
-    }));
-  }
-  
-  // Community Wall Posts
-  async getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
-    let whereCondition = eq(communityWallPosts.communityId, parseInt(communityId));
-    
-    if (isPrivate !== undefined) {
-      whereCondition = and(whereCondition, eq(communityWallPosts.isPrivate, isPrivate));
-    }
-    const result = await db.select({
-      id: communityWallPosts.id,
-      communityId: communityWallPosts.communityId,
-      authorId: communityWallPosts.authorId,
-      content: communityWallPosts.content,
-      imageUrl: communityWallPosts.imageUrl,
-      isPrivate: communityWallPosts.isPrivate,
-      likeCount: communityWallPosts.likeCount,
-      commentCount: communityWallPosts.commentCount,
-      createdAt: communityWallPosts.createdAt,
-      author: users
-    })
-    .from(communityWallPosts)
-    .innerJoin(users, eq(communityWallPosts.authorId, users.id))
-    .where(whereCondition)
-    .orderBy(desc(communityWallPosts.createdAt));
-    
-    return result;
-  }
-  async getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined> {
-    const result = await db.select({
-      id: communityWallPosts.id,
-      communityId: communityWallPosts.communityId,
-      authorId: communityWallPosts.authorId,
-      content: communityWallPosts.content,
-      imageUrl: communityWallPosts.imageUrl,
-      isPrivate: communityWallPosts.isPrivate,
-      likeCount: communityWallPosts.likeCount,
-      commentCount: communityWallPosts.commentCount,
-      createdAt: communityWallPosts.createdAt,
-      author: users
-    })
-    .from(communityWallPosts)
-    .innerJoin(users, eq(communityWallPosts.authorId, users.id))
-    .where(eq(communityWallPosts.id, id))
-    .limit(1);
-    
-    return result[0];
-  }
-  async createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost> {
-    const result = await db.insert(communityWallPosts).values(post).returning();
-    return result[0];
-  }
-  async updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
-    const result = await db.update(communityWallPosts)
-      .set(data)
-      .where(eq(communityWallPosts.id, id))
-      .returning();
-    return result[0];
-  }
-  async deleteCommunityWallPost(id: number): Promise<boolean> {
-    const result = await db.delete(communityWallPosts)
-      .where(eq(communityWallPosts.id, id));
-    return result.rowCount > 0;
-  }
-  // Prayer Request Methods
-  async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
-    return await db.select()
-      .from(prayerRequests)
-      .where(eq(prayerRequests.privacyLevel, 'public'))
-      .orderBy(desc(prayerRequests.createdAt));
-  }
-  async getAllPrayerRequests(): Promise<PrayerRequest[]> {
-    return await db.select()
-      .from(prayerRequests)
-      .orderBy(desc(prayerRequests.createdAt));
-  }
-  async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
-    const result = await db.select()
-      .from(prayerRequests)
-      .where(eq(prayerRequests.id, id))
-      .limit(1);
-    return result[0];
-  }
-  async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
-    return await db.select()
-      .from(prayerRequests)
-      .where(eq(prayerRequests.authorId, userId))
-      .orderBy(desc(prayerRequests.createdAt));
-  }
-  async getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]> {
-    return await db.select()
-      .from(prayerRequests)
-      .where(eq(prayerRequests.groupId, groupId))
-      .orderBy(desc(prayerRequests.createdAt));
-  }
-  async createPrayerRequest(request: InsertPrayerRequest): Promise<PrayerRequest> {
-    const result = await db.insert(prayerRequests).values(request).returning();
-    return result[0];
-  }
-  async updatePrayerRequest(id: number, data: Partial<PrayerRequest>): Promise<PrayerRequest> {
-    const result = await db.update(prayerRequests)
-      .set(data)
-      .where(eq(prayerRequests.id, id))
-      .returning();
-    return result[0];
-  }
-  async markPrayerRequestAsAnswered(id: number): Promise<PrayerRequest> {
-    const result = await db.update(prayerRequests)
-      .set({ isAnswered: true })
-      .where(eq(prayerRequests.id, id))
-      .returning();
-    return result[0];
-  }
-  async deletePrayerRequest(id: number): Promise<boolean> {
-    const result = await db.delete(prayerRequests)
-      .where(eq(prayerRequests.id, id));
-    return result.rowCount > 0;
-  }
-  async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
-    const result = await db.insert(prayers).values(prayer).returning();
-    return result[0];
-  }
-  async getPrayersForRequest(requestId: string): Promise<Prayer[]> {
-    return await db.select()
-      .from(prayers)
-      .where(eq(prayers.prayerRequestId, requestId))
-      .orderBy(desc(prayers.createdAt));
-  }
-  async getUserPrayedRequests(userId: number): Promise<PrayerRequest[]> {
-    const prayedRequestIds = await db.select({ requestId: prayers.prayerRequestId })
-      .from(prayers)
-      .where(eq(prayers.userId, userId));
-    
-    if (prayedRequestIds.length === 0) return [];
-    
-    return await db.select()
-      .from(prayerRequests)
-      .where(inArray(prayerRequests.id, prayedRequestIds.map(p => p.requestId)))
-      .orderBy(desc(prayerRequests.createdAt));
-  }
-  // Group Member Methods
-  async isGroupMember(groupId: number, userId: number): Promise<boolean> {
-    const result = await db.select({ id: groupMembers.id })
-      .from(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
-      .limit(1);
-    return result.length > 0;
-  }
-  // Apologetics Methods
-  async createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic> {
-    const result = await db.insert(apologeticsTopics).values(topic).returning();
-    return result[0];
-  }
-  async incrementApologeticsQuestionViewCount(id: number): Promise<void> {
-    await db.update(apologeticsQuestions)
-      .set({ viewCount: sql`${apologeticsQuestions.viewCount} + 1` })
-      .where(eq(apologeticsQuestions.id, id));
-  }
-  // Livestream Methods
-  async createLivestream(livestream: InsertLivestream): Promise<Livestream> {
-    const result = await db.insert(livestreams).values(livestream).returning();
-    return result[0];
-  }
-  async getLivestream(id: number): Promise<Livestream | undefined> {
-    const result = await db.select()
-      .from(livestreams)
-      .where(eq(livestreams.id, id))
-      .limit(1);
-    return result[0];
-  }
-  // Virtual Gift Methods (placeholder implementations)
-  async getActiveVirtualGifts(): Promise<any[]> {
-    // Placeholder implementation
-    return [];
-  }
-  async sendGiftToLivestream(giftId: number, livestreamId: number, senderId: string): Promise<any> {
-    // Placeholder implementation
-    return {};
-  }
-  async getAllCreatorTiers(): Promise<any[]> {
-    // Placeholder implementation
-    return [];
-  }
-  // Bible Study Methods
-  async getBibleStudyNotes(userId: number, passage?: string): Promise<BibleStudyNote[]> {
-    let query = db.select().from(bibleStudyNotes).where(eq(bibleStudyNotes.userId, userId));
-    
-    if (passage) {
-      query = query.where(eq(bibleStudyNotes.passage, passage));
-    }
-    
-    return await query.orderBy(desc(bibleStudyNotes.createdAt));
-  }
-  async markDayCompleted(userId: number, planId: string, day: string): Promise<void> {
-    // Implementation for marking a day as completed in a reading plan
-    await db.update(bibleReadingProgress)
-      .set({ 
-        currentDay: day + 1,
-        completedDays: sql`array_append(coalesce(${bibleReadingProgress.completedDays}, '{}'), ${day})`
-      })
-      .where(and(eq(bibleReadingProgress.userId, userId), eq(bibleReadingProgress.planId, planId)));
-  }
-  // Verse Memorization Methods
-  async getUserVerseMemorization(userId: number): Promise<VerseMemorization[]> {
-    return await db.select()
-      .from(verseMemorization)
-      .where(eq(verseMemorization.userId, userId))
-      .orderBy(desc(verseMemorization.startDate));
-  }
-  async createVerseMemorization(verse: InsertVerseMemorization): Promise<VerseMemorization> {
-    const result = await db.insert(verseMemorization).values(verse).returning();
-    return result[0];
-  }
-  async markVerseMastered(id: number): Promise<VerseMemorization> {
-    const result = await db.update(verseMemorization)
-      .set({ masteredDate: new Date() })
-      .where(eq(verseMemorization.id, id))
-      .returning();
-    return result[0];
-  }
-  async addVerseReviewDate(id: number, reviewDate: Date): Promise<VerseMemorization> {
-    const result = await db.update(verseMemorization)
-      .set({ 
-        reviewDates: sql`array_append(coalesce(${verseMemorization.reviewDates}, '{}'), ${reviewDate.toISOString()})`
-      })
-      .where(eq(verseMemorization.id, id)).returning();
-    return result[0];
-  }
-  // Post methods
-  async getAllPosts(filter: string = "popular"): Promise<Post[]> {
-    let query = db.select().from(posts);
-    
-    if (filter === "latest") {
-      query = query.orderBy(desc(posts.createdAt));
-    } else if (filter === "top") {
-      query = query.orderBy(desc(posts.upvotes));
-    } else {
-      // Default "popular" - use a combination of time and upvotes
-      // We'll simplify this for now to be the same as "top"
-      query = query.orderBy(desc(posts.upvotes));
-    }
-    
-    return await query;
-  }
-  async getPost(id: number): Promise<Post | undefined> {
-    const result = await db.select().from(posts).where(eq(posts.id, id));
-    return result[0];
-  }
-  async getPostsByCommunitySlug(communitySlug: string, filter: string = "popular"): Promise<Post[]> {
-    const community = await this.getCommunityBySlug(communitySlug);
-    if (!community) return [];
-    
-    let query = db.select().from(posts).where(eq(posts.communityId, community.id));
-    
-    if (filter === "latest") {
-      query = query.orderBy(desc(posts.createdAt));
-    } else if (filter === "top") {
-      query = query.orderBy(desc(posts.upvotes));
-    } else {
-      // Default "popular"
-      query = query.orderBy(desc(posts.upvotes));
-    }
-    
-    return await query;
-  }
-  async getPostsByGroupId(groupId: number, filter: string = "popular"): Promise<Post[]> {
-    let query = db.select().from(posts).where(eq(posts.groupId, groupId));
-    
-    if (filter === "latest") {
-      query = query.orderBy(desc(posts.createdAt));
-    } else if (filter === "top") {
-      query = query.orderBy(desc(posts.upvotes));
-    } else {
-      // Default "popular"
-      query = query.orderBy(desc(posts.upvotes));
-    }
-    
-    return await query;
-  }
-
-  async getUserPosts(userId: number): Promise<any[]> {
-    const allPosts = [];
-
-    // 1. Regular forum posts
-    const forumPosts = await db.select().from(posts).where(eq(posts.authorId, parseInt(userId)));
-    const formattedForumPosts = forumPosts.map(post => ({
-      ...post,
-      type: 'forum_post',
-      title: post.title,
-      content: post.content,
-      engagementCount: (post.upvotes || 0) + (post.commentCount || 0),
-      link: `/posts/${post.id}`
-    }));
-
-    // 2. Microblogs
-    const microblogs = await db.select().from(microblogs).where(eq(microblogs.authorId, parseInt(userId)));
-    const formattedMicroblogs = microblogs.map(microblog => ({
-      ...microblog,
-      type: 'microblog',
-      title: microblog.content.substring(0, 50) + (microblog.content.length > 50 ? '...' : ''),
-      content: microblog.content,
-      engagementCount: (microblog.likeCount || 0) + (microblog.replyCount || 0),
-      link: `/microblogs/${microblog.id}`
-    }));
-
-    // 3. Prayer requests
-    const prayerRequests = await db.select().from(prayerRequests).where(eq(prayerRequests.authorId, parseInt(userId)));
-    const formattedPrayerRequests = prayerRequests.map(request => ({
-      ...request,
-      type: 'prayer_request',
-      title: `Prayer Request: ${request.title}`,
-      content: request.description,
-      engagementCount: request.prayerCount || 0,
-      link: `/prayer-requests/${request.id}`
-    }));
-
-    // 4. Community wall posts
-    const wallPosts = await db.select().from(communityWallPosts).where(eq(communityWallPosts.authorId, parseInt(userId)));
-    const formattedWallPosts = wallPosts.map(post => ({
-      ...post,
-      type: 'community_wall_post',
-      title: post.content.substring(0, 50) + (post.content.length > 50 ? '...' : ''),
-      content: post.content,
-      engagementCount: (post.likeCount || 0) + (post.commentCount || 0),
-      link: `/communities/${post.communityId}/wall/${post.id}`
-    }));
-
-    // Combine all posts and sort by creation date
-    allPosts.push(...formattedForumPosts, ...formattedMicroblogs, ...formattedPrayerRequests, ...formattedWallPosts);
-    
-    return allPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }
-  async createPost(post: InsertPost): Promise<Post> {
-    const result = await db.insert(posts).values(post).returning();
-    return result[0];
-  }
-  async upvotePost(id: number): Promise<Post> {
-    const post = await this.getPost(id);
-    if (!post) {
-      throw new Error("Post not found");
-    }
-    
-    const result = await db
-      .update(posts)
-      .set({ upvotes: (post.upvotes || 0) + 1 })
-      .where(eq(posts.id, id)).returning();
-    
-    return result[0];
-  }
-  // Comment methods
-  async getComment(id: number): Promise<Comment | undefined> {
-    const result = await db.select().from(comments).where(eq(comments.id, id));
-    return result[0];
-  }
-  async getCommentsByPostId(postId: number): Promise<Comment[]> {
-    return await db
-      .select()
-      .from(comments)
-      .where(eq(comments.postId, postId)).orderBy(desc(comments.createdAt));
-  }
-  async createComment(comment: InsertComment): Promise<Comment> {
-    const result = await db.insert(comments).values(comment).returning();
-    
-    // Update the post comment count
-    await db
-      .update(posts)
-      .set({ 
-        commentCount: sql`${posts.commentCount} + 1` 
-      })
-      .where(eq(posts.id, parseInt(comment.postId)));
-    
-    return result[0];
-  }
-  async upvoteComment(id: number): Promise<Comment> {
-    const comment = await this.getComment(id);
-    if (!comment) {
-      throw new Error("Comment not found");
-    }
-    
-    const result = await db
-      .update(comments)
-      .set({ upvotes: (comment.upvotes || 0) + 1 })
-      .where(eq(comments.id, id)).returning();
-    
-    return result[0];
-  }
-  // Group methods
-  async getGroup(id: number): Promise<Group | undefined> {
-    const result = await db.select().from(groups).where(eq(groups.id, id));
-    return result[0];
-  }
-  async getGroupsByUserId(userId: number): Promise<Group[]> {
-    // Get groups where the user is a member
-    const memberGroupIds = await db
-      .select({ groupId: groupMembers.groupId })
-      .from(groupMembers)
-      .where(eq(groupMembers.userId, userId));
-    
-    if (memberGroupIds.length === 0) return [];
-    
-    const groupIds = memberGroupIds.map(g => g.groupId);
-    
-    // We can't use SQL "IN" easily in drizzle, so we'll fetch all groups and filter
-    const allGroups = await db.select().from(groups);
-    return allGroups.filter(group => groupIds.includes(group.id));
-  }
-  async createGroup(group: InsertGroup): Promise<Group> {
-    const result = await db.insert(groups).values(group).returning();
-    return result[0];
-  }
-  // Group member methods
-  async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
-    const result = await db.insert(groupMembers).values(member).returning();
-    return result[0];
-  }
-  async getGroupMembers(groupId: number): Promise<GroupMember[]> {
-    return await db
-      .select()
-      .from(groupMembers)
-      .where(eq(groupMembers.groupId, groupId));
-  }
-  async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
-    const result = await db
-      .select()
-      .from(groupMembers)
-      .where(
-        and(
-          eq(groupMembers.groupId, groupId),
-          eq(groupMembers.userId, userId),
-          eq(groupMembers.isAdmin, true)
-        )
-      )
-      .limit(1);
-    
-    return result.length > 0;
-  }
-  // Apologetics resource methods
-  async getAllApologeticsResources(): Promise<ApologeticsResource[]> {
-    return await db.select().from(apologeticsResources);
-  }
-  async getApologeticsResource(id: number): Promise<ApologeticsResource | undefined> {
-    const result = await db.select().from(apologeticsResources).where(eq(apologeticsResources.id, id));
-    return result[0];
-  }
-  async createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource> {
-    const result = await db.insert(apologeticsResources).values(resource).returning();
-    return result[0];
-  }
-  
-  // Apologetics topics methods
-  async getAllApologeticsTopics(): Promise<any[]> {
-    return await pool.query(`
-      SELECT id, title as name, description, slug, created_at as "createdAt"
-      FROM apologetics_topics
-      ORDER BY id
-    `).then(result => result.rows);
-  }
-  
-  async getApologeticsTopic(id: number): Promise<any | undefined> {
-    return await pool.query(`
-      SELECT id, title as name, description, slug, created_at as "createdAt"
-      FROM apologetics_topics
-      WHERE id = $1
-      LIMIT 1
-    `, [id]).then(result => result.rows[0] || undefined);
-  }
-  
-  async getApologeticsTopicBySlug(slug: string): Promise<any | undefined> {
-    return await pool.query(`
-      SELECT id, title as name, description, slug, created_at as "createdAt"
-      FROM apologetics_topics
-      WHERE slug = $1
-      LIMIT 1
-    `, [slug]).then(result => result.rows[0] || undefined);
-  }
-  
-  // Apologetics questions methods
-  async getAllApologeticsQuestions(): Promise<any[]> {
-    return await pool.query(`
-      SELECT 
-        q.id, q.title, q.content, q.user_id as "authorId", q.topic_id as "topicId", 
-        q.status, q.view_count as "viewCount", q.created_at as "createdAt"
-      FROM apologetics_questions q
-      ORDER BY q.created_at DESC
-    `).then(result => result.rows);
-  }
-  
-  async getApologeticsQuestion(id: number): Promise<any | undefined> {
-    return await pool.query(`
-      SELECT 
-        q.id, q.title, q.content, q.user_id as "authorId", q.topic_id as "topicId", 
-        q.status, q.view_count as "viewCount", q.created_at as "createdAt"
-      FROM apologetics_questions q
-      WHERE q.id = $1
-      LIMIT 1
-    `, [id]).then(result => result.rows[0] || undefined);
-  }
-  
-  async getApologeticsQuestionsByTopic(topicId: string): Promise<any[]> {
-    return await pool.query(`
-      SELECT 
-        q.id, q.title, q.content, q.user_id as "authorId", q.topic_id as "topicId", 
-        q.status, q.view_count as "viewCount", q.created_at as "createdAt"
-      FROM apologetics_questions q
-      WHERE q.topic_id = $1
-      ORDER BY q.created_at DESC
-    `, [topicId]).then(result => result.rows);
-  }
-  
-  async createApologeticsQuestion(question: any): Promise<any> {
-    const { title, content, authorId, topicId, status = "open" } = question;
-    return await pool.query(`
-      INSERT INTO apologetics_questions (title, content, user_id, topic_id, status, view_count)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, title, content, user_id as "authorId", topic_id as "topicId", status, view_count as "viewCount", created_at as "createdAt"
-    `, [title, content, authorId, topicId, status, 0]).then(result => result.rows[0]);
-  }
-  
-  async updateApologeticsQuestionStatus(id: number, status: string): Promise<any> {
-    return await pool.query(`
-      UPDATE apologetics_questions
-      SET status = $1
-      WHERE id = $2
-      RETURNING id, title, content, user_id as "authorId", topic_id as "topicId", 
-                status, view_count as "viewCount", created_at as "createdAt"
-    `, [status, id]).then(result => result.rows[0]);
-  }
-  
-  // Apologetics answers methods
-  async getApologeticsAnswersByQuestion(questionId: number): Promise<any[]> {
-    return await pool.query(`
-      SELECT 
-        a.id, a.content, a.question_id as "questionId", a.user_id as "authorId", 
-        a.is_verified_answer as "isVerifiedAnswer", a.created_at as "createdAt"
-      FROM apologetics_answers a
-      WHERE a.question_id = $1
-      ORDER BY a.is_verified_answer DESC, a.created_at DESC
-    `, [questionId]).then(result => result.rows);
-  }
-  
-  async createApologeticsAnswer(answer: any): Promise<any> {
-    const { content, questionId, authorId, isVerifiedAnswer = false } = answer;
-    
-    // Insert the answer
-    const result = await pool.query(`
-      INSERT INTO apologetics_answers (content, question_id, user_id, is_verified_answer)
-      VALUES ($1, $2, $3, $4)
-      RETURNING 
-        id, content, question_id as "questionId", user_id as "authorId", 
-        is_verified_answer as "isVerifiedAnswer", created_at as "createdAt"
-    `, [content, questionId, authorId, isVerifiedAnswer]);
-    
-    // Increment answer count on the question
-    await pool.query(`
-      UPDATE apologetics_questions
-      SET answer_count = COALESCE(answer_count, 0) + 1
-      WHERE id = $1
-    `, [questionId]);
-    
-    return result.rows[0];
-  }
-  
-  async upvoteApologeticsAnswer(id: number): Promise<any> {
-    return await pool.query(`
-      UPDATE apologetics_answers
-      SET upvotes = COALESCE(upvotes, 0) + 1
-      WHERE id = $1
-      RETURNING id, content, question_id as "questionId", user_id as "authorId", 
-                is_verified_answer as "isVerifiedAnswer", upvotes, created_at as "createdAt"
-    `, [id]).then(result => result.rows[0]);
-  }
-  
-  // Verified apologetics answerers methods
-  async getVerifiedApologeticsAnswerers(): Promise<any[]> {
-    return await pool.query(`
-      SELECT id, username, email, display_name as "displayName", bio, avatar_url as "avatarUrl",
-             is_verified_apologetics_answerer as "isVerifiedApologeticsAnswerer", created_at as "createdAt"
-      FROM users
-      WHERE is_verified_apologetics_answerer = true
-    `).then(result => result.rows);
-  }
-  
-  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<any> {
-    return await pool.query(`
-      UPDATE users
-      SET is_verified_apologetics_answerer = $1
-      WHERE id = $2
-      RETURNING id, username, email, display_name as "displayName", bio, avatar_url as "avatarUrl",
-                is_verified_apologetics_answerer as "isVerifiedApologeticsAnswerer", created_at as "createdAt"
-    `, [isVerified, userId]).then(result => result.rows[0]);
-  }
-  
-  async updateUser(id: number, userData: Partial<User>): Promise<User> {
-    // Prepare update fields and values
-    const fields = [];
-    const values = [];
-    let paramIndex = 1;
-    
-    // Add each field to update query
-    for (const [key, value] of Object.entries(userData)) {
-      if (value !== undefined) {
-        // Convert camelCase to snake_case for DB column names
-        const columnName = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-        fields.push(`${columnName} = $${paramIndex}`);
-        values.push(value);
-        paramIndex++;
-      }
-    }
-    
-    // Add updated_at timestamp
-    fields.push(`updated_at = $${paramIndex}`);
-    values.push(new Date());
-    
-    // Add user ID as last parameter
-    values.push(id);
-    
-    if (fields.length === 0) {
-      throw new Error("No valid fields to update");
-    }
-    
-    // Build and execute query
-    const query = `
-      UPDATE users
-      SET ${fields.join(', ')}
-      WHERE id = $${paramIndex + 1}
-      RETURNING id, username, email, password, display_name as "displayName", bio, avatar_url as "avatarUrl",
-        city, state, zip_code as "zipCode", latitude, longitude, is_admin as "isAdmin",
-        is_verified_apologetics_answerer as "isVerifiedApologeticsAnswerer", created_at as "createdAt", updated_at as "updatedAt"
-    `;
-    
-    const result = await pool.query(query, values);
-    
-    if (result.rows.length === 0) {
-      throw new Error(`User with ID ${id} not found`);
-    }
-    
-    return result.rows[0];
-  }
-  
-  async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
-    // First check if preferences exist
-    const checkResult = await pool.query(`
-      SELECT * FROM user_preferences WHERE user_id = $1 LIMIT 1
-    `, [userId]);
-    
-    const now = new Date();
-    
-    // If preferences exist, update them
-    if (checkResult.rows.length > 0) {
-      // Prepare update fields and values
-      const fields = [];
-      const values = [];
-      let paramIndex = 1;
-      
-      // Add each field to update query
-      for (const [key, value] of Object.entries(preferences)) {
-        if (value !== undefined) {
-          // Convert camelCase to snake_case for DB column names
-          const columnName = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-          fields.push(`${columnName} = $${paramIndex}`);
-          values.push(value);
-          paramIndex++;
-        }
-      }
-      
-      // Add updated_at timestamp
-      fields.push(`updated_at = $${paramIndex}`);
-      values.push(now);
-      
-      // Add user ID as last parameter
-      values.push(userId);
-      
-      if (fields.length === 0) {
-        throw new Error("No valid fields to update");
-      }
-      
-      // Build and execute query
-      const query = `
-        UPDATE user_preferences
-        SET ${fields.join(', ')}
-        WHERE user_id = $${paramIndex + 1}
-        RETURNING *
-      `;
-      
-      const result = await pool.query(query, values);
-      return result.rows[0];
-    } 
-    // Otherwise, create new preferences
-    else {
-      // Prepare insert fields and placeholders
-      const fields = ['user_id', 'created_at'];
-      const placeholders = ['$1', '$2'];
-      const values = [userId, now];
-      let paramIndex = 3;
-      
-      // Add each field to insert query
-      for (const [key, value] of Object.entries(preferences)) {
-        if (value !== undefined) {
-          // Convert camelCase to snake_case for DB column names
-          const columnName = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-          fields.push(columnName);
-          placeholders.push(`$${paramIndex}`);
-          values.push(value);
-          paramIndex++;
-        }
-      }
-      
-      // Build and execute query
-      const query = `
-        INSERT INTO user_preferences (${fields.join(', ')})
-        VALUES (${placeholders.join(', ')})
-        RETURNING *
-      `;
-      
-      const result = await pool.query(query, values);
-      return result.rows[0];
-    }
-  }
-  // Microblog methods implementation
-  async getAllMicroblogs(filterType: string = "recent"): Promise<Microblog[]> {
-    // Public microblogs only (not assigned to a community or group)
-    const query = db.select().from(microblogs).where(
-      and(
-        isNull(microblogs.communityId),
-        isNull(microblogs.groupId)
-      )
-    );
-    
-    if (filterType === "popular") {
-      return await query.orderBy(desc(microblogs.likeCount));
-    } else {
-      // Default to recent
-      return await query.orderBy(desc(microblogs.createdAt));
-    }
-  }
-  
-  async getMicroblog(id: number): Promise<Microblog | undefined> {
-    const result = await db.select().from(microblogs).where(eq(microblogs.id, id));
-    return result[0];
-  }
-  
-  async getMicroblogsByUserId(userId: number): Promise<Microblog[]> {
-    return await db
-      .select()
-      .from(microblogs)
-      .where(eq(microblogs.authorId, parseInt(userId)))
-      .orderBy(desc(microblogs.createdAt));
-  }
-  
-  async getMicroblogsByAuthors(userIds: string[]): Promise<Microblog[]> {
-    if (userIds.length === 0) return [];
-    
-    return await db
-      .select()
-      .from(microblogs)
-      .where(inArray(microblogs.authorId, userIds.map(id => parseInt(id))))
-      .orderBy(desc(microblogs.createdAt));
-  }
-  
-  async getMicroblogsByCommunityId(communityId: number): Promise<Microblog[]> {
-    return await db
-      .select()
-      .from(microblogs)
-      .where(eq(microblogs.communityId, communityId)).orderBy(desc(microblogs.createdAt));
-  }
-  
-  async getMicroblogsByGroupId(groupId: number): Promise<Microblog[]> {
-    return await db
-      .select()
-      .from(microblogs)
-      .where(eq(microblogs.groupId, groupId)).orderBy(desc(microblogs.createdAt));
-  }
-  
-  async getMicroblogReplies(microblogId: string): Promise<Microblog[]> {
-    return await db
-      .select()
-      .from(microblogs)
-      .where(eq(microblogs.parentId, microblogId)).orderBy(desc(microblogs.createdAt));
-  }
-  
-  async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
-    // For replies, increment reply count of the parent
-    if (microblog.parentId) {
-      const parent = await this.getMicroblog(microblog.parentId);
-      const result = await db.insert(microblogs).values(microblog).returning();
-      
-      // Update parent's reply count if it exists
-      if (parent) {
-        await db
-          .update(microblogs)
-          .set({ replyCount: (parent.replyCount || 0) + 1 })
-          .where(eq(microblogs.id, parseInt(microblog.parentId)));
-      }
-      
-      return result[0];
-    } else {
-      // Simple insert for new microblogs
-      const result = await db.insert(microblogs).values(microblog).returning();
-      return result[0];
-    }
-  }
-  
-  async likeMicroblog(microblogId: string, userId: number): Promise<MicroblogLike> {
-    // Check if already liked
-    const existing = await db
-      .select()
-      .from(microblogLikes)
-      .where(
-        and(
-          eq(microblogLikes.microblogId, microblogId),
-          eq(microblogLikes.userId, userId)
-        )
-      )
-      .limit(1);
-    
-    if (existing.length > 0) {
-      return existing[0];
-    }
-    
-    // Add the like
-    const result = await db
-      .insert(microblogLikes)
-      .values({ microblogId, userId })
-      .returning();
-    
-    // Increment the like count on the microblog
-    const microblog = await this.getMicroblog(microblogId);
-    if (microblog) {
-      await db
-        .update(microblogs)
-        .set({ likeCount: (microblog.likeCount || 0) + 1 })
-        .where(eq(microblogs.id, parseInt(microblogId)));
-    }
-    
-    return result[0];
-  }
-  
-  async unlikeMicroblog(microblogId: string, userId: number): Promise<boolean> {
-    // Find and delete the like
-    const result = await db
-      .delete(microblogLikes)
-      .where(
-        and(
-          eq(microblogLikes.microblogId, microblogId),
-          eq(microblogLikes.userId, userId)
-        )
-      )
-      .returning();
-    
-    if (result.length === 0) return false;
-    
-    // Decrement the like count on the microblog
-    const microblog = await this.getMicroblog(microblogId);
-    if (microblog && microblog.likeCount && microblog.likeCount > 0) {
-      await db
-        .update(microblogs)
-        .set({ likeCount: microblog.likeCount - 1 })
-        .where(eq(microblogs.id, parseInt(microblogId)));
-    }
-    
-    return true;
-  }
-  
-  async getUserLikedMicroblogs(userId: number): Promise<number[]> {
-    try {
-      const likes = await db
-        .select()
-        .from(microblogLikes)
-        .where(eq(microblogLikes.userId, userId));
-      
-      return likes.map(like => like.microblogId);
-    } catch (error) {
-      console.error("Error getting user liked microblogs:", error);
-      return [];
-    }
-  }
-  // ========================
-  // CONTENT RECOMMENDATIONS
-  // ========================
-  
-  // User preferences methods
-  async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
-    try {
-      const [preferences] = await db
-        .select()
-        .from(userPreferences)
-        .where(eq(userPreferences.userId, userId));
-      
-      return preferences;
-    } catch (error) {
-      console.error("Error getting user preferences:", error);
-      return undefined;
-    }
-  }
-  async updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences> {
-    try {
-      const existingPrefs = await this.getUserPreferences(userId);
-      
-      if (existingPrefs) {
-        // Update existing preferences
-        const [updatedPrefs] = await db
-          .update(userPreferences)
-          .set({
-            ...preferences,
-            updatedAt: new Date()
-          })
-          .where(eq(userPreferences.id, existingPrefs.id)).returning();
-          
-        return updatedPrefs;
-      } else {
-        // Create new preferences
-        const [newPrefs] = await db
-          .insert(userPreferences)
-          .values({
-            userId,
-            interests: preferences.interests || [],
-            favoriteTopics: preferences.favoriteTopics || [],
-            contentTypesPreference: preferences.contentTypesPreference || {},
-            notificationSettings: preferences.notificationSettings || {},
-            appSettings: preferences.appSettings || {},
-            engagementHistory: preferences.engagementHistory || [],
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning();
-          
-        return newPrefs;
-      }
-    } catch (error) {
-      console.error("Error updating user preferences:", error);
-      throw new Error("Failed to update user preferences");
-    }
-  }
-  // Recommendation methods
-  async getAllRecommendations(userId: number): Promise<ContentRecommendation[]> {
-    try {
-      // Get all recommendations for the user, sorted by viewed status and score
-      const recommendations = await db
-        .select()
-        .from(contentRecommendations)
-        .where(eq(contentRecommendations.userId, userId)).orderBy(
-          contentRecommendations.viewed,
-          desc(contentRecommendations.score)
-        );
-      
-      return recommendations;
-    } catch (error) {
-      console.error("Error getting recommendations:", error);
-      return [];
-    }
-  }
-  async getRecommendation(id: number): Promise<ContentRecommendation | undefined> {
-    try {
-      const [recommendation] = await db
-        .select()
-        .from(contentRecommendations)
-        .where(eq(contentRecommendations.id, id));
-      
-      return recommendation;
-    } catch (error) {
-      console.error("Error getting recommendation:", error);
-      return undefined;
-    }
-  }
-  async addContentRecommendation(recommendation: InsertContentRecommendation): Promise<ContentRecommendation> {
-    try {
-      const [newRecommendation] = await db
-        .insert(contentRecommendations)
-        .values({
-          ...recommendation,
-          createdAt: new Date(),
-          viewed: false
-        })
-        .returning();
-      
-      return newRecommendation;
-    } catch (error) {
-      console.error("Error adding recommendation:", error);
-      throw new Error("Failed to add recommendation");
-    }
-  }
-  async markRecommendationAsViewed(id: number): Promise<boolean> {
-    try {
-      const result = await db
-        .update(contentRecommendations)
-        .set({ 
-          viewed: true,
-          viewedAt: new Date()
-        })
-        .where(eq(contentRecommendations.id, id));
-      
-      return result.rowCount > 0;
-    } catch (error) {
-      console.error("Error marking recommendation as viewed:", error);
-      return false;
-    }
-  }
-  // Content retrieval for recommendations
-  async getTopPosts(limit: string): Promise<Post[]> {
-    try {
-      // Get posts sorted by upvotes and comment count
-      const topPosts = await db
-        .select()
-        .from(posts)
-        .orderBy(desc(sql`${posts.upvotes} + ${posts.commentCount} * 2`))
-        .limit(limit);
-      
-      return topPosts;
-    } catch (error) {
-      console.error("Error getting top posts:", error);
-      return [];
-    }
-  }
-  async getTopMicroblogs(limit: string): Promise<Microblog[]> {
-    try {
-      // Get microblogs that are not replies, sorted by likes and replies
-      const topMicroblogs = await db
-        .select()
-        .from(microblogs)
-        .where(isNull(microblogs.parentId))
-        .orderBy(desc(sql`${microblogs.likeCount} + ${microblogs.replyCount} * 2`))
-        .limit(limit);
-      
-      return topMicroblogs;
-    } catch (error) {
-      console.error("Error getting top microblogs:", error);
-      return [];
-    }
-  }
-  // Event methods
-  async getAllEvents(filter?: string): Promise<Event[]> {
-    try {
-      // Base query
-      let query = db.select().from(events);
-      
-      // Apply filter if provided
-      if (filter) {
-        if (filter === "upcoming") {
-          const now = new Date();
-          query = query.where(sql`${events.eventDate} >= CURRENT_DATE`);
-        } else if (filter === "past") {
-          const now = new Date();
-          query = query.where(sql`${events.eventDate} < CURRENT_DATE`);
-        } else if (filter === "virtual") {
-          query = query.where(eq(events.isVirtual, true));
-        } else if (filter === "in-person") {
-          query = query.where(eq(events.isVirtual, false));
-        } else {
-          // Text search
-          query = query.where(
-            or(
-              sql`${events.title} ILIKE ${'%' + filter + '%'}`,
-              sql`${events.description} ILIKE ${'%' + filter + '%'}`,
-              sql`${events.location} ILIKE ${'%' + filter + '%'}`,
-              sql`${events.address} ILIKE ${'%' + filter + '%'}`,
-              sql`${events.city} ILIKE ${'%' + filter + '%'}`,
-              sql`${events.state} ILIKE ${'%' + filter + '%'}`
-            )
-          );
-        }
-      }
-      
-      // Order by date (most recent first for past events, soonest first for upcoming)
-      if (filter === "past") {
-        query = query.orderBy(desc(events.eventDate), desc(events.startTime));
-      } else {
-        query = query.orderBy(events.eventDate, events.startTime);
-      }
-      
-      const result = await query;
-      return result;
-    } catch (error) {
-      console.error("Error getting events:", error);
-      return [];
-    }
-  }
-  
-  async getPublicEvents(): Promise<Event[]> {
-    try {
-      const result = await db
-        .select()
-        .from(events)
-        .where(
-          and(
-            eq(events.isPublic, true),
-            sql`${events.eventDate} >= CURRENT_DATE`
-          )
-        )
-        .orderBy(events.eventDate, events.startTime);
-      
-      return result;
-    } catch (error) {
-      console.error("Error getting public events:", error);
-      return [];
-    }
-  }
-  
-  async getEventsNearby(latitude: string, longitude: string, radiusInKm: string): Promise<Event[]> {
-    try {
-      if (!latitude || !longitude) {
-        return this.getPublicEvents();
-      }
-      
-      const userLat = parseFloat(latitude);
-      const userLng = parseFloat(longitude);
-      
-      if (isNaN(userLat) || isNaN(userLng)) {
-        return this.getPublicEvents();
-      }
-      
-      // First get public events
-      const publicEvents = await this.getPublicEvents();
-      
-      // Filter events that have location coordinates and calculate distance
-      return publicEvents
-        .filter(event => {
-          // Ensure event has valid coordinates
-          if (!event.latitude || !event.longitude) return false;
-          
-          const eventLat = parseFloat(event.latitude);
-          const eventLng = parseFloat(event.longitude);
-          
-          if (isNaN(eventLat) || isNaN(eventLng)) return false;
-          
-          // Calculate distance using haversine formula
-          const distance = this.calculateDistance(
-            userLat, userLng,
-            eventLat, eventLng
-          );
-          
-          // Keep events within the specified radius
-          return distance <= radiusInKm;
-        })
-        .sort((a, b) => {
-          // Sort by distance from user (closest first)
-          const distA = this.calculateDistance(
-            userLat, userLng,
-            parseFloat(a.latitude!), parseFloat(a.longitude!)
-          );
-          const distB = this.calculateDistance(
-            userLat, userLng,
-            parseFloat(b.latitude!), parseFloat(b.longitude!)
-          );
-          
-          return distA - distB;
-        });
-    } catch (error) {
-      console.error("Error getting nearby events:", error);
-      return [];
-    }
-  }
-  
-  // Helper function to calculate distance between two coordinates using haversine formula
-  private calculateDistance(lat1: string, lon1: string, lat2: string, lon2: string): string {
-    const R = 6371; // Earth's radius in km
-    const dLat = this.toRad(lat2 - lat1);
-    const dLon = this.toRad(lon2 - lon1);
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const d = R * c;
-    return d;
-  }
-  
-  private toRad(degrees: string): string {
-    return degrees * Math.PI / 180;
-  }
-  
-  async getEvent(id: number): Promise<Event | undefined> {
-    try {
-      const result = await db
-        .select()
-        .from(events)
-        .where(eq(events.id, id)).limit(1);
-      
-      return result[0];
-    } catch (error) {
-      console.error(`Error getting event with ID ${id}:`, error);
-      return undefined;
-    }
-  }
-  
-  async getEventsByCommunity(communityId: number): Promise<Event[]> {
-    try {
-      const result = await db
-        .select()
-        .from(events)
-        .where(eq(events.communityId, communityId)).orderBy(events.eventDate, events.startTime);
-      
-      return result;
-    } catch (error) {
-      console.error(`Error getting events for community ${communityId}:`, error);
-      return [];
-    }
-  }
-  
-  async getEventsByGroup(groupId: number): Promise<Event[]> {
-    try {
-      const result = await db
-        .select()
-        .from(events)
-        .where(eq(events.groupId, groupId)).orderBy(events.eventDate, events.startTime);
-      
-      return result;
-    } catch (error) {
-      console.error(`Error getting events for group ${groupId}:`, error);
-      return [];
-    }
-  }
-  
-  async getEventsByUser(userId: number): Promise<Event[]> {
-    try {
-      const result = await db
-        .select()
-        .from(events)
-        .where(eq(events.creatorId, userId)).orderBy(events.eventDate, events.startTime);
-      
-      return result;
-    } catch (error) {
-      console.error(`Error getting events for user ${userId}:`, error);
-      return [];
-    }
-  }
-  
-  async createEvent(event: InsertEvent): Promise<Event> {
-    try {
-      const result = await db
-        .insert(events)
-        .values(event)
-        .returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error creating event:", error);
-      throw new Error("Failed to create event");
-    }
-  }
-  
-  async updateEvent(id: number, eventData: Partial<Event>): Promise<Event> {
-    try {
-      const result = await db
-        .update(events)
-        .set(eventData)
-        .where(eq(events.id, id)).returning();
-      
-      if (result.length === 0) {
-        throw new Error(`Event with ID ${id} not found`);
-      }
-      
-      return result[0];
-    } catch (error) {
-      console.error(`Error updating event ${id}:`, error);
-      throw new Error("Failed to update event");
-    }
-  }
-  
-  async deleteEvent(id: number): Promise<boolean> {
-    try {
-      const result = await db
-        .delete(events)
-        .where(eq(events.id, id))
-        .returning();
-      
-      return result.length > 0;
-    } catch (error) {
-      console.error(`Error deleting event ${id}:`, error);
-      return false;
-    }
-  }
-  
-  async getUpcomingEvents(limit: string): Promise<Event[]> {
-    try {
-      const now = new Date();
-      
-      // Get future events sorted by start date
-      const upcomingEvents = await db
-        .select()
-        .from(events)
-        .where(sql`${events.startTime} > ${now}`)
-        .orderBy(events.startTime)
-        .limit(limit);
-      
-      return upcomingEvents;
-    } catch (error) {
-      console.error("Error getting upcoming events:", error);
-      return [];
-    }
-  }
-  
-  // Event RSVP methods
-  async getEventRsvps(eventId: number): Promise<EventRsvp[]> {
-    try {
-      const rsvps = await db
-        .select({
-          id: eventRsvps.id,
-          eventId: eventRsvps.eventId,
-          userId: eventRsvps.userId,
-          status: eventRsvps.status,
-          createdAt: eventRsvps.createdAt,
-          user: {
-            id: users.id,
-            username: users.username,
-            displayName: users.displayName,
-            avatarUrl: users.avatarUrl
-          }
-        })
-        .from(eventRsvps)
-        .leftJoin(users, eq(eventRsvps.userId, users.id))
-        .where(eq(eventRsvps.eventId, eventId));
-      
-      return rsvps;
-    } catch (error) {
-      console.error(`Error getting RSVPs for event ${eventId}:`, error);
-      return [];
-    }
-  }
-  async getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined> {
-    try {
-      const result = await db
-        .select()
-        .from(eventRsvps)
-        .where(
-          and(
-            eq(eventRsvps.eventId, eventId),
-            eq(eventRsvps.userId, userId)
-          )
-        )
-        .limit(1);
-      
-      return result[0];
-    } catch (error) {
-      console.error(`Error getting user RSVP for event ${eventId}:`, error);
-      return undefined;
-    }
-  }
-  async createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp> {
-    try {
-      const result = await db
-        .insert(eventRsvps)
-        .values(rsvp)
-        .returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error creating event RSVP:", error);
-      throw new Error("Failed to create RSVP");
-    }
-  }
-  async updateEventRsvp(id: number, status: string): Promise<EventRsvp> {
-    try {
-      const result = await db
-        .update(eventRsvps)
-        .set({ status })
-        .where(eq(eventRsvps.id, id)).returning();
-      
-      if (result.length === 0) {
-        throw new Error(`RSVP with ID ${id} not found`);
-      }
-      
-      return result[0];
-    } catch (error) {
-      console.error(`Error updating RSVP ${id}:`, error);
-      throw new Error("Failed to update RSVP");
-    }
-  }
-  async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
-    try {
-      // Get public prayer requests
-      const publicRequests = await db
-        .select()
-        .from(prayerRequests)
-        .where(eq(prayerRequests.privacyLevel, 'public'));
-      
-      // Get the user's own prayer requests
-      const userRequests = await db
-        .select()
-        .from(prayerRequests)
-        .where(eq(prayerRequests.authorId, userId));
-      
-      // Get user's groups
-      const userGroups = await db
-        .select()
-        .from(groupMembers)
-        .where(eq(groupMembers.userId, userId));
-      
-      const userGroupIds = userGroups.map(g => g.groupId);
-      
-      // Get prayer requests from user's groups
-      const groupRequests = userGroupIds.length > 0 
-        ? await db
-            .select()
-            .from(prayerRequests)
-            .where(
-              and(
-                eq(prayerRequests.privacyLevel, 'group'),
-                inArray(prayerRequests.groupId, userGroupIds)
-              )
-            )
-        : [];
-      
-      // Combine and de-duplicate
-      const allRequests = [...publicRequests, ...userRequests, ...groupRequests];
-      const uniqueIds = new Set();
-      const uniqueRequests = allRequests.filter(request => {
-        if (uniqueIds.has(request.id)) {
-          return false;
-        }
-        uniqueIds.add(request.id);
-        return true;
-      });
-      
-      return uniqueRequests;
-    } catch (error) {
-      console.error("Error getting prayer requests visible to user:", error);
-      return [];
-    }
-  }
-  // Bible Study methods
-  async getAllBibleReadingPlans(filter?: string): Promise<BibleReadingPlan[]> {
-    try {
-      let query = db.select().from(bibleReadingPlans);
-      
-      if (filter === 'public') {
-        query = query.where(eq(bibleReadingPlans.isPublic, true));
-      }
-      
-      return await query.orderBy(desc(bibleReadingPlans.createdAt));
-    } catch (error) {
-      console.error("Error getting all Bible reading plans:", error);
-      return [];
-    }
-  }
-  async getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]> {
-    try {
-      return await db
-        .select()
-        .from(bibleReadingPlans)
-        .where(
-          or(
-            eq(bibleReadingPlans.creatorId, userId),
-            eq(bibleReadingPlans.isPublic, true)
-          )
-        )
-        .orderBy(desc(bibleReadingPlans.createdAt));
-    } catch (error) {
-      console.error("Error getting user Bible reading plans:", error);
-      return [];
-    }
-  }
-  async getGroupBibleReadingPlans(groupId: number): Promise<BibleReadingPlan[]> {
-    try {
-      return await db
-        .select()
-        .from(bibleReadingPlans)
-        .where(eq(bibleReadingPlans.groupId, groupId)).orderBy(desc(bibleReadingPlans.createdAt));
-    } catch (error) {
-      console.error("Error getting group Bible reading plans:", error);
-      return [];
-    }
-  }
-  
-  async createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan> {
-    try {
-      const [newPlan] = await db
-        .insert(bibleReadingPlans)
-        .values(plan)
-        .returning();
-      
-      return newPlan;
-    } catch (error) {
-      console.error("Error creating Bible reading plan:", error);
-      throw error;
-    }
-  }
-  
-  async updateBibleReadingPlan(id: number, data: Partial<BibleReadingPlan>): Promise<BibleReadingPlan> {
-    try {
-      const result = await db
-        .update(bibleReadingPlans)
-        .set(data)
-        .where(eq(bibleReadingPlans.id, id)).returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error updating Bible reading plan:", error);
-      throw error;
-    }
-  }
-  
-  async deleteBibleReadingPlan(id: number): Promise<boolean> {
-    try {
-      await db.delete(bibleReadingPlans).where(eq(bibleReadingPlans.id, id));
-      return true;
-    } catch (error) {
-      console.error("Error deleting Bible reading plan:", error);
-      return false;
-    }
-  }
-  
-  // Bible Reading Progress methods
-  async getUserReadingProgress(userId: number): Promise<typeof bibleReadingProgress.$inferSelect[]> {
-    try {
-      return await db
-        .select()
-        .from(bibleReadingProgress)
-        .where(eq(bibleReadingProgress.userId, userId));
-    } catch (error) {
-      console.error("Error getting user reading progress:", error);
-      return [];
-    }
-  }
-  
-  async getBibleReadingProgress(userId: number, planId: string): Promise<typeof bibleReadingProgress.$inferSelect | undefined> {
-    try {
-      const result = await db
-        .select()
-        .from(bibleReadingProgress)
-        .where(
-          and(
-            eq(bibleReadingProgress.userId, userId),
-            eq(bibleReadingProgress.planId, planId)
-          )
-        )
-        .limit(1);
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error getting Bible reading progress:", error);
-      return undefined;
-    }
-  }
-  
-  async createBibleReadingProgress(progress: typeof insertBibleReadingProgressSchema._type): Promise<typeof bibleReadingProgress.$inferSelect> {
-    try {
-      const result = await db.insert(bibleReadingProgress).values(progress).returning();
-      return result[0];
-    } catch (error) {
-      console.error("Error creating Bible reading progress:", error);
-      throw error;
-    }
-  }
-  
-  async updateBibleReadingProgress(
-    userId: number,
-    planId: string,
-    data: { 
-      currentDay?: string, 
-      completedDays?: unknown,
-      completedAt?: Date | null 
-    }
-  ): Promise<typeof bibleReadingProgress.$inferSelect> {
-    try {
-      const result = await db
-        .update(bibleReadingProgress)
-        .set(data)
-        .where(
-          and(
-            eq(bibleReadingProgress.userId, userId),
-            eq(bibleReadingProgress.planId, planId)
-          )
-        )
-        .returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error updating Bible reading progress:", error);
-      throw error;
-    }
-  }
-  
-  // Bible Study Notes methods
-  async getAllBibleStudyNotes(): Promise<typeof bibleStudyNotes.$inferSelect[]> {
-    try {
-      return await db
-        .select()
-        .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.isPublic, true)).orderBy(desc(bibleStudyNotes.createdAt));
-    } catch (error) {
-      console.error("Error getting all Bible study notes:", error);
-      return [];
-    }
-  }
-  
-  async getUserBibleStudyNotes(userId: number): Promise<typeof bibleStudyNotes.$inferSelect[]> {
-    try {
-      return await db
-        .select()
-        .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.userId, userId))
-        .orderBy(desc(bibleStudyNotes.createdAt));
-    } catch (error) {
-      console.error("Error getting user Bible study notes:", error);
-      return [];
-    }
-  }
-  
-  async getGroupBibleStudyNotes(groupId: number): Promise<typeof bibleStudyNotes.$inferSelect[]> {
-    try {
-      return await db
-        .select()
-        .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.groupId, groupId))
-        .orderBy(desc(bibleStudyNotes.createdAt));
-    } catch (error) {
-      console.error("Error getting group Bible study notes:", error);
-      return [];
-    }
-  }
-  
-  async getBibleStudyNote(id: number): Promise<typeof bibleStudyNotes.$inferSelect | undefined> {
-    try {
-      const result = await db
-        .select()
-        .from(bibleStudyNotes)
-        .where(eq(bibleStudyNotes.id, id))
-        .limit(1);
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error getting Bible study note:", error);
-      return undefined;
-    }
-  }
-  
-  async createBibleStudyNote(note: typeof insertBibleStudyNotesSchema._type): Promise<typeof bibleStudyNotes.$inferSelect> {
-    try {
-      const result = await db.insert(bibleStudyNotes).values(note).returning();
-      return result[0];
-    } catch (error) {
-      console.error("Error creating Bible study note:", error);
-      throw error;
-    }
-  }
-  
-  async updateBibleStudyNote(
-    id: number,
-    data: Partial<typeof insertBibleStudyNotesSchema._type>
-  ): Promise<typeof bibleStudyNotes.$inferSelect> {
-    try {
-      const updateData = {
-        ...data,
-        updatedAt: new Date(),
-      };
-      
-      const result = await db
-        .update(bibleStudyNotes)
-        .set(updateData)
-        .where(eq(bibleStudyNotes.id, id))
-        .returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error updating Bible study note:", error);
-      throw error;
-    }
-  }
-  
-  async deleteBibleStudyNote(id: number): Promise<boolean> {
-    try {
-      await db.delete(bibleStudyNotes).where(eq(bibleStudyNotes.id, id));
-      return true;
-    } catch (error) {
-      console.error("Error deleting Bible study note:", error);
-      return false;
-    }
-  }
-  
-  // Livestreamer application methods
-  async getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined> {
-    try {
-      const applications = await db
-        .select()
-        .from(livestreamerApplications)
-        .where(eq(livestreamerApplications.userId, userId));
-      
-      return applications[0];
-    } catch (error) {
-      console.error("Error getting livestreamer application by user ID:", error);
-      return undefined;
-    }
-  }
-  
-  async getPendingLivestreamerApplications(): Promise<LivestreamerApplication[]> {
-    try {
-      const pendingApplications = await db
-        .select()
-        .from(livestreamerApplications)
-        .where(eq(livestreamerApplications.status, "pending"))
-        .orderBy(livestreamerApplications.submittedAt);
-      
-      return pendingApplications;
-    } catch (error) {
-      console.error("Error getting pending livestreamer applications:", error);
-      return [];
-    }
-  }
-  
-  async createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication> {
-    try {
-      const result = await db
-        .insert(livestreamerApplications)
-        .values(application)
-        .returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error creating livestreamer application:", error);
-      throw error;
-    }
-  }
-  
-  async updateLivestreamerApplication(
-    id: number, 
-    status: string, 
-    reviewNotes: string, 
-    reviewerId: string
-  ): Promise<LivestreamerApplication> {
-    try {
-      const result = await db
-        .update(livestreamerApplications)
-        .set({ 
-          status, 
-          reviewNotes, 
-          reviewedBy: reviewerId,
-          reviewedAt: new Date()
-        })
-        .where(eq(livestreamerApplications.id, id))
-        .returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error updating livestreamer application:", error);
-      throw error;
-    }
-  }
-  
-  async isApprovedLivestreamer(userId: number): Promise<boolean> {
-    try {
-      const applications = await db
-        .select()
-        .from(livestreamerApplications)
-        .where(
-          and(
-            eq(livestreamerApplications.userId, userId),
-            eq(livestreamerApplications.status, "approved")
-          )
-        );
-      
-      return applications.length > 0;
-    } catch (error) {
-      console.error("Error checking approved livestreamer status:", error);
-      return false;
-    }
-  }
-  
-  // Apologist Scholar application methods
-  async getApologistScholarApplicationByUserId(userId: number): Promise<ApologistScholarApplication | undefined> {
-    try {
-      const applications = await db
-        .select()
-        .from(apologistScholarApplications)
-        .where(eq(apologistScholarApplications.userId, userId));
-      
-      return applications[0];
-    } catch (error) {
-      console.error("Error getting apologist scholar application by user ID:", error);
-      return undefined;
-    }
-  }
-  
-  async getPendingApologistScholarApplications(): Promise<ApologistScholarApplication[]> {
-    try {
-      const pendingApplications = await db
-        .select()
-        .from(apologistScholarApplications)
-        .where(eq(apologistScholarApplications.status, "pending"))
-        .orderBy(apologistScholarApplications.submittedAt);
-      
-      return pendingApplications;
-    } catch (error) {
-      console.error("Error getting pending apologist scholar applications:", error);
-      return [];
-    }
-  }
-  
-  async createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication> {
-    try {
-      const result = await db
-        .insert(apologistScholarApplications)
-        .values(application)
-        .returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error creating apologist scholar application:", error);
-      throw error;
-    }
-  }
-  
-  async updateApologistScholarApplication(
-    id: number, 
-    status: string, 
-    reviewNotes: string, 
-    reviewerId: string
-  ): Promise<ApologistScholarApplication> {
-    try {
-      const result = await db
-        .update(apologistScholarApplications)
-        .set({ 
-          status, 
-          reviewNotes, 
-          reviewedBy: reviewerId,
-          reviewedAt: new Date()
-        })
-        .where(eq(apologistScholarApplications.id, id))
-        .returning();
-      
-      return result[0];
-    } catch (error) {
-      console.error("Error updating apologist scholar application:", error);
-      throw error;
-    }
-  }
-  
-  async isApprovedApologistScholar(userId: number): Promise<boolean> {
-    try {
-      const applications = await db
-        .select()
-        .from(apologistScholarApplications)
-        .where(
-          and(
-            eq(apologistScholarApplications.userId, userId),
-            eq(apologistScholarApplications.status, "approved")
-          )
-        );
-      
-      return applications.length > 0;
-    } catch (error) {
-      console.error("Error checking if user is approved apologist scholar:", error);
-      return false;
-    }
-  }
-}
-// Replace MemStorage with DatabaseStorage
-export const storage = new DatabaseStorage();
+// Export storage instance
+export const storage = new MemStorage();

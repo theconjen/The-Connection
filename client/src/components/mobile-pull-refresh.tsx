@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { useMediaQuery } from '@/hooks/use-media-query';
+import { useMediaQuery } from '../hooks/use-media-query';
 
 interface MobilePullRefreshProps {
   onRefresh: () => Promise<any>;

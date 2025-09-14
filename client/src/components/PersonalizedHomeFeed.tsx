@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, Sparkles, TrendingUp, Users, Brain, Loader2 } from 'lucide-react';
 import { PersonalizedFeedCard } from './PersonalizedFeedCard';
-import { usePersonalizedFeed } from '@/hooks/useRecommendations';
+import { usePersonalizedFeed } from '../hooks/useRecommendations';
 
 export function PersonalizedHomeFeed() {
   const [feedLimit, setFeedLimit] = useState(15);
