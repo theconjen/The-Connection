@@ -31,7 +31,7 @@ export type ContentType =
  * Structure representing a content item with its metadata
  */
 export interface ContentItem {
-  id: number;
+  id: string;
   type: ContentType;
   title: string;
   description?: string;
@@ -39,7 +39,7 @@ export interface ContentItem {
   topics?: string[];
   createdAt: Date | null;
   author?: {
-    id: number;
+    id: string;
     username: string;
   };
   engagementScore?: string;
@@ -64,7 +64,7 @@ const WEIGHTS = {
  * @param limit Maximum number of recommendations to return (default 10)
  * @returns Array of content items sorted by recommendation score
  */
-export async function getRecommendationsForUser(userId: number, limit = 10): Promise<ContentItem[]> {
+export async function getRecommendationsForUser(userId: string, limit = 10): Promise<ContentItem[]> {
   try {
     // Get user's preferences
     const userPreferences = await storage.getUserPreferences(userId);

@@ -9,7 +9,7 @@ export interface LivestreamerApplicationNotificationParams {
   applicantName: string;
   applicantEmail: string;
   ministryName: string;
-  applicationId: number;
+  applicationId: string;
   applicationDate: string;
   reviewLink: string;
 }

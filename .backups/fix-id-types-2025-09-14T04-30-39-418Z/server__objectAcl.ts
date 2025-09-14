@@ -32,7 +32,7 @@ export interface ObjectAccessGroup {
   // - for SUBSCRIBER, the id could be the subscriber db entity id, and the
   //   subscriber db entity could contain a bunch of user ids. User needs to
   //   be a subscriber to be able to access the object.
-  id: number;
+  id: string;
 }
 
 export enum ObjectPermission {
@@ -75,11 +75,11 @@ function isPermissionAllowed(
 abstract class BaseObjectAccessGroup implements ObjectAccessGroup {
   constructor(
     public readonly type: ObjectAccessGroupType,
-    public readonly id: number,
+    public readonly id: string,
   ) {}
 
   // Check if the user is a member of the group.
-  public abstract hasMember(userId: number): Promise<boolean>;
+  public abstract hasMember(userId: string): Promise<boolean>;
 }
 
 function createObjectAccessGroup(

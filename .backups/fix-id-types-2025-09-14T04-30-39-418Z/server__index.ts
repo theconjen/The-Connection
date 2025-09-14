@@ -48,7 +48,7 @@ app.use(passport.session());
 passport.serializeUser((user: Express.User, done) => {
   done(null, (user as User).id);
 });
-passport.deserializeUser(async (id: number, done) => {
+passport.deserializeUser(async (id: string, done) => {
   try {
     const { storage } = await import("./storage");
     const user = await storage.getUser(id);

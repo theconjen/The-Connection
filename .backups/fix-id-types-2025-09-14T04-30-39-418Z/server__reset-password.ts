@@ -8,7 +8,7 @@ const TOKEN_EXPIRY = 60 * 60 * 1000;
 
 // In-memory storage for reset tokens (in production this would be in database)
 const passwordResetTokens = new Map<string, {
-  userId: number;
+  userId: string;
   email: string;
   expires: string;
 }>();

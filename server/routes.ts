@@ -1,3 +1,4 @@
+import { getUserId } from "./utils/session"
 import { Express } from 'express';
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -38,6 +39,20 @@ declare module 'express-session' {
 export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Set up authentication
   setupAuth(app);
+
+  // Normalize userId in session (string → number)
+  app.use((req, _res, next) => {
+ const raw = (req.session as any)?.userId
+    if (raw && typeof raw === "string") {
+      const n = Number(raw)
+      if (Number.isFinite(n)) {
+        (req.session as any).userId = n
+      }
+    }
+    next()
+  })
+
+  const userId = getUserId(req.session?.userId)
 
   // Session userId conversion middleware - ensure userId is always a number
   app.use((req, _res, next) => {
@@ -324,7 +339,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       const token = generateToken();
 
       // Create invitation
-      const invitation = await storage.createCommunityInvitation({
+      const invitationUrl = `${BASE_URL}/invitations/${token}/accept`;
         communityId: communityId,
         inviterId: userId,
         email: email,
@@ -382,7 +397,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.get('/api/invitations/:token', async (req, res) => {
     try {
       const token = req.params.token;
-      const invitation = await storage.getCommunityInvitationByToken(token);
+      const invitationUrl = `${BASE_URL}/invitations/${token}/accept`;
       
       if (!invitation) {
         return res.status(404).json({ message: 'Invitation not found or expired' });
@@ -404,7 +419,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       const token = req.params.token;
       const userId = req.session!.userId!;
       
-      const invitation = await storage.getCommunityInvitationByToken(token);
+      const invitationUrl = `${BASE_URL}/invitations/${token}/accept`;
       
       if (!invitation) {
         return res.status(404).json({ message: 'Invitation not found or expired' });
@@ -1223,7 +1238,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
           to: application.email,
           subject: `Livestreamer Application ${status.charAt(0).toUpperCase() + status.slice(1)}`,
           message: emailMessage,
-          reviewLink: `https://theconnection.app/admin/livestreamer-applications/${application.id}`,
+          reviewLink: `https://theconnection.app/admin/livestreamer-applications/${application.id}`
           actionText: status === "approved" ? "Start Livestreaming" : "View Application",
           actionUrl: status === "approved" 
             ? `https://${process.env.REPLIT_DOMAIN || "theconnection.app"}/livestreams/create`

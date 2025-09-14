@@ -5,7 +5,7 @@ const TOKEN_EXPIRY = 60 * 60 * 1000;
 
 // In-memory storage for reset tokens (in production this would be in database)
 interface ResetTokenData {
-  userId: number;
+  userId: string;
   email: string;
   expires: string;
 }
@@ -27,7 +27,7 @@ class PasswordResetManager {
   /**
    * Store a token for a user
    */
-  storeToken(userId: number, email: string, token: string): void {
+  storeToken(userId: string, email: string, token: string): void {
     const expires = Date.now() + TOKEN_EXPIRY;
     this.tokens.set(token, { userId, email, expires });
     
