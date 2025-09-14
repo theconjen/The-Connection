@@ -664,7 +664,7 @@ export default function CommunitiesPage() {
                 key={community.id} 
                 className={cardClassName}
                 {...cardProps}
-                onClick={() => navigate(`/community/${community.slug}`)}
+                onClick={() => navigate(`/communities/${community.slug}`)}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-2">
@@ -701,7 +701,7 @@ export default function CommunitiesPage() {
                     className="w-full bg-white/70 hover:bg-white/90"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/community/${community.slug}`);
+                      navigate(`/communities/${community.slug}`);
                     }}
                   >
                     Explore
