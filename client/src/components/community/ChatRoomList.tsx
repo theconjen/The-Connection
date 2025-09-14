@@ -232,189 +232,79 @@ export function ChatRoomList({ communityId, isOwner, isModerator, isMember }: Ch
     );
   }
   
-  // Split rooms into public and private
-  const publicRooms = chatRooms?.filter(room => !room.isPrivate) || [];
-  const privateRooms = chatRooms?.filter(room => room.isPrivate) || [];
+  // Get the main community chat room (first room or create if none exists)
+  const mainChatRoom = chatRooms?.[0];
   
-  // Function to render room list based on array
-  const renderRoomList = (rooms: ChatRoom[]) => {
-    if (rooms.length === 0) {
-      return (
-        <div className="text-center py-4 text-muted-foreground">
-          No chat rooms found
-        </div>
-      );
+  // Create default room if none exists and user is a member
+  const createDefaultRoom = async () => {
+    if (isMember && (!chatRooms || chatRooms.length === 0)) {
+      createRoomMutation.mutate({
+        name: "General Chat",
+        description: "Main community discussion",
+        isPrivate: false, // But only members can access
+      });
     }
-    
-    return rooms.map(room => (
-      <Card key={room.id} className="mb-4">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                {room.name}
-                {room.isPrivate && <Lock className="h-4 w-4 text-amber-500" />}
-              </CardTitle>
-              <CardDescription>
-                {room.description || "No description provided"}
-              </CardDescription>
-            </div>
-            
-            {(isOwner || isModerator || room.createdBy === user?.id) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => openEditDialog(room)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    <span>Edit Room</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => openDeleteDialog(room)}
-                  >
-                    <Trash className="mr-2 h-4 w-4" />
-                    <span>Delete Room</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ChatRoomComponent roomId={room.id} roomName={room.name} />
-        </CardContent>
-      </Card>
-    ));
   };
   
+  // Auto-create default room if needed
+  if (isMember && (!chatRooms || chatRooms.length === 0) && !createRoomMutation.isPending) {
+    createDefaultRoom();
+  }
+  
+  // Only show chat to community members
+  if (!isMember) {
+    return (
+      <div className="text-center py-8 border rounded-md">
+        <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <h4 className="text-xl font-medium">Community Chat</h4>
+        <p className="text-muted-foreground">
+          You need to join this community to access the chat room.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="font-medium text-lg">Chat Rooms</h3>
-        
-        {isMember && (
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <MessageSquarePlus className="mr-2 h-4 w-4" />
-                New Chat Room
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Chat Room</DialogTitle>
-                <DialogDescription>
-                  Add a new chat room to this community.
-                  {!isOwner && !isModerator && newRoomIsPrivate && (
-                    <div className="mt-2 text-amber-500">
-                      <Lock className="inline-block h-4 w-4 mr-1" />
-                      Only moderators or owners can create private chat rooms.
-                    </div>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-              
-              <form onSubmit={handleCreateRoom}>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Room Name</Label>
-                    <Input
-                      id="name"
-                      value={newRoomName}
-                      onChange={(e) => setNewRoomName(e.target.value)}
-                      placeholder="General Discussion"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Description (optional)</Label>
-                    <Input
-                      id="description"
-                      value={newRoomDescription}
-                      onChange={(e) => setNewRoomDescription(e.target.value)}
-                      placeholder="A place for general community discussions"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="isPrivate"
-                      checked={newRoomIsPrivate}
-                      onCheckedChange={setNewRoomIsPrivate}
-                      disabled={!isOwner && !isModerator && newRoomIsPrivate}
-                    />
-                    <Label htmlFor="isPrivate">
-                      {newRoomIsPrivate ? (
-                        <span className="flex items-center">
-                          <Lock className="h-4 w-4 mr-1" />
-                          Private Room (members only)
-                        </span>
-                      ) : (
-                        <span className="flex items-center">
-                          <Unlock className="h-4 w-4 mr-1" />
-                          Public Room (all visitors)
-                        </span>
-                      )}
-                    </Label>
-                  </div>
-                </div>
-                
-                <DialogFooter>
-                  <Button 
-                    type="submit"
-                    disabled={createRoomMutation.isPending || (!isOwner && !isModerator && newRoomIsPrivate)}
-                  >
-                    {createRoomMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      "Create Room"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+        <h3 className="font-medium text-lg">Community Chat</h3>
       </div>
       
-      <Tabs defaultValue="all">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="all">All Rooms ({chatRooms?.length || 0})</TabsTrigger>
-          <TabsTrigger value="public">Public ({publicRooms.length})</TabsTrigger>
-          <TabsTrigger value="private">Private ({privateRooms.length})</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="all" className="mt-4">
-          {renderRoomList(chatRooms || [])}
-        </TabsContent>
-        
-        <TabsContent value="public" className="mt-4">
-          {renderRoomList(publicRooms)}
-        </TabsContent>
-        
-        <TabsContent value="private" className="mt-4">
-          {isMember ? (
-            renderRoomList(privateRooms)
-          ) : (
-            <div className="text-center py-6 border rounded-md">
-              <Lock className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <h4 className="text-lg font-medium">Private Rooms</h4>
-              <p className="text-muted-foreground">
-                You need to join this community to access private chat rooms.
-              </p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* Loading state for chat room creation */}
+      {createRoomMutation.isPending && (
+        <div className="flex justify-center items-center p-4">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="ml-2">Setting up chat room...</span>
+        </div>
+      )}
+      
+      {/* Main chat room */}
+      {mainChatRoom && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">
+              {mainChatRoom.name}
+            </CardTitle>
+            <CardDescription>
+              {mainChatRoom.description || "Community discussion"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChatRoomComponent roomId={mainChatRoom.id} roomName={mainChatRoom.name} />
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Show message if no room exists and not creating */}
+      {!mainChatRoom && !createRoomMutation.isPending && (
+        <div className="text-center py-6 border rounded-md">
+          <MessageSquarePlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+          <h4 className="text-lg font-medium">No Chat Room Yet</h4>
+          <p className="text-muted-foreground mb-4">
+            A chat room will be created automatically for this community.
+          </p>
+        </div>
+      )}
       
       {/* Edit Room Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
