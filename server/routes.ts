@@ -205,14 +205,17 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Get communities for a specific user
   app.get("/api/users/:userId/communities", isAuthenticated, async (req, res, next) => {
     try {
-      const { userId } = req.params;
+      const userIdParam = parseInt(req.params.userId, 10);
+      if (isNaN(userIdParam)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
       
       // Only allow users to see their own communities or admin users
-      if (req.session.userId !== userId && !req.session.isAdmin) {
+      if (req.session.userId !== userIdParam && !req.session.isAdmin) {
         return res.status(403).json({ message: "Forbidden: Can only view your own communities" });
       }
       
-      const userCommunities = await storage.getUserCommunities(userId);
+      const userCommunities = await storage.getUserCommunities(userIdParam);
       res.json(userCommunities);
     } catch (error) {
       next(error);
@@ -271,9 +274,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   app.put("/api/communities/:id", isAuthenticated, async (req, res, next) => {
     try {
       // Check if user is authorized (owner or moderator)
-      const communityId = req.params.id;
-      const userId = String(req.session.userId!);
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -305,9 +311,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Delete community
   app.delete("/api/communities/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = req.params.id;
-      const userId = String(req.session.userId!);
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -318,7 +327,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         return res.status(403).json({ message: "Forbidden: Only community owners can delete communities" });
       }
       
-      const success = await storage.deleteCommunity(Number(communityId));
+      const success = await storage.deleteCommunity(communityId);
       if (!success) {
         return res.status(404).json({ message: "Community not found" });
       }
@@ -334,8 +343,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Send invitation to join a private community
   app.post("/api/communities/:id/invite", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = req.params.id;
-      const userId = String(req.session.userId!);
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
+      
+      const userId = req.session.userId!;
       const { email } = req.body;
       
       if (!email) {
@@ -382,7 +395,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       // Check if user is already a member (using sanitized email)
       const inviteeUser = await storage.getUserByEmail(sanitizedEmail);
       if (inviteeUser) {
-        const isMember = await storage.isCommunityMember(communityId, String(inviteeUser.id));
+        const isMember = await storage.isCommunityMember(communityId, inviteeUser.id);
         if (isMember) {
           return res.status(409).json({ 
             message: "User is already a member of this community",
@@ -401,7 +414,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
           });
         } else if (existingInvitation.status === 'expired') {
           // Delete expired invitation and allow new one
-          await storage.deleteCommunityInvitation(String(existingInvitation.id));
+          await storage.deleteCommunityInvitation(existingInvitation.id);
         }
       }
       
@@ -410,8 +423,8 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
       
       const validatedData = insertCommunityInvitationSchema.parse({
-        communityId: parseInt(communityId),
-        inviterUserId: parseInt(userId),
+        communityId: communityId,
+        inviterUserId: userId,
         inviteeEmail: sanitizedEmail, // Use sanitized email
         inviteeUserId: inviteeUser ? inviteeUser.id : null,
         status: 'pending',
@@ -468,8 +481,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Get pending invitations for a community (admin only)
   app.get("/api/communities/:id/invitations", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = req.params.id;
-      const userId = String(req.session.userId!);
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
+      
+      const userId = req.session.userId!;
       
       // Check if user is authorized (owner or moderator)
       const isOwner = await storage.isCommunityOwner(communityId, userId);
@@ -488,7 +505,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       for (const invitation of invitations) {
         if (invitation.expiresAt && new Date(invitation.expiresAt) < currentTime && invitation.status === 'pending') {
           // Mark as expired
-          await storage.updateCommunityInvitationStatus(String(invitation.id), 'expired');
+          await storage.updateCommunityInvitationStatus(invitation.id, 'expired');
           activeInvitations.push({ ...invitation, status: 'expired' });
         } else {
           activeInvitations.push(invitation);
@@ -506,7 +523,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   app.post("/api/invitations/:token/accept", isAuthenticated, async (req, res, next) => {
     try {
       const { token } = req.params;
-      const userId = String(req.session.userId!);
+      const userId = req.session.userId!;
       
       // Get user details
       const user = await storage.getUserById(userId);
@@ -537,24 +554,24 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       }
       
       // Check if user is already a member
-      const isMember = await storage.isCommunityMember(String(invitation.communityId), userId);
+      const isMember = await storage.isCommunityMember(invitation.communityId, userId);
       if (isMember) {
         // Mark invitation as accepted even if already a member
-        await storage.updateCommunityInvitationStatus(String(invitation.id), 'accepted');
+        await storage.updateCommunityInvitationStatus(invitation.id, 'accepted');
         return res.status(409).json({ message: "You are already a member of this community" });
       }
       
       // Add user to community
       const memberData = insertCommunityMemberSchema.parse({
         communityId: invitation.communityId,
-        userId: parseInt(userId),
+        userId: userId,
         role: 'member'
       });
       
       await storage.addCommunityMember(memberData);
       
       // Mark invitation as accepted
-      await storage.updateCommunityInvitationStatus(String(invitation.id), 'accepted');
+      await storage.updateCommunityInvitationStatus(invitation.id, 'accepted');
       
       res.json({ 
         message: "Successfully joined the community",
@@ -572,8 +589,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Cancel invitation (admin only)
   app.delete("/api/invitations/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const invitationId = req.params.id;
-      const userId = String(req.session.userId!);
+      const invitationId = parseInt(req.params.id, 10);
+      if (isNaN(invitationId)) {
+        return res.status(400).json({ message: "Invalid invitation ID" });
+      }
+      
+      const userId = req.session.userId!;
       
       // Get invitation details
       const invitation = await storage.getCommunityInvitationById(invitationId);
@@ -582,10 +603,10 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       }
       
       // Check if user is authorized (owner, moderator, or the inviter)
-      const communityId = String(invitation.communityId);
+      const communityId = invitation.communityId;
       const isOwner = await storage.isCommunityOwner(communityId, userId);
       const isModerator = await storage.isCommunityModerator(communityId, userId);
-      const isInviter = invitation.inviterUserId === parseInt(userId);
+      const isInviter = invitation.inviterUserId === userId;
       
       if (!isOwner && !isModerator && !isInviter) {
         return res.status(403).json({ message: "Forbidden: Only community admins or the person who sent the invitation can cancel it" });
@@ -620,7 +641,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       }
       
       // Get community details
-      const community = await storage.getCommunity(String(invitation.communityId));
+      const community = await storage.getCommunity(invitation.communityId);
       if (!community) {
         return res.status(404).json({ message: "Community not found" });
       }
@@ -652,7 +673,11 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Community Members routes
   app.get("/api/communities/:id/members", async (req, res, next) => {
     try {
-      const communityId = req.params.id;
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
+      
       const members = await storage.getCommunityMembers(communityId);
       res.json(members);
     } catch (error) {
@@ -662,9 +687,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.post("/api/communities/:id/members", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = req.params.id;
-      const userId = String(req.session.userId!);
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -697,10 +725,13 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.put("/api/communities/:communityId/members/:memberId/role", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = req.params.communityId;
-      const memberId = req.params.memberId;
-      const userId = String(req.session.userId!);
+      const communityId = parseInt(req.params.communityId, 10);
+      const memberId = parseInt(req.params.memberId, 10);
+      if (isNaN(communityId) || isNaN(memberId)) {
+        return res.status(400).json({ message: "Invalid community ID or member ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -725,8 +756,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.delete("/api/communities/:communityId/members/:userId", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = req.params.communityId;
-      const memberUserId = req.params.userId;
+      const communityId = parseInt(req.params.communityId, 10);
+      const memberUserId = parseInt(req.params.userId, 10);
+      if (isNaN(communityId) || isNaN(memberUserId)) {
+        return res.status(400).json({ message: "Invalid community ID or user ID" });
+      }
+      
       const currentUserId = req.session.userId!;
       
       if (!currentUserId) {
@@ -766,12 +801,16 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Community Chat Room routes
   app.get("/api/communities/:id/chat-rooms", async (req, res, next) => {
     try {
-      const communityId = req.params.id;
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
+      
       const userId = req.session.userId!;
       
       // If authenticated, show all rooms (incl. private) if member
       if (userId) {
-        const isMember = await storage.isCommunityMember(communityId, String(userId));
+        const isMember = await storage.isCommunityMember(communityId, userId);
         if (isMember) {
           const rooms = await storage.getCommunityRooms(communityId);
           return res.json(rooms);
@@ -816,22 +855,25 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.post("/api/communities/:id/chat-rooms", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = req.params.id;
-      const userId = req.session.userId!;
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
       // Check if user is member of the community
-      const isMember = await storage.isCommunityMember(communityId, String(userId));
+      const isMember = await storage.isCommunityMember(communityId, userId);
       if (!isMember) {
         return res.status(403).json({ message: "Forbidden: Only community members can create chat rooms" });
       }
       
       // If creating a private room, make sure user is owner or moderator
       if (req.body.isPrivate) {
-        const isModOrOwner = await storage.isCommunityModerator(communityId, String(userId));
+        const isModOrOwner = await storage.isCommunityModerator(communityId, userId);
         if (!isModOrOwner) {
           return res.status(403).json({ message: "Forbidden: Only moderators or owners can create private chat rooms" });
         }
@@ -864,22 +906,25 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.put("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const roomId = req.params.id;
-      const userId = req.session.userId!;
+      const roomId = parseInt(req.params.id, 10);
+      if (isNaN(roomId)) {
+        return res.status(400).json({ message: "Invalid room ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const room = await storage.getCommunityRoom(Number(roomId));
+      const room = await storage.getCommunityRoom(roomId);
       if (!room) {
         return res.status(404).json({ message: "Chat room not found" });
       }
       
       // Check if user is authorized (creator, owner, or moderator)
-      const isCreator = room.createdBy === Number(userId);
-      const isOwner = await storage.isCommunityOwner(String(room.communityId), String(userId));
-      const isModerator = await storage.isCommunityModerator(String(room.communityId), String(userId));
+      const isCreator = room.createdBy === userId;
+      const isOwner = await storage.isCommunityOwner(room.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(room.communityId, userId);
       
       if (!isCreator && !isOwner && !isModerator) {
         return res.status(403).json({ 
@@ -888,7 +933,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       }
       
       const validatedData = insertCommunityChatRoomSchema.partial().parse(req.body);
-      const updatedRoom = await storage.updateCommunityRoom(String(roomId), validatedData);
+      const updatedRoom = await storage.updateCommunityRoom(roomId, validatedData);
       
       res.json(updatedRoom);
     } catch (error) {
@@ -901,22 +946,25 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.delete("/api/chat-rooms/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const roomId = req.params.id;
-      const userId = req.session.userId!;
+      const roomId = parseInt(req.params.id, 10);
+      if (isNaN(roomId)) {
+        return res.status(400).json({ message: "Invalid room ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const room = await storage.getCommunityRoom(Number(roomId));
+      const room = await storage.getCommunityRoom(roomId);
       if (!room) {
         return res.status(404).json({ message: "Chat room not found" });
       }
       
       // Check if user is authorized (creator, owner, or moderator)
-      const isCreator = room.createdBy === Number(userId);
-      const isOwner = await storage.isCommunityOwner(String(room.communityId), String(userId));
-      const isModerator = await storage.isCommunityModerator(String(room.communityId), String(userId));
+      const isCreator = room.createdBy === userId;
+      const isOwner = await storage.isCommunityOwner(room.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(room.communityId, userId);
       
       if (!isCreator && !isOwner && !isModerator) {
         return res.status(403).json({ 
@@ -924,7 +972,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         });
       }
       
-      const success = await storage.deleteCommunityRoom(Number(roomId));
+      const success = await storage.deleteCommunityRoom(roomId);
       if (!success) {
         return res.status(404).json({ message: "Chat room not found" });
       }
@@ -938,10 +986,10 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Chat Messages routes
   app.get("/api/chat-rooms/:id/messages", async (req, res, next) => {
     try {
-      const roomId = req.params.id;
+      const roomId = parseInt(req.params.id, 10);
       const limit = req.query.limit ? Number(req.query.limit as string) : 50;
       
-      if (isNaN(Number(roomId)) || Number(roomId) <= 0) {
+      if (isNaN(roomId) || roomId <= 0) {
         return res.status(400).json({ message: "Invalid room ID" });
       }
       
@@ -949,7 +997,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         return res.status(400).json({ message: "Limit must be between 1 and 1000" });
       }
       
-      const room = await storage.getCommunityRoom(Number(roomId));
+      const room = await storage.getCommunityRoom(roomId);
       if (!room) {
         return res.status(404).json({ message: "Chat room not found" });
       }
@@ -961,13 +1009,13 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
           return res.status(401).json({ message: "Unauthorized" });
         }
         
-        const isMember = await storage.isCommunityMember(String(room.communityId), String(userId));
+        const isMember = await storage.isCommunityMember(room.communityId, userId);
         if (!isMember) {
           return res.status(403).json({ message: "Forbidden: Private rooms are only accessible to community members" });
         }
       }
       
-      const messages = await storage.getChatMessages(String(roomId), limit);
+      const messages = await storage.getChatMessages(roomId, limit);
       res.json(messages);
     } catch (error) {
       next(error);
@@ -976,14 +1024,14 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.get("/api/chat-rooms/:roomId/messages-after/:messageId", async (req, res, next) => {
     try {
-      const roomId = req.params.roomId;
-      const afterId = req.params.messageId;
+      const roomId = parseInt(req.params.roomId, 10);
+      const afterId = parseInt(req.params.messageId, 10);
       
-      if (isNaN(Number(roomId)) || isNaN(Number(afterId)) || Number(roomId) <= 0 || Number(afterId) <= 0) {
+      if (isNaN(roomId) || isNaN(afterId) || roomId <= 0 || afterId <= 0) {
         return res.status(400).json({ message: "Invalid room ID or message ID" });
       }
       
-      const room = await storage.getCommunityRoom(Number(roomId));
+      const room = await storage.getCommunityRoom(roomId);
       if (!room) {
         return res.status(404).json({ message: "Chat room not found" });
       }
@@ -995,7 +1043,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
           return res.status(401).json({ message: "Unauthorized" });
         }
         
-        const isMember = await storage.isCommunityMember(String(room.communityId), String(userId));
+        const isMember = await storage.isCommunityMember(room.communityId, userId);
         if (!isMember) {
           return res.status(403).json({ message: "Forbidden: Private rooms are only accessible to community members" });
         }
@@ -1010,20 +1058,23 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.post("/api/chat-rooms/:id/messages", isAuthenticated, async (req, res, next) => {
     try {
-      const roomId = req.params.id;
-      const userId = req.session.userId!;
+      const roomId = parseInt(req.params.id, 10);
+      if (isNaN(roomId)) {
+        return res.status(400).json({ message: "Invalid room ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const room = await storage.getCommunityRoom(Number(roomId));
+      const room = await storage.getCommunityRoom(roomId);
       if (!room) {
         return res.status(404).json({ message: "Chat room not found" });
       }
       
       // Check if user is a member of the community
-      const isMember = await storage.isCommunityMember(String(room.communityId), String(userId));
+      const isMember = await storage.isCommunityMember(room.communityId, userId);
       if (!isMember) {
         return res.status(403).json({ message: "Forbidden: Only community members can send messages" });
       }
@@ -1053,30 +1104,33 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.delete("/api/chat-messages/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const messageId = req.params.id;
-      const userId = req.session.userId!;
+      const messageId = parseInt(req.params.id, 10);
+      if (isNaN(messageId)) {
+        return res.status(400).json({ message: "Invalid message ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
       // Get message to check ownership and room info
-      const messages = await storage.getChatMessages(String(0)); // We need a better way to get a single message
-      const message = messages.find(m => String(m.id) === messageId);
+      const messages = await storage.getChatMessages(0); // We need a better way to get a single message
+      const message = messages.find(m => m.id === messageId);
       
       if (!message) {
         return res.status(404).json({ message: "Message not found" });
       }
       
-      const room = await storage.getCommunityRoom(Number(message.chatRoomId));
+      const room = await storage.getCommunityRoom(message.chatRoomId);
       if (!room) {
         return res.status(404).json({ message: "Chat room not found" });
       }
       
       // Check if user is authorized (sender, owner, or moderator)
-      const isSender = Number(message.senderId) === Number(userId);
-      const isOwner = await storage.isCommunityOwner(String(room.communityId), String(userId));
-      const isModerator = await storage.isCommunityModerator(String(room.communityId), String(userId));
+      const isSender = message.senderId === userId;
+      const isOwner = await storage.isCommunityOwner(room.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(room.communityId, userId);
       
       if (!isSender && !isOwner && !isModerator) {
         return res.status(403).json({ 
@@ -1084,7 +1138,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         });
       }
       
-      const success = await storage.deleteChatMessage(Number(messageId));
+      const success = await storage.deleteChatMessage(messageId);
       if (!success) {
         return res.status(404).json({ message: "Message not found" });
       }
@@ -1098,7 +1152,11 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Community Wall Posts routes
   app.get("/api/communities/:id/wall", async (req, res, next) => {
     try {
-      const communityId = req.params.id;
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
+      
       const isPrivate = req.query.private === 'true';
       
       const community = await storage.getCommunity(communityId);
@@ -1118,7 +1176,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
           return res.status(401).json({ message: "Unauthorized" });
         }
         
-        const isMember = await storage.isCommunityMember(communityId, String(userId));
+        const isMember = await storage.isCommunityMember(communityId, userId);
         if (!isMember) {
           return res.status(403).json({ message: "Forbidden: Private wall is only accessible to community members" });
         }
@@ -1141,8 +1199,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.get("/api/wall-posts/:id", async (req, res, next) => {
     try {
-      const postId = req.params.id;
-      const post = await storage.getCommunityWallPost(Number(postId));
+      const postId = parseInt(req.params.id, 10);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const post = await storage.getCommunityWallPost(postId);
       
       if (!post) {
         return res.status(404).json({ message: "Wall post not found" });
@@ -1155,7 +1217,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
           return res.status(401).json({ message: "Unauthorized" });
         }
         
-        const isMember = await storage.isCommunityMember(String(post.communityId), String(userId));
+        const isMember = await storage.isCommunityMember(post.communityId, userId);
         if (!isMember) {
           return res.status(403).json({ message: "Forbidden: Private posts are only accessible to community members" });
         }
@@ -1169,9 +1231,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.post("/api/communities/:id/wall", isAuthenticated, async (req, res, next) => {
     try {
-      const communityId = req.params.id;
-      const userId = req.session.userId!;
+      const communityId = parseInt(req.params.id, 10);
+      if (isNaN(communityId)) {
+        return res.status(400).json({ message: "Invalid community ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -1195,7 +1260,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       
       // For private posts, check if user is a member
       if (isPrivate) {
-        const isMember = await storage.isCommunityMember(communityId, String(userId));
+        const isMember = await storage.isCommunityMember(communityId, userId);
         if (!isMember) {
           return res.status(403).json({ message: "Forbidden: Only community members can post to the private wall" });
         }
@@ -1226,7 +1291,11 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.put("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const postId = req.params.id;
+      const postId = parseInt(req.params.id, 10);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
       const userId = req.session.userId!;
       
       if (!userId) {
@@ -1239,9 +1308,9 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       }
       
       // Check if user is authorized (author, owner, or moderator)
-      const isAuthor = post.authorId === parseInt(userId);
-      const isOwner = await storage.isCommunityOwner(String(post.communityId), userId);
-      const isModerator = await storage.isCommunityModerator(String(post.communityId), userId);
+      const isAuthor = post.authorId === userId;
+      const isOwner = await storage.isCommunityOwner(post.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(post.communityId, userId);
       
       if (!isAuthor && !isOwner && !isModerator) {
         return res.status(403).json({ 
@@ -1258,7 +1327,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       const updatedPost = await storage.updateCommunityWallPost(postId, validatedData);
       
       // Include author in response
-      const author = await storage.getUser(String(updatedPost.authorId));
+      const author = await storage.getUser(updatedPost.authorId);
       
       res.json({
         ...updatedPost,
@@ -1274,22 +1343,25 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   
   app.delete("/api/wall-posts/:id", isAuthenticated, async (req, res, next) => {
     try {
-      const postId = req.params.id;
-      const userId = req.session.userId!;
+      const postId = parseInt(req.params.id, 10);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
       
+      const userId = req.session.userId!;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const post = await storage.getCommunityWallPost(Number(postId));
+      const post = await storage.getCommunityWallPost(postId);
       if (!post) {
         return res.status(404).json({ message: "Wall post not found" });
       }
       
       // Check if user is authorized (author, owner, or moderator)
-      const isAuthor = post.authorId === parseInt(userId);
-      const isOwner = await storage.isCommunityOwner(String(post.communityId), userId);
-      const isModerator = await storage.isCommunityModerator(String(post.communityId), userId);
+      const isAuthor = post.authorId === userId;
+      const isOwner = await storage.isCommunityOwner(post.communityId, userId);
+      const isModerator = await storage.isCommunityModerator(post.communityId, userId);
       
       if (!isAuthor && !isOwner && !isModerator) {
         return res.status(403).json({ 
@@ -1297,7 +1369,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
         });
       }
       
-      const success = await storage.deleteCommunityWallPost(Number(postId));
+      const success = await storage.deleteCommunityWallPost(postId);
       if (!success) {
         return res.status(404).json({ message: "Wall post not found" });
       }
@@ -1319,7 +1391,11 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       if (communitySlug) {
         posts = await storage.getPostsByCommunitySlug(communitySlug, filter);
       } else if (groupId) {
-        posts = await storage.getPostsByGroupId(groupId, filter);
+        const parsedGroupId = parseInt(groupId, 10);
+        if (isNaN(parsedGroupId)) {
+          return res.status(400).json({ message: "Invalid group ID" });
+        }
+        posts = await storage.getPostsByGroupId(parsedGroupId, filter);
       } else {
         posts = await storage.getAllPosts(filter);
       }
@@ -1333,14 +1409,17 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   // Get all posts for a specific user
   app.get("/api/users/:userId/posts", isAuthenticated, async (req, res, next) => {
     try {
-      const { userId } = req.params;
+      const userId = parseInt(req.params.userId, 10);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
       
       // Only allow users to see their own posts or admin users
-      if (req.session.userId !== parseInt(userId) && !req.session.isAdmin) {
+      if (req.session.userId !== userId && !req.session.isAdmin) {
         return res.status(403).json({ message: "Forbidden: Can only view your own posts" });
       }
       
-      const userPosts = await storage.getUserPosts(Number(userId));
+      const userPosts = await storage.getUserPosts(userId);
       res.json(userPosts);
     } catch (error) {
       next(error);
@@ -1349,8 +1428,12 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
 
   app.get("/api/posts/:id", async (req, res, next) => {
     try {
-      const postId = req.params.id;
-      const post = await storage.getPost(Number(postId));
+      const postId = parseInt(req.params.id, 10);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const post = await storage.getPost(postId);
       
       if (!post) {
         return res.status(404).json({ message: "Post not found" });
@@ -1422,7 +1505,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
     try {
       const validatedData = insertGroupSchema.parse({
         ...req.body,
-        createdBy: req.session.userId!
+        createdBy: parseInt(req.session.userId!)
       });
       
       const group = await storage.createGroup(validatedData);
@@ -1430,7 +1513,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       // Add creator as admin member
       await storage.addGroupMember({
         groupId: group.id,
-        userId: req.session.userId!,
+        userId: parseInt(req.session.userId!),
         isAdmin: true
       });
       
@@ -1448,7 +1531,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       const groupId = req.params.groupId;
       
       // Check if user is admin of the group
-      const isAdmin = await storage.isGroupAdmin(groupId, req.session!.id);
+      const isAdmin = await storage.isGroupAdmin(groupId, req.session!.userId!);
       if (!isAdmin) {
         return res.status(403).json({ message: "Only group admins can add members" });
       }
@@ -1504,7 +1587,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   app.get("/api/apologetics/topics/:id", async (req, res, next) => {
     try {
       const topicId = req.params.id;
-      const topic = await storage.getApologeticsTopic(topicId);
+      const topic = await storage.getApologeticsTopic(parseInt(topicId));
       if (!topic) {
         return res.status(404).json({ message: "Topic not found" });
       }
@@ -1549,7 +1632,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   app.get("/api/apologetics/questions", async (req, res, next) => {
     try {
       const { status } = req.query;
-      const questions = await storage.getAllApologeticsQuestions(status as string);
+      const questions = await storage.getAllApologeticsQuestions(status as string | undefined);
       res.json(questions);
     } catch (error) {
       next(error);
@@ -1559,13 +1642,13 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   app.get("/api/apologetics/questions/:id", async (req, res, next) => {
     try {
       const questionId = req.params.id;
-      const question = await storage.getApologeticsQuestion(questionId);
+      const question = await storage.getApologeticsQuestion(parseInt(questionId));
       if (!question) {
         return res.status(404).json({ message: "Question not found" });
       }
       
       // Increment view count
-      await storage.incrementApologeticsQuestionViewCount(questionId);
+      await storage.incrementApologeticsQuestionViewCount(parseInt(questionId));
       
       res.json(question);
     } catch (error) {
@@ -1588,7 +1671,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       // Add the current user ID as the author
       const validatedData = insertApologeticsQuestionSchema.parse({
         ...req.body,
-        authorId: req.session.id
+        authorId: parseInt(req.session.userId!)
       });
       
       const question = await storage.createApologeticsQuestion(validatedData);
@@ -1641,7 +1724,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       // Add the current user ID as the author
       const validatedData = insertApologeticsAnswerSchema.parse({
         ...req.body,
-        authorId: req.session.id,
+        authorId: parseInt(req.session.userId!),
         isVerifiedAnswer: isVerified
       });
       
@@ -1649,7 +1732,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
       
       // If this is from a verified answerer, mark the question as answered
       if (isVerified) {
-        await storage.updateApologeticsQuestionStatus(validatedData.questionId, "answered");
+        await storage.updateApologeticsQuestionStatus(String(validatedData.questionId), "answered");
       }
       
       res.status(201).json(answer);
@@ -1664,7 +1747,7 @@ export async function registerRoutes(app: Express, httpServer?: any): Promise<Se
   app.post("/api/apologetics/answers/:id/upvote", isAuthenticated, async (req, res, next) => {
     try {
       const answerId = req.params.id;
-      const answer = await storage.upvoteApologeticsAnswer(answerId);
+      const answer = await storage.upvoteApologeticsAnswer(parseInt(answerId));
       res.json(answer);
     } catch (error) {
       next(error);

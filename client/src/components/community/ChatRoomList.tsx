@@ -232,12 +232,15 @@ export function ChatRoomList({ communityId, isOwner, isModerator, isMember }: Ch
     );
   }
   
+  // Ensure chatRooms is an array, not undefined or empty object
+  const chatRoomsArray = Array.isArray(chatRooms) ? chatRooms : [];
+  
   // Get the main community chat room (first room or create if none exists)
-  const mainChatRoom = chatRooms?.[0];
+  const mainChatRoom = chatRoomsArray[0];
   
   // Create default room if none exists and user is a member
   const createDefaultRoom = async () => {
-    if (isMember && (!chatRooms || chatRooms.length === 0)) {
+    if (isMember && chatRoomsArray.length === 0) {
       createRoomMutation.mutate({
         name: "General Chat",
         description: "Main community discussion",
@@ -247,7 +250,7 @@ export function ChatRoomList({ communityId, isOwner, isModerator, isMember }: Ch
   };
   
   // Auto-create default room if needed
-  if (isMember && (!chatRooms || chatRooms.length === 0) && !createRoomMutation.isPending) {
+  if (isMember && chatRoomsArray.length === 0 && !createRoomMutation.isPending) {
     createDefaultRoom();
   }
   

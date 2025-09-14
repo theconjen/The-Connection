@@ -88,103 +88,103 @@ const PostgresSessionStore = connectPg(session);
 // Storage interface
 export interface IStorage {
   // User methods
-  getUser(id: string): Promise<User | undefined>;
-  getUserById(id: string): Promise<User | undefined>;
+  getUser(id: number): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  updateUser(id: string, userData: Partial<User>): Promise<User>;
-  updateUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<UserPreferences>;
+  updateUser(id: number, userData: Partial<User>): Promise<User>;
+  updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences>;
   createUser(user: InsertUser): Promise<User>;
-  updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined>;
-  setVerifiedApologeticsAnswerer(userId: string, isVerified: boolean): Promise<User>;
+  updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined>;
+  setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User>;
   getVerifiedApologeticsAnswerers(): Promise<User[]>;
   
   // Organization methods (Church accounts)
   createOrganization(organization: InsertOrganization): Promise<Organization>;
-  getOrganization(id: string): Promise<Organization | undefined>;
-  getOrganizationsByUser(userId: string): Promise<Organization[]>;
-  updateOrganization(id: string, data: Partial<Organization>): Promise<Organization>;
+  getOrganization(id: number): Promise<Organization | undefined>;
+  getOrganizationsByUser(userId: number): Promise<Organization[]>;
+  updateOrganization(id: number, data: Partial<Organization>): Promise<Organization>;
   addOrganizationMember(member: InsertOrganizationUser): Promise<OrganizationUser>;
-  removeOrganizationMember(organizationId: string, userId: string): Promise<boolean>;
-  getOrganizationMembers(organizationId: string): Promise<(OrganizationUser & { user: User })[]>;
-  isOrganizationAdmin(organizationId: string, userId: string): Promise<boolean>;
-  updateOrganizationPlan(id: string, plan: string, stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<Organization>;
+  removeOrganizationMember(organizationId: number, userId: number): Promise<boolean>;
+  getOrganizationMembers(organizationId: number): Promise<(OrganizationUser & { user: User })[]>;
+  isOrganizationAdmin(organizationId: number, userId: number): Promise<boolean>;
+  updateOrganizationPlan(id: number, plan: string, stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<Organization>;
   
   // Community methods
   getAllCommunities(): Promise<Community[]>;
-  getPublicCommunitiesAndUserCommunities(userId?: string, searchQuery?: string): Promise<Community[]>;
-  getCommunity(id: string): Promise<Community | undefined>;
+  getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]>;
+  getCommunity(id: number): Promise<Community | undefined>;
   getCommunityBySlug(slug: string): Promise<Community | undefined>;
   createCommunity(community: InsertCommunity): Promise<Community>;
-  updateCommunity(id: string, community: Partial<Community>): Promise<Community>;
+  updateCommunity(id: number, community: Partial<Community>): Promise<Community>;
   deleteCommunity(id: number): Promise<boolean>;
   
   // Community Members & Roles
-  getCommunityMembers(communityId: string): Promise<(CommunityMember & { user: User })[]>;
-  getCommunityMember(communityId: string, userId: string): Promise<CommunityMember | undefined>;
-  getUserCommunities(userId: string): Promise<(Community & { memberCount: number })[]>;
+  getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]>;
+  getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined>;
+  getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]>;
   addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember>;
-  updateCommunityMemberRole(id: string, role: string): Promise<CommunityMember>;
-  removeCommunityMember(communityId: string, userId: string): Promise<boolean>;
-  isCommunityMember(communityId: string, userId: string): Promise<boolean>;
-  isCommunityOwner(communityId: string, userId: string): Promise<boolean>;
-  isCommunityModerator(communityId: string, userId: string): Promise<boolean>;
+  updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember>;
+  removeCommunityMember(communityId: number, userId: number): Promise<boolean>;
+  isCommunityMember(communityId: number, userId: number): Promise<boolean>;
+  isCommunityOwner(communityId: number, userId: number): Promise<boolean>;
+  isCommunityModerator(communityId: number, userId: number): Promise<boolean>;
   
   // Community Invitations
   createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation>;
-  getCommunityInvitations(communityId: string): Promise<(CommunityInvitation & { inviter: User })[]>;
+  getCommunityInvitations(communityId: number): Promise<(CommunityInvitation & { inviter: User })[]>;
   getCommunityInvitationByToken(token: string): Promise<CommunityInvitation | undefined>;
-  getCommunityInvitationById(id: string): Promise<CommunityInvitation | undefined>;
-  updateCommunityInvitationStatus(id: string, status: string): Promise<CommunityInvitation>;
-  deleteCommunityInvitation(id: string): Promise<boolean>;
-  getCommunityInvitationByEmailAndCommunity(email: string, communityId: string): Promise<CommunityInvitation | undefined>;
+  getCommunityInvitationById(id: number): Promise<CommunityInvitation | undefined>;
+  updateCommunityInvitationStatus(id: number, status: string): Promise<CommunityInvitation>;
+  deleteCommunityInvitation(id: number): Promise<boolean>;
+  getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined>;
   
   // Community Chat Rooms
-  getCommunityRooms(communityId: string): Promise<CommunityChatRoom[]>;
-  getPublicCommunityRooms(communityId: string): Promise<CommunityChatRoom[]>;
+  getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]>;
+  getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]>;
   getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined>;
   createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom>;
-  updateCommunityRoom(id: string, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom>;
+  updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom>;
   deleteCommunityRoom(id: number): Promise<boolean>;
   
   // Chat Messages
-  getChatMessages(roomId: string, limit?: string): Promise<(ChatMessage & { sender: User })[]>;
-  getChatMessagesAfter(roomId: string, afterId: string): Promise<(ChatMessage & { sender: User })[]>;
+  getChatMessages(roomId: number, limit?: number): Promise<(ChatMessage & { sender: User })[]>;
+  getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   deleteChatMessage(id: number): Promise<boolean>;
   
   // Community Wall Posts
-  getCommunityWallPosts(communityId: string, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]>;
+  getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]>;
   getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined>;
   createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost>;
-  updateCommunityWallPost(id: string, data: Partial<CommunityWallPost>): Promise<CommunityWallPost>;
+  updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost>;
   deleteCommunityWallPost(id: number): Promise<boolean>;
   
   // Post methods
   getAllPosts(filter?: string): Promise<Post[]>;
   getPost(id: number): Promise<Post | undefined>;
   getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]>;
-  getPostsByGroupId(groupId: string, filter?: string): Promise<Post[]>;
-  getUserPosts(userId: string): Promise<any[]>; // Returns all types of posts by user
+  getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]>;
+  getUserPosts(userId: number): Promise<any[]>; // Returns all types of posts by user
   createPost(post: InsertPost): Promise<Post>;
   upvotePost(id: number): Promise<Post>;
   
   // Comment methods
   getComment(id: number): Promise<Comment | undefined>;
-  getCommentsByPostId(postId: string): Promise<Comment[]>;
+  getCommentsByPostId(postId: number): Promise<Comment[]>;
   createComment(comment: InsertComment): Promise<Comment>;
   upvoteComment(id: number): Promise<Comment>;
   
   // Group methods
   getGroup(id: number): Promise<Group | undefined>;
-  getGroupsByUserId(userId: string): Promise<Group[]>;
+  getGroupsByUserId(userId: number): Promise<Group[]>;
   createGroup(group: InsertGroup): Promise<Group>;
   
   // Group member methods
   addGroupMember(member: InsertGroupMember): Promise<GroupMember>;
-  getGroupMembers(groupId: string): Promise<GroupMember[]>;
-  isGroupAdmin(groupId: string, userId: string): Promise<boolean>;
-  isGroupMember(groupId: string, userId: string): Promise<boolean>;
+  getGroupMembers(groupId: number): Promise<GroupMember[]>;
+  isGroupAdmin(groupId: number, userId: number): Promise<boolean>;
+  isGroupMember(groupId: number, userId: number): Promise<boolean>;
   
   // Apologetics resource methods
   getAllApologeticsResources(): Promise<ApologeticsResource[]>;
@@ -194,17 +194,17 @@ export interface IStorage {
   getPublicPrayerRequests(): Promise<PrayerRequest[]>;
   getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]>;
   getPrayerRequest(id: number): Promise<PrayerRequest | undefined>;
-  getUserPrayerRequests(userId: string): Promise<PrayerRequest[]>;
-  getGroupPrayerRequests(groupId: string): Promise<PrayerRequest[]>;
+  getUserPrayerRequests(userId: number): Promise<PrayerRequest[]>;
+  getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]>;
   createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest>;
-  updatePrayerRequest(id: string, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest>;
-  markPrayerRequestAsAnswered(id: string, description: string): Promise<PrayerRequest>;
+  updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest>;
+  markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest>;
   deletePrayerRequest(id: number): Promise<boolean>;
   
   // Prayer methods
   createPrayer(prayer: InsertPrayer): Promise<Prayer>;
-  getPrayersForRequest(prayerRequestId: string): Promise<Prayer[]>;
-  getUserPrayedRequests(userId: string): Promise<number[]>;
+  getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]>;
+  getUserPrayedRequests(userId: number): Promise<number[]>;
   createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
   
   // Apologetics Q&A methods
@@ -215,47 +215,47 @@ export interface IStorage {
   
   getAllApologeticsQuestions(filterByStatus?: string): Promise<ApologeticsQuestion[]>;
   getApologeticsQuestion(id: number): Promise<ApologeticsQuestion | undefined>;
-  getApologeticsQuestionsByTopic(topicId: string): Promise<ApologeticsQuestion[]>;
+  getApologeticsQuestionsByTopic(topicId: number): Promise<ApologeticsQuestion[]>;
   createApologeticsQuestion(question: InsertApologeticsQuestion): Promise<ApologeticsQuestion>;
-  updateApologeticsQuestionStatus(id: string, status: string): Promise<ApologeticsQuestion>;
+  updateApologeticsQuestionStatus(id: number, status: string): Promise<ApologeticsQuestion>;
   incrementApologeticsQuestionViewCount(id: number): Promise<ApologeticsQuestion>;
   
-  getApologeticsAnswersByQuestion(questionId: string): Promise<ApologeticsAnswer[]>;
+  getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]>;
   createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer>;
   upvoteApologeticsAnswer(id: number): Promise<ApologeticsAnswer>;
   
   // Microblog (Twitter-like posts) methods
   getAllMicroblogs(filterType?: string): Promise<Microblog[]>;
   getMicroblog(id: number): Promise<Microblog | undefined>;
-  getMicroblogsByUserId(userId: string): Promise<Microblog[]>;
-  getMicroblogsByAuthors(userIds: string[]): Promise<Microblog[]>;
-  getMicroblogsByCommunityId(communityId: string): Promise<Microblog[]>;
-  getMicroblogsByGroupId(groupId: string): Promise<Microblog[]>;
-  getMicroblogReplies(microblogId: string): Promise<Microblog[]>;
+  getMicroblogsByUserId(userId: number): Promise<Microblog[]>;
+  getMicroblogsByAuthors(userIds: number[]): Promise<Microblog[]>;
+  getMicroblogsByCommunityId(communityId: number): Promise<Microblog[]>;
+  getMicroblogsByGroupId(groupId: number): Promise<Microblog[]>;
+  getMicroblogReplies(microblogId: number): Promise<Microblog[]>;
   createMicroblog(microblog: InsertMicroblog): Promise<Microblog>;
-  likeMicroblog(microblogId: string, userId: string): Promise<MicroblogLike>;
-  unlikeMicroblog(microblogId: string, userId: string): Promise<boolean>;
-  getUserLikedMicroblogs(userId: string): Promise<number[]>; // returns IDs of microblogs user has liked
+  likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike>;
+  unlikeMicroblog(microblogId: number, userId: number): Promise<boolean>;
+  getUserLikedMicroblogs(userId: number): Promise<number[]>; // returns IDs of microblogs user has liked
   
   // Livestream methods
   getLivestreams(status?: string): Promise<Livestream[]>;
   getLivestream(id: number): Promise<Livestream | undefined>;
   createLivestream(livestream: InsertLivestream): Promise<Livestream>;
-  updateLivestreamStatus(id: string, status: string): Promise<Livestream>;
+  updateLivestreamStatus(id: number, status: string): Promise<Livestream>;
   
   // Livestreamer application methods
-  getLivestreamerApplicationByUserId(userId: string): Promise<LivestreamerApplication | undefined>;
+  getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined>;
   getPendingLivestreamerApplications(): Promise<LivestreamerApplication[]>;
   createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication>;
-  updateLivestreamerApplication(id: string, status: string, reviewNotes: string, reviewerId: string): Promise<LivestreamerApplication>;
-  isApprovedLivestreamer(userId: string): Promise<boolean>;
+  updateLivestreamerApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<LivestreamerApplication>;
+  isApprovedLivestreamer(userId: number): Promise<boolean>;
   
   // Apologist Scholar application methods
-  getApologistScholarApplicationByUserId(userId: string): Promise<ApologistScholarApplication | undefined>;
+  getApologistScholarApplicationByUserId(userId: number): Promise<ApologistScholarApplication | undefined>;
   getPendingApologistScholarApplications(): Promise<ApologistScholarApplication[]>;
   createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication>;
-  updateApologistScholarApplication(id: string, status: string, reviewNotes: string, reviewerId: string): Promise<ApologistScholarApplication>;
-  isApprovedApologistScholar(userId: string): Promise<boolean>;
+  updateApologistScholarApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<ApologistScholarApplication>;
+  isApprovedApologistScholar(userId: number): Promise<boolean>;
   
   // Creator tier methods
   getAllCreatorTiers(): Promise<CreatorTier[]>;
@@ -264,7 +264,7 @@ export interface IStorage {
   // Virtual gift methods
   getActiveVirtualGifts(): Promise<VirtualGift[]>;
   getVirtualGift(id: number): Promise<VirtualGift | undefined>;
-  sendGiftToLivestream(gift: { livestreamId: string, giftId: string, senderId: string, receiverId: string, message?: string }): Promise<LivestreamGift>;
+  sendGiftToLivestream(gift: { livestreamId: number, giftId: number, senderId: number, receiverId: number, message?: string }): Promise<LivestreamGift>;
   
   // ========================
   // COMMUNITY EVENTS
@@ -273,18 +273,18 @@ export interface IStorage {
   getPublicEvents(): Promise<Event[]>;
   getEventsNearby(latitude: string, longitude: string, radiusInKm: string): Promise<Event[]>;
   getEvent(id: number): Promise<Event | undefined>;
-  getEventsByCommunity(communityId: string): Promise<Event[]>;
-  getEventsByGroup(groupId: string): Promise<Event[]>;
-  getEventsByUser(userId: string): Promise<Event[]>;
+  getEventsByCommunity(communityId: number): Promise<Event[]>;
+  getEventsByGroup(groupId: number): Promise<Event[]>;
+  getEventsByUser(userId: number): Promise<Event[]>;
   createEvent(event: InsertEvent): Promise<Event>;
-  updateEvent(id: string, eventData: Partial<Event>): Promise<Event>;
+  updateEvent(id: number, eventData: Partial<Event>): Promise<Event>;
   deleteEvent(id: number): Promise<boolean>;
   
   // Event RSVP methods
-  getEventRsvps(eventId: string): Promise<EventRsvp[]>;
-  getUserEventRsvp(eventId: string, userId: string): Promise<EventRsvp | undefined>;
+  getEventRsvps(eventId: number): Promise<EventRsvp[]>;
+  getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined>;
   createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp>;
-  updateEventRsvp(id: string, status: string): Promise<EventRsvp>;
+  updateEventRsvp(id: number, status: string): Promise<EventRsvp>;
   
   // ========================
   // PRAYER REQUESTS
@@ -302,28 +302,28 @@ export interface IStorage {
   // Prayer methods (praying for requests)
   getPrayersForRequest(requestId: string): Promise<Prayer[]>;
   createPrayer(prayer: InsertPrayer): Promise<Prayer>;
-  getUserPrayedRequests(userId: string): Promise<number[]>; // returns prayer request IDs
+  getUserPrayedRequests(userId: number): Promise<number[]>; // returns prayer request IDs
   
   // ========================
   // MENTORSHIP PROGRAM
   // ========================
   getAllMentorProfiles(): Promise<MentorProfile[]>;
   getMentorProfile(id: number): Promise<MentorProfile | undefined>;
-  getMentorProfileByUserId(userId: string): Promise<MentorProfile | undefined>;
+  getMentorProfileByUserId(userId: number): Promise<MentorProfile | undefined>;
   createMentorProfile(profile: InsertMentorProfile): Promise<MentorProfile>;
-  updateMentorProfile(id: string, data: Partial<MentorProfile>): Promise<MentorProfile>;
+  updateMentorProfile(id: number, data: Partial<MentorProfile>): Promise<MentorProfile>;
   
   // Mentorship requests
-  getMentorshipRequests(filter: { mentorId?: string, menteeId?: string, status?: string }): Promise<MentorshipRequest[]>;
+  getMentorshipRequests(filter: { mentorId?: number, menteeId?: number, status?: string }): Promise<MentorshipRequest[]>;
   getMentorshipRequest(id: number): Promise<MentorshipRequest | undefined>;
   createMentorshipRequest(request: InsertMentorshipRequest): Promise<MentorshipRequest>;
-  updateMentorshipRequestStatus(id: string, status: string): Promise<MentorshipRequest>;
+  updateMentorshipRequestStatus(id: number, status: string): Promise<MentorshipRequest>;
   
   // Mentorship relationships
-  getMentorshipRelationships(filter: { mentorId?: string, menteeId?: string, isActive?: boolean }): Promise<MentorshipRelationship[]>;
+  getMentorshipRelationships(filter: { mentorId?: number, menteeId?: number, isActive?: boolean }): Promise<MentorshipRelationship[]>;
   getMentorshipRelationship(id: number): Promise<MentorshipRelationship | undefined>;
   createMentorshipRelationship(relationship: InsertMentorshipRelationship): Promise<MentorshipRelationship>;
-  updateMentorshipRelationship(id: string, data: Partial<MentorshipRelationship>): Promise<MentorshipRelationship>;
+  updateMentorshipRelationship(id: number, data: Partial<MentorshipRelationship>): Promise<MentorshipRelationship>;
   endMentorshipRelationship(id: number): Promise<MentorshipRelationship>;
   
   // ========================
@@ -331,33 +331,33 @@ export interface IStorage {
   // ========================
   getAllBibleReadingPlans(filter?: string): Promise<BibleReadingPlan[]>;
   getBibleReadingPlan(id: number): Promise<BibleReadingPlan | undefined>;
-  getGroupBibleReadingPlans(groupId: string): Promise<BibleReadingPlan[]>;
-  getUserBibleReadingPlans(userId: string): Promise<BibleReadingPlan[]>;
+  getGroupBibleReadingPlans(groupId: number): Promise<BibleReadingPlan[]>;
+  getUserBibleReadingPlans(userId: number): Promise<BibleReadingPlan[]>;
   createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan>;
-  updateBibleReadingPlan(id: string, data: Partial<BibleReadingPlan>): Promise<BibleReadingPlan>;
+  updateBibleReadingPlan(id: number, data: Partial<BibleReadingPlan>): Promise<BibleReadingPlan>;
   deleteBibleReadingPlan(id: number): Promise<boolean>;
   
   // Bible reading progress
-  getBibleReadingProgress(userId: string, planId: string): Promise<BibleReadingProgress | undefined>;
-  getUserReadingProgress(userId: string): Promise<BibleReadingProgress[]>;
+  getBibleReadingProgress(userId: number, planId: number): Promise<BibleReadingProgress | undefined>;
+  getUserReadingProgress(userId: number): Promise<BibleReadingProgress[]>;
   createBibleReadingProgress(progress: InsertBibleReadingProgress): Promise<BibleReadingProgress>;
-  updateBibleReadingProgress(id: string, data: Partial<BibleReadingProgress>): Promise<BibleReadingProgress>;
-  markDayCompleted(progressId: string, day: string): Promise<BibleReadingProgress>;
+  updateBibleReadingProgress(id: number, data: Partial<BibleReadingProgress>): Promise<BibleReadingProgress>;
+  markDayCompleted(progressId: number, day: string): Promise<BibleReadingProgress>;
   
   // Bible study notes
-  getBibleStudyNotes(filter: { userId?: string, groupId?: string, isPublic?: boolean }): Promise<BibleStudyNote[]>;
+  getBibleStudyNotes(filter: { userId?: number, groupId?: number, isPublic?: boolean }): Promise<BibleStudyNote[]>;
   getBibleStudyNote(id: number): Promise<BibleStudyNote | undefined>;
   createBibleStudyNote(note: InsertBibleStudyNote): Promise<BibleStudyNote>;
-  updateBibleStudyNote(id: string, data: Partial<BibleStudyNote>): Promise<BibleStudyNote>;
+  updateBibleStudyNote(id: number, data: Partial<BibleStudyNote>): Promise<BibleStudyNote>;
   deleteBibleStudyNote(id: number): Promise<boolean>;
   
   // Verse memorization
-  getUserVerseMemorization(userId: string): Promise<VerseMemorization[]>;
+  getUserVerseMemorization(userId: number): Promise<VerseMemorization[]>;
   getVerseMemorization(id: number): Promise<VerseMemorization | undefined>;
   createVerseMemorization(verseMemorization: InsertVerseMemorization): Promise<VerseMemorization>;
-  updateVerseMemorization(id: string, data: Partial<VerseMemorization>): Promise<VerseMemorization>;
+  updateVerseMemorization(id: number, data: Partial<VerseMemorization>): Promise<VerseMemorization>;
   markVerseMastered(id: number): Promise<VerseMemorization>;
-  addVerseReviewDate(id: string, date: Date): Promise<VerseMemorization>;
+  addVerseReviewDate(id: number, date: Date): Promise<VerseMemorization>;
   deleteVerseMemorization(id: number): Promise<boolean>;
   
   // ========================
@@ -365,26 +365,26 @@ export interface IStorage {
   // ========================
   getAllChallenges(filter?: string): Promise<Challenge[]>;
   getChallenge(id: number): Promise<Challenge | undefined>;
-  getChallengesByCommunity(communityId: string): Promise<Challenge[]>;
-  getChallengesByGroup(groupId: string): Promise<Challenge[]>;
+  getChallengesByCommunity(communityId: number): Promise<Challenge[]>;
+  getChallengesByGroup(groupId: number): Promise<Challenge[]>;
   getActiveChallenges(): Promise<Challenge[]>;
   createChallenge(challenge: InsertChallenge): Promise<Challenge>;
-  updateChallenge(id: string, data: Partial<Challenge>): Promise<Challenge>;
+  updateChallenge(id: number, data: Partial<Challenge>): Promise<Challenge>;
   deleteChallenge(id: number): Promise<boolean>;
   
   // Challenge participants
-  getChallengeParticipants(challengeId: string): Promise<ChallengeParticipant[]>;
-  getUserChallenges(userId: string): Promise<{ challenge: Challenge, participant: ChallengeParticipant }[]>;
+  getChallengeParticipants(challengeId: number): Promise<ChallengeParticipant[]>;
+  getUserChallenges(userId: number): Promise<{ challenge: Challenge, participant: ChallengeParticipant }[]>;
   joinChallenge(participant: InsertChallengeParticipant): Promise<ChallengeParticipant>;
-  updateChallengeProgress(participantId: string, progress: Record<string, any>): Promise<ChallengeParticipant>;
-  completeChallenge(participantId: string): Promise<ChallengeParticipant>;
-  leaveChallenge(participantId: string): Promise<boolean>;
+  updateChallengeProgress(participantId: number, progress: Record<string, any>): Promise<ChallengeParticipant>;
+  completeChallenge(participantId: number): Promise<ChallengeParticipant>;
+  leaveChallenge(participantId: number): Promise<boolean>;
   
   // Challenge testimonials
-  getChallengeTestimonials(challengeId: string): Promise<ChallengeTestimonial[]>;
-  getUserChallengeTestimonial(challengeId: string, userId: string): Promise<ChallengeTestimonial | undefined>;
+  getChallengeTestimonials(challengeId: number): Promise<ChallengeTestimonial[]>;
+  getUserChallengeTestimonial(challengeId: number, userId: number): Promise<ChallengeTestimonial | undefined>;
   createChallengeTestimonial(testimonial: InsertChallengeTestimonial): Promise<ChallengeTestimonial>;
-  updateChallengeTestimonial(id: string, content: string): Promise<ChallengeTestimonial>;
+  updateChallengeTestimonial(id: number, content: string): Promise<ChallengeTestimonial>;
   deleteChallengeTestimonial(id: number): Promise<boolean>;
   
   // ========================
@@ -395,53 +395,53 @@ export interface IStorage {
   getResourcesByType(type: string): Promise<Resource[]>;
   getResourcesByTags(tags: string[]): Promise<Resource[]>;
   createResource(resource: InsertResource): Promise<Resource>;
-  updateResource(id: string, data: Partial<Resource>): Promise<Resource>;
+  updateResource(id: number, data: Partial<Resource>): Promise<Resource>;
   deleteResource(id: number): Promise<boolean>;
   
   // Resource ratings
-  getResourceRatings(resourceId: string): Promise<ResourceRating[]>;
-  getUserResourceRating(resourceId: string, userId: string): Promise<ResourceRating | undefined>;
+  getResourceRatings(resourceId: number): Promise<ResourceRating[]>;
+  getUserResourceRating(resourceId: number, userId: number): Promise<ResourceRating | undefined>;
   createResourceRating(rating: InsertResourceRating): Promise<ResourceRating>;
-  updateResourceRating(id: string, data: Partial<ResourceRating>): Promise<ResourceRating>;
+  updateResourceRating(id: number, data: Partial<ResourceRating>): Promise<ResourceRating>;
   deleteResourceRating(id: number): Promise<boolean>;
   
   // Resource collections
   getAllResourceCollections(isPublic?: boolean): Promise<ResourceCollection[]>;
-  getUserResourceCollections(userId: string): Promise<ResourceCollection[]>;
+  getUserResourceCollections(userId: number): Promise<ResourceCollection[]>;
   getResourceCollection(id: number): Promise<ResourceCollection | undefined>;
   createResourceCollection(collection: InsertResourceCollection): Promise<ResourceCollection>;
-  updateResourceCollection(id: string, data: Partial<ResourceCollection>): Promise<ResourceCollection>;
+  updateResourceCollection(id: number, data: Partial<ResourceCollection>): Promise<ResourceCollection>;
   deleteResourceCollection(id: number): Promise<boolean>;
   
   // Collection resources
-  getCollectionResources(collectionId: string): Promise<Resource[]>;
+  getCollectionResources(collectionId: number): Promise<Resource[]>;
   addResourceToCollection(collectionResource: InsertCollectionResource): Promise<CollectionResource>;
-  removeResourceFromCollection(collectionId: string, resourceId: string): Promise<boolean>;
+  removeResourceFromCollection(collectionId: number, resourceId: number): Promise<boolean>;
   
   // ========================
   // COMMUNITY SERVICE
   // ========================
   getAllServiceProjects(filter?: string): Promise<ServiceProject[]>;
   getServiceProject(id: number): Promise<ServiceProject | undefined>;
-  getServiceProjectsByCommunity(communityId: string): Promise<ServiceProject[]>;
-  getServiceProjectsByGroup(groupId: string): Promise<ServiceProject[]>;
+  getServiceProjectsByCommunity(communityId: number): Promise<ServiceProject[]>;
+  getServiceProjectsByGroup(groupId: number): Promise<ServiceProject[]>;
   getUpcomingServiceProjects(): Promise<ServiceProject[]>;
   createServiceProject(project: InsertServiceProject): Promise<ServiceProject>;
-  updateServiceProject(id: string, data: Partial<ServiceProject>): Promise<ServiceProject>;
+  updateServiceProject(id: number, data: Partial<ServiceProject>): Promise<ServiceProject>;
   deleteServiceProject(id: number): Promise<boolean>;
   
   // Service volunteers
-  getServiceVolunteers(projectId: string): Promise<ServiceVolunteer[]>;
-  getUserServiceProjects(userId: string): Promise<{ project: ServiceProject, volunteer: ServiceVolunteer }[]>;
+  getServiceVolunteers(projectId: number): Promise<ServiceVolunteer[]>;
+  getUserServiceProjects(userId: number): Promise<{ project: ServiceProject, volunteer: ServiceVolunteer }[]>;
   signUpForProject(volunteer: InsertServiceVolunteer): Promise<ServiceVolunteer>;
-  updateVolunteerStatus(id: string, status: string, hoursServed?: string): Promise<ServiceVolunteer>;
+  updateVolunteerStatus(id: number, status: string, hoursServed?: string): Promise<ServiceVolunteer>;
   removeVolunteerFromProject(id: number): Promise<boolean>;
   
   // Service testimonials
-  getServiceTestimonials(projectId: string): Promise<ServiceTestimonial[]>;
-  getUserServiceTestimonial(projectId: string, userId: string): Promise<ServiceTestimonial | undefined>;
+  getServiceTestimonials(projectId: number): Promise<ServiceTestimonial[]>;
+  getUserServiceTestimonial(projectId: number, userId: number): Promise<ServiceTestimonial | undefined>;
   createServiceTestimonial(testimonial: InsertServiceTestimonial): Promise<ServiceTestimonial>;
-  updateServiceTestimonial(id: string, data: Partial<ServiceTestimonial>): Promise<ServiceTestimonial>;
+  updateServiceTestimonial(id: number, data: Partial<ServiceTestimonial>): Promise<ServiceTestimonial>;
   deleteServiceTestimonial(id: number): Promise<boolean>;
   
   // Event methods
@@ -449,18 +449,18 @@ export interface IStorage {
   getPublicEvents(): Promise<Event[]>;
   getEventsNearby(latitude: string, longitude: string, radiusInKm: string): Promise<Event[]>;
   getEvent(id: number): Promise<Event | undefined>;
-  getEventsByCommunity(communityId: string): Promise<Event[]>;
-  getEventsByGroup(groupId: string): Promise<Event[]>;
-  getEventsByUser(userId: string): Promise<Event[]>;
+  getEventsByCommunity(communityId: number): Promise<Event[]>;
+  getEventsByGroup(groupId: number): Promise<Event[]>;
+  getEventsByUser(userId: number): Promise<Event[]>;
   createEvent(event: InsertEvent): Promise<Event>;
-  updateEvent(id: string, eventData: Partial<Event>): Promise<Event>;
+  updateEvent(id: number, eventData: Partial<Event>): Promise<Event>;
   deleteEvent(id: number): Promise<boolean>;
   
   // Event RSVP methods
-  getEventRsvps(eventId: string): Promise<EventRsvp[]>;
-  getUserEventRsvp(eventId: string, userId: string): Promise<EventRsvp | undefined>;
+  getEventRsvps(eventId: number): Promise<EventRsvp[]>;
+  getUserEventRsvp(eventId: number, userId: number): Promise<EventRsvp | undefined>;
   createEventRsvp(rsvp: InsertEventRsvp): Promise<EventRsvp>;
-  updateEventRsvp(id: string, status: string): Promise<EventRsvp>;
+  updateEventRsvp(id: number, status: string): Promise<EventRsvp>;
   
   // ========================
   // CONTENT RECOMMENDATIONS
@@ -469,19 +469,96 @@ export interface IStorage {
   sessionStore: any; // Using any to avoid typing issues with session store
   
   // Content Recommendation methods
-  getUserPreferences(userId: string): Promise<UserPreferences | undefined>;
-  updateUserPreferences(userId: string, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
-  getAllRecommendations(userId: string): Promise<ContentRecommendation[]>;
+  getUserPreferences(userId: number): Promise<UserPreferences | undefined>;
+  updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+  getAllRecommendations(userId: number): Promise<ContentRecommendation[]>;
   getRecommendation(id: number): Promise<ContentRecommendation | undefined>;
   addContentRecommendation(recommendation: InsertContentRecommendation): Promise<ContentRecommendation>;
   markRecommendationAsViewed(id: number): Promise<boolean>;
   
   // Content retrieval for recommendations
-  getTopPosts(limit: string): Promise<Post[]>;
-  getTopMicroblogs(limit: string): Promise<Microblog[]>;
-  getUpcomingEvents(limit: string): Promise<Event[]>;
-  getPrayerRequestsVisibleToUser(userId: string): Promise<PrayerRequest[]>;
+  getTopPosts(limit: number): Promise<Post[]>;
+  getTopMicroblogs(limit: number): Promise<Microblog[]>;
+  getUpcomingEvents(limit: number): Promise<Event[]>;
+  getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]>;
 }
+
+// ========================
+// PHASE 2: SCHEMA-COMPLIANT MAPPING HELPERS
+// ========================
+
+/**
+ * Maps user data to ensure schema compliance
+ * Sets required fields like isVerifiedApologeticsAnswerer (default false), 
+ * updatedAt (Date or null), city/state/zipCode (null if undefined)
+ */
+function mapUser(userData: Partial<User>): User {
+  const now = new Date();
+  return {
+    id: userData.id ?? 0,
+    username: userData.username ?? '',
+    email: userData.email ?? '',
+    password: userData.password ?? '',
+    displayName: userData.displayName ?? null,
+    bio: userData.bio ?? null,
+    avatarUrl: userData.avatarUrl ?? null,
+    city: userData.city ?? null,
+    state: userData.state ?? null,
+    zipCode: userData.zipCode ?? null,
+    latitude: userData.latitude ?? null,
+    longitude: userData.longitude ?? null,
+    onboardingCompleted: userData.onboardingCompleted ?? false,
+    isVerifiedApologeticsAnswerer: userData.isVerifiedApologeticsAnswerer ?? false,
+    isAdmin: userData.isAdmin ?? false,
+    createdAt: userData.createdAt ?? now,
+    updatedAt: userData.updatedAt ?? now,
+  };
+}
+
+/**
+ * Maps community data to ensure schema compliance
+ * Ensures city/state/latitude/longitude are null (not undefined), 
+ * createdBy defaults properly, memberCount defaults to 0
+ */
+function mapCommunity(communityData: Partial<Community>): Community {
+  const now = new Date();
+  return {
+    id: communityData.id ?? 0,
+    name: communityData.name ?? '',
+    description: communityData.description ?? '',
+    slug: communityData.slug ?? '',
+    iconName: communityData.iconName ?? '',
+    iconColor: communityData.iconColor ?? '',
+    interestTags: communityData.interestTags ?? null,
+    city: communityData.city ?? null,
+    state: communityData.state ?? null,
+    isLocalCommunity: communityData.isLocalCommunity ?? false,
+    latitude: communityData.latitude ?? null,
+    longitude: communityData.longitude ?? null,
+    memberCount: communityData.memberCount ?? 0,
+    isPrivate: communityData.isPrivate ?? false,
+    hasPrivateWall: communityData.hasPrivateWall ?? false,
+    hasPublicWall: communityData.hasPublicWall ?? true,
+    createdAt: communityData.createdAt ?? now,
+    createdBy: communityData.createdBy ?? null,
+  };
+}
+
+/**
+ * Maps community member data to ensure schema compliance
+ * Ensures role defaults to "member", joinedAt is proper Date or null
+ */
+function mapCommunityMember(memberData: Partial<CommunityMember>): CommunityMember {
+  const now = new Date();
+  return {
+    id: memberData.id ?? 0,
+    communityId: memberData.communityId ?? 0,
+    userId: memberData.userId ?? 0,
+    role: memberData.role ?? 'member',
+    joinedAt: memberData.joinedAt ?? now,
+  };
+}
+
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private communities: Map<number, Community>;
@@ -648,35 +725,40 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
     const now = new Date();
-    const user: User = { 
+    const userData = { 
       ...insertUser, 
       id,
-      createdAt: now
+      createdAt: now,
+      updatedAt: now
     };
+    // Apply mapping function to ensure schema compliance
+    const user = mapUser(userData);
     this.users.set(id, user);
     return user;
   }
   
-  async updateUser(id: string, userData: Partial<User>): Promise<User> {
-    const user = this.users.get(parseInt(id));
+  async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    const user = this.users.get(id);
     if (!user) {
       throw new Error(`User with ID ${id} not found`);
     }
     
-    // Update user data
-    const updatedUser = {
+    // Update user data with mapping to ensure schema compliance
+    const updatedUserData = {
       ...user,
       ...userData,
       updatedAt: new Date()
     };
     
+    // Apply mapping function to ensure schema compliance
+    const updatedUser = mapUser(updatedUserData);
     this.users.set(id, updatedUser);
     return updatedUser;
   }
   
-  async updateUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
-    // Get existing preferences or create new ones
-    let userPrefs = Array.from(this.userPreferences.values()).find(p => p.userId === userId);
+  async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
+    // Get existing preferences or create new ones with null check
+    let userPrefs = Array.from(this.userPreferences.values()).find(p => p.userId === userId) ?? null;
     
     if (userPrefs) {
       // Update existing preferences
@@ -686,12 +768,13 @@ export class MemStorage implements IStorage {
         updatedAt: new Date()
       };
     } else {
-      // Create new preferences
-      const id = Math.max(0, ...Array.from(this.userPreferences.values()).map(p => p.id || 0)) + 1;
+      // Create new preferences with proper defaults
+      const id = Math.max(0, ...Array.from(this.userPreferences.values()).map(p => p.id ?? 0)) + 1;
       userPrefs = {
         id,
         userId,
         createdAt: new Date(),
+        updatedAt: new Date(),
         ...preferences
       };
     }
@@ -780,7 +863,7 @@ export class MemStorage implements IStorage {
     
     const id = this.communityIdCounter++;
     const now = new Date();
-    const community: Community = {
+    const communityData = {
       ...insertCommunity,
       id,
       memberCount: 0,
@@ -788,6 +871,8 @@ export class MemStorage implements IStorage {
       hasPrivateWall: insertCommunity.hasPrivateWall || false,
       hasPublicWall: insertCommunity.hasPublicWall !== false // default to true if not specified
     };
+    // Apply mapping function to ensure schema compliance
+    const community = mapCommunity(communityData);
     this.communities.set(id, community);
     
     // Automatically add the creator as owner
@@ -895,11 +980,13 @@ export class MemStorage implements IStorage {
   async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
     const id = this.communityMemberIdCounter++;
     const now = new Date();
-    const newMember: CommunityMember = {
+    const memberData = {
       ...member,
       id,
       joinedAt: now
     };
+    // Apply mapping function to ensure schema compliance
+    const newMember = mapCommunityMember(memberData);
     
     this.communityMembers.set(id, newMember);
     
