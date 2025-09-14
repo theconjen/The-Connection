@@ -10,7 +10,7 @@ import {
   Plus
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "../hooks/use-auth";
 
 interface MobileNavigationProps {
   currentPath: string;

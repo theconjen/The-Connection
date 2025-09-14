@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "../hooks/use-auth";
 import { Microblog, User } from "@shared/schema";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { useMediaQuery } from "@/hooks/use-media-query";
-import MicroblogPost from "@/components/microblog-post";
-import MicroblogComposer from "@/components/microblog-composer";
-import MobileMicroblogPost from "@/components/mobile-microblog-post";
-import MobileMicroblogComposer from "@/components/mobile-microblog-composer";
+import { Button } from "../components/ui/button";
+import { useMediaQuery } from "../hooks/use-media-query";
+import MicroblogPost from "../components/microblog-post";
+import MicroblogComposer from "../components/microblog-composer";
+import MobileMicroblogPost from "../components/mobile-microblog-post";
+import MobileMicroblogComposer from "../components/mobile-microblog-composer";
+import MobileModernButton from "../components/mobile-modern-button";
+import TouchFeedback from "../components/mobile-touch-feedback";
 
 export default function MicroblogDetailPage() {
   const { id } = useParams<{ id: string }>();

@@ -6,7 +6,7 @@ import { Heart, MessageCircle, Repeat, Share2, MoreHorizontal, Bookmark, Eye } f
 import { useToast } from "@/hooks/use-toast";
 import { Microblog, User } from "@shared/schema";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import MobileModernButton from "./mobile-modern-button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { 
   DropdownMenu,

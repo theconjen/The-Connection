@@ -1,8 +1,8 @@
 import { Link } from "wouter";
-import { useAuth, AuthContextType } from "@/hooks/use-auth";
-import WelcomeBanner from "@/components/welcome-banner";
-import PersonalizedFeed from "@/components/PersonalizedFeed";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useAuth, AuthContextType } from "../hooks/use-auth";
+import WelcomeBanner from "../components/welcome-banner";
+import PersonalizedFeed from "../components/PersonalizedFeed";
+import { useMediaQuery } from "../hooks/use-media-query";
 import { 
   MessageCircle, 
   BookOpen, 
@@ -22,10 +22,12 @@ import {
   Plus,
   Globe
 } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { FriendsSection } from "@/components/FriendsSection";
+import { Card, CardContent, CardFooter, CardHeader } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import { FriendsSection } from "../components/FriendsSection";
+import MobileModernButton from "../components/mobile-modern-button";
+import TouchFeedback from "../components/mobile-touch-feedback";
 
 interface FeatureCardProps {
   title: string;
