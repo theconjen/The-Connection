@@ -39,6 +39,7 @@ import { insertGroupSchema, InsertGroup } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { User, Users, Home, Church, PlusIcon } from "lucide-react";
+import CommunityGuidelines from "@/components/community-guidelines";
 
 // Extend the schema with validation
 const createGroupSchema = insertGroupSchema.extend({
