@@ -52,7 +52,6 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
     next()
   })
 
-  const userId = getUserId(req.session?.userId)
 
   // Session userId conversion middleware - ensure userId is always a number
   app.use((req, _res, next) => {
@@ -339,12 +338,13 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       const token = generateToken();
 
       // Create invitation
-      const invitationUrl = `${BASE_URL}/invitations/${token}/accept`;
+      const invitation = await storage.createCommunityInvitation({
         communityId: communityId,
-        inviterId: userId,
-        email: email,
+        inviterUserId: userId,
+        inviteeEmail: email,
         token: token,
-        status: 'pending'
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 7*24*60*60*1000)
       });
 
       // Send invitation email
@@ -397,7 +397,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.get('/api/invitations/:token', async (req, res) => {
     try {
       const token = req.params.token;
-      const invitationUrl = `${BASE_URL}/invitations/${token}/accept`;
+      const invitation = await storage.getCommunityInvitationByToken(token);
       
       if (!invitation) {
         return res.status(404).json({ message: 'Invitation not found or expired' });
@@ -419,7 +419,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       const token = req.params.token;
       const userId = req.session!.userId!;
       
-      const invitationUrl = `${BASE_URL}/invitations/${token}/accept`;
+      const invitation = await storage.getCommunityInvitationByToken(token);
       
       if (!invitation) {
         return res.status(404).json({ message: 'Invitation not found or expired' });
@@ -1238,7 +1238,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
           to: application.email,
           subject: `Livestreamer Application ${status.charAt(0).toUpperCase() + status.slice(1)}`,
           message: emailMessage,
-          reviewLink: `https://theconnection.app/admin/livestreamer-applications/${application.id}`
+          reviewLink: `https://theconnection.app/admin/livestreamer-applications/${application.id}`,
           actionText: status === "approved" ? "Start Livestreaming" : "View Application",
           actionUrl: status === "approved" 
             ? `https://${process.env.REPLIT_DOMAIN || "theconnection.app"}/livestreams/create`
