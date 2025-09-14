@@ -84,7 +84,7 @@ export function MicroblogComposer({
       }
       
       if (groupId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/groups', groupId, 'microblogs'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/communities', groupId, 'microblogs'] });
       }
       
       toast({

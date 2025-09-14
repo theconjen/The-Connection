@@ -393,7 +393,7 @@ export default function NearMe() {
                   No communities found in this area.
                 </p>
                 <Button variant="outline" className="mt-4" asChild>
-                  <Link href="/groups/create">Start a Community</Link>
+                  <Link href="/communities">Start a Community</Link>
                 </Button>
               </CardContent>
             </Card>

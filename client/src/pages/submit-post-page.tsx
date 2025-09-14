@@ -44,7 +44,7 @@ export default function SubmitPostPage() {
   
   // Fetch user's groups
   const { data: groups, isLoading: isLoadingGroups } = useQuery<Group[]>({
-    queryKey: ['/api/groups'],
+    queryKey: ['/api/communities'],
     enabled: !!user,
   });
   

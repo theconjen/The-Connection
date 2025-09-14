@@ -41,35 +41,35 @@ export default function Connect() {
       title: 'Local Groups',
       description: 'Find and join Christian communities in your city based on shared interests.',
       icon: <Users className="h-8 w-8 text-primary" />,
-      link: '/groups',
+      link: '/communities',
       color: 'bg-emerald-50'
     },
     {
       title: 'Christian Creatives',
       description: 'Connect with writers, artists, musicians, and other creative Christians.',
       icon: <Palette className="h-8 w-8 text-primary" />,
-      link: '/groups/creatives',
+      link: '/communities/creatives',
       color: 'bg-pink-50'
     },
     {
       title: 'Christian Entrepreneurs',
       description: 'Network with business owners and startup founders who share your faith.',
       icon: <Briefcase className="h-8 w-8 text-primary" />,
-      link: '/groups/entrepreneurs',
+      link: '/communities/entrepreneurs',
       color: 'bg-amber-50'
     },
     {
       title: 'Christian Fitness',
       description: 'Find workout partners, sports teams, and wellness groups for believers.',
       icon: <Activity className="h-8 w-8 text-primary" />,
-      link: '/groups/fitness',
+      link: '/communities/fitness',
       color: 'bg-blue-50'
     },
     {
       title: 'College Students',
       description: 'Connect with other Christian students at your university or in your city.',
       icon: <GraduationCap className="h-8 w-8 text-primary" />,
-      link: '/groups/college',
+      link: '/communities/college',
       color: 'bg-purple-50'
     },
     {
@@ -90,7 +90,7 @@ export default function Connect() {
       title: 'Start a Group',
       description: 'Create your own local Christian community around shared interests.',
       icon: <UserPlus className="h-8 w-8 text-primary" />,
-      link: '/groups/create',
+      link: '/communities',
       color: 'bg-green-50'
     },
     {

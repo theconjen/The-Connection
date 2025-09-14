@@ -8,7 +8,6 @@ import ApologeticsPage from "@/pages/apologetics-page";
 import LivestreamsPage from "@/pages/livestreams-page";
 import CommunitiesPage from "@/pages/communities-page";
 import CommunityPage from "@/pages/community-page";
-import GroupsPage from "@/pages/groups-page";
 import ForumsPage from "@/pages/forums-page";
 import MicroblogsPage from "@/pages/microblogs-page";
 import MicroblogDetailPage from "@/pages/microblog-detail-page";
@@ -59,8 +58,6 @@ function App() {
           <Route path="/bible-study" component={BibleStudyPage} />
           <Route path="/communities" component={CommunitiesPage} />
           <Route path="/communities/:id" component={CommunityPage} />
-          <Route path="/groups" component={GroupsPage} />
-          <Route path="/groups/:id" component={CommunityPage} />
           <Route path="/invitations/:token/accept" component={AcceptInvitationPage} />
           <Route path="/forums" component={() => <ForumsPage />} />
           <Route path="/posts" component={() => <PostsPage />} />

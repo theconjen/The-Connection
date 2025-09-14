@@ -17,7 +17,7 @@ export default function PrivateGroupsList() {
   const { user } = useAuth();
   
   const { data: groups, isLoading } = useQuery<Group[]>({
-    queryKey: ['/api/groups'],
+    queryKey: ['/api/communities'],
     enabled: !!user, // Only fetch if user is logged in
   });
 
@@ -134,7 +134,7 @@ export default function PrivateGroupsList() {
           <ul className="space-y-3">
             {groups.map((group) => (
               <li key={group.id}>
-                <Link href={`/groups/${group.id}`}>
+                <Link href={`/communities/${group.slug || group.id}`}>
                   <a className="flex items-center p-2 rounded-lg hover:bg-neutral-100">
                     {getGroupIcon(group.iconName, group.iconColor)}
                     <div>
@@ -156,10 +156,10 @@ export default function PrivateGroupsList() {
         )}
       </CardContent>
       <CardFooter className="px-4 py-2 border-t border-neutral-200 flex justify-between items-center">
-        <Link href="/groups">
+        <Link href="/communities">
           <a className="text-primary text-sm font-medium hover:text-primary-700">View All Groups</a>
         </Link>
-        <Link href="/groups/create">
+        <Link href="/communities">
           <Button size="sm" className="bg-primary hover:bg-primary-600 text-white rounded-lg">
             <PlusIcon className="h-4 w-4 mr-1" /> New Group
           </Button>
