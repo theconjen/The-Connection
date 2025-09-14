@@ -95,6 +95,18 @@ const comparePasswords = async (plaintext: string, hash: string): Promise<boolea
   return await bcrypt.compare(plaintext, hash);
 };
 
+// Helper to safely convert session userId to number
+const getUserIdAsNumber = (sessionUserId: string | undefined): number => {
+  if (!sessionUserId) {
+    throw new Error("User ID not found in session");
+  }
+  const userId = parseInt(sessionUserId, 10);
+  if (isNaN(userId)) {
+    throw new Error("Invalid user ID");
+  }
+  return userId;
+};
+
 // Type guard for authenticated requests
 // Using isAuthenticated from auth.ts instead of defining it here again
 
