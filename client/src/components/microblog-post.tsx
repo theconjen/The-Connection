@@ -3,20 +3,20 @@ import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, MessageCircle, Repeat, Share2, MoreHorizontal } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Microblog, User } from "@shared/schema";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { useToast } from "../hooks/use-toast";
+import { Microblog, User } from "../../shared/schema";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardFooter } from "./ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "./ui/dropdown-menu";
 import ShareButtons from "./share-buttons";
-import { getInitials } from "@/lib/utils";
-import { apiRequest } from "@/lib/queryClient";
+import { getInitials } from "../lib/utils";
+import { apiRequest } from "../lib/queryClient";
 
 interface MicroblogPostProps {
   post: Microblog & {

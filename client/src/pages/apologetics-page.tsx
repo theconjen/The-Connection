@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import MainLayout from "@/components/layouts/main-layout";
-import { ApologeticsResource, ApologeticsTopic } from "@shared/schema";
+import { useAuth } from "../hooks/use-auth";
+import MainLayout from "../components/layouts/main-layout";
+import { ApologeticsResource, ApologeticsTopic } from "../../../shared/schema";
 import {
   Card,
   CardContent,
@@ -9,10 +9,10 @@ import {
   CardTitle,
   CardDescription,
   CardFooter,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Button } from "../components/ui/button";
+import { Skeleton } from "../components/ui/skeleton";
 import { Link } from "wouter";
 import { 
   BookOpenIcon, 
@@ -26,7 +26,7 @@ import {
   AtomIcon,
   HeartHandshakeIcon
 } from "lucide-react";
-import { RecommendedForYou } from "@/components/RecommendedForYou";
+import { RecommendedForYou } from "../components/RecommendedForYou";
 
 // Helper function to format dates
 const formatDate = (dateString?: string | Date | null) => {

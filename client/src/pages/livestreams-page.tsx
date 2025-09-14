@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import MainLayout from "@/components/layouts/main-layout";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import MainLayout from "../components/layouts/main-layout";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Button } from "../components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
 import { Search, Play, Users, Calendar, Clock, Heart, MessageSquare, Share2, Eye } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "../hooks/use-toast";
+import { useAuth } from "../hooks/use-auth";
 
-import { Livestream as LivestreamType, User } from "@shared/schema";
+import { Livestream as LivestreamType, User } from "../../../shared/schema";
 
 // Extended livestream type with host details
 interface EnhancedLivestream extends Omit<LivestreamType, 'tags'> {

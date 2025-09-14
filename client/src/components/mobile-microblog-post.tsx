@@ -3,19 +3,19 @@ import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, MessageCircle, Repeat, Share2, MoreHorizontal, Bookmark, Eye } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Microblog, User } from "@shared/schema";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useToast } from "../hooks/use-toast";
+import { Microblog, User } from "../../shared/schema";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import MobileModernButton from "./mobile-modern-button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { apiRequest } from "@/lib/queryClient";
-import { getInitials } from "@/lib/utils";
+} from "./ui/dropdown-menu";
+import { apiRequest } from "../lib/queryClient";
+import { getInitials } from "../lib/utils";
 import ShareButtons from "./share-buttons";
 import TouchFeedback from "./mobile-touch-feedback";
 import SwipeHandler from "./mobile-swipe-handler";

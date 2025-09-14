@@ -1,19 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import { Microblog, User } from "@shared/schema";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "../hooks/use-auth";
+import { Microblog, User } from "../../../shared/schema";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Loader2, RefreshCw, PenSquare, Plus } from "lucide-react";
-import MicroblogPost from "@/components/microblog-post";
-import MicroblogComposer from "@/components/microblog-composer";
-import MobileMicroblogPost from "@/components/mobile-microblog-post";
-import MobileMicroblogComposer from "@/components/mobile-microblog-composer";
-import MobilePullRefresh from "@/components/mobile-pull-refresh";
-import FloatingActionButton from "@/components/floating-action-button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useMediaQuery } from "@/hooks/use-media-query";
-import { Button } from "@/components/ui/button";
-import { RecommendedForYou } from "@/components/RecommendedForYou";
+import MicroblogPost from "../components/microblog-post";
+import MicroblogComposer from "../components/microblog-composer";
+import MobileMicroblogPost from "../components/mobile-microblog-post";
+import MobileMicroblogComposer from "../components/mobile-microblog-composer";
+import MobilePullRefresh from "../components/mobile-pull-refresh";
+import FloatingActionButton from "../components/floating-action-button";
+import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
+import { useMediaQuery } from "../hooks/use-media-query";
+import { Button } from "../components/ui/button";
+import { RecommendedForYou } from "../components/RecommendedForYou";
 
 export default function MicroblogsPage() {
   const { user, isLoading: authLoading } = useAuth();

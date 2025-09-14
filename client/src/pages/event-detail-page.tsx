@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "../hooks/use-toast";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { CalendarDays, MapPin, Clock, Users, ArrowLeft, Share2, Edit, Trash2, X } from "lucide-react";
 import {
   AlertDialog,
@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "../components/ui/alert-dialog";
 import { 
   FacebookShareButton, TwitterShareButton, WhatsappShareButton, EmailShareButton,
   FacebookIcon, TwitterIcon, WhatsappIcon, EmailIcon,
@@ -27,10 +27,10 @@ import {
   DialogTitle,
   DialogDescription,
   DialogClose
-} from "@/components/ui/dialog";
+} from "../components/ui/dialog";
 import { format } from "date-fns";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/use-auth";
+import { apiRequest, queryClient } from "../lib/queryClient";
+import { useAuth } from "../hooks/use-auth";
 import { Link, useLocation, useParams } from "wouter";
 import {
   DropdownMenu,
@@ -38,10 +38,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+} from "../components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Separator } from "../components/ui/separator";
 
 interface Event {
   id: number;

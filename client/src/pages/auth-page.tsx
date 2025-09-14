@@ -4,8 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Redirect, useLocation } from "wouter";
 import { navigate } from "wouter/use-browser-location";
-import { insertUserSchema, InsertUser } from "@shared/schema";
-import { useAuth, AuthContextType } from "@/hooks/use-auth";
+import { insertUserSchema, InsertUser } from "../../../shared/schema";
+import { useAuth, AuthContextType } from "../hooks/use-auth";
 import logoImage from "../assets/tc-logo.png";
 import {
   Card,
@@ -13,7 +13,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "../components/ui/card";
 import {
   Form,
   FormControl,
@@ -21,12 +21,12 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "../components/ui/form";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import PasswordResetForm from "@/components/password-reset-form";
+import PasswordResetForm from "../components/password-reset-form";
 
 // Extend the schema with stronger validation
 const loginSchema = z.object({

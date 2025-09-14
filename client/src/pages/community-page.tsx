@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "../components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   Card, 
   CardContent, 
@@ -11,8 +11,8 @@ import {
   CardFooter, 
   CardHeader, 
   CardTitle 
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+} from "../components/ui/card";
+import { Separator } from "../components/ui/separator";
 import { 
   Dialog, 
   DialogContent, 
@@ -21,14 +21,14 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogTrigger 
-} from "@/components/ui/dialog";
+} from "../components/ui/dialog";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+} from "../components/ui/dropdown-menu";
 import { 
   PencilLine, 
   Users, 
@@ -47,16 +47,16 @@ import {
   CalendarDays,
   Hash
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { MemberList } from "@/components/community/MemberList";
-import { ChatRoomList } from "@/components/community/ChatRoomList";
-import { InviteUserDialog } from "@/components/community/InviteUserDialog";
-import { InvitationManager } from "@/components/community/InvitationManager";
-import { CommunityFeed } from "@/components/community/CommunityFeed";
-import { CommunityForum } from "@/components/community/CommunityForum";
-import { CommunityEvents } from "@/components/community/CommunityEvents";
-import type { Community, CommunityMember } from "@shared/schema";
+import { useToast } from "../hooks/use-toast";
+import { apiRequest, queryClient } from "../lib/queryClient";
+import { MemberList } from "../components/community/MemberList";
+import { ChatRoomList } from "../components/community/ChatRoomList";
+import { InviteUserDialog } from "../components/community/InviteUserDialog";
+import { InvitationManager } from "../components/community/InvitationManager";
+import { CommunityFeed } from "../components/community/CommunityFeed";
+import { CommunityForum } from "../components/community/CommunityForum";
+import { CommunityEvents } from "../components/community/CommunityEvents";
+import type { Community, CommunityMember } from "../../../shared/schema";
 
 export default function CommunityPage() {
   const params = useParams();

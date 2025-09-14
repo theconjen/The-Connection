@@ -1,22 +1,22 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { Progress } from "../components/ui/progress";
+import { useToast } from "../hooks/use-toast";
 import { 
   Book, Search, Clock, Check, Plus, 
   BookOpen, FileText, Bookmark, Heart, 
   Calendar, ArrowRight, BarChart 
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { formatDateForDisplay } from "@/lib/utils";
-import { useMediaQuery } from "@/hooks/use-media-query";
-import MobileBibleReadingCard from "@/components/mobile-bible-reading-card";
+import { useAuth } from "../hooks/use-auth";
+import { formatDateForDisplay } from "../lib/utils";
+import { useMediaQuery } from "../hooks/use-media-query";
+import MobileBibleReadingCard from "../components/mobile-bible-reading-card";
 
 interface ReadingType {
   day: number;
