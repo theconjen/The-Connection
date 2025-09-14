@@ -714,11 +714,11 @@ export class MemStorage implements IStorage {
     });
   }
   // User methods
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(parseInt(id));
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.get(id);
   }
-  async getUserById(id: string): Promise<User | undefined> {
-    return this.users.get(parseInt(id));
+  async getUserById(id: number): Promise<User | undefined> {
+    return this.users.get(id);
   }
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
@@ -784,6 +784,9 @@ export class MemStorage implements IStorage {
         userId,
         createdAt: new Date(),
         updatedAt: new Date(),
+        interests: {},
+        favoriteTopics: {},
+        engagementHistory: {},
         ...preferences
       };
     }
@@ -797,7 +800,7 @@ export class MemStorage implements IStorage {
     return Array.from(this.communities.values());
   }
   
-  async getPublicCommunitiesAndUserCommunities(userId?: string, searchQuery?: string): Promise<Community[]> {
+  async getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]> {
     const allCommunities = Array.from(this.communities.values());
     
     // Helper function to check if a community matches search query
@@ -842,8 +845,8 @@ export class MemStorage implements IStorage {
     
     return result;
   }
-  async getCommunity(id: string): Promise<Community | undefined> {
-    return this.communities.get(parseInt(id));
+  async getCommunity(id: number): Promise<Community | undefined> {
+    return this.communities.get(id);
   }
   async getCommunityBySlug(slug: string): Promise<Community | undefined> {
     return Array.from(this.communities.values()).find(
@@ -896,7 +899,7 @@ export class MemStorage implements IStorage {
     return community;
   }
   
-  async updateCommunity(id: string, communityData: Partial<Community>): Promise<Community> {
+  async updateCommunity(id: number, communityData: Partial<Community>): Promise<Community> {
     const community = await this.getCommunity(id);
     if (!community) {
       throw new Error(`Community with ID ${id} not found`);
@@ -948,7 +951,7 @@ export class MemStorage implements IStorage {
   }
   
   // Community Members methods
-  async getCommunityMembers(communityId: string): Promise<(CommunityMember & { user: User })[]> {
+  async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
     const members = Array.from(this.communityMembers.values())
       .filter(member => member.communityId === communityId);
       
@@ -961,12 +964,12 @@ export class MemStorage implements IStorage {
     }));
   }
   
-  async getCommunityMember(communityId: string, userId: string): Promise<CommunityMember | undefined> {
+  async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
     return Array.from(this.communityMembers.values())
       .find(member => member.communityId === communityId && member.userId === userId);
   }
 
-  async getUserCommunities(userId: string): Promise<(Community & { memberCount: number })[]> {
+  async getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]> {
     // Get all community memberships for this user
     const memberships = Array.from(this.communityMembers.values())
       .filter(member => member.userId === userId);
@@ -1010,7 +1013,7 @@ export class MemStorage implements IStorage {
     return newMember;
   }
   
-  async updateCommunityMemberRole(id: string, role: string): Promise<CommunityMember> {
+  async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
     const member = this.communityMembers.get(id);
     if (!member) {
       throw new Error(`Community member with ID ${id} not found`);
@@ -1021,7 +1024,7 @@ export class MemStorage implements IStorage {
     return updatedMember;
   }
   
-  async removeCommunityMember(communityId: string, userId: string): Promise<boolean> {
+  async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
     const member = Array.from(this.communityMembers.values())
       .find(m => m.communityId === communityId && m.userId === userId);
       
@@ -1042,28 +1045,28 @@ export class MemStorage implements IStorage {
     return false;
   }
   
-  async isCommunityMember(communityId: string, userId: string): Promise<boolean> {
+  async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
     const member = await this.getCommunityMember(communityId, userId);
     return !!member;
   }
   
-  async isCommunityOwner(communityId: string, userId: string): Promise<boolean> {
+  async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
     const member = await this.getCommunityMember(communityId, userId);
     return !!member && member.role === 'owner';
   }
   
-  async isCommunityModerator(communityId: string, userId: string): Promise<boolean> {
+  async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
     const member = await this.getCommunityMember(communityId, userId);
     return !!member && (member.role === 'moderator' || member.role === 'owner');
   }
   
   // Community Chat Room methods
-  async getCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
+  async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
     return Array.from(this.communityChatRooms.values())
       .filter(room => room.communityId === communityId);
   }
   
-  async getPublicCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
+  async getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
     return Array.from(this.communityChatRooms.values())
       .filter(room => room.communityId === communityId && !room.isPrivate);
   }
@@ -1087,7 +1090,7 @@ export class MemStorage implements IStorage {
     return newRoom;
   }
   
-  async updateCommunityRoom(id: string, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
+  async updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
     const room = this.communityChatRooms.get(id);
     if (!room) {
       throw new Error(`Community chat room with ID ${id} not found`);
@@ -1118,11 +1121,12 @@ export class MemStorage implements IStorage {
   }
   
   // Chat Messages methods
-  async getChatMessages(roomId: string, limit: string = 50): Promise<(ChatMessage & { sender: User })[]> {
+  async getChatMessages(roomId: number, limit?: number): Promise<(ChatMessage & { sender: User })[]> {
+    const actualLimit = limit || 50;
     const messages = Array.from(this.chatMessages.values())
       .filter(msg => msg.chatRoomId === roomId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) // Oldest first
-      .slice(-limit); // Get the most recent messages up to the limit
+      .slice(-actualLimit); // Get the most recent messages up to the limit
       
     return Promise.all(messages.map(async message => {
       const sender = await this.getUser(message.senderId);
@@ -1146,7 +1150,7 @@ export class MemStorage implements IStorage {
     }));
   }
   
-  async getChatMessagesAfter(roomId: string, afterId: string): Promise<(ChatMessage & { sender: User })[]> {
+  async getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]> {
     const afterMessage = this.chatMessages.get(afterId);
     if (!afterMessage) {
       return [];
@@ -1255,7 +1259,7 @@ export class MemStorage implements IStorage {
   }
   
   // Community Wall Posts methods
-  async getCommunityWallPosts(communityId: string, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
+  async getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
     let posts = Array.from(this.communityWallPosts.values())
       .filter(post => post.communityId === communityId);
       
@@ -1263,7 +1267,7 @@ export class MemStorage implements IStorage {
       posts = posts.filter(post => post.isPrivate === isPrivate);
     }
     
-    posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // Newest first
+    posts.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)); // Newest first
     
     return Promise.all(posts.map(async post => {
       const author = await this.getUser(post.authorId);
@@ -1305,7 +1309,7 @@ export class MemStorage implements IStorage {
     return newPost;
   }
   
-  async updateCommunityWallPost(id: string, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
+  async updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
     const post = this.communityWallPosts.get(id);
     if (!post) {
       throw new Error(`Community wall post with ID ${id} not found`);
@@ -1364,7 +1368,7 @@ export class MemStorage implements IStorage {
       });
     }
   }
-  async getPostsByGroupId(groupId: string, filter: string = "popular"): Promise<Post[]> {
+  async getPostsByGroupId(groupId: number, filter: string = "popular"): Promise<Post[]> {
     const posts = Array.from(this.posts.values()).filter(
       (post) => post.groupId === groupId
     );
@@ -1383,7 +1387,7 @@ export class MemStorage implements IStorage {
     }
   }
 
-  async getUserPosts(userId: string): Promise<any[]> {
+  async getUserPosts(userId: number): Promise<any[]> {
     const allPosts = [];
 
     // 1. Regular forum posts
@@ -1466,7 +1470,7 @@ export class MemStorage implements IStorage {
   async getComment(id: number): Promise<Comment | undefined> {
     return this.comments.get(id);
   }
-  async getCommentsByPostId(postId: string): Promise<Comment[]> {
+  async getCommentsByPostId(postId: number): Promise<Comment[]> {
     return Array.from(this.comments.values())
       .filter((comment) => comment.postId === postId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -1505,7 +1509,7 @@ export class MemStorage implements IStorage {
   async getGroup(id: number): Promise<Group | undefined> {
     return this.groups.get(id);
   }
-  async getGroupsByUserId(userId: string): Promise<Group[]> {
+  async getGroupsByUserId(userId: number): Promise<Group[]> {
     // Get all group memberships for this user
     const memberships = Array.from(this.groupMembers.values())
       .filter((member) => member.userId === userId);
@@ -1538,15 +1542,15 @@ export class MemStorage implements IStorage {
     this.groupMembers.set(id, member);
     return member;
   }
-  async getGroupMembers(groupId: string): Promise<GroupMember[]> {
+  async getGroupMembers(groupId: number): Promise<GroupMember[]> {
     return Array.from(this.groupMembers.values())
       .filter((member) => member.groupId === groupId);
   }
-  async isGroupAdmin(groupId: string, userId: string): Promise<boolean> {
+  async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
     const member = Array.from(this.groupMembers.values()).find(
       (m) => m.groupId === groupId && m.userId === userId
     );
-    return member ? member.isAdmin : false;
+    return member ? (member.isAdmin || false) : false;
   }
   // Apologetics resource methods
   async getAllApologeticsResources(): Promise<ApologeticsResource[]> {
@@ -1596,15 +1600,7 @@ export class MemStorage implements IStorage {
     return this.prayerRequests.get(id);
   }
   
-  async getAllPrayerRequests(): Promise<PrayerRequest[]> {
-    return Array.from(this.prayerRequests.values())
-      .filter(prayer => prayer.privacyLevel === 'public')
-      .sort((a, b) => {
-        if (!a.createdAt || !b.createdAt) return 0;
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      });
-  }
-  async getUserPrayerRequests(userId: string): Promise<PrayerRequest[]> {
+  async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
     return Array.from(this.prayerRequests.values())
       .filter(prayer => prayer.authorId === userId)
       .sort((a, b) => {
@@ -1613,7 +1609,7 @@ export class MemStorage implements IStorage {
       });
   }
   
-  async getGroupPrayerRequests(groupId: string): Promise<PrayerRequest[]> {
+  async getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]> {
     return Array.from(this.prayerRequests.values())
       .filter(prayer => prayer.groupId === groupId)
       .sort((a, b) => {
@@ -1638,7 +1634,7 @@ export class MemStorage implements IStorage {
     return newPrayer;
   }
   
-  async updatePrayerRequest(id: string, data: Partial<PrayerRequest>): Promise<PrayerRequest> {
+  async updatePrayerRequest(id: number, data: Partial<PrayerRequest>): Promise<PrayerRequest> {
     const prayer = this.prayerRequests.get(id);
     if (!prayer) {
       throw new Error(`Prayer request with ID ${id} not found`);
@@ -1654,7 +1650,7 @@ export class MemStorage implements IStorage {
     return updatedPrayer;
   }
   
-  async markPrayerRequestAsAnswered(id: string, answeredDescription: string): Promise<PrayerRequest> {
+  async markPrayerRequestAsAnswered(id: number, answeredDescription: string): Promise<PrayerRequest> {
     const prayer = this.prayerRequests.get(id);
     if (!prayer) {
       throw new Error(`Prayer request with ID ${id} not found`);
@@ -1699,7 +1695,7 @@ export class MemStorage implements IStorage {
     return newPrayer;
   }
   
-  async getPrayersForRequest(prayerRequestId: string): Promise<Prayer[]> {
+  async getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]> {
     return Array.from(this.prayers.values())
       .filter(prayer => prayer.prayerRequestId === prayerRequestId)
       .sort((a, b) => {
@@ -1708,13 +1704,13 @@ export class MemStorage implements IStorage {
       });
   }
   
-  async getUserPrayedRequests(userId: string): Promise<number[]> {
+  async getUserPrayedRequests(userId: number): Promise<number[]> {
     return Array.from(this.prayers.values())
       .filter(prayer => prayer.userId === userId)
       .map(prayer => prayer.prayerRequestId);
   }
   // Helper method to check if a user is member of a group
-  async isGroupMember(userId: string, groupId: string): Promise<boolean> {
+  async isGroupMember(userId: number, groupId: number): Promise<boolean> {
     return Array.from(this.groupMembers.values())
       .some(member => member.userId === userId && member.groupId === groupId);
   }
@@ -1774,12 +1770,12 @@ export class MemStorage implements IStorage {
       const distance = this.calculateDistance(userLat, userLng, eventLat, eventLng);
       
       // Return true if the event is within the specified radius
-      return distance <= radiusInKm;
+      return distance <= parseFloat(radiusInKm);
     });
   }
   
   // Helper function to calculate distance between two coordinates using Haversine formula
-  private calculateDistance(lat1: string, lon1: string, lat2: string, lon2: string): string {
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371; // Radius of the earth in km
     const dLat = this.deg2rad(lat2 - lat1);
     const dLon = this.deg2rad(lon2 - lon1);
@@ -1792,13 +1788,13 @@ export class MemStorage implements IStorage {
     return distance;
   }
   
-  private deg2rad(deg: string): string {
+  private deg2rad(deg: number): number {
     return deg * (Math.PI/180);
   }
   async getEvent(id: number): Promise<Event | undefined> {
     return this.events.get(id);
   }
-  async getEventsByCommunity(communityId: string): Promise<Event[]> {
+  async getEventsByCommunity(communityId: number): Promise<Event[]> {
     const events = Array.from(this.events.values());
     return events
       .filter(event => event.communityId === communityId)
@@ -1808,7 +1804,7 @@ export class MemStorage implements IStorage {
         return dateA.getTime() - dateB.getTime();
       });
   }
-  async getEventsByGroup(groupId: string): Promise<Event[]> {
+  async getEventsByGroup(groupId: number): Promise<Event[]> {
     const events = Array.from(this.events.values());
     return events
       .filter(event => event.groupId === groupId)
@@ -1818,7 +1814,7 @@ export class MemStorage implements IStorage {
         return dateA.getTime() - dateB.getTime();
       });
   }
-  async getEventsByUser(userId: string): Promise<Event[]> {
+  async getEventsByUser(userId: number): Promise<Event[]> {
     const events = Array.from(this.events.values());
     return events
       .filter(event => event.creatorId === userId)
@@ -1829,23 +1825,6 @@ export class MemStorage implements IStorage {
       });
   }
   
-  async getAllEvents(filter?: string): Promise<Event[]> {
-    const events = Array.from(this.events.values());
-    
-    if (filter === 'upcoming') {
-      const now = new Date();
-      return events
-        .filter(event => {
-          const eventDate = new Date(`${event.eventDate.toString()}T${event.endTime.toString()}`);
-          return eventDate >= now;
-        })
-        .sort((a, b) => {
-          const dateA = new Date(`${a.eventDate.toString()}T${a.startTime.toString()}`);
-          const dateB = new Date(`${b.eventDate.toString()}T${b.startTime.toString()}`);
-          return dateA.getTime() - dateB.getTime();
-        });
-    } else if (filter === 'past') {
-      const now = new Date();
       return events
         .filter(event => {
           const eventDate = new Date(`${event.eventDate.toString()}T${event.endTime.toString()}`);
@@ -2339,7 +2318,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(communities);
   }
   
-  async getPublicCommunitiesAndUserCommunities(userId?: string, searchQuery?: string): Promise<Community[]> {
+  async getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]> {
     // Get base communities based on user authentication status
     let allCommunities: Community[];
     
@@ -2532,14 +2511,14 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(communityMembers.communityId, parseInt(communityId)), eq(communityMembers.userId, parseInt(userId))));
     return result.rowCount > 0;
   }
-  async isCommunityMember(communityId: string, userId: string): Promise<boolean> {
+  async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
     const result = await db.select({ id: communityMembers.id })
       .from(communityMembers)
       .where(and(eq(communityMembers.communityId, parseInt(communityId)), eq(communityMembers.userId, parseInt(userId))))
       .limit(1);
     return result.length > 0;
   }
-  async isCommunityOwner(communityId: string, userId: string): Promise<boolean> {
+  async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
       .where(and(
@@ -2550,7 +2529,7 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result.length > 0;
   }
-  async isCommunityModerator(communityId: string, userId: string): Promise<boolean> {
+  async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
     const result = await db.select({ role: communityMembers.role })
       .from(communityMembers)
       .where(and(
@@ -2647,12 +2626,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Community Chat Room Management
-  async getCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
+  async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
     return await db.select()
       .from(communityChatRooms)
       .where(eq(communityChatRooms.communityId, communityId));
   }
-  async getPublicCommunityRooms(communityId: string): Promise<CommunityChatRoom[]> {
+  async getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
     return await db.select()
       .from(communityChatRooms)
       .where(and(eq(communityChatRooms.communityId, parseInt(communityId)), eq(communityChatRooms.isPrivate, false)));
@@ -2699,7 +2678,7 @@ export class DatabaseStorage implements IStorage {
     
     return result;
   }
-  async getChatMessagesAfter(roomId: string, afterId: string): Promise<(ChatMessage & { sender: User })[]> {
+  async getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]> {
     const result = await db.select({
       id: chatMessages.id,
       content: chatMessages.content,
@@ -2895,13 +2874,13 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result[0];
   }
-  async getUserPrayerRequests(userId: string): Promise<PrayerRequest[]> {
+  async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
       .where(eq(prayerRequests.authorId, userId))
       .orderBy(desc(prayerRequests.createdAt));
   }
-  async getGroupPrayerRequests(groupId: string): Promise<PrayerRequest[]> {
+  async getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]> {
     return await db.select()
       .from(prayerRequests)
       .where(eq(prayerRequests.groupId, groupId))
@@ -3077,7 +3056,7 @@ export class DatabaseStorage implements IStorage {
     
     return await query;
   }
-  async getPostsByGroupId(groupId: string, filter: string = "popular"): Promise<Post[]> {
+  async getPostsByGroupId(groupId: number, filter: string = "popular"): Promise<Post[]> {
     let query = db.select().from(posts).where(eq(posts.groupId, groupId));
     
     if (filter === "latest") {
@@ -3092,7 +3071,7 @@ export class DatabaseStorage implements IStorage {
     return await query;
   }
 
-  async getUserPosts(userId: string): Promise<any[]> {
+  async getUserPosts(userId: number): Promise<any[]> {
     const allPosts = [];
 
     // 1. Regular forum posts
@@ -3166,7 +3145,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select().from(comments).where(eq(comments.id, id));
     return result[0];
   }
-  async getCommentsByPostId(postId: string): Promise<Comment[]> {
+  async getCommentsByPostId(postId: number): Promise<Comment[]> {
     return await db
       .select()
       .from(comments)
@@ -3203,7 +3182,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select().from(groups).where(eq(groups.id, id));
     return result[0];
   }
-  async getGroupsByUserId(userId: string): Promise<Group[]> {
+  async getGroupsByUserId(userId: number): Promise<Group[]> {
     // Get groups where the user is a member
     const memberGroupIds = await db
       .select({ groupId: groupMembers.groupId })
@@ -3227,13 +3206,13 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(groupMembers).values(member).returning();
     return result[0];
   }
-  async getGroupMembers(groupId: string): Promise<GroupMember[]> {
+  async getGroupMembers(groupId: number): Promise<GroupMember[]> {
     return await db
       .select()
       .from(groupMembers)
       .where(eq(groupMembers.groupId, groupId));
   }
-  async isGroupAdmin(groupId: string, userId: string): Promise<boolean> {
+  async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
     const result = await db
       .select()
       .from(groupMembers)
@@ -3996,7 +3975,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getEventsByCommunity(communityId: string): Promise<Event[]> {
+  async getEventsByCommunity(communityId: number): Promise<Event[]> {
     try {
       const result = await db
         .select()
@@ -4010,7 +3989,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getEventsByGroup(groupId: string): Promise<Event[]> {
+  async getEventsByGroup(groupId: number): Promise<Event[]> {
     try {
       const result = await db
         .select()
@@ -4024,7 +4003,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getEventsByUser(userId: string): Promise<Event[]> {
+  async getEventsByUser(userId: number): Promise<Event[]> {
     try {
       const result = await db
         .select()
