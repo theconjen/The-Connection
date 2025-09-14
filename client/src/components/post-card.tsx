@@ -2,15 +2,15 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { useAuth } from "../hooks/use-auth";
 import { useToast } from "../hooks/use-toast";
-import { Post, User, Community } from "@shared/schema";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import ShareButtons from "@/components/share-buttons";
+import { Post, User, Community } from "../../../shared/schema";
+import { Card, CardContent } from "./ui/card";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import ShareButtons from "./share-buttons";
 import { BookmarkIcon, MessageSquare, ArrowUpIcon, Share2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 
 interface PostCardProps {
   post: Post & {

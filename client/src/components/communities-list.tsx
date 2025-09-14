@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Community } from '@shared/schema';
+import { Community } from '../../../shared/schema';
 import { 
   Card, 
   CardContent, 

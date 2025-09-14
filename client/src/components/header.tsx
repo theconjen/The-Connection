@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import logoImage from "@assets/TC Logo - Color.png";
 import { 
   Search, 
@@ -25,10 +25,10 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription
-} from "@/components/ui/sheet";
-import UserMenu from "@/components/user-menu";
-import SidebarNavigation from "@/components/sidebar-navigation";
-import GlobalSearch from "@/components/GlobalSearch";
+} from "./ui/sheet";
+import UserMenu from "./user-menu";
+import SidebarNavigation from "./sidebar-navigation";
+import GlobalSearch from "./GlobalSearch";
 import { useMediaQuery } from "../hooks/use-media-query";
 
 export default function Header() {

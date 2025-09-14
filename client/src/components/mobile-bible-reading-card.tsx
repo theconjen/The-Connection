@@ -1,20 +1,20 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar, BookOpen, CheckCircle, ChevronRight } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent } from "./ui/card";
+import { Button } from "./ui/button";
+import { Progress } from "./ui/progress";
 import { useToast } from "../hooks/use-toast";
-import { formatDateForDisplay } from "@/lib/utils";
+import { formatDateForDisplay } from "../lib/utils";
 import { 
   Sheet, 
   SheetContent, 
   SheetDescription, 
   SheetHeader, 
   SheetTitle 
-} from "@/components/ui/sheet";
-import { Checkbox } from "@/components/ui/checkbox";
-import { apiRequest } from "@/lib/queryClient";
+} from "./ui/sheet";
+import { Checkbox } from "./ui/checkbox";
+import { apiRequest } from "../lib/queryClient";
 
 interface ReadingType {
   day: number;

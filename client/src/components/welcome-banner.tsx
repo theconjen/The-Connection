@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { getDailyQuote, getRandomQuote, type DailyQuote } from "@shared/quotes";
 import { useAuth } from "../hooks/use-auth";
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 import { RefreshCw } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "./ui/card";
 
 interface WelcomeBannerProps {
   className?: string;

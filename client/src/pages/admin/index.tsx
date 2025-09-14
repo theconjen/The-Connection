@@ -1,10 +1,10 @@
 import { useAuth } from '../../hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap } from 'lucide-react';
-import AdminLayout from '@/components/layouts/admin-layout';
+import AdminLayout from '../../components/layouts/admin-layout';
 
 export default function AdminDashboard() {
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();

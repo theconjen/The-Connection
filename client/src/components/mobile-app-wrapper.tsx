@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation } from "wouter";
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 import MobileNavigation from "./mobile-navigation";
 import MobileHeader from "./mobile-header";
 

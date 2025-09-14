@@ -1,6 +1,6 @@
 import React from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';
-import ContentFallback from '@/components/content-fallback';
+import ContentFallback from './content-fallback';
 
 interface ApiDataWrapperProps<T> {
   data: T | undefined;

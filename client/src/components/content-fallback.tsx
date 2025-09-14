@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from './ui/button';
 
 interface ContentFallbackProps {
   title?: string;

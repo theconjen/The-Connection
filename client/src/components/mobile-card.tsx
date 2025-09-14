@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
-import { Card, CardProps } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { Card, CardProps } from "./ui/card";
+import { cn } from "../lib/utils";
 import TouchFeedback from "./mobile-touch-feedback";
 
 interface MobileCardProps extends CardProps {

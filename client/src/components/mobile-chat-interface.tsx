@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Paperclip, Smile, MoreVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import TouchFeedback from "./mobile-touch-feedback";
 

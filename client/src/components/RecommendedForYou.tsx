@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 import { Sparkles, TrendingUp, Heart, MessageCircle, Share, Clock, ChevronRight } from 'lucide-react';
 import { usePersonalizedFeed, useContentTracking } from '../hooks/useRecommendations';
 import { formatDistanceToNow } from 'date-fns';

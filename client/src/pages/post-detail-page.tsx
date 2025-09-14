@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
-import MainLayout from "@/components/layouts/main-layout";
-import { Post, User, Community, Comment, InsertComment } from "@shared/schema";
+import MainLayout from "../components/layouts/main-layout";
+import { Post, User, Community, Comment, InsertComment, insertCommentSchema } from "../../../shared/schema";
 import { useAuth } from "../hooks/use-auth";
 import {
   Card,
@@ -10,17 +10,16 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-} from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
-import ShareButtons from "@/components/share-buttons";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+} from "../components/ui/card";
+import { Avatar, AvatarFallback } from "../components/ui/avatar";
+import { Button } from "../components/ui/button";
+import { Textarea } from "../components/ui/textarea";
+import { Skeleton } from "../components/ui/skeleton";
+import ShareButtons from "../components/share-buttons";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { z } from "zod";
 import { format } from "date-fns";
-import { insertCommentSchema } from "@shared/schema";
 import {
   ArrowUpIcon,
   MessageSquare,

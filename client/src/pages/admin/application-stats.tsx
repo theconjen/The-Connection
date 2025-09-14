@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Loader2, ArrowLeft, CheckCircle, AlertCircle, XCircle, BarChart4, PieChart, Calendar } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
 

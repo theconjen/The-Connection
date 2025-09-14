@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { useAuth } from "../hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import logoImage from "@assets/TC Logo - Color.png";
 import { 
   Search, 
@@ -17,9 +17,9 @@ import {
   SheetContent, 
   SheetTrigger,
   SheetClose
-} from "@/components/ui/sheet";
-import SidebarNavigation from "@/components/sidebar-navigation";
-import UserMenu from "@/components/user-menu";
+} from "./ui/sheet";
+import SidebarNavigation from "./sidebar-navigation";
+import UserMenu from "./user-menu";
 
 interface MobileHeaderProps {
   currentPath: string;

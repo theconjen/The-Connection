@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Button } from "./button";
+import { Label } from "./label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "./popover";
 import { Check, ChevronDown } from "lucide-react";
 import {
   Users,
@@ -28,7 +28,7 @@ import {
   Palette,
   GraduationCap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 
 export interface IconOption {
   name: string;

@@ -1,7 +1,7 @@
-import { User } from "@shared/schema";
+import { User } from "../../../shared/schema";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { Button } from "./ui/button";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -9,7 +9,7 @@ import {
   DropdownMenuLabel, 
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+} from "./ui/dropdown-menu";
 import { Link } from "wouter";
 
 interface UserMenuProps {
