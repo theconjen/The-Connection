@@ -57,7 +57,7 @@ function App() {
           <Route path="/microblogs/:id" component={MicroblogDetailPage} />
           <Route path="/bible-study" component={BibleStudyPage} />
           <Route path="/communities" component={CommunitiesPage} />
-          <Route path="/communities/:id" component={CommunityPage} />
+          <Route path="/communities/:slug" component={CommunityPage} />
           <Route path="/invitations/:token/accept" component={AcceptInvitationPage} />
           <Route path="/forums" component={() => <ForumsPage />} />
           <Route path="/posts" component={() => <PostsPage />} />

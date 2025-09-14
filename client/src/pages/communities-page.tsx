@@ -142,7 +142,7 @@ export default function CommunitiesPage() {
       });
       setOpen(false);
       form.reset();
-      navigate(`/community/${data.slug}`);
+      navigate(`/communities/${data.slug}`);
     },
     onError: (error: Error) => {
       toast({
