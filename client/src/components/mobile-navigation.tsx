@@ -115,7 +115,7 @@ export default function MobileNavigation({ currentPath, isVisible = true }: Mobi
             onClick={() => handleTabPress('/communities')}
           >
             <Users className={`h-4 w-4 ${isActive('/communities') ? 'fill-primary/20' : ''} transition-all`} />
-            <span className="text-xs mt-0.5 font-medium mobile-text-modern">Groups</span>
+            <span className="text-xs mt-0.5 font-medium mobile-text-modern">Communities</span>
           </div>
         </Link>
 

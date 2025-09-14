@@ -12,6 +12,16 @@ import { Image, X } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+// Local interface to ensure type safety
+interface MicroblogData {
+  content: string;
+  authorId: number;
+  parentId?: number;
+  communityId?: number;
+  groupId?: number;
+  imageUrl?: string;
+}
+
 interface MicroblogComposerProps {
   parentId?: number;
   communityId?: number;
@@ -36,17 +46,15 @@ export function MicroblogComposer({
   const MAX_CHARS = 280;
   
   const createMicroblogMutation = useMutation({
-    mutationFn: async (data: InsertMicroblog) => {
-      let formData = null;
-      
+    mutationFn: async (microblogData: MicroblogData) => {
       // If there's an image, we need to use FormData
       if (imageFile) {
-        formData = new FormData();
-        formData.append('content', data.content);
-        if (data.parentId) formData.append('parentId', data.parentId.toString());
-        if (data.communityId) formData.append('communityId', data.communityId.toString());
-        if (data.groupId) formData.append('groupId', data.groupId.toString());
-        formData.append('authorId', data.authorId.toString());
+        const formData = new FormData();
+        formData.append('content', microblogData.content);
+        if (microblogData.parentId !== undefined) formData.append('parentId', microblogData.parentId.toString());
+        if (microblogData.communityId !== undefined) formData.append('communityId', microblogData.communityId.toString());
+        if (microblogData.groupId !== undefined) formData.append('groupId', microblogData.groupId.toString());
+        formData.append('authorId', microblogData.authorId.toString());
         formData.append('image', imageFile);
         
         // Custom fetch for FormData
@@ -63,7 +71,7 @@ export function MicroblogComposer({
         return await response.json();
       } else {
         // Regular JSON request if no image
-        const response = await apiRequest('POST', '/api/microblogs', data);
+        const response = await apiRequest('POST', '/api/microblogs', microblogData);
         return await response.json();
       }
     },
@@ -161,14 +169,13 @@ export function MicroblogComposer({
       return;
     }
     
-    const microblogData: InsertMicroblog = {
+    const microblogData: MicroblogData = {
       content,
       authorId: user.id,
+      ...(parentId && { parentId }),
+      ...(communityId && { communityId }),
+      ...(groupId && { groupId })
     };
-    
-    if (parentId) microblogData.parentId = parentId;
-    if (communityId) microblogData.communityId = communityId;
-    if (groupId) microblogData.groupId = groupId;
     
     createMicroblogMutation.mutate(microblogData);
   };

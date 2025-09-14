@@ -134,7 +134,7 @@ export default function PrivateGroupsList() {
           <ul className="space-y-3">
             {groups.map((group) => (
               <li key={group.id}>
-                <Link href={`/communities/${group.slug || group.id}`}>
+                <Link href={`/communities/${group.id}`}>
                   <a className="flex items-center p-2 rounded-lg hover:bg-neutral-100">
                     {getGroupIcon(group.iconName, group.iconColor)}
                     <div>

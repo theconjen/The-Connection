@@ -52,10 +52,10 @@ export default function NearMe() {
   useEffect(() => {
     if (user) {
       if (user.city) {
-        setFilters(prev => ({ ...prev, city: user.city }));
+        setFilters(prev => ({ ...prev, city: user.city || '' }));
       }
       if (user.state) {
-        setFilters(prev => ({ ...prev, state: user.state }));
+        setFilters(prev => ({ ...prev, state: user.state || '' }));
       }
     }
   }, [user]);
