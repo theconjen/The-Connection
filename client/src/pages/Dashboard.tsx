@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'wouter';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-auth';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { useAuth } from '../hooks/use-auth';
 import { BookOpen, Shield, Video, Lightbulb, BookMarked, 
          Map, Compass, Heart, Activity, Briefcase, GraduationCap, Palette, UserPlus, Calendar } from 'lucide-react';
 

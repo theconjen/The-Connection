@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import { useMediaQuery } from "@/hooks/use-media-query";
-import MainLayout from "@/components/layouts/main-layout";
+import { useAuth } from "../hooks/use-auth";
+import { useMediaQuery } from "../hooks/use-media-query";
+import MainLayout from "../components/layouts/main-layout";
 import { PrayerRequest } from "../../../shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { formatDistanceToNow, format } from "date-fns";
-import FloatingActionButton from "@/components/floating-action-button";
+import FloatingActionButton from "../components/floating-action-button";
 
 // Helper function to format dates consistently
 function formatDate(date: Date | null | undefined): string {
@@ -20,15 +20,15 @@ import {
   CardTitle,
   CardDescription, 
   CardFooter
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "../components/ui/accordion";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "../components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -46,14 +46,14 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
+} from "../components/ui/form";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
+import { Skeleton } from "../components/ui/skeleton";
+import { Separator } from "../components/ui/separator";
+import { useToast } from "../hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";

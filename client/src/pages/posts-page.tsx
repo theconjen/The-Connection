@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import PostCard from "@/components/post-card";
-import FeedFilters from "@/components/feed-filters";
-import ApologeticsResourceCard from "@/components/apologetics-resource";
-import PrivateGroupsList from "@/components/private-groups-list";
-import CommunityGuidelines from "@/components/community-guidelines";
+import PostCard from "../components/post-card";
+import FeedFilters from "../components/feed-filters";
+import ApologeticsResourceCard from "../components/apologetics-resource";
+import PrivateGroupsList from "../components/private-groups-list";
+import CommunityGuidelines from "../components/community-guidelines";
 import { Post, User, Community } from "../../../shared/schema";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "../components/ui/button";
+import { Skeleton } from "../components/ui/skeleton";
 import { Loader2 } from "lucide-react";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useMediaQuery } from "../hooks/use-media-query";
 
 interface PostsPageProps {
   isGuest?: boolean;

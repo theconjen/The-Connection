@@ -4,11 +4,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { useAuth } from "../hooks/use-auth";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Switch } from "../components/ui/switch";
 import {
   Form,
   FormControl,
@@ -16,7 +16,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "../components/ui/form";
 import {
   Card,
   CardContent,
@@ -24,7 +24,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "../components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -33,13 +33,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "../components/ui/dialog";
 import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X, BookOpen, Heart, Music, Camera, Coffee, Globe, Star, Home, MessageCircle, Calendar, Map, Shield, Zap, Target } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "../hooks/use-toast";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { insertCommunityObjectSchema, type InsertCommunity } from "../../../shared/schema";
-import { IconPicker } from "@/components/ui/icon-picker";
-import { ColorPicker } from "@/components/ui/color-picker";
+import { IconPicker } from "../components/ui/icon-picker";
+import { ColorPicker } from "../components/ui/color-picker";
 
 interface Community {
   id: number;

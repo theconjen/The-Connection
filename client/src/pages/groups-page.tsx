@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import MainLayout from "@/components/layouts/main-layout";
+import MainLayout from "../components/layouts/main-layout";
 import { Group, GroupMember } from "../../../shared/schema";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "../hooks/use-auth";
 import {
   Card,
   CardContent,
@@ -11,7 +11,7 @@ import {
   CardTitle,
   CardDescription,
   CardFooter,
-} from "@/components/ui/card";
+} from "../components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -20,26 +20,26 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "../components/ui/dialog";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+} from "../components/ui/tabs";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
+import { Skeleton } from "../components/ui/skeleton";
 import { insertGroupSchema, InsertGroup } from "../../../shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "../lib/queryClient";
+import { useToast } from "../hooks/use-toast";
 import { User, Users, Home, Church, PlusIcon } from "lucide-react";
-import CommunityGuidelines from "@/components/community-guidelines";
+import CommunityGuidelines from "../components/community-guidelines";
 
 // Extend the schema with validation
 const createGroupSchema = insertGroupSchema.extend({
