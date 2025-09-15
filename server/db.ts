@@ -2,14 +2,17 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 
-if (!process.env.DATABASE_URL) {
+// For development MVP, use a simple DATABASE_URL if not set
+const databaseUrl = process.env.DATABASE_URL || "postgresql://user:password@localhost:5432/theconnection";
+
+if (!databaseUrl) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
 }
 
 // Create a connection pool for PostgreSQL
 console.log("Attempting to connect to database...");
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
 });
 
 // Create a Drizzle instance

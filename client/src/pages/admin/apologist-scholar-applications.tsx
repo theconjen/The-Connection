@@ -116,10 +116,15 @@ export default function ApologistScholarApplicationsAdminPage() {
   const [reviewStatus, setReviewStatus] = useState<'approved' | 'rejected'>('approved');
   
   // Query applications
-  const { data: applications, isLoading, refetch } = useQuery({
+  const { data: applications = [], isLoading, refetch } = useQuery<ApologistScholarApplication[]>({
     queryKey: ['/api/admin/apologist-scholar-applications'],
     retry: false,
-    enabled: isAuthenticated && user?.isAdmin,
+    enabled: !!(isAuthenticated && user?.isAdmin),
+    queryFn: async () => {
+      const res = await fetch('/api/admin/apologist-scholar-applications');
+      if (!res.ok) throw new Error('Failed to fetch applications');
+      return res.json();
+    }
   });
 
   // Handle authentication and admin check
@@ -142,7 +147,7 @@ export default function ApologistScholarApplicationsAdminPage() {
   }
 
   // Filter applications based on search term and status
-  const filteredApplications = applications?.filter((app: ApologistScholarApplication) => {
+  const filteredApplications = applications.filter((app) => {
     const matchesSearch = 
       app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.user?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -284,15 +289,15 @@ export default function ApologistScholarApplicationsAdminPage() {
           </TabsContent>
           
           <TabsContent value="pending" className="mt-4">
-            {renderApplicationsTable(applications?.filter((app: ApologistScholarApplication) => app.status === 'pending') || [])}
+            {renderApplicationsTable(applications.filter(app => app.status === 'pending'))}
           </TabsContent>
           
           <TabsContent value="approved" className="mt-4">
-            {renderApplicationsTable(applications?.filter((app: ApologistScholarApplication) => app.status === 'approved') || [])}
+            {renderApplicationsTable(applications.filter(app => app.status === 'approved'))}
           </TabsContent>
           
           <TabsContent value="rejected" className="mt-4">
-            {renderApplicationsTable(applications?.filter((app: ApologistScholarApplication) => app.status === 'rejected') || [])}
+            {renderApplicationsTable(applications.filter(app => app.status === 'rejected'))}
           </TabsContent>
         </Tabs>
       </div>

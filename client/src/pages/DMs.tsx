@@ -17,6 +17,13 @@ interface Message {
   senderId: number;
   receiverId: number;
   createdAt: string;
+  // Optional sender meta used only for mobile interface rendering
+  sender?: {
+    id: number;
+    username: string;
+    displayName?: string;
+    avatarUrl?: string;
+  };
 }
 
 interface User {
@@ -200,7 +207,8 @@ export default function DMs() {
         <MobileChatInterface
           messages={messages.map(m => ({
             ...m,
-            sender: m.senderId === user.id ? user : recipient
+            // Normalize null recipient to undefined so it satisfies optional sender typing
+            sender: (m.senderId === user.id ? user : recipient) || undefined
           }))}
           currentUserId={user.id}
           recipientName={recipientName}

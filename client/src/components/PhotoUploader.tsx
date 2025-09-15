@@ -35,12 +35,11 @@ export function PhotoUploader({
 
   const handleGetUploadParameters = async () => {
     try {
-      const response = await apiRequest("/api/objects/upload", {
-        method: "POST",
-      });
+      const res = await apiRequest("POST", "/api/objects/upload");
+      const data = await res.json().catch(() => ({}));
       return {
         method: "PUT" as const,
-        url: response.uploadURL,
+        url: (data && (data.uploadURL || data.uploadUrl)) || "",
       };
     } catch (error) {
       console.error("Error getting upload parameters:", error);
@@ -82,12 +81,10 @@ export function PhotoUploader({
         }
 
         // Set ACL policy and update the relevant entity
-        const response = await apiRequest(endpoint, {
-          method: "PUT",
-          body: payload,
-        });
+        const res = await apiRequest("PUT", endpoint, payload);
+        const response = await res.json().catch(() => ({}));
 
-        const photoUrl = response.objectPath || uploadURL;
+        const photoUrl = (response && (response.objectPath || response.objectPath || response.objectPath)) || uploadURL;
         onUploadSuccess?.(photoUrl);
 
         // Invalidate relevant queries

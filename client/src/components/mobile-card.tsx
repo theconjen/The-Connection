@@ -1,9 +1,9 @@
 import { forwardRef } from "react";
-import { Card, CardProps } from "./ui/card";
+import { Card } from "./ui/card";
 import { cn } from "../lib/utils";
 import TouchFeedback from "./mobile-touch-feedback";
 
-interface MobileCardProps extends CardProps {
+interface MobileCardProps extends React.HTMLAttributes<HTMLDivElement> {
   pressable?: boolean;
   onPress?: () => void;
   hapticFeedback?: boolean;

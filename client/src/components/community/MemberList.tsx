@@ -50,9 +50,14 @@ export function MemberList({ communityId, isOwner, isModerator }: MemberListProp
   const [showConfirmRemove, setShowConfirmRemove] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   
-  const { data: members, isLoading, error } = useQuery({
+  const { data: members, isLoading, error } = useQuery<Member[]>({
     queryKey: [`/api/communities/${communityId}/members`],
     enabled: !!communityId,
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/communities/${communityId}/members`);
+      const data = await res.json().catch(() => []);
+      return data as Member[];
+    },
   });
   
   const changeMemberRoleMutation = useMutation({
@@ -144,7 +149,7 @@ export function MemberList({ communityId, isOwner, isModerator }: MemberListProp
     );
   }
   
-  const sortedMembers = [...members].sort((a, b) => {
+  const sortedMembers = [...(members || [])].sort((a, b) => {
     // Sort by role: owner first, then moderators, then members
     const roleOrder = { owner: 0, moderator: 1, member: 2 };
     const roleA = roleOrder[a.role as keyof typeof roleOrder] || 3;

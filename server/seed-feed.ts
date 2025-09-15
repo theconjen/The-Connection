@@ -131,9 +131,9 @@ export async function seedFeed() {
     for (const community of allCommunities) {
       const postCount = insertedPosts.filter(p => p.communityId === community.id).length;
       if (postCount > 0) {
-        await db.update(communities)
-          .set({ memberCount: community.memberCount || 1 }) // Ensure at least one member
-          .where(eq(communities.id, community.id), parseInt(id)));
+      await db.update(communities)
+        .set({ memberCount: community.memberCount || 1 }) // Ensure at least one member
+        .where(eq(communities.id, community.id));
       }
     }
     

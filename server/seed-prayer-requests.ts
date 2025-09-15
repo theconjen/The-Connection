@@ -106,7 +106,7 @@ export async function seedPrayerRequests() {
       // Update the prayer count
       await db.update(prayerRequests)
         .set({ prayerCount: prayerCount })
-        .where(eq(prayerRequests.id, prayer.id), parseInt(id)));
+        .where(eq(prayerRequests.id, prayer.id));
     }
 
     // Mark one prayer request as answered
@@ -116,7 +116,7 @@ export async function seedPrayerRequests() {
         isAnswered: true, 
         answeredDescription: "Update: I got the job! Thank you all for your prayers. I start next month and am so grateful for God's provision."
       })
-      .where(eq(prayerRequests.id, answeredPrayer.id), parseInt(id)));
+      .where(eq(prayerRequests.id, answeredPrayer.id));
     console.log("Marked one prayer request as answered");
 
     console.log("Creating prayer responses...");

@@ -6,37 +6,67 @@ import { Button } from '../../components/ui/button';
 import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap } from 'lucide-react';
 import AdminLayout from '../../components/layouts/admin-layout';
 
+interface ApplicationSummary {
+  id: number | string;
+  status: 'pending' | 'approved' | 'rejected' | string;
+  createdAt?: string;
+  reviewedAt?: string | null;
+}
+
+interface ApplicationStats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected?: number;
+  reviewedToday?: number;
+}
+
 export default function AdminDashboard() {
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
 
   // Query to fetch pending livestreamer applications count
-  const { data: pendingApplications, isLoading: isLoadingApplications } = useQuery({
+  const { data: pendingApplications = [], isLoading: isLoadingApplications } = useQuery<ApplicationSummary[]>({
     queryKey: ['/api/admin/applications/livestreamer'],
     retry: false,
-    enabled: isAuthenticated && user?.isAdmin,
+    enabled: !!(isAuthenticated && user?.isAdmin),
+    queryFn: async () => {
+      const res = await fetch('/api/admin/applications/livestreamer');
+      if (!res.ok) throw new Error('Failed to fetch livestreamer applications');
+      return res.json();
+    }
   });
   
   // Query to fetch apologist scholar applications count
-  const { data: pendingApologistApplications, isLoading: isLoadingApologistApplications } = useQuery({
+  const { data: pendingApologistApplications = [], isLoading: isLoadingApologistApplications } = useQuery<ApplicationSummary[]>({
     queryKey: ['/api/admin/apologist-scholar-applications'],
     retry: false,
-    enabled: isAuthenticated && user?.isAdmin,
+    enabled: !!(isAuthenticated && user?.isAdmin),
+    queryFn: async () => {
+      const res = await fetch('/api/admin/apologist-scholar-applications');
+      if (!res.ok) throw new Error('Failed to fetch apologist scholar applications');
+      return res.json();
+    }
   });
 
   // Query to fetch application stats
-  const { data: applicationStats, isLoading: isLoadingStats } = useQuery({
+  const { data: applicationStats, isLoading: isLoadingStats } = useQuery<ApplicationStats>({
     queryKey: ['/api/admin/livestreamer-applications/stats'],
     retry: false,
-    enabled: isAuthenticated && user?.isAdmin,
+    enabled: !!(isAuthenticated && user?.isAdmin),
+    queryFn: async () => {
+      const res = await fetch('/api/admin/livestreamer-applications/stats');
+      if (!res.ok) throw new Error('Failed to fetch application stats');
+      return res.json();
+    }
   });
 
   // AdminLayout already handles authentication and redirect checks
 
   // Count pending applications
-  const pendingCount = pendingApplications?.filter((app: any) => app.status === 'pending')?.length || 0;
+  const pendingCount = pendingApplications.filter(app => app.status === 'pending').length;
   
   // Count pending apologist scholar applications
-  const pendingApologistCount = pendingApologistApplications?.filter((app: any) => app.status === 'pending')?.length || 0;
+  const pendingApologistCount = pendingApologistApplications.filter(app => app.status === 'pending').length;
 
   return (
     <AdminLayout>
