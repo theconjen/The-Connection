@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -92,20 +93,20 @@ app.use((req, res, next) => {
 
 (async () => {
   // Run migrations for locality and interest features
-  try {
-    await runAllMigrations();
+  // try {
+  //   await runAllMigrations();
     
-    // Run organization migrations
-    const { runOrganizationMigrations } = await import("./run-migrations-organizations");
-    await runOrganizationMigrations();
+  //   // Run organization migrations
+  //   const { runOrganizationMigrations } = await import("./run-migrations-organizations");
+  //   await runOrganizationMigrations();
     
-    console.log("✅ Database migrations completed");
-  } catch (error) {
-    console.error("❌ Error running database migrations:", error);
-  }
+  //   console.log("✅ Database migrations completed");
+  // } catch (error) {
+  //   console.error("❌ Error running database migrations:", error);
+  // }
 
   // Production mode: No seed data needed
-  console.log("Production mode: Skipping database seeding");
+  console.log("Database migrations temporarily disabled for development");
   
   // Initialize email templates
   try {

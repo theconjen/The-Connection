@@ -2,15 +2,54 @@
  * Seed script for apologetics content
  */
 import { db } from "./db";
-import { users, apologeticsTopics, apologeticsQuestions, apologeticsAnswers } from "@shared/schema";
+import { users, apologeticsTopics, apologeticsQuestions, apologeticsAnswers } from "../shared/schema"; // Make sure schema.ts exists in the same directory, or update the path if it's elsewhere
 import { eq } from "drizzle-orm";
+// TODO: You need to create a schema.ts file that exports `users`, `apologeticsTopics`, `apologeticsQuestions`, and `apologeticsAnswers`.
+// Example (adjust types/fields as needed for your project):
+// import { pgTable, serial, text, integer, boolean } from "drizzle-orm/pg-core";
+//
+// export const users = pgTable("users", {
+//   id: serial("id").primaryKey(),
+//   username: text("username").notNull(),
+//   isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
+//   // ...other fields
+// });
+//
+// export const apologeticsTopics = pgTable("apologetics_topics", {
+//   id: serial("id").primaryKey(),
+//   name: text("name").notNull(),
+//   description: text("description"),
+//   iconName: text("icon_name"),
+//   slug: text("slug").notNull(),
+//   // ...other fields
+// });
+//
+// export const apologeticsQuestions = pgTable("apologetics_questions", {
+//   id: serial("id").primaryKey(),
+//   title: text("title").notNull(),
+//   content: text("content"),
+//   authorId: integer("author_id").references(() => users.id),
+//   topicId: integer("topic_id").references(() => apologeticsTopics.id),
+//   status: text("status"),
+//   answerCount: integer("answer_count").default(0),
+//   // ...other fields
+// });
+//
+// export const apologeticsAnswers = pgTable("apologetics_answers", {
+//   id: serial("id").primaryKey(),
+//   content: text("content"),
+//   questionId: integer("question_id").references(() => apologeticsQuestions.id),
+//   authorId: integer("author_id").references(() => users.id),
+//   isVerifiedAnswer: boolean("is_verified_answer").default(false),
+//   // ...other fields
+// });
 
 export async function seedApologetics() {
   console.log("Starting apologetics data seeding...");
   
   try {
     // Check if apologetics topics already exist
-    const existingTopics = await db.select({ count: { count: 'id' }}).from(apologeticsTopics);
+    const existingTopics = await db.select({ count: sql<number>`count(*)` }).from(apologeticsTopics);
     if (existingTopics[0]?.count > 0) {
       console.log("Apologetics topics already exist, skipping seeding");
       return;
@@ -26,11 +65,17 @@ export async function seedApologetics() {
     const demoUser = demoUsers[0];
     console.log(`Found demo user with ID: ${demoUser.id}, will use as content creator`);
 
-    // Mark the demo user as a verified apologetics answerer
-    await db.update(users)
-      .set({ isVerifiedApologeticsAnswerer: true })
-      .where(eq(users.id, demoUser.id));
-    console.log("Marked demo user as verified apologetics answerer");
+   // Mark the demo user as a verified apologetics answerer
+if (demoUser) {
+  await db.update(users)
+    .set({ isVerifiedApologeticsAnswerer: true })
+    .where(eq(users.id, demoUser.id));
+
+  console.log("Marked demo user as verified apologetics answerer");
+} else {
+  console.warn("Demo user not found, skipping verification flag.");
+}
+
 
     // Create apologetics topics
     const topicsData = [
@@ -180,7 +225,7 @@ export async function seedApologetics() {
 
     // Update answer counts for questions
     for (const answer of insertedAnswers) {
-      const question = insertedQuestions.find(q => q.id === answer.questionId);
+      const question = insertedQuestions.find((q: typeof insertedQuestions[number]) => q.id === answer.questionId);
       if (question) {
         await db.update(apologeticsQuestions)
           .set({ answerCount: 1, status: "answered" })
@@ -195,13 +240,13 @@ export async function seedApologetics() {
 }
 
 // Run this directly if called directly
-if (import.meta.url === new URL(import.meta.url).href) {
-  seedApologetics()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      console.error("Failed to seed apologetics data:", error);
-      process.exit(1);
-    });
-}
+// if (import.meta.url === new URL(import.meta.url).href) {
+//   seedApologetics()
+//     .then(() => process.exit(0))
+//     .catch((error) => {
+//       console.error("Failed to seed apologetics data:", error);
+//       process.exit(1);
+//     });
+// }
 
 // Function is already exported at the top

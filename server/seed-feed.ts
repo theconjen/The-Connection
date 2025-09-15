@@ -2,7 +2,7 @@
  * Seed script for posts, microblogs, and other feed content
  */
 import { db } from "./db";
-import { users, posts, comments, communities, groups, microblogs } from "@shared/schema";
+import { users, posts, comments, communities, groups, microblogs } from "../shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function seedFeed() {
@@ -10,7 +10,7 @@ export async function seedFeed() {
   
   try {
     // Check if posts already exist
-    const existingPosts = await db.select({ count: { count: 'id' }}).from(posts);
+    const existingPosts = await db.select({ count: { count: 'id' }}).from(posts) as { count: number }[];
     if (existingPosts[0]?.count > 0) {
       console.log("Posts already exist, skipping seeding");
       return;
@@ -124,7 +124,7 @@ export async function seedFeed() {
     ];
 
     console.log("Creating microblogs...");
-    const insertedMicroblogs = await db.insert(microblogs).values(microblogData).returning();
+    const insertedMicroblogs = await db.insert(microblogs).values(microblogData).returning() as any[];
     console.log(`Created ${insertedMicroblogs.length} microblogs`);
 
     // Update post counts for communities
@@ -144,13 +144,13 @@ export async function seedFeed() {
 }
 
 // Run this directly if called directly
-if (import.meta.url === new URL(import.meta.url).href) {
-  seedFeed()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      console.error("Failed to seed feed data:", error);
-      process.exit(1);
-    });
-}
+// if (import.meta.url === new URL(import.meta.url).href) {
+//   seedFeed()
+//     .then(() => process.exit(0))
+//     .catch((error) => {
+//       console.error("Failed to seed feed data:", error);
+//       process.exit(1);
+//     });
+// }
 
 // Function is already exported at the top

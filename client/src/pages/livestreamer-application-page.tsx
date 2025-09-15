@@ -388,7 +388,8 @@ export default function LivestreamerApplicationPage() {
                                 <Textarea 
                                   placeholder="Share your background and experience in ministry" 
                                   className="min-h-[100px]"
-                                  {...field} 
+                                  {...field}
+                                  value={field.value || ""}
                                 />
                               </FormControl>
                               <FormDescription>
@@ -489,7 +490,8 @@ export default function LivestreamerApplicationPage() {
                               <FormControl>
                                 <Textarea 
                                   placeholder="Links to your existing ministry social media accounts" 
-                                  {...field} 
+                                  {...field}
+                                  value={field.value || ""}
                                 />
                               </FormControl>
                               <FormDescription>

@@ -448,7 +448,8 @@ export default function ApologistScholarApplicationPage() {
                           <FormControl>
                             <Textarea 
                               placeholder="List any books, articles, blog posts you've published" 
-                              {...field} 
+                              {...field}
+                              value={field.value || ""}
                               className="min-h-[100px]"
                             />
                           </FormControl>
@@ -511,7 +512,8 @@ export default function ApologistScholarApplicationPage() {
                           <FormControl>
                             <Textarea 
                               placeholder="List your social media accounts, blog, website, etc." 
-                              {...field} 
+                              {...field}
+                              value={field.value || ""}
                               className="min-h-[100px]"
                             />
                           </FormControl>

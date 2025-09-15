@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import logoImage from "@assets/TC Logo - Color.png";
+import logoImage from "@assets/tc-logo.png";
 import { 
   Search, 
   PenSquare,

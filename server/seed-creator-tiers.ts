@@ -1,5 +1,5 @@
 import { db } from './db';
-import { creatorTiers, virtualGifts } from '@shared/schema';
+import { creatorTiers, virtualGifts } from '../shared/schema';
 
 async function seedCreatorTiersAndGifts() {
   console.log("Starting to seed creator tiers and virtual gifts...");
@@ -95,14 +95,14 @@ async function seedCreatorTiersAndGifts() {
 import { fileURLToPath } from 'url';
 
 // This block will only run when file is executed directly, not when imported
-if (import.meta.url.startsWith('file:') && 
-    import.meta.url === new URL(fileURLToPath(import.meta.url), import.meta.url).href) {
-  seedCreatorTiersAndGifts()
-    .then(() => console.log("Done!"))
-    .catch((error) => {
-      console.error("Error seeding creator tiers and gifts:", error);
-    });
-}
+// if (import.meta.url.startsWith('file:') && 
+//     import.meta.url === new URL(fileURLToPath(import.meta.url), import.meta.url).href) {
+//   seedCreatorTiersAndGifts()
+//     .then(() => console.log("Done!"))
+//     .catch((error) => {
+//       console.error("Error seeding creator tiers and gifts:", error);
+//     });
+// }
 
 // Export the function for use in other scripts
 export { seedCreatorTiersAndGifts };

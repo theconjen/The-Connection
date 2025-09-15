@@ -155,11 +155,11 @@ export async function seedPrayers() {
 }
 
 // Run this directly if called directly
-if (import.meta.url === new URL(import.meta.url).href) {
-  seedPrayers()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      console.error("Failed to seed prayer request data:", error);
-      process.exit(1);
-    });
-}
+// if (import.meta.url === new URL(import.meta.url).href) {
+//   seedPrayers()
+//     .then(() => process.exit(0))
+//     .catch((error) => {
+//       console.error("Failed to seed prayer request data:", error);
+//       process.exit(1);
+//     });
+// }

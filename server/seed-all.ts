@@ -65,13 +65,13 @@ async function seedAll() {
 }
 
 // Run the seed process if this script is executed directly
-if (import.meta.url === new URL(import.meta.url).href) {
-  seedAll()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      console.error("Seed process failed:", error);
-      process.exit(1);
-    });
-}
+// if (import.meta.url === new URL(import.meta.url).href) {
+//   seedAll()
+//     .then(() => process.exit(0))
+//     .catch((error) => {
+//       console.error("Seed process failed:", error);
+//       process.exit(1);
+//     });
+// }
 
 export { seedAll };
