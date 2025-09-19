@@ -404,7 +404,7 @@ export async function setupWelcomeTemplate(): Promise<boolean> {
         </ul>
         <p>If you have any questions, feel free to reach out to our support team.</p>
         <div style="margin-top: 30px; text-align: center;">
-          <a href="https://theconnection.app/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
+          <a href="${BASE_URL}/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
         </div>
         <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
           This email was sent to {{email}}. If you did not create this account, please disregard this email.
@@ -637,7 +637,7 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
             </ul>
             <p>If you have any questions, feel free to reach out to our support team.</p>
             <div style="margin-top: 30px; text-align: center;">
-              <a href="https://theconnection.app/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
+              <a href="${BASE_URL}/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
             </div>
             <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
               This email was sent to ${email}. If you did not create this account, please disregard this email.
@@ -915,7 +915,7 @@ export interface CommunityInvitationEmailParams {
   expirationDate: string;
 }
 
-export async function sendCommunityInvitationEmail(params: CommunityInvitationEmailParams): Promise<boolean> {
+export async function sendCommunityInvitationEmail(params: CommunityInvitationEmailParams, name: string, p0: string, token: string): Promise<boolean> {
   const recipientName = params.recipientName || params.email.split('@')[0];
   const from = EMAIL_FROM;
   

@@ -66,7 +66,7 @@ router.patch('/:id', async (req, res, next) => {
     const targetUserId = parseInt(req.params.id);
     
     // Only allow users to update their own profile
-    if (!userId || userId !== targetUserId.toString()) {
+    if (!userId || userId !== targetUserId) {
       return res.status(401).json({ message: 'Not authorized to update this profile' });
     }
     
@@ -82,7 +82,7 @@ router.patch('/:id', async (req, res, next) => {
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     
-    const updatedUser = await storage.updateUser(targetUserId.toString(), updateData);
+    const updatedUser = await storage.updateUser(targetUserId, updateData);
     
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;

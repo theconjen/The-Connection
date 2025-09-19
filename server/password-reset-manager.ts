@@ -7,7 +7,7 @@ const TOKEN_EXPIRY = 60 * 60 * 1000;
 interface ResetTokenData {
   userId: number;
   email: string;
-  expires: string;
+  expires: number;
 }
 
 class PasswordResetManager {

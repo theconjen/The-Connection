@@ -11,7 +11,7 @@ import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 // Add custom session properties
 declare module 'express-session' {
   interface SessionData {
-    userId?: string;
+    userId?: number;
     username?: string;
     isAdmin?: boolean;
     email?: string;
@@ -104,7 +104,7 @@ export function setupAuth(app: Express) {
         currentUsername: req.session?.username
       });
       
-      req.session.userId = user.id.toString();
+      req.session.userId = user.id;
       req.session.username = user.username;
       req.session.isAdmin = user.isAdmin || false;
       
@@ -175,7 +175,7 @@ export function setupAuth(app: Express) {
         }
         
         // Save user ID in session
-        req.session.userId = user.id.toString();
+        req.session.userId = user.id;
         req.session.username = user.username;
         req.session.isAdmin = user.isAdmin || false;
         req.session.email = user.email;
@@ -220,7 +220,7 @@ export function setupAuth(app: Express) {
       }
       
       // Set session data
-      req.session.userId = admin.id.toString();
+      req.session.userId = admin.id;
       req.session.username = admin.username;
       req.session.isAdmin = true;
       
@@ -273,7 +273,8 @@ export function setupAuth(app: Express) {
       }
       
       try {
-        const user = await storage.getUser(req.session.userId);
+        const userId = req.session.userId;
+        const user = await storage.getUser(userId);
         
         if (!user) {
           // Session exists but user doesn't - clear session

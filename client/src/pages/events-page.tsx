@@ -12,7 +12,8 @@ import { Textarea } from "../components/ui/textarea";
 import { Switch } from "../components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 import { format } from "date-fns";
-import { apiRequest, queryClient } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
+import { queryClient } from "../lib/queryClient";
 import { useAuth } from "../hooks/use-auth";
 import { Link } from "wouter";
 import EventsList from "../components/events/EventsList";
@@ -125,13 +126,8 @@ export default function EventsPage() {
       let eventData = { ...newEvent };
       
       // Send API request to create event
-      const response = await apiRequest("POST", "/api/events", eventData);
+      const response = await apiRequest("/api/events", { method: "POST", body: JSON.stringify(eventData) });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create event");
-      }
-
       // Show success message
       toast({
         title: "Event Created",

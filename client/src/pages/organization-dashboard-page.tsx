@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -28,7 +28,7 @@ interface Organization {
   id: number;
   name: string;
   description?: string;
-  plan: string;
+  plan: 'free' | 'standard' | 'premium';
   website?: string;
   address?: string;
   city?: string;
@@ -61,8 +61,9 @@ export default function OrganizationDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: organization, isLoading } = useQuery({
-    queryKey: [`/api/organizations/${id}`],
+  const { data: organization, isLoading } = useQuery<Organization>({
+    queryKey: ['organization', id],
+    queryFn: () => apiRequest<Organization>(`/api/organizations/${id}`),
     enabled: !!id,
   });
 

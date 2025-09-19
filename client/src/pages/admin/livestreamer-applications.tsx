@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../hooks/use-toast';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../hooks/use-auth';
 import { useLocation } from 'wouter';
 import { Button } from '../../components/ui/button';
 import AdminLayout from '../../components/layouts/admin-layout';
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Loader2, Check, X, ArrowLeft } from 'lucide-react';
-import { apiRequest } from '../../lib/queryClient';
+import { apiRequest } from "../../lib/api";
 
 type LivestreamerApplication = {
   id: number;

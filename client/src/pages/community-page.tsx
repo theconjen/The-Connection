@@ -48,7 +48,8 @@ import {
   Hash
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
-import { apiRequest, queryClient } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
+import { queryClient } from "../lib/queryClient";
 import { MemberList } from "../components/community/MemberList";
 import { ChatRoomList } from "../components/community/ChatRoomList";
 import { InviteUserDialog } from "../components/community/InviteUserDialog";
@@ -102,11 +103,10 @@ export default function CommunityPage() {
     mutationFn: async () => {
       if (!community) throw new Error("Community not found");
       const res = await apiRequest(
-        "POST",
         `/api/communities/${community.id}/members`,
-        {}
+        { method: "POST", body: JSON.stringify({}) }
       );
-      return await res.json();
+      return res;
     },
     onSuccess: () => {
       if (!community) return;
@@ -131,8 +131,8 @@ export default function CommunityPage() {
     mutationFn: async () => {
       if (!user || !community) return;
       await apiRequest(
-        "DELETE",
-        `/api/communities/${community.id}/members/${user.id}`
+        `/api/communities/${community.id}/members/${user.id}`,
+        { method: "DELETE" }
       );
     },
     onSuccess: () => {
@@ -158,8 +158,8 @@ export default function CommunityPage() {
     mutationFn: async () => {
       if (!community) throw new Error("Community not found");
       await apiRequest(
-        "DELETE",
-        `/api/communities/${community.id}`
+        `/api/communities/${community.id}`,
+        { method: "DELETE" }
       );
     },
     onSuccess: () => {

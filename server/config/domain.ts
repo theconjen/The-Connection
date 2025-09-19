@@ -5,7 +5,7 @@
  * for consistent references throughout the application.
  */
 
-export const APP_DOMAIN = process.env.APP_DOMAIN || 'theconnection.app';
+export const APP_DOMAIN = process.env.APP_DOMAIN || 'www.theconnection.app';
 
 // Base URL with protocol
 export const BASE_URL = `https://${APP_DOMAIN}`;

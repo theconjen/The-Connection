@@ -23,7 +23,7 @@ import {
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Loader2, Eye, EyeOff, Key } from "lucide-react";
-import { apiRequest } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Schema for admin login
@@ -52,7 +52,10 @@ export default function AdminLoginPage() {
   const onSubmit = async (data: AdminLoginFormValues) => {
     setIsLoading(true);
     try {
-      await apiRequest("POST", "/api/admin-login", data);
+      await apiRequest("/api/admin-login", {
+        method: "POST",
+        body: JSON.stringify(data)
+      });
       
       toast({
         title: "Admin login successful",

@@ -79,7 +79,7 @@ abstract class BaseObjectAccessGroup implements ObjectAccessGroup {
   ) {}
 
   // Check if the user is a member of the group.
-  public abstract hasMember(userId: number): Promise<boolean>;
+  public abstract hasMember(userId: string): Promise<boolean>;
 }
 
 function createObjectAccessGroup(
@@ -161,7 +161,7 @@ export async function canAccessObject({
   }
 
   // The owner of the object can always access it.
-  if (aclPolicy.owner === userId) {
+  if (aclPolicy.owner === userId?.toString()) {
     return true;
   }
 
@@ -169,7 +169,7 @@ export async function canAccessObject({
   for (const rule of aclPolicy.aclRules || []) {
     const accessGroup = createObjectAccessGroup(rule.group);
     if (
-      (await accessGroup.hasMember(userId)) &&
+      (await accessGroup.hasMember(String(userId))) &&
       isPermissionAllowed(requestedPermission, rule.permission)
     ) {
       return true;

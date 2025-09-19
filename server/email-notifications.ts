@@ -1,4 +1,5 @@
 import { DEFAULT_TEMPLATES, sendTemplatedEmail } from './email';
+import { APP_DOMAIN } from './config/domain';
 import { format } from 'date-fns';
 
 /**
@@ -17,7 +18,7 @@ export interface LivestreamerApplicationNotificationParams {
 /**
  * Send notification email to admin about a new livestreamer application
  */
-export async function sendLivestreamerApplicationNotificationEmail(params: LivestreamerApplicationNotificationParams): Promise<boolean> {
+export async function sendLivestreamerApplicationNotificationEmail(params: LivestreamerApplicationNotificationParams, fullName: any, id: number): Promise<boolean> {
   try {
     const templateData = {
       applicantName: params.applicantName,
@@ -30,7 +31,7 @@ export async function sendLivestreamerApplicationNotificationEmail(params: Lives
 
     return await sendTemplatedEmail({
       to: params.email,
-      from: "no-reply@theconnection.app",
+      from: `no-reply@${APP_DOMAIN}`,
       templateName: DEFAULT_TEMPLATES.APPLICATION_NOTIFICATION,
       templateData
     });
@@ -68,7 +69,7 @@ export async function sendApplicationStatusUpdateEmail(params: ApplicationStatus
 
     return await sendTemplatedEmail({
       to: params.email,
-      from: "no-reply@theconnection.app",
+      from: `no-reply@${APP_DOMAIN}`,
       templateName: DEFAULT_TEMPLATES.APPLICATION_STATUS_UPDATE,
       templateData
     });

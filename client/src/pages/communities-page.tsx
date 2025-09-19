@@ -36,7 +36,8 @@ import {
 } from "../components/ui/dialog";
 import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X, BookOpen, Heart, Music, Camera, Coffee, Globe, Star, Home, MessageCircle, Calendar, Map, Shield, Zap, Target } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
-import { apiRequest, queryClient } from "../lib/queryClient";
+import { queryClient } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
 import { insertCommunityObjectSchema, type InsertCommunity } from "../../../shared/schema";
 import { IconPicker } from "../components/ui/icon-picker";
 import { ColorPicker } from "../components/ui/color-picker";
@@ -125,14 +126,9 @@ export default function CommunitiesPage() {
         createdBy: undefined, // Will be set by backend
       };
       
-      const res = await apiRequest("POST", "/api/communities", payload);
+      const res = await apiRequest("/api/communities", { method: "POST", body: JSON.stringify(payload) });
       
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to create community');
-      }
-      
-      return await res.json();
+      return res;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/communities'] });

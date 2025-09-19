@@ -6,7 +6,7 @@ import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { useToast } from '../../../hooks/use-toast';
-import { apiRequest } from '../../../lib/queryClient';
+import { apiRequest } from "../../../lib/api";
 import { useAuth } from '../../../hooks/use-auth';
 
 const STEPS = [

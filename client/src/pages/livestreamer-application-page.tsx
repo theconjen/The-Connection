@@ -24,7 +24,8 @@ import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
-import { apiRequest, queryClient } from "../lib/queryClient";
+import { queryClient } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
 import MainLayout from "../components/layouts/main-layout";
 import { Loader2, CheckCircle, AlertTriangle, ChevronRight } from "lucide-react";
 
@@ -32,7 +33,9 @@ import { Loader2, CheckCircle, AlertTriangle, ChevronRight } from "lucide-react"
 const applicationSchema = insertLivestreamerApplicationSchema.extend({
   ministryName: z.string().min(2, "Ministry name is required"),
   ministryDescription: z.string().min(20, "Please provide a more detailed description of your ministry"),
+  ministerialExperience: z.string().optional(),
   statementOfFaith: z.string().min(50, "Please provide a detailed statement of faith"),
+  socialMediaLinks: z.string().optional(),
   referenceName: z.string().min(2, "Reference name is required"),
   referenceContact: z.string().min(5, "Reference contact information is required"),
   referenceRelationship: z.string().min(5, "Relationship with reference is required"),
@@ -53,10 +56,17 @@ export default function LivestreamerApplicationPage() {
   const [submitted, setSubmitted] = useState(false);
   
   // Get existing application if any
+  type ExistingApplication = {
+    status: 'pending' | 'approved' | 'rejected';
+    submittedAt: string;
+    reviewNotes?: string;
+    // add other fields as needed
+  };
+
   const { 
     data: existingApplication,
     isLoading: isExistingApplicationLoading 
-  } = useQuery({
+  } = useQuery<ExistingApplication | null>({
     queryKey: ['/api/livestreamer-application'],
     enabled: !!user,
     retry: false,
@@ -84,12 +94,13 @@ export default function LivestreamerApplicationPage() {
   // Handle application submission
   const applicationMutation = useMutation({
     mutationFn: async (data: ApplicationValues) => {
-      const response = await apiRequest('POST', '/api/livestreamer-application', {
-        ...data,
-        userId: user?.id
+      return await apiRequest('/api/livestreamer-application', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...data,
+          userId: user?.id
+        })
       });
-      
-      return await response.json();
     },
     onSuccess: () => {
       setSubmitted(true);

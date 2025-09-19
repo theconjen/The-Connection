@@ -10,7 +10,7 @@ const TOKEN_EXPIRY = 60 * 60 * 1000;
 const passwordResetTokens = new Map<string, {
   userId: number;
   email: string;
-  expires: string;
+  expires: number;
 }>();
 
 /**

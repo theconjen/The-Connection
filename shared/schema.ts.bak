@@ -1,0 +1,1295 @@
+import { pgTable, text, integer, real, jsonb, timestamp, boolean, serial } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// Session storage table for authentication
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: text("sid").primaryKey(),
+    sess: text("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  }
+);
+
+// Users table schema
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(),
+  displayName: text("display_name"),
+  bio: text("bio"),
+  avatarUrl: text("avatar_url"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
+  isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
+  isAdmin: boolean("is_admin").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUserSchema = z.object({
+  username: z.string(),
+  email: z.string(),
+  password: z.string(),
+  displayName: z.string().optional(),
+  bio: z.string().optional(),
+  avatarUrl: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  onboardingCompleted: z.boolean().optional(),
+  isAdmin: z.boolean().optional(),
+});
+
+// Organizations table schema (Churches and ministries)
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  adminUserId: integer("admin_user_id").references(() => users.id).notNull(),
+  plan: text("plan").default("free"), // free, standard, premium
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  website: text("website"),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  phone: text("phone"),
+  denomination: text("denomination"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertOrganizationSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  adminUserId: z.number(),
+  website: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  phone: z.string().optional(),
+  denomination: z.string().optional(),
+});
+
+// Organization members table
+export const organizationUsers = pgTable("organization_users", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  role: text("role").default("member"), // admin, pastor, leader, member
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+export const insertOrganizationUserSchema = z.object({
+  organizationId: z.number(),
+  userId: z.number(),
+  role: z.string().default("member"),
+});
+
+// Communities table schema
+export const communities = pgTable("communities", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  slug: text("slug").notNull().unique(),
+  iconName: text("icon_name").notNull(),
+  iconColor: text("icon_color").notNull(),
+  interestTags: text("interest_tags"), // JSON string array
+  city: text("city"),
+  state: text("state"),
+  isLocalCommunity: boolean("is_local_community").default(false),
+  latitude: text("latitude"),
+  longitude: text("longitude"),
+  memberCount: integer("member_count").default(0),
+  isPrivate: boolean("is_private").default(false),
+  hasPrivateWall: boolean("has_private_wall").default(false),
+  hasPublicWall: boolean("has_public_wall").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+// Base schema without refinements - for frontend transformations
+export const insertCommunityObjectSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  slug: z.string(),
+  iconName: z.string(),
+  iconColor: z.string(),
+  interestTags: z.string().optional(), // JSON string
+  city: z.string().optional(),
+  state: z.string().optional(),
+  isLocalCommunity: z.boolean().default(false),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
+  isPrivate: z.boolean().default(false),
+  hasPrivateWall: z.boolean().default(false),
+  hasPublicWall: z.boolean().default(true),
+  createdBy: z.number().optional(),
+});
+
+// Refined schema with validation - for server use
+export const insertCommunitySchema = insertCommunityObjectSchema
+  .refine((data) => data.name && data.name.trim().length > 0, {
+    message: "Community name is required and cannot be empty",
+    path: ["name"]
+  })
+  .refine((data) => data.hasPrivateWall || data.hasPublicWall, {
+    message: "At least one wall (private or public) must be enabled",
+    path: ["hasPublicWall"]
+  });
+
+// Community members table schema with roles
+export const communityMembers = pgTable("community_members", {
+  id: serial("id").primaryKey(),
+  communityId: integer("community_id").references(() => communities.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  role: text("role").notNull().default("member"), // "owner", "moderator", "member"
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+export const insertCommunityMemberSchema = z.object({
+  communityId: z.number(),
+  userId: z.number(),
+  role: z.string().default("member"),
+});
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type OrganizationUser = typeof organizationUsers.$inferSelect;
+export type InsertOrganizationUser = z.infer<typeof insertOrganizationUserSchema>;
+// Community invitations table schema
+export const communityInvitations = pgTable("community_invitations", {
+  id: serial("id").primaryKey(),
+  communityId: integer("community_id").references(() => communities.id).notNull(),
+  inviterUserId: integer("inviter_user_id").references(() => users.id).notNull(),
+  inviteeEmail: text("invitee_email").notNull(),
+  inviteeUserId: integer("invitee_user_id").references(() => users.id), // Optional - set when user exists
+  status: text("status").notNull().default("pending"), // "pending", "accepted", "declined", "expired"
+  token: text("token").notNull().unique(), // Secure token for invitation links
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: text("expires_at").notNull(),
+});
+
+export const insertCommunityInvitationSchema = z.object({
+  communityId: z.number(),
+  inviterUserId: z.number(),
+  inviteeEmail: z.string().email(),
+  inviteeUserId: z.number().optional(),
+  status: z.string().default("pending"),
+  token: z.string(),
+  expiresAt: z.string(),
+});
+
+export type Community = typeof communities.$inferSelect;
+export type InsertCommunity = z.infer<typeof insertCommunitySchema>;
+export type CommunityMember = typeof communityMembers.$inferSelect;
+export type InsertCommunityMember = z.infer<typeof insertCommunityMemberSchema>;
+export type CommunityInvitation = typeof communityInvitations.$inferSelect;
+export type InsertCommunityInvitation = z.infer<typeof insertCommunityInvitationSchema>;
+export type CommunityChatRoom = typeof communityChatRooms.$inferSelect;
+export type InsertCommunityChatRoom = z.infer<typeof insertCommunityChatRoomSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type CommunityWallPost = typeof communityWallPosts.$inferSelect;
+export type InsertCommunityWallPost = z.infer<typeof insertCommunityWallPostSchema>;
+
+// User Follows table schema for social graph
+export const userFollows = pgTable("user_follows", {
+  id: serial("id").primaryKey(),
+  followerId: integer("follower_id").references(() => users.id).notNull(),
+  followingId: integer("following_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserFollowSchema = z.object({
+  followerId: z.number(),
+  followingId: z.number(),
+});
+
+// User Interactions table for recommendation algorithm
+export const userInteractions = pgTable("user_interactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  contentId: integer("content_id").notNull(),
+  contentType: text("content_type").notNull(), // 'microblog', 'community', 'event', 'prayer_request', 'bible_study'
+  interactionType: text("interaction_type").notNull(), // 'view', 'like', 'comment', 'share', 'save', 'prayer_request', 'bible_study'
+  interactionStrength: integer("interaction_strength").default(1), // Weight of interaction based on faith-based scoring
+  metadata: text("metadata"), // JSON string for additional context
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserInteractionSchema = z.object({
+  userId: z.number(),
+  contentId: z.number(),
+  contentType: z.string(),
+  interactionType: z.string(),
+  interactionStrength: z.number().default(1),
+  metadata: z.string().optional(),
+});
+
+export type UserFollow = typeof userFollows.$inferSelect;
+export type InsertUserFollow = z.infer<typeof insertUserFollowSchema>;
+export type UserInteraction = typeof userInteractions.$inferSelect;
+export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
+
+
+
+// Community Chat Rooms schema
+export const communityChatRooms = pgTable("community_chat_rooms", {
+  id: serial("id").primaryKey(),
+  communityId: integer("community_id").references(() => communities.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  isPrivate: boolean("is_private").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id).notNull(),
+});
+
+export const insertCommunityChatRoomSchema = z.object({
+  communityId: z.number(),
+  name: z.string(),
+  description: z.string().optional(),
+  isPrivate: z.boolean().default(false),
+  createdBy: z.number(),
+});
+
+// Chat Room Messages schema
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  chatRoomId: integer("chat_room_id").references(() => communityChatRooms.id).notNull(),
+  senderId: integer("sender_id").references(() => users.id).notNull(),
+  isSystemMessage: boolean("is_system_message").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertChatMessageSchema = z.object({
+  content: z.string(),
+  chatRoomId: z.number(),
+  senderId: z.number(),
+  isSystemMessage: z.boolean().default(false),
+});
+
+// Community Wall Posts schema
+export const communityWallPosts = pgTable("community_wall_posts", {
+  id: serial("id").primaryKey(),
+  communityId: integer("community_id").references(() => communities.id).notNull(),
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  isPrivate: boolean("is_private").default(false), // For private wall posts
+  likeCount: integer("like_count").default(0),
+  commentCount: integer("comment_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCommunityWallPostSchema = z.object({
+  communityId: z.number(),
+  authorId: z.number(),
+  content: z.string(),
+  imageUrl: z.string().optional(),
+  isPrivate: z.boolean().default(false),
+});
+
+// Groups table schema (private groups)
+export const groups = pgTable("groups", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  iconName: text("icon_name").notNull(),
+  iconColor: text("icon_color").notNull(),
+  isPrivate: boolean("is_private").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+export const insertGroupSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  iconName: z.string(),
+  iconColor: z.string(),
+  isPrivate: z.boolean().default(true),
+  createdBy: z.number().optional(),
+});
+
+// Group members table schema
+export const groupMembers = pgTable("group_members", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").references(() => groups.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  isAdmin: boolean("is_admin").default(false),
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+export const insertGroupMemberSchema = z.object({
+  groupId: z.number(),
+  userId: z.number(),
+  isAdmin: z.boolean().default(false),
+});
+
+// Posts table schema
+export const posts = pgTable("posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  communityId: integer("community_id").references(() => communities.id),
+  groupId: integer("group_id").references(() => groups.id),
+  authorId: integer("author_id").references(() => users.id),
+  upvotes: integer("upvotes").default(0),
+  commentCount: integer("comment_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPostSchema = z.object({
+  title: z.string(),
+  content: z.string(),
+  imageUrl: z.string().optional(),
+  communityId: z.number().optional(),
+  groupId: z.number().optional(),
+  authorId: z.number(),
+});
+
+// Comments table schema
+export const comments = pgTable("comments", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  postId: integer("post_id").notNull(),
+  authorId: integer("author_id"),
+  parentId: integer("parent_id"),
+  upvotes: integer("upvotes").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCommentSchema = z.object({
+  content: z.string(),
+  postId: z.number(),
+  authorId: z.number().optional(),
+  parentId: z.number().optional(),
+});
+
+// Apologetics resources schema
+export const apologeticsResources = pgTable("apologetics_resources", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  type: text("type").notNull(), // book, video, podcast, etc.
+  iconName: text("icon_name").notNull(),
+  url: text("url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertApologeticsResourceSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  type: z.string(),
+  iconName: z.string(),
+  url: z.string().optional(),
+});
+
+// Apologetics Q&A system
+export const apologeticsTopics = pgTable("apologetics_topics", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  iconName: text("icon_name").notNull(),
+  slug: text("slug").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertApologeticsTopicSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  iconName: z.string(),
+  slug: z.string(),
+});
+
+export const apologeticsQuestions = pgTable("apologetics_questions", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  topicId: integer("topic_id").references(() => apologeticsTopics.id).notNull(),
+  status: text("status").notNull().default("open"), // open, answered, closed
+  answerCount: integer("answer_count").default(0),
+  viewCount: integer("view_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertApologeticsQuestionSchema = z.object({
+  title: z.string(),
+  content: z.string(),
+  authorId: z.number(),
+  topicId: z.number(),
+  status: z.string().default("open"),
+});
+
+export const apologeticsAnswers = pgTable("apologetics_answers", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  questionId: integer("question_id").references(() => apologeticsQuestions.id).notNull(),
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  isVerifiedAnswer: boolean("is_verified_answer").default(false),
+  upvotes: integer("upvotes").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertApologeticsAnswerSchema = z.object({
+  content: z.string(),
+  questionId: z.number(),
+  authorId: z.number(),
+  isVerifiedAnswer: z.boolean().default(false),
+});
+
+// Remove these duplicate type definitions - they're already defined earlier
+
+export type InsertGroup = z.infer<typeof insertGroupSchema>;
+export type Group = typeof groups.$inferSelect;
+
+export type InsertGroupMember = z.infer<typeof insertGroupMemberSchema>;
+export type GroupMember = typeof groupMembers.$inferSelect;
+
+export type InsertPost = z.infer<typeof insertPostSchema>;
+export type Post = typeof posts.$inferSelect;
+
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type Comment = typeof comments.$inferSelect;
+
+export type InsertApologeticsResource = z.infer<typeof insertApologeticsResourceSchema>;
+export type ApologeticsResource = typeof apologeticsResources.$inferSelect;
+
+export type InsertApologeticsTopic = z.infer<typeof insertApologeticsTopicSchema>;
+export type ApologeticsTopic = typeof apologeticsTopics.$inferSelect;
+
+export type InsertApologeticsQuestion = z.infer<typeof insertApologeticsQuestionSchema>;
+export type ApologeticsQuestion = typeof apologeticsQuestions.$inferSelect;
+
+export type InsertApologeticsAnswer = z.infer<typeof insertApologeticsAnswerSchema>;
+export type ApologeticsAnswer = typeof apologeticsAnswers.$inferSelect;
+
+// Livestreams table schema
+export const livestreams = pgTable("livestreams", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  hostId: integer("host_id").references(() => users.id).notNull(),
+  thumbnail: text("thumbnail"),
+  status: text("status").notNull().default("upcoming"), // "live", "upcoming", "ended"
+  viewerCount: integer("viewer_count").default(0),
+  scheduledFor: text("scheduled_for"),
+  duration: text("duration"),
+  tags: text("tags"),
+  streamUrl: text("stream_url"),
+  isLive: boolean("is_live").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertLivestreamSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  hostId: z.number(),
+  thumbnail: z.string().optional(),
+  status: z.string().default("upcoming"),
+  scheduledFor: z.string().optional(),
+  duration: z.string().optional(),
+  tags: z.string().optional(),
+  streamUrl: z.string().optional(),
+  isLive: z.boolean().default(false),
+});
+
+export type InsertLivestream = z.infer<typeof insertLivestreamSchema>;
+export type Livestream = typeof livestreams.$inferSelect;
+
+// Livestreamer application and approval system
+export const livestreamerApplications = pgTable("livestreamer_applications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  status: text("status").notNull().default("pending"), // "pending", "approved", "rejected"
+  ministryName: text("ministry_name"),
+  ministryDescription: text("ministry_description").notNull(),
+  ministerialExperience: text("ministerial_experience"),
+  statementOfFaith: text("statement_of_faith").notNull(),
+  socialMediaLinks: text("social_media_links"),
+  referenceName: text("reference_name").notNull(),
+  referenceContact: text("reference_contact").notNull(),
+  referenceRelationship: text("reference_relationship").notNull(),
+  sampleContentUrl: text("sample_content_url").notNull(),
+  livestreamTopics: text("livestream_topics").notNull(),
+  targetAudience: text("target_audience").notNull(),
+  agreedToTerms: boolean("agreed_to_terms").notNull(),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewNotes: text("review_notes"),
+  reviewedAt: text("reviewed_at"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const insertLivestreamerApplicationSchema = z.object({
+  userId: z.number(),
+  ministryName: z.string().optional(),
+  ministryDescription: z.string(),
+  ministerialExperience: z.string().optional(),
+  statementOfFaith: z.string(),
+  socialMediaLinks: z.string().optional(),
+  referenceName: z.string(),
+  referenceContact: z.string(),
+  referenceRelationship: z.string(),
+  sampleContentUrl: z.string(),
+  livestreamTopics: z.string(),
+  targetAudience: z.string(),
+  agreedToTerms: z.boolean()
+});
+
+// Creator tier and incentive structure
+export const creatorTiers = pgTable("creator_tiers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  requirements: text("requirements").notNull(),
+  benefits: text("benefits").notNull(),
+  iconName: text("icon_name").notNull(),
+  order: integer("order").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCreatorTierSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  requirements: z.string(),
+  benefits: z.string(),
+  iconName: z.string(),
+  order: z.number(),
+});
+
+// User-Creator tier relationship
+export const userCreatorTiers = pgTable("user_creator_tiers", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  tierId: integer("tier_id").references(() => creatorTiers.id).notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  validUntil: text("valid_until"),
+});
+
+export const insertUserCreatorTierSchema = z.object({
+  userId: z.number(),
+  tierId: z.number(),
+  validUntil: z.string().optional(),
+});
+
+// Virtual gifts that can be sent during livestreams
+export const virtualGifts = pgTable("virtual_gifts", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  iconName: text("icon_name").notNull(),
+  value: integer("value").notNull(), // Value in platform points/currency
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertVirtualGiftSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  iconName: z.string(),
+  value: z.number(),
+  isActive: z.boolean().default(true),
+});
+
+// Record of gifts sent during livestreams
+export const livestreamGifts = pgTable("livestream_gifts", {
+  id: serial("id").primaryKey(),
+  livestreamId: integer("livestream_id").references(() => livestreams.id).notNull(),
+  giftId: integer("gift_id").references(() => virtualGifts.id).notNull(),
+  senderId: integer("sender_id").references(() => users.id),
+  receiverId: integer("receiver_id").references(() => users.id).notNull(),
+  message: text("message"),
+  sentAt: timestamp("sent_at").defaultNow(),
+});
+
+export const insertLivestreamGiftSchema = z.object({
+  livestreamId: z.number(),
+  giftId: z.number(),
+  senderId: z.number().optional(),
+  receiverId: z.number(),
+  message: z.string().optional(),
+});
+
+// Export additional types
+export type InsertLivestreamerApplication = z.infer<typeof insertLivestreamerApplicationSchema>;
+export type LivestreamerApplication = typeof livestreamerApplications.$inferSelect;
+
+// Apologist Scholar Contributor application system
+export const apologistScholarApplications = pgTable("apologist_scholar_applications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  status: text("status").notNull().default("pending"), // "pending", "approved", "rejected"
+  fullName: text("full_name").notNull(),
+  academicCredentials: text("academic_credentials").notNull(),
+  educationalBackground: text("educational_background").notNull(),
+  theologicalPerspective: text("theological_perspective").notNull(),
+  statementOfFaith: text("statement_of_faith").notNull(),
+  areasOfExpertise: text("areas_of_expertise").notNull(),
+  publishedWorks: text("published_works"),
+  priorApologeticsExperience: text("prior_apologetics_experience").notNull(),
+  writingSample: text("writing_sample").notNull(),
+  onlineSocialHandles: text("online_social_handles"),
+  referenceName: text("reference_name").notNull(),
+  referenceContact: text("reference_contact").notNull(),
+  referenceInstitution: text("reference_institution").notNull(),
+  motivation: text("motivation").notNull(),
+  weeklyTimeCommitment: text("weekly_time_commitment").notNull(),
+  agreedToGuidelines: boolean("agreed_to_guidelines").notNull(),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewNotes: text("review_notes"),
+  reviewedAt: text("reviewed_at"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const insertApologistScholarApplicationSchema = z.object({
+  userId: z.number(),
+  fullName: z.string(),
+  academicCredentials: z.string(),
+  educationalBackground: z.string(),
+  theologicalPerspective: z.string(),
+  statementOfFaith: z.string(),
+  areasOfExpertise: z.string(),
+  publishedWorks: z.string().optional(),
+  priorApologeticsExperience: z.string(),
+  writingSample: z.string(),
+  onlineSocialHandles: z.string().optional(),
+  referenceName: z.string(),
+  referenceContact: z.string(),
+  referenceInstitution: z.string(),
+  motivation: z.string(),
+  weeklyTimeCommitment: z.string(),
+  agreedToGuidelines: z.boolean()
+});
+
+export type InsertApologistScholarApplication = z.infer<typeof insertApologistScholarApplicationSchema>;
+export type ApologistScholarApplication = typeof apologistScholarApplications.$inferSelect;
+
+export type InsertCreatorTier = z.infer<typeof insertCreatorTierSchema>;
+export type CreatorTier = typeof creatorTiers.$inferSelect;
+
+export type InsertUserCreatorTier = z.infer<typeof insertUserCreatorTierSchema>;
+export type UserCreatorTier = typeof userCreatorTiers.$inferSelect;
+
+export type InsertVirtualGift = z.infer<typeof insertVirtualGiftSchema>;
+export type VirtualGift = typeof virtualGifts.$inferSelect;
+
+export type InsertLivestreamGift = z.infer<typeof insertLivestreamGiftSchema>;
+export type LivestreamGift = typeof livestreamGifts.$inferSelect;
+
+// Microblog posts (Twitter-like) schema
+export const microblogs = pgTable("microblogs", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"), // Optional image attachment
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  communityId: integer("community_id").references(() => communities.id), // Optional community (public if null)
+  groupId: integer("group_id").references(() => groups.id), // Optional private group (public if null)
+  likeCount: integer("like_count").default(0),
+  repostCount: integer("repost_count").default(0),
+  replyCount: integer("reply_count").default(0),
+  parentId: integer("parent_id").references(() => microblogs.id), // For replies to other microblogs
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMicroblogSchema = z.object({
+  content: z.string(),
+  imageUrl: z.string().optional(),
+  authorId: z.number(),
+  communityId: z.number().optional(),
+  groupId: z.number().optional(),
+  parentId: z.number().optional(),
+});
+
+// Microblog likes table for tracking user likes
+export const microblogLikes = pgTable("microblog_likes", {
+  id: serial("id").primaryKey(),
+  microblogId: integer("microblog_id").references(() => microblogs.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMicroblogLikeSchema = z.object({
+  microblogId: z.number(),
+  userId: z.number(),
+});
+
+export type InsertMicroblog = z.infer<typeof insertMicroblogSchema>;
+export type Microblog = typeof microblogs.$inferSelect;
+
+export type InsertMicroblogLike = z.infer<typeof insertMicroblogLikeSchema>;
+export type MicroblogLike = typeof microblogLikes.$inferSelect;
+
+// Duplicate type definitions removed - they're already defined earlier in the file
+
+// ========================
+// COMMUNITY EVENTS
+// ========================
+export const events = pgTable("events", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  location: text("location"), // General location name
+  address: text("address"), // Full street address
+  city: text("city"), // City
+  state: text("state"), // State or province
+  zipCode: text("zip_code"), // Postal/ZIP code
+  isVirtual: boolean("is_virtual").default(false),
+  isPublic: boolean("is_public").default(false), // Allow events to be publicly visible
+  showOnMap: boolean("show_on_map").default(true), // Whether to display the event on maps
+  virtualMeetingUrl: text("virtual_meeting_url"),
+  eventDate: timestamp("event_date").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  imageUrl: text("image_url"),
+  latitude: text("latitude"), // For map integration
+  longitude: text("longitude"), // For map integration
+  communityId: integer("community_id").references(() => communities.id),
+  groupId: integer("group_id").references(() => groups.id),
+  creatorId: integer("creator_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEventSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  location: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  isVirtual: z.boolean().default(false),
+  isPublic: z.boolean().default(false),
+  showOnMap: z.boolean().default(true),
+  virtualMeetingUrl: z.string().optional(),
+  eventDate: z.date(),
+  startTime: z.string(),
+  endTime: z.string(),
+  imageUrl: z.string().optional(),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
+  communityId: z.number().optional(),
+  groupId: z.number().optional(),
+  creatorId: z.number(),
+});
+
+export const eventRsvps = pgTable("event_rsvps", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  status: text("status").notNull(), // attending, maybe, declined
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEventRsvpSchema = z.object({
+  eventId: z.number(),
+  userId: z.number(),
+  status: z.string(),
+});
+
+// ========================
+// PRAYER REQUESTS
+// ========================
+export const prayerRequests = pgTable("prayer_requests", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  isAnonymous: boolean("is_anonymous").default(false),
+  privacyLevel: text("privacy_level").notNull(), // public, friends-only, group-only
+  groupId: integer("group_id").references(() => groups.id),
+  authorId: integer("author_id").notNull().references(() => users.id),
+  prayerCount: integer("prayer_count").default(0),
+  isAnswered: boolean("is_answered").default(false),
+  answeredDescription: text("answered_description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPrayerRequestSchema = z.object({
+  title: z.string(),
+  content: z.string(),
+  isAnonymous: z.boolean().default(false),
+  privacyLevel: z.string(),
+  groupId: z.number().optional(),
+  authorId: z.number(),
+});
+
+export const prayers = pgTable("prayers", {
+  id: serial("id").primaryKey(),
+  prayerRequestId: integer("prayer_request_id").notNull().references(() => prayerRequests.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPrayerSchema = z.object({
+  prayerRequestId: z.number(),
+  userId: z.number(),
+});
+
+// ========================
+// MENTORSHIP PROGRAM
+// ========================
+export const mentorProfiles = pgTable("mentor_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  spiritualGifts: text("spiritual_gifts"), // JSON string array
+  areasOfExpertise: text("areas_of_expertise"), // JSON string array
+  yearsOfFaith: integer("years_of_faith"),
+  shortBio: text("short_bio").notNull(),
+  availability: text("availability").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMentorProfileSchema = z.object({
+  userId: z.number(),
+  spiritualGifts: z.string().optional(),
+  areasOfExpertise: z.string().optional(),
+  yearsOfFaith: z.number().optional(),
+  shortBio: z.string(),
+  availability: z.string(),
+});
+
+export const mentorshipRequests = pgTable("mentorship_requests", {
+  id: serial("id").primaryKey(),
+  mentorId: integer("mentor_id").notNull().references(() => users.id),
+  menteeId: integer("mentee_id").notNull().references(() => users.id),
+  message: text("message"),
+  status: text("status").notNull(), // pending, accepted, declined
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMentorshipRequestSchema = z.object({
+  mentorId: z.number(),
+  menteeId: z.number(),
+  message: z.string().optional(),
+  status: z.string(),
+});
+
+export const mentorshipRelationships = pgTable("mentorship_relationships", {
+  id: serial("id").primaryKey(),
+  mentorId: integer("mentor_id").notNull().references(() => users.id),
+  menteeId: integer("mentee_id").notNull().references(() => users.id),
+  startDate: text("start_date").default("CURRENT_TIMESTAMP"),
+  endDate: text("end_date"),
+  isActive: boolean("is_active").default(true),
+  goals: text("goals"), // JSON string
+});
+
+export const insertMentorshipRelationshipSchema = z.object({
+  mentorId: z.number(),
+  menteeId: z.number(),
+  goals: z.string().optional(),
+});
+
+// ========================
+// BIBLE STUDY TOOLS
+// ========================
+export const bibleReadingPlans = pgTable("bible_reading_plans", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  duration: integer("duration").notNull(), // days
+  readings: text("readings").notNull(), // JSON string array of daily readings
+  creatorId: integer("creator_id").references(() => users.id),
+  groupId: integer("group_id").references(() => groups.id),
+  isPublic: boolean("is_public").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBibleReadingPlanSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  duration: z.number(),
+  readings: z.string(),
+  creatorId: z.number().optional(),
+  groupId: z.number().optional(),
+  isPublic: z.boolean().default(true),
+});
+
+export const bibleReadingProgress = pgTable("bible_reading_progress", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id").notNull().references(() => bibleReadingPlans.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  currentDay: integer("current_day").default(1),
+  completedDays: text("completed_days").default("[]"), // JSON string array
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: text("completed_at"),
+});
+
+export const insertBibleReadingProgressSchema = z.object({
+  planId: z.number(),
+  userId: z.number(),
+});
+
+export const bibleStudyNotes = pgTable("bible_study_notes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  groupId: integer("group_id").references(() => groups.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  passage: text("passage"),
+  isPublic: boolean("is_public").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBibleStudyNotesSchema = z.object({
+  userId: z.number(),
+  groupId: z.number().optional(),
+  title: z.string(),
+  content: z.string(),
+  passage: z.string().optional(),
+  isPublic: z.boolean().default(false),
+});
+
+export const verseMemorization = pgTable("verse_memorization", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  verse: text("verse").notNull(),
+  reference: text("reference").notNull(),
+  startDate: text("start_date").default("CURRENT_TIMESTAMP"),
+  masteredDate: text("mastered_date"),
+  reviewDates: text("review_dates").default("[]"), // JSON string array
+  reminderFrequency: integer("reminder_frequency"), // days
+});
+
+export const insertVerseMemorizationSchema = z.object({
+  userId: z.number(),
+  verse: z.string(),
+  reference: z.string(),
+  reminderFrequency: z.number().optional(),
+});
+
+// ========================
+// CONTENT RECOMMENDATIONS
+// ========================
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  interests: text("interests").default("[]"), // JSON string array
+  favoriteTopics: text("favorite_topics").default("[]"), // JSON string array
+  engagementHistory: text("engagement_history").default("[]"), // JSON string array
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const contentRecommendations = pgTable("content_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  contentType: text("content_type").notNull(), // 'post', 'microblog', 'apologetics', 'bible_study', etc.
+  contentId: integer("content_id").notNull(),
+  score: integer("score").notNull(),
+  reason: text("reason"),
+  isViewed: boolean("is_viewed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserPreferencesSchema = z.object({
+  userId: z.number(),
+  interests: z.string().default("[]"),
+  favoriteTopics: z.string().default("[]"),
+});
+
+export const insertContentRecommendationSchema = z.object({
+  userId: z.number(),
+  contentType: z.string(),
+  contentId: z.number(),
+  score: z.number(),
+  reason: z.string().optional(),
+});
+
+// ========================
+// COMMUNITY CHALLENGES
+// ========================
+export const challenges = pgTable("challenges", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  type: text("type").notNull(), // prayer, service, bible-reading
+  duration: integer("duration").notNull(), // days
+  goals: text("goals").notNull(), // JSON string
+  creatorId: integer("creator_id").notNull().references(() => users.id),
+  groupId: integer("group_id").references(() => groups.id),
+  communityId: integer("community_id").references(() => communities.id),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertChallengeSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  type: z.string(),
+  duration: z.number(),
+  goals: z.string(),
+  creatorId: z.number(),
+  groupId: z.number().optional(),
+  communityId: z.number().optional(),
+  startDate: z.string(),
+  endDate: z.string(),
+});
+
+export const challengeParticipants = pgTable("challenge_participants", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => challenges.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  progress: text("progress").default("{}"), // JSON string
+  isCompleted: boolean("is_completed").default(false),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  completedAt: text("completed_at"),
+});
+
+export const insertChallengeParticipantSchema = z.object({
+  challengeId: z.number(),
+  userId: z.number(),
+});
+
+export const challengeTestimonials = pgTable("challenge_testimonials", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => challenges.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertChallengeTestimonialSchema = z.object({
+  challengeId: z.number(),
+  userId: z.number(),
+  content: z.string(),
+});
+
+// ========================
+// RESOURCE SHARING
+// ========================
+export const resources = pgTable("resources", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  type: text("type").notNull(), // book, podcast, video, article
+  url: text("url"),
+  author: text("author"),
+  imageUrl: text("image_url"),
+  tags: text("tags"), // JSON string array
+  averageRating: integer("average_rating").default(0),
+  submitterId: integer("submitter_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertResourceSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  type: z.string(),
+  url: z.string().optional(),
+  author: z.string().optional(),
+  imageUrl: z.string().optional(),
+  tags: z.string().optional(),
+  submitterId: z.number(),
+});
+
+export const resourceRatings = pgTable("resource_ratings", {
+  id: serial("id").primaryKey(),
+  resourceId: integer("resource_id").notNull().references(() => resources.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  rating: integer("rating").notNull(),
+  review: text("review"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertResourceRatingSchema = z.object({
+  resourceId: z.number(),
+  userId: z.number(),
+  rating: z.number(),
+  review: z.string().optional(),
+});
+
+export const resourceCollections = pgTable("resource_collections", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  creatorId: integer("creator_id").notNull().references(() => users.id),
+  isPublic: boolean("is_public").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertResourceCollectionSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  creatorId: z.number(),
+  isPublic: z.boolean().default(true),
+});
+
+export const collectionResources = pgTable("collection_resources", {
+  id: serial("id").primaryKey(),
+  collectionId: integer("collection_id").notNull().references(() => resourceCollections.id),
+  resourceId: integer("resource_id").notNull().references(() => resources.id),
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+export const insertCollectionResourceSchema = z.object({
+  collectionId: z.number(),
+  resourceId: z.number(),
+});
+
+// ========================
+// COMMUNITY SERVICE
+// ========================
+export const serviceProjects = pgTable("service_projects", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  location: text("location"),
+  date: text("date"),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  organizerId: integer("organizer_id").notNull().references(() => users.id),
+  communityId: integer("community_id").references(() => communities.id),
+  groupId: integer("group_id").references(() => groups.id),
+  volunteerLimit: integer("volunteer_limit"),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertServiceProjectSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  location: z.string().optional(),
+  date: z.string().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  organizerId: z.number(),
+  communityId: z.number().optional(),
+  groupId: z.number().optional(),
+  volunteerLimit: z.number().optional(),
+  imageUrl: z.string().optional(),
+});
+
+export const serviceVolunteers = pgTable("service_volunteers", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => serviceProjects.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  status: text("status").notNull(), // signed-up, confirmed, attended, cancelled
+  hoursServed: integer("hours_served"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertServiceVolunteerSchema = z.object({
+  projectId: z.number(),
+  userId: z.number(),
+  status: z.string().optional(),
+});
+
+export const serviceTestimonials = pgTable("service_testimonials", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => serviceProjects.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertServiceTestimonialSchema = z.object({
+  projectId: z.number(),
+  userId: z.number(),
+  content: z.string(),
+  imageUrl: z.string().optional(),
+});
+
+// Type exports for all community features
+export type Event = typeof events.$inferSelect;
+export type InsertEvent = z.infer<typeof insertEventSchema>;
+
+export type EventRsvp = typeof eventRsvps.$inferSelect;
+export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
+
+export type PrayerRequest = typeof prayerRequests.$inferSelect;
+export type InsertPrayerRequest = z.infer<typeof insertPrayerRequestSchema>;
+
+export type Prayer = typeof prayers.$inferSelect;
+export type InsertPrayer = z.infer<typeof insertPrayerSchema>;
+
+export type MentorProfile = typeof mentorProfiles.$inferSelect;
+export type InsertMentorProfile = z.infer<typeof insertMentorProfileSchema>;
+
+export type MentorshipRequest = typeof mentorshipRequests.$inferSelect;
+export type InsertMentorshipRequest = z.infer<typeof insertMentorshipRequestSchema>;
+
+export type MentorshipRelationship = typeof mentorshipRelationships.$inferSelect;
+export type InsertMentorshipRelationship = z.infer<typeof insertMentorshipRelationshipSchema>;
+
+export type BibleReadingPlan = typeof bibleReadingPlans.$inferSelect;
+export type InsertBibleReadingPlan = z.infer<typeof insertBibleReadingPlanSchema>;
+
+export type BibleReadingProgress = typeof bibleReadingProgress.$inferSelect;
+export type InsertBibleReadingProgress = z.infer<typeof insertBibleReadingProgressSchema>;
+
+export type BibleStudyNote = typeof bibleStudyNotes.$inferSelect;
+export type InsertBibleStudyNote = z.infer<typeof insertBibleStudyNotesSchema>;
+
+export type VerseMemorization = typeof verseMemorization.$inferSelect;
+export type InsertVerseMemorization = z.infer<typeof insertVerseMemorizationSchema>;
+
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+
+// Messages table for private messaging between users
+export const messages = pgTable("messages", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  receiverId: integer("receiver_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertMessageSchema = z.object({
+  senderId: z.number(),
+  receiverId: z.number(),
+  content: z.string(),
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof insertMessageSchema._input;
+
+export type ContentRecommendation = typeof contentRecommendations.$inferSelect;
+export type InsertContentRecommendation = z.infer<typeof insertContentRecommendationSchema>;
+
+export type Challenge = typeof challenges.$inferSelect;
+export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
+
+export type ChallengeParticipant = typeof challengeParticipants.$inferSelect;
+export type InsertChallengeParticipant = z.infer<typeof insertChallengeParticipantSchema>;
+
+export type ChallengeTestimonial = typeof challengeTestimonials.$inferSelect;
+export type InsertChallengeTestimonial = z.infer<typeof insertChallengeTestimonialSchema>;
+
+export type Resource = typeof resources.$inferSelect;
+export type InsertResource = z.infer<typeof insertResourceSchema>;
+
+export type ResourceRating = typeof resourceRatings.$inferSelect;
+export type InsertResourceRating = z.infer<typeof insertResourceRatingSchema>;
+
+export type ResourceCollection = typeof resourceCollections.$inferSelect;
+export type InsertResourceCollection = z.infer<typeof insertResourceCollectionSchema>;
+
+export type CollectionResource = typeof collectionResources.$inferSelect;
+export type InsertCollectionResource = z.infer<typeof insertCollectionResourceSchema>;
+
+export type ServiceProject = typeof serviceProjects.$inferSelect;
+export type InsertServiceProject = z.infer<typeof insertServiceProjectSchema>;
+
+export type ServiceVolunteer = typeof serviceVolunteers.$inferSelect;
+export type InsertServiceVolunteer = z.infer<typeof insertServiceVolunteerSchema>;
+
+export type ServiceTestimonial = typeof serviceTestimonials.$inferSelect;
+export type InsertServiceTestimonial = z.infer<typeof insertServiceTestimonialSchema>;

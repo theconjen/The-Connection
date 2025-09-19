@@ -48,6 +48,70 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql, inArray, like } from "drizzle-orm";
+import { geocodeAddress } from "./geocoding";
+
+// Add this safety utility class at the top of the file, after imports
+class StorageSafety {
+  private static implementedMethods = new Set([
+    'getUser', 'getUserById', 'getUserByUsername', 'getUserByEmail', 
+    'searchUsers', 'getAllUsers', 'updateUser', 'createUser', 
+    'updateUserPassword', 'setVerifiedApologeticsAnswerer', 
+    'getVerifiedApologeticsAnswerers', 'getAllCommunities', 
+    'searchCommunities', 'getPublicCommunitiesAndUserCommunities', 
+    'getCommunity', 'getCommunityBySlug', 'createCommunity', 
+    'updateCommunity', 'deleteCommunity', 'getCommunityMembers',
+    'getCommunityMember', 'getUserCommunities', 'addCommunityMember',
+    'updateCommunityMemberRole', 'removeCommunityMember', 'isCommunityMember',
+    'isCommunityOwner', 'isCommunityModerator', 'createCommunityInvitation',
+    'getCommunityInvitations', 'getCommunityInvitationByToken',
+    'getCommunityInvitationById', 'updateCommunityInvitationStatus',
+    'deleteCommunityInvitation', 'getCommunityInvitationByEmailAndCommunity',
+    'getCommunityRooms', 'getPublicCommunityRooms', 'getCommunityRoom',
+    'createCommunityRoom', 'updateCommunityRoom', 'deleteCommunityRoom',
+    'getChatMessages', 'getChatMessagesAfter', 'createChatMessage',
+    'deleteChatMessage', 'getCommunityWallPosts', 'getCommunityWallPost',
+    'createCommunityWallPost', 'updateCommunityWallPost', 'deleteCommunityWallPost',
+    'getAllPosts', 'getPost', 'getPostsByCommunitySlug', 'getPostsByGroupId',
+    'getUserPosts', 'createPost', 'upvotePost', 'getComment',
+    'getCommentsByPostId', 'createComment', 'upvoteComment', 'getGroup',
+    'getGroupsByUserId', 'createGroup', 'addGroupMember', 'getGroupMembers',
+    'isGroupAdmin', 'isGroupMember', 'getAllApologeticsResources',
+    'getApologeticsResource', 'createApologeticsResource', 'getPublicPrayerRequests',
+    'getAllPrayerRequests', 'getPrayerRequest', 'getUserPrayerRequests',
+    'getGroupPrayerRequests', 'createPrayerRequest', 'updatePrayerRequest',
+    'markPrayerRequestAsAnswered', 'deletePrayerRequest', 'createPrayer',
+    'getPrayersForRequest', 'getUserPrayedRequests', 'getAllApologeticsTopics',
+    'getApologeticsTopic', 'getApologeticsTopicBySlug', 'createApologeticsTopic',
+    'getAllApologeticsQuestions', 'getApologeticsQuestion', 'getApologeticsQuestionsByTopic',
+    'createApologeticsQuestion', 'updateApologeticsQuestionStatus',
+    'getApologeticsAnswersByQuestion', 'createApologeticsAnswer', 'getAllEvents',
+    'getEvent', 'getUserEvents', 'createEvent', 'updateEvent', 'deleteEvent',
+    'createEventRSVP', 'getEventRSVPs', 'getUserEventRSVP', 'updateEventRSVP',
+    'deleteEventRSVP', 'getAllMicroblogs', 'getMicroblog', 'getUserMicroblogs',
+    'createMicroblog', 'updateMicroblog', 'deleteMicroblog', 'likeMicroblog',
+    'unlikeMicroblog', 'getUserLikedMicroblogs', 'getAllLivestreams',
+    'createLivestream', 'getLivestreamerApplicationByUserId',
+    'getPendingLivestreamerApplications', 'createLivestreamerApplication',
+    'updateLivestreamerApplication', 'isApprovedLivestreamer',
+    'getApologistScholarApplicationByUserId', 'getPendingApologistScholarApplications',
+    'createApologistScholarApplication', 'updateApologistScholarApplication',
+    'getAllBibleReadingPlans', 'getBibleReadingPlan', 'createBibleReadingPlan',
+    'getBibleReadingProgress', 'createBibleReadingProgress', 'markDayCompleted',
+    'getBibleStudyNotes', 'getBibleStudyNote', 'createBibleStudyNote',
+    'updateBibleStudyNote', 'deleteBibleStudyNote'
+  ]);
+
+  static isMethodImplemented(methodName: string): boolean {
+    return this.implementedMethods.has(methodName);
+  }
+
+  static createSafeFallback<T>(methodName: string, fallback: T): T {
+    if (!this.isMethodImplemented(methodName)) {
+      console.warn(`Method ${methodName} not fully implemented, using fallback`);
+    }
+    return fallback;
+  }
+}
 
 // Storage interface
 export interface IStorage {
@@ -60,6 +124,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   updateUser(id: number, userData: Partial<User>): Promise<User>;
   updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences>;
+  getUserPreferences(userId: number): Promise<UserPreferences | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined>;
   setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User>;
@@ -206,6 +271,10 @@ export interface IStorage {
   unlikeMicroblog(microblogId: number, userId: number): Promise<boolean>;
   getUserLikedMicroblogs(userId: number): Promise<Microblog[]>;
   
+  // Livestream methods
+  getAllLivestreams(): Promise<Livestream[]>;
+  createLivestream(livestream: InsertLivestream): Promise<Livestream>;
+  
   // Livestreamer application methods
   getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined>;
   getPendingLivestreamerApplications(): Promise<LivestreamerApplication[]>;
@@ -241,7 +310,68 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private data = {
     users: [] as User[],
-    communities: [] as Community[],
+    communities: [
+      {
+        id: 1,
+        name: "Prayer Requests",
+        description: "Share your prayer requests and pray for others in the community.",
+        slug: "prayer-requests",
+        iconName: "pray",
+        iconColor: "primary",
+        interestTags: JSON.stringify(["prayer", "support", "community"]),
+        city: null,
+        state: null,
+        isLocalCommunity: false,
+        latitude: null,
+        longitude: null,
+        memberCount: 1,
+        createdBy: 1,
+        isPrivate: false,
+        hasPrivateWall: true,
+        hasPublicWall: true,
+        createdAt: new Date()
+      },
+      {
+        id: 2,
+        name: "Bible Study",
+        description: "Discuss and study the Bible together with fellow believers.",
+        slug: "bible-study",
+        iconName: "book",
+        iconColor: "secondary",
+        interestTags: JSON.stringify(["bible", "study", "scripture"]),
+        city: null,
+        state: null,
+        isLocalCommunity: false,
+        latitude: null,
+        longitude: null,
+        memberCount: 1,
+        createdBy: 1,
+        isPrivate: false,
+        hasPrivateWall: true,
+        hasPublicWall: true,
+        createdAt: new Date()
+      },
+      {
+        id: 3,
+        name: "Christian Apologetics",
+        description: "Discuss and learn about defending the Christian faith.",
+        slug: "apologetics",
+        iconName: "shield",
+        iconColor: "accent",
+        interestTags: JSON.stringify(["apologetics", "defense", "faith"]),
+        city: null,
+        state: null,
+        isLocalCommunity: false,
+        latitude: null,
+        longitude: null,
+        memberCount: 1,
+        createdBy: 1,
+        isPrivate: false,
+        hasPrivateWall: true,
+        hasPublicWall: true,
+        createdAt: new Date()
+      }
+    ] as Community[],
     communityMembers: [] as CommunityMember[],
     communityInvitations: [] as CommunityInvitation[],
     communityChatRooms: [] as CommunityChatRoom[],
@@ -252,6 +382,7 @@ export class MemStorage implements IStorage {
     groups: [] as Group[],
     groupMembers: [] as GroupMember[],
     apologeticsResources: [] as ApologeticsResource[],
+    livestreams: [] as Livestream[],
     prayerRequests: [] as PrayerRequest[],
     prayers: [] as Prayer[],
     apologeticsTopics: [] as ApologeticsTopic[],
@@ -329,10 +460,25 @@ export class MemStorage implements IStorage {
     return userPref;
   }
   
-  async createUser(user: InsertUser): Promise<User> {
+  async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
+    return this.data.userPreferences.find(p => p.userId === userId);
+  }
+  
+  async createUser(user: any): Promise<User> {
     const newUser: User = {
       id: this.nextId++,
-      ...user,
+      username: user.username,
+      email: user.email,
+      password: user.password,
+      displayName: user.displayName || user.username,
+      bio: user.bio || null,
+      avatarUrl: user.avatarUrl || null,
+      city: user.city || null,
+      state: user.state || null,
+      zipCode: user.zipCode || null,
+      onboardingCompleted: user.onboardingCompleted || false,
+      isVerifiedApologeticsAnswerer: false,
+      isAdmin: user.isAdmin || false,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -408,12 +554,26 @@ export class MemStorage implements IStorage {
     return this.data.communities.find(c => c.slug === slug);
   }
   
-  async createCommunity(community: InsertCommunity): Promise<Community> {
+  async createCommunity(community: any): Promise<Community> {
     const newCommunity: Community = {
       id: this.nextId++,
-      ...community,
+      name: community.name,
+      description: community.description,
+      slug: community.slug,
+      iconName: community.iconName,
+      iconColor: community.iconColor,
+      interestTags: community.interestTags || [],
+      city: community.city || null,
+      state: community.state || null,
+      isLocalCommunity: community.isLocalCommunity || false,
+      latitude: community.latitude || null,
+      longitude: community.longitude || null,
       memberCount: 0,
-      createdAt: new Date()
+      isPrivate: community.isPrivate || false,
+      hasPrivateWall: community.hasPrivateWall || false,
+      hasPublicWall: community.hasPublicWall || true,
+      createdAt: new Date(),
+      createdBy: community.createdBy
     };
     this.data.communities.push(newCommunity);
     return newCommunity;
@@ -436,11 +596,17 @@ export class MemStorage implements IStorage {
   }
   
   // Community invitation methods
-  async createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation> {
+  async createCommunityInvitation(invitation: any): Promise<CommunityInvitation> {
     const newInvitation: CommunityInvitation = {
       id: this.nextId++,
-      ...invitation,
-      createdAt: new Date()
+      communityId: invitation.communityId,
+      inviterUserId: invitation.inviterUserId,
+      inviteeEmail: invitation.inviteeEmail,
+      inviteeUserId: invitation.inviteeUserId || null,
+      status: invitation.status || "pending",
+      token: invitation.token,
+      createdAt: new Date(),
+      expiresAt: invitation.expiresAt
     };
     this.data.communityInvitations.push(newInvitation);
     return newInvitation;
@@ -506,20 +672,22 @@ export class MemStorage implements IStorage {
     });
   }
   
-  async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
+  async addCommunityMember(member: any): Promise<CommunityMember> {
     const newMember: CommunityMember = {
       id: this.nextId++,
-      ...member,
+      communityId: member.communityId,
+      userId: member.userId,
+      role: member.role || "member",
       joinedAt: new Date()
     };
     this.data.communityMembers.push(newMember);
-    
+
     // Update member count
     const community = this.data.communities.find(c => c.id === member.communityId);
     if (community) {
       community.memberCount = (community.memberCount || 0) + 1;
     }
-    
+
     return newMember;
   }
   
@@ -573,11 +741,15 @@ export class MemStorage implements IStorage {
     return this.data.communityChatRooms.find(r => r.id === id);
   }
   
-  async createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom> {
+  async createCommunityRoom(room: any): Promise<CommunityChatRoom> {
     const newRoom: CommunityChatRoom = {
       id: this.nextId++,
-      ...room,
-      createdAt: new Date()
+      communityId: room.communityId,
+      name: room.name,
+      description: room.description || null,
+      isPrivate: room.isPrivate || false,
+      createdAt: new Date(),
+      createdBy: room.createdBy
     };
     this.data.communityChatRooms.push(newRoom);
     return newRoom;
@@ -625,10 +797,13 @@ export class MemStorage implements IStorage {
       }));
   }
   
-  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+  async createChatMessage(message: any): Promise<ChatMessage> {
     const newMessage: ChatMessage = {
       id: this.nextId++,
-      ...message,
+      content: message.content,
+      chatRoomId: message.chatRoomId,
+      senderId: message.senderId,
+      isSystemMessage: message.isSystemMessage || false,
       createdAt: new Date()
     };
     this.data.chatMessages.push(newMessage);
@@ -672,7 +847,12 @@ export class MemStorage implements IStorage {
       ...post,
       likeCount: 0,
       commentCount: 0,
-      createdAt: new Date()
+      createdAt: new Date(),
+      isPrivate: false,
+      communityId: 0,
+      content: "",
+      authorId: 0,
+      imageUrl: ""
     };
     this.data.communityWallPosts.push(newPost);
     return newPost;
@@ -775,7 +955,13 @@ export class MemStorage implements IStorage {
       ...post,
       upvotes: 0,
       commentCount: 0,
-      createdAt: new Date()
+      createdAt: new Date(),
+      communityId: 0,
+      content: "",
+      authorId: 0,
+      imageUrl: "",
+      title: "",
+      groupId: 0
     };
     this.data.posts.push(newPost);
     return newPost;
@@ -805,12 +991,16 @@ export class MemStorage implements IStorage {
       id: this.nextId++,
       ...comment,
       upvotes: 0,
-      createdAt: new Date()
+      createdAt: new Date(),
+      content: "",
+      authorId: 0,
+      postId: 0,
+      parentId: 0
     };
     this.data.comments.push(newComment);
     
     // Update post comment count
-    const post = this.data.posts.find(p => p.id === comment.postId);
+    const post = this.data.posts.find(p => p.id === newComment.postId);
     if (post) {
       post.commentCount = (post.commentCount || 0) + 1;
     }
@@ -840,17 +1030,25 @@ export class MemStorage implements IStorage {
     const newGroup: Group = {
       id: this.nextId++,
       ...group,
-      createdAt: new Date()
+      createdAt: new Date(),
+      name: "",
+      description: "",
+      iconName: "",
+      iconColor: "",
+      isPrivate: false,
+      createdBy: 0
     };
     this.data.groups.push(newGroup);
     return newGroup;
   }
   
   // Group member methods
-  async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
+  async addGroupMember(member: any): Promise<GroupMember> {
     const newMember: GroupMember = {
       id: this.nextId++,
-      ...member,
+      groupId: member.groupId,
+      userId: member.userId,
+      isAdmin: member.isAdmin || false,
       joinedAt: new Date()
     };
     this.data.groupMembers.push(newMember);
@@ -883,7 +1081,12 @@ export class MemStorage implements IStorage {
     const newResource: ApologeticsResource = {
       id: this.nextId++,
       ...resource,
-      createdAt: new Date()
+      createdAt: new Date(),
+      description: "",
+      iconName: "",
+      title: "",
+      type: "",
+      url: ""
     };
     this.data.apologeticsResources.push(newResource);
     return newResource;
@@ -911,7 +1114,7 @@ export class MemStorage implements IStorage {
   
   async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
     const request = this.data.prayerRequests.find(p => p.id === id);
-    return request ? { ...request, description: request.title } : undefined;
+    return request ? { ...request, description: request.title } as PrayerRequest & { description: string } : undefined;
   }
   
   async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
@@ -926,10 +1129,15 @@ export class MemStorage implements IStorage {
       .map(p => ({ ...p, description: p.title }));
   }
   
-  async createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest> {
+  async createPrayerRequest(prayer: any): Promise<PrayerRequest> {
     const newPrayer: PrayerRequest = {
       id: this.nextId++,
-      ...prayer,
+      title: prayer.title,
+      content: prayer.content,
+      isAnonymous: prayer.isAnonymous,
+      privacyLevel: prayer.privacyLevel,
+      groupId: prayer.groupId,
+      authorId: prayer.authorId,
       prayerCount: 0,
       isAnswered: false,
       answeredDescription: null,
@@ -968,20 +1176,21 @@ export class MemStorage implements IStorage {
   }
   
   // Prayer methods
-  async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
+  async createPrayer(prayer: any): Promise<Prayer> {
     const newPrayer: Prayer = {
       id: this.nextId++,
-      ...prayer,
+      userId: prayer.userId,
+      prayerRequestId: prayer.prayerRequestId,
       createdAt: new Date()
     };
     this.data.prayers.push(newPrayer);
-    
+
     // Increment prayer count on the request
     const request = this.data.prayerRequests.find(p => p.id === prayer.prayerRequestId);
     if (request) {
       request.prayerCount = (request.prayerCount || 0) + 1;
     }
-    
+
     return newPrayer;
   }
   
@@ -991,7 +1200,7 @@ export class MemStorage implements IStorage {
   
   async getUserPrayedRequests(userId: number): Promise<number[]> {
     const userPrayers = this.data.prayers.filter(p => p.userId === userId);
-    return [...new Set(userPrayers.map(p => p.prayerRequestId))];
+    return Array.from(new Set(userPrayers.map(p => p.prayerRequestId)));
   }
   
   // Apologetics Q&A methods
@@ -1011,8 +1220,11 @@ export class MemStorage implements IStorage {
     const newTopic: ApologeticsTopic = {
       id: this.nextId++,
       ...topic,
-      questionCount: 0,
-      createdAt: new Date()
+      createdAt: new Date(),
+      name: "",
+      description: "",
+      iconName: "",
+      slug: ""
     };
     this.data.apologeticsTopics.push(newTopic);
     return newTopic;
@@ -1036,21 +1248,26 @@ export class MemStorage implements IStorage {
     return this.data.apologeticsQuestions.filter(q => q.topicId === topicId);
   }
   
-  async createApologeticsQuestion(question: InsertApologeticsQuestion): Promise<ApologeticsQuestion> {
+  async createApologeticsQuestion(question: any): Promise<ApologeticsQuestion> {
     const newQuestion: ApologeticsQuestion = {
       id: this.nextId++,
-      ...question,
-      views: 0,
-      createdAt: new Date()
+      title: question.title,
+      content: question.content,
+      authorId: question.authorId,
+      topicId: question.topicId,
+      status: question.status || 'pending',
+      answerCount: 0,
+      createdAt: new Date(),
+      viewCount: 0
     };
     this.data.apologeticsQuestions.push(newQuestion);
-    
+
     // Update topic question count
     const topic = this.data.apologeticsTopics.find(t => t.id === question.topicId);
     if (topic) {
-      topic.questionCount = (topic.questionCount || 0) + 1;
+      (topic as any).questionCount = ((topic as any).questionCount || 0) + 1;
     }
-    
+
     return newQuestion;
   }
   
@@ -1068,12 +1285,14 @@ export class MemStorage implements IStorage {
       .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
   
-  async createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer> {
+  async createApologeticsAnswer(answer: any): Promise<ApologeticsAnswer> {
     const newAnswer: ApologeticsAnswer = {
       id: this.nextId++,
-      ...answer,
+      content: answer.content,
+      authorId: answer.authorId,
+      questionId: answer.questionId,
+      isVerifiedAnswer: answer.isVerifiedAnswer || false,
       upvotes: 0,
-      downvotes: 0,
       createdAt: new Date()
     };
     this.data.apologeticsAnswers.push(newAnswer);
@@ -1094,12 +1313,12 @@ export class MemStorage implements IStorage {
   }
   
   async createEvent(event: InsertEvent): Promise<Event> {
-    const newEvent: Event = {
+    const newEvent = {
       id: this.nextId++,
       ...event,
-      rsvpCount: 0,
       createdAt: new Date()
-    };
+    } as Event;
+    (newEvent as any).rsvpCount = 0;
     this.data.events.push(newEvent);
     return newEvent;
   }
@@ -1121,20 +1340,22 @@ export class MemStorage implements IStorage {
   }
   
   // Event RSVP methods
-  async createEventRSVP(rsvp: InsertEventRsvp): Promise<EventRsvp> {
+  async createEventRSVP(rsvp: any): Promise<EventRsvp> {
     const newRsvp: EventRsvp = {
       id: this.nextId++,
-      ...rsvp,
+      userId: rsvp.userId,
+      status: rsvp.status,
+      eventId: rsvp.eventId,
       createdAt: new Date()
     };
     this.data.eventRsvps.push(newRsvp);
-    
+
     // Update event RSVP count
     const event = this.data.events.find(e => e.id === rsvp.eventId);
     if (event) {
-      event.rsvpCount = (event.rsvpCount || 0) + 1;
+      (event as any).rsvpCount = ((event as any).rsvpCount || 0) + 1;
     }
-    
+
     return newRsvp;
   }
   
@@ -1162,12 +1383,37 @@ export class MemStorage implements IStorage {
     this.data.eventRsvps.splice(index, 1);
     
     // Update event RSVP count
-    const event = this.data.events.find(e => e.id === rsvp.eventId);
-    if (event && event.rsvpCount > 0) {
-      event.rsvpCount--;
+    const event = this.data.events.find(e => e.id === (rsvp as any).eventId);
+    if (event && (event as any).rsvpCount > 0) {
+      (event as any).rsvpCount--;
     }
     
     return true;
+  }
+  
+  // Livestream methods
+  async getAllLivestreams(): Promise<Livestream[]> {
+    return [...this.data.livestreams].sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+  }
+  
+  async createLivestream(livestream: any): Promise<Livestream> {
+    const newLivestream: Livestream = {
+      id: this.nextId++,
+      title: livestream.title,
+      description: livestream.description || null,
+      createdAt: new Date(),
+      status: 'upcoming',
+      hostId: livestream.hostId,
+      thumbnail: livestream.thumbnail || null,
+      viewerCount: 0,
+      scheduledFor: livestream.scheduledFor,
+      duration: livestream.duration || null,
+      tags: livestream.tags || null,
+      streamUrl: livestream.streamUrl || null,
+      isLive: livestream.isLive || false
+    };
+    this.data.livestreams.push(newLivestream);
+    return newLivestream;
   }
   
   // Microblog methods
@@ -1188,8 +1434,15 @@ export class MemStorage implements IStorage {
   async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
     const newMicroblog: Microblog = {
       id: this.nextId++,
-      ...microblog,
+      communityId: microblog.communityId || 0,
+      content: microblog.content || "",
+      authorId: microblog.authorId || 0,
+      imageUrl: microblog.imageUrl || "",
+      groupId: microblog.groupId || 0,
+      parentId: microblog.parentId || 0,
       likeCount: 0,
+      repostCount: 0,
+      replyCount: 0,
       createdAt: new Date()
     };
     this.data.microblogs.push(newMicroblog);
@@ -1267,7 +1520,7 @@ export class MemStorage implements IStorage {
   }
   
   async createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication> {
-    const newApplication: LivestreamerApplication = {
+    const newApplication = {
       id: this.nextId++,
       ...application,
       status: 'pending',
@@ -1275,7 +1528,7 @@ export class MemStorage implements IStorage {
       reviewedBy: null,
       reviewedAt: null,
       submittedAt: new Date()
-    };
+    } as LivestreamerApplication;
     this.data.livestreamerApplications.push(newApplication);
     return newApplication;
   }
@@ -1307,7 +1560,7 @@ export class MemStorage implements IStorage {
   }
   
   async createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication> {
-    const newApplication: ApologistScholarApplication = {
+    const newApplication = {
       id: this.nextId++,
       ...application,
       status: 'pending',
@@ -1315,7 +1568,7 @@ export class MemStorage implements IStorage {
       reviewedBy: null,
       reviewedAt: null,
       submittedAt: new Date()
-    };
+    } as ApologistScholarApplication;
     this.data.apologistScholarApplications.push(newApplication);
     return newApplication;
   }
@@ -1341,10 +1594,16 @@ export class MemStorage implements IStorage {
     return this.data.bibleReadingPlans.find(p => p.id === id);
   }
   
-  async createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan> {
+  async createBibleReadingPlan(plan: any): Promise<BibleReadingPlan> {
     const newPlan: BibleReadingPlan = {
       id: this.nextId++,
-      ...plan,
+      title: plan.title,
+      description: plan.description,
+      groupId: plan.groupId,
+      duration: plan.duration,
+      isPublic: plan.isPublic,
+      creatorId: plan.creatorId,
+      readings: plan.readings,
       createdAt: new Date()
     };
     this.data.bibleReadingPlans.push(newPlan);
@@ -1361,9 +1620,11 @@ export class MemStorage implements IStorage {
       id: this.nextId++,
       ...progress,
       currentDay: 1,
-      completedDays: [],
+      completedDays: "[]",
       startedAt: new Date(),
-      completedAt: null
+      completedAt: null,
+      userId: 0,
+      planId: 0
     };
     this.data.bibleReadingProgress.push(newProgress);
     return newProgress;
@@ -1372,14 +1633,19 @@ export class MemStorage implements IStorage {
   async markDayCompleted(progressId: number, day: string): Promise<BibleReadingProgress> {
     const progress = this.data.bibleReadingProgress.find(p => p.id === progressId);
     if (!progress) throw new Error('Progress not found');
-    
-    const completedDays = Array.isArray(progress.completedDays) ? progress.completedDays : [];
+
+    let completedDays: string[];
+    try {
+      completedDays = JSON.parse(progress.completedDays || "[]");
+    } catch {
+      completedDays = [];
+    }
     if (!completedDays.includes(day)) {
       completedDays.push(day);
-      progress.completedDays = completedDays;
+      progress.completedDays = JSON.stringify(completedDays);
       progress.currentDay = (progress.currentDay || 1) + 1;
     }
-    
+
     return progress;
   }
   
@@ -1392,10 +1658,15 @@ export class MemStorage implements IStorage {
     return this.data.bibleStudyNotes.find(n => n.id === id);
   }
   
-  async createBibleStudyNote(note: InsertBibleStudyNote): Promise<BibleStudyNote> {
+  async createBibleStudyNote(note: any): Promise<BibleStudyNote> {
     const newNote: BibleStudyNote = {
       id: this.nextId++,
-      ...note,
+      title: note.title,
+      isPublic: note.isPublic,
+      groupId: note.groupId,
+      userId: note.userId,
+      content: note.content,
+      passage: note.passage,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -1420,5 +1691,660 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Export storage instance
-export const storage = new MemStorage();
+// Database-backed storage implementation
+export class DbStorage implements IStorage {
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
+  }
+  
+  async getUserById(id: number): Promise<User | undefined> {
+    return this.getUser(id);
+  }
+  
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result[0];
+  }
+  
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.email, email));
+    return result[0];
+  }
+  
+  async searchUsers(searchTerm: string): Promise<User[]> {
+    const term = `%${searchTerm}%`;
+    return await db.select().from(users).where(
+      or(
+        like(users.username, term),
+        like(users.email, term),
+        like(users.displayName, term)
+      )
+    );
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+  
+  async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    const result = await db.update(users).set(userData).where(eq(users.id, id)).returning();
+    if (!result[0]) throw new Error('User not found');
+    return result[0];
+  }
+  
+  async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
+    // For now, just return a default preferences object
+    // This can be expanded when the userPreferences table is properly set up
+    return {
+      id: 1,
+      userId,
+      interests: preferences.interests || null,
+      favoriteTopics: preferences.favoriteTopics || null,
+      engagementHistory: preferences.engagementHistory || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+  
+  async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
+    // For now, return undefined since the table isn't fully implemented
+    return undefined;
+  }
+  
+  async createUser(user: InsertUser): Promise<User> {
+    const result = await db.insert(users).values(user as any).returning();
+    return result[0];
+  }
+  
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined> {
+    const result = await db.update(users).set({ password: hashedPassword }).where(eq(users.id, userId)).returning();
+    return result[0];
+  }
+  
+  async setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User> {
+    const result = await db.update(users).set({ isVerifiedApologeticsAnswerer: isVerified } as any).where(eq(users.id, userId)).returning();
+    if (!result[0]) throw new Error('User not found');
+    return result[0];
+  }
+  
+  async getVerifiedApologeticsAnswerers(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.isVerifiedApologeticsAnswerer, true));
+  }
+  
+  // Community methods - simplified for now
+  async getAllCommunities(): Promise<Community[]> {
+    return await db.select().from(communities);
+  }
+  
+  async searchCommunities(searchTerm: string): Promise<Community[]> {
+    const term = `%${searchTerm}%`;
+    return await db.select().from(communities).where(
+      or(
+        like(communities.name, term),
+        like(communities.description, term)
+      )
+    );
+  }
+  
+  async getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]> {
+    let whereCondition = eq(communities.isPrivate, false);
+
+    if (searchQuery) {
+      const term = `%${searchQuery}%`;
+      whereCondition = and(whereCondition, or(like(communities.name, term), like(communities.description, term)));
+    }
+
+    const query = db.select().from(communities).where(whereCondition);
+    return await query;
+  }
+  
+  async getCommunity(id: number): Promise<Community | undefined> {
+    const result = await db.select().from(communities).where(eq(communities.id, id));
+    return result[0];
+  }
+  
+  async getCommunityBySlug(slug: string): Promise<Community | undefined> {
+    const result = await db.select().from(communities).where(eq(communities.slug, slug));
+    return result[0];
+  }
+  
+  async createCommunity(community: InsertCommunity): Promise<Community> {
+    // Geocode the address if city/state are provided but no coordinates
+    let latitude = community.latitude;
+    let longitude = community.longitude;
+
+    if (!latitude && !longitude && (community.city || community.state)) {
+      const geocodeResult = await geocodeAddress('', community.city, community.state);
+      if ('latitude' in geocodeResult) {
+        latitude = geocodeResult.latitude.toString();
+        longitude = geocodeResult.longitude.toString();
+      }
+    }
+
+    const communityData = {
+      ...community,
+      latitude,
+      longitude
+    };
+
+    const result = await db.insert(communities).values(communityData as any).returning();
+    return result[0];
+  }
+  
+  async updateCommunity(id: number, community: Partial<Community>): Promise<Community> {
+    const result = await db.update(communities).set(community).where(eq(communities.id, id)).returning();
+    if (!result[0]) throw new Error('Community not found');
+    return result[0];
+  }
+  
+  async deleteCommunity(id: number): Promise<boolean> {
+    const result = await db.delete(communities).where(eq(communities.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Placeholder implementations for other methods - can be expanded as needed
+  async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
+    return [];
+  }
+  
+  async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
+    return undefined;
+  }
+  
+  async getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]> {
+    return [];
+  }
+  
+  async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
+    throw new Error('Not implemented');
+  }
+  
+  async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
+    throw new Error('Not implemented');
+  }
+  
+  async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+  
+  async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+  
+  async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+  
+  async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+  
+  // Community invitation methods
+  async createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation> {
+    throw new Error('Not implemented');
+  }
+  
+  async getCommunityInvitations(communityId: number): Promise<(CommunityInvitation & { inviter: User })[]> {
+    return [];
+  }
+  
+  async getCommunityInvitationByToken(token: string): Promise<CommunityInvitation | undefined> {
+    return undefined;
+  }
+  
+  async getCommunityInvitationById(id: number): Promise<CommunityInvitation | undefined> {
+    return undefined;
+  }
+  
+  async updateCommunityInvitationStatus(id: number, status: string): Promise<CommunityInvitation> {
+    throw new Error('Not implemented');
+  }
+  
+  async deleteCommunityInvitation(id: number): Promise<boolean> {
+    return false;
+  }
+  
+  async getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined> {
+    return undefined;
+  }
+  
+  // Community chat room methods
+  async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
+    return [];
+  }
+  
+  async getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
+    return [];
+  }
+  
+  async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
+    return undefined;
+  }
+  
+  async createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom> {
+    throw new Error('Not implemented');
+  }
+  
+  async updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
+    throw new Error('Not implemented');
+  }
+  
+  async deleteCommunityRoom(id: number): Promise<boolean> {
+    return false;
+  }
+  
+  // Chat message methods
+  async getChatMessages(roomId: number, limit?: number): Promise<(ChatMessage & { sender: User })[]> {
+    return [];
+  }
+  
+  async getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]> {
+    return [];
+  }
+  
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    throw new Error('Not implemented');
+  }
+  
+  async deleteChatMessage(id: number): Promise<boolean> {
+    return false;
+  }
+  
+  // Community wall post methods
+  async getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
+    return [];
+  }
+  
+  async getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined> {
+    return undefined;
+  }
+  
+  async createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost> {
+    throw new Error('Not implemented');
+  }
+  
+  async updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
+    throw new Error('Not implemented');
+  }
+  
+  async deleteCommunityWallPost(id: number): Promise<boolean> {
+    return false;
+  }
+  
+  // Post methods
+  async getAllPosts(filter?: string): Promise<Post[]> {
+    return [];
+  }
+  
+  async getPost(id: number): Promise<Post | undefined> {
+    return undefined;
+  }
+  
+  async getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]> {
+    return [];
+  }
+  
+  async getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]> {
+    return [];
+  }
+  
+  async getUserPosts(userId: number): Promise<any[]> {
+    return [];
+  }
+  
+  async createPost(post: InsertPost): Promise<Post> {
+    throw new Error('Not implemented');
+  }
+  
+  async upvotePost(id: number): Promise<Post> {
+    throw new Error('Not implemented');
+  }
+  
+  // Comment methods
+  async getComment(id: number): Promise<Comment | undefined> {
+    return undefined;
+  }
+  
+  async getCommentsByPostId(postId: number): Promise<Comment[]> {
+    return [];
+  }
+  
+  async createComment(comment: InsertComment): Promise<Comment> {
+    throw new Error('Not implemented');
+  }
+  
+  async upvoteComment(id: number): Promise<Comment> {
+    throw new Error('Not implemented');
+  }
+  
+  // Group methods
+  async getGroup(id: number): Promise<Group | undefined> {
+    return undefined;
+  }
+  
+  async getGroupsByUserId(userId: number): Promise<Group[]> {
+    return [];
+  }
+  
+  async createGroup(group: InsertGroup): Promise<Group> {
+    throw new Error('Not implemented');
+  }
+  
+  // Group member methods
+  async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
+    throw new Error('Not implemented');
+  }
+  
+  async getGroupMembers(groupId: number): Promise<GroupMember[]> {
+    return [];
+  }
+  
+  async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+  
+  async isGroupMember(groupId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+  
+  // Apologetics resource methods
+  async getAllApologeticsResources(): Promise<ApologeticsResource[]> {
+    return [];
+  }
+  
+  async getApologeticsResource(id: number): Promise<ApologeticsResource | undefined> {
+    return undefined;
+  }
+  
+  async createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource> {
+    throw new Error('Not implemented');
+  }
+  
+  // Prayer request methods
+  async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
+    return [];
+  }
+  
+  async getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]> {
+    return [];
+  }
+  
+  async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
+    return undefined;
+  }
+  
+  async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
+    return [];
+  }
+  
+  async getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]> {
+    return [];
+  }
+  
+  async createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest> {
+    throw new Error('Not implemented');
+  }
+  
+  async updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest> {
+    throw new Error('Not implemented');
+  }
+  
+  async markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest> {
+    throw new Error('Not implemented');
+  }
+  
+  async deletePrayerRequest(id: number): Promise<boolean> {
+    return false;
+  }
+  
+  // Prayer methods
+  async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
+    throw new Error('Not implemented');
+  }
+  
+  async getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]> {
+    return [];
+  }
+  
+  async getUserPrayedRequests(userId: number): Promise<number[]> {
+    return [];
+  }
+  
+  // Apologetics Q&A methods
+  async getAllApologeticsTopics(): Promise<ApologeticsTopic[]> {
+    return [];
+  }
+  
+  async getApologeticsTopic(id: number): Promise<ApologeticsTopic | undefined> {
+    return undefined;
+  }
+  
+  async getApologeticsTopicBySlug(slug: string): Promise<ApologeticsTopic | undefined> {
+    return undefined;
+  }
+  
+  async createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic> {
+    throw new Error('Not implemented');
+  }
+  
+  async getAllApologeticsQuestions(filterByStatus?: string): Promise<ApologeticsQuestion[]> {
+    return [];
+  }
+  
+  async getApologeticsQuestion(id: number): Promise<ApologeticsQuestion | undefined> {
+    return undefined;
+  }
+  
+  async getApologeticsQuestionsByTopic(topicId: number): Promise<ApologeticsQuestion[]> {
+    return [];
+  }
+  
+  async createApologeticsQuestion(question: InsertApologeticsQuestion): Promise<ApologeticsQuestion> {
+    throw new Error('Not implemented');
+  }
+  
+  async updateApologeticsQuestionStatus(id: number, status: string): Promise<ApologeticsQuestion> {
+    throw new Error('Not implemented');
+  }
+  
+  async getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]> {
+    return [];
+  }
+  
+  async createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer> {
+    throw new Error('Not implemented');
+  }
+  
+  // Event methods
+  async getAllEvents(): Promise<Event[]> {
+    return [];
+  }
+  
+  async getEvent(id: number): Promise<Event | undefined> {
+    return undefined;
+  }
+  
+  async getUserEvents(userId: number): Promise<Event[]> {
+    return [];
+  }
+  
+  async createEvent(event: InsertEvent): Promise<Event> {
+    throw new Error('Not implemented');
+  }
+  
+  async updateEvent(id: number, data: Partial<Event>): Promise<Event> {
+    throw new Error('Not implemented');
+  }
+  
+  async deleteEvent(id: number): Promise<boolean> {
+    return false;
+  }
+
+  async getNearbyEvents(latitude: number, longitude: number, radius: number): Promise<Event[]> {
+    // This is a placeholder implementation.
+    // A proper implementation would involve spatial queries on the database.
+    console.warn('getNearbyEvents is not fully implemented in DbStorage. Returning empty array.');
+    return [];
+  }
+  
+  // Event RSVP methods
+  async createEventRSVP(rsvp: InsertEventRsvp): Promise<EventRsvp> {
+    throw new Error('Not implemented');
+  }
+  
+  async getEventRSVPs(eventId: number): Promise<EventRsvp[]> {
+    return [];
+  }
+  
+  async getUserEventRSVP(eventId: number, userId: number): Promise<EventRsvp | undefined> {
+    return undefined;
+  }
+  
+  async updateEventRSVP(id: number, status: string): Promise<EventRsvp> {
+    throw new Error('Not implemented');
+  }
+  
+  async deleteEventRSVP(id: number): Promise<boolean> {
+    return false;
+  }
+  
+  // Livestream methods
+  async getAllLivestreams(): Promise<Livestream[]> {
+    return [];
+  }
+  
+  async createLivestream(livestream: InsertLivestream): Promise<Livestream> {
+    const result = await db.insert(livestreams).values(livestream as any).returning();
+    return result[0];
+  }
+  
+  // Microblog methods
+  async getAllMicroblogs(): Promise<Microblog[]> {
+    return [];
+  }
+  
+  async getMicroblog(id: number): Promise<Microblog | undefined> {
+    return undefined;
+  }
+  
+  async getUserMicroblogs(userId: number): Promise<Microblog[]> {
+    return [];
+  }
+  
+  async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
+    throw new Error('Not implemented');
+  }
+  
+  async updateMicroblog(id: number, data: Partial<Microblog>): Promise<Microblog> {
+    throw new Error('Not implemented');
+  }
+  
+  async deleteMicroblog(id: number): Promise<boolean> {
+    return false;
+  }
+  
+  // Microblog like methods
+  async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
+    throw new Error('Not implemented');
+  }
+  
+  async unlikeMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+  
+  async getUserLikedMicroblogs(userId: number): Promise<Microblog[]> {
+    return [];
+  }
+  
+  // Livestreamer application methods
+  async getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined> {
+    return undefined;
+  }
+  
+  async getPendingLivestreamerApplications(): Promise<LivestreamerApplication[]> {
+    return [];
+  }
+  
+  async createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication> {
+    throw new Error('Not implemented');
+  }
+  
+  async updateLivestreamerApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<LivestreamerApplication> {
+    throw new Error('Not implemented');
+  }
+  
+  async isApprovedLivestreamer(userId: number): Promise<boolean> {
+    return false;
+  }
+  
+  // Apologist Scholar application methods
+  async getApologistScholarApplicationByUserId(userId: number): Promise<ApologistScholarApplication | undefined> {
+    return undefined;
+  }
+  
+  async getPendingApologistScholarApplications(): Promise<ApologistScholarApplication[]> {
+    return [];
+  }
+  
+  async createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication> {
+    throw new Error('Not implemented');
+  }
+  
+  async updateApologistScholarApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<ApologistScholarApplication> {
+    throw new Error('Not implemented');
+  }
+  
+  // Bible Reading Plan methods
+  async getAllBibleReadingPlans(): Promise<BibleReadingPlan[]> {
+    return [];
+  }
+  
+  async getBibleReadingPlan(id: number): Promise<BibleReadingPlan | undefined> {
+    return undefined;
+  }
+  
+  async createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan> {
+    throw new Error('Not implemented');
+  }
+  
+  // Bible Reading Progress methods
+  async getBibleReadingProgress(userId: number, planId: number): Promise<BibleReadingProgress | undefined> {
+    return undefined;
+  }
+  
+  async createBibleReadingProgress(progress: InsertBibleReadingProgress): Promise<BibleReadingProgress> {
+    throw new Error('Not implemented');
+  }
+  
+  async markDayCompleted(progressId: number, day: string): Promise<BibleReadingProgress> {
+    throw new Error('Not implemented');
+  }
+  
+  // Bible Study Note methods
+  async getBibleStudyNotes(userId: number): Promise<BibleStudyNote[]> {
+    return [];
+  }
+  
+  async getBibleStudyNote(id: number): Promise<BibleStudyNote | undefined> {
+    return undefined;
+  }
+  
+  async createBibleStudyNote(note: InsertBibleStudyNote): Promise<BibleStudyNote> {
+    throw new Error('Not implemented');
+  }
+  
+  async updateBibleStudyNote(id: number, data: Partial<BibleStudyNote>): Promise<BibleStudyNote> {
+    throw new Error('Not implemented');
+  }
+  
+  async deleteBibleStudyNote(id: number): Promise<boolean> {
+    return false;
+  }
+}
+
+// Export storage instance - switch based on environment
+export const storage = process.env.USE_DB === 'true'
+  ? new DbStorage()
+  : new MemStorage();

@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite";
 // Seed imports removed for production
 import { initializeEmailTemplates } from "./email";
@@ -8,8 +8,6 @@ import { runAllMigrations } from "./run-migrations";
 import dotenv from "dotenv";
 import session from "express-session";
 import passport from "passport";
-import connectPgSimple from "connect-pg-simple";
-import { pool } from "./db";
 import { User } from "@shared/schema";
 import { APP_DOMAIN, BASE_URL } from "./config/domain";
 import { Server as SocketIOServer } from "socket.io";
@@ -21,13 +19,8 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// Set up PostgreSQL session store
-const PgSessionStore = connectPgSimple(session);
-const sessionStore = new PgSessionStore({
-  pool: pool,
-  tableName: 'sessions',
-  createTableIfMissing: true
-});
+// Set up session store (using memory store for serverless)
+const sessionStore = new session.MemoryStore();
 
 app.use(session({
   store: sessionStore,
@@ -92,21 +85,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Run migrations for locality and interest features
-  // try {
-  //   await runAllMigrations();
-    
-  //   // Run organization migrations
-  //   const { runOrganizationMigrations } = await import("./run-migrations-organizations");
-  //   await runOrganizationMigrations();
-    
-  //   console.log("✅ Database migrations completed");
-  // } catch (error) {
-  //   console.error("❌ Error running database migrations:", error);
-  // }
-
-  // Production mode: No seed data needed
-  console.log("Database migrations temporarily disabled for development");
+      // Skip migrations for SQLite development
+    // const migrationResult = await runAllMigrations();
+    // if (!migrationResult) {
+    //   log("❌ Database migrations failed. Continuing anyway for development.");
+    // }
   
   // Initialize email templates
   try {

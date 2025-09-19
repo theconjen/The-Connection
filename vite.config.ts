@@ -1,19 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal'
+import { fileURLToPath, URL } from 'node:url'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [
     react(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== 'production' && process.env.REPL_ID !== undefined
-      ? [(await import('@replit/vite-plugin-cartographer')).cartographer()]
-      : []),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
+      },
       manifest: {
         name: 'The Connection',
         short_name: 'Connection',
@@ -22,16 +22,8 @@ export default defineConfig(async () => ({
         display: 'standalone',
         start_url: '/',
         icons: [
-          {
-            src: '/pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
+          { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' }
         ]
       }
     })
@@ -48,4 +40,13 @@ export default defineConfig(async () => ({
     outDir: path.resolve(__dirname, 'dist/public'),
     emptyOutDir: true,
   },
-}))
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
+})

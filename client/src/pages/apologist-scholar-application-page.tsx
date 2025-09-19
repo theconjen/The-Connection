@@ -24,12 +24,14 @@ import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
-import { apiRequest, queryClient } from "../lib/queryClient";
+import { queryClient } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
 import MainLayout from "../components/layouts/main-layout";
 import { Loader2, CheckCircle, AlertTriangle, ChevronRight, BookOpen, GraduationCap } from "lucide-react";
 
 // Extended schema with validation
 const formSchema = insertApologistScholarApplicationSchema.extend({
+  fullName: z.string().min(1, "Full name is required"),
   agreedToGuidelines: z.literal(true, {
     errorMap: () => ({ message: "You must agree to the community guidelines" }),
   }),
@@ -40,7 +42,13 @@ const formSchema = insertApologistScholarApplicationSchema.extend({
   statementOfFaith: z.string().min(50, "Please provide a more detailed statement of faith"),
   areasOfExpertise: z.string().min(10, "Please specify your areas of expertise"),
   writingSample: z.string().min(100, "Please provide a more substantial writing sample"),
-  motivation: z.string().min(30, "Please elaborate on your motivation")
+  motivation: z.string().min(30, "Please elaborate on your motivation"),
+  publishedWorks: z.string().optional(),
+  priorApologeticsExperience: z.string().optional(),
+  onlineSocialHandles: z.string().optional(),
+  referenceName: z.string().optional(),
+  referenceContact: z.string().optional(),
+  referenceInstitution: z.string().optional(),
 });
 
 export default function ApologistScholarApplicationPage() {
@@ -49,8 +57,15 @@ export default function ApologistScholarApplicationPage() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("personal");
   
+  // Define the type for the application data
+  type ApologistScholarApplication = {
+    status: "pending" | "approved" | "rejected";
+    reviewNotes?: string;
+    // add other fields as needed
+  };
+  
   // Check if user already has an application
-  const { data: existingApplication, isLoading: isCheckingApplication } = useQuery({
+  const { data: existingApplication, isLoading: isCheckingApplication } = useQuery<ApologistScholarApplication | null>({
     queryKey: ["/api/apologist-scholar-application"],
     enabled: isAuthenticated,
   });
@@ -74,7 +89,7 @@ export default function ApologistScholarApplicationPage() {
       referenceInstitution: "",
       motivation: "",
       weeklyTimeCommitment: "",
-      agreedToGuidelines: false,
+      agreedToGuidelines: true,
     },
   });
   
@@ -83,7 +98,7 @@ export default function ApologistScholarApplicationPage() {
     mutationFn: async (values: z.infer<typeof formSchema>) => {
       return await apiRequest("/api/apologist-scholar-application", {
         method: "POST",
-        data: values,
+        body: JSON.stringify(values)
       });
     },
     onSuccess: () => {
