@@ -8,17 +8,6 @@ import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
  * Ultra Simple Auth System
  */
 
-// Add custom session properties
-declare module 'express-session' {
-  interface SessionData {
-    userId?: number;
-    username?: string;
-    isAdmin?: boolean;
-    email?: string;
-    isVerifiedApologeticsAnswerer?: boolean;
-  }
-}
-
 // Export authentication check middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.session && req.session.userId) {

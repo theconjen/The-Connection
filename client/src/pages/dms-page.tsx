@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'wouter';
 import io, { Socket } from 'socket.io-client';
+import { User } from "@shared/schema";
 
 export default function DMsPage() {
-  const params = useParams();
-  const userIdFromUrl = params.userId;
+  const { userId: userIdFromUrl } = useParams<{ userId: string }>() ?? {};
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [messages, setMessages] = useState<any[]>([]);
   const [content, setContent] = useState("");
@@ -13,7 +13,7 @@ export default function DMsPage() {
   const socketRef = useRef<Socket | null>(null);
   
   // Get current user data
-  const { data: user } = useQuery({
+  const { data: user } = useQuery<User>({
     queryKey: ['/api/user'],
     retry: false
   });

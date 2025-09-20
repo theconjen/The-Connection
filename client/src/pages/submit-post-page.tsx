@@ -13,7 +13,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Community, Group, InsertPost } from "../../../shared/schema";
+import { Community, Group, InsertPost } from "@shared/schema";
 import { useAuth } from "../hooks/use-auth";
 import { queryClient } from "../lib/queryClient";
 import { apiRequest } from "../lib/api";

@@ -3,7 +3,7 @@ import {
   useMutation,
   UseMutationResult,
 } from "@tanstack/react-query";
-import { User as SelectUser, InsertUser } from "../../../shared/schema";
+import { User as SelectUser, InsertUser, User } from "@shared/schema";
 import { getQueryFn, queryClient } from "../lib/queryClient";
 import { apiRequest } from "../lib/api";
 import { useToast } from "./use-toast";
@@ -14,13 +14,29 @@ type LoginData = {
   password: string;
 };
 
+export type AuthUser = {
+  id: number;
+  username: string;
+  email: string;
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  onboardingCompleted: boolean;
+  isVerifiedApologeticsAnswerer: boolean;
+  isAdmin: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type AuthContextType = {
-  user: SelectUser | undefined;
+  user: AuthUser | null;
   isLoading: boolean;
-  error: Error | null;
   isAuthenticated: boolean;
-  loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
-  logoutMutation: UseMutationResult<void, Error, void>;
+  loginMutation: { mutateAsync: (vars: { email: string; password: string }) => Promise<void> };
+  logoutMutation: { mutateAsync: () => Promise<void> };
   logout: () => void;
   registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
 };
@@ -213,12 +229,19 @@ export function useAuth(): AuthContextType {
   });
 
   return {
-    user,
+    user: user || null,
     isLoading,
-    error,
     isAuthenticated: !!user,
-    loginMutation,
-    logoutMutation,
+    loginMutation: {
+      mutateAsync: async (vars: { email: string; password: string }) => {
+        await loginMutation.mutateAsync({ username: vars.email, password: vars.password });
+      }
+    },
+    logoutMutation: {
+      mutateAsync: async () => {
+        await logoutMutation.mutateAsync();
+      }
+    },
     logout: () => logoutMutation.mutate(),
     registerMutation,
   };

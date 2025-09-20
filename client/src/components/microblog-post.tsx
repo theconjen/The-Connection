@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, MessageCircle, Repeat, Share2, MoreHorizontal } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
-import { Microblog, User } from "../../../shared/schema";
+import { Microblog, User } from "@shared/schema";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardFooter } from "./ui/card";
@@ -16,7 +16,7 @@ import {
 } from "./ui/dropdown-menu";
 import ShareButtons from "./share-buttons";
 import { getInitials } from "../lib/utils";
-import { apiRequest } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
 
 interface MicroblogPostProps {
   post: Microblog & {
@@ -43,9 +43,13 @@ export function MicroblogPost({
   const toggleLikeMutation = useMutation({
     mutationFn: async (liked: boolean) => {
       if (liked) {
-        await apiRequest("DELETE", `/api/microblogs/${post.id}/like`);
+        await apiRequest(`/api/microblogs/${post.id}/like`, {
+          method: "DELETE"
+        });
       } else {
-        await apiRequest("POST", `/api/microblogs/${post.id}/like`);
+        await apiRequest(`/api/microblogs/${post.id}/like`, {
+          method: "POST"
+        });
       }
     },
     onMutate: (liked) => {

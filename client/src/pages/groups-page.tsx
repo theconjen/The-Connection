@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import MainLayout from "../components/layouts/main-layout";
-import { Group, GroupMember } from "../../../shared/schema";
+import { Group, GroupMember } from "@shared/schema";
 import { useAuth } from "../hooks/use-auth";
 import {
   Card,
@@ -35,7 +35,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { Skeleton } from "../components/ui/skeleton";
-import { insertGroupSchema, InsertGroup } from "../../../shared/schema";
+import { insertGroupSchema, InsertGroup } from "@shared/schema";
 import { queryClient } from "../lib/queryClient";
 import { apiRequest } from "../lib/api";
 import { useToast } from "../hooks/use-toast";

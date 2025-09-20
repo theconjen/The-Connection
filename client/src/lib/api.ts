@@ -1,21 +1,13 @@
-export async function apiRequest<T = any>(url: string, init?: RequestInit): Promise<T> {
+export async function apiRequest<T = any>(url: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(url, {
-    credentials: "include", // sends cookies for session
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ...(init ?? {}),
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
   });
-
   if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(`API error ${res.status}: ${msg}`);
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Request failed: ${res.status}`);
   }
-
-  if (res.status === 204) {
-    // No content
-    return undefined as T;
-  }
-
-  return (await res.json()) as T;
+  const contentType = res.headers.get("content-type") || "";
+  return contentType.includes("application/json") ? (res.json() as Promise<T>) : ((await res.text()) as unknown as T);
 }

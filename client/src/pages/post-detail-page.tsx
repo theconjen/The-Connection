@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useParams } from "wouter";
 import MainLayout from "../components/layouts/main-layout";
-import { Post, User, Community, Comment, InsertComment, insertCommentSchema } from "../../../shared/schema";
+import { Post, User, Community, Comment, InsertComment, insertCommentSchema } from "@shared/schema";
 import { useAuth } from "../hooks/use-auth";
 import {
   Card,
@@ -36,8 +36,8 @@ const commentFormSchema = insertCommentSchema.extend({
 });
 
 export default function PostDetailPage() {
-  const [, params] = useRoute("/posts/:id");
-  const postId = Number(params!.id ?? 0);
+  const { id } = useParams<{ id: string }>();
+  const postId = Number(id ?? 0);
   const { user } = useAuth();
   const { toast } = useToast();
   const [commentText, setCommentText] = useState("");

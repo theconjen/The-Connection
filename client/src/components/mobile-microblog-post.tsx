@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { apiRequest } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
 import { getInitials } from "../lib/utils";
 import ShareButtons from "./share-buttons";
 import TouchFeedback from "./mobile-touch-feedback";
@@ -59,9 +59,13 @@ export default function MobileMicroblogPost({
   const toggleLikeMutation = useMutation({
     mutationFn: async (liked: boolean) => {
       if (liked) {
-        await apiRequest("DELETE", `/api/microblogs/${post.id}/like`);
+        await apiRequest(`/api/microblogs/${post.id}/like`, {
+          method: "DELETE"
+        });
       } else {
-        await apiRequest("POST", `/api/microblogs/${post.id}/like`);
+        await apiRequest(`/api/microblogs/${post.id}/like`, {
+          method: "POST"
+        });
       }
     },
     onMutate: (liked) => {

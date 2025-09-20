@@ -26,16 +26,6 @@ import { recommendationRouter } from './routes/recommendation';
 import { registerOnboardingRoutes } from './routes/api/user-onboarding';
 import registerLocationSearchRoutes from './routes/api/location-search';
 
-declare module 'express-session' {
-  interface SessionData {
-    userId?: number;
-    isAdmin?: boolean;
-    isVerifiedApologeticsAnswerer?: boolean;
-    email?: string;
-    username?: string;
-  }
-}
-
 export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Set up authentication
   setupAuth(app);

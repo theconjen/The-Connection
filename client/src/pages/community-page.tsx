@@ -57,14 +57,11 @@ import { InvitationManager } from "../components/community/InvitationManager";
 import { CommunityFeed } from "../components/community/CommunityFeed";
 import { CommunityForum } from "../components/community/CommunityForum";
 import { CommunityEvents } from "../components/community/CommunityEvents";
-import type { Community, CommunityMember } from "../../../shared/schema";
+import type { Community, CommunityMember } from "@shared/schema";
 
 export default function CommunityPage() {
-  const params = useParams();
+  const { slug = "" } = useParams<{ slug: string }>() ?? {};
   const [, navigate] = useLocation();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const slug = params.slug as string;
   const [showJoinConfirm, setShowJoinConfirm] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

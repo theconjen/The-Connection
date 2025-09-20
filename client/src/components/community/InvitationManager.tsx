@@ -38,7 +38,8 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
 import type { CommunityInvitation } from "@shared/schema";
 
 interface InvitationManagerProps {
@@ -64,11 +65,9 @@ export function InvitationManager({ communityId, communityName }: InvitationMana
   const cancelMutation = useMutation({
     mutationFn: async (invitationId: number) => {
       setDeletingId(invitationId);
-      const res = await apiRequest(
-        "DELETE",
-        `/api/invitations/${invitationId}`
-      );
-      return await res.json();
+      return await apiRequest(`/api/invitations/${invitationId}`, {
+        method: "DELETE"
+      });
     },
     onSuccess: () => {
       toast({

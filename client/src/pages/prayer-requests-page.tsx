@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../hooks/use-auth";
 import { useMediaQuery } from "../hooks/use-media-query";
 import MainLayout from "../components/layouts/main-layout";
-import { PrayerRequest } from "../../../shared/schema";
+import { PrayerRequest } from "@shared/schema";
 import { queryClient } from "../lib/queryClient";
 import { apiRequest } from "../lib/api";
 import { formatDistanceToNow, format } from "date-fns";

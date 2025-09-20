@@ -38,7 +38,7 @@ import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette
 import { useToast } from "../hooks/use-toast";
 import { queryClient } from "../lib/queryClient";
 import { apiRequest } from "../lib/api";
-import { insertCommunityObjectSchema, type InsertCommunity } from "../../../shared/schema";
+import { insertCommunityObjectSchema, type InsertCommunity } from "@shared/schema";
 import { IconPicker } from "../components/ui/icon-picker";
 import { ColorPicker } from "../components/ui/color-picker";
 

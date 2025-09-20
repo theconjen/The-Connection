@@ -32,14 +32,11 @@ import {
 import { useToast } from "../hooks/use-toast";
 import { queryClient } from "../lib/queryClient";
 import { apiRequest } from "../lib/api";
-import type { CommunityInvitation, Community } from "../../../shared/schema";
+import type { CommunityInvitation, Community } from "@shared/schema";
 
 export default function AcceptInvitationPage() {
-  const params = useParams();
+  const { token = "" } = useParams<{ token: string }>() ?? {};
   const [, navigate] = useLocation();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const token = params.token as string;
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [acceptanceStatus, setAcceptanceStatus] = useState<'idle' | 'accepting' | 'success' | 'error'>('idle');
 

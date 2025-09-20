@@ -14,7 +14,7 @@ import {
   SheetTitle 
 } from "./ui/sheet";
 import { Checkbox } from "./ui/checkbox";
-import { apiRequest } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
 
 interface ReadingType {
   day: number;
@@ -61,10 +61,12 @@ export default function MobileBibleReadingCard({
   
   const joinPlanMutation = useMutation({
     mutationFn: async () => {
-      const result = await apiRequest('POST', '/api/bible-reading-progress', {
-        planId: plan.id,
+      return await apiRequest('/api/bible-reading-progress', {
+        method: 'POST',
+        body: JSON.stringify({
+          planId: plan.id,
+        })
       });
-      return await result.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/bible-reading-progress'] });
@@ -84,11 +86,13 @@ export default function MobileBibleReadingCard({
   
   const markAsCompletedMutation = useMutation({
     mutationFn: async (day: number) => {
-      const result = await apiRequest('POST', '/api/bible-reading-progress/mark-completed', {
-        planId: plan.id,
-        day,
+      return await apiRequest('/api/bible-reading-progress/mark-completed', {
+        method: 'POST',
+        body: JSON.stringify({
+          planId: plan.id,
+          day,
+        })
       });
-      return await result.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/bible-reading-progress'] });

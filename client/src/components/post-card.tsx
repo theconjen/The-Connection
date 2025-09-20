@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
+import { queryClient } from "../lib/queryClient";
 import { useAuth } from "../hooks/use-auth";
 import { useToast } from "../hooks/use-toast";
-import { Post, User, Community } from "../../../shared/schema";
+import { Post, User, Community } from "@shared/schema";
 import { Card, CardContent } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import ShareButtons from "./share-buttons";
@@ -27,8 +28,9 @@ export default function PostCard({ post, featured = false }: PostCardProps) {
   
   const upvoteMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/posts/${post.id}/upvote`);
-      return await res.json();
+      return await apiRequest(`/api/posts/${post.id}/upvote`, {
+        method: "POST"
+      });
     },
     onSuccess: (updatedPost) => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });

@@ -2,7 +2,7 @@ import { useState, useRef, ChangeEvent } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../hooks/use-auth";
 import { useToast } from "../hooks/use-toast";
-import { InsertMicroblog } from "../../../shared/schema";
+import { InsertMicroblog } from "@shared/schema";
 import { Card, CardContent, CardFooter } from "./ui/card";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -10,7 +10,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Label } from "./ui/label";
 import { Image, X } from "lucide-react";
 import { getInitials } from "../lib/utils";
-import { apiRequest, queryClient } from "../lib/queryClient";
+import { apiRequest } from "../lib/api";
+import { queryClient } from "../lib/queryClient";
 
 // Local interface to ensure type safety
 interface MicroblogData {
@@ -71,8 +72,10 @@ export function MicroblogComposer({
         return await response.json();
       } else {
         // Regular JSON request if no image
-        const response = await apiRequest('POST', '/api/microblogs', microblogData);
-        return await response.json();
+        return await apiRequest('/api/microblogs', {
+          method: 'POST',
+          body: JSON.stringify(microblogData)
+        });
       }
     },
     onSuccess: () => {

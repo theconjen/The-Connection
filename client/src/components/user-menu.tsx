@@ -1,5 +1,5 @@
 import { User } from "../../../shared/schema";
-import { useAuth, AuthContextType } from "../hooks/use-auth";
+import { useAuth, AuthContextType, AuthUser } from "../hooks/use-auth";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { 
@@ -13,7 +13,7 @@ import {
 import { Link } from "wouter";
 
 interface UserMenuProps {
-  user: User;
+  user: AuthUser;
 }
 
 export default function UserMenu({ user }: UserMenuProps) {
