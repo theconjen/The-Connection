@@ -47,7 +47,7 @@ export default function AdminLivestreamerApplications() {
   const queryClient = useQueryClient();
 
   // Query to fetch applications
-  const { data: applications, isLoading } = useQuery({
+  const { data: applications, isLoading } = useQuery<LivestreamerApplication[]>({
     queryKey: ['/api/admin/applications/livestreamer'],
     retry: false,
     enabled: isAuthenticated,
