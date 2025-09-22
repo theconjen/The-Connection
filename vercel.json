@@ -70,6 +70,27 @@
   ],
   "routes": [
     {
+      "src": "/robots\\.txt$",
+      "dest": "/robots.txt",
+      "headers": {
+        "Content-Type": "text/plain"
+      }
+    },
+    {
+      "src": "/sitemap\\.xml$",
+      "dest": "/sitemap.xml",
+      "headers": {
+        "Content-Type": "application/xml"
+      }
+    },
+    {
+      "src": "/404\\.html$",
+      "dest": "/404.html",
+      "headers": {
+        "Content-Type": "text/html"
+      }
+    },
+    {
       "src": "/assets/(.*)",
       "dest": "/assets/$1"
     },
@@ -88,18 +109,6 @@
     {
       "src": "/workbox-(.*).js",
       "dest": "/workbox-$1.js"
-    },
-    {
-      "src": "/robots.txt",
-      "dest": "/robots.txt"
-    },
-    {
-      "src": "/sitemap.xml",
-      "dest": "/sitemap.xml"
-    },
-    {
-      "src": "/404.html",
-      "dest": "/404.html"
     },
     {
       "src": "/(.*)",
