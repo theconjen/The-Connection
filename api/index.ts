@@ -1,7 +1,5 @@
 import serverless from "serverless-http";
 import app from "../server/app";
 
-// Export handler for Vercel Serverless Functions
-const handler = serverless(app as any);
-
-export { handler };
+// Export default handler for Vercel Serverless Functions
+export default serverless(app as any);
