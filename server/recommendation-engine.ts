@@ -9,7 +9,7 @@ import {
   Microblog, 
   ApologeticsTopic, 
   BibleReadingPlan, 
-  EventData,
+  Event,
   Community,
   PrayerRequest
 } from "@shared/schema";
@@ -42,8 +42,8 @@ export interface ContentItem {
     id: number;
     username: string;
   };
-  engagementScore?: string;
-  relevanceScore?: string;
+  engagementScore?: number;
+  relevanceScore?: number;
 }
 
 /**
@@ -114,13 +114,13 @@ export async function getRecommendationsForUser(userId: number, limit = 10): Pro
 /**
  * Get popular content when user preferences aren't available
  */
-async function getPopularContent(limit: string): Promise<ContentItem[]> {
+async function getPopularContent(limit: number): Promise<ContentItem[]> {
   try {
     // Get recent content from various sources
-    const posts = await storage.getTopPosts(limit);
-    const microblogs = await storage.getTopMicroblogs(limit);
+    const posts = await storage.getAllPosts();
+    const microblogs = await storage.getAllMicroblogs();
     const apologeticsTopics = await storage.getAllApologeticsTopics();
-    const events = await storage.getUpcomingEvents(limit);
+    const events = await storage.getAllEvents();
     
     // Convert to standard format
     const allContent: ContentItem[] = [
@@ -150,7 +150,7 @@ async function getPopularContent(limit: string): Promise<ContentItem[]> {
 /**
  * Calculate a recommendation score for a content item based on user preferences
  */
-function calculateRecommendationScore(item: ContentItem, userPreferences: any): string {
+function calculateRecommendationScore(item: ContentItem, userPreferences: any): number {
   // Interest match score
   const interestScore = calculateInterestScore(item, userPreferences.interests) * WEIGHTS.INTEREST_MATCH;
   
@@ -179,7 +179,7 @@ function calculateRecommendationScore(item: ContentItem, userPreferences: any): 
 /**
  * Calculate how closely content matches user interests
  */
-function calculateInterestScore(item: ContentItem, userInterests: string[]): string {
+function calculateInterestScore(item: ContentItem, userInterests: string[]): number {
   if (!userInterests || userInterests.length === 0 || !item.tags) {
     return 0.5; // Neutral score if we can't make a determination
   }
@@ -204,7 +204,7 @@ function calculateInterestScore(item: ContentItem, userInterests: string[]): str
 /**
  * Calculate recency score for content
  */
-function calculateRecencyScore(createdAt: Date | null): string {
+function calculateRecencyScore(createdAt: Date | null): number {
   if (!createdAt) return 0;
   
   const now = new Date();
@@ -230,7 +230,7 @@ function calculateRecencyScore(createdAt: Date | null): string {
 /**
  * Calculate author affinity score based on user's history with an author
  */
-function calculateAuthorAffinityScore(authorId: string | undefined, engagementHistory: any[]): string {
+function calculateAuthorAffinityScore(authorId: number | undefined, engagementHistory: any[]): number {
   if (!authorId || !engagementHistory || engagementHistory.length === 0) {
     return 0.5; // Neutral score
   }
@@ -247,7 +247,10 @@ function calculateAuthorAffinityScore(authorId: string | undefined, engagementHi
 /**
  * Calculate diversity score to ensure variety in recommendations
  */
-function calculateDiversityScore(contentType: ContentType, engagementHistory: any[]): string {
+/**
+ * Calculate diversity score to ensure variety in recommendations
+ */
+function calculateDiversityScore(contentType: ContentType, engagementHistory: any[]): number {
   if (!engagementHistory || engagementHistory.length === 0) {
     return 0.5; // Neutral score
   }
@@ -278,7 +281,7 @@ function isRecent(createdAt: Date | null): boolean {
 /**
  * Ensure a diverse mix of content types in recommendations
  */
-function ensureContentDiversity(content: ContentItem[], limit: string): ContentItem[] {
+function ensureContentDiversity(content: ContentItem[], limit: number): ContentItem[] {
   // Group by content type
   const contentByType = content.reduce((groups, item) => {
     groups[item.type] = groups[item.type] || [];
@@ -357,15 +360,15 @@ function bibleReadingPlanToContentItem(plan: BibleReadingPlan): ContentItem {
   };
 }
 
-function eventToContentItem(event: EventData): ContentItem {
+function eventToContentItem(event: Event): ContentItem {
   return {
     id: event.id,
     type: 'event',
     title: event.title,
     description: event.description,
     createdAt: event.createdAt,
-    tags: ['event', event.isOnline ? 'online' : 'in-person'],
-    engagementScore: (event.attendeeCount || 0) * 2,
+    tags: ['event', event.isVirtual ? 'virtual' : 'in-person'],
+    engagementScore: 5, // Base engagement score for events
   };
 }
 

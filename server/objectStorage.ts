@@ -3,12 +3,12 @@ import { Response } from "express";
 import { randomUUID } from "crypto";
 import type {
   ObjectAclPolicy,
+  ObjectPermission,
 } from "./objectAcl";
 import {
   canAccessObject,
   getObjectAclPolicy,
   setObjectAclPolicy,
-  ObjectPermission,
 } from "./objectAcl";
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
@@ -234,7 +234,7 @@ export class ObjectStorageService {
     requestedPermission?: ObjectPermission;
   }): Promise<boolean> {
     return canAccessObject({
-      userId: userId || undefined,
+      userId,
       objectFile,
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });

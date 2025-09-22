@@ -1,12 +1,11 @@
 import { db } from './db';
-import { eq } from 'drizzle-orm';
 import { 
   users, 
   communities,
   communityMembers,
   communityChatRooms,
   chatMessages
-} from '../shared/schema';
+} from '@shared/schema';
 
 /**
  * Seeds the community features and related data
@@ -22,7 +21,7 @@ export async function seedCommunities() {
   }
 
   // Get the demo user to use as creator
-  const demoUsers = await db.select().from(users).where(eq(users.username, 'demo'));
+  const demoUsers = await db.select().from(users).where(({ eq }) => eq(users.username, 'demo'));
   if (demoUsers.length === 0) {
     console.log("Demo user not found, cannot seed communities");
     return;

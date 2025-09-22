@@ -36,6 +36,9 @@ import {
   BibleReadingProgress, InsertBibleReadingProgress,
   BibleStudyNote, InsertBibleStudyNote,
   
+  // Direct messaging
+  Message, InsertMessage,
+  
   // Database tables
   users, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
   posts, comments, groups, groupMembers, apologeticsResources, 
@@ -44,7 +47,7 @@ import {
   events, eventRsvps, prayerRequests, prayers,
   bibleReadingPlans, bibleReadingProgress, bibleStudyNotes,
   livestreamerApplications, apologistScholarApplications,
-  userPreferences
+  userPreferences, messages
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql, inArray, like } from "drizzle-orm";
@@ -78,9 +81,9 @@ class StorageSafety {
     'isGroupAdmin', 'isGroupMember', 'getAllApologeticsResources',
     'getApologeticsResource', 'createApologeticsResource', 'getPublicPrayerRequests',
     'getAllPrayerRequests', 'getPrayerRequest', 'getUserPrayerRequests',
-    'getGroupPrayerRequests', 'createPrayerRequest', 'updatePrayerRequest',
-    'markPrayerRequestAsAnswered', 'deletePrayerRequest', 'createPrayer',
-    'getPrayersForRequest', 'getUserPrayedRequests', 'getAllApologeticsTopics',
+    'getGroupPrayerRequests', 'getPrayerRequestsVisibleToUser', 'createPrayerRequest',
+    'updatePrayerRequest', 'markPrayerRequestAsAnswered', 'deletePrayerRequest',
+    'createPrayer', 'getPrayersForRequest', 'getUserPrayedRequests', 'getAllApologeticsTopics',
     'getApologeticsTopic', 'getApologeticsTopicBySlug', 'createApologeticsTopic',
     'getAllApologeticsQuestions', 'getApologeticsQuestion', 'getApologeticsQuestionsByTopic',
     'createApologeticsQuestion', 'updateApologeticsQuestionStatus',
@@ -95,10 +98,12 @@ class StorageSafety {
     'updateLivestreamerApplication', 'isApprovedLivestreamer',
     'getApologistScholarApplicationByUserId', 'getPendingApologistScholarApplications',
     'createApologistScholarApplication', 'updateApologistScholarApplication',
+    'getAllLivestreamerApplications', 'getAllApologistScholarApplications',
+    'getLivestreamerApplicationStats', 'updateLivestreamerApplicationStatus', 'deleteUser',
     'getAllBibleReadingPlans', 'getBibleReadingPlan', 'createBibleReadingPlan',
     'getBibleReadingProgress', 'createBibleReadingProgress', 'markDayCompleted',
     'getBibleStudyNotes', 'getBibleStudyNote', 'createBibleStudyNote',
-    'updateBibleStudyNote', 'deleteBibleStudyNote'
+    'updateBibleStudyNote', 'deleteBibleStudyNote', 'getDirectMessages', 'createDirectMessage', 'updateUserPreferences', 'getUserPreferences'
   ]);
 
   static isMethodImplemented(methodName: string): boolean {
@@ -218,6 +223,7 @@ export interface IStorage {
   getPrayerRequest(id: number): Promise<PrayerRequest | undefined>;
   getUserPrayerRequests(userId: number): Promise<PrayerRequest[]>;
   getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]>;
+  getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]>;
   createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest>;
   updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest>;
   markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest>;
@@ -288,6 +294,13 @@ export interface IStorage {
   createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication>;
   updateApologistScholarApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<ApologistScholarApplication>;
   
+  // Admin methods
+  getAllLivestreamerApplications(): Promise<LivestreamerApplication[]>;
+  getAllApologistScholarApplications(): Promise<ApologistScholarApplication[]>;
+  getLivestreamerApplicationStats(): Promise<any>;
+  updateLivestreamerApplicationStatus(id: number, status: string, reviewNotes?: string): Promise<LivestreamerApplication>;
+  deleteUser(userId: number): Promise<boolean>;
+  
   // Bible Reading Plan methods
   getAllBibleReadingPlans(): Promise<BibleReadingPlan[]>;
   getBibleReadingPlan(id: number): Promise<BibleReadingPlan | undefined>;
@@ -304,6 +317,10 @@ export interface IStorage {
   createBibleStudyNote(note: InsertBibleStudyNote): Promise<BibleStudyNote>;
   updateBibleStudyNote(id: number, data: Partial<BibleStudyNote>): Promise<BibleStudyNote>;
   deleteBibleStudyNote(id: number): Promise<boolean>;
+  
+  // Direct Messaging methods
+  getDirectMessages(userId1: number, userId2: number): Promise<any[]>;
+  createDirectMessage(message: any): Promise<any>;
 }
 
 // In-memory storage implementation
@@ -397,7 +414,8 @@ export class MemStorage implements IStorage {
     bibleReadingPlans: [] as BibleReadingPlan[],
     bibleReadingProgress: [] as BibleReadingProgress[],
     bibleStudyNotes: [] as BibleStudyNote[],
-    userPreferences: [] as UserPreferences[]
+    userPreferences: [] as UserPreferences[],
+    messages: [] as Message[]
   };
   
   private nextId = 1;
@@ -1129,6 +1147,25 @@ export class MemStorage implements IStorage {
       .map(p => ({ ...p, description: p.title }));
   }
   
+  async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
+    // Get user's groups
+    const userGroups = this.data.groupMembers
+      .filter(gm => gm.userId === userId)
+      .map(gm => gm.groupId);
+    
+    return this.data.prayerRequests
+      .filter(p => {
+        // Public prayer requests
+        if (p.privacyLevel === 'public') return true;
+        // Prayer requests from groups the user is in
+        if (p.privacyLevel === 'group-only' && p.groupId && userGroups.includes(p.groupId)) return true;
+        // User's own prayer requests
+        if (p.authorId === userId) return true;
+        return false;
+      })
+      .map(p => ({ ...p, description: p.title }));
+  }
+  
   async createPrayerRequest(prayer: any): Promise<PrayerRequest> {
     const newPrayer: PrayerRequest = {
       id: this.nextId++,
@@ -1689,6 +1726,66 @@ export class MemStorage implements IStorage {
     this.data.bibleStudyNotes.splice(index, 1);
     return true;
   }
+  
+  // Admin methods
+  async getAllLivestreamerApplications(): Promise<LivestreamerApplication[]> {
+    return [...this.data.livestreamerApplications];
+  }
+  
+  async getAllApologistScholarApplications(): Promise<ApologistScholarApplication[]> {
+    return [...this.data.apologistScholarApplications];
+  }
+  
+  async getLivestreamerApplicationStats(): Promise<any> {
+    const all = this.data.livestreamerApplications;
+    return {
+      total: all.length,
+      pending: all.filter(a => a.status === 'pending').length,
+      approved: all.filter(a => a.status === 'approved').length,
+      rejected: all.filter(a => a.status === 'rejected').length
+    };
+  }
+  
+  async updateLivestreamerApplicationStatus(id: number, status: string, reviewNotes?: string): Promise<LivestreamerApplication> {
+    const application = this.data.livestreamerApplications.find(a => a.id === id);
+    if (!application) throw new Error('Application not found');
+    
+    application.status = status as any;
+    if (reviewNotes) application.reviewNotes = reviewNotes;
+    application.reviewedAt = new Date();
+    
+    return application;
+  }
+  
+  async deleteUser(userId: number): Promise<boolean> {
+    const index = this.data.users.findIndex(u => u.id === userId);
+    if (index === -1) return false;
+    
+    this.data.users.splice(index, 1);
+    return true;
+  }
+  
+  // Direct Messaging methods
+  async getDirectMessages(userId1: number, userId2: number): Promise<any[]> {
+    return this.data.messages
+      .filter(m => 
+        (m.senderId === userId1 && m.receiverId === userId2) ||
+        (m.senderId === userId2 && m.receiverId === userId1)
+      )
+      .sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime());
+  }
+  
+  async createDirectMessage(message: any): Promise<any> {
+    const newMessage = {
+      id: crypto.randomUUID(),
+      senderId: message.senderId,
+      receiverId: message.receiverId,
+      content: message.content,
+      createdAt: new Date()
+    };
+    this.data.messages.push(newMessage);
+    return newMessage;
+  }
 }
 
 // Database-backed storage implementation
@@ -2083,6 +2180,34 @@ export class DbStorage implements IStorage {
     return [];
   }
   
+  async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
+    // Get user's groups
+    const userGroups = await db.select({ groupId: groupMembers.groupId })
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, userId));
+    
+    const groupIds = userGroups.map(g => g.groupId);
+    
+    // Get prayer requests visible to user
+    const conditions = [];
+    
+    // Public prayer requests
+    conditions.push(eq(prayerRequests.privacyLevel, 'public'));
+    
+    // Prayer requests from groups the user is in
+    if (groupIds.length > 0) {
+      conditions.push(and(
+        eq(prayerRequests.privacyLevel, 'group-only'),
+        inArray(prayerRequests.groupId, groupIds)
+      ));
+    }
+    
+    // User's own prayer requests
+    conditions.push(eq(prayerRequests.authorId, userId));
+    
+    return await db.select().from(prayerRequests).where(or(...conditions));
+  }
+  
   async createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest> {
     throw new Error('Not implemented');
   }
@@ -2341,6 +2466,60 @@ export class DbStorage implements IStorage {
   
   async deleteBibleStudyNote(id: number): Promise<boolean> {
     return false;
+  }
+  
+  // Admin methods
+  async getAllLivestreamerApplications(): Promise<LivestreamerApplication[]> {
+    return await db.select().from(livestreamerApplications);
+  }
+  
+  async getAllApologistScholarApplications(): Promise<ApologistScholarApplication[]> {
+    return await db.select().from(apologistScholarApplications);
+  }
+  
+  async getLivestreamerApplicationStats(): Promise<any> {
+    const all = await db.select().from(livestreamerApplications);
+    return {
+      total: all.length,
+      pending: all.filter(a => a.status === 'pending').length,
+      approved: all.filter(a => a.status === 'approved').length,
+      rejected: all.filter(a => a.status === 'rejected').length
+    };
+  }
+  
+  async updateLivestreamerApplicationStatus(id: number, status: string, reviewNotes?: string): Promise<LivestreamerApplication> {
+    const result = await db.update(livestreamerApplications)
+      .set({ 
+        status: status as any,
+        reviewNotes: reviewNotes || null,
+        reviewedAt: new Date()
+      })
+      .where(eq(livestreamerApplications.id, id))
+      .returning();
+    
+    if (!result[0]) throw new Error('Application not found');
+    return result[0];
+  }
+  
+  async deleteUser(userId: number): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, userId));
+    return result.rowCount > 0;
+  }
+  
+  // Direct Messaging methods
+  async getDirectMessages(userId1: number, userId2: number): Promise<any[]> {
+    const result = await db.select().from(messages).where(
+      or(
+        and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
+        and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
+      )
+    ).orderBy(messages.createdAt);
+    return result;
+  }
+  
+  async createDirectMessage(message: any): Promise<any> {
+    const result = await db.insert(messages).values(message).returning();
+    return result[0];
   }
 }
 
