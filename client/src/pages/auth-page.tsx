@@ -65,7 +65,9 @@ export default function AuthPage() {
   });
 
   // Register form
-  const registerForm = useForm<RegisterFormValues>({
+  // Use a looser form typing here to allow optional fields like displayName and bio
+  // while we incrementally align the shared schema with the UI fields.
+  const registerForm = useForm<any>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       username: "",

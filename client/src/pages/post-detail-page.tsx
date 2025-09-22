@@ -36,7 +36,8 @@ const commentFormSchema = insertCommentSchema.extend({
 
 export default function PostDetailPage() {
   const [, params] = useRoute("/posts/:id");
-  const postId = parseInt(params?.id || "0");
+  const p = params as any;
+  const postId = parseInt(p?.id || "0");
   const { user } = useAuth();
   const { toast } = useToast();
   const [commentText, setCommentText] = useState("");

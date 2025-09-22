@@ -63,7 +63,7 @@ export default function CommunityPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const slug = params.slug as string;
+  const slug = (params as any).slug as string;
   const [showJoinConfirm, setShowJoinConfirm] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

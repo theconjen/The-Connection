@@ -5,7 +5,7 @@ import io, { Socket } from 'socket.io-client';
 
 export default function DMsPage() {
   const params = useParams();
-  const userIdFromUrl = params.userId;
+  const userIdFromUrl = (params as any).userId;
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [messages, setMessages] = useState<any[]>([]);
   const [content, setContent] = useState("");

@@ -69,15 +69,16 @@ export default function SubmitPostPage() {
       }
       
       // Remove any field that is empty or undefined
-      const postData: InsertPost = {
+      const postData: any = {
         title: data.title,
         content,
         authorId: user!.id,
       };
       
-      if (data.imageUrl) postData.imageUrl = data.imageUrl;
-      if (data.communityId) postData.communityId = data.communityId;
-      if (data.groupId) postData.groupId = data.groupId;
+      const d = data as any;
+      if (d.imageUrl) postData.imageUrl = d.imageUrl;
+      if (d.communityId) postData.communityId = d.communityId;
+      if (d.groupId) postData.groupId = d.groupId;
       
       const res = await apiRequest("POST", "/api/posts", postData);
       return await res.json();

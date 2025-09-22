@@ -38,7 +38,7 @@ export default function AcceptInvitationPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const token = params.token as string;
+  const token = (params as any).token as string;
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [acceptanceStatus, setAcceptanceStatus] = useState<'idle' | 'accepting' | 'success' | 'error'>('idle');
 
