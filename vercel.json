@@ -1,9 +1,19 @@
 {
   "version": 2,
+  "outputDirectory": "dist/public",
+  "buildCommand": "npm run build",
   "routes": [
     {
-      "src": "/(.*)",
-      "dest": "/public/index.html"
+      "src": "^/api/(.*)$",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "^/assets/(.*)$",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": ".*",
+      "dest": "/index.html"
     }
   ]
 }
