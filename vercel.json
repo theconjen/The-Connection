@@ -1,14 +1,21 @@
 {
   "version": 2,
-  
   "routes": [
+    { "handle": "filesystem" },
+
     {
-      "src": "/api/(.*)",
+      "src": "^/api/(.*)$",
       "dest": "/api/index.ts"
     },
+
     {
-      "src": "/(.*)",
-      "dest": "/$1"
+      "src": "^/assets/(.*)$",
+      "dest": "/dist/public/assets/$1"
+    },
+
+    {
+      "src": "^/(.*)$",
+      "dest": "/dist/public/index.html"
     }
   ]
 }
