@@ -864,15 +864,10 @@ export class MemStorage implements IStorage {
   async createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost> {
     const newPost: CommunityWallPost = {
       id: this.nextId++,
-      ...post,
       likeCount: 0,
       commentCount: 0,
       createdAt: new Date(),
-      isPrivate: false,
-      communityId: 0,
-      content: "",
-      authorId: 0,
-      imageUrl: ""
+      ...post,
     };
     this.data.communityWallPosts.push(newPost);
     return newPost;
@@ -972,16 +967,10 @@ export class MemStorage implements IStorage {
   async createPost(post: InsertPost): Promise<Post> {
     const newPost: Post = {
       id: this.nextId++,
-      ...post,
       upvotes: 0,
       commentCount: 0,
       createdAt: new Date(),
-      communityId: 0,
-      content: "",
-      authorId: 0,
-      imageUrl: "",
-      title: "",
-      groupId: 0
+      ...post,
     };
     this.data.posts.push(newPost);
     return newPost;
@@ -1009,13 +998,9 @@ export class MemStorage implements IStorage {
   async createComment(comment: InsertComment): Promise<Comment> {
     const newComment: Comment = {
       id: this.nextId++,
-      ...comment,
       upvotes: 0,
       createdAt: new Date(),
-      content: "",
-      authorId: 0,
-      postId: 0,
-      parentId: 0
+      ...comment,
     };
     this.data.comments.push(newComment);
     
@@ -1049,14 +1034,8 @@ export class MemStorage implements IStorage {
   async createGroup(group: InsertGroup): Promise<Group> {
     const newGroup: Group = {
       id: this.nextId++,
-      ...group,
       createdAt: new Date(),
-      name: "",
-      description: "",
-      iconName: "",
-      iconColor: "",
-      isPrivate: false,
-      createdBy: 0
+      ...group,
     };
     this.data.groups.push(newGroup);
     return newGroup;
@@ -1100,13 +1079,8 @@ export class MemStorage implements IStorage {
   async createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource> {
     const newResource: ApologeticsResource = {
       id: this.nextId++,
-      ...resource,
       createdAt: new Date(),
-      description: "",
-      iconName: "",
-      title: "",
-      type: "",
-      url: ""
+      ...resource,
     };
     this.data.apologeticsResources.push(newResource);
     return newResource;
@@ -1258,12 +1232,8 @@ export class MemStorage implements IStorage {
   async createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic> {
     const newTopic: ApologeticsTopic = {
       id: this.nextId++,
-      ...topic,
       createdAt: new Date(),
-      name: "",
-      description: "",
-      iconName: "",
-      slug: ""
+      ...topic,
     };
     this.data.apologeticsTopics.push(newTopic);
     return newTopic;
@@ -1473,16 +1443,11 @@ export class MemStorage implements IStorage {
   async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
     const newMicroblog: Microblog = {
       id: this.nextId++,
-      communityId: microblog.communityId || 0,
-      content: microblog.content || "",
-      authorId: microblog.authorId || 0,
-      imageUrl: microblog.imageUrl || "",
-      groupId: microblog.groupId || 0,
-      parentId: microblog.parentId || 0,
       likeCount: 0,
       repostCount: 0,
       replyCount: 0,
-      createdAt: new Date()
+      createdAt: new Date(),
+      ...microblog,
     };
     this.data.microblogs.push(newMicroblog);
     return newMicroblog;
@@ -1657,13 +1622,11 @@ export class MemStorage implements IStorage {
   async createBibleReadingProgress(progress: InsertBibleReadingProgress): Promise<BibleReadingProgress> {
     const newProgress: BibleReadingProgress = {
       id: this.nextId++,
-      ...progress,
       currentDay: 1,
       completedDays: "[]",
       startedAt: new Date(),
       completedAt: null,
-      userId: 0,
-      planId: 0
+      ...progress,
     };
     this.data.bibleReadingProgress.push(newProgress);
     return newProgress;

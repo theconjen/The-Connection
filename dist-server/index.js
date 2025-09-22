@@ -544,15 +544,10 @@ var init_storage = __esm({
       async createCommunityWallPost(post) {
         const newPost = {
           id: this.nextId++,
-          ...post,
           likeCount: 0,
           commentCount: 0,
           createdAt: /* @__PURE__ */ new Date(),
-          isPrivate: false,
-          communityId: 0,
-          content: "",
-          authorId: 0,
-          imageUrl: ""
+          ...post
         };
         this.data.communityWallPosts.push(newPost);
         return newPost;
@@ -636,16 +631,10 @@ var init_storage = __esm({
       async createPost(post) {
         const newPost = {
           id: this.nextId++,
-          ...post,
           upvotes: 0,
           commentCount: 0,
           createdAt: /* @__PURE__ */ new Date(),
-          communityId: 0,
-          content: "",
-          authorId: 0,
-          imageUrl: "",
-          title: "",
-          groupId: 0
+          ...post
         };
         this.data.posts.push(newPost);
         return newPost;
@@ -667,13 +656,9 @@ var init_storage = __esm({
       async createComment(comment) {
         const newComment = {
           id: this.nextId++,
-          ...comment,
           upvotes: 0,
           createdAt: /* @__PURE__ */ new Date(),
-          content: "",
-          authorId: 0,
-          postId: 0,
-          parentId: 0
+          ...comment
         };
         this.data.comments.push(newComment);
         const post = this.data.posts.find((p) => p.id === newComment.postId);
@@ -700,14 +685,8 @@ var init_storage = __esm({
       async createGroup(group) {
         const newGroup = {
           id: this.nextId++,
-          ...group,
           createdAt: /* @__PURE__ */ new Date(),
-          name: "",
-          description: "",
-          iconName: "",
-          iconColor: "",
-          isPrivate: false,
-          createdBy: 0
+          ...group
         };
         this.data.groups.push(newGroup);
         return newGroup;
@@ -744,13 +723,8 @@ var init_storage = __esm({
       async createApologeticsResource(resource) {
         const newResource = {
           id: this.nextId++,
-          ...resource,
           createdAt: /* @__PURE__ */ new Date(),
-          description: "",
-          iconName: "",
-          title: "",
-          type: "",
-          url: ""
+          ...resource
         };
         this.data.apologeticsResources.push(newResource);
         return newResource;
@@ -866,12 +840,8 @@ var init_storage = __esm({
       async createApologeticsTopic(topic) {
         const newTopic = {
           id: this.nextId++,
-          ...topic,
           createdAt: /* @__PURE__ */ new Date(),
-          name: "",
-          description: "",
-          iconName: "",
-          slug: ""
+          ...topic
         };
         this.data.apologeticsTopics.push(newTopic);
         return newTopic;
@@ -1042,16 +1012,11 @@ var init_storage = __esm({
       async createMicroblog(microblog) {
         const newMicroblog = {
           id: this.nextId++,
-          communityId: microblog.communityId || 0,
-          content: microblog.content || "",
-          authorId: microblog.authorId || 0,
-          imageUrl: microblog.imageUrl || "",
-          groupId: microblog.groupId || 0,
-          parentId: microblog.parentId || 0,
           likeCount: 0,
           repostCount: 0,
           replyCount: 0,
-          createdAt: /* @__PURE__ */ new Date()
+          createdAt: /* @__PURE__ */ new Date(),
+          ...microblog
         };
         this.data.microblogs.push(newMicroblog);
         return newMicroblog;
@@ -1197,13 +1162,11 @@ var init_storage = __esm({
       async createBibleReadingProgress(progress) {
         const newProgress = {
           id: this.nextId++,
-          ...progress,
           currentDay: 1,
           completedDays: "[]",
           startedAt: /* @__PURE__ */ new Date(),
           completedAt: null,
-          userId: 0,
-          planId: 0
+          ...progress
         };
         this.data.bibleReadingProgress.push(newProgress);
         return newProgress;

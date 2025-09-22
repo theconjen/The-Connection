@@ -1285,3 +1285,85 @@ export type InsertServiceVolunteer = z.infer<typeof insertServiceVolunteerSchema
 
 export type ServiceTestimonial = typeof serviceTestimonials.$inferSelect;
 export type InsertServiceTestimonial = z.infer<typeof insertServiceTestimonialSchema>;
+
+// Content Moderation System Tables
+export const contentReports = pgTable("content_reports", {
+  id: serial("id").primaryKey(),
+  reporterId: integer("reporter_id").notNull().references(() => users.id),
+  contentType: text("content_type").notNull(), // 'post', 'microblog', 'comment', 'event', 'prayer_request'
+  contentId: integer("content_id").notNull(),
+  reason: text("reason").notNull(), // 'spam', 'harassment', 'inappropriate', 'hate_speech', 'false_info', 'other'
+  description: text("description"),
+  status: text("status").default("pending"), // 'pending', 'reviewing', 'resolved', 'dismissed'
+  moderatorId: integer("moderator_id").references(() => users.id),
+  moderatorNotes: text("moderator_notes"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertContentReportSchema = createInsertSchema(contentReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  resolvedAt: true,
+  moderatorId: true,
+  moderatorNotes: true,
+} as any);
+
+export const userBlocks = pgTable("user_blocks", {
+  id: serial("id").primaryKey(),
+  blockerId: integer("blocker_id").notNull().references(() => users.id),
+  blockedId: integer("blocked_id").notNull().references(() => users.id),
+  reason: text("reason"), // 'harassment', 'spam', 'inappropriate', 'other'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserBlockSchema = createInsertSchema(userBlocks).omit({
+  id: true,
+  createdAt: true,
+} as any);
+
+export const moderationActions = pgTable("moderation_actions", {
+  id: serial("id").primaryKey(),
+  moderatorId: integer("moderator_id").notNull().references(() => users.id),
+  contentType: text("content_type").notNull(),
+  contentId: integer("content_id").notNull(),
+  action: text("action").notNull(), // 'warn', 'hide', 'delete', 'ban_user'
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertModerationActionSchema = createInsertSchema(moderationActions).omit({
+  id: true,
+  createdAt: true,
+} as any);
+
+export const moderationSettings = pgTable("moderation_settings", {
+  id: serial("id").primaryKey(),
+  autoModerateEnabled: boolean("auto_moderate_enabled").default(true),
+  profanityFilterEnabled: boolean("profanity_filter_enabled").default(true),
+  spamDetectionEnabled: boolean("spam_detection_enabled").default(true),
+  reviewThreshold: integer("review_threshold").default(3), // Number of reports before auto-hide
+  contactEmail: text("contact_email").default("support@theconnection.app"),
+  responseTimeSlaHours: integer("response_time_sla_hours").default(24),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertModerationSettingsSchema = createInsertSchema(moderationSettings).omit({
+  id: true,
+  updatedAt: true,
+} as any);
+
+// Type exports for content moderation
+export type ContentReport = typeof contentReports.$inferSelect;
+export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
+
+export type UserBlock = typeof userBlocks.$inferSelect;
+export type InsertUserBlock = z.infer<typeof insertUserBlockSchema>;
+
+export type ModerationAction = typeof moderationActions.$inferSelect;
+export type InsertModerationAction = z.infer<typeof insertModerationActionSchema>;
+
+export type ModerationSettings = typeof moderationSettings.$inferSelect;
+export type InsertModerationSettings = z.infer<typeof insertModerationSettingsSchema>;
