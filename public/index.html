@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Connection</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .container {
+      text-align: center;
+      max-width: 600px;
+    }
+    h1 { font-size: 3rem; margin-bottom: 1rem; }
+    p { font-size: 1.25rem; opacity: 0.9; }
+    .loading {
+      margin-top: 2rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>The Connection</h1>
+    <p>Your Christian community platform is loading...</p>
+    <div class="loading">
+      <p>⏳ Building deployment...</p>
+    </div>
+  </div>
+  <script>
+    // Auto-refresh every 30 seconds during deployment
+    setTimeout(() => {
+      window.location.reload();
+    }, 30000);
+  </script>
+</body>
+</html>
