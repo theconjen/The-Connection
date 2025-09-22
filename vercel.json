@@ -1,6 +1,11 @@
 {
   "version": 2,
   "routes": [
+    {
+      "src": "^/$",
+      "dest": "/dist/public/index.html"
+    },
+
     { "handle": "filesystem" },
 
     {
