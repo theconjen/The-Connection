@@ -21,4 +21,26 @@ export default defineConfig({
       ],
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split major vendor libraries into separate chunks to avoid very large bundles
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-react')) return 'vendor-lucide';
+            if (id.includes('@radix-ui') || id.includes('@radix')) return 'vendor-radix';
+            if (id.includes('react-dom')) return 'vendor-react-dom';
+            if (id.includes('react') && !id.includes('react-dom')) return 'vendor-react';
+            if (id.includes('date-fns')) return 'vendor-date-fns';
+            if (id.includes('tiny-invariant')) return 'vendor-invariant';
+            if (id.includes('clsx')) return 'vendor-clsx';
+            // fallback: group other node_modules into vendor chunk
+            return 'vendor';
+          }
+        },
+      },
+    },
+    // keep default chunk size warning limit or adjust if you prefer
+    chunkSizeWarningLimit: 600,
+  },
 });

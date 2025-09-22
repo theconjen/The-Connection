@@ -6,6 +6,7 @@ import {
 import { User as SelectUser, InsertUser } from "../../../shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "./use-toast";
+import { navigate } from "wouter/use-browser-location";
 
 // Define types for login data and auth context
 type LoginData = {
@@ -101,9 +102,7 @@ export function useAuth(): AuthContextType {
       
       // Navigate after ensuring the state is updated
       setTimeout(() => {
-        import("wouter/use-browser-location").then(({ navigate }) => {
-          navigate("/");
-        });
+        navigate("/");
       }, 300);
     },
     onError: (error: Error) => {
@@ -148,9 +147,7 @@ export function useAuth(): AuthContextType {
       });
       
       // Navigate immediately since we have the user data
-      import("wouter/use-browser-location").then(({ navigate }) => {
-        navigate("/profile");
-      });
+      navigate("/profile");
     },
     onError: (error: Error) => {
       toast({
@@ -184,9 +181,7 @@ export function useAuth(): AuthContextType {
       });
       
       // Navigate to auth page
-      import("wouter/use-browser-location").then(({ navigate }) => {
-        navigate("/auth");
-      });
+      navigate("/auth");
     },
     onError: (error: Error) => {
       // For logout errors, still perform client-side logout
@@ -199,9 +194,7 @@ export function useAuth(): AuthContextType {
       });
       
       // Navigate to auth page even if there was an error
-      import("wouter/use-browser-location").then(({ navigate }) => {
-        navigate("/auth");
-      });
+      navigate("/auth");
     },
   });
 
