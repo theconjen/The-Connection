@@ -7,9 +7,9 @@ import { insertOrganizationSchema, insertOrganizationUserSchema } from "@shared/
 
 const router = express.Router();
 
-// Middleware to check authentication
+// Middleware to check authentication (use session userId)
 const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!req.user) {
+  if (!req.session || !req.session.userId) {
     return res.status(401).json({ message: "Authentication required" });
   }
   next();
@@ -18,9 +18,10 @@ const requireAuth = (req: express.Request, res: express.Response, next: express.
 // Create a new organization (church)
 router.post("/", requireAuth, async (req, res) => {
   try {
+  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
     const data = insertOrganizationSchema.parse({
       ...req.body,
-      adminUserId: req.user!.id
+      adminUserId: currentUserId
     });
 
     const [organization] = await db.insert(organizations)
@@ -31,7 +32,7 @@ router.post("/", requireAuth, async (req, res) => {
     await db.insert(organizationUsers)
       .values({
         organizationId: organization.id,
-        userId: req.user!.id,
+        userId: currentUserId,
         role: "admin"
       });
 
@@ -46,14 +47,15 @@ router.post("/", requireAuth, async (req, res) => {
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
-    
+  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+
     // Check if user is a member of the organization
     const membership = await db
       .select()
       .from(organizationUsers)
       .where(and(
         eq(organizationUsers.organizationId, organizationId),
-        eq(organizationUsers.userId, req.user!.id)
+        eq(organizationUsers.userId, currentUserId)
       ))
       .limit(1);
 
@@ -81,6 +83,8 @@ router.get("/:id", requireAuth, async (req, res) => {
 // Get organizations for current user
 router.get("/", requireAuth, async (req, res) => {
   try {
+  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+
     const userOrganizations = await db
       .select({
         organization: organizations,
@@ -89,7 +93,7 @@ router.get("/", requireAuth, async (req, res) => {
       })
       .from(organizationUsers)
       .innerJoin(organizations, eq(organizations.id, organizationUsers.organizationId))
-      .where(eq(organizationUsers.userId, req.user!.id));
+  .where(eq(organizationUsers.userId, currentUserId));
 
     res.json(userOrganizations);
   } catch (error) {
@@ -103,6 +107,7 @@ router.post("/:id/invite", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const { userId, role = "member" } = req.body;
+    const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
 
     // Check if current user is admin of the organization
     const adminCheck = await db
@@ -110,7 +115,7 @@ router.post("/:id/invite", requireAuth, async (req, res) => {
       .from(organizationUsers)
       .where(and(
         eq(organizationUsers.organizationId, organizationId),
-        eq(organizationUsers.userId, req.user!.id),
+        eq(organizationUsers.userId, currentUserId),
         eq(organizationUsers.role, "admin")
       ))
       .limit(1);
@@ -152,14 +157,15 @@ router.post("/:id/invite", requireAuth, async (req, res) => {
 router.get("/:id/members", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
-    
+  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+
     // Check if user is a member of the organization
     const membership = await db
       .select()
       .from(organizationUsers)
       .where(and(
         eq(organizationUsers.organizationId, organizationId),
-        eq(organizationUsers.userId, req.user!.id)
+        eq(organizationUsers.userId, currentUserId)
       ))
       .limit(1);
 
@@ -194,6 +200,7 @@ router.patch("/:id/plan", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const { plan, stripeCustomerId, stripeSubscriptionId } = req.body;
+  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
 
     // Check if current user is admin of the organization
     const adminCheck = await db
@@ -201,7 +208,7 @@ router.patch("/:id/plan", requireAuth, async (req, res) => {
       .from(organizationUsers)
       .where(and(
         eq(organizationUsers.organizationId, organizationId),
-        eq(organizationUsers.userId, req.user!.id),
+        eq(organizationUsers.userId, currentUserId),
         eq(organizationUsers.role, "admin")
       ))
       .limit(1);
@@ -233,6 +240,7 @@ router.delete("/:id/members/:userId", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const memberUserId = parseInt(req.params.userId);
+    const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
 
     // Check if current user is admin of the organization
     const adminCheck = await db
@@ -240,7 +248,7 @@ router.delete("/:id/members/:userId", requireAuth, async (req, res) => {
       .from(organizationUsers)
       .where(and(
         eq(organizationUsers.organizationId, organizationId),
-        eq(organizationUsers.userId, req.user!.id),
+        eq(organizationUsers.userId, currentUserId),
         eq(organizationUsers.role, "admin")
       ))
       .limit(1);

@@ -7,7 +7,7 @@ const TOKEN_EXPIRY = 60 * 60 * 1000;
 interface ResetTokenData {
   userId: number;
   email: string;
-  expires: string;
+  expires: number;
 }
 
 class PasswordResetManager {
@@ -28,8 +28,8 @@ class PasswordResetManager {
    * Store a token for a user
    */
   storeToken(userId: number, email: string, token: string): void {
-    const expires = Date.now() + TOKEN_EXPIRY;
-    this.tokens.set(token, { userId, email, expires });
+  const expires = Date.now() + TOKEN_EXPIRY;
+  this.tokens.set(token, { userId, email, expires });
     
     // Set a timeout to automatically clean up expired tokens
     setTimeout(() => {

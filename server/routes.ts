@@ -5,11 +5,48 @@ import { Server as SocketIOServer } from 'socket.io';
 import { setupAuth, isAuthenticated, isAdmin } from './auth';
 import { storage } from './storage';
 import { z } from 'zod';
-import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertMicroblogSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema } from '@shared/schema';
-import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
+import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertMicroblogSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema, InsertLivestreamerApplication, InsertApologistScholarApplication } from '@shared/schema';
+import { APP_DOMAIN, BASE_URL, APP_URLS, EMAIL_FROM } from './config/domain';
 import { sendCommunityInvitationEmail, sendNotificationEmail } from './email';
-import { sendLivestreamerApplicationNotificationEmail, sendApplicationStatusUpdateEmail } from './email-notifications';
+import { sendLivestreamerApplicationNotificationEmail, sendApplicationStatusUpdateEmail, sendApologistScholarApplicationNotificationEmail } from './email-notifications';
 import crypto from 'crypto';
+
+// Local payload types to avoid fragile inferred types from shared/zod schemas
+interface LivestreamAppPayload {
+  userId?: number;
+  ministryName?: string;
+  ministryDescription?: string;
+  ministerialExperience?: string;
+  statementOfFaith?: string;
+  socialMediaLinks?: string;
+  referenceName?: string;
+  referenceContact?: string;
+  referenceRelationship?: string;
+  sampleContentUrl?: string;
+  livestreamTopics?: string;
+  targetAudience?: string;
+  agreedToTerms?: boolean;
+}
+
+interface ApologistScholarAppPayload {
+  userId?: number;
+  fullName?: string;
+  academicCredentials?: string;
+  educationalBackground?: string;
+  theologicalPerspective?: string;
+  statementOfFaith?: string;
+  areasOfExpertise?: string;
+  publishedWorks?: string;
+  priorApologeticsExperience?: string;
+  writingSample?: string;
+  onlineSocialHandles?: string;
+  referenceName?: string;
+  referenceContact?: string;
+  referenceInstitution?: string;
+  motivation?: string;
+  weeklyTimeCommitment?: string;
+  agreedToGuidelines?: boolean;
+}
 
 // Utility function for generating tokens
 const generateToken = () => crypto.randomBytes(32).toString('hex');
@@ -28,7 +65,7 @@ import registerLocationSearchRoutes from './routes/api/location-search';
 
 declare module 'express-session' {
   interface SessionData {
-    userId?: number;
+    userId?: string | number;
     isAdmin?: boolean;
     isVerifiedApologeticsAnswerer?: boolean;
     email?: string;
@@ -138,16 +175,28 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.use('/api', authRoutes);
   app.use('/api/admin', adminRoutes);
   
+  // Helper to normalize session userId to number
+  function getSessionUserId(req: any): number | undefined {
+    const raw = req.session?.userId;
+    if (raw === undefined || raw === null) return undefined;
+    if (typeof raw === 'number') return raw;
+    const n = parseInt(String(raw));
+    return Number.isFinite(n) ? n : undefined;
+  }
+
   // Get current user endpoint (must be before userRoutes)
   app.get('/api/user', async (req, res) => {
     try {
-      const userId = req.session.userId;
+      const userId = getSessionUserId(req);
       
       if (!userId) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
       
-      // userId is already converted to number by middleware
+      if (userId === undefined) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -222,9 +271,9 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Community endpoints
   app.get('/api/communities', async (req, res) => {
     try {
-      const userId = req.session?.userId;
-      const searchQuery = req.query.search as string;
-      const communities = await storage.getPublicCommunitiesAndUserCommunities(userId, searchQuery);
+  const userId = getSessionUserId(req);
+  const searchQuery = req.query.search as string;
+  const communities = await storage.getPublicCommunitiesAndUserCommunities(userId, searchQuery);
       res.json(communities);
     } catch (error) {
       console.error('Error fetching communities:', error);
@@ -260,7 +309,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/communities', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const validatedData = insertCommunitySchema.parse({
         ...req.body,
         createdBy: userId
@@ -297,7 +346,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
 
       // Check if user is already a member
       const isMember = await storage.isCommunityMember(communityId, userId);
@@ -333,7 +382,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
 
       await storage.removeCommunityMember(communityId, userId);
       res.json({ message: 'Successfully left community' });
@@ -381,7 +430,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { email } = req.body;
 
       // Check if user is a moderator or owner of the community
@@ -451,7 +500,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         communityId = community.id;
       }
       const targetUserId = parseInt(req.params.userId);
-      const currentUserId = req.session!.userId!;
+  const currentUserId = getSessionUserId(req)!;
 
       // Check if current user is a moderator or owner
       const isModerator = await storage.isCommunityModerator(communityId, currentUserId);
@@ -493,7 +542,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/invitations/:token/accept', isAuthenticated, async (req, res) => {
     try {
       const token = req.params.token;
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       
       const invitation = await storage.getCommunityInvitationByToken(token);
       
@@ -545,7 +594,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-      const userId = req.session?.userId;
+  const userId = getSessionUserId(req);
 
       // Check if user is a member of the community or get public rooms
       if (userId && await storage.isCommunityMember(communityId, userId)) {
@@ -576,7 +625,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { name, description, isPrivate } = req.body;
 
       // Check if user is a moderator or owner
@@ -599,7 +648,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       await storage.createChatMessage({
         roomId: room.id,
         senderId: userId,
-        content: `${req.session.username || "A user"} created this chat room`,
+  content: `${req.session.username || "A user"} created this chat room`,
       });
 
       res.status(201).json(room);
@@ -612,7 +661,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.put('/api/chat-rooms/:roomId', isAuthenticated, async (req, res) => {
     try {
       const roomId = parseInt(req.params.roomId);
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { name, description, isPrivate } = req.body;
 
       const room = await storage.getCommunityRoom(roomId);
@@ -644,7 +693,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.delete('/api/chat-rooms/:roomId', isAuthenticated, async (req, res) => {
     try {
       const roomId = parseInt(req.params.roomId);
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
 
       const room = await storage.getCommunityRoom(roomId);
       if (!room) {
@@ -690,7 +739,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/chat-rooms/:roomId/messages', isAuthenticated, async (req, res) => {
     try {
       const roomId = parseInt(req.params.roomId);
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { content } = req.body;
 
       if (!content || content.trim().length === 0) {
@@ -756,7 +805,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { content, isPrivate } = req.body;
 
       // Check if user is a member of the community
@@ -807,7 +856,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/posts', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const validatedData = insertPostSchema.parse({
         ...req.body,
         authorId: userId
@@ -846,7 +895,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/comments', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const validatedData = insertCommentSchema.parse({
         ...req.body,
         authorId: userId
@@ -899,7 +948,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/microblogs', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const validatedData = insertMicroblogSchema.parse({
         ...req.body,
         authorId: userId
@@ -916,7 +965,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/microblogs/:id/like', isAuthenticated, async (req, res) => {
     try {
       const microblogId = parseInt(req.params.id);
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
 
       const like = await storage.likeMicroblog(microblogId, userId);
       res.status(201).json(like);
@@ -929,7 +978,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.delete('/api/microblogs/:id/like', isAuthenticated, async (req, res) => {
     try {
       const microblogId = parseInt(req.params.id);
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
 
       await storage.unlikeMicroblog(microblogId, userId);
       res.json({ message: 'Microblog unliked successfully' });
@@ -989,7 +1038,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/events', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const validatedData = insertEventSchema.parse({
         ...req.body,
         organizerId: userId
@@ -1006,7 +1055,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.patch('/api/events/:id/rsvp', isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.id);
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { status } = req.body;
 
       const rsvp = await storage.updateEventRSVP(eventId, status);
@@ -1020,7 +1069,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.delete('/api/events/:id', isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.id);
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
 
       // Check if user is the organizer or admin
       const event = await storage.getEvent(eventId);
@@ -1053,7 +1102,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/prayer-requests', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const validatedData = insertPrayerRequestSchema.parse({
         ...req.body,
         userId: userId
@@ -1070,7 +1119,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/prayer-requests/:id/pray', isAuthenticated, async (req, res) => {
     try {
       const prayerRequestId = parseInt(req.params.id);
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
 
       const prayer = await storage.createPrayer({
         prayerRequestId: prayerRequestId,
@@ -1117,7 +1166,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/apologetics/questions', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { topicId, title, content } = req.body;
 
       const question = await storage.createApologeticsQuestion({
@@ -1136,7 +1185,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/apologetics/answers', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { questionId, content } = req.body;
 
       // Check if user is verified to answer apologetics questions
@@ -1161,7 +1210,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Groups endpoints
   app.get('/api/groups', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const groups = await storage.getGroupsByUserId(userId);
       res.json(groups);
     } catch (error) {
@@ -1172,7 +1221,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/groups', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { name, description, isPrivate } = req.body;
 
       const group = await storage.createGroup({
@@ -1209,7 +1258,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/livestreams', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { title, description, streamUrl, scheduledFor } = req.body;
 
       const livestream = await storage.createLivestream({
@@ -1231,21 +1280,30 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Application endpoints
   app.post('/api/applications/livestreamer', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const validatedData = insertLivestreamerApplicationSchema.parse({
         ...req.body,
         userId: userId
-      });
+      }) as unknown as LivestreamAppPayload & InsertLivestreamerApplication;
 
       const application = await storage.createLivestreamerApplication(validatedData);
-      
-      // Send notification email to admins
+
+      // Send notification email to admins using the centralized notification helper
       try {
-        await sendLivestreamerApplicationEmail(
-          validatedData.email,
-          validatedData.fullName,
-          application.id
-        );
+        const user = await storage.getUser(userId);
+        const applicantName = (user && (user.displayName || user.username)) || 'Applicant';
+        const applicantEmail = (user && user.email) || EMAIL_FROM;
+        const adminDest = process.env.ADMIN_NOTIFICATION_EMAIL || EMAIL_FROM;
+
+        await sendLivestreamerApplicationNotificationEmail({
+          email: adminDest,
+          applicantName,
+          applicantEmail,
+          ministryName: validatedData.ministryName || 'Not specified',
+          applicationId: application.id,
+          applicationDate: new Date().toISOString(),
+          reviewLink: `${BASE_URL}/admin/livestreamer-applications/${application.id}`
+        }, applicantName, application.id);
       } catch (emailError) {
         console.error('Failed to send application notification email:', emailError);
       }
@@ -1259,21 +1317,31 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/applications/apologist-scholar', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+      const userId = getSessionUserId(req)!;
       const validatedData = insertApologistScholarApplicationSchema.parse({
         ...req.body,
         userId: userId
-      });
+      }) as unknown as ApologistScholarAppPayload & InsertApologistScholarApplication;
 
       const application = await storage.createApologistScholarApplication(validatedData);
-      
-      // Send notification email to admins
+
+      // Send notification email to admins using the apologist-specific helper
       try {
-        await sendApologistScholarApplicationEmail(
-          validatedData.email,
-          validatedData.fullName,
-          application.id
-        );
+        const user = await storage.getUser(userId);
+        const applicantName = validatedData.fullName || (user && (user.displayName || user.username)) || 'Applicant';
+        const applicantEmail = (user && user.email) || EMAIL_FROM;
+        const adminDest = process.env.ADMIN_NOTIFICATION_EMAIL || EMAIL_FROM;
+
+        // Use dedicated apologist scholar notification helper
+        await sendApologistScholarApplicationNotificationEmail({
+          email: adminDest,
+          applicantName,
+          applicantEmail,
+          ministryName: '',
+          applicationId: application.id,
+          applicationDate: new Date().toISOString(),
+          reviewLink: `${BASE_URL}/admin/apologist-scholar-applications/${application.id}`
+        }, applicantName, application.id);
       } catch (emailError) {
         console.error('Failed to send application notification email:', emailError);
       }
@@ -1295,10 +1363,13 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(400).json({ message: 'Invalid status' });
       }
 
-      const application = await storage.updateApologistScholarApplicationStatus(
+      // Use the storage method that exists on both MemStorage and DbStorage
+  const reviewerId = getSessionUserId(req)!;
+      const application = await storage.updateApologistScholarApplication(
         applicationId,
         status,
-        reviewNotes
+        reviewNotes,
+        reviewerId
       );
 
       // If approved, set user as verified apologetics answerer
@@ -1312,15 +1383,14 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
           ? "We're pleased to inform you that your application to become an apologetics scholar has been approved. You can now answer apologetics questions on our platform."
           : `Your apologetics scholar application has been reviewed. Status: ${status.toUpperCase()}. ${reviewNotes ? `Reviewer notes: ${reviewNotes}` : ''}`;
 
-        await sendApplicationStatusEmail({
-          to: application.email,
-          subject: `Apologetics Scholar Application ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-          message: emailMessage,
-          platformLink: `${BASE_URL}/apologetics/questions`,
-          actionText: status === "approved" ? "Start Answering Questions" : "View Platform",
-          actionUrl: status === "approved" 
-            ? `${BASE_URL}/apologetics/questions`
-            : `${BASE_URL}/apologist-scholar-application`
+        // Use the application status notification helper
+        await sendApplicationStatusUpdateEmail({
+          email: application.email,
+          applicantName: application.fullName || application.applicantName || 'Applicant',
+          status,
+          ministryName: (application as any).ministryName || '',
+          reviewNotes: reviewNotes || undefined,
+          platformLink: `${BASE_URL}/apologetics/questions`
         });
       } catch (emailError) {
         console.error('Failed to send status update email:', emailError);
@@ -1343,10 +1413,12 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(400).json({ message: 'Invalid status' });
       }
 
+  const reviewerId = getSessionUserId(req)!;
       const application = await storage.updateLivestreamerApplication(
         applicationId,
         status,
-        reviewNotes
+        reviewNotes,
+        reviewerId
       );
 
       // Send status update email
@@ -1355,15 +1427,14 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
           ? "We're pleased to inform you that your application to become a livestreamer has been approved. You can now start creating livestreams on our platform."
           : `Your livestreamer application has been reviewed. Status: ${status.toUpperCase()}. ${reviewNotes ? `Reviewer notes: ${reviewNotes}` : ''}`;
 
+        // Send templated status update using the centralized helper
         await sendApplicationStatusUpdateEmail({
-          to: application.email,
-          subject: `Livestreamer Application ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-          message: emailMessage,
-          reviewLink: `${BASE_URL}/admin/livestreamer-applications/${application.id}`,
-          actionText: status === "approved" ? "Start Livestreaming" : "View Application",
-          actionUrl: status === "approved" 
-            ? `${BASE_URL}/livestreams/create`
-            : `${BASE_URL}/livestreamer-application`
+          email: application.email,
+          applicantName: application.applicantName || application.fullName || 'Applicant',
+          status,
+          ministryName: (application as any).ministryName || '',
+          reviewNotes: reviewNotes || undefined,
+          platformLink: status === 'approved' ? `${BASE_URL}/livestreams/create` : `${BASE_URL}/livestreamer-application`
         });
       } catch (emailError) {
         console.error('Failed to send status update email:', emailError);
@@ -1416,7 +1487,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Notifications endpoints
   app.get('/api/notifications', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       // This would need to be implemented in storage
       const notifications = []; // await storage.getUserNotifications(userId);
       res.json(notifications);
@@ -1429,7 +1500,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.put('/api/notifications/:id/read', isAuthenticated, async (req, res) => {
     try {
       const notificationId = parseInt(req.params.id);
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       
       // This would need to be implemented in storage
       // await storage.markNotificationAsRead(notificationId, userId);
@@ -1443,7 +1514,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // User preferences endpoints
   app.get('/api/user/preferences', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const preferences = await storage.getUserPreferences(userId);
       res.json(preferences);
     } catch (error) {
@@ -1454,7 +1525,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.put('/api/user/preferences', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+      const userId = getSessionUserId(req)!;
       const preferences = await storage.updateUserPreferences(userId, req.body);
       res.json(preferences);
     } catch (error) {
@@ -1466,7 +1537,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Record user interactions for recommendation engine
   app.post('/api/recommendations/interaction', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const { contentId, contentType, interactionType } = req.body;
 
       console.log(`Interaction recorded: User ${userId} -> ${interactionType} on ${contentType} ${contentId}`);
@@ -1484,7 +1555,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Get personalized feed
   app.get('/api/recommendations/feed', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       const limit = parseInt(req.query.limit as string) || 20;
       
       // This would use the recommendation engine
@@ -1501,7 +1572,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Get friends activity
   app.get('/api/recommendations/friends-activity', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
+  const userId = getSessionUserId(req)!;
       
       // This would get activity from user's friends/connections
       // const activity = await storage.getFriendsActivity(userId);

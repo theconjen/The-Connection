@@ -53,6 +53,12 @@ export async function setupApplicationNotificationTemplate(): Promise<boolean> {
   }
 }
 
+// For apologist scholar applications we currently reuse the same notification template
+export async function setupApologistScholarApplicationNotificationTemplate(): Promise<boolean> {
+  // Delegate to the existing application notification setup
+  return setupApplicationNotificationTemplate();
+}
+
 // Create or update the application status update template
 export async function setupApplicationStatusUpdateTemplate(): Promise<boolean> {
   const templateName = DEFAULT_TEMPLATES.APPLICATION_STATUS_UPDATE;

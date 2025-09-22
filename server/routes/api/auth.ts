@@ -103,8 +103,9 @@ router.get('/user', async (req, res) => {
   }
   
   try {
-    // Get full user details from database
-    const user = await storage.getUser(req.session.userId);
+  // Get full user details from database. Coerce session userId to number.
+  const userIdNum = typeof req.session.userId === 'string' ? parseInt(req.session.userId, 10) : req.session.userId;
+  const user = await storage.getUser(userIdNum as number);
     
     if (!user) {
       // Session contains a userId but user doesn't exist

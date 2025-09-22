@@ -10,13 +10,13 @@ const router = express.Router();
 let stripe: Stripe | null = null;
 if (process.env.STRIPE_SECRET_KEY) {
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2024-12-18"
+  apiVersion: "2025-06-30.basil"
   });
 }
 
 // Middleware to check authentication
 const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!req.user) {
+  if (!req.session || !req.session.userId) {
     return res.status(401).json({ message: "Authentication required" });
   }
   next();
@@ -31,13 +31,19 @@ router.post("/checkout", requireAuth, async (req, res) => {
 
     const { organizationId, plan } = req.body;
     
+    const orgIdNum = parseInt(organizationId);
+
     // Verify user is admin of the organization
+    const currentUserId = typeof req.session!.userId === "string"
+      ? parseInt(req.session!.userId as any)
+      : (req.session!.userId as number);
+
     const adminCheck = await db
       .select()
       .from(organizationUsers)
       .where(and(
-        eq(organizationUsers.organizationId, parseInt(organizationId)),
-        eq(organizationUsers.userId, req.user!.id),
+        eq(organizationUsers.organizationId, orgIdNum),
+        eq(organizationUsers.userId, currentUserId),
         eq(organizationUsers.role, "admin")
       ))
       .limit(1);
@@ -50,7 +56,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
     const [organization] = await db
       .select()
       .from(organizations)
-      .where(eq(organizations.id, parseInt(organizationId)))
+  .where(eq(organizations.id, orgIdNum))
       .limit(1);
 
     if (!organization) {
@@ -68,12 +74,12 @@ router.post("/checkout", requireAuth, async (req, res) => {
         quantity: 1
       }],
       metadata: {
-        organizationId: organizationId.toString(),
+        organizationId: orgIdNum.toString(),
         plan
       },
-      success_url: `${process.env.BASE_URL || 'http://localhost:5000'}/organizations/${organizationId}?success=true`,
-      cancel_url: `${process.env.BASE_URL || 'http://localhost:5000'}/organizations/${organizationId}?canceled=true`,
-      customer_email: req.user!.email,
+      success_url: `${process.env.BASE_URL || 'http://localhost:5000'}/organizations/${orgIdNum}?success=true`,
+      cancel_url: `${process.env.BASE_URL || 'http://localhost:5000'}/organizations/${orgIdNum}?canceled=true`,
+      customer_email: (req.session!.email as string) || undefined,
     });
 
     res.json({ url: session.url });
@@ -133,13 +139,13 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
         break;
         
       case "invoice.payment_succeeded":
-        const invoice = event.data.object as Stripe.Invoice;
-        console.log(`✅ Payment succeeded for subscription ${invoice.subscription}`);
+  const invoice = event.data.object as Stripe.Invoice;
+  console.log(`✅ Payment succeeded for subscription ${(invoice as any).subscription}`);
         break;
         
       case "invoice.payment_failed":
-        const failedInvoice = event.data.object as Stripe.Invoice;
-        console.log(`❌ Payment failed for subscription ${failedInvoice.subscription}`);
+  const failedInvoice = event.data.object as Stripe.Invoice;
+  console.log(`❌ Payment failed for subscription ${(failedInvoice as any).subscription}`);
         // Could implement logic to downgrade organization plan
         break;
         
@@ -180,12 +186,16 @@ router.get("/billing/:organizationId", requireAuth, async (req, res) => {
     const organizationId = parseInt(req.params.organizationId);
     
     // Verify user is admin of the organization
+    const currentUserId = typeof req.session!.userId === "string"
+      ? parseInt(req.session!.userId as any)
+      : (req.session!.userId as number);
+
     const adminCheck = await db
       .select()
       .from(organizationUsers)
       .where(and(
         eq(organizationUsers.organizationId, organizationId),
-        eq(organizationUsers.userId, req.user!.id),
+        eq(organizationUsers.userId, currentUserId),
         eq(organizationUsers.role, "admin")
       ))
       .limit(1);

@@ -494,6 +494,8 @@ export class MemStorage implements IStorage {
       city: user.city || null,
       state: user.state || null,
       zipCode: user.zipCode || null,
+        latitude: user.latitude || null,
+        longitude: user.longitude || null,
       onboardingCompleted: user.onboardingCompleted || false,
       isVerifiedApologeticsAnswerer: false,
       isAdmin: user.isAdmin || false,
@@ -1909,11 +1911,12 @@ export class DbStorage implements IStorage {
   
   async createCommunity(community: InsertCommunity): Promise<Community> {
     // Geocode the address if city/state are provided but no coordinates
-    let latitude = community.latitude;
-    let longitude = community.longitude;
+    const comm: any = community as any; // local alias to appease TS for flexible payload
+    let latitude = comm.latitude;
+    let longitude = comm.longitude;
 
-    if (!latitude && !longitude && (community.city || community.state)) {
-      const geocodeResult = await geocodeAddress('', community.city, community.state);
+    if (!latitude && !longitude && (comm.city || comm.state)) {
+      const geocodeResult = await geocodeAddress('', comm.city, comm.state);
       if ('latitude' in geocodeResult) {
         latitude = geocodeResult.latitude.toString();
         longitude = geocodeResult.longitude.toString();

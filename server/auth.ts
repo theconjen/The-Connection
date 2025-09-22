@@ -11,7 +11,8 @@ import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 // Add custom session properties
 declare module 'express-session' {
   interface SessionData {
-    userId?: number;
+    // userId may be stored as a string (session stores) or number (internal use)
+    userId?: string | number;
     username?: string;
     isAdmin?: boolean;
     email?: string;
@@ -273,7 +274,7 @@ export function setupAuth(app: Express) {
       }
       
       try {
-        const userId = parseInt(req.session.userId);
+  const userId = parseInt(String(req.session.userId));
         const user = await storage.getUser(userId);
         
         if (!user) {

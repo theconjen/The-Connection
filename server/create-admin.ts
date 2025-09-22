@@ -37,10 +37,10 @@ async function createAdminUser() {
     const existingUser = await db.select().from(users).where(eq(users.username, username));
     
     if (existingUser.length > 0) {
-      // Update existing user to admin
-      await db.update(users)
-        .set({ isAdmin: true })
-        .where(eq(users.username, username));
+      // Update existing user to admin using raw SQL to avoid Drizzle typing issues
+      await db.execute(sql`
+        UPDATE users SET is_admin = true WHERE username = ${username}
+      `);
       
       console.log(`User ${username} has been updated to admin status`);
     } else {
@@ -51,12 +51,9 @@ async function createAdminUser() {
       const buf = (await scryptAsync(password, salt, 64)) as Buffer;
       const hashedPassword = `${buf.toString("hex")}.${salt}`;
       
-      await db.insert(users).values({
-        username,
-        email,
-        password: hashedPassword,
-        isAdmin: true
-      });
+      await db.execute(sql`
+        INSERT INTO users (username, email, password, is_admin) VALUES (${username}, ${email}, ${hashedPassword}, true)
+      `);
       
       console.log(`Admin user ${username} has been created successfully`);
     }

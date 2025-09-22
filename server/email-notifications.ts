@@ -42,6 +42,33 @@ export async function sendLivestreamerApplicationNotificationEmail(params: Lives
 }
 
 /**
+ * Send notification email to admin about a new apologist scholar application
+ */
+export async function sendApologistScholarApplicationNotificationEmail(params: LivestreamerApplicationNotificationParams, fullName: any, id: number): Promise<boolean> {
+  try {
+    // Reuse the same template for now, mapping fields accordingly
+    const templateData = {
+      applicantName: params.applicantName,
+      applicantEmail: params.applicantEmail,
+      ministryName: params.ministryName || 'Not specified',
+      applicationId: params.applicationId.toString(),
+      applicationDate: params.applicationDate,
+      reviewLink: params.reviewLink
+    };
+
+    return await sendTemplatedEmail({
+      to: params.email,
+      from: `no-reply@${APP_DOMAIN}`,
+      templateName: DEFAULT_TEMPLATES.APPLICATION_NOTIFICATION,
+      templateData
+    });
+  } catch (error) {
+    console.error('Error sending apologist scholar application notification email:', error);
+    return false;
+  }
+}
+
+/**
  * Parameters for application status update emails
  */
 export interface ApplicationStatusUpdateParams {

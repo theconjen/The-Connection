@@ -33,7 +33,7 @@ export const handleOnboarding = async (req: Request, res: Response) => {
       });
     }
 
-    const userId = req.session.userId;
+  const userId = typeof req.session.userId === 'string' ? parseInt(req.session.userId as string) : req.session.userId;
     const { 
       city, 
       state, 
@@ -45,7 +45,7 @@ export const handleOnboarding = async (req: Request, res: Response) => {
     } = validation.data;
 
     // Update user with onboarding data
-    await storage.updateUser(userId, {
+    await storage.updateUser(userId as number, {
       city,
       state,
       zipCode,
@@ -56,7 +56,7 @@ export const handleOnboarding = async (req: Request, res: Response) => {
 
     // If interests are provided, update user preferences
     if (interests && interests.length > 0) {
-      await storage.updateUserPreferences(userId, {
+      await storage.updateUserPreferences(userId as number, {
         interests: interests
       });
     }

@@ -20,7 +20,7 @@ router.get('/users', async (req, res, next) => {
 // Get user by ID
 router.get('/users/:id', async (req, res, next) => {
   try {
-    const userId = req.params.id;
+    const userId = parseInt(req.params.id);
     if (isNaN(userId)) {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
@@ -70,7 +70,7 @@ router.get('/livestreamer-applications/stats', async (req, res, next) => {
 router.patch('/applications/livestreamer/:id', async (req, res, next) => {
   try {
     const { status, reviewNotes } = req.body;
-    const applicationId = req.params.id;
+    const applicationId = parseInt(req.params.id);
     
     if (isNaN(applicationId)) {
       return res.status(400).json({ message: 'Invalid application ID' });
@@ -95,16 +95,20 @@ router.patch('/applications/livestreamer/:id', async (req, res, next) => {
 // Delete user (for admin use only)
 router.delete('/users/:id', async (req, res, next) => {
   try {
-    const userId = req.params.id;
+    const userId = parseInt(req.params.id, 10);
     if (isNaN(userId)) {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
-    
+
     // Don't allow admins to delete themselves
-    if (userId === req.session?.userId) {
+    const sessionUserId = typeof req.session?.userId === 'string'
+      ? parseInt(req.session!.userId as any, 10)
+      : (req.session?.userId as number | undefined);
+
+    if (sessionUserId !== undefined && userId === sessionUserId) {
       return res.status(400).json({ message: 'You cannot delete your own account' });
     }
-    
+
     await storage.deleteUser(userId);
     res.status(200).json({ message: 'User deleted successfully' });
   } catch (error) {

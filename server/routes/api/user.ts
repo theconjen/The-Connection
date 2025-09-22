@@ -10,12 +10,13 @@ router.use(isAuthenticated);
 // Get current user's profile
 router.get('/profile', async (req, res, next) => {
   try {
-    const userId = req.session.userId;
+  const userId = req.session.userId;
+  const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    const user = await storage.getUser(userId);
+  const user = await storage.getUser(resolvedUserId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -33,6 +34,7 @@ router.get('/profile', async (req, res, next) => {
 router.patch('/profile', async (req, res, next) => {
   try {
     const userId = req.session.userId;
+    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
@@ -49,7 +51,7 @@ router.patch('/profile', async (req, res, next) => {
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     
-    const updatedUser = await storage.updateUser(userId, updateData);
+  const updatedUser = await storage.updateUser(resolvedUserId, updateData);
     
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;
@@ -62,11 +64,12 @@ router.patch('/profile', async (req, res, next) => {
 // Alternative endpoint for updating user by ID (same functionality)
 router.patch('/:id', async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const targetUserId = parseInt(req.params.id);
+  const userId = req.session.userId;
+  const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+  const targetUserId = parseInt(req.params.id);
     
     // Only allow users to update their own profile
-    if (!userId || userId !== targetUserId.toString()) {
+    if (!userId || resolvedUserId !== targetUserId) {
       return res.status(401).json({ message: 'Not authorized to update this profile' });
     }
     
@@ -82,7 +85,7 @@ router.patch('/:id', async (req, res, next) => {
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     
-    const updatedUser = await storage.updateUser(targetUserId.toString(), updateData);
+  const updatedUser = await storage.updateUser(targetUserId, updateData);
     
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;
@@ -96,6 +99,7 @@ router.patch('/:id', async (req, res, next) => {
 router.get('/communities', async (req, res, next) => {
   try {
     const userId = req.session.userId;
+    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
@@ -112,11 +116,12 @@ router.get('/communities', async (req, res, next) => {
 router.get('/prayer-requests', async (req, res, next) => {
   try {
     const userId = req.session.userId;
+    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
-    
-    const prayerRequests = await storage.getUserPrayerRequests(userId);
+
+    const prayerRequests = await storage.getUserPrayerRequests(resolvedUserId);
     res.json(prayerRequests);
   } catch (error) {
     next(error);
@@ -127,12 +132,13 @@ router.get('/prayer-requests', async (req, res, next) => {
 router.get('/posts', async (req, res, next) => {
   try {
     const userId = req.session.userId;
+    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
     // Get user's posts (this would need to be implemented in storage)
-    const posts = await storage.getAllPosts(); // Temporary - should filter by user
+  const posts = await storage.getAllPosts(); // Temporary - should filter by user
     res.json(posts);
   } catch (error) {
     next(error);
@@ -143,12 +149,13 @@ router.get('/posts', async (req, res, next) => {
 router.get('/events', async (req, res, next) => {
   try {
     const userId = req.session.userId;
+    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
     // Get user's event RSVPs (this would need to be implemented in storage)
-    const events = await storage.getAllEvents(); // Temporary - should filter by user RSVPs
+  const events = await storage.getAllEvents(); // Temporary - should filter by user RSVPs
     res.json(events);
   } catch (error) {
     next(error);
@@ -159,11 +166,12 @@ router.get('/events', async (req, res, next) => {
 router.get("/settings", async (req, res) => {
   try {
     const userId = req.session.userId;
+    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    const user = await storage.getUser(userId);
+  const user = await storage.getUser(resolvedUserId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -180,6 +188,7 @@ router.get("/settings", async (req, res) => {
 router.put("/settings", async (req, res) => {
   try {
     const userId = req.session.userId;
+    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
@@ -195,7 +204,7 @@ router.put("/settings", async (req, res) => {
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     
-    await storage.updateUser(userId, updateData);
+  await storage.updateUser(resolvedUserId, updateData);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Error updating user settings' });

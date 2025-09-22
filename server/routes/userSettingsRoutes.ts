@@ -21,7 +21,8 @@ router.get("/settings", async (req, res) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    const user = await storage.getUser(Number(userId));
+  const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+  const user = await storage.getUser(resolvedUserId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -54,7 +55,8 @@ router.put("/settings", async (req, res) => {
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     
-    await storage.updateUser(Number(userId), updateData);
+  const resolvedUserId2 = typeof userId === 'number' ? userId : parseInt(String(userId));
+  await storage.updateUser(resolvedUserId2, updateData);
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating user settings:', error);
