@@ -41,7 +41,7 @@ export function useAuth(): AuthContextType {
     enabled: true, // Always enabled but controlled by staleTime
   });
 
-  const loginMutation = useMutation({
+  const loginMutation: UseMutationResult<SelectUser, Error, LoginData, unknown> = useMutation({
     mutationFn: async (credentials: LoginData) => {
       try {
         // First try server authentication
@@ -115,7 +115,7 @@ export function useAuth(): AuthContextType {
     },
   });
 
-  const registerMutation = useMutation({
+  const registerMutation: UseMutationResult<SelectUser, Error, InsertUser, unknown> = useMutation({
     mutationFn: async (credentials: InsertUser) => {
       try {
         const res = await apiRequest("POST", "/api/register", credentials);
@@ -161,7 +161,7 @@ export function useAuth(): AuthContextType {
     },
   });
 
-  const logoutMutation = useMutation({
+  const logoutMutation: UseMutationResult<void, Error, void, unknown> = useMutation({
     mutationFn: async () => {
       try {
         await apiRequest("POST", "/api/logout");
@@ -205,15 +205,16 @@ export function useAuth(): AuthContextType {
     },
   });
 
-  // Cast to AuthContextType to unify the mutation shapes across consumers.
+  // Return strongly-typed mutation results. Consumers should use the
+  // mutation objects directly (mutate, mutateAsync, isLoading, etc.).
   return {
     user,
     isLoading,
     error: error || null,
     isAuthenticated: !!user,
-    loginMutation: loginMutation as any,
-    logoutMutation: logoutMutation as any,
-    registerMutation: registerMutation as any,
+    loginMutation,
+    logoutMutation,
+    registerMutation,
     // Provide a convenience logout function for older consumers
     logout: () => {
       // Trigger the mutation's mutate method if available
@@ -224,5 +225,5 @@ export function useAuth(): AuthContextType {
         queryClient.setQueryData(["/api/user"], null);
       }
     },
-  } as unknown as AuthContextType;
+  } as AuthContextType;
 }
