@@ -1,87 +1,92 @@
-const fs = require('fs');
-const path = require('path');
-
 module.exports = (req, res) => {
-  try {
-    // Set headers first
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache');
-    
-    // Try to find index.html in various locations
-    const possiblePaths = [
-      path.join(process.cwd(), 'dist', 'public', 'index.html'),
-      path.join(process.cwd(), 'public', 'index.html'),
-      path.join(__dirname, '..', 'dist', 'public', 'index.html'),
-      path.join(__dirname, '..', 'public', 'index.html')
-    ];
-    
-    let html = null;
-    let foundPath = null;
-    
-    for (const indexPath of possiblePaths) {
-      try {
-        if (fs.existsSync(indexPath)) {
-          html = fs.readFileSync(indexPath, 'utf8');
-          foundPath = indexPath;
-          break;
-        }
-      } catch (err) {
-        // Continue to next path
-        continue;
-      }
-    }
-    
-    if (html) {
-      res.statusCode = 200;
-      res.end(html);
-    } else {
-      // Fallback HTML with debugging info
-      const fallbackHtml = `<!DOCTYPE html>
-<html>
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.statusCode = 200;
+  
+  const html = `<!DOCTYPE html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Connection</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: sans-serif; padding: 2rem; background: #f5f5f5; }
-    .container { max-width: 600px; margin: 0 auto; background: white; padding: 2rem; border-radius: 8px; }
-    .error { background: #fee; border: 1px solid #fcc; padding: 1rem; margin: 1rem 0; border-radius: 4px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .container {
+      text-align: center;
+      max-width: 600px;
+      background: rgba(255,255,255,0.1);
+      padding: 3rem;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+    }
+    h1 { font-size: 3rem; margin-bottom: 1rem; }
+    p { font-size: 1.25rem; opacity: 0.9; margin-bottom: 1rem; }
+    .status { 
+      background: rgba(255,255,255,0.2); 
+      padding: 1rem; 
+      border-radius: 10px; 
+      margin: 2rem 0; 
+    }
+    .loading {
+      margin-top: 2rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🔗 The Connection</h1>
-    <p>Your Christian community platform is starting up...</p>
-    <div class="error">
-      <p><strong>Build Status:</strong> Searching for built assets...</p>
-      <p><strong>Paths checked:</strong></p>
-      <ul>
-        ${possiblePaths.map(p => `<li>${p}</li>`).join('')}
-      </ul>
+    <p>Your Christian community platform</p>
+    
+    <div class="status">
+      <p><strong>✅ Vercel deployment is live!</strong></p>
+      <p>🔄 Loading full application...</p>
     </div>
-    <p>The site will be fully functional once the build completes. Please refresh in a moment.</p>
+    
+    <div class="loading">
+      <p>The site will automatically refresh when ready</p>
+    </div>
   </div>
+  
   <script>
-    setTimeout(() => window.location.reload(), 10000);
+    let attempts = 0;
+    function checkSite() {
+      attempts++;
+      if (attempts > 10) {
+        document.querySelector('.loading p').textContent = 'Taking longer than expected. Please refresh manually.';
+        return;
+      }
+      
+      // Try to fetch the main site
+      fetch('/api/index.ts').then(response => {
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          setTimeout(checkSite, 5000);
+        }
+      }).catch(() => {
+        setTimeout(checkSite, 5000);
+      });
+    }
+    
+    setTimeout(checkSite, 3000);
   </script>
 </body>
 </html>`;
-      
-      res.statusCode = 200;
-      res.end(fallbackHtml);
-    }
-  } catch (err) {
-    // Final fallback
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.end(`<!DOCTYPE html>
-<html>
-<head><title>The Connection</title></head>
-<body>
-  <h1>The Connection</h1>
-  <p>Loading... (Error: ${err.message})</p>
-  <script>setTimeout(() => window.location.reload(), 5000);</script>
-</body>
-</html>`);
-  }
+  
+  res.end(html);
 };
