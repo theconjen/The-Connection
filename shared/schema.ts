@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, jsonb, timestamp, boolean, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, varchar, index, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -6,10 +6,11 @@ import { z } from "zod";
 export const sessions = pgTable(
   "sessions",
   {
-    sid: text("sid").primaryKey(),
-    sess: text("sess").notNull(),
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
     expire: timestamp("expire").notNull(),
-  }
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
 // Users table schema
@@ -24,6 +25,8 @@ export const users = pgTable("users", {
   city: text("city"),
   state: text("state"),
   zipCode: text("zip_code"),
+  latitude: text("latitude"),
+  longitude: text("longitude"),
   onboardingCompleted: boolean("onboarding_completed").default(false),
   isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
   isAdmin: boolean("is_admin").default(false),
@@ -31,30 +34,30 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertUserSchema = z.object({
-  username: z.string(),
-  email: z.string(),
-  password: z.string(),
-  displayName: z.string().optional(),
-  bio: z.string().optional(),
-  avatarUrl: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
-  onboardingCompleted: z.boolean().optional(),
-  isAdmin: z.boolean().optional(),
-});
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  isVerifiedApologeticsAnswerer: true,
+  createdAt: true,
+  updatedAt: true,
+} as any);
 
 // Organizations table schema (Churches and ministries)
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  adminUserId: integer("admin_user_id").references(() => users.id).notNull(),
+  adminUserId: integer("admin_user_id").notNull().references(() => users.id),
   plan: text("plan").default("free"), // free, standard, premium
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   website: text("website"),
+  email: text("email"), // Contact email for the organization
+  logoUrl: text("logo_url"), // Organization logo/avatar
+  mission: text("mission"), // Mission statement
+  serviceTimes: text("service_times"), // JSON string of service times/schedule
+  socialMedia: text("social_media"), // JSON string of social media links
+  foundedDate: date("founded_date"), // When the organization was founded
+  congregationSize: integer("congregation_size"), // Approximate size
   address: text("address"),
   city: text("city"),
   state: text("state"),
@@ -63,20 +66,27 @@ export const organizations = pgTable("organizations", {
   denomination: text("denomination"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+} as any);
 
-export const insertOrganizationSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  adminUserId: z.number(),
-  website: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
-  phone: z.string().optional(),
-  denomination: z.string().optional(),
-});
+export const insertOrganizationSchema = createInsertSchema(organizations).pick({
+  name: true,
+  description: true,
+  adminUserId: true,
+  website: true,
+  email: true,
+  logoUrl: true,
+  mission: true,
+  serviceTimes: true,
+  socialMedia: true,
+  foundedDate: true,
+  congregationSize: true,
+  address: true,
+  city: true,
+  state: true,
+  zipCode: true,
+  phone: true,
+  denomination: true,
+} as any);
 
 // Organization members table
 export const organizationUsers = pgTable("organization_users", {
@@ -85,13 +95,13 @@ export const organizationUsers = pgTable("organization_users", {
   userId: integer("user_id").notNull().references(() => users.id),
   role: text("role").default("member"), // admin, pastor, leader, member
   joinedAt: timestamp("joined_at").defaultNow(),
-});
+} as any);
 
-export const insertOrganizationUserSchema = z.object({
-  organizationId: z.number(),
-  userId: z.number(),
-  role: z.string().default("member"),
-});
+export const insertOrganizationUserSchema = createInsertSchema(organizationUsers).pick({
+  organizationId: true,
+  userId: true,
+  role: true,
+} as any);
 
 // Communities table schema
 export const communities = pgTable("communities", {
@@ -101,7 +111,7 @@ export const communities = pgTable("communities", {
   slug: text("slug").notNull().unique(),
   iconName: text("icon_name").notNull(),
   iconColor: text("icon_color").notNull(),
-  interestTags: text("interest_tags"), // JSON string array
+  interestTags: text("interest_tags").array(),
   city: text("city"),
   state: text("state"),
   isLocalCommunity: boolean("is_local_community").default(false),
@@ -109,38 +119,26 @@ export const communities = pgTable("communities", {
   longitude: text("longitude"),
   memberCount: integer("member_count").default(0),
   isPrivate: boolean("is_private").default(false),
-  hasPrivateWall: boolean("has_private_wall").default(false),
+  hasPrivateWall: boolean("has_private_wall").default(false), 
   hasPublicWall: boolean("has_public_wall").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: integer("created_by").references(() => users.id),
-});
+} as any);
 
 // Base schema without refinements - for frontend transformations
-export const insertCommunityObjectSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  slug: z.string(),
-  iconName: z.string(),
-  iconColor: z.string(),
-  interestTags: z.string().optional(), // JSON string
-  city: z.string().optional(),
-  state: z.string().optional(),
-  isLocalCommunity: z.boolean().default(false),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
-  isPrivate: z.boolean().default(false),
-  hasPrivateWall: z.boolean().default(false),
-  hasPublicWall: z.boolean().default(true),
-  createdBy: z.number().optional(),
-});
+export const insertCommunityObjectSchema = createInsertSchema(communities).omit({
+  id: true,
+  memberCount: true,
+  createdAt: true,
+} as any);
 
 // Refined schema with validation - for server use
 export const insertCommunitySchema = insertCommunityObjectSchema
-  .refine((data) => data.name && data.name.trim().length > 0, {
+  .refine((data: any) => data.name && data.name.trim().length > 0, {
     message: "Community name is required and cannot be empty",
     path: ["name"]
   })
-  .refine((data) => data.hasPrivateWall || data.hasPublicWall, {
+  .refine((data: any) => data.hasPrivateWall || data.hasPublicWall, {
     message: "At least one wall (private or public) must be enabled",
     path: ["hasPublicWall"]
   });
@@ -152,13 +150,13 @@ export const communityMembers = pgTable("community_members", {
   userId: integer("user_id").references(() => users.id).notNull(),
   role: text("role").notNull().default("member"), // "owner", "moderator", "member"
   joinedAt: timestamp("joined_at").defaultNow(),
-});
+} as any);
 
-export const insertCommunityMemberSchema = z.object({
-  communityId: z.number(),
-  userId: z.number(),
-  role: z.string().default("member"),
-});
+export const insertCommunityMemberSchema = createInsertSchema(communityMembers).pick({
+  communityId: true,
+  userId: true,
+  role: true,
+} as any);
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -176,18 +174,18 @@ export const communityInvitations = pgTable("community_invitations", {
   status: text("status").notNull().default("pending"), // "pending", "accepted", "declined", "expired"
   token: text("token").notNull().unique(), // Secure token for invitation links
   createdAt: timestamp("created_at").defaultNow(),
-  expiresAt: text("expires_at").notNull(),
-});
+  expiresAt: timestamp("expires_at").notNull(),
+} as any);
 
-export const insertCommunityInvitationSchema = z.object({
-  communityId: z.number(),
-  inviterUserId: z.number(),
-  inviteeEmail: z.string().email(),
-  inviteeUserId: z.number().optional(),
-  status: z.string().default("pending"),
-  token: z.string(),
-  expiresAt: z.string(),
-});
+export const insertCommunityInvitationSchema = createInsertSchema(communityInvitations).pick({
+  communityId: true,
+  inviterUserId: true,
+  inviteeEmail: true,
+  inviteeUserId: true,
+  status: true,
+  token: true,
+  expiresAt: true,
+} as any);
 
 export type Community = typeof communities.$inferSelect;
 export type InsertCommunity = z.infer<typeof insertCommunitySchema>;
@@ -208,12 +206,12 @@ export const userFollows = pgTable("user_follows", {
   followerId: integer("follower_id").references(() => users.id).notNull(),
   followingId: integer("following_id").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertUserFollowSchema = z.object({
-  followerId: z.number(),
-  followingId: z.number(),
-});
+export const insertUserFollowSchema = createInsertSchema(userFollows).pick({
+  followerId: true,
+  followingId: true,
+} as any);
 
 // User Interactions table for recommendation algorithm
 export const userInteractions = pgTable("user_interactions", {
@@ -223,18 +221,17 @@ export const userInteractions = pgTable("user_interactions", {
   contentType: text("content_type").notNull(), // 'microblog', 'community', 'event', 'prayer_request', 'bible_study'
   interactionType: text("interaction_type").notNull(), // 'view', 'like', 'comment', 'share', 'save', 'prayer_request', 'bible_study'
   interactionStrength: integer("interaction_strength").default(1), // Weight of interaction based on faith-based scoring
-  metadata: text("metadata"), // JSON string for additional context
+  metadata: jsonb("metadata"), // Store additional context like topic tags, sentiment
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertUserInteractionSchema = z.object({
-  userId: z.number(),
-  contentId: z.number(),
-  contentType: z.string(),
-  interactionType: z.string(),
-  interactionStrength: z.number().default(1),
-  metadata: z.string().optional(),
-});
+export const insertUserInteractionSchema = createInsertSchema(userInteractions).pick({
+  userId: true,
+  contentId: true,
+  contentType: true,
+  interactionType: true,
+  interactionStrength: true,
+} as any);
 
 export type UserFollow = typeof userFollows.$inferSelect;
 export type InsertUserFollow = z.infer<typeof insertUserFollowSchema>;
@@ -252,15 +249,15 @@ export const communityChatRooms = pgTable("community_chat_rooms", {
   isPrivate: boolean("is_private").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: integer("created_by").references(() => users.id).notNull(),
-});
+} as any);
 
-export const insertCommunityChatRoomSchema = z.object({
-  communityId: z.number(),
-  name: z.string(),
-  description: z.string().optional(),
-  isPrivate: z.boolean().default(false),
-  createdBy: z.number(),
-});
+export const insertCommunityChatRoomSchema = createInsertSchema(communityChatRooms).pick({
+  communityId: true,
+  name: true,
+  description: true,
+  isPrivate: true,
+  createdBy: true,
+} as any);
 
 // Chat Room Messages schema
 export const chatMessages = pgTable("chat_messages", {
@@ -270,14 +267,14 @@ export const chatMessages = pgTable("chat_messages", {
   senderId: integer("sender_id").references(() => users.id).notNull(),
   isSystemMessage: boolean("is_system_message").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertChatMessageSchema = z.object({
-  content: z.string(),
-  chatRoomId: z.number(),
-  senderId: z.number(),
-  isSystemMessage: z.boolean().default(false),
-});
+export const insertChatMessageSchema = createInsertSchema(chatMessages).pick({
+  content: true,
+  chatRoomId: true,
+  senderId: true,
+  isSystemMessage: true,
+} as any);
 
 // Community Wall Posts schema
 export const communityWallPosts = pgTable("community_wall_posts", {
@@ -290,15 +287,15 @@ export const communityWallPosts = pgTable("community_wall_posts", {
   likeCount: integer("like_count").default(0),
   commentCount: integer("comment_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertCommunityWallPostSchema = z.object({
-  communityId: z.number(),
-  authorId: z.number(),
-  content: z.string(),
-  imageUrl: z.string().optional(),
-  isPrivate: z.boolean().default(false),
-});
+export const insertCommunityWallPostSchema = createInsertSchema(communityWallPosts).pick({
+  communityId: true,
+  authorId: true,
+  content: true,
+  imageUrl: true,
+  isPrivate: true,
+} as any);
 
 // Groups table schema (private groups)
 export const groups = pgTable("groups", {
@@ -310,16 +307,16 @@ export const groups = pgTable("groups", {
   isPrivate: boolean("is_private").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: integer("created_by").references(() => users.id),
-});
+} as any);
 
-export const insertGroupSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  iconName: z.string(),
-  iconColor: z.string(),
-  isPrivate: z.boolean().default(true),
-  createdBy: z.number().optional(),
-});
+export const insertGroupSchema = createInsertSchema(groups).pick({
+  name: true,
+  description: true,
+  iconName: true,
+  iconColor: true,
+  isPrivate: true,
+  createdBy: true,
+} as any);
 
 // Group members table schema
 export const groupMembers = pgTable("group_members", {
@@ -328,13 +325,13 @@ export const groupMembers = pgTable("group_members", {
   userId: integer("user_id").references(() => users.id).notNull(),
   isAdmin: boolean("is_admin").default(false),
   joinedAt: timestamp("joined_at").defaultNow(),
-});
+} as any);
 
-export const insertGroupMemberSchema = z.object({
-  groupId: z.number(),
-  userId: z.number(),
-  isAdmin: z.boolean().default(false),
-});
+export const insertGroupMemberSchema = createInsertSchema(groupMembers).pick({
+  groupId: true,
+  userId: true,
+  isAdmin: true,
+} as any);
 
 // Posts table schema
 export const posts = pgTable("posts", {
@@ -348,16 +345,16 @@ export const posts = pgTable("posts", {
   upvotes: integer("upvotes").default(0),
   commentCount: integer("comment_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertPostSchema = z.object({
-  title: z.string(),
-  content: z.string(),
-  imageUrl: z.string().optional(),
-  communityId: z.number().optional(),
-  groupId: z.number().optional(),
-  authorId: z.number(),
-});
+export const insertPostSchema = createInsertSchema(posts).pick({
+  title: true,
+  content: true,
+  imageUrl: true,
+  communityId: true, 
+  groupId: true,
+  authorId: true,
+} as any);
 
 // Comments table schema
 export const comments = pgTable("comments", {
@@ -368,14 +365,14 @@ export const comments = pgTable("comments", {
   parentId: integer("parent_id"),
   upvotes: integer("upvotes").default(0),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertCommentSchema = z.object({
-  content: z.string(),
-  postId: z.number(),
-  authorId: z.number().optional(),
-  parentId: z.number().optional(),
-});
+export const insertCommentSchema = createInsertSchema(comments).pick({
+  content: true,
+  postId: true,
+  authorId: true,
+  parentId: true,
+} as any);
 
 // Apologetics resources schema
 export const apologeticsResources = pgTable("apologetics_resources", {
@@ -386,15 +383,15 @@ export const apologeticsResources = pgTable("apologetics_resources", {
   iconName: text("icon_name").notNull(),
   url: text("url"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertApologeticsResourceSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  type: z.string(),
-  iconName: z.string(),
-  url: z.string().optional(),
-});
+export const insertApologeticsResourceSchema = createInsertSchema(apologeticsResources).pick({
+  title: true,
+  description: true,
+  type: true,
+  iconName: true,
+  url: true,
+} as any);
 
 // Apologetics Q&A system
 export const apologeticsTopics = pgTable("apologetics_topics", {
@@ -404,14 +401,14 @@ export const apologeticsTopics = pgTable("apologetics_topics", {
   iconName: text("icon_name").notNull(),
   slug: text("slug").notNull().unique(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertApologeticsTopicSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  iconName: z.string(),
-  slug: z.string(),
-});
+export const insertApologeticsTopicSchema = createInsertSchema(apologeticsTopics).pick({
+  name: true,
+  description: true,
+  iconName: true,
+  slug: true,
+} as any);
 
 export const apologeticsQuestions = pgTable("apologetics_questions", {
   id: serial("id").primaryKey(),
@@ -423,15 +420,15 @@ export const apologeticsQuestions = pgTable("apologetics_questions", {
   answerCount: integer("answer_count").default(0),
   viewCount: integer("view_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertApologeticsQuestionSchema = z.object({
-  title: z.string(),
-  content: z.string(),
-  authorId: z.number(),
-  topicId: z.number(),
-  status: z.string().default("open"),
-});
+export const insertApologeticsQuestionSchema = createInsertSchema(apologeticsQuestions).pick({
+  title: true,
+  content: true,
+  authorId: true,
+  topicId: true,
+  status: true,
+} as any);
 
 export const apologeticsAnswers = pgTable("apologetics_answers", {
   id: serial("id").primaryKey(),
@@ -441,14 +438,14 @@ export const apologeticsAnswers = pgTable("apologetics_answers", {
   isVerifiedAnswer: boolean("is_verified_answer").default(false),
   upvotes: integer("upvotes").default(0),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertApologeticsAnswerSchema = z.object({
-  content: z.string(),
-  questionId: z.number(),
-  authorId: z.number(),
-  isVerifiedAnswer: z.boolean().default(false),
-});
+export const insertApologeticsAnswerSchema = createInsertSchema(apologeticsAnswers).pick({
+  content: true,
+  questionId: true,
+  authorId: true,
+  isVerifiedAnswer: true,
+} as any);
 
 // Remove these duplicate type definitions - they're already defined earlier
 
@@ -485,26 +482,22 @@ export const livestreams = pgTable("livestreams", {
   thumbnail: text("thumbnail"),
   status: text("status").notNull().default("upcoming"), // "live", "upcoming", "ended"
   viewerCount: integer("viewer_count").default(0),
-  scheduledFor: text("scheduled_for"),
+  scheduledFor: timestamp("scheduled_for"),
   duration: text("duration"),
   tags: text("tags"),
-  streamUrl: text("stream_url"),
-  isLive: boolean("is_live").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertLivestreamSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  hostId: z.number(),
-  thumbnail: z.string().optional(),
-  status: z.string().default("upcoming"),
-  scheduledFor: z.string().optional(),
-  duration: z.string().optional(),
-  tags: z.string().optional(),
-  streamUrl: z.string().optional(),
-  isLive: z.boolean().default(false),
-});
+export const insertLivestreamSchema = createInsertSchema(livestreams).pick({
+  title: true,
+  description: true,
+  hostId: true,
+  thumbnail: true,
+  status: true,
+  scheduledFor: true,
+  duration: true,
+  tags: true,
+} as any);
 
 export type InsertLivestream = z.infer<typeof insertLivestreamSchema>;
 export type Livestream = typeof livestreams.$inferSelect;
@@ -530,23 +523,23 @@ export const livestreamerApplications = pgTable("livestreamer_applications", {
   reviewNotes: text("review_notes"),
   reviewedAt: timestamp("reviewed_at"),
   submittedAt: timestamp("submitted_at").defaultNow(),
-});
+} as any);
 
-export const insertLivestreamerApplicationSchema = z.object({
-  userId: z.number(),
-  ministryName: z.string().optional(),
-  ministryDescription: z.string(),
-  ministerialExperience: z.string().optional(),
-  statementOfFaith: z.string(),
-  socialMediaLinks: z.string().optional(),
-  referenceName: z.string(),
-  referenceContact: z.string(),
-  referenceRelationship: z.string(),
-  sampleContentUrl: z.string(),
-  livestreamTopics: z.string(),
-  targetAudience: z.string(),
-  agreedToTerms: z.boolean()
-});
+export const insertLivestreamerApplicationSchema = createInsertSchema(livestreamerApplications).pick({
+  userId: true,
+  ministryName: true,
+  ministryDescription: true,
+  ministerialExperience: true,
+  statementOfFaith: true,
+  socialMediaLinks: true,
+  referenceName: true,
+  referenceContact: true,
+  referenceRelationship: true,
+  sampleContentUrl: true,
+  livestreamTopics: true,
+  targetAudience: true,
+  agreedToTerms: true
+} as any);
 
 // Creator tier and incentive structure
 export const creatorTiers = pgTable("creator_tiers", {
@@ -558,16 +551,16 @@ export const creatorTiers = pgTable("creator_tiers", {
   iconName: text("icon_name").notNull(),
   order: integer("order").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertCreatorTierSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  requirements: z.string(),
-  benefits: z.string(),
-  iconName: z.string(),
-  order: z.number(),
-});
+export const insertCreatorTierSchema = createInsertSchema(creatorTiers).pick({
+  name: true,
+  description: true,
+  requirements: true,
+  benefits: true,
+  iconName: true,
+  order: true,
+} as any);
 
 // User-Creator tier relationship
 export const userCreatorTiers = pgTable("user_creator_tiers", {
@@ -575,14 +568,14 @@ export const userCreatorTiers = pgTable("user_creator_tiers", {
   userId: integer("user_id").references(() => users.id).notNull(),
   tierId: integer("tier_id").references(() => creatorTiers.id).notNull(),
   assignedAt: timestamp("assigned_at").defaultNow(),
-  validUntil: text("valid_until"),
-});
+  validUntil: timestamp("valid_until"),
+} as any);
 
-export const insertUserCreatorTierSchema = z.object({
-  userId: z.number(),
-  tierId: z.number(),
-  validUntil: z.string().optional(),
-});
+export const insertUserCreatorTierSchema = createInsertSchema(userCreatorTiers).pick({
+  userId: true,
+  tierId: true,
+  validUntil: true,
+} as any);
 
 // Virtual gifts that can be sent during livestreams
 export const virtualGifts = pgTable("virtual_gifts", {
@@ -593,15 +586,15 @@ export const virtualGifts = pgTable("virtual_gifts", {
   value: integer("value").notNull(), // Value in platform points/currency
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertVirtualGiftSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  iconName: z.string(),
-  value: z.number(),
-  isActive: z.boolean().default(true),
-});
+export const insertVirtualGiftSchema = createInsertSchema(virtualGifts).pick({
+  name: true,
+  description: true,
+  iconName: true,
+  value: true,
+  isActive: true,
+} as any);
 
 // Record of gifts sent during livestreams
 export const livestreamGifts = pgTable("livestream_gifts", {
@@ -612,15 +605,15 @@ export const livestreamGifts = pgTable("livestream_gifts", {
   receiverId: integer("receiver_id").references(() => users.id).notNull(),
   message: text("message"),
   sentAt: timestamp("sent_at").defaultNow(),
-});
+} as any);
 
-export const insertLivestreamGiftSchema = z.object({
-  livestreamId: z.number(),
-  giftId: z.number(),
-  senderId: z.number().optional(),
-  receiverId: z.number(),
-  message: z.string().optional(),
-});
+export const insertLivestreamGiftSchema = createInsertSchema(livestreamGifts).pick({
+  livestreamId: true,
+  giftId: true,
+  senderId: true,
+  receiverId: true,
+  message: true,
+} as any);
 
 // Export additional types
 export type InsertLivestreamerApplication = z.infer<typeof insertLivestreamerApplicationSchema>;
@@ -651,27 +644,27 @@ export const apologistScholarApplications = pgTable("apologist_scholar_applicati
   reviewNotes: text("review_notes"),
   reviewedAt: timestamp("reviewed_at"),
   submittedAt: timestamp("submitted_at").defaultNow(),
-});
+} as any);
 
-export const insertApologistScholarApplicationSchema = z.object({
-  userId: z.number(),
-  fullName: z.string(),
-  academicCredentials: z.string(),
-  educationalBackground: z.string(),
-  theologicalPerspective: z.string(),
-  statementOfFaith: z.string(),
-  areasOfExpertise: z.string(),
-  publishedWorks: z.string().optional(),
-  priorApologeticsExperience: z.string(),
-  writingSample: z.string(),
-  onlineSocialHandles: z.string().optional(),
-  referenceName: z.string(),
-  referenceContact: z.string(),
-  referenceInstitution: z.string(),
-  motivation: z.string(),
-  weeklyTimeCommitment: z.string(),
-  agreedToGuidelines: z.boolean()
-});
+export const insertApologistScholarApplicationSchema = createInsertSchema(apologistScholarApplications).pick({
+  userId: true,
+  fullName: true,
+  academicCredentials: true,
+  educationalBackground: true,
+  theologicalPerspective: true,
+  statementOfFaith: true,
+  areasOfExpertise: true,
+  publishedWorks: true,
+  priorApologeticsExperience: true,
+  writingSample: true,
+  onlineSocialHandles: true,
+  referenceName: true,
+  referenceContact: true,
+  referenceInstitution: true,
+  motivation: true,
+  weeklyTimeCommitment: true,
+  agreedToGuidelines: true
+} as any);
 
 export type InsertApologistScholarApplication = z.infer<typeof insertApologistScholarApplicationSchema>;
 export type ApologistScholarApplication = typeof apologistScholarApplications.$inferSelect;
@@ -689,7 +682,7 @@ export type InsertLivestreamGift = z.infer<typeof insertLivestreamGiftSchema>;
 export type LivestreamGift = typeof livestreamGifts.$inferSelect;
 
 // Microblog posts (Twitter-like) schema
-export const microblogs = pgTable("microblogs", {
+export const microblogs: any = pgTable("microblogs", {
   id: serial("id").primaryKey(),
   content: text("content").notNull(),
   imageUrl: text("image_url"), // Optional image attachment
@@ -701,16 +694,16 @@ export const microblogs = pgTable("microblogs", {
   replyCount: integer("reply_count").default(0),
   parentId: integer("parent_id").references(() => microblogs.id), // For replies to other microblogs
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertMicroblogSchema = z.object({
-  content: z.string(),
-  imageUrl: z.string().optional(),
-  authorId: z.number(),
-  communityId: z.number().optional(),
-  groupId: z.number().optional(),
-  parentId: z.number().optional(),
-});
+export const insertMicroblogSchema = createInsertSchema(microblogs).pick({
+  content: true,
+  imageUrl: true,
+  authorId: true,
+  communityId: true,
+  groupId: true,
+  parentId: true,
+} as any);
 
 // Microblog likes table for tracking user likes
 export const microblogLikes = pgTable("microblog_likes", {
@@ -718,12 +711,12 @@ export const microblogLikes = pgTable("microblog_likes", {
   microblogId: integer("microblog_id").references(() => microblogs.id).notNull(),
   userId: integer("user_id").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertMicroblogLikeSchema = z.object({
-  microblogId: z.number(),
-  userId: z.number(),
-});
+export const insertMicroblogLikeSchema = createInsertSchema(microblogLikes).pick({
+  microblogId: true,
+  userId: true,
+} as any);
 
 export type InsertMicroblog = z.infer<typeof insertMicroblogSchema>;
 export type Microblog = typeof microblogs.$inferSelect;
@@ -749,9 +742,9 @@ export const events = pgTable("events", {
   isPublic: boolean("is_public").default(false), // Allow events to be publicly visible
   showOnMap: boolean("show_on_map").default(true), // Whether to display the event on maps
   virtualMeetingUrl: text("virtual_meeting_url"),
-  eventDate: timestamp("event_date").notNull(),
-  startTime: text("start_time").notNull(),
-  endTime: text("end_time").notNull(),
+  eventDate: date("event_date").notNull(),
+  startTime: time("start_time").notNull(),
+  endTime: time("end_time").notNull(),
   imageUrl: text("image_url"),
   latitude: text("latitude"), // For map integration
   longitude: text("longitude"), // For map integration
@@ -759,30 +752,30 @@ export const events = pgTable("events", {
   groupId: integer("group_id").references(() => groups.id),
   creatorId: integer("creator_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertEventSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  location: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
-  isVirtual: z.boolean().default(false),
-  isPublic: z.boolean().default(false),
-  showOnMap: z.boolean().default(true),
-  virtualMeetingUrl: z.string().optional(),
-  eventDate: z.date(),
-  startTime: z.string(),
-  endTime: z.string(),
-  imageUrl: z.string().optional(),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
-  communityId: z.number().optional(),
-  groupId: z.number().optional(),
-  creatorId: z.number(),
-});
+export const insertEventSchema = createInsertSchema(events).pick({
+  title: true,
+  description: true,
+  location: true,
+  address: true,
+  city: true,
+  state: true,
+  zipCode: true,
+  isVirtual: true,
+  isPublic: true,
+  showOnMap: true,
+  virtualMeetingUrl: true,
+  eventDate: true,
+  startTime: true,
+  endTime: true,
+  imageUrl: true,
+  latitude: true,
+  longitude: true,
+  communityId: true,
+  groupId: true,
+  creatorId: true,
+} as any);
 
 export const eventRsvps = pgTable("event_rsvps", {
   id: serial("id").primaryKey(),
@@ -790,13 +783,13 @@ export const eventRsvps = pgTable("event_rsvps", {
   userId: integer("user_id").notNull().references(() => users.id),
   status: text("status").notNull(), // attending, maybe, declined
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertEventRsvpSchema = z.object({
-  eventId: z.number(),
-  userId: z.number(),
-  status: z.string(),
-});
+export const insertEventRsvpSchema = createInsertSchema(eventRsvps).pick({
+  eventId: true,
+  userId: true,
+  status: true,
+} as any);
 
 // ========================
 // PRAYER REQUESTS
@@ -814,28 +807,28 @@ export const prayerRequests = pgTable("prayer_requests", {
   answeredDescription: text("answered_description"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+} as any);
 
-export const insertPrayerRequestSchema = z.object({
-  title: z.string(),
-  content: z.string(),
-  isAnonymous: z.boolean().default(false),
-  privacyLevel: z.string(),
-  groupId: z.number().optional(),
-  authorId: z.number(),
-});
+export const insertPrayerRequestSchema = createInsertSchema(prayerRequests).pick({
+  title: true,
+  content: true,
+  isAnonymous: true,
+  privacyLevel: true,
+  groupId: true,
+  authorId: true,
+} as any);
 
 export const prayers = pgTable("prayers", {
   id: serial("id").primaryKey(),
   prayerRequestId: integer("prayer_request_id").notNull().references(() => prayerRequests.id),
   userId: integer("user_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertPrayerSchema = z.object({
-  prayerRequestId: z.number(),
-  userId: z.number(),
-});
+export const insertPrayerSchema = createInsertSchema(prayers).pick({
+  prayerRequestId: true,
+  userId: true,
+} as any);
 
 // ========================
 // MENTORSHIP PROGRAM
@@ -843,23 +836,23 @@ export const insertPrayerSchema = z.object({
 export const mentorProfiles = pgTable("mentor_profiles", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  spiritualGifts: text("spiritual_gifts"), // JSON string array
-  areasOfExpertise: text("areas_of_expertise"), // JSON string array
+  spiritualGifts: text("spiritual_gifts").array(),
+  areasOfExpertise: text("areas_of_expertise").array(),
   yearsOfFaith: integer("years_of_faith"),
   shortBio: text("short_bio").notNull(),
   availability: text("availability").notNull(),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertMentorProfileSchema = z.object({
-  userId: z.number(),
-  spiritualGifts: z.string().optional(),
-  areasOfExpertise: z.string().optional(),
-  yearsOfFaith: z.number().optional(),
-  shortBio: z.string(),
-  availability: z.string(),
-});
+export const insertMentorProfileSchema = createInsertSchema(mentorProfiles).pick({
+  userId: true,
+  spiritualGifts: true,
+  areasOfExpertise: true,
+  yearsOfFaith: true,
+  shortBio: true,
+  availability: true,
+} as any);
 
 export const mentorshipRequests = pgTable("mentorship_requests", {
   id: serial("id").primaryKey(),
@@ -868,30 +861,30 @@ export const mentorshipRequests = pgTable("mentorship_requests", {
   message: text("message"),
   status: text("status").notNull(), // pending, accepted, declined
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertMentorshipRequestSchema = z.object({
-  mentorId: z.number(),
-  menteeId: z.number(),
-  message: z.string().optional(),
-  status: z.string(),
-});
+export const insertMentorshipRequestSchema = createInsertSchema(mentorshipRequests).pick({
+  mentorId: true,
+  menteeId: true,
+  message: true,
+  status: true,
+} as any);
 
 export const mentorshipRelationships = pgTable("mentorship_relationships", {
   id: serial("id").primaryKey(),
   mentorId: integer("mentor_id").notNull().references(() => users.id),
   menteeId: integer("mentee_id").notNull().references(() => users.id),
-  startDate: text("start_date").default("CURRENT_TIMESTAMP"),
-  endDate: text("end_date"),
+  startDate: timestamp("start_date").defaultNow(),
+  endDate: timestamp("end_date"),
   isActive: boolean("is_active").default(true),
-  goals: text("goals"), // JSON string
-});
+  goals: jsonb("goals"),
+} as any);
 
-export const insertMentorshipRelationshipSchema = z.object({
-  mentorId: z.number(),
-  menteeId: z.number(),
-  goals: z.string().optional(),
-});
+export const insertMentorshipRelationshipSchema = createInsertSchema(mentorshipRelationships).pick({
+  mentorId: true,
+  menteeId: true,
+  goals: true,
+} as any);
 
 // ========================
 // BIBLE STUDY TOOLS
@@ -901,37 +894,37 @@ export const bibleReadingPlans = pgTable("bible_reading_plans", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   duration: integer("duration").notNull(), // days
-  readings: text("readings").notNull(), // JSON string array of daily readings
+  readings: jsonb("readings").notNull(), // Array of daily readings
   creatorId: integer("creator_id").references(() => users.id),
   groupId: integer("group_id").references(() => groups.id),
   isPublic: boolean("is_public").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertBibleReadingPlanSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  duration: z.number(),
-  readings: z.string(),
-  creatorId: z.number().optional(),
-  groupId: z.number().optional(),
-  isPublic: z.boolean().default(true),
-});
+export const insertBibleReadingPlanSchema = createInsertSchema(bibleReadingPlans).pick({
+  title: true,
+  description: true,
+  duration: true,
+  readings: true,
+  creatorId: true,
+  groupId: true,
+  isPublic: true,
+} as any);
 
 export const bibleReadingProgress = pgTable("bible_reading_progress", {
   id: serial("id").primaryKey(),
   planId: integer("plan_id").notNull().references(() => bibleReadingPlans.id),
   userId: integer("user_id").notNull().references(() => users.id),
   currentDay: integer("current_day").default(1),
-  completedDays: text("completed_days").default("[]"), // JSON string array
+  completedDays: jsonb("completed_days").default([]),
   startedAt: timestamp("started_at").defaultNow(),
-  completedAt: text("completed_at"),
-});
+  completedAt: timestamp("completed_at"),
+} as any);
 
-export const insertBibleReadingProgressSchema = z.object({
-  planId: z.number(),
-  userId: z.number(),
-});
+export const insertBibleReadingProgressSchema = createInsertSchema(bibleReadingProgress).pick({
+  planId: true,
+  userId: true,
+} as any);
 
 export const bibleStudyNotes = pgTable("bible_study_notes", {
   id: serial("id").primaryKey(),
@@ -943,34 +936,34 @@ export const bibleStudyNotes = pgTable("bible_study_notes", {
   isPublic: boolean("is_public").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+} as any);
 
-export const insertBibleStudyNotesSchema = z.object({
-  userId: z.number(),
-  groupId: z.number().optional(),
-  title: z.string(),
-  content: z.string(),
-  passage: z.string().optional(),
-  isPublic: z.boolean().default(false),
-});
+export const insertBibleStudyNotesSchema = createInsertSchema(bibleStudyNotes).pick({
+  userId: true,
+  groupId: true,
+  title: true,
+  content: true,
+  passage: true,
+  isPublic: true,
+} as any);
 
 export const verseMemorization = pgTable("verse_memorization", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   verse: text("verse").notNull(),
   reference: text("reference").notNull(),
-  startDate: text("start_date").default("CURRENT_TIMESTAMP"),
-  masteredDate: text("mastered_date"),
-  reviewDates: text("review_dates").default("[]"), // JSON string array
+  startDate: timestamp("start_date").defaultNow(),
+  masteredDate: timestamp("mastered_date"),
+  reviewDates: jsonb("review_dates").default([]),
   reminderFrequency: integer("reminder_frequency"), // days
-});
+} as any);
 
-export const insertVerseMemorizationSchema = z.object({
-  userId: z.number(),
-  verse: z.string(),
-  reference: z.string(),
-  reminderFrequency: z.number().optional(),
-});
+export const insertVerseMemorizationSchema = createInsertSchema(verseMemorization).pick({
+  userId: true,
+  verse: true,
+  reference: true,
+  reminderFrequency: true,
+} as any);
 
 // ========================
 // CONTENT RECOMMENDATIONS
@@ -978,12 +971,12 @@ export const insertVerseMemorizationSchema = z.object({
 export const userPreferences = pgTable("user_preferences", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  interests: text("interests").default("[]"), // JSON string array
-  favoriteTopics: text("favorite_topics").default("[]"), // JSON string array
-  engagementHistory: text("engagement_history").default("[]"), // JSON string array
+  interests: jsonb("interests").default([]),
+  favoriteTopics: jsonb("favorite_topics").default([]),
+  engagementHistory: jsonb("engagement_history").default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+} as any);
 
 export const contentRecommendations = pgTable("content_recommendations", {
   id: serial("id").primaryKey(),
@@ -994,21 +987,21 @@ export const contentRecommendations = pgTable("content_recommendations", {
   reason: text("reason"),
   isViewed: boolean("is_viewed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertUserPreferencesSchema = z.object({
-  userId: z.number(),
-  interests: z.string().default("[]"),
-  favoriteTopics: z.string().default("[]"),
-});
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).pick({
+  userId: true,
+  interests: true,
+  favoriteTopics: true,
+} as any);
 
-export const insertContentRecommendationSchema = z.object({
-  userId: z.number(),
-  contentType: z.string(),
-  contentId: z.number(),
-  score: z.number(),
-  reason: z.string().optional(),
-});
+export const insertContentRecommendationSchema = createInsertSchema(contentRecommendations).pick({
+  userId: true,
+  contentType: true,
+  contentId: true,
+  score: true,
+  reason: true,
+} as any);
 
 // ========================
 // COMMUNITY CHALLENGES
@@ -1019,42 +1012,42 @@ export const challenges = pgTable("challenges", {
   description: text("description").notNull(),
   type: text("type").notNull(), // prayer, service, bible-reading
   duration: integer("duration").notNull(), // days
-  goals: text("goals").notNull(), // JSON string
+  goals: jsonb("goals").notNull(),
   creatorId: integer("creator_id").notNull().references(() => users.id),
   groupId: integer("group_id").references(() => groups.id),
   communityId: integer("community_id").references(() => communities.id),
-  startDate: text("start_date").notNull(),
-  endDate: text("end_date").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertChallengeSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  type: z.string(),
-  duration: z.number(),
-  goals: z.string(),
-  creatorId: z.number(),
-  groupId: z.number().optional(),
-  communityId: z.number().optional(),
-  startDate: z.string(),
-  endDate: z.string(),
-});
+export const insertChallengeSchema = createInsertSchema(challenges).pick({
+  title: true,
+  description: true,
+  type: true,
+  duration: true,
+  goals: true,
+  creatorId: true,
+  groupId: true,
+  communityId: true,
+  startDate: true,
+  endDate: true,
+} as any);
 
 export const challengeParticipants = pgTable("challenge_participants", {
   id: serial("id").primaryKey(),
   challengeId: integer("challenge_id").notNull().references(() => challenges.id),
   userId: integer("user_id").notNull().references(() => users.id),
-  progress: text("progress").default("{}"), // JSON string
+  progress: jsonb("progress").default({}),
   isCompleted: boolean("is_completed").default(false),
   joinedAt: timestamp("joined_at").defaultNow(),
-  completedAt: text("completed_at"),
-});
+  completedAt: timestamp("completed_at"),
+} as any);
 
-export const insertChallengeParticipantSchema = z.object({
-  challengeId: z.number(),
-  userId: z.number(),
-});
+export const insertChallengeParticipantSchema = createInsertSchema(challengeParticipants).pick({
+  challengeId: true,
+  userId: true,
+} as any);
 
 export const challengeTestimonials = pgTable("challenge_testimonials", {
   id: serial("id").primaryKey(),
@@ -1062,13 +1055,13 @@ export const challengeTestimonials = pgTable("challenge_testimonials", {
   userId: integer("user_id").notNull().references(() => users.id),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertChallengeTestimonialSchema = z.object({
-  challengeId: z.number(),
-  userId: z.number(),
-  content: z.string(),
-});
+export const insertChallengeTestimonialSchema = createInsertSchema(challengeTestimonials).pick({
+  challengeId: true,
+  userId: true,
+  content: true,
+} as any);
 
 // ========================
 // RESOURCE SHARING
@@ -1081,22 +1074,22 @@ export const resources = pgTable("resources", {
   url: text("url"),
   author: text("author"),
   imageUrl: text("image_url"),
-  tags: text("tags"), // JSON string array
+  tags: text("tags").array(),
   averageRating: integer("average_rating").default(0),
   submitterId: integer("submitter_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertResourceSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  type: z.string(),
-  url: z.string().optional(),
-  author: z.string().optional(),
-  imageUrl: z.string().optional(),
-  tags: z.string().optional(),
-  submitterId: z.number(),
-});
+export const insertResourceSchema = createInsertSchema(resources).pick({
+  title: true,
+  description: true,
+  type: true,
+  url: true,
+  author: true,
+  imageUrl: true,
+  tags: true,
+  submitterId: true,
+} as any);
 
 export const resourceRatings = pgTable("resource_ratings", {
   id: serial("id").primaryKey(),
@@ -1105,14 +1098,14 @@ export const resourceRatings = pgTable("resource_ratings", {
   rating: integer("rating").notNull(),
   review: text("review"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertResourceRatingSchema = z.object({
-  resourceId: z.number(),
-  userId: z.number(),
-  rating: z.number(),
-  review: z.string().optional(),
-});
+export const insertResourceRatingSchema = createInsertSchema(resourceRatings).pick({
+  resourceId: true,
+  userId: true,
+  rating: true,
+  review: true,
+} as any);
 
 export const resourceCollections = pgTable("resource_collections", {
   id: serial("id").primaryKey(),
@@ -1121,26 +1114,26 @@ export const resourceCollections = pgTable("resource_collections", {
   creatorId: integer("creator_id").notNull().references(() => users.id),
   isPublic: boolean("is_public").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertResourceCollectionSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
-  creatorId: z.number(),
-  isPublic: z.boolean().default(true),
-});
+export const insertResourceCollectionSchema = createInsertSchema(resourceCollections).pick({
+  title: true,
+  description: true,
+  creatorId: true,
+  isPublic: true,
+} as any);
 
 export const collectionResources = pgTable("collection_resources", {
   id: serial("id").primaryKey(),
   collectionId: integer("collection_id").notNull().references(() => resourceCollections.id),
   resourceId: integer("resource_id").notNull().references(() => resources.id),
   addedAt: timestamp("added_at").defaultNow(),
-});
+} as any);
 
-export const insertCollectionResourceSchema = z.object({
-  collectionId: z.number(),
-  resourceId: z.number(),
-});
+export const insertCollectionResourceSchema = createInsertSchema(collectionResources).pick({
+  collectionId: true,
+  resourceId: true,
+} as any);
 
 // ========================
 // COMMUNITY SERVICE
@@ -1150,30 +1143,30 @@ export const serviceProjects = pgTable("service_projects", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   location: text("location"),
-  date: text("date"),
-  startTime: text("start_time"),
-  endTime: text("end_time"),
+  date: date("date"),
+  startTime: time("start_time"),
+  endTime: time("end_time"),
   organizerId: integer("organizer_id").notNull().references(() => users.id),
   communityId: integer("community_id").references(() => communities.id),
   groupId: integer("group_id").references(() => groups.id),
   volunteerLimit: integer("volunteer_limit"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertServiceProjectSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  location: z.string().optional(),
-  date: z.string().optional(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
-  organizerId: z.number(),
-  communityId: z.number().optional(),
-  groupId: z.number().optional(),
-  volunteerLimit: z.number().optional(),
-  imageUrl: z.string().optional(),
-});
+export const insertServiceProjectSchema = createInsertSchema(serviceProjects).pick({
+  title: true,
+  description: true,
+  location: true,
+  date: true,
+  startTime: true,
+  endTime: true,
+  organizerId: true,
+  communityId: true,
+  groupId: true,
+  volunteerLimit: true,
+  imageUrl: true,
+} as any);
 
 export const serviceVolunteers = pgTable("service_volunteers", {
   id: serial("id").primaryKey(),
@@ -1182,13 +1175,13 @@ export const serviceVolunteers = pgTable("service_volunteers", {
   status: text("status").notNull(), // signed-up, confirmed, attended, cancelled
   hoursServed: integer("hours_served"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertServiceVolunteerSchema = z.object({
-  projectId: z.number(),
-  userId: z.number(),
-  status: z.string().optional(),
-});
+export const insertServiceVolunteerSchema = createInsertSchema(serviceVolunteers).pick({
+  projectId: true,
+  userId: true,
+  status: true,
+} as any);
 
 export const serviceTestimonials = pgTable("service_testimonials", {
   id: serial("id").primaryKey(),
@@ -1197,14 +1190,14 @@ export const serviceTestimonials = pgTable("service_testimonials", {
   content: text("content").notNull(),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+} as any);
 
-export const insertServiceTestimonialSchema = z.object({
-  projectId: z.number(),
-  userId: z.number(),
-  content: z.string(),
-  imageUrl: z.string().optional(),
-});
+export const insertServiceTestimonialSchema = createInsertSchema(serviceTestimonials).pick({
+  projectId: true,
+  userId: true,
+  content: true,
+  imageUrl: true,
+} as any);
 
 // Type exports for all community features
 export type Event = typeof events.$inferSelect;
@@ -1246,17 +1239,16 @@ export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 // Messages table for private messaging between users
 export const messages = pgTable("messages", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  senderId: integer("sender_id").notNull().references(() => users.id),
-  receiverId: integer("receiver_id").notNull().references(() => users.id),
+  senderId: integer("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  receiverId: integer("receiver_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+} as any);
 
-export const insertMessageSchema = z.object({
-  senderId: z.number(),
-  receiverId: z.number(),
-  content: z.string(),
-});
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+} as any);
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof insertMessageSchema._input;

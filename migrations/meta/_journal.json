@@ -15,6 +15,13 @@
       "when": 1758313818532,
       "tag": "0001_demonic_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758474397960,
+      "tag": "0002_tan_unicorn",
+      "breakpoints": true
     }
   ]
 }
