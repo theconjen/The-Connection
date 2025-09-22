@@ -1,18 +1,15 @@
 {
   "version": 2,
-  "outputDirectory": "dist/public",
   "buildCommand": "npm run build",
+  "outputDirectory": "dist/public",
   "routes": [
     {
-      "src": "^/api/(.*)$",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "^/assets/(.*)$",
+      "src": "/assets/(.*)",
+      "headers": { "cache-control": "s-maxage=31536000,immutable" },
       "dest": "/assets/$1"
     },
     {
-      "src": ".*",
+      "src": "/(.*)",
       "dest": "/index.html"
     }
   ]
