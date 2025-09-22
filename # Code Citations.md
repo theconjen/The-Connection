@@ -1,33 +1,12 @@
 # Code Citations
 
-## License: MIT
-https://github.com/AK2640/Shop/blob/43b1d6c4d8abc368b3e338a661816ec4221279c4/vite.config.js
+## License: unknown
+https://github.com/n4djib/next-14.0.3/blob/edf11ff5ed402e476dd5b50e2ed231b6dd5cdc61/src/lib/drizzle/schema.ts
 
 ```
-from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
-
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "src
-```
-
-
-## License: MIT
-https://github.com/AK2640/Shop/blob/43b1d6c4d8abc368b3e338a661816ec4221279c4/vite.config.js
-
-```
-from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
-
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "src
+("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(
 ```
 
