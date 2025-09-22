@@ -68,51 +68,14 @@
       "permanent": true
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/robots\\.txt$",
-      "dest": "/robots.txt",
-      "headers": {
-        "Content-Type": "text/plain"
-      }
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     },
     {
-      "src": "/sitemap\\.xml$",
-      "dest": "/sitemap.xml",
-      "headers": {
-        "Content-Type": "application/xml"
-      }
-    },
-    {
-      "src": "/404\\.html$",
-      "dest": "/404.html",
-      "headers": {
-        "Content-Type": "text/html"
-      }
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/manifest.webmanifest",
-      "dest": "/manifest.webmanifest"
-    },
-    {
-      "src": "/sw.js",
-      "dest": "/sw.js"
-    },
-    {
-      "src": "/registerSW.js",
-      "dest": "/registerSW.js"
-    },
-    {
-      "src": "/workbox-(.*).js",
-      "dest": "/workbox-$1.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!api|assets|manifest.webmanifest|sw.js|registerSW.js|workbox-.*\\.js|robots\\.txt|sitemap\\.xml|404\\.html|pwa-.*\\.png).*)",
+      "destination": "/index.html"
     }
   ]
 }
