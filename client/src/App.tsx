@@ -1,5 +1,5 @@
 import { Router, Route, Switch } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { trackPageView, trackEvent } from "./lib/analytics";
 import { Toaster } from "./components/ui/toaster";
@@ -51,24 +51,9 @@ function AnalyticsTracker() {
 }
 
 function App() {
-  // Temporarily disable auth loading to test if app loads
-  // const { user, isLoading, error } = useAuth();
-  const user = null;
-  const isLoading = false;
-  const error = null;
+  const { user, isLoading } = useAuth();
 
-  // Show loading for max 1 second, then proceed anyway
-  const [showLoading, setShowLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowLoading(false);
-    }, 500); // 0.5 second timeout for testing
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (showLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '../lib/api';
+import { apiRequest } from '../lib/queryClient';
 
 export interface RecommendedMicroblog {
   id: number;
@@ -44,7 +44,7 @@ export function usePersonalizedFeed(limit = 20) {
   return useQuery({
     queryKey: ['/api/recommendations/feed', limit],
     queryFn: async (): Promise<PersonalizedFeedData> => {
-      const response = await apiRequest(`/api/recommendations/feed?limit=${limit}`);
+      const response = await apiRequest('GET', `/api/recommendations/feed?limit=${limit}`);
       return response.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

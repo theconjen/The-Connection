@@ -4,15 +4,11 @@ import {
   UseMutationResult,
 } from "@tanstack/react-query";
 import { User as SelectUser, InsertUser } from "../../../shared/schema";
-import { getQueryFn, queryClient } from "../lib/queryClient";
-import { apiRequest } from "../lib/api";
+import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "./use-toast";
 
 // Define types for login data and auth context
-type LoginData = {
-  username: string;
-  password: string;
-};
+type LoginData = Pick<InsertUser, "username" | "password">;
 
 export type AuthContextType = {
   user: SelectUser | undefined;
@@ -21,7 +17,6 @@ export type AuthContextType = {
   isAuthenticated: boolean;
   loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
-  logout: () => void;
   registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
 };
 
@@ -37,19 +32,15 @@ export function useAuth(): AuthContextType {
     queryFn: getQueryFn({ on401: "returnNull" }),
     staleTime: 5 * 60 * 1000, // 5 minutes - don't refetch too aggressively
     refetchOnWindowFocus: false, // Don't refetch on window focus to preserve session
-    enabled: true, // Re-enable authentication check now that schema issues are fixed
-    retry: 1, // Only retry once
-    retryDelay: 1000, // Wait 1 second before retry
+    enabled: true, // Always enabled but controlled by staleTime
   });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       try {
         // First try server authentication
-        return await apiRequest("/api/login", {
-          method: "POST",
-          body: JSON.stringify(credentials)
-        });
+        const res = await apiRequest("POST", "/api/login", credentials);
+        return await res.json();
       } catch (error) {
         // If server authentication fails, check if we can use fallback authentication
         // for testing/development purposes
@@ -121,10 +112,8 @@ export function useAuth(): AuthContextType {
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
       try {
-        return await apiRequest("/api/register", {
-          method: "POST",
-          body: JSON.stringify(credentials)
-        });
+        const res = await apiRequest("POST", "/api/register", credentials);
+        return await res.json();
       } catch (error) {
         // Enhance error messages for common registration issues
         if (error instanceof Error) {
@@ -169,9 +158,7 @@ export function useAuth(): AuthContextType {
   const logoutMutation = useMutation({
     mutationFn: async () => {
       try {
-        await apiRequest("/api/logout", {
-          method: "POST"
-        });
+        await apiRequest("POST", "/api/logout");
       } catch (error) {
         // If the server is unreachable, still allow client-side logout
         console.warn("Server logout failed, proceeding with client-side logout:", error);
@@ -219,7 +206,6 @@ export function useAuth(): AuthContextType {
     isAuthenticated: !!user,
     loginMutation,
     logoutMutation,
-    logout: () => logoutMutation.mutate(),
     registerMutation,
   };
 }

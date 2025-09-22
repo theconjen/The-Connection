@@ -24,8 +24,7 @@ import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
-import { queryClient } from "../lib/queryClient";
-import { apiRequest } from "../lib/api";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import MainLayout from "../components/layouts/main-layout";
 import { Loader2, CheckCircle, AlertTriangle, ChevronRight, BookOpen, GraduationCap } from "lucide-react";
 
@@ -96,10 +95,11 @@ export default function ApologistScholarApplicationPage() {
   // Submit mutation
   const { mutate, isPending: isSubmitting } = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      return await apiRequest("/api/apologist-scholar-application", {
-        method: "POST",
-        body: JSON.stringify(values)
-      });
+      return await apiRequest(
+        "POST",
+        "/api/apologist-scholar-application",
+        values
+      );
     },
     onSuccess: () => {
       toast({

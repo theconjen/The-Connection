@@ -4,8 +4,7 @@ import { useAuth } from "../hooks/use-auth";
 import { useMediaQuery } from "../hooks/use-media-query";
 import MainLayout from "../components/layouts/main-layout";
 import { PrayerRequest } from "../../../shared/schema";
-import { queryClient } from "../lib/queryClient";
-import { apiRequest } from "../lib/api";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { formatDistanceToNow, format } from "date-fns";
 import FloatingActionButton from "../components/floating-action-button";
 
@@ -124,10 +123,8 @@ export default function PrayerRequestsPage() {
   // Create prayer request mutation
   const createPrayerMutation = useMutation({
     mutationFn: async (data: z.infer<typeof prayerRequestSchema>) => {
-      return await apiRequest("/api/prayer-requests", {
-        method: "POST",
-        body: JSON.stringify(data)
-      });
+      const res = await apiRequest("POST", "/api/prayer-requests", data);
+      return await res.json();
     },
     onSuccess: () => {
       toast({
@@ -151,9 +148,8 @@ export default function PrayerRequestsPage() {
   // Pray for request mutation
   const prayForRequestMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/prayer-requests/${id}/pray`, {
-        method: "POST"
-      });
+      const res = await apiRequest("POST", `/api/prayer-requests/${id}/pray`);
+      return await res.json();
     },
     onSuccess: (_, id) => {
       toast({
@@ -176,10 +172,8 @@ export default function PrayerRequestsPage() {
   // Mark as answered mutation
   const markAsAnsweredMutation = useMutation({
     mutationFn: async ({ id, description }: { id: number; description: string }) => {
-      return await apiRequest(`/api/prayer-requests/${id}/answer`, {
-        method: "POST",
-        body: JSON.stringify({ description })
-      });
+      const res = await apiRequest("POST", `/api/prayer-requests/${id}/answer`, { description });
+      return await res.json();
     },
     onSuccess: () => {
       toast({

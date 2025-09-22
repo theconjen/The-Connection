@@ -30,8 +30,7 @@ import {
   UserPlus
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
-import { queryClient } from "../lib/queryClient";
-import { apiRequest } from "../lib/api";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import type { CommunityInvitation, Community } from "../../../shared/schema";
 
 export default function AcceptInvitationPage() {
@@ -63,9 +62,12 @@ export default function AcceptInvitationPage() {
       }
       
       setAcceptanceStatus('accepting');
-      return await apiRequest(`/api/invitations/${token}/accept`, {
-        method: "POST"
-      });
+      const res = await apiRequest(
+        "POST",
+        `/api/invitations/${token}/accept`,
+        {}
+      );
+      return await res.json();
     },
     onSuccess: (data) => {
       setAcceptanceStatus('success');

@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "../lib/api";
+import { apiRequest } from "../lib/queryClient";
 import { useToast } from "./use-toast";
 
 export function usePasswordReset() {
@@ -8,10 +8,8 @@ export function usePasswordReset() {
   // Request password reset email
   const requestResetMutation = useMutation({
     mutationFn: async (email: string) => {
-      return await apiRequest("/api/request-password-reset", {
-        method: "POST",
-        body: JSON.stringify({ email })
-      });
+      const res = await apiRequest("POST", "/api/request-password-reset", { email });
+      return await res.json();
     },
     onSuccess: () => {
       toast({
@@ -31,10 +29,8 @@ export function usePasswordReset() {
   // Reset password with token
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ token, password }: { token: string; password: string }) => {
-      return await apiRequest("/api/reset-password", {
-        method: "POST",
-        body: JSON.stringify({ token, password })
-      });
+      const res = await apiRequest("POST", "/api/reset-password", { token, password });
+      return await res.json();
     },
     onSuccess: () => {
       toast({

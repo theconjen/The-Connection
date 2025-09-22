@@ -15,8 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Community, Group, InsertPost } from "../../../shared/schema";
 import { useAuth } from "../hooks/use-auth";
-import { queryClient } from "../lib/queryClient";
-import { apiRequest } from "../lib/api";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -80,12 +79,8 @@ export default function SubmitPostPage() {
       if (data.communityId) postData.communityId = data.communityId;
       if (data.groupId) postData.groupId = data.groupId;
       
-      const newPost = await apiRequest("/api/posts", {
-        method: "POST",
-        body: JSON.stringify(postData)
-      });
-      
-      return newPost;
+      const res = await apiRequest("POST", "/api/posts", postData);
+      return await res.json();
     },
     onSuccess: (newPost) => {
       toast({

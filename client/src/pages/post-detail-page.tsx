@@ -16,8 +16,7 @@ import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Skeleton } from "../components/ui/skeleton";
 import ShareButtons from "../components/share-buttons";
-import { apiRequest } from "../lib/api";
-import { queryClient } from "../lib/queryClient";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { z } from "zod";
 import { format } from "date-fns";
@@ -37,7 +36,7 @@ const commentFormSchema = insertCommentSchema.extend({
 
 export default function PostDetailPage() {
   const [, params] = useRoute("/posts/:id");
-  const postId = Number(params!.id ?? 0);
+  const postId = parseInt(params?.id || "0");
   const { user } = useAuth();
   const { toast } = useToast();
   const [commentText, setCommentText] = useState("");
@@ -64,8 +63,8 @@ export default function PostDetailPage() {
   // Upvote mutation
   const upvoteMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest(`/api/posts/${postId}/upvote`, { method: "POST" });
-      return res;
+      const res = await apiRequest("POST", `/api/posts/${postId}/upvote`);
+      return await res.json();
     },
     onSuccess: (updatedPost) => {
       queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}`] });
@@ -88,8 +87,8 @@ export default function PostDetailPage() {
         authorId: user!.id,
       };
       
-      const res = await apiRequest("/api/comments", { method: "POST", body: JSON.stringify(data) });
-      return res;
+      const res = await apiRequest("POST", "/api/comments", data);
+      return await res.json();
     },
     onSuccess: () => {
       setCommentText("");
@@ -112,8 +111,8 @@ export default function PostDetailPage() {
   // Upvote comment mutation
   const upvoteCommentMutation = useMutation({
     mutationFn: async (commentId: number) => {
-      const res = await apiRequest(`/api/comments/${commentId}/upvote`, { method: "POST" });
-      return res;
+      const res = await apiRequest("POST", `/api/comments/${commentId}/upvote`);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}/comments`] });

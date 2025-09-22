@@ -36,8 +36,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { Skeleton } from "../components/ui/skeleton";
 import { insertGroupSchema, InsertGroup } from "../../../shared/schema";
-import { queryClient } from "../lib/queryClient";
-import { apiRequest } from "../lib/api";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { User, Users, Home, Church, PlusIcon } from "lucide-react";
 import CommunityGuidelines from "../components/community-guidelines";
@@ -81,10 +80,8 @@ export default function GroupsPage() {
         createdBy: user!.id,
       };
       
-      const newGroup = await apiRequest("/api/groups", {
-        method: "POST",
-        body: JSON.stringify(groupData)
-      });
+      const response = await apiRequest("POST", "/api/groups", groupData);
+      const newGroup = await response.json();
       
       // Invalidate the groups query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['/api/groups'] });

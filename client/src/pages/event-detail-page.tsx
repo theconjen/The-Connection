@@ -29,8 +29,7 @@ import {
   DialogClose
 } from "../components/ui/dialog";
 import { format } from "date-fns";
-import { queryClient } from "../lib/queryClient";
-import { apiRequest } from "../lib/api";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { useAuth } from "../hooks/use-auth";
 import { Link, useLocation, useParams } from "wouter";
 import {
@@ -141,10 +140,12 @@ export default function EventDetailPage() {
   // Create RSVP mutation
   const createRsvpMutation = useMutation({
     mutationFn: async (status: string) => {
-      return await apiRequest(`/api/events/${eventId}/rsvp`, {
-        method: "POST",
-        body: JSON.stringify({ status })
-      });
+      const response = await apiRequest("POST", `/api/events/${eventId}/rsvp`, { status });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to RSVP");
+      }
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -166,10 +167,12 @@ export default function EventDetailPage() {
   // Update RSVP mutation
   const updateRsvpMutation = useMutation({
     mutationFn: async (status: string) => {
-      return await apiRequest(`/api/events/${eventId}/rsvp`, {
-        method: "PATCH",
-        body: JSON.stringify({ status })
-      });
+      const response = await apiRequest("PATCH", `/api/events/${eventId}/rsvp`, { status });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update RSVP");
+      }
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -191,9 +194,12 @@ export default function EventDetailPage() {
   // Delete event mutation
   const deleteEventMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest(`/api/events/${eventId}`, {
-        method: "DELETE"
-      });
+      const response = await apiRequest("DELETE", `/api/events/${eventId}`, {});
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete event");
+      }
+      return response.json();
     },
     onSuccess: () => {
       toast({

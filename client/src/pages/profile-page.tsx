@@ -8,34 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { useToast } from "../hooks/use-toast";
-import { apiRequest } from "../lib/api";
+import { apiRequest } from "../lib/queryClient";
 import { PhotoUploader } from "../components/PhotoUploader";
 import { Link } from "wouter";
 import type { User as UserType } from "../../../shared/schema";
-
-type Community = {
-  id: number;
-  name: string;
-  slug: string;
-  iconColor?: string;
-  iconName?: string;
-  memberCount: number;
-  description?: string;
-  isLocalCommunity?: boolean;
-  city?: string;
-  state?: string;
-};
-
-type Post = {
-  id: number;
-  type?: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  link: string;
-  engagementCount: number;
-  prayerCount?: number;
-};
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
@@ -49,28 +25,22 @@ export default function ProfilePage() {
   });
 
   // Get user's communities
-  const { data: userCommunities = [], isLoading: communitiesLoading } =
-    useQuery<Community[]>({
-      queryKey: ['user-communities', user?.id],
-      queryFn: () => apiRequest<Community[]>(`/api/users/${user!.id}/communities`),
-      enabled: !!user?.id,
-    });
+  const { data: userCommunities, isLoading: communitiesLoading } = useQuery({
+    queryKey: ["/api/users", user?.id, "communities"],
+    enabled: !!user?.id,
+  });
 
   // Get user's posts
-  const { data: userPosts = [], isLoading: postsLoading } =
-    useQuery<Post[]>({
-      queryKey: ['user-posts', user?.id],
-      queryFn: () => apiRequest<Post[]>(`/api/users/${user!.id}/posts`),
-      enabled: !!user?.id,
-    });
+  const { data: userPosts, isLoading: postsLoading } = useQuery({
+    queryKey: ["/api/users", user?.id, "posts"],
+    enabled: !!user?.id,
+  });
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (userData: Partial<UserType>) => {
-      return await apiRequest(`/api/user/${user?.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(userData)
-      });
+      const response = await apiRequest("PATCH", `/api/user/${user?.id}`, userData);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
@@ -335,7 +305,7 @@ export default function ProfilePage() {
             </div>
           ) : userCommunities?.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {userCommunities.map((community) => (
+              {userCommunities.map((community: any) => (
                 <Card key={community.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
@@ -397,7 +367,7 @@ export default function ProfilePage() {
             </div>
           ) : userPosts?.length > 0 ? (
             <div className="space-y-4">
-              {userPosts.slice(0, 10).map((post) => (
+              {userPosts.slice(0, 10).map((post: any) => (
                 <Card key={`${post.type}-${post.id}`} className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">

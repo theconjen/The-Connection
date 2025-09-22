@@ -24,8 +24,7 @@ import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
-import { queryClient } from "../lib/queryClient";
-import { apiRequest } from "../lib/api";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import MainLayout from "../components/layouts/main-layout";
 import { Loader2, CheckCircle, AlertTriangle, ChevronRight } from "lucide-react";
 
@@ -94,13 +93,12 @@ export default function LivestreamerApplicationPage() {
   // Handle application submission
   const applicationMutation = useMutation({
     mutationFn: async (data: ApplicationValues) => {
-      return await apiRequest('/api/livestreamer-application', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...data,
-          userId: user?.id
-        })
+      const response = await apiRequest('POST', '/api/livestreamer-application', {
+        ...data,
+        userId: user?.id
       });
+      
+      return await response.json();
     },
     onSuccess: () => {
       setSubmitted(true);
