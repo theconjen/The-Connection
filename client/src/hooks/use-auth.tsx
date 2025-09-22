@@ -36,10 +36,28 @@ export function useAuth(): AuthContextType {
     isLoading,
   } = useQuery<SelectUser | undefined>({
     queryKey: ["/api/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
+    queryFn: (context) => {
+      try {
+        return getQueryFn({ on401: "returnNull" })(context);
+      } catch (error) {
+        if (error instanceof Error && error.message === 'API_NOT_AVAILABLE') {
+          // In demo mode, return null (no user logged in)
+          console.warn('API not available, running in demo mode');
+          return null;
+        }
+        throw error;
+      }
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes - don't refetch too aggressively
     refetchOnWindowFocus: false, // Don't refetch on window focus to preserve session
     enabled: true, // Always enabled but controlled by staleTime
+    retry: (failureCount, error) => {
+      // Don't retry if API is not available
+      if (error instanceof Error && error.message === 'API_NOT_AVAILABLE') {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   const loginMutation: UseMutationResult<SelectUser, Error, LoginData, unknown> = useMutation({

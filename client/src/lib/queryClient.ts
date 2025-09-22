@@ -45,16 +45,36 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn = (options: { on401: UnauthorizedBehavior }): QueryFunction<any> => {
   const { on401: unauthorizedBehavior } = options;
   return async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
-    });
+    try {
+      const res = await fetch(queryKey[0] as string, {
+        credentials: "include",
+      });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null as any;
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null as any;
+      }
+
+      await throwIfResNotOk(res);
+      
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        // API returned HTML instead of JSON, likely a routing issue
+        console.warn('API endpoint returned HTML instead of JSON:', queryKey[0]);
+        throw new Error('API_NOT_AVAILABLE');
+      }
+      
+      return (await res.json()) as any;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'API_NOT_AVAILABLE') {
+        throw error;
+      }
+      // Handle JSON parsing errors
+      if (error instanceof SyntaxError) {
+        console.warn('Failed to parse JSON response from:', queryKey[0]);
+        throw new Error('API_NOT_AVAILABLE');
+      }
+      throw error;
     }
-
-    await throwIfResNotOk(res);
-    return (await res.json()) as any;
   };
 };
 
