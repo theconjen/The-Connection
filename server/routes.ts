@@ -408,7 +408,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         inviteeEmail: email,
         token: token,
         status: 'pending',
-        expiresAt: new Date(Date.now() + 7*24*60*60*1000).toISOString()
+        expiresAt: new Date(Date.now() + 7*24*60*60*1000)
       });
 
       // Send invitation email
@@ -597,7 +597,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
       // Create initial system message
       await storage.createChatMessage({
-        chatRoomId: room.id,
+        roomId: room.id,
         senderId: userId,
         content: `${req.session.username || "A user"} created this chat room`,
       });
@@ -698,7 +698,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
 
       const message = await storage.createChatMessage({
-        chatRoomId: roomId,
+        roomId: roomId,
         senderId: userId,
         content: content.trim()
       });
@@ -1028,7 +1028,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(404).json({ message: 'Event not found' });
       }
 
-      if (event.creatorId !== userId && !req.session.isAdmin) {
+      if (event.organizerId !== userId && !req.session.isAdmin) {
         return res.status(403).json({ message: 'Only the organizer or admin can delete this event' });
       }
 
@@ -1124,7 +1124,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         topicId: topicId,
         title: title,
         content: content,
-        authorId: userId
+        askedBy: userId
       });
 
       res.status(201).json(question);
@@ -1148,7 +1148,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       const answer = await storage.createApologeticsAnswer({
         questionId: questionId,
         content: content,
-        authorId: userId
+        answeredBy: userId
       });
 
       res.status(201).json(answer);
@@ -1186,7 +1186,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       await storage.addGroupMember({
         groupId: group.id,
         userId: userId,
-        isAdmin: true
+        role: 'admin'
       });
 
       res.status(201).json(group);
@@ -1215,9 +1215,9 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       const livestream = await storage.createLivestream({
         title: title,
         description: description,
-        hostId: userId,
+        streamerId: userId,
         streamUrl: streamUrl,
-        scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
+        scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
         isLive: false
       });
 
@@ -1232,19 +1232,18 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/applications/livestreamer', isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const { fullName, ...body } = req.body;
       const validatedData = insertLivestreamerApplicationSchema.parse({
-        ...body,
+        ...req.body,
         userId: userId
       });
 
       const application = await storage.createLivestreamerApplication(validatedData);
-
+      
       // Send notification email to admins
       try {
-        await sendLivestreamerApplicationNotificationEmail(
-          req.body.email,
-          fullName,
+        await sendLivestreamerApplicationEmail(
+          validatedData.email,
+          validatedData.fullName,
           application.id
         );
       } catch (emailError) {
@@ -1261,17 +1260,20 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/applications/apologist-scholar', isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const { fullName, ...body } = req.body;
       const validatedData = insertApologistScholarApplicationSchema.parse({
-        ...body,
+        ...req.body,
         userId: userId
       });
 
       const application = await storage.createApologistScholarApplication(validatedData);
-
+      
       // Send notification email to admins
       try {
-        // Email sending removed due to missing function
+        await sendApologistScholarApplicationEmail(
+          validatedData.email,
+          validatedData.fullName,
+          application.id
+        );
       } catch (emailError) {
         console.error('Failed to send application notification email:', emailError);
       }
@@ -1293,11 +1295,10 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(400).json({ message: 'Invalid status' });
       }
 
-      const application = await storage.updateApologistScholarApplication(
+      const application = await storage.updateApologistScholarApplicationStatus(
         applicationId,
         status,
-        reviewNotes,
-        req.session!.userId!
+        reviewNotes
       );
 
       // If approved, set user as verified apologetics answerer
@@ -1307,22 +1308,19 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
 
       // Send status update email
       try {
-        const user = await storage.getUser(application.userId);
-        if (!user) {
-          throw new Error('User not found for application');
-        }
-
         const emailMessage = status === "approved"
           ? "We're pleased to inform you that your application to become an apologetics scholar has been approved. You can now answer apologetics questions on our platform."
           : `Your apologetics scholar application has been reviewed. Status: ${status.toUpperCase()}. ${reviewNotes ? `Reviewer notes: ${reviewNotes}` : ''}`;
 
-        await sendApplicationStatusUpdateEmail({
-          email: user.email,
-          applicantName: user.displayName || user.username,
-          status: status,
-          ministryName: "Apologetics Scholar Program",
-          reviewNotes: reviewNotes,
-          platformLink: `${BASE_URL}/apologetics/questions`
+        await sendApplicationStatusEmail({
+          to: application.email,
+          subject: `Apologetics Scholar Application ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+          message: emailMessage,
+          platformLink: `${BASE_URL}/apologetics/questions`,
+          actionText: status === "approved" ? "Start Answering Questions" : "View Platform",
+          actionUrl: status === "approved" 
+            ? `${BASE_URL}/apologetics/questions`
+            : `${BASE_URL}/apologist-scholar-application`
         });
       } catch (emailError) {
         console.error('Failed to send status update email:', emailError);
@@ -1348,28 +1346,24 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
       const application = await storage.updateLivestreamerApplication(
         applicationId,
         status,
-        reviewNotes,
-        req.session!.userId!
+        reviewNotes
       );
 
       // Send status update email
       try {
-        const user = await storage.getUser(application.userId);
-        if (!user) {
-          throw new Error('User not found for application');
-        }
-
         const emailMessage = status === "approved"
           ? "We're pleased to inform you that your application to become a livestreamer has been approved. You can now start creating livestreams on our platform."
           : `Your livestreamer application has been reviewed. Status: ${status.toUpperCase()}. ${reviewNotes ? `Reviewer notes: ${reviewNotes}` : ''}`;
 
         await sendApplicationStatusUpdateEmail({
-          email: user.email,
-          applicantName: user.displayName || user.username,
-          status: status,
-          ministryName: application.ministryName || "Livestreaming Ministry",
-          reviewNotes: reviewNotes,
-          platformLink: `${BASE_URL}/livestreams`
+          to: application.email,
+          subject: `Livestreamer Application ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+          message: emailMessage,
+          reviewLink: `${BASE_URL}/admin/livestreamer-applications/${application.id}`,
+          actionText: status === "approved" ? "Start Livestreaming" : "View Application",
+          actionUrl: status === "approved" 
+            ? `${BASE_URL}/livestreams/create`
+            : `${BASE_URL}/livestreamer-application`
         });
       } catch (emailError) {
         console.error('Failed to send status update email:', emailError);

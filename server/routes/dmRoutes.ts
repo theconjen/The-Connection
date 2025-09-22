@@ -9,7 +9,7 @@ router.get("/:userId", async (req, res) => {
     return res.status(401).json({ message: "Not authenticated" });
   }
 
-  const currentUserId = req.session.userId; // Logged-in user
+  const currentUserId = parseInt(req.session.userId); // Logged-in user
   const otherUserId = parseInt(req.params.userId);
 
   try {
@@ -27,7 +27,7 @@ router.post("/send", async (req, res) => {
     return res.status(401).json({ message: "Not authenticated" });
   }
 
-  const senderId = req.session.userId;
+  const senderId = parseInt(req.session.userId);
   const { receiverId, content } = req.body;
 
   if (!content) return res.status(400).send("Message content required");

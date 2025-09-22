@@ -20,7 +20,7 @@ router.get('/users', async (req, res, next) => {
 // Get user by ID
 router.get('/users/:id', async (req, res, next) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = req.params.id;
     if (isNaN(userId)) {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
@@ -95,7 +95,7 @@ router.patch('/applications/livestreamer/:id', async (req, res, next) => {
 // Delete user (for admin use only)
 router.delete('/users/:id', async (req, res, next) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = req.params.id;
     if (isNaN(userId)) {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
