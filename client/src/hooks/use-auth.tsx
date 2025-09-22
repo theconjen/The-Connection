@@ -8,17 +8,23 @@ import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "./use-toast";
 
 // Define types for login data and auth context
-type LoginData = Pick<InsertUser, "username" | "password">;
+type LoginData = {
+  username: string;
+  password: string;
+};
 
 export type AuthContextType = {
   user: SelectUser | undefined;
   isLoading: boolean;
   error: Error | null;
   isAuthenticated: boolean;
-  loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
-  logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
+  loginMutation: UseMutationResult<SelectUser, Error, LoginData> & { isPending?: boolean };
+  logoutMutation: UseMutationResult<void, Error, void> & { isPending?: boolean };
+  registerMutation: UseMutationResult<SelectUser, Error, InsertUser> & { isPending?: boolean };
+  logout?: () => void;
 };
+
+export type AuthUser = SelectUser;
 
 export function useAuth(): AuthContextType {
   const { toast } = useToast();
@@ -199,13 +205,24 @@ export function useAuth(): AuthContextType {
     },
   });
 
+  // Cast to AuthContextType to unify the mutation shapes across consumers.
   return {
     user,
     isLoading,
-    error,
+    error: error || null,
     isAuthenticated: !!user,
-    loginMutation,
-    logoutMutation,
-    registerMutation,
-  };
+    loginMutation: loginMutation as any,
+    logoutMutation: logoutMutation as any,
+    registerMutation: registerMutation as any,
+    // Provide a convenience logout function for older consumers
+    logout: () => {
+      // Trigger the mutation's mutate method if available
+      try {
+        (logoutMutation as any).mutate?.();
+      } catch (e) {
+        // fallback: clear local cache
+        queryClient.setQueryData(["/api/user"], null);
+      }
+    },
+  } as unknown as AuthContextType;
 }

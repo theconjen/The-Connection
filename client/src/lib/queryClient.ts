@@ -7,11 +7,28 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Support both `apiRequest(method, url, data?)` and `apiRequest(url, options?)` call styles
 export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown | undefined,
+  methodOrUrl: string,
+  maybeUrlOrOptions?: string | { method?: string; body?: string } | unknown,
+  maybeData?: unknown,
 ): Promise<Response> {
+  let method = 'GET';
+  let url = methodOrUrl;
+  let data: unknown | undefined = undefined;
+
+  // Caller used (method, url, data)
+  if (maybeUrlOrOptions && typeof maybeUrlOrOptions === 'string') {
+    method = methodOrUrl;
+    url = maybeUrlOrOptions;
+    data = maybeData;
+  } else if (maybeUrlOrOptions && typeof maybeUrlOrOptions === 'object') {
+    // Caller used (url, options)
+    const opts = maybeUrlOrOptions as any;
+    method = opts.method || 'GET';
+    data = opts.body ? JSON.parse(opts.body) : undefined;
+  }
+
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -24,22 +41,22 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
+// Return 'any' from getQueryFn so callers who don't pass a generic receive 'any' instead of 'unknown'.
+export const getQueryFn = (options: { on401: UnauthorizedBehavior }): QueryFunction<any> => {
+  const { on401: unauthorizedBehavior } = options;
+  return async ({ queryKey }) => {
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+      return null as any;
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    return (await res.json()) as any;
   };
+};
 
 export const queryClient = new QueryClient({
   defaultOptions: {
