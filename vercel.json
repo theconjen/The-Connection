@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "functions": {
+    "api/index.ts": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
   "headers": [
@@ -70,6 +75,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    },
+    {
       "source": "/robots.txt",
       "destination": "/robots.txt"
     },
@@ -82,7 +91,7 @@
       "destination": "/404.html"
     },
     {
-      "source": "/((?!robots\\.txt|sitemap\\.xml|404\\.html|assets|manifest\\.webmanifest|sw\\.js|registerSW\\.js|workbox-.*\\.js|pwa-.*\\.png).*)",
+      "source": "/((?!api|robots\\.txt|sitemap\\.xml|404\\.html|assets|manifest\\.webmanifest|sw\\.js|registerSW\\.js|workbox-.*\\.js|pwa-.*\\.png).*)",
       "destination": "/index.html"
     }
   ]
