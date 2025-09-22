@@ -19,7 +19,7 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
   // Add user data to req.currentUser for compatibility
   // Note: This is a simplified user object - for full user data, query the database
   req.currentUser = {
-    id: Number(req.session.userId),
+    id: parseInt(req.session.userId),
     username: req.session.username || '',
     email: req.session.email || '',
     password: '', // Not stored in session for security

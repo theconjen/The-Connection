@@ -104,7 +104,7 @@ export function setupAuth(app: Express) {
         currentUsername: req.session?.username
       });
       
-      req.session.userId = user.id;
+      req.session.userId = user.id.toString();
       req.session.username = user.username;
       req.session.isAdmin = user.isAdmin || false;
       
@@ -175,7 +175,7 @@ export function setupAuth(app: Express) {
         }
         
         // Save user ID in session
-        req.session.userId = user.id;
+        req.session.userId = user.id.toString();
         req.session.username = user.username;
         req.session.isAdmin = user.isAdmin || false;
         req.session.email = user.email;
@@ -220,7 +220,7 @@ export function setupAuth(app: Express) {
       }
       
       // Set session data
-      req.session.userId = admin.id;
+      req.session.userId = admin.id.toString();
       req.session.username = admin.username;
       req.session.isAdmin = true;
       
@@ -273,7 +273,7 @@ export function setupAuth(app: Express) {
       }
       
       try {
-        const userId = req.session.userId;
+        const userId = parseInt(req.session.userId);
         const user = await storage.getUser(userId);
         
         if (!user) {
