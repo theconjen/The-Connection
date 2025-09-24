@@ -422,8 +422,6 @@ CREATE TABLE "organizations" (
 	"description" text,
 	"admin_user_id" integer NOT NULL,
 	"plan" text DEFAULT 'free',
-	"stripe_customer_id" text,
-	"stripe_subscription_id" text,
 	"website" text,
 	"address" text,
 	"city" text,

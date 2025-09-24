@@ -3307,18 +3307,6 @@
           "notNull": false,
           "default": "'free'"
         },
-        "stripe_customer_id": {
-          "name": "stripe_customer_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stripe_subscription_id": {
-          "name": "stripe_subscription_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "website": {
           "name": "website",
           "type": "text",

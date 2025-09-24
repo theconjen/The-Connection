@@ -195,11 +195,11 @@ router.get("/:id/members", requireAuth, async (req, res) => {
   }
 });
 
-// Update organization plan (for Stripe integration)
+// Update organization plan
 router.patch("/:id/plan", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
-    const { plan, stripeCustomerId, stripeSubscriptionId } = req.body;
+    const { plan } = req.body;
   const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
 
     // Check if current user is admin of the organization
@@ -221,8 +221,6 @@ router.patch("/:id/plan", requireAuth, async (req, res) => {
       .update(organizations)
       .set({
         plan,
-        stripeCustomerId,
-        stripeSubscriptionId,
         updatedAt: new Date()
       })
       .where(eq(organizations.id, organizationId))

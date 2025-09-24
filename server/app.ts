@@ -7,7 +7,7 @@ import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupVite, serveStatic, log } from "./vite.js";
 import dotenv from "dotenv";
 import { createServer } from "http";
 

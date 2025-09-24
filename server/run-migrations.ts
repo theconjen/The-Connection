@@ -1,4 +1,4 @@
-import { log } from "./vite";
+import { log } from "./vite.js";
 import { runMigration as addLocalityInterests } from "./migrations/add-locality-interests";
 import { isConnected } from "./db";
 

@@ -13,8 +13,6 @@ export async function runOrganizationMigrations() {
         description TEXT,
         admin_user_id INTEGER NOT NULL,
         plan TEXT DEFAULT 'free',
-        stripe_customer_id TEXT,
-        stripe_subscription_id TEXT,
         website TEXT,
         address TEXT,
         city TEXT,

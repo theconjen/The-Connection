@@ -48,8 +48,6 @@ export const organizations = pgTable("organizations", {
   description: text("description"),
   adminUserId: integer("admin_user_id").notNull().references(() => users.id),
   plan: text("plan").default("free"), // free, standard, premium
-  stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
   website: text("website"),
   email: text("email"), // Contact email for the organization
   logoUrl: text("logo_url"), // Organization logo/avatar

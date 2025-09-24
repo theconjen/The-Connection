@@ -388,7 +388,7 @@ export async function setupWelcomeTemplate(): Promise<boolean> {
   const subjectPart = 'Welcome to The Connection!';
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -404,7 +404,7 @@ export async function setupWelcomeTemplate(): Promise<boolean> {
         </ul>
         <p>If you have any questions, feel free to reach out to our support team.</p>
         <div style="margin-top: 30px; text-align: center;">
-          <a href="${BASE_URL}/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
+          <a href="${BASE_URL}/auth" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
         </div>
         <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
           This email was sent to {{email}}. If you did not create this account, please disregard this email.
@@ -441,7 +441,7 @@ export async function setupPasswordResetTemplate(): Promise<boolean> {
   const subjectPart = 'Reset Your Password - The Connection';
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -451,7 +451,7 @@ export async function setupPasswordResetTemplate(): Promise<boolean> {
         <p>This link will expire in 24 hours.</p>
         
         <div style="margin-top: 30px; text-align: center;">
-          <a href="{{resetLink}}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a>
+          <a href="{{resetLink}}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a>
         </div>
         
         <p style="margin-top: 20px;">If you did not request a password reset, please ignore this email or contact our support team if you have concerns.</p>
@@ -491,7 +491,7 @@ export async function setupNotificationTemplate(): Promise<boolean> {
   const subjectPart = '{{subject}}';
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -501,7 +501,7 @@ export async function setupNotificationTemplate(): Promise<boolean> {
         
         {{#if actionUrl}}
         <div style="margin-top: 30px; text-align: center;">
-          <a href="{{actionUrl}}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">{{actionText}}</a>
+          <a href="{{actionUrl}}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">{{actionText}}</a>
         </div>
         {{/if}}
         
@@ -541,7 +541,7 @@ export async function setupLivestreamInviteTemplate(): Promise<boolean> {
   const subjectPart = 'You\'re Invited: {{streamTitle}} - Live on The Connection';
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -550,13 +550,13 @@ export async function setupLivestreamInviteTemplate(): Promise<boolean> {
         <p>{{hostName}} has invited you to join their upcoming livestream:</p>
         
         <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #6d28d9;">{{streamTitle}}</h3>
+          <h3 style="margin-top: 0; color: #0B132B;">{{streamTitle}}</h3>
           <p style="margin-bottom: 5px;"><strong>When:</strong> {{streamDate}} at {{streamTime}}</p>
           <p style="margin-top: 0;"><strong>Description:</strong> {{streamDescription}}</p>
         </div>
         
         <div style="margin-top: 30px; text-align: center;">
-          <a href="{{streamUrl}}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Join Livestream</a>
+          <a href="{{streamUrl}}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Join Livestream</a>
         </div>
         
         <p style="margin-top: 20px;">Don't miss out on this opportunity to connect and grow in your faith journey!</p>
@@ -621,7 +621,7 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
       subject: 'Welcome to The Connection!',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+          <div style="background-color: #0B132B; padding: 20px; text-align: center;">
             <h1 style="color: white; margin: 0;">The Connection</h1>
           </div>
           <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -637,7 +637,7 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
             </ul>
             <p>If you have any questions, feel free to reach out to our support team.</p>
             <div style="margin-top: 30px; text-align: center;">
-              <a href="${BASE_URL}/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
+              <a href="${BASE_URL}/auth" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
             </div>
             <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
               This email was sent to ${email}. If you did not create this account, please disregard this email.
@@ -677,7 +677,7 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
       subject: 'Reset Your Password - The Connection',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+          <div style="background-color: #0B132B; padding: 20px; text-align: center;">
             <h1 style="color: white; margin: 0;">The Connection</h1>
           </div>
           <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -687,7 +687,7 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
             <p>This link will expire in 24 hours.</p>
             
             <div style="margin-top: 30px; text-align: center;">
-              <a href="${resetLink}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a>
+              <a href="${resetLink}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a>
             </div>
             
             <p style="margin-top: 20px;">If you did not request a password reset, please ignore this email or contact our support team if you have concerns.</p>
@@ -741,7 +741,7 @@ export async function sendNotificationEmail(params: NotificationEmailParams): Pr
     if (params.actionUrl) {
       actionButton = `
         <div style="margin-top: 30px; text-align: center;">
-          <a href="${params.actionUrl}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">${params.actionText || 'View Details'}</a>
+          <a href="${params.actionUrl}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">${params.actionText || 'View Details'}</a>
         </div>
       `;
     }
@@ -752,7 +752,7 @@ export async function sendNotificationEmail(params: NotificationEmailParams): Pr
       subject: params.subject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+          <div style="background-color: #0B132B; padding: 20px; text-align: center;">
             <h1 style="color: white; margin: 0;">The Connection</h1>
           </div>
           <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -816,7 +816,7 @@ export async function sendLivestreamInviteEmail(params: LivestreamInviteEmailPar
       subject: `You're Invited: ${params.streamTitle} - Live on The Connection`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+          <div style="background-color: #0B132B; padding: 20px; text-align: center;">
             <h1 style="color: white; margin: 0;">The Connection</h1>
           </div>
           <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -825,13 +825,13 @@ export async function sendLivestreamInviteEmail(params: LivestreamInviteEmailPar
             <p>${params.hostName} has invited you to join their upcoming livestream:</p>
             
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #6d28d9;">${params.streamTitle}</h3>
+              <h3 style="margin-top: 0; color: #0B132B;">${params.streamTitle}</h3>
               <p style="margin-bottom: 5px;"><strong>When:</strong> ${params.streamDate} at ${params.streamTime}</p>
               <p style="margin-top: 0;"><strong>Description:</strong> ${params.streamDescription}</p>
             </div>
             
             <div style="margin-top: 30px; text-align: center;">
-              <a href="${params.streamUrl}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Join Livestream</a>
+              <a href="${params.streamUrl}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Join Livestream</a>
             </div>
             
             <p style="margin-top: 20px;">Don't miss out on this opportunity to connect and grow in your faith journey!</p>
@@ -853,7 +853,7 @@ export async function setupCommunityInvitationTemplate(): Promise<boolean> {
   const subjectPart = 'You\'re invited to join "{{communityName}}" - The Connection';
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -862,14 +862,14 @@ export async function setupCommunityInvitationTemplate(): Promise<boolean> {
         <p>{{inviterName}} has invited you to join the private community <strong>"{{communityName}}"</strong> on The Connection.</p>
         
         <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #6d28d9;">{{communityName}}</h3>
+          <h3 style="margin-top: 0; color: #0B132B;">{{communityName}}</h3>
           <p style="margin: 5px 0;"><strong>Description:</strong> {{communityDescription}}</p>
           <p style="margin: 5px 0;"><strong>Invited by:</strong> {{inviterName}}</p>
           <p style="margin: 5px 0; font-size: 14px; color: #666;"><strong>Invitation expires:</strong> {{expirationDate}}</p>
         </div>
         
         <div style="margin: 30px 0; text-align: center;">
-          <a href="{{invitationUrl}}" style="background-color: #6d28d9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
+          <a href="{{invitationUrl}}" style="background-color: #0B132B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
         </div>
         
         <p style="margin-top: 20px;">This is a private community, so you'll need to use this special invitation link to join. Click the button above to accept the invitation and become a member.</p>
@@ -946,7 +946,7 @@ export async function sendCommunityInvitationEmail(params: CommunityInvitationEm
       subject: `You're invited to join "${params.communityName}" - The Connection`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+          <div style="background-color: #0B132B; padding: 20px; text-align: center;">
             <h1 style="color: white; margin: 0;">The Connection</h1>
           </div>
           <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -955,14 +955,14 @@ export async function sendCommunityInvitationEmail(params: CommunityInvitationEm
             <p>${params.inviterName} has invited you to join the private community <strong>"${params.communityName}"</strong> on The Connection.</p>
             
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #6d28d9;">${params.communityName}</h3>
+              <h3 style="margin-top: 0; color: #0B132B;">${params.communityName}</h3>
               <p style="margin: 5px 0;"><strong>Description:</strong> ${params.communityDescription}</p>
               <p style="margin: 5px 0;"><strong>Invited by:</strong> ${params.inviterName}</p>
               <p style="margin: 5px 0; font-size: 14px; color: #666;"><strong>Invitation expires:</strong> ${params.expirationDate}</p>
             </div>
             
             <div style="margin: 30px 0; text-align: center;">
-              <a href="${params.invitationUrl}" style="background-color: #6d28d9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
+              <a href="${params.invitationUrl}" style="background-color: #0B132B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
             </div>
             
             <p style="margin-top: 20px;">This is a private community, so you'll need to use this special invitation link to join. Click the button above to accept the invitation and become a member.</p>

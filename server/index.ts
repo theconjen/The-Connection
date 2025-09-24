@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupVite, serveStatic, log } from "./vite.js";
 // Seed imports removed for production
 import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
