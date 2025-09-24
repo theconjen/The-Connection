@@ -42,7 +42,7 @@ export function PersonalizedHomeFeed() {
   return (
     <div className="space-y-4">
       {/* Algorithm Info Header */}
-      <Card className="bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200">
+      <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

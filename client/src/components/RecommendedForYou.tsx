@@ -23,10 +23,10 @@ export function RecommendedForYou({
 
   if (isLoading) {
     return (
-      <Card className="border-l-4 border-l-pink-500">
+      <Card className="border-l-4 border-l-primary">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-pink-600" />
+            <Sparkles className="w-5 h-5 text-primary" />
             Recommended For You
           </CardTitle>
         </CardHeader>
@@ -52,10 +52,10 @@ export function RecommendedForYou({
 
   if (error || !recommendations?.microblogs?.length) {
     return (
-      <Card className="border-l-4 border-l-pink-500">
+      <Card className="border-l-4 border-l-primary">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-pink-600" />
+            <Sparkles className="w-5 h-5 text-primary" />
             Recommended For You
           </CardTitle>
         </CardHeader>
@@ -81,12 +81,12 @@ export function RecommendedForYou({
     }));
 
   return (
-    <Card className="border-l-4 border-l-pink-500 hover:shadow-lg transition-shadow">
+    <Card className="border-l-4 border-l-primary hover:shadow-lg transition-shadow">
       {showHeader && (
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-pink-600" />
+              <Sparkles className="w-5 h-5 text-primary" />
               Recommended For You
             </CardTitle>
             <div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ export function RecommendedForYou({
               </Button>
             </div>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Personalized for your spiritual journey
           </p>
         </CardHeader>
@@ -113,11 +113,11 @@ export function RecommendedForYou({
         {filteredContent.map((item, index) => (
           <div
             key={`${item.id}-${index}`}
-            className="border rounded-lg p-3 hover:bg-gray-50 transition-colors"
+            className="border rounded-lg p-3 hover:bg-muted/50 transition-colors"
             onClick={() => trackView(item.id, 'microblog')}
           >
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white text-sm font-semibold">
                 {(item.user?.displayName || item.user?.username || 'U').charAt(0).toUpperCase()}
               </div>
 
@@ -131,18 +131,18 @@ export function RecommendedForYou({
                       Score: {item.score}
                     </Badge>
                   </div>
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {formatDistanceToNow(new Date(item.createdAt))} ago
                   </span>
                 </div>
 
-                <p className="text-sm text-gray-700 mb-2 line-clamp-3">
+                <p className="text-sm text-foreground mb-2 line-clamp-3">
                   {item.content}
                 </p>
 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-xs text-pink-600">
+                  <div className="flex items-center gap-1 text-xs text-primary">
                     <TrendingUp className="w-3 h-3" />
                     <span>{item.reason}</span>
                   </div>
@@ -190,7 +190,7 @@ export function RecommendedForYou({
 
         {filteredContent.length === 0 && (
           <div className="text-center py-4">
-            <p className="text-gray-500 text-sm">No recommendations available</p>
+            <p className="text-muted-foreground text-sm">No recommendations available</p>
           </div>
         )}
 
@@ -198,7 +198,7 @@ export function RecommendedForYou({
         {showHeader && filteredContent.length > 0 && (
           <div className="pt-3 border-t">
             <Link href={`/${section === 'feed' ? 'microblogs' : section}`}>
-              <Button variant="ghost" size="sm" className="w-full text-pink-600 hover:text-pink-700">
+              <Button variant="ghost" size="sm" className="w-full text-primary hover:text-primary/80">
                 View More Recommendations
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>

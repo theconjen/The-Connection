@@ -8,13 +8,1218 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// shared/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  apologeticsAnswers: () => apologeticsAnswers,
+  apologeticsQuestions: () => apologeticsQuestions,
+  apologeticsResources: () => apologeticsResources,
+  apologeticsTopics: () => apologeticsTopics,
+  apologistScholarApplications: () => apologistScholarApplications,
+  bibleReadingPlans: () => bibleReadingPlans,
+  bibleReadingProgress: () => bibleReadingProgress,
+  bibleStudyNotes: () => bibleStudyNotes,
+  challengeParticipants: () => challengeParticipants,
+  challengeTestimonials: () => challengeTestimonials,
+  challenges: () => challenges,
+  chatMessages: () => chatMessages,
+  collectionResources: () => collectionResources,
+  comments: () => comments,
+  communities: () => communities,
+  communityChatRooms: () => communityChatRooms,
+  communityInvitations: () => communityInvitations,
+  communityMembers: () => communityMembers,
+  communityWallPosts: () => communityWallPosts,
+  contentRecommendations: () => contentRecommendations,
+  contentReports: () => contentReports,
+  creatorTiers: () => creatorTiers,
+  eventRsvps: () => eventRsvps,
+  events: () => events,
+  groupMembers: () => groupMembers,
+  groups: () => groups,
+  insertApologeticsAnswerSchema: () => insertApologeticsAnswerSchema,
+  insertApologeticsQuestionSchema: () => insertApologeticsQuestionSchema,
+  insertApologeticsResourceSchema: () => insertApologeticsResourceSchema,
+  insertApologeticsTopicSchema: () => insertApologeticsTopicSchema,
+  insertApologistScholarApplicationSchema: () => insertApologistScholarApplicationSchema,
+  insertBibleReadingPlanSchema: () => insertBibleReadingPlanSchema,
+  insertBibleReadingProgressSchema: () => insertBibleReadingProgressSchema,
+  insertBibleStudyNotesSchema: () => insertBibleStudyNotesSchema,
+  insertChallengeParticipantSchema: () => insertChallengeParticipantSchema,
+  insertChallengeSchema: () => insertChallengeSchema,
+  insertChallengeTestimonialSchema: () => insertChallengeTestimonialSchema,
+  insertChatMessageSchema: () => insertChatMessageSchema,
+  insertCollectionResourceSchema: () => insertCollectionResourceSchema,
+  insertCommentSchema: () => insertCommentSchema,
+  insertCommunityChatRoomSchema: () => insertCommunityChatRoomSchema,
+  insertCommunityInvitationSchema: () => insertCommunityInvitationSchema,
+  insertCommunityMemberSchema: () => insertCommunityMemberSchema,
+  insertCommunityObjectSchema: () => insertCommunityObjectSchema,
+  insertCommunitySchema: () => insertCommunitySchema,
+  insertCommunityWallPostSchema: () => insertCommunityWallPostSchema,
+  insertContentRecommendationSchema: () => insertContentRecommendationSchema,
+  insertContentReportSchema: () => insertContentReportSchema,
+  insertCreatorTierSchema: () => insertCreatorTierSchema,
+  insertEventRsvpSchema: () => insertEventRsvpSchema,
+  insertEventSchema: () => insertEventSchema,
+  insertGroupMemberSchema: () => insertGroupMemberSchema,
+  insertGroupSchema: () => insertGroupSchema,
+  insertLivestreamGiftSchema: () => insertLivestreamGiftSchema,
+  insertLivestreamSchema: () => insertLivestreamSchema,
+  insertLivestreamerApplicationSchema: () => insertLivestreamerApplicationSchema,
+  insertMentorProfileSchema: () => insertMentorProfileSchema,
+  insertMentorshipRelationshipSchema: () => insertMentorshipRelationshipSchema,
+  insertMentorshipRequestSchema: () => insertMentorshipRequestSchema,
+  insertMessageSchema: () => insertMessageSchema,
+  insertMicroblogLikeSchema: () => insertMicroblogLikeSchema,
+  insertMicroblogSchema: () => insertMicroblogSchema,
+  insertModerationActionSchema: () => insertModerationActionSchema,
+  insertModerationSettingsSchema: () => insertModerationSettingsSchema,
+  insertOrganizationSchema: () => insertOrganizationSchema,
+  insertOrganizationUserSchema: () => insertOrganizationUserSchema,
+  insertPostSchema: () => insertPostSchema,
+  insertPrayerRequestSchema: () => insertPrayerRequestSchema,
+  insertPrayerSchema: () => insertPrayerSchema,
+  insertResourceCollectionSchema: () => insertResourceCollectionSchema,
+  insertResourceRatingSchema: () => insertResourceRatingSchema,
+  insertResourceSchema: () => insertResourceSchema,
+  insertServiceProjectSchema: () => insertServiceProjectSchema,
+  insertServiceTestimonialSchema: () => insertServiceTestimonialSchema,
+  insertServiceVolunteerSchema: () => insertServiceVolunteerSchema,
+  insertUserBlockSchema: () => insertUserBlockSchema,
+  insertUserCreatorTierSchema: () => insertUserCreatorTierSchema,
+  insertUserFollowSchema: () => insertUserFollowSchema,
+  insertUserInteractionSchema: () => insertUserInteractionSchema,
+  insertUserPreferencesSchema: () => insertUserPreferencesSchema,
+  insertUserSchema: () => insertUserSchema,
+  insertVerseMemorizationSchema: () => insertVerseMemorizationSchema,
+  insertVirtualGiftSchema: () => insertVirtualGiftSchema,
+  livestreamGifts: () => livestreamGifts,
+  livestreamerApplications: () => livestreamerApplications,
+  livestreams: () => livestreams,
+  mentorProfiles: () => mentorProfiles,
+  mentorshipRelationships: () => mentorshipRelationships,
+  mentorshipRequests: () => mentorshipRequests,
+  messages: () => messages,
+  microblogLikes: () => microblogLikes,
+  microblogs: () => microblogs,
+  moderationActions: () => moderationActions,
+  moderationSettings: () => moderationSettings,
+  organizationUsers: () => organizationUsers,
+  organizations: () => organizations,
+  posts: () => posts,
+  prayerRequests: () => prayerRequests,
+  prayers: () => prayers,
+  resourceCollections: () => resourceCollections,
+  resourceRatings: () => resourceRatings,
+  resources: () => resources,
+  serviceProjects: () => serviceProjects,
+  serviceTestimonials: () => serviceTestimonials,
+  serviceVolunteers: () => serviceVolunteers,
+  sessions: () => sessions,
+  userBlocks: () => userBlocks,
+  userCreatorTiers: () => userCreatorTiers,
+  userFollows: () => userFollows,
+  userInteractions: () => userInteractions,
+  userPreferences: () => userPreferences,
+  users: () => users,
+  verseMemorization: () => verseMemorization,
+  virtualGifts: () => virtualGifts
+});
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, varchar, index } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+var sessions, users, insertUserSchema, organizations, insertOrganizationSchema, organizationUsers, insertOrganizationUserSchema, communities, insertCommunityObjectSchema, insertCommunitySchema, communityMembers, insertCommunityMemberSchema, communityInvitations, insertCommunityInvitationSchema, userFollows, insertUserFollowSchema, userInteractions, insertUserInteractionSchema, communityChatRooms, insertCommunityChatRoomSchema, chatMessages, insertChatMessageSchema, communityWallPosts, insertCommunityWallPostSchema, groups, insertGroupSchema, groupMembers, insertGroupMemberSchema, posts, insertPostSchema, comments, insertCommentSchema, apologeticsResources, insertApologeticsResourceSchema, apologeticsTopics, insertApologeticsTopicSchema, apologeticsQuestions, insertApologeticsQuestionSchema, apologeticsAnswers, insertApologeticsAnswerSchema, livestreams, insertLivestreamSchema, livestreamerApplications, insertLivestreamerApplicationSchema, creatorTiers, insertCreatorTierSchema, userCreatorTiers, insertUserCreatorTierSchema, virtualGifts, insertVirtualGiftSchema, livestreamGifts, insertLivestreamGiftSchema, apologistScholarApplications, insertApologistScholarApplicationSchema, microblogs, insertMicroblogSchema, microblogLikes, insertMicroblogLikeSchema, events, insertEventSchema, eventRsvps, insertEventRsvpSchema, prayerRequests, insertPrayerRequestSchema, prayers, insertPrayerSchema, mentorProfiles, insertMentorProfileSchema, mentorshipRequests, insertMentorshipRequestSchema, mentorshipRelationships, insertMentorshipRelationshipSchema, bibleReadingPlans, insertBibleReadingPlanSchema, bibleReadingProgress, insertBibleReadingProgressSchema, bibleStudyNotes, insertBibleStudyNotesSchema, verseMemorization, insertVerseMemorizationSchema, userPreferences, contentRecommendations, insertUserPreferencesSchema, insertContentRecommendationSchema, challenges, insertChallengeSchema, challengeParticipants, insertChallengeParticipantSchema, challengeTestimonials, insertChallengeTestimonialSchema, resources, insertResourceSchema, resourceRatings, insertResourceRatingSchema, resourceCollections, insertResourceCollectionSchema, collectionResources, insertCollectionResourceSchema, serviceProjects, insertServiceProjectSchema, serviceVolunteers, insertServiceVolunteerSchema, serviceTestimonials, insertServiceTestimonialSchema, messages, insertMessageSchema, contentReports, insertContentReportSchema, userBlocks, insertUserBlockSchema, moderationActions, insertModerationActionSchema, moderationSettings, insertModerationSettingsSchema;
+var init_schema = __esm({
+  "shared/schema.ts"() {
+    sessions = pgTable(
+      "sessions",
+      {
+        sid: varchar("sid").primaryKey(),
+        sess: jsonb("sess").notNull(),
+        expire: timestamp("expire").notNull()
+      },
+      (table) => [index("IDX_session_expire").on(table.expire)]
+    );
+    users = pgTable("users", {
+      id: serial("id").primaryKey(),
+      username: text("username").notNull().unique(),
+      email: text("email").notNull().unique(),
+      password: text("password").notNull(),
+      displayName: text("display_name"),
+      bio: text("bio"),
+      avatarUrl: text("avatar_url"),
+      city: text("city"),
+      state: text("state"),
+      zipCode: text("zip_code"),
+      latitude: text("latitude"),
+      longitude: text("longitude"),
+      onboardingCompleted: boolean("onboarding_completed").default(false),
+      isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
+      isAdmin: boolean("is_admin").default(false),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    insertUserSchema = createInsertSchema(users).omit({
+      id: true,
+      isVerifiedApologeticsAnswerer: true,
+      createdAt: true,
+      updatedAt: true
+    });
+    organizations = pgTable("organizations", {
+      id: serial("id").primaryKey(),
+      name: text("name").notNull(),
+      description: text("description"),
+      adminUserId: integer("admin_user_id").notNull().references(() => users.id),
+      plan: text("plan").default("free"),
+      // free, standard, premium
+      website: text("website"),
+      email: text("email"),
+      // Contact email for the organization
+      logoUrl: text("logo_url"),
+      // Organization logo/avatar
+      mission: text("mission"),
+      // Mission statement
+      serviceTimes: text("service_times"),
+      // JSON string of service times/schedule
+      socialMedia: text("social_media"),
+      // JSON string of social media links
+      foundedDate: date("founded_date"),
+      // When the organization was founded
+      congregationSize: integer("congregation_size"),
+      // Approximate size
+      address: text("address"),
+      city: text("city"),
+      state: text("state"),
+      zipCode: text("zip_code"),
+      phone: text("phone"),
+      denomination: text("denomination"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    insertOrganizationSchema = createInsertSchema(organizations).pick({
+      name: true,
+      description: true,
+      adminUserId: true,
+      website: true,
+      email: true,
+      logoUrl: true,
+      mission: true,
+      serviceTimes: true,
+      socialMedia: true,
+      foundedDate: true,
+      congregationSize: true,
+      address: true,
+      city: true,
+      state: true,
+      zipCode: true,
+      phone: true,
+      denomination: true
+    });
+    organizationUsers = pgTable("organization_users", {
+      id: serial("id").primaryKey(),
+      organizationId: integer("organization_id").notNull().references(() => organizations.id),
+      userId: integer("user_id").notNull().references(() => users.id),
+      role: text("role").default("member"),
+      // admin, pastor, leader, member
+      joinedAt: timestamp("joined_at").defaultNow()
+    });
+    insertOrganizationUserSchema = createInsertSchema(organizationUsers).pick({
+      organizationId: true,
+      userId: true,
+      role: true
+    });
+    communities = pgTable("communities", {
+      id: serial("id").primaryKey(),
+      name: text("name").notNull().unique(),
+      description: text("description").notNull(),
+      slug: text("slug").notNull().unique(),
+      iconName: text("icon_name").notNull(),
+      iconColor: text("icon_color").notNull(),
+      interestTags: text("interest_tags").array(),
+      city: text("city"),
+      state: text("state"),
+      isLocalCommunity: boolean("is_local_community").default(false),
+      latitude: text("latitude"),
+      longitude: text("longitude"),
+      memberCount: integer("member_count").default(0),
+      isPrivate: boolean("is_private").default(false),
+      hasPrivateWall: boolean("has_private_wall").default(false),
+      hasPublicWall: boolean("has_public_wall").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      createdBy: integer("created_by").references(() => users.id)
+    });
+    insertCommunityObjectSchema = createInsertSchema(communities).omit({
+      id: true,
+      memberCount: true,
+      createdAt: true
+    });
+    insertCommunitySchema = insertCommunityObjectSchema.refine((data) => data.name && data.name.trim().length > 0, {
+      message: "Community name is required and cannot be empty",
+      path: ["name"]
+    }).refine((data) => data.hasPrivateWall || data.hasPublicWall, {
+      message: "At least one wall (private or public) must be enabled",
+      path: ["hasPublicWall"]
+    });
+    communityMembers = pgTable("community_members", {
+      id: serial("id").primaryKey(),
+      communityId: integer("community_id").references(() => communities.id).notNull(),
+      userId: integer("user_id").references(() => users.id).notNull(),
+      role: text("role").notNull().default("member"),
+      // "owner", "moderator", "member"
+      joinedAt: timestamp("joined_at").defaultNow()
+    });
+    insertCommunityMemberSchema = createInsertSchema(communityMembers).pick({
+      communityId: true,
+      userId: true,
+      role: true
+    });
+    communityInvitations = pgTable("community_invitations", {
+      id: serial("id").primaryKey(),
+      communityId: integer("community_id").references(() => communities.id).notNull(),
+      inviterUserId: integer("inviter_user_id").references(() => users.id).notNull(),
+      inviteeEmail: text("invitee_email").notNull(),
+      inviteeUserId: integer("invitee_user_id").references(() => users.id),
+      // Optional - set when user exists
+      status: text("status").notNull().default("pending"),
+      // "pending", "accepted", "declined", "expired"
+      token: text("token").notNull().unique(),
+      // Secure token for invitation links
+      createdAt: timestamp("created_at").defaultNow(),
+      expiresAt: timestamp("expires_at").notNull()
+    });
+    insertCommunityInvitationSchema = createInsertSchema(communityInvitations).pick({
+      communityId: true,
+      inviterUserId: true,
+      inviteeEmail: true,
+      inviteeUserId: true,
+      status: true,
+      token: true,
+      expiresAt: true
+    });
+    userFollows = pgTable("user_follows", {
+      id: serial("id").primaryKey(),
+      followerId: integer("follower_id").references(() => users.id).notNull(),
+      followingId: integer("following_id").references(() => users.id).notNull(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertUserFollowSchema = createInsertSchema(userFollows).pick({
+      followerId: true,
+      followingId: true
+    });
+    userInteractions = pgTable("user_interactions", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").references(() => users.id).notNull(),
+      contentId: integer("content_id").notNull(),
+      contentType: text("content_type").notNull(),
+      // 'microblog', 'community', 'event', 'prayer_request', 'bible_study'
+      interactionType: text("interaction_type").notNull(),
+      // 'view', 'like', 'comment', 'share', 'save', 'prayer_request', 'bible_study'
+      interactionStrength: integer("interaction_strength").default(1),
+      // Weight of interaction based on faith-based scoring
+      metadata: jsonb("metadata"),
+      // Store additional context like topic tags, sentiment
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertUserInteractionSchema = createInsertSchema(userInteractions).pick({
+      userId: true,
+      contentId: true,
+      contentType: true,
+      interactionType: true,
+      interactionStrength: true
+    });
+    communityChatRooms = pgTable("community_chat_rooms", {
+      id: serial("id").primaryKey(),
+      communityId: integer("community_id").references(() => communities.id).notNull(),
+      name: text("name").notNull(),
+      description: text("description"),
+      isPrivate: boolean("is_private").default(false),
+      createdAt: timestamp("created_at").defaultNow(),
+      createdBy: integer("created_by").references(() => users.id).notNull()
+    });
+    insertCommunityChatRoomSchema = createInsertSchema(communityChatRooms).pick({
+      communityId: true,
+      name: true,
+      description: true,
+      isPrivate: true,
+      createdBy: true
+    });
+    chatMessages = pgTable("chat_messages", {
+      id: serial("id").primaryKey(),
+      content: text("content").notNull(),
+      chatRoomId: integer("chat_room_id").references(() => communityChatRooms.id).notNull(),
+      senderId: integer("sender_id").references(() => users.id).notNull(),
+      isSystemMessage: boolean("is_system_message").default(false),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertChatMessageSchema = createInsertSchema(chatMessages).pick({
+      content: true,
+      chatRoomId: true,
+      senderId: true,
+      isSystemMessage: true
+    });
+    communityWallPosts = pgTable("community_wall_posts", {
+      id: serial("id").primaryKey(),
+      communityId: integer("community_id").references(() => communities.id).notNull(),
+      authorId: integer("author_id").references(() => users.id).notNull(),
+      content: text("content").notNull(),
+      imageUrl: text("image_url"),
+      isPrivate: boolean("is_private").default(false),
+      // For private wall posts
+      likeCount: integer("like_count").default(0),
+      commentCount: integer("comment_count").default(0),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertCommunityWallPostSchema = createInsertSchema(communityWallPosts).pick({
+      communityId: true,
+      authorId: true,
+      content: true,
+      imageUrl: true,
+      isPrivate: true
+    });
+    groups = pgTable("groups", {
+      id: serial("id").primaryKey(),
+      name: text("name").notNull(),
+      description: text("description").notNull(),
+      iconName: text("icon_name").notNull(),
+      iconColor: text("icon_color").notNull(),
+      isPrivate: boolean("is_private").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      createdBy: integer("created_by").references(() => users.id)
+    });
+    insertGroupSchema = createInsertSchema(groups).pick({
+      name: true,
+      description: true,
+      iconName: true,
+      iconColor: true,
+      isPrivate: true,
+      createdBy: true
+    });
+    groupMembers = pgTable("group_members", {
+      id: serial("id").primaryKey(),
+      groupId: integer("group_id").references(() => groups.id).notNull(),
+      userId: integer("user_id").references(() => users.id).notNull(),
+      isAdmin: boolean("is_admin").default(false),
+      joinedAt: timestamp("joined_at").defaultNow()
+    });
+    insertGroupMemberSchema = createInsertSchema(groupMembers).pick({
+      groupId: true,
+      userId: true,
+      isAdmin: true
+    });
+    posts = pgTable("posts", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      content: text("content").notNull(),
+      imageUrl: text("image_url"),
+      communityId: integer("community_id").references(() => communities.id),
+      groupId: integer("group_id").references(() => groups.id),
+      authorId: integer("author_id").references(() => users.id),
+      upvotes: integer("upvotes").default(0),
+      commentCount: integer("comment_count").default(0),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertPostSchema = createInsertSchema(posts).pick({
+      title: true,
+      content: true,
+      imageUrl: true,
+      communityId: true,
+      groupId: true,
+      authorId: true
+    });
+    comments = pgTable("comments", {
+      id: serial("id").primaryKey(),
+      content: text("content").notNull(),
+      postId: integer("post_id").notNull(),
+      authorId: integer("author_id"),
+      parentId: integer("parent_id"),
+      upvotes: integer("upvotes").default(0),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertCommentSchema = createInsertSchema(comments).pick({
+      content: true,
+      postId: true,
+      authorId: true,
+      parentId: true
+    });
+    apologeticsResources = pgTable("apologetics_resources", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description").notNull(),
+      type: text("type").notNull(),
+      // book, video, podcast, etc.
+      iconName: text("icon_name").notNull(),
+      url: text("url"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertApologeticsResourceSchema = createInsertSchema(apologeticsResources).pick({
+      title: true,
+      description: true,
+      type: true,
+      iconName: true,
+      url: true
+    });
+    apologeticsTopics = pgTable("apologetics_topics", {
+      id: serial("id").primaryKey(),
+      name: text("name").notNull().unique(),
+      description: text("description").notNull(),
+      iconName: text("icon_name").notNull(),
+      slug: text("slug").notNull().unique(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertApologeticsTopicSchema = createInsertSchema(apologeticsTopics).pick({
+      name: true,
+      description: true,
+      iconName: true,
+      slug: true
+    });
+    apologeticsQuestions = pgTable("apologetics_questions", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      content: text("content").notNull(),
+      authorId: integer("author_id").references(() => users.id).notNull(),
+      topicId: integer("topic_id").references(() => apologeticsTopics.id).notNull(),
+      status: text("status").notNull().default("open"),
+      // open, answered, closed
+      answerCount: integer("answer_count").default(0),
+      viewCount: integer("view_count").default(0),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertApologeticsQuestionSchema = createInsertSchema(apologeticsQuestions).pick({
+      title: true,
+      content: true,
+      authorId: true,
+      topicId: true,
+      status: true
+    });
+    apologeticsAnswers = pgTable("apologetics_answers", {
+      id: serial("id").primaryKey(),
+      content: text("content").notNull(),
+      questionId: integer("question_id").references(() => apologeticsQuestions.id).notNull(),
+      authorId: integer("author_id").references(() => users.id).notNull(),
+      isVerifiedAnswer: boolean("is_verified_answer").default(false),
+      upvotes: integer("upvotes").default(0),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertApologeticsAnswerSchema = createInsertSchema(apologeticsAnswers).pick({
+      content: true,
+      questionId: true,
+      authorId: true,
+      isVerifiedAnswer: true
+    });
+    livestreams = pgTable("livestreams", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description").notNull(),
+      hostId: integer("host_id").references(() => users.id).notNull(),
+      thumbnail: text("thumbnail"),
+      status: text("status").notNull().default("upcoming"),
+      // "live", "upcoming", "ended"
+      viewerCount: integer("viewer_count").default(0),
+      scheduledFor: timestamp("scheduled_for"),
+      duration: text("duration"),
+      tags: text("tags"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertLivestreamSchema = createInsertSchema(livestreams).pick({
+      title: true,
+      description: true,
+      hostId: true,
+      thumbnail: true,
+      status: true,
+      scheduledFor: true,
+      duration: true,
+      tags: true
+    });
+    livestreamerApplications = pgTable("livestreamer_applications", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").references(() => users.id).notNull(),
+      status: text("status").notNull().default("pending"),
+      // "pending", "approved", "rejected"
+      ministryName: text("ministry_name"),
+      ministryDescription: text("ministry_description").notNull(),
+      ministerialExperience: text("ministerial_experience"),
+      statementOfFaith: text("statement_of_faith").notNull(),
+      socialMediaLinks: text("social_media_links"),
+      referenceName: text("reference_name").notNull(),
+      referenceContact: text("reference_contact").notNull(),
+      referenceRelationship: text("reference_relationship").notNull(),
+      sampleContentUrl: text("sample_content_url").notNull(),
+      livestreamTopics: text("livestream_topics").notNull(),
+      targetAudience: text("target_audience").notNull(),
+      agreedToTerms: boolean("agreed_to_terms").notNull(),
+      reviewedBy: integer("reviewed_by").references(() => users.id),
+      reviewNotes: text("review_notes"),
+      reviewedAt: timestamp("reviewed_at"),
+      submittedAt: timestamp("submitted_at").defaultNow()
+    });
+    insertLivestreamerApplicationSchema = createInsertSchema(livestreamerApplications).pick({
+      userId: true,
+      ministryName: true,
+      ministryDescription: true,
+      ministerialExperience: true,
+      statementOfFaith: true,
+      socialMediaLinks: true,
+      referenceName: true,
+      referenceContact: true,
+      referenceRelationship: true,
+      sampleContentUrl: true,
+      livestreamTopics: true,
+      targetAudience: true,
+      agreedToTerms: true
+    });
+    creatorTiers = pgTable("creator_tiers", {
+      id: serial("id").primaryKey(),
+      name: text("name").notNull(),
+      description: text("description").notNull(),
+      requirements: text("requirements").notNull(),
+      benefits: text("benefits").notNull(),
+      iconName: text("icon_name").notNull(),
+      order: integer("order").notNull(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertCreatorTierSchema = createInsertSchema(creatorTiers).pick({
+      name: true,
+      description: true,
+      requirements: true,
+      benefits: true,
+      iconName: true,
+      order: true
+    });
+    userCreatorTiers = pgTable("user_creator_tiers", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").references(() => users.id).notNull(),
+      tierId: integer("tier_id").references(() => creatorTiers.id).notNull(),
+      assignedAt: timestamp("assigned_at").defaultNow(),
+      validUntil: timestamp("valid_until")
+    });
+    insertUserCreatorTierSchema = createInsertSchema(userCreatorTiers).pick({
+      userId: true,
+      tierId: true,
+      validUntil: true
+    });
+    virtualGifts = pgTable("virtual_gifts", {
+      id: serial("id").primaryKey(),
+      name: text("name").notNull(),
+      description: text("description").notNull(),
+      iconName: text("icon_name").notNull(),
+      value: integer("value").notNull(),
+      // Value in platform points/currency
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertVirtualGiftSchema = createInsertSchema(virtualGifts).pick({
+      name: true,
+      description: true,
+      iconName: true,
+      value: true,
+      isActive: true
+    });
+    livestreamGifts = pgTable("livestream_gifts", {
+      id: serial("id").primaryKey(),
+      livestreamId: integer("livestream_id").references(() => livestreams.id).notNull(),
+      giftId: integer("gift_id").references(() => virtualGifts.id).notNull(),
+      senderId: integer("sender_id").references(() => users.id),
+      receiverId: integer("receiver_id").references(() => users.id).notNull(),
+      message: text("message"),
+      sentAt: timestamp("sent_at").defaultNow()
+    });
+    insertLivestreamGiftSchema = createInsertSchema(livestreamGifts).pick({
+      livestreamId: true,
+      giftId: true,
+      senderId: true,
+      receiverId: true,
+      message: true
+    });
+    apologistScholarApplications = pgTable("apologist_scholar_applications", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").references(() => users.id).notNull(),
+      status: text("status").notNull().default("pending"),
+      // "pending", "approved", "rejected"
+      fullName: text("full_name").notNull(),
+      academicCredentials: text("academic_credentials").notNull(),
+      educationalBackground: text("educational_background").notNull(),
+      theologicalPerspective: text("theological_perspective").notNull(),
+      statementOfFaith: text("statement_of_faith").notNull(),
+      areasOfExpertise: text("areas_of_expertise").notNull(),
+      publishedWorks: text("published_works"),
+      priorApologeticsExperience: text("prior_apologetics_experience").notNull(),
+      writingSample: text("writing_sample").notNull(),
+      onlineSocialHandles: text("online_social_handles"),
+      referenceName: text("reference_name").notNull(),
+      referenceContact: text("reference_contact").notNull(),
+      referenceInstitution: text("reference_institution").notNull(),
+      motivation: text("motivation").notNull(),
+      weeklyTimeCommitment: text("weekly_time_commitment").notNull(),
+      agreedToGuidelines: boolean("agreed_to_guidelines").notNull(),
+      reviewedBy: integer("reviewed_by").references(() => users.id),
+      reviewNotes: text("review_notes"),
+      reviewedAt: timestamp("reviewed_at"),
+      submittedAt: timestamp("submitted_at").defaultNow()
+    });
+    insertApologistScholarApplicationSchema = createInsertSchema(apologistScholarApplications).pick({
+      userId: true,
+      fullName: true,
+      academicCredentials: true,
+      educationalBackground: true,
+      theologicalPerspective: true,
+      statementOfFaith: true,
+      areasOfExpertise: true,
+      publishedWorks: true,
+      priorApologeticsExperience: true,
+      writingSample: true,
+      onlineSocialHandles: true,
+      referenceName: true,
+      referenceContact: true,
+      referenceInstitution: true,
+      motivation: true,
+      weeklyTimeCommitment: true,
+      agreedToGuidelines: true
+    });
+    microblogs = pgTable("microblogs", {
+      id: serial("id").primaryKey(),
+      content: text("content").notNull(),
+      imageUrl: text("image_url"),
+      // Optional image attachment
+      authorId: integer("author_id").references(() => users.id).notNull(),
+      communityId: integer("community_id").references(() => communities.id),
+      // Optional community (public if null)
+      groupId: integer("group_id").references(() => groups.id),
+      // Optional private group (public if null)
+      likeCount: integer("like_count").default(0),
+      repostCount: integer("repost_count").default(0),
+      replyCount: integer("reply_count").default(0),
+      parentId: integer("parent_id").references(() => microblogs.id),
+      // For replies to other microblogs
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertMicroblogSchema = createInsertSchema(microblogs).pick({
+      content: true,
+      imageUrl: true,
+      authorId: true,
+      communityId: true,
+      groupId: true,
+      parentId: true
+    });
+    microblogLikes = pgTable("microblog_likes", {
+      id: serial("id").primaryKey(),
+      microblogId: integer("microblog_id").references(() => microblogs.id).notNull(),
+      userId: integer("user_id").references(() => users.id).notNull(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertMicroblogLikeSchema = createInsertSchema(microblogLikes).pick({
+      microblogId: true,
+      userId: true
+    });
+    events = pgTable("events", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description").notNull(),
+      location: text("location"),
+      // General location name
+      address: text("address"),
+      // Full street address
+      city: text("city"),
+      // City
+      state: text("state"),
+      // State or province
+      zipCode: text("zip_code"),
+      // Postal/ZIP code
+      isVirtual: boolean("is_virtual").default(false),
+      isPublic: boolean("is_public").default(false),
+      // Allow events to be publicly visible
+      showOnMap: boolean("show_on_map").default(true),
+      // Whether to display the event on maps
+      virtualMeetingUrl: text("virtual_meeting_url"),
+      eventDate: date("event_date").notNull(),
+      startTime: time("start_time").notNull(),
+      endTime: time("end_time").notNull(),
+      imageUrl: text("image_url"),
+      latitude: text("latitude"),
+      // For map integration
+      longitude: text("longitude"),
+      // For map integration
+      communityId: integer("community_id").references(() => communities.id),
+      groupId: integer("group_id").references(() => groups.id),
+      creatorId: integer("creator_id").notNull().references(() => users.id),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertEventSchema = createInsertSchema(events).pick({
+      title: true,
+      description: true,
+      location: true,
+      address: true,
+      city: true,
+      state: true,
+      zipCode: true,
+      isVirtual: true,
+      isPublic: true,
+      showOnMap: true,
+      virtualMeetingUrl: true,
+      eventDate: true,
+      startTime: true,
+      endTime: true,
+      imageUrl: true,
+      latitude: true,
+      longitude: true,
+      communityId: true,
+      groupId: true,
+      creatorId: true
+    });
+    eventRsvps = pgTable("event_rsvps", {
+      id: serial("id").primaryKey(),
+      eventId: integer("event_id").notNull().references(() => events.id),
+      userId: integer("user_id").notNull().references(() => users.id),
+      status: text("status").notNull(),
+      // attending, maybe, declined
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertEventRsvpSchema = createInsertSchema(eventRsvps).pick({
+      eventId: true,
+      userId: true,
+      status: true
+    });
+    prayerRequests = pgTable("prayer_requests", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      content: text("content").notNull(),
+      isAnonymous: boolean("is_anonymous").default(false),
+      privacyLevel: text("privacy_level").notNull(),
+      // public, friends-only, group-only
+      groupId: integer("group_id").references(() => groups.id),
+      authorId: integer("author_id").notNull().references(() => users.id),
+      prayerCount: integer("prayer_count").default(0),
+      isAnswered: boolean("is_answered").default(false),
+      answeredDescription: text("answered_description"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    insertPrayerRequestSchema = createInsertSchema(prayerRequests).pick({
+      title: true,
+      content: true,
+      isAnonymous: true,
+      privacyLevel: true,
+      groupId: true,
+      authorId: true
+    });
+    prayers = pgTable("prayers", {
+      id: serial("id").primaryKey(),
+      prayerRequestId: integer("prayer_request_id").notNull().references(() => prayerRequests.id),
+      userId: integer("user_id").notNull().references(() => users.id),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertPrayerSchema = createInsertSchema(prayers).pick({
+      prayerRequestId: true,
+      userId: true
+    });
+    mentorProfiles = pgTable("mentor_profiles", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").notNull().references(() => users.id),
+      spiritualGifts: text("spiritual_gifts").array(),
+      areasOfExpertise: text("areas_of_expertise").array(),
+      yearsOfFaith: integer("years_of_faith"),
+      shortBio: text("short_bio").notNull(),
+      availability: text("availability").notNull(),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertMentorProfileSchema = createInsertSchema(mentorProfiles).pick({
+      userId: true,
+      spiritualGifts: true,
+      areasOfExpertise: true,
+      yearsOfFaith: true,
+      shortBio: true,
+      availability: true
+    });
+    mentorshipRequests = pgTable("mentorship_requests", {
+      id: serial("id").primaryKey(),
+      mentorId: integer("mentor_id").notNull().references(() => users.id),
+      menteeId: integer("mentee_id").notNull().references(() => users.id),
+      message: text("message"),
+      status: text("status").notNull(),
+      // pending, accepted, declined
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertMentorshipRequestSchema = createInsertSchema(mentorshipRequests).pick({
+      mentorId: true,
+      menteeId: true,
+      message: true,
+      status: true
+    });
+    mentorshipRelationships = pgTable("mentorship_relationships", {
+      id: serial("id").primaryKey(),
+      mentorId: integer("mentor_id").notNull().references(() => users.id),
+      menteeId: integer("mentee_id").notNull().references(() => users.id),
+      startDate: timestamp("start_date").defaultNow(),
+      endDate: timestamp("end_date"),
+      isActive: boolean("is_active").default(true),
+      goals: jsonb("goals")
+    });
+    insertMentorshipRelationshipSchema = createInsertSchema(mentorshipRelationships).pick({
+      mentorId: true,
+      menteeId: true,
+      goals: true
+    });
+    bibleReadingPlans = pgTable("bible_reading_plans", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description").notNull(),
+      duration: integer("duration").notNull(),
+      // days
+      readings: jsonb("readings").notNull(),
+      // Array of daily readings
+      creatorId: integer("creator_id").references(() => users.id),
+      groupId: integer("group_id").references(() => groups.id),
+      isPublic: boolean("is_public").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertBibleReadingPlanSchema = createInsertSchema(bibleReadingPlans).pick({
+      title: true,
+      description: true,
+      duration: true,
+      readings: true,
+      creatorId: true,
+      groupId: true,
+      isPublic: true
+    });
+    bibleReadingProgress = pgTable("bible_reading_progress", {
+      id: serial("id").primaryKey(),
+      planId: integer("plan_id").notNull().references(() => bibleReadingPlans.id),
+      userId: integer("user_id").notNull().references(() => users.id),
+      currentDay: integer("current_day").default(1),
+      completedDays: jsonb("completed_days").default([]),
+      startedAt: timestamp("started_at").defaultNow(),
+      completedAt: timestamp("completed_at")
+    });
+    insertBibleReadingProgressSchema = createInsertSchema(bibleReadingProgress).pick({
+      planId: true,
+      userId: true
+    });
+    bibleStudyNotes = pgTable("bible_study_notes", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").notNull().references(() => users.id),
+      groupId: integer("group_id").references(() => groups.id),
+      title: text("title").notNull(),
+      content: text("content").notNull(),
+      passage: text("passage"),
+      isPublic: boolean("is_public").default(false),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    insertBibleStudyNotesSchema = createInsertSchema(bibleStudyNotes).pick({
+      userId: true,
+      groupId: true,
+      title: true,
+      content: true,
+      passage: true,
+      isPublic: true
+    });
+    verseMemorization = pgTable("verse_memorization", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").notNull().references(() => users.id),
+      verse: text("verse").notNull(),
+      reference: text("reference").notNull(),
+      startDate: timestamp("start_date").defaultNow(),
+      masteredDate: timestamp("mastered_date"),
+      reviewDates: jsonb("review_dates").default([]),
+      reminderFrequency: integer("reminder_frequency")
+      // days
+    });
+    insertVerseMemorizationSchema = createInsertSchema(verseMemorization).pick({
+      userId: true,
+      verse: true,
+      reference: true,
+      reminderFrequency: true
+    });
+    userPreferences = pgTable("user_preferences", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").notNull().references(() => users.id),
+      interests: jsonb("interests").default([]),
+      favoriteTopics: jsonb("favorite_topics").default([]),
+      engagementHistory: jsonb("engagement_history").default([]),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    contentRecommendations = pgTable("content_recommendations", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").notNull().references(() => users.id),
+      contentType: text("content_type").notNull(),
+      // 'post', 'microblog', 'apologetics', 'bible_study', etc.
+      contentId: integer("content_id").notNull(),
+      score: integer("score").notNull(),
+      reason: text("reason"),
+      isViewed: boolean("is_viewed").default(false),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertUserPreferencesSchema = createInsertSchema(userPreferences).pick({
+      userId: true,
+      interests: true,
+      favoriteTopics: true
+    });
+    insertContentRecommendationSchema = createInsertSchema(contentRecommendations).pick({
+      userId: true,
+      contentType: true,
+      contentId: true,
+      score: true,
+      reason: true
+    });
+    challenges = pgTable("challenges", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description").notNull(),
+      type: text("type").notNull(),
+      // prayer, service, bible-reading
+      duration: integer("duration").notNull(),
+      // days
+      goals: jsonb("goals").notNull(),
+      creatorId: integer("creator_id").notNull().references(() => users.id),
+      groupId: integer("group_id").references(() => groups.id),
+      communityId: integer("community_id").references(() => communities.id),
+      startDate: timestamp("start_date").notNull(),
+      endDate: timestamp("end_date").notNull(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertChallengeSchema = createInsertSchema(challenges).pick({
+      title: true,
+      description: true,
+      type: true,
+      duration: true,
+      goals: true,
+      creatorId: true,
+      groupId: true,
+      communityId: true,
+      startDate: true,
+      endDate: true
+    });
+    challengeParticipants = pgTable("challenge_participants", {
+      id: serial("id").primaryKey(),
+      challengeId: integer("challenge_id").notNull().references(() => challenges.id),
+      userId: integer("user_id").notNull().references(() => users.id),
+      progress: jsonb("progress").default({}),
+      isCompleted: boolean("is_completed").default(false),
+      joinedAt: timestamp("joined_at").defaultNow(),
+      completedAt: timestamp("completed_at")
+    });
+    insertChallengeParticipantSchema = createInsertSchema(challengeParticipants).pick({
+      challengeId: true,
+      userId: true
+    });
+    challengeTestimonials = pgTable("challenge_testimonials", {
+      id: serial("id").primaryKey(),
+      challengeId: integer("challenge_id").notNull().references(() => challenges.id),
+      userId: integer("user_id").notNull().references(() => users.id),
+      content: text("content").notNull(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertChallengeTestimonialSchema = createInsertSchema(challengeTestimonials).pick({
+      challengeId: true,
+      userId: true,
+      content: true
+    });
+    resources = pgTable("resources", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description").notNull(),
+      type: text("type").notNull(),
+      // book, podcast, video, article
+      url: text("url"),
+      author: text("author"),
+      imageUrl: text("image_url"),
+      tags: text("tags").array(),
+      averageRating: integer("average_rating").default(0),
+      submitterId: integer("submitter_id").notNull().references(() => users.id),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertResourceSchema = createInsertSchema(resources).pick({
+      title: true,
+      description: true,
+      type: true,
+      url: true,
+      author: true,
+      imageUrl: true,
+      tags: true,
+      submitterId: true
+    });
+    resourceRatings = pgTable("resource_ratings", {
+      id: serial("id").primaryKey(),
+      resourceId: integer("resource_id").notNull().references(() => resources.id),
+      userId: integer("user_id").notNull().references(() => users.id),
+      rating: integer("rating").notNull(),
+      review: text("review"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertResourceRatingSchema = createInsertSchema(resourceRatings).pick({
+      resourceId: true,
+      userId: true,
+      rating: true,
+      review: true
+    });
+    resourceCollections = pgTable("resource_collections", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description"),
+      creatorId: integer("creator_id").notNull().references(() => users.id),
+      isPublic: boolean("is_public").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertResourceCollectionSchema = createInsertSchema(resourceCollections).pick({
+      title: true,
+      description: true,
+      creatorId: true,
+      isPublic: true
+    });
+    collectionResources = pgTable("collection_resources", {
+      id: serial("id").primaryKey(),
+      collectionId: integer("collection_id").notNull().references(() => resourceCollections.id),
+      resourceId: integer("resource_id").notNull().references(() => resources.id),
+      addedAt: timestamp("added_at").defaultNow()
+    });
+    insertCollectionResourceSchema = createInsertSchema(collectionResources).pick({
+      collectionId: true,
+      resourceId: true
+    });
+    serviceProjects = pgTable("service_projects", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description").notNull(),
+      location: text("location"),
+      date: date("date"),
+      startTime: time("start_time"),
+      endTime: time("end_time"),
+      organizerId: integer("organizer_id").notNull().references(() => users.id),
+      communityId: integer("community_id").references(() => communities.id),
+      groupId: integer("group_id").references(() => groups.id),
+      volunteerLimit: integer("volunteer_limit"),
+      imageUrl: text("image_url"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertServiceProjectSchema = createInsertSchema(serviceProjects).pick({
+      title: true,
+      description: true,
+      location: true,
+      date: true,
+      startTime: true,
+      endTime: true,
+      organizerId: true,
+      communityId: true,
+      groupId: true,
+      volunteerLimit: true,
+      imageUrl: true
+    });
+    serviceVolunteers = pgTable("service_volunteers", {
+      id: serial("id").primaryKey(),
+      projectId: integer("project_id").notNull().references(() => serviceProjects.id),
+      userId: integer("user_id").notNull().references(() => users.id),
+      status: text("status").notNull(),
+      // signed-up, confirmed, attended, cancelled
+      hoursServed: integer("hours_served"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertServiceVolunteerSchema = createInsertSchema(serviceVolunteers).pick({
+      projectId: true,
+      userId: true,
+      status: true
+    });
+    serviceTestimonials = pgTable("service_testimonials", {
+      id: serial("id").primaryKey(),
+      projectId: integer("project_id").notNull().references(() => serviceProjects.id),
+      userId: integer("user_id").notNull().references(() => users.id),
+      content: text("content").notNull(),
+      imageUrl: text("image_url"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertServiceTestimonialSchema = createInsertSchema(serviceTestimonials).pick({
+      projectId: true,
+      userId: true,
+      content: true,
+      imageUrl: true
+    });
+    messages = pgTable("messages", {
+      id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+      senderId: integer("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      receiverId: integer("receiver_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      content: text("content").notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    insertMessageSchema = createInsertSchema(messages).omit({
+      id: true,
+      createdAt: true
+    });
+    contentReports = pgTable("content_reports", {
+      id: serial("id").primaryKey(),
+      reporterId: integer("reporter_id").notNull().references(() => users.id),
+      contentType: text("content_type").notNull(),
+      // 'post', 'microblog', 'comment', 'event', 'prayer_request'
+      contentId: integer("content_id").notNull(),
+      reason: text("reason").notNull(),
+      // 'spam', 'harassment', 'inappropriate', 'hate_speech', 'false_info', 'other'
+      description: text("description"),
+      status: text("status").default("pending"),
+      // 'pending', 'reviewing', 'resolved', 'dismissed'
+      moderatorId: integer("moderator_id").references(() => users.id),
+      moderatorNotes: text("moderator_notes"),
+      resolvedAt: timestamp("resolved_at"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    insertContentReportSchema = createInsertSchema(contentReports).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      resolvedAt: true,
+      moderatorId: true,
+      moderatorNotes: true
+    });
+    userBlocks = pgTable("user_blocks", {
+      id: serial("id").primaryKey(),
+      blockerId: integer("blocker_id").notNull().references(() => users.id),
+      blockedId: integer("blocked_id").notNull().references(() => users.id),
+      reason: text("reason"),
+      // 'harassment', 'spam', 'inappropriate', 'other'
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertUserBlockSchema = createInsertSchema(userBlocks).omit({
+      id: true,
+      createdAt: true
+    });
+    moderationActions = pgTable("moderation_actions", {
+      id: serial("id").primaryKey(),
+      moderatorId: integer("moderator_id").notNull().references(() => users.id),
+      contentType: text("content_type").notNull(),
+      contentId: integer("content_id").notNull(),
+      action: text("action").notNull(),
+      // 'warn', 'hide', 'delete', 'ban_user'
+      reason: text("reason"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertModerationActionSchema = createInsertSchema(moderationActions).omit({
+      id: true,
+      createdAt: true
+    });
+    moderationSettings = pgTable("moderation_settings", {
+      id: serial("id").primaryKey(),
+      autoModerateEnabled: boolean("auto_moderate_enabled").default(true),
+      profanityFilterEnabled: boolean("profanity_filter_enabled").default(true),
+      spamDetectionEnabled: boolean("spam_detection_enabled").default(true),
+      reviewThreshold: integer("review_threshold").default(3),
+      // Number of reports before auto-hide
+      contactEmail: text("contact_email").default("support@theconnection.app"),
+      responseTimeSlaHours: integer("response_time_sla_hours").default(24),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    insertModerationSettingsSchema = createInsertSchema(moderationSettings).omit({
+      id: true,
+      updatedAt: true
+    });
+  }
+});
+
 // server/db.ts
 import { neon, Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import * as schema from "@shared/schema";
 var databaseUrl, sql, pool, db, isConnected;
 var init_db = __esm({
   "server/db.ts"() {
+    init_schema();
     databaseUrl = process.env.DATABASE_URL || "postgresql://user:password@localhost:5432/theconnection";
     if (!databaseUrl) {
       throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
@@ -22,7 +1227,7 @@ var init_db = __esm({
     console.log("Attempting to connect to database...");
     sql = neon(databaseUrl);
     pool = new Pool({ connectionString: databaseUrl });
-    db = drizzle(sql, { schema });
+    db = drizzle(sql, { schema: schema_exports });
     isConnected = true;
   }
 });
@@ -74,20 +1279,11 @@ __export(storage_exports, {
   MemStorage: () => MemStorage,
   storage: () => storage
 });
-import {
-  users,
-  communities,
-  groupMembers,
-  livestreams,
-  prayerRequests,
-  livestreamerApplications,
-  apologistScholarApplications,
-  messages
-} from "@shared/schema";
 import { eq, and, or, inArray, like } from "drizzle-orm";
 var MemStorage, DbStorage, storage;
 var init_storage = __esm({
   "server/storage.ts"() {
+    init_schema();
     init_db();
     init_geocoding();
     MemStorage = class {
@@ -208,8 +1404,7 @@ var init_storage = __esm({
       }
       async updateUser(id, userData) {
         const userIndex = this.data.users.findIndex((u) => u.id === id);
-        if (userIndex === -1)
-          throw new Error("User not found");
+        if (userIndex === -1) throw new Error("User not found");
         this.data.users[userIndex] = { ...this.data.users[userIndex], ...userData };
         return this.data.users[userIndex];
       }
@@ -266,8 +1461,7 @@ var init_storage = __esm({
       }
       async setVerifiedApologeticsAnswerer(userId, isVerified) {
         const user = this.data.users.find((u) => u.id === userId);
-        if (!user)
-          throw new Error("User not found");
+        if (!user) throw new Error("User not found");
         user.isVerifiedApologeticsAnswerer = isVerified;
         return user;
       }
@@ -331,17 +1525,15 @@ var init_storage = __esm({
         return newCommunity;
       }
       async updateCommunity(id, community) {
-        const index = this.data.communities.findIndex((c) => c.id === id);
-        if (index === -1)
-          throw new Error("Community not found");
-        this.data.communities[index] = { ...this.data.communities[index], ...community };
-        return this.data.communities[index];
+        const index2 = this.data.communities.findIndex((c) => c.id === id);
+        if (index2 === -1) throw new Error("Community not found");
+        this.data.communities[index2] = { ...this.data.communities[index2], ...community };
+        return this.data.communities[index2];
       }
       async deleteCommunity(id) {
-        const index = this.data.communities.findIndex((c) => c.id === id);
-        if (index === -1)
-          return false;
-        this.data.communities.splice(index, 1);
+        const index2 = this.data.communities.findIndex((c) => c.id === id);
+        if (index2 === -1) return false;
+        this.data.communities.splice(index2, 1);
         return true;
       }
       // Community invitation methods
@@ -374,16 +1566,14 @@ var init_storage = __esm({
       }
       async updateCommunityInvitationStatus(id, status) {
         const invitation = this.data.communityInvitations.find((i) => i.id === id);
-        if (!invitation)
-          throw new Error("Invitation not found");
+        if (!invitation) throw new Error("Invitation not found");
         invitation.status = status;
         return invitation;
       }
       async deleteCommunityInvitation(id) {
-        const index = this.data.communityInvitations.findIndex((i) => i.id === id);
-        if (index === -1)
-          return false;
-        this.data.communityInvitations.splice(index, 1);
+        const index2 = this.data.communityInvitations.findIndex((i) => i.id === id);
+        if (index2 === -1) return false;
+        this.data.communityInvitations.splice(index2, 1);
         return true;
       }
       async getCommunityInvitationByEmailAndCommunity(email, communityId) {
@@ -424,16 +1614,14 @@ var init_storage = __esm({
       }
       async updateCommunityMemberRole(id, role) {
         const member = this.data.communityMembers.find((m) => m.id === id);
-        if (!member)
-          throw new Error("Member not found");
+        if (!member) throw new Error("Member not found");
         member.role = role;
         return member;
       }
       async removeCommunityMember(communityId, userId) {
-        const index = this.data.communityMembers.findIndex((m) => m.communityId === communityId && m.userId === userId);
-        if (index === -1)
-          return false;
-        this.data.communityMembers.splice(index, 1);
+        const index2 = this.data.communityMembers.findIndex((m) => m.communityId === communityId && m.userId === userId);
+        if (index2 === -1) return false;
+        this.data.communityMembers.splice(index2, 1);
         const community = this.data.communities.find((c) => c.id === communityId);
         if (community && community.memberCount > 0) {
           community.memberCount--;
@@ -476,16 +1664,14 @@ var init_storage = __esm({
       }
       async updateCommunityRoom(id, data) {
         const room = this.data.communityChatRooms.find((r) => r.id === id);
-        if (!room)
-          throw new Error("Room not found");
+        if (!room) throw new Error("Room not found");
         Object.assign(room, data);
         return room;
       }
       async deleteCommunityRoom(id) {
-        const index = this.data.communityChatRooms.findIndex((r) => r.id === id);
-        if (index === -1)
-          return false;
-        this.data.communityChatRooms.splice(index, 1);
+        const index2 = this.data.communityChatRooms.findIndex((r) => r.id === id);
+        if (index2 === -1) return false;
+        this.data.communityChatRooms.splice(index2, 1);
         return true;
       }
       // Chat message methods
@@ -498,8 +1684,7 @@ var init_storage = __esm({
       }
       async getChatMessagesAfter(roomId, afterId) {
         const afterMessage = this.data.chatMessages.find((m) => m.id === afterId);
-        if (!afterMessage)
-          return [];
+        if (!afterMessage) return [];
         return this.data.chatMessages.filter((m) => m.chatRoomId === roomId && new Date(m.createdAt).getTime() > new Date(afterMessage.createdAt).getTime()).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((m) => ({
           ...m,
           sender: this.data.users.find((u) => u.id === m.senderId)
@@ -518,24 +1703,22 @@ var init_storage = __esm({
         return newMessage;
       }
       async deleteChatMessage(id) {
-        const index = this.data.chatMessages.findIndex((m) => m.id === id);
-        if (index === -1)
-          return false;
-        this.data.chatMessages.splice(index, 1);
+        const index2 = this.data.chatMessages.findIndex((m) => m.id === id);
+        if (index2 === -1) return false;
+        this.data.chatMessages.splice(index2, 1);
         return true;
       }
       // Community wall post methods
       async getCommunityWallPosts(communityId, isPrivate) {
-        const posts2 = this.data.communityWallPosts.filter((p) => p.communityId === communityId && (isPrivate === void 0 || p.isPrivate === isPrivate)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((p) => ({
+        const posts3 = this.data.communityWallPosts.filter((p) => p.communityId === communityId && (isPrivate === void 0 || p.isPrivate === isPrivate)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((p) => ({
           ...p,
           author: this.data.users.find((u) => u.id === p.authorId)
         }));
-        return posts2;
+        return posts3;
       }
       async getCommunityWallPost(id) {
         const post = this.data.communityWallPosts.find((p) => p.id === id);
-        if (!post)
-          return void 0;
+        if (!post) return void 0;
         return {
           ...post,
           author: this.data.users.find((u) => u.id === post.authorId)
@@ -554,77 +1737,74 @@ var init_storage = __esm({
       }
       async updateCommunityWallPost(id, data) {
         const post = this.data.communityWallPosts.find((p) => p.id === id);
-        if (!post)
-          throw new Error("Post not found");
+        if (!post) throw new Error("Post not found");
         Object.assign(post, data);
         return post;
       }
       async deleteCommunityWallPost(id) {
-        const index = this.data.communityWallPosts.findIndex((p) => p.id === id);
-        if (index === -1)
-          return false;
-        this.data.communityWallPosts.splice(index, 1);
+        const index2 = this.data.communityWallPosts.findIndex((p) => p.id === id);
+        if (index2 === -1) return false;
+        this.data.communityWallPosts.splice(index2, 1);
         return true;
       }
       // Post methods
       async getAllPosts(filter) {
-        let posts2 = [...this.data.posts];
+        let posts3 = [...this.data.posts];
         if (filter === "top") {
-          posts2.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+          posts3.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
         } else if (filter === "hot") {
-          posts2.sort((a, b) => {
+          posts3.sort((a, b) => {
             const aScore = (a.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(a.createdAt).getTime()) / (1e3 * 60 * 60)));
             const bScore = (b.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(b.createdAt).getTime()) / (1e3 * 60 * 60)));
             return bScore - aScore;
           });
         } else {
-          posts2.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          posts3.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         }
-        return posts2;
+        return posts3;
       }
       async getPost(id) {
         return this.data.posts.find((p) => p.id === id);
       }
       async getPostsByCommunitySlug(communitySlug, filter) {
         const community = this.data.communities.find((c) => c.slug === communitySlug);
-        if (!community)
-          return [];
-        let posts2 = this.data.posts.filter((p) => p.communityId === community.id);
+        if (!community) return [];
+        let posts3 = this.data.posts.filter((p) => p.communityId === community.id);
         if (filter === "top") {
-          posts2.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+          posts3.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
         } else if (filter === "hot") {
-          posts2.sort((a, b) => {
+          posts3.sort((a, b) => {
             const aScore = (a.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(a.createdAt).getTime()) / (1e3 * 60 * 60)));
             const bScore = (b.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(b.createdAt).getTime()) / (1e3 * 60 * 60)));
             return bScore - aScore;
           });
         } else {
-          posts2.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          posts3.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         }
-        return posts2;
+        return posts3;
       }
       async getPostsByGroupId(groupId, filter) {
-        let posts2 = this.data.posts.filter((p) => p.groupId === groupId);
+        let posts3 = this.data.posts.filter((p) => p.groupId === groupId);
         if (filter === "top") {
-          posts2.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+          posts3.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
         } else if (filter === "hot") {
-          posts2.sort((a, b) => {
+          posts3.sort((a, b) => {
             const aScore = (a.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(a.createdAt).getTime()) / (1e3 * 60 * 60)));
             const bScore = (b.upvotes || 0) / Math.max(1, Math.floor((Date.now() - new Date(b.createdAt).getTime()) / (1e3 * 60 * 60)));
             return bScore - aScore;
           });
         } else {
-          posts2.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          posts3.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         }
-        return posts2;
+        return posts3;
       }
       async getUserPosts(userId) {
-        const posts2 = this.data.posts.filter((p) => p.authorId === userId);
-        const microblogs2 = this.data.microblogs.filter((m) => m.authorId === userId);
+        const posts3 = this.data.posts.filter((p) => p.authorId === userId);
+        const microblogs3 = this.data.microblogs.filter((m) => m.authorId === userId);
         const wallPosts = this.data.communityWallPosts.filter((p) => p.authorId === userId);
         return [
-          ...posts2.map((p) => ({ ...p, type: "post" })),
-          ...microblogs2.map((m) => ({ ...m, type: "microblog" })),
+          ...posts3.map((p) => ({ ...p, type: "post" })),
+          ...microblogs3.map((m) => ({ ...m, type: "microblog" })),
           ...wallPosts.map((p) => ({ ...p, type: "wall_post" }))
         ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       }
@@ -641,8 +1821,7 @@ var init_storage = __esm({
       }
       async upvotePost(id) {
         const post = this.data.posts.find((p) => p.id === id);
-        if (!post)
-          throw new Error("Post not found");
+        if (!post) throw new Error("Post not found");
         post.upvotes = (post.upvotes || 0) + 1;
         return post;
       }
@@ -669,8 +1848,7 @@ var init_storage = __esm({
       }
       async upvoteComment(id) {
         const comment = this.data.comments.find((c) => c.id === id);
-        if (!comment)
-          throw new Error("Comment not found");
+        if (!comment) throw new Error("Comment not found");
         comment.upvotes = (comment.upvotes || 0) + 1;
         return comment;
       }
@@ -755,12 +1933,9 @@ var init_storage = __esm({
       async getPrayerRequestsVisibleToUser(userId) {
         const userGroups = this.data.groupMembers.filter((gm) => gm.userId === userId).map((gm) => gm.groupId);
         return this.data.prayerRequests.filter((p) => {
-          if (p.privacyLevel === "public")
-            return true;
-          if (p.privacyLevel === "group-only" && p.groupId && userGroups.includes(p.groupId))
-            return true;
-          if (p.authorId === userId)
-            return true;
+          if (p.privacyLevel === "public") return true;
+          if (p.privacyLevel === "group-only" && p.groupId && userGroups.includes(p.groupId)) return true;
+          if (p.authorId === userId) return true;
           return false;
         }).map((p) => ({ ...p, description: p.title }));
       }
@@ -784,25 +1959,22 @@ var init_storage = __esm({
       }
       async updatePrayerRequest(id, prayer) {
         const request = this.data.prayerRequests.find((p) => p.id === id);
-        if (!request)
-          throw new Error("Prayer request not found");
+        if (!request) throw new Error("Prayer request not found");
         Object.assign(request, prayer, { updatedAt: /* @__PURE__ */ new Date() });
         return request;
       }
       async markPrayerRequestAsAnswered(id, description) {
         const request = this.data.prayerRequests.find((p) => p.id === id);
-        if (!request)
-          throw new Error("Prayer request not found");
+        if (!request) throw new Error("Prayer request not found");
         request.isAnswered = true;
         request.answeredDescription = description;
         request.updatedAt = /* @__PURE__ */ new Date();
         return request;
       }
       async deletePrayerRequest(id) {
-        const index = this.data.prayerRequests.findIndex((p) => p.id === id);
-        if (index === -1)
-          return false;
-        this.data.prayerRequests.splice(index, 1);
+        const index2 = this.data.prayerRequests.findIndex((p) => p.id === id);
+        if (index2 === -1) return false;
+        this.data.prayerRequests.splice(index2, 1);
         return true;
       }
       // Prayer methods
@@ -880,8 +2052,7 @@ var init_storage = __esm({
       }
       async updateApologeticsQuestionStatus(id, status) {
         const question = this.data.apologeticsQuestions.find((q) => q.id === id);
-        if (!question)
-          throw new Error("Question not found");
+        if (!question) throw new Error("Question not found");
         question.status = status;
         return question;
       }
@@ -923,16 +2094,14 @@ var init_storage = __esm({
       }
       async updateEvent(id, data) {
         const event = this.data.events.find((e) => e.id === id);
-        if (!event)
-          throw new Error("Event not found");
+        if (!event) throw new Error("Event not found");
         Object.assign(event, data);
         return event;
       }
       async deleteEvent(id) {
-        const index = this.data.events.findIndex((e) => e.id === id);
-        if (index === -1)
-          return false;
-        this.data.events.splice(index, 1);
+        const index2 = this.data.events.findIndex((e) => e.id === id);
+        if (index2 === -1) return false;
+        this.data.events.splice(index2, 1);
         return true;
       }
       // Event RSVP methods
@@ -959,17 +2128,15 @@ var init_storage = __esm({
       }
       async updateEventRSVP(id, status) {
         const rsvp = this.data.eventRsvps.find((r) => r.id === id);
-        if (!rsvp)
-          throw new Error("RSVP not found");
+        if (!rsvp) throw new Error("RSVP not found");
         rsvp.status = status;
         return rsvp;
       }
       async deleteEventRSVP(id) {
-        const index = this.data.eventRsvps.findIndex((r) => r.id === id);
-        if (index === -1)
-          return false;
-        const rsvp = this.data.eventRsvps[index];
-        this.data.eventRsvps.splice(index, 1);
+        const index2 = this.data.eventRsvps.findIndex((r) => r.id === id);
+        if (index2 === -1) return false;
+        const rsvp = this.data.eventRsvps[index2];
+        this.data.eventRsvps.splice(index2, 1);
         const event = this.data.events.find((e) => e.id === rsvp.eventId);
         if (event && event.rsvpCount > 0) {
           event.rsvpCount--;
@@ -1023,16 +2190,14 @@ var init_storage = __esm({
       }
       async updateMicroblog(id, data) {
         const microblog = this.data.microblogs.find((m) => m.id === id);
-        if (!microblog)
-          throw new Error("Microblog not found");
+        if (!microblog) throw new Error("Microblog not found");
         Object.assign(microblog, data);
         return microblog;
       }
       async deleteMicroblog(id) {
-        const index = this.data.microblogs.findIndex((m) => m.id === id);
-        if (index === -1)
-          return false;
-        this.data.microblogs.splice(index, 1);
+        const index2 = this.data.microblogs.findIndex((m) => m.id === id);
+        if (index2 === -1) return false;
+        this.data.microblogs.splice(index2, 1);
         return true;
       }
       // Microblog like methods
@@ -1055,10 +2220,9 @@ var init_storage = __esm({
         return newLike;
       }
       async unlikeMicroblog(microblogId, userId) {
-        const index = this.data.microblogLikes.findIndex((l) => l.microblogId === microblogId && l.userId === userId);
-        if (index === -1)
-          return false;
-        this.data.microblogLikes.splice(index, 1);
+        const index2 = this.data.microblogLikes.findIndex((l) => l.microblogId === microblogId && l.userId === userId);
+        if (index2 === -1) return false;
+        this.data.microblogLikes.splice(index2, 1);
         const microblog = this.data.microblogs.find((m) => m.id === microblogId);
         if (microblog && microblog.likeCount > 0) {
           microblog.likeCount--;
@@ -1091,8 +2255,7 @@ var init_storage = __esm({
       }
       async updateLivestreamerApplication(id, status, reviewNotes, reviewerId) {
         const application = this.data.livestreamerApplications.find((a) => a.id === id);
-        if (!application)
-          throw new Error("Application not found");
+        if (!application) throw new Error("Application not found");
         application.status = status;
         application.reviewNotes = reviewNotes;
         application.reviewedBy = reviewerId;
@@ -1125,8 +2288,7 @@ var init_storage = __esm({
       }
       async updateApologistScholarApplication(id, status, reviewNotes, reviewerId) {
         const application = this.data.apologistScholarApplications.find((a) => a.id === id);
-        if (!application)
-          throw new Error("Application not found");
+        if (!application) throw new Error("Application not found");
         application.status = status;
         application.reviewNotes = reviewNotes;
         application.reviewedBy = reviewerId;
@@ -1173,8 +2335,7 @@ var init_storage = __esm({
       }
       async markDayCompleted(progressId, day) {
         const progress = this.data.bibleReadingProgress.find((p) => p.id === progressId);
-        if (!progress)
-          throw new Error("Progress not found");
+        if (!progress) throw new Error("Progress not found");
         let completedDays;
         try {
           completedDays = JSON.parse(progress.completedDays || "[]");
@@ -1212,16 +2373,14 @@ var init_storage = __esm({
       }
       async updateBibleStudyNote(id, data) {
         const note = this.data.bibleStudyNotes.find((n) => n.id === id);
-        if (!note)
-          throw new Error("Note not found");
+        if (!note) throw new Error("Note not found");
         Object.assign(note, data, { updatedAt: /* @__PURE__ */ new Date() });
         return note;
       }
       async deleteBibleStudyNote(id) {
-        const index = this.data.bibleStudyNotes.findIndex((n) => n.id === id);
-        if (index === -1)
-          return false;
-        this.data.bibleStudyNotes.splice(index, 1);
+        const index2 = this.data.bibleStudyNotes.findIndex((n) => n.id === id);
+        if (index2 === -1) return false;
+        this.data.bibleStudyNotes.splice(index2, 1);
         return true;
       }
       // Admin methods
@@ -1242,19 +2401,16 @@ var init_storage = __esm({
       }
       async updateLivestreamerApplicationStatus(id, status, reviewNotes) {
         const application = this.data.livestreamerApplications.find((a) => a.id === id);
-        if (!application)
-          throw new Error("Application not found");
+        if (!application) throw new Error("Application not found");
         application.status = status;
-        if (reviewNotes)
-          application.reviewNotes = reviewNotes;
+        if (reviewNotes) application.reviewNotes = reviewNotes;
         application.reviewedAt = /* @__PURE__ */ new Date();
         return application;
       }
       async deleteUser(userId) {
-        const index = this.data.users.findIndex((u) => u.id === userId);
-        if (index === -1)
-          return false;
-        this.data.users.splice(index, 1);
+        const index2 = this.data.users.findIndex((u) => u.id === userId);
+        if (index2 === -1) return false;
+        this.data.users.splice(index2, 1);
         return true;
       }
       // Direct Messaging methods
@@ -1307,8 +2463,7 @@ var init_storage = __esm({
       }
       async updateUser(id, userData) {
         const result = await db.update(users).set(userData).where(eq(users.id, id)).returning();
-        if (!result[0])
-          throw new Error("User not found");
+        if (!result[0]) throw new Error("User not found");
         return result[0];
       }
       async updateUserPreferences(userId, preferences) {
@@ -1335,8 +2490,7 @@ var init_storage = __esm({
       }
       async setVerifiedApologeticsAnswerer(userId, isVerified) {
         const result = await db.update(users).set({ isVerifiedApologeticsAnswerer: isVerified }).where(eq(users.id, userId)).returning();
-        if (!result[0])
-          throw new Error("User not found");
+        if (!result[0]) throw new Error("User not found");
         return result[0];
       }
       async getVerifiedApologeticsAnswerers() {
@@ -1393,8 +2547,7 @@ var init_storage = __esm({
       }
       async updateCommunity(id, community) {
         const result = await db.update(communities).set(community).where(eq(communities.id, id)).returning();
-        if (!result[0])
-          throw new Error("Community not found");
+        if (!result[0]) throw new Error("Community not found");
         return result[0];
       }
       async deleteCommunity(id) {
@@ -1816,8 +2969,7 @@ var init_storage = __esm({
           reviewNotes: reviewNotes || null,
           reviewedAt: /* @__PURE__ */ new Date()
         }).where(eq(livestreamerApplications.id, id)).returning();
-        if (!result[0])
-          throw new Error("Application not found");
+        if (!result[0]) throw new Error("Application not found");
         return result[0];
       }
       async deleteUser(userId) {
@@ -2618,8 +3770,6 @@ async function runOrganizationMigrations() {
         description TEXT,
         admin_user_id INTEGER NOT NULL,
         plan TEXT DEFAULT 'free',
-        stripe_customer_id TEXT,
-        stripe_subscription_id TEXT,
         website TEXT,
         address TEXT,
         city TEXT,
@@ -2866,8 +4016,7 @@ function setupAuth(app2) {
         const user = await storage.getUser(userId);
         if (!user) {
           req.session.destroy((err) => {
-            if (err)
-              console.error("Error destroying invalid session:", err);
+            if (err) console.error("Error destroying invalid session:", err);
           });
           return res.status(401).json({ message: "User not found" });
         }
@@ -2886,9 +4035,9 @@ function setupAuth(app2) {
 
 // server/routes.ts
 init_storage();
+init_schema();
 init_domain();
 init_email();
-import { insertCommunitySchema, insertPostSchema, insertCommentSchema, insertMicroblogSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema } from "@shared/schema";
 
 // server/email-notifications.ts
 init_email();
@@ -3167,20 +4316,13 @@ router3.patch("/profile", async (req, res, next) => {
     }
     const { displayName, bio, avatarUrl, email, city, state, zipCode } = req.body;
     const updateData = {};
-    if (displayName !== void 0)
-      updateData.displayName = displayName;
-    if (bio !== void 0)
-      updateData.bio = bio;
-    if (avatarUrl !== void 0)
-      updateData.avatarUrl = avatarUrl;
-    if (email !== void 0)
-      updateData.email = email;
-    if (city !== void 0)
-      updateData.city = city;
-    if (state !== void 0)
-      updateData.state = state;
-    if (zipCode !== void 0)
-      updateData.zipCode = zipCode;
+    if (displayName !== void 0) updateData.displayName = displayName;
+    if (bio !== void 0) updateData.bio = bio;
+    if (avatarUrl !== void 0) updateData.avatarUrl = avatarUrl;
+    if (email !== void 0) updateData.email = email;
+    if (city !== void 0) updateData.city = city;
+    if (state !== void 0) updateData.state = state;
+    if (zipCode !== void 0) updateData.zipCode = zipCode;
     const updatedUser = await storage.updateUser(resolvedUserId, updateData);
     const { password, ...userData } = updatedUser;
     res.json(userData);
@@ -3198,20 +4340,13 @@ router3.patch("/:id", async (req, res, next) => {
     }
     const { displayName, bio, avatarUrl, email, city, state, zipCode } = req.body;
     const updateData = {};
-    if (displayName !== void 0)
-      updateData.displayName = displayName;
-    if (bio !== void 0)
-      updateData.bio = bio;
-    if (avatarUrl !== void 0)
-      updateData.avatarUrl = avatarUrl;
-    if (email !== void 0)
-      updateData.email = email;
-    if (city !== void 0)
-      updateData.city = city;
-    if (state !== void 0)
-      updateData.state = state;
-    if (zipCode !== void 0)
-      updateData.zipCode = zipCode;
+    if (displayName !== void 0) updateData.displayName = displayName;
+    if (bio !== void 0) updateData.bio = bio;
+    if (avatarUrl !== void 0) updateData.avatarUrl = avatarUrl;
+    if (email !== void 0) updateData.email = email;
+    if (city !== void 0) updateData.city = city;
+    if (state !== void 0) updateData.state = state;
+    if (zipCode !== void 0) updateData.zipCode = zipCode;
     const updatedUser = await storage.updateUser(targetUserId, updateData);
     const { password, ...userData } = updatedUser;
     res.json(userData);
@@ -3252,8 +4387,8 @@ router3.get("/posts", async (req, res, next) => {
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    const posts2 = await storage.getAllPosts();
-    res.json(posts2);
+    const posts3 = await storage.getAllPosts();
+    res.json(posts3);
   } catch (error) {
     next(error);
   }
@@ -3265,8 +4400,8 @@ router3.get("/events", async (req, res, next) => {
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    const events2 = await storage.getAllEvents();
-    res.json(events2);
+    const events3 = await storage.getAllEvents();
+    res.json(events3);
   } catch (error) {
     next(error);
   }
@@ -3297,18 +4432,12 @@ router3.put("/settings", async (req, res) => {
     }
     const { displayName, email, bio, city, state, zipCode } = req.body;
     const updateData = {};
-    if (displayName !== void 0)
-      updateData.displayName = displayName;
-    if (email !== void 0)
-      updateData.email = email;
-    if (bio !== void 0)
-      updateData.bio = bio;
-    if (city !== void 0)
-      updateData.city = city;
-    if (state !== void 0)
-      updateData.state = state;
-    if (zipCode !== void 0)
-      updateData.zipCode = zipCode;
+    if (displayName !== void 0) updateData.displayName = displayName;
+    if (email !== void 0) updateData.email = email;
+    if (bio !== void 0) updateData.bio = bio;
+    if (city !== void 0) updateData.city = city;
+    if (state !== void 0) updateData.state = state;
+    if (zipCode !== void 0) updateData.zipCode = zipCode;
     await storage.updateUser(resolvedUserId, updateData);
     res.json({ success: true });
   } catch (error) {
@@ -3354,18 +4483,12 @@ router4.put("/settings", async (req, res) => {
     }
     const { displayName, email, bio, city, state, zipCode } = req.body;
     const updateData = {};
-    if (displayName !== void 0)
-      updateData.displayName = displayName;
-    if (email !== void 0)
-      updateData.email = email;
-    if (bio !== void 0)
-      updateData.bio = bio;
-    if (city !== void 0)
-      updateData.city = city;
-    if (state !== void 0)
-      updateData.state = state;
-    if (zipCode !== void 0)
-      updateData.zipCode = zipCode;
+    if (displayName !== void 0) updateData.displayName = displayName;
+    if (email !== void 0) updateData.email = email;
+    if (bio !== void 0) updateData.bio = bio;
+    if (city !== void 0) updateData.city = city;
+    if (state !== void 0) updateData.state = state;
+    if (zipCode !== void 0) updateData.zipCode = zipCode;
     const resolvedUserId2 = typeof userId === "number" ? userId : parseInt(String(userId));
     await storage.updateUser(resolvedUserId2, updateData);
     res.json({ success: true });
@@ -3450,10 +4573,8 @@ function registerRoutes(app2, httpServer2) {
   app2.use("/api/admin", admin_default);
   function getSessionUserId(req) {
     const raw = req.session?.userId;
-    if (raw === void 0 || raw === null)
-      return void 0;
-    if (typeof raw === "number")
-      return raw;
+    if (raw === void 0 || raw === null) return void 0;
+    if (typeof raw === "number") return raw;
     const n = parseInt(String(raw));
     return Number.isFinite(n) ? n : void 0;
   }
@@ -3929,8 +5050,8 @@ function registerRoutes(app2, httpServer2) {
         }
         communityId = community.id;
       }
-      const posts2 = await storage.getCommunityWallPosts(communityId);
-      res.json(posts2);
+      const posts3 = await storage.getCommunityWallPosts(communityId);
+      res.json(posts3);
     } catch (error) {
       console.error("Error fetching wall posts:", error);
       res.status(500).json({ message: "Error fetching wall posts" });
@@ -3970,8 +5091,8 @@ function registerRoutes(app2, httpServer2) {
   app2.get("/api/posts", async (req, res) => {
     try {
       const filter = req.query.filter;
-      const posts2 = await storage.getAllPosts(filter);
-      res.json(posts2);
+      const posts3 = await storage.getAllPosts(filter);
+      res.json(posts3);
     } catch (error) {
       console.error("Error fetching posts:", error);
       res.status(500).json({ message: "Error fetching posts" });
@@ -4017,8 +5138,8 @@ function registerRoutes(app2, httpServer2) {
   app2.get("/api/posts/:id/comments", async (req, res) => {
     try {
       const postId = parseInt(req.params.id);
-      const comments2 = await storage.getCommentsByPostId(postId);
-      res.json(comments2);
+      const comments3 = await storage.getCommentsByPostId(postId);
+      res.json(comments3);
     } catch (error) {
       console.error("Error fetching comments:", error);
       res.status(500).json({ message: "Error fetching comments" });
@@ -4051,8 +5172,8 @@ function registerRoutes(app2, httpServer2) {
   app2.get("/api/microblogs", async (req, res) => {
     try {
       const filter = req.query.filter;
-      const microblogs2 = await storage.getAllMicroblogs();
-      res.json(microblogs2);
+      const microblogs3 = await storage.getAllMicroblogs();
+      res.json(microblogs3);
     } catch (error) {
       console.error("Error fetching microblogs:", error);
       res.status(500).json({ message: "Error fetching microblogs" });
@@ -4110,8 +5231,8 @@ function registerRoutes(app2, httpServer2) {
   app2.get("/api/events", async (req, res) => {
     try {
       const filter = req.query.filter;
-      const events2 = await storage.getAllEvents();
-      res.json(events2);
+      const events3 = await storage.getAllEvents();
+      res.json(events3);
     } catch (error) {
       console.error("Error fetching events:", error);
       res.status(500).json({ message: "Error fetching events" });
@@ -4120,8 +5241,8 @@ function registerRoutes(app2, httpServer2) {
   app2.get("/api/events/public", async (req, res) => {
     try {
       const allEvents = await storage.getAllEvents();
-      const events2 = allEvents.filter((event) => event.isPublic);
-      res.json(events2);
+      const events3 = allEvents.filter((event) => event.isPublic);
+      res.json(events3);
     } catch (error) {
       console.error("Error fetching public events:", error);
       res.status(500).json({ message: "Error fetching public events" });
@@ -4130,8 +5251,8 @@ function registerRoutes(app2, httpServer2) {
   app2.get("/api/events/nearby", async (req, res) => {
     try {
       const { latitude, longitude, radius } = req.query;
-      const events2 = await storage.getAllEvents();
-      res.json(events2);
+      const events3 = await storage.getAllEvents();
+      res.json(events3);
     } catch (error) {
       console.error("Error fetching nearby events:", error);
       res.status(500).json({ message: "Error fetching nearby events" });
@@ -4233,8 +5354,8 @@ function registerRoutes(app2, httpServer2) {
   });
   app2.get("/api/apologetics", async (req, res) => {
     try {
-      const resources = await storage.getAllApologeticsResources();
-      res.json(resources);
+      const resources2 = await storage.getAllApologeticsResources();
+      res.json(resources2);
     } catch (error) {
       console.error("Error fetching apologetics resources:", error);
       res.status(500).json({ message: "Error fetching apologetics resources" });
@@ -4296,8 +5417,8 @@ function registerRoutes(app2, httpServer2) {
   app2.get("/api/groups", isAuthenticated, async (req, res) => {
     try {
       const userId = getSessionUserId(req);
-      const groups2 = await storage.getGroupsByUserId(userId);
-      res.json(groups2);
+      const groups3 = await storage.getGroupsByUserId(userId);
+      res.json(groups3);
     } catch (error) {
       console.error("Error fetching groups:", error);
       res.status(500).json({ message: "Error fetching groups" });

@@ -19,53 +19,53 @@
   --border: 220 20% 85%;
   --input: 220 20% 85%;
   
-  /* Vibrant Pink from Logo (Primary Identity Color) */
-  --primary: 325 85% 55%;
+  /* Deep Navy Blue (Primary Identity Color) */
+  --primary: 225 60% 11%;
   --primary-foreground: 0 0% 100%;
   
-  /* Purple from Logo (Secondary Color) */
-  --secondary: 265 70% 50%;
+  /* Rich Royal Blue (Secondary Color) */
+  --secondary: 230 63% 37%;
   --secondary-foreground: 0 0% 100%;
   
-  /* Gradient Pink-Purple Accent */
-  --accent: 295 80% 55%;
+  /* Complementary Blue Accent */
+  --accent: 215 75% 55%;
   --accent-foreground: 0 0% 100%;
   
   /* Default red for destructive actions */
   --destructive: 0 75% 45%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 325 85% 55%;
+  --ring: 225 60% 11%;
   --radius: 0.5rem;
 }
 
 .dark {
-  /* Deep Purple background (Dark Mode/Contrast) inspired by logo */
-  --background: 265 30% 10%;
-  --foreground: 265 10% 95%; 
-  --muted: 265 25% 18%;
-  --muted-foreground: 265 10% 65%;
-  --popover: 265 30% 10%;
-  --popover-foreground: 265 10% 95%;
-  --card: 265 30% 14%;
-  --card-foreground: 265 10% 95%;
-  --border: 265 25% 22%;
-  --input: 265 25% 22%;
+  /* Deep Navy background (Dark Mode/Contrast) */
+  --background: 225 40% 8%;
+  --foreground: 225 10% 95%; 
+  --muted: 225 30% 15%;
+  --muted-foreground: 225 10% 65%;
+  --popover: 225 40% 8%;
+  --popover-foreground: 225 10% 95%;
+  --card: 225 35% 12%;
+  --card-foreground: 225 10% 95%;
+  --border: 225 30% 20%;
+  --input: 225 30% 20%;
   
-  /* Brighter Pink for dark mode */
-  --primary: 325 90% 60%;
+  /* Brighter Navy for dark mode */
+  --primary: 225 70% 25%;
   --primary-foreground: 0 0% 100%;
   
-  /* Brighter Purple for dark mode */
-  --secondary: 265 80% 60%;
+  /* Brighter Royal Blue for dark mode */
+  --secondary: 230 75% 50%;
   --secondary-foreground: 0 0% 100%;
   
-  /* Brighter Pink-Purple for dark mode */
-  --accent: 295 90% 65%;
+  /* Brighter Blue Accent for dark mode */
+  --accent: 215 85% 65%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 80% 55%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 325 90% 60%;
+  --ring: 225 70% 25%;
   --radius: 0.5rem;
 }
 
@@ -84,11 +84,11 @@
   .site-title {
     font-family: 'Playfair Display', serif;
     @apply font-medium tracking-normal;
-    background: linear-gradient(135deg, #F649A8, #D645D0, #7B41F7);
+    color: #222D99; /* Fallback color */
+    background: linear-gradient(135deg, #222D99, #4A90E2, #6B9FED);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-fill-color: transparent;
   }
 
   /* More professional card styling */
@@ -110,22 +110,89 @@
   }
   
   .btn-gradient {
-    background: linear-gradient(135deg, #F649A8, #D645D0, #7B41F7);
+    background: linear-gradient(135deg, #0B132B, #222D99, #4A90E2);
     @apply text-white shadow-sm hover:shadow-md hover:shadow-secondary/20 transition-all;
   }
   
   .text-gradient {
-    background: linear-gradient(135deg, #F649A8, #D645D0, #7B41F7);
+    color: hsl(var(--primary)); /* Fallback color */
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--accent)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-fill-color: transparent;
+    display: inline-block;
   }
   
   /* Custom styling for tabs */
   [data-state="active"].custom-tab-trigger {
-    background: linear-gradient(135deg, #F649A8, #D645D0, #7B41F7);
-    color: white;
+    background: linear-gradient(135deg, #0B132B, #222D99, #4A90E2) !important;
+    color: white !important;
+    border: none !important;
+  }
+
+  /* Enhanced auth page styling */
+  .auth-card-enter {
+    animation: authCardSlideIn 0.6s ease-out;
+  }
+
+  @keyframes authCardSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Enhanced form input styling */
+  .form-input-focus {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .form-input-focus:focus-within {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(11, 19, 43, 0.15);
+  }
+
+  /* Floating background elements */
+  .floating-bg-element {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px) scale(1);
+    }
+    50% {
+      transform: translateY(-10px) scale(1.02);
+    }
+  }
+
+  /* Enhanced hover effects for hero features */
+  .hero-feature-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hero-feature-hover:hover {
+    transform: translateX(8px);
+  }
+
+  /* Pulse animation for accent elements */
+  .pulse-accent {
+    animation: pulseAccent 4s ease-in-out infinite;
+  }
+
+  @keyframes pulseAccent {
+    0%, 100% {
+      opacity: 0.1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.2;
+      transform: scale(1.1);
+    }
   }
 
   /* Text styles */
@@ -232,6 +299,71 @@
     }
     100% {
       transform: translateY(0px);
+    }
+  }
+
+  /* Enhanced auth page styling */
+  .auth-card-enter {
+    animation: authCardSlideIn 0.6s ease-out;
+  }
+
+  @keyframes authCardSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Enhanced form input styling */
+  .form-input-focus {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .form-input-focus:focus-within {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(11, 19, 43, 0.15);
+  }
+
+  /* Floating background elements */
+  .floating-bg-element {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px) scale(1);
+    }
+    50% {
+      transform: translateY(-10px) scale(1.02);
+    }
+  }
+
+  /* Enhanced hover effects for hero features */
+  .hero-feature-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hero-feature-hover:hover {
+    transform: translateX(8px);
+  }
+
+  /* Pulse animation for accent elements */
+  .pulse-accent {
+    animation: pulseAccent 4s ease-in-out infinite;
+  }
+
+  @keyframes pulseAccent {
+    0%, 100% {
+      opacity: 0.1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.2;
+      transform: scale(1.1);
     }
   }
 
@@ -447,7 +579,7 @@
   
   /* Mobile navigation active states */
   .mobile-nav-active {
-    background: linear-gradient(135deg, #F649A8, #D645D0);
+    background: linear-gradient(135deg, #0B132B, #222D99);
     color: white;
     border-radius: 0.5rem;
   }

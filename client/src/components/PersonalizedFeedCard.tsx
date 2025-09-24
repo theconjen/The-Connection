@@ -33,7 +33,7 @@ export function PersonalizedFeedCard({ microblog, community }: PersonalizedFeedC
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white text-sm font-semibold">
                 {(microblog.user?.displayName || microblog.user?.username || 'U').charAt(0).toUpperCase()}
               </div>
               <div>

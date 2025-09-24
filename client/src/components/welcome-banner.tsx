@@ -36,7 +36,15 @@ export default function WelcomeBanner({ className = "" }: WelcomeBannerProps) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-base font-bold">
-              Good {timeOfDay}, <span className="text-gradient">{user ? user.username : "Friend"}</span>!
+              Good {timeOfDay}, <span 
+                style={{
+                  background: 'linear-gradient(135deg, #222D99, #4A90E2, #6B9FED)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  display: 'inline-block'
+                }}
+              >{user ? user.username : "Friend"}</span>!
             </h2>
             <p className="text-xs text-muted-foreground">
               Welcome to The Connection

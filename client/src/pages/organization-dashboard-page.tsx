@@ -73,13 +73,8 @@ export default function OrganizationDashboardPage() {
 
   const upgradePlanMutation = useMutation({
     mutationFn: async (plan: string) => {
-      return apiRequest("/api/stripe/checkout", {
-        method: "POST",
-        body: JSON.stringify({
-          organizationId: id,
-          plan,
-        }),
-      });
+      // Stripe integration removed - upgrade functionality disabled
+      throw new Error("Upgrade functionality is currently disabled");
     },
     onSuccess: (data) => {
       if (data.url) {
