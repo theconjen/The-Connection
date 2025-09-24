@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run check:ts
+
+      - name: Run server tests
+        run: |
+          if [ -f "scripts/check-ts-errors.js" ]; then
+            npm run check:ts
+          fi
+
+      - name: Detect app edits
+        id: app-edits
+        run: |
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed_files.txt
+          echo "changed_files=$(cat changed_files.txt | tr '\n' ' ')" >> $GITHUB_OUTPUT
+
+      - name: Conditional build/test (web)
+        if: contains(steps.app-edits.outputs.changed_files, 'client/')
+        run: npm run build
+
+      - name: Conditional build/test (server)
+        if: contains(steps.app-edits.outputs.changed_files, 'server/')
+        run: npm run check:ts
+
+    # Prevent merge if any step fails
+    # GitHub will block PRs if this workflow fails
