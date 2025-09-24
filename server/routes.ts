@@ -58,10 +58,10 @@ import userRoutes from './routes/api/user';
 import userSettingsRoutes from './routes/userSettingsRoutes';
 import dmRoutes from './routes/dmRoutes';
 import organizationRoutes from './routes/organizations';
-import stripeRoutes from './routes/stripe';
 import { recommendationRouter } from './routes/recommendation';
 import { registerOnboardingRoutes } from './routes/api/user-onboarding';
 import registerLocationSearchRoutes from './routes/api/location-search';
+import supportRoutes from './routes/api/support';
 
 declare module 'express-session' {
   interface SessionData {
@@ -174,6 +174,7 @@ export function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Use modular route files
   app.use('/api', authRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/support', supportRoutes);
   
   // Helper to normalize session userId to number
   function getSessionUserId(req: any): number | undefined {

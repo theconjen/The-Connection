@@ -46,7 +46,6 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
     {
       title: "Help",
       items: [
-        { icon: <HelpCircle className="h-5 w-5" />, label: "FAQ", path: "/faq" },
         { icon: <Handshake className="h-5 w-5" />, label: "Support", path: "/support" },
         { icon: <Settings className="h-5 w-5" />, label: "Settings", path: "/settings" },
       ],

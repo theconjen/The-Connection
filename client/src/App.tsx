@@ -35,6 +35,7 @@ const AdminApologistApplications = lazy(() => import("./pages/admin/apologist-sc
 const AdminLivestreamerApplications = lazy(() => import("./pages/admin/livestreamer-applications"));
 const OrganizationDashboardPage = lazy(() => import("./pages/organization-dashboard-page"));
 const AcceptInvitationPage = lazy(() => import("./pages/accept-invitation-page"));
+const SupportPage = lazy(() => import("./pages/support-page"));
 
 // Analytics tracking component with event tracking
 function AnalyticsTracker() {
@@ -102,6 +103,7 @@ function App() {
           <Route path="/profile/:username" component={ProfilePage} />
           <Route path="/dms" component={DMsPage} />
           <Route path="/settings" component={SettingsPage} />
+          <Route path="/support" component={SupportPage} />
           
           {/* Organization */}
           <Route path="/church-signup" component={ChurchSignupPage} />

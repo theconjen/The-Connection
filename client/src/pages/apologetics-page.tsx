@@ -128,28 +128,8 @@ export default function ApologeticsPage() {
           </div>
           <CardContent className="p-6">
             <p className="text-neutral-600 mb-4">
-              Our apologetics center provides carefully curated resources to help you grow in your understanding of Christian theology, answer difficult questions, and engage thoughtfully with those who hold different beliefs.
+              Our apologetics center provides carefully curated resources to help you grow in your understanding of Christian theology, answer difficult questions, and engage thoughtfully with those who are questioning.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild variant="outline">
-                <a href="#books">
-                  <BookOpenIcon className="mr-2 h-4 w-4" />
-                  Books
-                </a>
-              </Button>
-              <Button asChild variant="outline">
-                <a href="#videos">
-                  <VideoIcon className="mr-2 h-4 w-4" />
-                  Videos
-                </a>
-              </Button>
-              <Button asChild variant="outline">
-                <a href="#podcasts">
-                  <HeadphonesIcon className="mr-2 h-4 w-4" />
-                  Podcasts
-                </a>
-              </Button>
-            </div>
           </CardContent>
         </Card>
 
