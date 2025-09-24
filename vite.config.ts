@@ -4,16 +4,11 @@ import path from 'path'
 import { fileURLToPath, URL } from 'node:url'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
-      },
       manifest: {
         name: 'The Connection',
         short_name: 'Connection',
@@ -30,23 +25,40 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'client', 'src'),
-      '@shared': path.resolve(__dirname, 'shared'),
-      '@assets': path.resolve(__dirname, 'client', 'src', 'assets'),
+      '@': fileURLToPath(new URL('client/src', import.meta.url)),
+      '@shared': fileURLToPath(new URL('shared', import.meta.url)),
+      '@assets': fileURLToPath(new URL('client/src/assets', import.meta.url)),
     },
   },
-  root: path.resolve(__dirname, 'client'),
+  root: fileURLToPath(new URL('client', import.meta.url)),
   build: {
-    outDir: '../dist/public',
+    outDir: fileURLToPath(new URL('dist/public', import.meta.url)),
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['wouter'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu']
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-radix': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-select',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-toast'
+          ],
+          'vendor-utils': ['clsx', 'tailwind-merge', 'date-fns'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-icons': ['lucide-react']
         }
+      }
+    },
+    target: 'es2020',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info']
       }
     }
   },
-  publicDir: '../public',
 })
