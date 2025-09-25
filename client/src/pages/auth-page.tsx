@@ -4,9 +4,23 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Redirect, useLocation } from "wouter";
 import { navigate } from "wouter/use-browser-location";
-import { insertUserSchema, InsertUser } from "../../../shared/schema";
+
+import {
+  insertUserSchema,
+  insertCommunitySchema,
+  insertPostSchema,
+  insertCommentSchema,
+  insertMicroblogSchema,
+  insertPrayerRequestSchema,
+  insertEventSchema,
+} from "@shared/schema";
+
 import { useAuth, AuthContextType } from "../hooks/use-auth";
 import logoImage from "../assets/tc-logo.png";
+
+// ✅ Type alias defined after all imports
+type InsertUser = z.infer<typeof insertUserSchema>;
+
 import {
   Card,
   CardContent,

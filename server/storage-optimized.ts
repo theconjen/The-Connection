@@ -1,7 +1,7 @@
 // Optimized storage configuration for production
 // This file eliminates MemStorage bloat when using database
 
-import { DbStorage } from './storage-db-only';
+import { DbStorage } from './storage';
 
 // Force database storage in production to eliminate MemStorage bloat
 export const storage = new DbStorage();
