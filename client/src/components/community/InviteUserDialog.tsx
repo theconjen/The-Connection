@@ -28,6 +28,7 @@ import { Loader2, UserPlus, Mail } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+
 const inviteSchema = z.object({
   email: z.string()
     .min(1, "Email address is required")

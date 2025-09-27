@@ -2996,8 +2996,8 @@ var init_storage = __esm({
 });
 
 // server/config/domain.ts
-function getFullUrl(path3) {
-  const formattedPath = path3.startsWith("/") ? path3 : `/${path3}`;
+function getFullUrl(path2) {
+  const formattedPath = path2.startsWith("/") ? path2 : `/${path2}`;
   return `${BASE_URL}${formattedPath}`;
 }
 var APP_DOMAIN, BASE_URL, EMAIL_FROM, APP_URLS;
@@ -3364,7 +3364,7 @@ async function setupWelcomeTemplate() {
   const subjectPart = "Welcome to The Connection!";
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -3380,7 +3380,7 @@ async function setupWelcomeTemplate() {
         </ul>
         <p>If you have any questions, feel free to reach out to our support team.</p>
         <div style="margin-top: 30px; text-align: center;">
-          <a href="${BASE_URL}/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
+          <a href="${BASE_URL}/auth" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
         </div>
         <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
           This email was sent to {{email}}. If you did not create this account, please disregard this email.
@@ -3413,7 +3413,7 @@ async function setupPasswordResetTemplate() {
   const subjectPart = "Reset Your Password - The Connection";
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -3423,7 +3423,7 @@ async function setupPasswordResetTemplate() {
         <p>This link will expire in 24 hours.</p>
         
         <div style="margin-top: 30px; text-align: center;">
-          <a href="{{resetLink}}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a>
+          <a href="{{resetLink}}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a>
         </div>
         
         <p style="margin-top: 20px;">If you did not request a password reset, please ignore this email or contact our support team if you have concerns.</p>
@@ -3459,7 +3459,7 @@ async function setupNotificationTemplate() {
   const subjectPart = "{{subject}}";
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -3469,7 +3469,7 @@ async function setupNotificationTemplate() {
         
         {{#if actionUrl}}
         <div style="margin-top: 30px; text-align: center;">
-          <a href="{{actionUrl}}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">{{actionText}}</a>
+          <a href="{{actionUrl}}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">{{actionText}}</a>
         </div>
         {{/if}}
         
@@ -3505,7 +3505,7 @@ async function setupLivestreamInviteTemplate() {
   const subjectPart = "You're Invited: {{streamTitle}} - Live on The Connection";
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -3514,13 +3514,13 @@ async function setupLivestreamInviteTemplate() {
         <p>{{hostName}} has invited you to join their upcoming livestream:</p>
         
         <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #6d28d9;">{{streamTitle}}</h3>
+          <h3 style="margin-top: 0; color: #0B132B;">{{streamTitle}}</h3>
           <p style="margin-bottom: 5px;"><strong>When:</strong> {{streamDate}} at {{streamTime}}</p>
           <p style="margin-top: 0;"><strong>Description:</strong> {{streamDescription}}</p>
         </div>
         
         <div style="margin-top: 30px; text-align: center;">
-          <a href="{{streamUrl}}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Join Livestream</a>
+          <a href="{{streamUrl}}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Join Livestream</a>
         </div>
         
         <p style="margin-top: 20px;">Don't miss out on this opportunity to connect and grow in your faith journey!</p>
@@ -3573,7 +3573,7 @@ async function sendWelcomeEmail(email, displayName = "") {
       subject: "Welcome to The Connection!",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+          <div style="background-color: #0B132B; padding: 20px; text-align: center;">
             <h1 style="color: white; margin: 0;">The Connection</h1>
           </div>
           <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -3589,7 +3589,7 @@ async function sendWelcomeEmail(email, displayName = "") {
             </ul>
             <p>If you have any questions, feel free to reach out to our support team.</p>
             <div style="margin-top: 30px; text-align: center;">
-              <a href="${BASE_URL}/auth" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
+              <a href="${BASE_URL}/auth" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
             </div>
             <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
               This email was sent to ${email}. If you did not create this account, please disregard this email.
@@ -3605,7 +3605,7 @@ async function setupCommunityInvitationTemplate() {
   const subjectPart = `You're invited to join "{{communityName}}" - The Connection`;
   const htmlPart = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+      <div style="background-color: #0B132B; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">The Connection</h1>
       </div>
       <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -3614,14 +3614,14 @@ async function setupCommunityInvitationTemplate() {
         <p>{{inviterName}} has invited you to join the private community <strong>"{{communityName}}"</strong> on The Connection.</p>
         
         <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #6d28d9;">{{communityName}}</h3>
+          <h3 style="margin-top: 0; color: #0B132B;">{{communityName}}</h3>
           <p style="margin: 5px 0;"><strong>Description:</strong> {{communityDescription}}</p>
           <p style="margin: 5px 0;"><strong>Invited by:</strong> {{inviterName}}</p>
           <p style="margin: 5px 0; font-size: 14px; color: #666;"><strong>Invitation expires:</strong> {{expirationDate}}</p>
         </div>
         
         <div style="margin: 30px 0; text-align: center;">
-          <a href="{{invitationUrl}}" style="background-color: #6d28d9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
+          <a href="{{invitationUrl}}" style="background-color: #0B132B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
         </div>
         
         <p style="margin-top: 20px;">This is a private community, so you'll need to use this special invitation link to join. Click the button above to accept the invitation and become a member.</p>
@@ -3680,7 +3680,7 @@ async function sendCommunityInvitationEmail(params, name, p0, token) {
       subject: `You're invited to join "${params.communityName}" - The Connection`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #6d28d9; padding: 20px; text-align: center;">
+          <div style="background-color: #0B132B; padding: 20px; text-align: center;">
             <h1 style="color: white; margin: 0;">The Connection</h1>
           </div>
           <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -3689,14 +3689,14 @@ async function sendCommunityInvitationEmail(params, name, p0, token) {
             <p>${params.inviterName} has invited you to join the private community <strong>"${params.communityName}"</strong> on The Connection.</p>
             
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #6d28d9;">${params.communityName}</h3>
+              <h3 style="margin-top: 0; color: #0B132B;">${params.communityName}</h3>
               <p style="margin: 5px 0;"><strong>Description:</strong> ${params.communityDescription}</p>
               <p style="margin: 5px 0;"><strong>Invited by:</strong> ${params.inviterName}</p>
               <p style="margin: 5px 0; font-size: 14px; color: #666;"><strong>Invitation expires:</strong> ${params.expirationDate}</p>
             </div>
             
             <div style="margin: 30px 0; text-align: center;">
-              <a href="${params.invitationUrl}" style="background-color: #6d28d9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
+              <a href="${params.invitationUrl}" style="background-color: #0B132B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join Community</a>
             </div>
             
             <p style="margin-top: 20px;">This is a private community, so you'll need to use this special invitation link to join. Click the button above to accept the invitation and become a member.</p>
@@ -4036,77 +4036,7 @@ function setupAuth(app2) {
 // server/routes.ts
 init_storage();
 init_schema();
-init_domain();
 init_email();
-
-// server/email-notifications.ts
-init_email();
-init_domain();
-async function sendLivestreamerApplicationNotificationEmail(params, fullName, id) {
-  try {
-    const templateData = {
-      applicantName: params.applicantName,
-      applicantEmail: params.applicantEmail,
-      ministryName: params.ministryName || "Not specified",
-      applicationId: params.applicationId.toString(),
-      applicationDate: params.applicationDate,
-      reviewLink: params.reviewLink
-    };
-    return await sendTemplatedEmail({
-      to: params.email,
-      from: `no-reply@${APP_DOMAIN}`,
-      templateName: DEFAULT_TEMPLATES.APPLICATION_NOTIFICATION,
-      templateData
-    });
-  } catch (error) {
-    console.error("Error sending livestreamer application notification email:", error);
-    return false;
-  }
-}
-async function sendApologistScholarApplicationNotificationEmail(params, fullName, id) {
-  try {
-    const templateData = {
-      applicantName: params.applicantName,
-      applicantEmail: params.applicantEmail,
-      ministryName: params.ministryName || "Not specified",
-      applicationId: params.applicationId.toString(),
-      applicationDate: params.applicationDate,
-      reviewLink: params.reviewLink
-    };
-    return await sendTemplatedEmail({
-      to: params.email,
-      from: `no-reply@${APP_DOMAIN}`,
-      templateName: DEFAULT_TEMPLATES.APPLICATION_NOTIFICATION,
-      templateData
-    });
-  } catch (error) {
-    console.error("Error sending apologist scholar application notification email:", error);
-    return false;
-  }
-}
-async function sendApplicationStatusUpdateEmail(params) {
-  try {
-    const templateData = {
-      applicantName: params.applicantName || "Community Member",
-      status: params.status,
-      ministryName: params.ministryName || "your ministry",
-      reviewNotes: params.reviewNotes || "No additional notes provided.",
-      platformLink: params.platformLink,
-      email: params.email
-    };
-    return await sendTemplatedEmail({
-      to: params.email,
-      from: `no-reply@${APP_DOMAIN}`,
-      templateName: DEFAULT_TEMPLATES.APPLICATION_STATUS_UPDATE,
-      templateData
-    });
-  } catch (error) {
-    console.error("Error sending application status update email:", error);
-    return false;
-  }
-}
-
-// server/routes.ts
 import crypto2 from "crypto";
 
 // server/routes/api/auth.ts
@@ -4499,6 +4429,99 @@ router4.put("/settings", async (req, res) => {
 });
 var userSettingsRoutes_default = router4;
 
+// server/routes/api/support.ts
+init_email();
+import { Router as Router4 } from "express";
+import { z } from "zod";
+var router5 = Router4();
+var contactFormSchema = z.object({
+  name: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  message: z.string().min(10, "Message must be at least 10 characters long")
+});
+router5.post("/contact", async (req, res) => {
+  try {
+    const validatedData = contactFormSchema.parse(req.body);
+    const { name, email, message } = validatedData;
+    const user = req.user || null;
+    const senderInfo = name || email || (user ? `${user.username} (${user.email})` : "Anonymous User");
+    const replyTo = email || (user ? user.email : void 0);
+    const emailSubject = `Support Request from ${senderInfo}`;
+    const emailContent = `
+      <h2>New Support Request</h2>
+      <p><strong>From:</strong> ${senderInfo}</p>
+      ${email ? `<p><strong>Email:</strong> ${email}</p>` : ""}
+      ${user ? `<p><strong>User ID:</strong> ${user.id}</p>` : ""}
+      ${user ? `<p><strong>Username:</strong> ${user.username}</p>` : ""}
+      <p><strong>Timestamp:</strong> ${(/* @__PURE__ */ new Date()).toISOString()}</p>
+      
+      <h3>Message:</h3>
+      <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+        ${message.replace(/\n/g, "<br>")}
+      </div>
+      
+      ${replyTo ? `<p><em>Reply to: ${replyTo}</em></p>` : "<p><em>No reply email provided</em></p>"}
+    `;
+    await sendEmail({
+      to: "hello@theconnection.app",
+      from: process.env.EMAIL_FROM || "noreply@theconnection.app",
+      subject: emailSubject,
+      html: emailContent
+    });
+    if (replyTo) {
+      const confirmationSubject = "We've received your message - The Connection Support";
+      const confirmationContent = `
+        <h2>Thank you for contacting The Connection!</h2>
+        <p>Hi${name ? ` ${name}` : ""},</p>
+        
+        <p>We've successfully received your message and our support team will review it shortly. You can expect a response within 24-48 hours.</p>
+        
+        <h3>Your message:</h3>
+        <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+          ${message.replace(/\n/g, "<br>")}
+        </div>
+        
+        <p>If you need immediate assistance, you can also reach us directly at hello@theconnection.app.</p>
+        
+        <p>Blessings,<br>
+        The Connection Support Team</p>
+      `;
+      await sendEmail({
+        to: replyTo,
+        from: process.env.EMAIL_FROM || "noreply@theconnection.app",
+        subject: confirmationSubject,
+        html: confirmationContent
+      });
+    }
+    res.json({
+      success: true,
+      message: "Support request sent successfully"
+    });
+  } catch (error) {
+    console.error("Error sending support email:", error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: "Validation failed",
+        details: error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message
+        }))
+      });
+    }
+    res.status(500).json({
+      error: "Failed to send support request. Please try again later."
+    });
+  }
+});
+router5.get("/status", (req, res) => {
+  res.json({
+    status: "operational",
+    supportEmail: "hello@theconnection.app",
+    responseTime: "24-48 hours"
+  });
+});
+var support_default = router5;
+
 // server/routes.ts
 var generateToken = () => crypto2.randomBytes(32).toString("hex");
 function registerRoutes(app2, httpServer2) {
@@ -4571,6 +4594,7 @@ function registerRoutes(app2, httpServer2) {
   });
   app2.use("/api", auth_default);
   app2.use("/api/admin", admin_default);
+  app2.use("/api/support", support_default);
   function getSessionUserId(req) {
     const raw = req.session?.userId;
     if (raw === void 0 || raw === null) return void 0;
@@ -5445,164 +5469,6 @@ function registerRoutes(app2, httpServer2) {
       res.status(500).json({ message: "Error creating group" });
     }
   });
-  app2.get("/api/livestreams", async (req, res) => {
-    try {
-      const livestreams2 = await storage.getAllLivestreams();
-      res.json(livestreams2);
-    } catch (error) {
-      console.error("Error fetching livestreams:", error);
-      res.status(500).json({ message: "Error fetching livestreams" });
-    }
-  });
-  app2.post("/api/livestreams", isAuthenticated, async (req, res) => {
-    try {
-      const userId = getSessionUserId(req);
-      const { title, description, streamUrl, scheduledFor } = req.body;
-      const livestream = await storage.createLivestream({
-        title,
-        description,
-        streamerId: userId,
-        streamUrl,
-        scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
-        isLive: false
-      });
-      res.status(201).json(livestream);
-    } catch (error) {
-      console.error("Error creating livestream:", error);
-      res.status(500).json({ message: "Error creating livestream" });
-    }
-  });
-  app2.post("/api/applications/livestreamer", isAuthenticated, async (req, res) => {
-    try {
-      const userId = getSessionUserId(req);
-      const validatedData = insertLivestreamerApplicationSchema.parse({
-        ...req.body,
-        userId
-      });
-      const application = await storage.createLivestreamerApplication(validatedData);
-      try {
-        const user = await storage.getUser(userId);
-        const applicantName = user && (user.displayName || user.username) || "Applicant";
-        const applicantEmail = user && user.email || EMAIL_FROM;
-        const adminDest = process.env.ADMIN_NOTIFICATION_EMAIL || EMAIL_FROM;
-        await sendLivestreamerApplicationNotificationEmail({
-          email: adminDest,
-          applicantName,
-          applicantEmail,
-          ministryName: validatedData.ministryName || "Not specified",
-          applicationId: application.id,
-          applicationDate: (/* @__PURE__ */ new Date()).toISOString(),
-          reviewLink: `${BASE_URL}/admin/livestreamer-applications/${application.id}`
-        }, applicantName, application.id);
-      } catch (emailError) {
-        console.error("Failed to send application notification email:", emailError);
-      }
-      res.status(201).json(application);
-    } catch (error) {
-      console.error("Error creating livestreamer application:", error);
-      res.status(500).json({ message: "Error creating livestreamer application" });
-    }
-  });
-  app2.post("/api/applications/apologist-scholar", isAuthenticated, async (req, res) => {
-    try {
-      const userId = getSessionUserId(req);
-      const validatedData = insertApologistScholarApplicationSchema.parse({
-        ...req.body,
-        userId
-      });
-      const application = await storage.createApologistScholarApplication(validatedData);
-      try {
-        const user = await storage.getUser(userId);
-        const applicantName = validatedData.fullName || user && (user.displayName || user.username) || "Applicant";
-        const applicantEmail = user && user.email || EMAIL_FROM;
-        const adminDest = process.env.ADMIN_NOTIFICATION_EMAIL || EMAIL_FROM;
-        await sendApologistScholarApplicationNotificationEmail({
-          email: adminDest,
-          applicantName,
-          applicantEmail,
-          ministryName: "",
-          applicationId: application.id,
-          applicationDate: (/* @__PURE__ */ new Date()).toISOString(),
-          reviewLink: `${BASE_URL}/admin/apologist-scholar-applications/${application.id}`
-        }, applicantName, application.id);
-      } catch (emailError) {
-        console.error("Failed to send application notification email:", emailError);
-      }
-      res.status(201).json(application);
-    } catch (error) {
-      console.error("Error creating apologist scholar application:", error);
-      res.status(500).json({ message: "Error creating apologist scholar application" });
-    }
-  });
-  app2.post("/api/admin/apologist-scholar-applications/:id/review", isAdmin, async (req, res) => {
-    try {
-      const applicationId = parseInt(req.params.id);
-      const { status, reviewNotes } = req.body;
-      if (!["pending", "approved", "rejected"].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
-      }
-      const reviewerId = getSessionUserId(req);
-      const application = await storage.updateApologistScholarApplication(
-        applicationId,
-        status,
-        reviewNotes,
-        reviewerId
-      );
-      if (status === "approved") {
-        await storage.setVerifiedApologeticsAnswerer(application.userId, true);
-      }
-      try {
-        const emailMessage = status === "approved" ? "We're pleased to inform you that your application to become an apologetics scholar has been approved. You can now answer apologetics questions on our platform." : `Your apologetics scholar application has been reviewed. Status: ${status.toUpperCase()}. ${reviewNotes ? `Reviewer notes: ${reviewNotes}` : ""}`;
-        await sendApplicationStatusUpdateEmail({
-          email: application.email,
-          applicantName: application.fullName || application.applicantName || "Applicant",
-          status,
-          ministryName: application.ministryName || "",
-          reviewNotes: reviewNotes || void 0,
-          platformLink: `${BASE_URL}/apologetics/questions`
-        });
-      } catch (emailError) {
-        console.error("Failed to send status update email:", emailError);
-      }
-      res.json(application);
-    } catch (error) {
-      console.error("Error reviewing application:", error);
-      res.status(500).json({ message: "Error reviewing application" });
-    }
-  });
-  app2.put("/api/admin/livestreamer-applications/:id", isAdmin, async (req, res) => {
-    try {
-      const applicationId = parseInt(req.params.id);
-      const { status, reviewNotes } = req.body;
-      if (!["pending", "approved", "rejected"].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
-      }
-      const reviewerId = getSessionUserId(req);
-      const application = await storage.updateLivestreamerApplication(
-        applicationId,
-        status,
-        reviewNotes,
-        reviewerId
-      );
-      try {
-        const emailMessage = status === "approved" ? "We're pleased to inform you that your application to become a livestreamer has been approved. You can now start creating livestreams on our platform." : `Your livestreamer application has been reviewed. Status: ${status.toUpperCase()}. ${reviewNotes ? `Reviewer notes: ${reviewNotes}` : ""}`;
-        await sendApplicationStatusUpdateEmail({
-          email: application.email,
-          applicantName: application.applicantName || application.fullName || "Applicant",
-          status,
-          ministryName: application.ministryName || "",
-          reviewNotes: reviewNotes || void 0,
-          platformLink: status === "approved" ? `${BASE_URL}/livestreams/create` : `${BASE_URL}/livestreamer-application`
-        });
-      } catch (emailError) {
-        console.error("Failed to send status update email:", emailError);
-      }
-      res.json(application);
-    } catch (error) {
-      console.error("Error updating application status:", error);
-      res.status(500).json({ message: "Error updating application status" });
-    }
-  });
   app2.get("/api/search/communities", async (req, res) => {
     try {
       const query = req.query.q;
@@ -5742,25 +5608,19 @@ function registerRoutes(app2, httpServer2) {
 // server/vite.ts
 import express2 from "express";
 import fs from "fs";
-import path2 from "path";
+import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 
 // vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 import { VitePWA } from "vite-plugin-pwa";
-var __dirname = path.dirname(fileURLToPath(import.meta.url));
 var vite_config_default = defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
-        // 5 MB
-      },
       manifest: {
         name: "The Connection",
         short_name: "Connection",
@@ -5777,25 +5637,42 @@ var vite_config_default = defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "client", "src"),
-      "@shared": path.resolve(__dirname, "shared"),
-      "@assets": path.resolve(__dirname, "client", "src", "assets")
+      "@": fileURLToPath(new URL("client/src", import.meta.url)),
+      "@shared": fileURLToPath(new URL("shared", import.meta.url)),
+      "@assets": fileURLToPath(new URL("client/src/assets", import.meta.url))
     }
   },
-  root: path.resolve(__dirname, "client"),
+  root: fileURLToPath(new URL("client", import.meta.url)),
   build: {
-    outDir: "../dist/public",
+    outDir: fileURLToPath(new URL("dist/public", import.meta.url)),
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ["react", "react-dom"],
-          router: ["wouter"],
-          ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu"]
+          "vendor-react": ["react", "react-dom"],
+          "vendor-radix": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-toast"
+          ],
+          "vendor-utils": ["clsx", "tailwind-merge", "date-fns"],
+          "vendor-query": ["@tanstack/react-query"],
+          "vendor-icons": ["lucide-react"]
         }
       }
+    },
+    target: "es2020",
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ["console.log", "console.info"]
+      }
     }
-  },
-  publicDir: "../public"
+  }
 });
 
 // server/vite.ts
@@ -5833,7 +5710,7 @@ async function setupVite(app2, server) {
   app2.use("*", async (req, res, next) => {
     const url = req.originalUrl;
     try {
-      const clientTemplate = path2.resolve(
+      const clientTemplate = path.resolve(
         import.meta.dirname,
         "..",
         "client",
@@ -5853,7 +5730,7 @@ async function setupVite(app2, server) {
   });
 }
 function serveStatic(app2) {
-  const distPath = path2.resolve(import.meta.dirname, "public");
+  const distPath = path.resolve(import.meta.dirname, "public");
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
@@ -5861,7 +5738,7 @@ function serveStatic(app2) {
   }
   app2.use(express2.static(distPath));
   app2.use("*", (_req, res) => {
-    res.sendFile(path2.resolve(distPath, "index.html"));
+    res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
 
@@ -5983,7 +5860,7 @@ app.use(express3.json());
 app.use(express3.urlencoded({ extended: false }));
 app.use((req, res, next) => {
   const start = Date.now();
-  const path3 = req.path;
+  const path2 = req.path;
   let capturedJsonResponse = void 0;
   const originalResJson = res.json;
   res.json = function(bodyJson, ...args) {
@@ -5992,8 +5869,8 @@ app.use((req, res, next) => {
   };
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path3.startsWith("/api")) {
-      let logLine = `${req.method} ${path3} ${res.statusCode} in ${duration}ms`;
+    if (path2.startsWith("/api")) {
+      let logLine = `${req.method} ${path2} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
