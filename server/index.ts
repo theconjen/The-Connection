@@ -115,11 +115,32 @@ app.use((req, res, next) => {
   
   const server = await registerRoutes(app, httpServer);
 
+  // If SENTRY_DSN is provided, dynamically import Sentry and initialize it
+  if (process.env.SENTRY_DSN) {
+    try {
+      const SentryModule = await import("@sentry/node");
+      // Normalize module shape: prefer default export if present
+      const Sentry = (SentryModule as any).default ?? SentryModule;
+
+      Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        environment: process.env.NODE_ENV || "production",
+        tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0.0),
+      });
+
+      // Request handler should be the first middleware for Sentry
+      app.use(Sentry.Handlers.requestHandler() as express.RequestHandler);
+    } catch (err) {
+      console.warn("Sentry failed to initialize:", err);
+    }
+  }
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
+    // Re-throw so Sentry error handler (if present) can capture
     throw err;
   });
 
@@ -132,10 +153,8 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // Read port from environment (DigitalOcean App Platform sets $PORT)
+  const port = Number(process.env.PORT) || 5000;
   server.listen({
     port,
     host: "0.0.0.0",

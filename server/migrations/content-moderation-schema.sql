@@ -51,7 +51,8 @@ CREATE TABLE moderation_settings (
 );
 
 -- Insert default moderation settings
-INSERT INTO moderation_settings (id) VALUES (1) ON CONFLICT DO NOTHING;
+-- Use explicit conflict target to be compatible with PostgreSQL
+INSERT INTO moderation_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
 -- Indexes for performance
 CREATE INDEX idx_content_reports_content ON content_reports(content_type, content_id);

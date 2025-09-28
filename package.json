@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "build": "vite build && npm run build:server",
-    "build:server": "esbuild server/index.ts --platform=node --packages=external --format=esm --outfile=dist-server/index.js --external:vite --external:@vitejs/plugin-react --external:vite-plugin-pwa",
+  "build:server": "esbuild \"server/**/*.ts\" --outdir=dist-server --platform=node --format=esm --loader:.ts=ts --target=node18 && node scripts/fix-dist-imports.cjs",
     "build:production": "NODE_OPTIONS='--max-old-space-size=512' npm run build",
     "vercel-build": "npm run build",
     "start": "NODE_ENV=production node dist-server/index.js",
@@ -105,7 +105,8 @@
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
     "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
+    "zod-validation-error": "^3.4.0",
+    "@sentry/node": "^8.0.0"
   },
   "devDependencies": {
     "@capacitor/ios": "^7.4.0",

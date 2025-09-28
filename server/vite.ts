@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
+import { fileURLToPath } from "url";
 import { nanoid } from "nanoid";
 
 const viteLogger = createLogger();
@@ -27,6 +27,18 @@ export async function setupVite(app: Express, server: Server) {
     allowedHosts: true,
   };
 
+  // Dynamically import vite.config only in development. Static import causes
+  // Node to attempt resolving vite.config.ts in production which may not exist
+  // (and isn't needed).
+  let viteConfig: any = {};
+  if (app.get("env") === "development") {
+    try {
+      viteConfig = (await import("../vite.config.js").catch(() => import("../vite.config.ts").catch(() => ({})))).default || {};
+    } catch (e) {
+      viteConfig = {};
+    }
+  }
+
   const vite = await createViteServer({
     ...viteConfig,
     configFile: false,
@@ -47,7 +59,7 @@ export async function setupVite(app: Express, server: Server) {
 
     try {
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        path.dirname(fileURLToPath(import.meta.url)),
         "..",
         "client",
         "index.html",
@@ -69,7 +81,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  const distPath = path.resolve(process.cwd(), "dist/public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
