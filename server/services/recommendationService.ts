@@ -1,6 +1,7 @@
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import { users, microblogs, communities, userFollows, microblogLikes, communityMembers, userInteractions } from '../../shared/schema';
+import { whereNotDeleted } from '../db/helpers';
 
 export interface RecommendationScore {
   contentId: number;
@@ -80,7 +81,7 @@ export class RecommendationService {
   }
 
   private async getUserProfile(userId: number) {
-    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  const user = await db.select().from(users).where(and(eq(users.id, userId), whereNotDeleted(users))).limit(1);
     if (!user.length) return null;
 
     // Get user's interest tags and interaction patterns
@@ -158,7 +159,9 @@ export class RecommendationService {
           // Don't show user's own posts in recommendations
           sql`${microblogs.userId} != ${userId}`,
           // Only recent content (last 30 days)
-          sql`${microblogs.createdAt} > NOW() - INTERVAL '30 days'`
+          sql`${microblogs.createdAt} > NOW() - INTERVAL '30 days'`,
+          // Exclude microblogs whose author has been soft-deleted
+          whereNotDeleted(users)
         )
       )
       .orderBy(desc(microblogs.createdAt))
@@ -187,9 +190,12 @@ export class RecommendationService {
       })
       .from(communities)
       .where(
-        joinedIds.length > 0 
-          ? sql`${communities.id} NOT IN (${joinedIds.join(',')})`
-          : undefined
+        and(
+          joinedIds.length > 0 
+            ? sql`${communities.id} NOT IN (${joinedIds.join(',')})`
+            : sql`TRUE`,
+          whereNotDeleted(communities)
+        )
       )
       .orderBy(desc(communities.memberCount))
       .limit(50);

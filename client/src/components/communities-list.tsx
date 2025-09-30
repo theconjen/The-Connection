@@ -7,12 +7,20 @@ import {
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
+import { ContentActions } from '@/components/moderation/ContentActions';
+import { useBlockedUserIds } from '@/hooks/use-blocked-users';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { queryClient } from '@/lib/queryClient';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CommunitiesList() {
   const { data: communities, isLoading } = useQuery<Community[]>({
     queryKey: ['/api/communities'],
   });
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const qc = queryClient;
 
   const getCommunityIcon = (iconName: string, iconColor: string) => {
     let icon;
@@ -115,6 +123,8 @@ export default function CommunitiesList() {
     );
   }
 
+  const { blockedIds, addBlocked, removeBlocked } = useBlockedUserIds();
+
   return (
     <Card>
       <CardHeader className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
@@ -122,10 +132,12 @@ export default function CommunitiesList() {
       </CardHeader>
       <CardContent className="p-2">
         <ul className="space-y-1">
-          {communities?.map((community) => (
-            <li key={community.id}>
+          {communities
+            ?.filter(c => !blockedIds.includes(c.createdBy))
+            .map((community) => (
+            <li key={community.id} className="flex items-center justify-between">
               <Link href={`/community/${community.slug}`}>
-                <a className="flex items-center p-2 rounded-lg hover:bg-neutral-100">
+                <a className="flex items-center p-2 rounded-lg hover:bg-neutral-100 flex-1">
                   {getCommunityIcon(community.iconName, community.iconColor)}
                   <div>
                     <span className="font-medium text-sm">r/{community.slug}</span>
@@ -133,6 +145,20 @@ export default function CommunitiesList() {
                   </div>
                 </a>
               </Link>
+              <div className="ml-3">
+                <ContentActions
+                  contentId={community.id}
+                  contentType="community"
+                  authorId={community.createdBy}
+                  authorName={`user_${community.createdBy}`}
+                  currentUserId={user?.id}
+                  onBlockStatusChange={(userId, isBlocked) => {
+                    if (isBlocked) addBlocked(userId); else removeBlocked(userId);
+                    qc.invalidateQueries();
+                    toast({ title: isBlocked ? 'User blocked' : 'User unblocked' });
+                  }}
+                />
+              </div>
             </li>
           ))}
         </ul>

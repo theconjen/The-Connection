@@ -1,10 +1,8 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import { createServer as createViteServer, createLogger } from "vite";
 import { fileURLToPath } from "url";
 import { nanoid } from "nanoid";
-const viteLogger = createLogger();
 function log(message, source = "express") {
   const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -20,10 +18,26 @@ async function setupVite(app, server) {
     hmr: { server },
     allowedHosts: true
   };
+  const isDev = app.get("env") === "development" || process.env.NODE_ENV === "development";
+  if (!isDev) return;
+  let createViteServer;
+  let createLogger;
+  try {
+    const viteModule = await import("vite");
+    createViteServer = viteModule.createServer || viteModule.createServer;
+    createLogger = viteModule.createLogger || viteModule.createLogger;
+  } catch (e) {
+    console.warn("Vite not found; skipping development middleware.", e);
+    return;
+  }
+  const viteLogger = createLogger();
   let viteConfig = {};
-  if (app.get("env") === "development") {
+  if (isDev) {
     try {
-      viteConfig = (await import("../vite.config.js").catch(() => import("../vite.config.ts").catch(() => ({})))).default || {};
+      const maybeConfig = await import("../vite.config.js").catch(
+        () => import("../vite.config.ts").catch(() => ({}))
+      );
+      viteConfig = maybeConfig && maybeConfig.default || maybeConfig || {};
     } catch (e) {
       viteConfig = {};
     }

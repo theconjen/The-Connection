@@ -403,7 +403,7 @@ export default function AuthPage() {
       </div>
       
       {/* Right Side - Hero */}
-      <div className="flex-1 bg-gradient-to-br from-primary via-primary to-secondary p-12 flex flex-col justify-center relative hidden md:flex overflow-hidden">
+      <div className="flex-1 bg-gradient-to-br from-primary via-primary to-secondary p-12 hidden md:flex md:flex-col md:justify-center relative overflow-hidden">
         {/* Enhanced background pattern */}
         <div className="absolute inset-0 opacity-8">
           <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">

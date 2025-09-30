@@ -1,6 +1,7 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db.js";
 import { users, microblogs, communities, userFollows, microblogLikes, communityMembers, userInteractions } from "../../shared/schema.js";
+import { whereNotDeleted } from "../db/helpers.js";
 class RecommendationService {
   INTERACTION_WEIGHTS = {
     like: 1,
@@ -78,7 +79,7 @@ class RecommendationService {
     };
   }
   async getUserProfile(userId) {
-    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await db.select().from(users).where(and(eq(users.id, userId), whereNotDeleted(users))).limit(1);
     if (!user.length) return null;
     const interactionTags = await db.select({
       tag: sql`unnest(string_to_array(${microblogs.content}, ' '))`.as("tag"),
@@ -127,7 +128,9 @@ class RecommendationService {
         // Don't show user's own posts in recommendations
         sql`${microblogs.userId} != ${userId}`,
         // Only recent content (last 30 days)
-        sql`${microblogs.createdAt} > NOW() - INTERVAL '30 days'`
+        sql`${microblogs.createdAt} > NOW() - INTERVAL '30 days'`,
+        // Exclude microblogs whose author has been soft-deleted
+        whereNotDeleted(users)
       )
     ).orderBy(desc(microblogs.createdAt)).limit(200);
     return allCandidates;
@@ -143,7 +146,10 @@ class RecommendationService {
       interestTags: communities.interestTags,
       createdAt: communities.createdAt
     }).from(communities).where(
-      joinedIds.length > 0 ? sql`${communities.id} NOT IN (${joinedIds.join(",")})` : void 0
+      and(
+        joinedIds.length > 0 ? sql`${communities.id} NOT IN (${joinedIds.join(",")})` : sql`TRUE`,
+        whereNotDeleted(communities)
+      )
     ).orderBy(desc(communities.memberCount)).limit(50);
     return candidates;
   }

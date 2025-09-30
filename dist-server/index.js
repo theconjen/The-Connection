@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import { registerRoutes } from "./routes.js";
+import cors from "cors";
 import { setupVite, serveStatic, log } from "./vite.js";
 import { initializeEmailTemplates } from "./email.js";
 import { runAllMigrations } from "./run-migrations.js";
@@ -13,14 +14,8 @@ import { createServer } from "http";
 dotenv.config();
 const app = express();
 const httpServer = createServer(app);
-const PgSessionStore = connectPgSimple(session);
-const sessionStore = new PgSessionStore({
-  pool,
-  tableName: "sessions",
-  createTableIfMissing: true
-});
-app.use(session({
-  store: sessionStore,
+const USE_DB = process.env.USE_DB === "true";
+let sessionOptions = {
   secret: process.env.SESSION_SECRET || "theconnection-session-secret",
   resave: false,
   saveUninitialized: false,
@@ -35,13 +30,31 @@ app.use(session({
     sameSite: "lax"
     // Allow cross-origin requests in development
   }
-}));
+};
+if (USE_DB) {
+  const PgSessionStore = connectPgSimple(session);
+  const sessionStore = new PgSessionStore({
+    pool,
+    tableName: "sessions",
+    createTableIfMissing: true
+  });
+  sessionOptions.store = sessionStore;
+}
+app.use(session(sessionOptions));
 app.use(passport.initialize());
 app.use(passport.session());
 passport.serializeUser((user, done) => {
-  done(null, user.id);
+  try {
+    const uid = user.id ?? user;
+    done(null, uid);
+  } catch (e) {
+    done(null, user);
+  }
 });
 passport.deserializeUser(async (id, done) => {
+  if (!USE_DB) {
+    return done(null, null);
+  }
   try {
     const { storage } = await import("./storage.js");
     const user = await storage.getUser(id);
@@ -52,6 +65,15 @@ passport.deserializeUser(async (id, done) => {
 });
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "http://localhost",
+    "capacitor://localhost",
+    process.env.BASE_URL || ""
+  ].filter(Boolean),
+  credentials: true
+}));
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -78,10 +100,14 @@ app.use((req, res, next) => {
 });
 (async () => {
   try {
-    await runAllMigrations();
-    const { runOrganizationMigrations } = await import("./run-migrations-organizations.js");
-    await runOrganizationMigrations();
-    console.log("\u2705 Database migrations completed");
+    if (USE_DB) {
+      await runAllMigrations();
+      const { runOrganizationMigrations } = await import("./run-migrations-organizations.js");
+      await runOrganizationMigrations();
+      console.log("\u2705 Database migrations completed");
+    } else {
+      console.log("\u26A0\uFE0F Skipping database migrations because USE_DB != 'true'");
+    }
   } catch (error) {
     console.error("\u274C Error running database migrations:", error);
   }

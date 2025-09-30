@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import ShareButtons from "./share-buttons";
 import { BookmarkIcon, MessageSquare, ArrowUpIcon, Share2 } from "lucide-react";
 import { Button } from "./ui/button";
+import { ContentActions } from './moderation/ContentActions';
 
 interface PostCardProps {
   post: Post & {
@@ -24,6 +25,7 @@ export default function PostCard({ post, featured = false }: PostCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const qc = queryClient;
   
   const upvoteMutation = useMutation({
     mutationFn: async () => {
@@ -162,6 +164,20 @@ export default function PostCard({ post, featured = false }: PostCardProps) {
       
       <CardContent className={`${featured ? 'p-6' : 'p-6'}`}>
         <div className="flex items-center mb-4">
+          <div className="ml-auto">
+            <ContentActions
+              contentId={post.id}
+              contentType="post"
+              authorId={post.author?.id || 0}
+              authorName={post.author?.username || 'unknown'}
+              currentUserId={user?.id}
+              onBlockStatusChange={(userId, isBlocked) => {
+                // Invalidate queries so blocked user's content disappears
+                qc.invalidateQueries();
+                toast({ title: isBlocked ? 'User blocked' : 'User unblocked', description: isBlocked ? 'This user is now blocked.' : 'User unblocked.' });
+              }}
+            />
+          </div>
           {post.community && (
             <>
               {getCommunityIcon(post.community.iconName, post.community.iconColor)}

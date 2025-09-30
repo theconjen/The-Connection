@@ -1,5 +1,5 @@
 import { WebSocket } from "ws";
-global.WebSocket = WebSocket;
+globalThis.WebSocket = WebSocket;
 import { neon, Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "./shared/schema.js";

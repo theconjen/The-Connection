@@ -10,10 +10,11 @@ import {
 } from "@aws-sdk/client-ses";
 import { BASE_URL, EMAIL_FROM, APP_URLS } from "./config/domain.js";
 let emailFunctionalityEnabled = false;
-const forceMockMode = true;
-console.log("\u{1F4E7} [SETUP] Using hardcoded MOCK MODE for email functionality");
+const ENABLE_REAL_EMAIL = process.env.ENABLE_REAL_EMAIL === "true";
+const forceMockMode = !ENABLE_REAL_EMAIL;
+console.log(`\u{1F4E7} [SETUP] Email mock mode = ${forceMockMode ? "ON" : "OFF"} (ENABLE_REAL_EMAIL=${process.env.ENABLE_REAL_EMAIL || "unset"})`);
 if (forceMockMode) {
-  console.log("\u{1F4E7} Email functionality running in FORCED MOCK MODE. No actual emails will be sent.");
+  console.log("\u{1F4E7} Email functionality running in MOCK MODE. No actual emails will be sent.");
   console.log("\u{1F4E7} All email operations will simulate success for testing purposes.");
 } else if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
   console.warn("\u26A0\uFE0F AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) not set. Email functionality will be disabled.");

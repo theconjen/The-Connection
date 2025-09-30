@@ -12,7 +12,7 @@ import { AlertTriangle, CheckCircle } from "lucide-react";
 interface ReportContentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  contentType: 'post' | 'microblog' | 'comment' | 'event' | 'prayer_request';
+  contentType: 'post' | 'microblog' | 'comment' | 'event' | 'prayer_request' | 'community';
   contentId: number;
   contentPreview?: string;
 }

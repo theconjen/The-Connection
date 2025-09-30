@@ -31,6 +31,7 @@ export const users = pgTable("users", {
   isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
   isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -120,6 +121,7 @@ export const communities = pgTable("communities", {
   hasPrivateWall: boolean("has_private_wall").default(false), 
   hasPublicWall: boolean("has_public_wall").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
   createdBy: integer("created_by").references(() => users.id),
 } as any);
 
@@ -285,6 +287,7 @@ export const communityWallPosts = pgTable("community_wall_posts", {
   likeCount: integer("like_count").default(0),
   commentCount: integer("comment_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 } as any);
 
 export const insertCommunityWallPostSchema = createInsertSchema(communityWallPosts).pick({
@@ -750,6 +753,7 @@ export const events = pgTable("events", {
   groupId: integer("group_id").references(() => groups.id),
   creatorId: integer("creator_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 } as any);
 
 export const insertEventSchema = createInsertSchema(events).pick({

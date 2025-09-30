@@ -7,12 +7,22 @@ import { BASE_URL, EMAIL_FROM } from "./config/domain.js";
 import { sendCommunityInvitationEmail } from "./email.js";
 import { sendLivestreamerApplicationNotificationEmail, sendApplicationStatusUpdateEmail, sendApologistScholarApplicationNotificationEmail } from "./email-notifications.js";
 import crypto from "crypto";
+import path from "path";
+import fs from "fs";
 const generateToken = () => crypto.randomBytes(32).toString("hex");
-import authRoutes from "./routes/api/auth.js";
 import adminRoutes from "./routes/api/admin.js";
 import userRoutes from "./routes/api/user.js";
 import userSettingsRoutes from "./routes/userSettingsRoutes.js";
+import mvpRoutes from "./routes/mvp.js";
 import supportRoutes from "./routes/api/support.js";
+import accountRoutes from "./routes/account.js";
+import { FEATURES } from "./config/features.js";
+import authRoutes from "./routes/auth.js";
+import feedRoutes from "./routes/feed.js";
+import postsRoutes from "./routes/posts.js";
+import communitiesRoutes from "./routes/communities.js";
+import eventsRoutes from "./routes/events.js";
+import apologeticsRoutes from "./routes/apologetics.js";
 function registerRoutes(app, httpServer) {
   setupAuth(app);
   app.use((req, _res, next) => {
@@ -81,9 +91,34 @@ function registerRoutes(app, httpServer) {
       console.log("User disconnected:", socket.id);
     });
   });
-  app.use("/api", authRoutes);
-  app.use("/api/admin", adminRoutes);
-  app.use("/api/support", supportRoutes);
+  if (FEATURES.AUTH) {
+    app.use("/api", authRoutes);
+    app.use("/api", accountRoutes);
+    const safetyRoutes = require("./routes/safety").default;
+    app.use("/api", safetyRoutes);
+  }
+  if (FEATURES.ORGS) {
+    app.use("/api/admin", adminRoutes);
+  }
+  if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {
+    app.use("/api/support", supportRoutes);
+  }
+  app.use("/api/mvp", mvpRoutes);
+  if (FEATURES.FEED) {
+    app.use("/api", feedRoutes);
+  }
+  if (FEATURES.POSTS) {
+    app.use("/api", postsRoutes);
+  }
+  if (FEATURES.COMMUNITIES) {
+    app.use("/api", communitiesRoutes);
+  }
+  if (FEATURES.EVENTS) {
+    app.use("/api", eventsRoutes);
+  }
+  if (FEATURES.APOLOGETICS) {
+    app.use("/api", apologeticsRoutes);
+  }
   function getSessionUserId(req) {
     const raw = req.session?.userId;
     if (raw === void 0 || raw === null) return void 0;
@@ -111,577 +146,598 @@ function registerRoutes(app, httpServer) {
       res.status(500).json({ message: "Error fetching user" });
     }
   });
-  app.use("/api/user", userRoutes);
-  app.use("/api/user", userSettingsRoutes);
-  app.get("/api/users", async (req, res) => {
-    try {
-      if (req.query.search) {
-        const searchTerm = req.query.search;
-        const users2 = await storage.searchUsers(searchTerm);
-        const sanitizedUsers2 = users2.map((user) => {
+  if (FEATURES.AUTH) {
+    app.use("/api/user", userRoutes);
+    app.use("/api/user", userSettingsRoutes);
+  }
+  if (FEATURES.AUTH) {
+    app.get("/api/users", async (req, res) => {
+      try {
+        if (req.query.search) {
+          const searchTerm = req.query.search;
+          const users2 = await storage.searchUsers(searchTerm);
+          const sanitizedUsers2 = users2.map((user) => {
+            const { password, ...userData } = user;
+            return userData;
+          });
+          return res.json(sanitizedUsers2);
+        }
+        const users = await storage.getAllUsers();
+        const sanitizedUsers = users.map((user) => {
           const { password, ...userData } = user;
           return userData;
         });
-        return res.json(sanitizedUsers2);
+        res.json(sanitizedUsers);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).json({ message: "Error fetching users" });
       }
-      const users = await storage.getAllUsers();
-      const sanitizedUsers = users.map((user) => {
-        const { password, ...userData } = user;
-        return userData;
-      });
-      res.json(sanitizedUsers);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      res.status(500).json({ message: "Error fetching users" });
-    }
-  });
-  app.get("/api/users/:id", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      const { password, ...userData } = user;
-      res.json(userData);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Error fetching user" });
-    }
-  });
-  app.get("/users/:id/liked-microblogs", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-      const likedMicroblogs = await storage.getUserLikedMicroblogs(userId);
-      res.json(likedMicroblogs);
-    } catch (error) {
-      console.error("Error fetching liked microblogs:", error);
-      res.status(500).json({ message: "Error fetching liked microblogs" });
-    }
-  });
-  app.get("/api/communities", async (req, res) => {
-    try {
-      const userId = getSessionUserId(req);
-      const searchQuery = req.query.search;
-      const communities = await storage.getPublicCommunitiesAndUserCommunities(userId, searchQuery);
-      res.json(communities);
-    } catch (error) {
-      console.error("Error fetching communities:", error);
-      res.status(500).json({ message: "Error fetching communities" });
-    }
-  });
-  app.get("/api/communities/:idOrSlug", async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      const isNumeric = /^\d+$/.test(idOrSlug);
-      let community;
-      if (isNumeric) {
-        const communityId = parseInt(idOrSlug);
-        community = await storage.getCommunity(communityId);
-      } else {
-        community = await storage.getCommunityBySlug(idOrSlug);
-      }
-      if (!community) {
-        return res.status(404).json({ message: "Community not found" });
-      }
-      res.json(community);
-    } catch (error) {
-      console.error("Error fetching community:", error);
-      res.status(500).json({ message: "Error fetching community" });
-    }
-  });
-  app.post("/api/communities", isAuthenticated, async (req, res) => {
-    try {
-      const userId = getSessionUserId(req);
-      const validatedData = insertCommunitySchema.parse({
-        ...req.body,
-        createdBy: userId
-      });
-      const community = await storage.createCommunity(validatedData);
-      await storage.addCommunityMember({
-        communityId: community.id,
-        userId,
-        role: "owner"
-      });
-      res.status(201).json(community);
-    } catch (error) {
-      console.error("Error creating community:", error);
-      res.status(500).json({ message: "Error creating community" });
-    }
-  });
-  app.post("/api/communities/:idOrSlug/join", isAuthenticated, async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      let communityId;
-      if (/^\d+$/.test(idOrSlug)) {
-        communityId = parseInt(idOrSlug);
-      } else {
-        const community = await storage.getCommunityBySlug(idOrSlug);
-        if (!community) {
-          return res.status(404).json({ message: "Community not found" });
-        }
-        communityId = community.id;
-      }
-      const userId = getSessionUserId(req);
-      const isMember = await storage.isCommunityMember(communityId, userId);
-      if (isMember) {
-        return res.status(400).json({ message: "Already a member of this community" });
-      }
-      await storage.addCommunityMember({
-        communityId,
-        userId,
-        role: "member"
-      });
-      res.json({ message: "Successfully joined community" });
-    } catch (error) {
-      console.error("Error joining community:", error);
-      res.status(500).json({ message: "Error joining community" });
-    }
-  });
-  app.post("/api/communities/:idOrSlug/leave", isAuthenticated, async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      let communityId;
-      if (/^\d+$/.test(idOrSlug)) {
-        communityId = parseInt(idOrSlug);
-      } else {
-        const community = await storage.getCommunityBySlug(idOrSlug);
-        if (!community) {
-          return res.status(404).json({ message: "Community not found" });
-        }
-        communityId = community.id;
-      }
-      const userId = getSessionUserId(req);
-      await storage.removeCommunityMember(communityId, userId);
-      res.json({ message: "Successfully left community" });
-    } catch (error) {
-      console.error("Error leaving community:", error);
-      res.status(500).json({ message: "Error leaving community" });
-    }
-  });
-  app.get("/api/communities/:idOrSlug/members", async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      let communityId;
-      if (/^\d+$/.test(idOrSlug)) {
-        communityId = parseInt(idOrSlug);
-      } else {
-        const community = await storage.getCommunityBySlug(idOrSlug);
-        if (!community) {
-          return res.status(404).json({ message: "Community not found" });
-        }
-        communityId = community.id;
-      }
-      const members = await storage.getCommunityMembers(communityId);
-      res.json(members);
-    } catch (error) {
-      console.error("Error fetching community members:", error);
-      res.status(500).json({ message: "Error fetching community members" });
-    }
-  });
-  app.post("/api/communities/:idOrSlug/invite", isAuthenticated, async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      let communityId;
-      if (/^\d+$/.test(idOrSlug)) {
-        communityId = parseInt(idOrSlug);
-      } else {
-        const community2 = await storage.getCommunityBySlug(idOrSlug);
-        if (!community2) {
-          return res.status(404).json({ message: "Community not found" });
-        }
-        communityId = community2.id;
-      }
-      const userId = getSessionUserId(req);
-      const { email } = req.body;
-      const isModerator = await storage.isCommunityModerator(communityId, userId);
-      const isOwner = await storage.isCommunityOwner(communityId, userId);
-      if (!isModerator && !isOwner) {
-        return res.status(403).json({ message: "Only moderators and owners can invite members" });
-      }
-      const existingInvitation = await storage.getCommunityInvitationByEmailAndCommunity(email, communityId);
-      if (existingInvitation) {
-        return res.status(400).json({ message: "Invitation already sent to this email" });
-      }
-      const token = generateToken();
-      const invitation = await storage.createCommunityInvitation({
-        communityId,
-        inviterUserId: userId,
-        inviteeEmail: email,
-        token,
-        status: "pending",
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
-      });
-      const community = await storage.getCommunity(communityId);
-      const inviter = await storage.getUser(userId);
+    });
+    app.get("/api/users/:id", async (req, res) => {
       try {
-        await sendCommunityInvitationEmail(
-          email,
-          community.name,
-          inviter.displayName || inviter.username,
-          token
-        );
-        console.log(`Community invitation email sent to ${email}`);
-      } catch (emailError) {
-        console.error("Failed to send invitation email:", emailError);
+        const userId = parseInt(req.params.id);
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        const { password, ...userData } = user;
+        res.json(userData);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).json({ message: "Error fetching user" });
       }
-      res.status(201).json(invitation);
-    } catch (error) {
-      console.error("Error creating community invitation:", error);
-      res.status(500).json({ message: "Error creating community invitation" });
-    }
-  });
-  app.delete("/api/communities/:idOrSlug/members/:userId", isAuthenticated, async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      let communityId;
-      if (/^\d+$/.test(idOrSlug)) {
-        communityId = parseInt(idOrSlug);
-      } else {
-        const community = await storage.getCommunityBySlug(idOrSlug);
+    });
+    app.get("/users/:id/liked-microblogs", async (req, res) => {
+      try {
+        const userId = parseInt(req.params.id);
+        const likedMicroblogs = await storage.getUserLikedMicroblogs(userId);
+        res.json(likedMicroblogs);
+      } catch (error) {
+        console.error("Error fetching liked microblogs:", error);
+        res.status(500).json({ message: "Error fetching liked microblogs" });
+      }
+    });
+  }
+  if (FEATURES.COMMUNITIES) {
+    app.get("/api/communities", async (req, res) => {
+      try {
+        const userId = getSessionUserId(req);
+        const searchQuery = req.query.search;
+        let communities = await storage.getPublicCommunitiesAndUserCommunities(userId, searchQuery);
+        if (userId) {
+          const blockedIds = await storage.getBlockedUserIdsFor(userId);
+          if (blockedIds && blockedIds.length > 0) {
+            communities = communities.filter((c) => !blockedIds.includes(c.createdBy));
+          }
+        }
+        res.json(communities);
+      } catch (error) {
+        console.error("Error fetching communities:", error);
+        res.status(500).json({ message: "Error fetching communities" });
+      }
+    });
+    app.get("/api/communities/:idOrSlug", async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        const isNumeric = /^\d+$/.test(idOrSlug);
+        let community;
+        if (isNumeric) {
+          const communityId = parseInt(idOrSlug);
+          community = await storage.getCommunity(communityId);
+        } else {
+          community = await storage.getCommunityBySlug(idOrSlug);
+        }
         if (!community) {
           return res.status(404).json({ message: "Community not found" });
         }
-        communityId = community.id;
+        res.json(community);
+      } catch (error) {
+        console.error("Error fetching community:", error);
+        res.status(500).json({ message: "Error fetching community" });
       }
-      const targetUserId = parseInt(req.params.userId);
-      const currentUserId = getSessionUserId(req);
-      const isModerator = await storage.isCommunityModerator(communityId, currentUserId);
-      const isOwner = await storage.isCommunityOwner(communityId, currentUserId);
-      if (!isModerator && !isOwner) {
-        return res.status(403).json({ message: "Only moderators and owners can remove members" });
+    });
+    app.post("/api/communities", isAuthenticated, async (req, res) => {
+      try {
+        const userId = getSessionUserId(req);
+        const validatedData = insertCommunitySchema.parse({
+          ...req.body,
+          createdBy: userId
+        });
+        const community = await storage.createCommunity(validatedData);
+        await storage.addCommunityMember({
+          communityId: community.id,
+          userId,
+          role: "owner"
+        });
+        res.status(201).json(community);
+      } catch (error) {
+        console.error("Error creating community:", error);
+        res.status(500).json({ message: "Error creating community" });
       }
-      await storage.removeCommunityMember(communityId, targetUserId);
-      res.json({ message: "Member removed successfully" });
-    } catch (error) {
-      console.error("Error removing community member:", error);
-      res.status(500).json({ message: "Error removing community member" });
-    }
-  });
-  app.get("/api/invitations/:token", async (req, res) => {
-    try {
-      const token = req.params.token;
-      const invitation = await storage.getCommunityInvitationByToken(token);
-      if (!invitation) {
-        return res.status(404).json({ message: "Invitation not found or expired" });
+    });
+    app.post("/api/communities/:idOrSlug/join", isAuthenticated, async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        let communityId;
+        if (/^\d+$/.test(idOrSlug)) {
+          communityId = parseInt(idOrSlug);
+        } else {
+          const community = await storage.getCommunityBySlug(idOrSlug);
+          if (!community) {
+            return res.status(404).json({ message: "Community not found" });
+          }
+          communityId = community.id;
+        }
+        const userId = getSessionUserId(req);
+        const isMember = await storage.isCommunityMember(communityId, userId);
+        if (isMember) {
+          return res.status(400).json({ message: "Already a member of this community" });
+        }
+        await storage.addCommunityMember({
+          communityId,
+          userId,
+          role: "member"
+        });
+        res.json({ message: "Successfully joined community" });
+      } catch (error) {
+        console.error("Error joining community:", error);
+        res.status(500).json({ message: "Error joining community" });
       }
-      if (invitation.status !== "pending") {
-        return res.status(400).json({ message: "Invitation already processed" });
+    });
+    app.post("/api/communities/:idOrSlug/leave", isAuthenticated, async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        let communityId;
+        if (/^\d+$/.test(idOrSlug)) {
+          communityId = parseInt(idOrSlug);
+        } else {
+          const community = await storage.getCommunityBySlug(idOrSlug);
+          if (!community) {
+            return res.status(404).json({ message: "Community not found" });
+          }
+          communityId = community.id;
+        }
+        const userId = getSessionUserId(req);
+        await storage.removeCommunityMember(communityId, userId);
+        res.json({ message: "Successfully left community" });
+      } catch (error) {
+        console.error("Error leaving community:", error);
+        res.status(500).json({ message: "Error leaving community" });
       }
-      res.json(invitation);
-    } catch (error) {
-      console.error("Error fetching invitation:", error);
-      res.status(500).json({ message: "Error fetching invitation" });
-    }
-  });
-  app.post("/api/invitations/:token/accept", isAuthenticated, async (req, res) => {
-    try {
-      const token = req.params.token;
-      const userId = getSessionUserId(req);
-      const invitation = await storage.getCommunityInvitationByToken(token);
-      if (!invitation) {
-        return res.status(404).json({ message: "Invitation not found or expired" });
+    });
+    app.get("/api/communities/:idOrSlug/members", async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        let communityId;
+        if (/^\d+$/.test(idOrSlug)) {
+          communityId = parseInt(idOrSlug);
+        } else {
+          const community = await storage.getCommunityBySlug(idOrSlug);
+          if (!community) {
+            return res.status(404).json({ message: "Community not found" });
+          }
+          communityId = community.id;
+        }
+        const members = await storage.getCommunityMembers(communityId);
+        res.json(members);
+      } catch (error) {
+        console.error("Error fetching community members:", error);
+        res.status(500).json({ message: "Error fetching community members" });
       }
-      if (invitation.status !== "pending") {
-        return res.status(400).json({ message: "Invitation already processed" });
+    });
+    app.post("/api/communities/:idOrSlug/invite", isAuthenticated, async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        let communityId;
+        if (/^\d+$/.test(idOrSlug)) {
+          communityId = parseInt(idOrSlug);
+        } else {
+          const community2 = await storage.getCommunityBySlug(idOrSlug);
+          if (!community2) {
+            return res.status(404).json({ message: "Community not found" });
+          }
+          communityId = community2.id;
+        }
+        const userId = getSessionUserId(req);
+        const { email } = req.body;
+        const isModerator = await storage.isCommunityModerator(communityId, userId);
+        const isOwner = await storage.isCommunityOwner(communityId, userId);
+        if (!isModerator && !isOwner) {
+          return res.status(403).json({ message: "Only moderators and owners can invite members" });
+        }
+        const existingInvitation = await storage.getCommunityInvitationByEmailAndCommunity(email, communityId);
+        if (existingInvitation) {
+          return res.status(400).json({ message: "Invitation already sent to this email" });
+        }
+        const token = generateToken();
+        const invitation = await storage.createCommunityInvitation({
+          communityId,
+          inviterUserId: userId,
+          inviteeEmail: email,
+          token,
+          status: "pending",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
+        });
+        const community = await storage.getCommunity(communityId);
+        const inviter = await storage.getUser(userId);
+        try {
+          await sendCommunityInvitationEmail(
+            email,
+            community.name,
+            inviter.displayName || inviter.username,
+            token
+          );
+          console.log(`Community invitation email sent to ${email}`);
+        } catch (emailError) {
+          console.error("Failed to send invitation email:", emailError);
+        }
+        res.status(201).json(invitation);
+      } catch (error) {
+        console.error("Error creating community invitation:", error);
+        res.status(500).json({ message: "Error creating community invitation" });
       }
-      const isMember = await storage.isCommunityMember(invitation.communityId, userId);
-      if (isMember) {
+    });
+    app.delete("/api/communities/:idOrSlug/members/:userId", isAuthenticated, async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        let communityId;
+        if (/^\d+$/.test(idOrSlug)) {
+          communityId = parseInt(idOrSlug);
+        } else {
+          const community = await storage.getCommunityBySlug(idOrSlug);
+          if (!community) {
+            return res.status(404).json({ message: "Community not found" });
+          }
+          communityId = community.id;
+        }
+        const targetUserId = parseInt(req.params.userId);
+        const currentUserId = getSessionUserId(req);
+        const isModerator = await storage.isCommunityModerator(communityId, currentUserId);
+        const isOwner = await storage.isCommunityOwner(communityId, currentUserId);
+        if (!isModerator && !isOwner) {
+          return res.status(403).json({ message: "Only moderators and owners can remove members" });
+        }
+        await storage.removeCommunityMember(communityId, targetUserId);
+        res.json({ message: "Member removed successfully" });
+      } catch (error) {
+        console.error("Error removing community member:", error);
+        res.status(500).json({ message: "Error removing community member" });
+      }
+    });
+    app.get("/api/invitations/:token", async (req, res) => {
+      try {
+        const token = req.params.token;
+        const invitation = await storage.getCommunityInvitationByToken(token);
+        if (!invitation) {
+          return res.status(404).json({ message: "Invitation not found or expired" });
+        }
+        if (invitation.status !== "pending") {
+          return res.status(400).json({ message: "Invitation already processed" });
+        }
+        res.json(invitation);
+      } catch (error) {
+        console.error("Error fetching invitation:", error);
+        res.status(500).json({ message: "Error fetching invitation" });
+      }
+    });
+    app.post("/api/invitations/:token/accept", isAuthenticated, async (req, res) => {
+      try {
+        const token = req.params.token;
+        const userId = getSessionUserId(req);
+        const invitation = await storage.getCommunityInvitationByToken(token);
+        if (!invitation) {
+          return res.status(404).json({ message: "Invitation not found or expired" });
+        }
+        if (invitation.status !== "pending") {
+          return res.status(400).json({ message: "Invitation already processed" });
+        }
+        const isMember = await storage.isCommunityMember(invitation.communityId, userId);
+        if (isMember) {
+          await storage.updateCommunityInvitationStatus(invitation.id, "accepted");
+          return res.status(400).json({ message: "Already a member of this community" });
+        }
+        await storage.addCommunityMember({
+          communityId: invitation.communityId,
+          userId,
+          role: "member"
+        });
         await storage.updateCommunityInvitationStatus(invitation.id, "accepted");
-        return res.status(400).json({ message: "Already a member of this community" });
+        res.json({ message: "Successfully joined community" });
+      } catch (error) {
+        console.error("Error accepting invitation:", error);
+        res.status(500).json({ message: "Error accepting invitation" });
       }
-      await storage.addCommunityMember({
-        communityId: invitation.communityId,
-        userId,
-        role: "member"
-      });
-      await storage.updateCommunityInvitationStatus(invitation.id, "accepted");
-      res.json({ message: "Successfully joined community" });
-    } catch (error) {
-      console.error("Error accepting invitation:", error);
-      res.status(500).json({ message: "Error accepting invitation" });
-    }
-  });
-  app.get("/api/communities/:idOrSlug/chat-rooms", async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      let communityId;
-      if (/^\d+$/.test(idOrSlug)) {
-        communityId = parseInt(idOrSlug);
-      } else {
-        const community = await storage.getCommunityBySlug(idOrSlug);
-        if (!community) {
-          return res.status(404).json({ message: "Community not found" });
+    });
+    app.get("/api/communities/:idOrSlug/chat-rooms", async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        let communityId;
+        if (/^\d+$/.test(idOrSlug)) {
+          communityId = parseInt(idOrSlug);
+        } else {
+          const community = await storage.getCommunityBySlug(idOrSlug);
+          if (!community) {
+            return res.status(404).json({ message: "Community not found" });
+          }
+          communityId = community.id;
         }
-        communityId = community.id;
-      }
-      const userId = getSessionUserId(req);
-      if (userId && await storage.isCommunityMember(communityId, userId)) {
-        const rooms = await storage.getCommunityRooms(communityId);
-        res.json(rooms);
-      } else {
-        const publicRooms = await storage.getPublicCommunityRooms(communityId);
-        res.json(publicRooms);
-      }
-    } catch (error) {
-      console.error("Error fetching chat rooms:", error);
-      res.status(500).json({ message: "Error fetching chat rooms" });
-    }
-  });
-  app.post("/api/communities/:idOrSlug/chat-rooms", isAuthenticated, async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      let communityId;
-      if (/^\d+$/.test(idOrSlug)) {
-        communityId = parseInt(idOrSlug);
-      } else {
-        const community = await storage.getCommunityBySlug(idOrSlug);
-        if (!community) {
-          return res.status(404).json({ message: "Community not found" });
+        const userId = getSessionUserId(req);
+        if (userId && await storage.isCommunityMember(communityId, userId)) {
+          const rooms = await storage.getCommunityRooms(communityId);
+          res.json(rooms);
+        } else {
+          const publicRooms = await storage.getPublicCommunityRooms(communityId);
+          res.json(publicRooms);
         }
-        communityId = community.id;
+      } catch (error) {
+        console.error("Error fetching chat rooms:", error);
+        res.status(500).json({ message: "Error fetching chat rooms" });
       }
-      const userId = getSessionUserId(req);
-      const { name, description, isPrivate } = req.body;
-      const isModerator = await storage.isCommunityModerator(communityId, userId);
-      const isOwner = await storage.isCommunityOwner(communityId, userId);
-      if (!isModerator && !isOwner) {
-        return res.status(403).json({ message: "Only moderators and owners can create chat rooms" });
-      }
-      const room = await storage.createCommunityRoom({
-        communityId,
-        name,
-        description,
-        isPrivate: isPrivate || false,
-        createdBy: userId
-      });
-      await storage.createChatMessage({
-        roomId: room.id,
-        senderId: userId,
-        content: `${req.session.username || "A user"} created this chat room`
-      });
-      res.status(201).json(room);
-    } catch (error) {
-      console.error("Error creating chat room:", error);
-      res.status(500).json({ message: "Error creating chat room" });
-    }
-  });
-  app.put("/api/chat-rooms/:roomId", isAuthenticated, async (req, res) => {
-    try {
-      const roomId = parseInt(req.params.roomId);
-      const userId = getSessionUserId(req);
-      const { name, description, isPrivate } = req.body;
-      const room = await storage.getCommunityRoom(roomId);
-      if (!room) {
-        return res.status(404).json({ message: "Chat room not found" });
-      }
-      const isModerator = await storage.isCommunityModerator(room.communityId, userId);
-      const isOwner = await storage.isCommunityOwner(room.communityId, userId);
-      if (!isModerator && !isOwner) {
-        return res.status(403).json({ message: "Only moderators and owners can edit chat rooms" });
-      }
-      const updatedRoom = await storage.updateCommunityRoom(roomId, {
-        name,
-        description,
-        isPrivate
-      });
-      res.json(updatedRoom);
-    } catch (error) {
-      console.error("Error updating chat room:", error);
-      res.status(500).json({ message: "Error updating chat room" });
-    }
-  });
-  app.delete("/api/chat-rooms/:roomId", isAuthenticated, async (req, res) => {
-    try {
-      const roomId = parseInt(req.params.roomId);
-      const userId = getSessionUserId(req);
-      const room = await storage.getCommunityRoom(roomId);
-      if (!room) {
-        return res.status(404).json({ message: "Chat room not found" });
-      }
-      const isModerator = await storage.isCommunityModerator(room.communityId, userId);
-      const isOwner = await storage.isCommunityOwner(room.communityId, userId);
-      if (!isModerator && !isOwner) {
-        return res.status(403).json({ message: "Only moderators and owners can delete chat rooms" });
-      }
-      await storage.deleteCommunityRoom(roomId);
-      res.json({ message: "Chat room deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting chat room:", error);
-      res.status(500).json({ message: "Error deleting chat room" });
-    }
-  });
-  app.get("/api/chat-rooms/:roomId/messages", async (req, res) => {
-    try {
-      const roomId = parseInt(req.params.roomId);
-      const limit = parseInt(req.query.limit) || 50;
-      const after = req.query.after ? parseInt(req.query.after) : void 0;
-      let messages;
-      if (after) {
-        messages = await storage.getChatMessagesAfter(roomId, after);
-      } else {
-        messages = await storage.getChatMessages(roomId, limit);
-      }
-      res.json(messages);
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      res.status(500).json({ message: "Error fetching messages" });
-    }
-  });
-  app.post("/api/chat-rooms/:roomId/messages", isAuthenticated, async (req, res) => {
-    try {
-      const roomId = parseInt(req.params.roomId);
-      const userId = getSessionUserId(req);
-      const { content } = req.body;
-      if (!content || content.trim().length === 0) {
-        return res.status(400).json({ message: "Message content is required" });
-      }
-      const message = await storage.createChatMessage({
-        roomId,
-        senderId: userId,
-        content: content.trim()
-      });
-      const sender = await storage.getUser(userId);
-      const messageWithSender = { ...message, sender };
-      io.to(`room_${roomId}`).emit("message_received", messageWithSender);
-      res.status(201).json(messageWithSender);
-    } catch (error) {
-      console.error("Error creating message:", error);
-      res.status(500).json({ message: "Error creating message" });
-    }
-  });
-  app.get("/api/communities/:idOrSlug/wall", async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      let communityId;
-      if (/^\d+$/.test(idOrSlug)) {
-        communityId = parseInt(idOrSlug);
-      } else {
-        const community = await storage.getCommunityBySlug(idOrSlug);
-        if (!community) {
-          return res.status(404).json({ message: "Community not found" });
+    });
+    app.post("/api/communities/:idOrSlug/chat-rooms", isAuthenticated, async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        let communityId;
+        if (/^\d+$/.test(idOrSlug)) {
+          communityId = parseInt(idOrSlug);
+        } else {
+          const community = await storage.getCommunityBySlug(idOrSlug);
+          if (!community) {
+            return res.status(404).json({ message: "Community not found" });
+          }
+          communityId = community.id;
         }
-        communityId = community.id;
-      }
-      const posts = await storage.getCommunityWallPosts(communityId);
-      res.json(posts);
-    } catch (error) {
-      console.error("Error fetching wall posts:", error);
-      res.status(500).json({ message: "Error fetching wall posts" });
-    }
-  });
-  app.post("/api/communities/:idOrSlug/wall", isAuthenticated, async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      let communityId;
-      if (/^\d+$/.test(idOrSlug)) {
-        communityId = parseInt(idOrSlug);
-      } else {
-        const community = await storage.getCommunityBySlug(idOrSlug);
-        if (!community) {
-          return res.status(404).json({ message: "Community not found" });
+        const userId = getSessionUserId(req);
+        const { name, description, isPrivate } = req.body;
+        const isModerator = await storage.isCommunityModerator(communityId, userId);
+        const isOwner = await storage.isCommunityOwner(communityId, userId);
+        if (!isModerator && !isOwner) {
+          return res.status(403).json({ message: "Only moderators and owners can create chat rooms" });
         }
-        communityId = community.id;
+        const room = await storage.createCommunityRoom({
+          communityId,
+          name,
+          description,
+          isPrivate: isPrivate || false,
+          createdBy: userId
+        });
+        await storage.createChatMessage({
+          roomId: room.id,
+          senderId: userId,
+          content: `${req.session.username || "A user"} created this chat room`
+        });
+        res.status(201).json(room);
+      } catch (error) {
+        console.error("Error creating chat room:", error);
+        res.status(500).json({ message: "Error creating chat room" });
       }
-      const userId = getSessionUserId(req);
-      const { content, isPrivate } = req.body;
-      const isMember = await storage.isCommunityMember(communityId, userId);
-      if (!isMember) {
-        return res.status(403).json({ message: "Must be a member to post on community wall" });
+    });
+    app.put("/api/chat-rooms/:roomId", isAuthenticated, async (req, res) => {
+      try {
+        const roomId = parseInt(req.params.roomId);
+        const userId = getSessionUserId(req);
+        const { name, description, isPrivate } = req.body;
+        const room = await storage.getCommunityRoom(roomId);
+        if (!room) {
+          return res.status(404).json({ message: "Chat room not found" });
+        }
+        const isModerator = await storage.isCommunityModerator(room.communityId, userId);
+        const isOwner = await storage.isCommunityOwner(room.communityId, userId);
+        if (!isModerator && !isOwner) {
+          return res.status(403).json({ message: "Only moderators and owners can edit chat rooms" });
+        }
+        const updatedRoom = await storage.updateCommunityRoom(roomId, {
+          name,
+          description,
+          isPrivate
+        });
+        res.json(updatedRoom);
+      } catch (error) {
+        console.error("Error updating chat room:", error);
+        res.status(500).json({ message: "Error updating chat room" });
       }
-      const post = await storage.createCommunityWallPost({
-        communityId,
-        authorId: userId,
-        content,
-        isPrivate: isPrivate || false
-      });
-      res.status(201).json(post);
-    } catch (error) {
-      console.error("Error creating wall post:", error);
-      res.status(500).json({ message: "Error creating wall post" });
-    }
-  });
-  app.get("/api/posts", async (req, res) => {
-    try {
-      const filter = req.query.filter;
-      const posts = await storage.getAllPosts(filter);
-      res.json(posts);
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-      res.status(500).json({ message: "Error fetching posts" });
-    }
-  });
-  app.get("/api/posts/:id", async (req, res) => {
-    try {
-      const postId = parseInt(req.params.id);
-      const post = await storage.getPost(postId);
-      if (!post) {
-        return res.status(404).json({ message: "Post not found" });
+    });
+    app.delete("/api/chat-rooms/:roomId", isAuthenticated, async (req, res) => {
+      try {
+        const roomId = parseInt(req.params.roomId);
+        const userId = getSessionUserId(req);
+        const room = await storage.getCommunityRoom(roomId);
+        if (!room) {
+          return res.status(404).json({ message: "Chat room not found" });
+        }
+        const isModerator = await storage.isCommunityModerator(room.communityId, userId);
+        const isOwner = await storage.isCommunityOwner(room.communityId, userId);
+        if (!isModerator && !isOwner) {
+          return res.status(403).json({ message: "Only moderators and owners can delete chat rooms" });
+        }
+        await storage.deleteCommunityRoom(roomId);
+        res.json({ message: "Chat room deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting chat room:", error);
+        res.status(500).json({ message: "Error deleting chat room" });
       }
-      res.json(post);
-    } catch (error) {
-      console.error("Error fetching post:", error);
-      res.status(500).json({ message: "Error fetching post" });
-    }
-  });
-  app.post("/api/posts", isAuthenticated, async (req, res) => {
-    try {
-      const userId = getSessionUserId(req);
-      const validatedData = insertPostSchema.parse({
-        ...req.body,
-        authorId: userId
-      });
-      const post = await storage.createPost(validatedData);
-      res.status(201).json(post);
-    } catch (error) {
-      console.error("Error creating post:", error);
-      res.status(500).json({ message: "Error creating post" });
-    }
-  });
-  app.post("/api/posts/:id/upvote", isAuthenticated, async (req, res) => {
-    try {
-      const postId = parseInt(req.params.id);
-      const post = await storage.upvotePost(postId);
-      res.json(post);
-    } catch (error) {
-      console.error("Error upvoting post:", error);
-      res.status(500).json({ message: "Error upvoting post" });
-    }
-  });
-  app.get("/api/posts/:id/comments", async (req, res) => {
-    try {
-      const postId = parseInt(req.params.id);
-      const comments = await storage.getCommentsByPostId(postId);
-      res.json(comments);
-    } catch (error) {
-      console.error("Error fetching comments:", error);
-      res.status(500).json({ message: "Error fetching comments" });
-    }
-  });
-  app.post("/api/comments", isAuthenticated, async (req, res) => {
-    try {
-      const userId = getSessionUserId(req);
-      const validatedData = insertCommentSchema.parse({
-        ...req.body,
-        authorId: userId
-      });
-      const comment = await storage.createComment(validatedData);
-      res.status(201).json(comment);
-    } catch (error) {
-      console.error("Error creating comment:", error);
-      res.status(500).json({ message: "Error creating comment" });
-    }
-  });
-  app.post("/api/comments/:id/upvote", isAuthenticated, async (req, res) => {
-    try {
-      const commentId = parseInt(req.params.id);
-      const comment = await storage.upvoteComment(commentId);
-      res.json(comment);
-    } catch (error) {
-      console.error("Error upvoting comment:", error);
-      res.status(500).json({ message: "Error upvoting comment" });
-    }
-  });
+    });
+    app.get("/api/chat-rooms/:roomId/messages", async (req, res) => {
+      try {
+        const roomId = parseInt(req.params.roomId);
+        const limit = parseInt(req.query.limit) || 50;
+        const after = req.query.after ? parseInt(req.query.after) : void 0;
+        let messages;
+        if (after) {
+          messages = await storage.getChatMessagesAfter(roomId, after);
+        } else {
+          messages = await storage.getChatMessages(roomId, limit);
+        }
+        res.json(messages);
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+        res.status(500).json({ message: "Error fetching messages" });
+      }
+    });
+    app.post("/api/chat-rooms/:roomId/messages", isAuthenticated, async (req, res) => {
+      try {
+        const roomId = parseInt(req.params.roomId);
+        const userId = getSessionUserId(req);
+        const { content } = req.body;
+        if (!content || content.trim().length === 0) {
+          return res.status(400).json({ message: "Message content is required" });
+        }
+        const message = await storage.createChatMessage({
+          roomId,
+          senderId: userId,
+          content: content.trim()
+        });
+        const sender = await storage.getUser(userId);
+        const messageWithSender = { ...message, sender };
+        io.to(`room_${roomId}`).emit("message_received", messageWithSender);
+        res.status(201).json(messageWithSender);
+      } catch (error) {
+        console.error("Error creating message:", error);
+        res.status(500).json({ message: "Error creating message" });
+      }
+    });
+    app.get("/api/communities/:idOrSlug/wall", async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        let communityId;
+        if (/^\d+$/.test(idOrSlug)) {
+          communityId = parseInt(idOrSlug);
+        } else {
+          const community = await storage.getCommunityBySlug(idOrSlug);
+          if (!community) {
+            return res.status(404).json({ message: "Community not found" });
+          }
+          communityId = community.id;
+        }
+        const posts = await storage.getCommunityWallPosts(communityId);
+        res.json(posts);
+      } catch (error) {
+        console.error("Error fetching wall posts:", error);
+        res.status(500).json({ message: "Error fetching wall posts" });
+      }
+    });
+    app.post("/api/communities/:idOrSlug/wall", isAuthenticated, async (req, res) => {
+      try {
+        const { idOrSlug } = req.params;
+        let communityId;
+        if (/^\d+$/.test(idOrSlug)) {
+          communityId = parseInt(idOrSlug);
+        } else {
+          const community = await storage.getCommunityBySlug(idOrSlug);
+          if (!community) {
+            return res.status(404).json({ message: "Community not found" });
+          }
+          communityId = community.id;
+        }
+        const userId = getSessionUserId(req);
+        const { content, isPrivate } = req.body;
+        const isMember = await storage.isCommunityMember(communityId, userId);
+        if (!isMember) {
+          return res.status(403).json({ message: "Must be a member to post on community wall" });
+        }
+        const post = await storage.createCommunityWallPost({
+          communityId,
+          authorId: userId,
+          content,
+          isPrivate: isPrivate || false
+        });
+        res.status(201).json(post);
+      } catch (error) {
+        console.error("Error creating wall post:", error);
+        res.status(500).json({ message: "Error creating wall post" });
+      }
+    });
+  }
+  if (FEATURES.POSTS) {
+    app.get("/api/posts", async (req, res) => {
+      try {
+        const filter = req.query.filter;
+        const userId = getSessionUserId(req);
+        let posts = await storage.getAllPosts(filter);
+        if (userId) {
+          const blockedIds = await storage.getBlockedUserIdsFor(userId);
+          if (blockedIds && blockedIds.length > 0) {
+            posts = posts.filter((p) => !blockedIds.includes(p.authorId));
+          }
+        }
+        res.json(posts);
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+        res.status(500).json({ message: "Error fetching posts" });
+      }
+    });
+    app.get("/api/posts/:id", async (req, res) => {
+      try {
+        const postId = parseInt(req.params.id);
+        const post = await storage.getPost(postId);
+        if (!post) {
+          return res.status(404).json({ message: "Post not found" });
+        }
+        res.json(post);
+      } catch (error) {
+        console.error("Error fetching post:", error);
+        res.status(500).json({ message: "Error fetching post" });
+      }
+    });
+    app.post("/api/posts", isAuthenticated, async (req, res) => {
+      try {
+        const userId = getSessionUserId(req);
+        const validatedData = insertPostSchema.parse({
+          ...req.body,
+          authorId: userId
+        });
+        const post = await storage.createPost(validatedData);
+        res.status(201).json(post);
+      } catch (error) {
+        console.error("Error creating post:", error);
+        res.status(500).json({ message: "Error creating post" });
+      }
+    });
+    app.post("/api/posts/:id/upvote", isAuthenticated, async (req, res) => {
+      try {
+        const postId = parseInt(req.params.id);
+        const post = await storage.upvotePost(postId);
+        res.json(post);
+      } catch (error) {
+        console.error("Error upvoting post:", error);
+        res.status(500).json({ message: "Error upvoting post" });
+      }
+    });
+    app.get("/api/posts/:id/comments", async (req, res) => {
+      try {
+        const postId = parseInt(req.params.id);
+        const comments = await storage.getCommentsByPostId(postId);
+        res.json(comments);
+      } catch (error) {
+        console.error("Error fetching comments:", error);
+        res.status(500).json({ message: "Error fetching comments" });
+      }
+    });
+    app.post("/api/comments", isAuthenticated, async (req, res) => {
+      try {
+        const userId = getSessionUserId(req);
+        const validatedData = insertCommentSchema.parse({
+          ...req.body,
+          authorId: userId
+        });
+        const comment = await storage.createComment(validatedData);
+        res.status(201).json(comment);
+      } catch (error) {
+        console.error("Error creating comment:", error);
+        res.status(500).json({ message: "Error creating comment" });
+      }
+    });
+    app.post("/api/comments/:id/upvote", isAuthenticated, async (req, res) => {
+      try {
+        const commentId = parseInt(req.params.id);
+        const comment = await storage.upvoteComment(commentId);
+        res.json(comment);
+      } catch (error) {
+        console.error("Error upvoting comment:", error);
+        res.status(500).json({ message: "Error upvoting comment" });
+      }
+    });
+  }
   app.get("/api/microblogs", async (req, res) => {
     try {
       const filter = req.query.filter;
@@ -744,7 +800,14 @@ function registerRoutes(app, httpServer) {
   app.get("/api/events", async (req, res) => {
     try {
       const filter = req.query.filter;
-      const events = await storage.getAllEvents();
+      const userId = getSessionUserId(req);
+      let events = await storage.getAllEvents();
+      if (userId) {
+        const blockedIds = await storage.getBlockedUserIdsFor(userId);
+        if (blockedIds && blockedIds.length > 0) {
+          events = events.filter((e) => !blockedIds.includes(e.creatorId));
+        }
+      }
       res.json(events);
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -1235,6 +1298,24 @@ function registerRoutes(app, httpServer) {
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       version: "1.0.0"
     });
+  });
+  app.get("/privacy", (_req, res) => {
+    const env = app.get("env");
+    const candidate = env === "development" ? path.resolve(process.cwd(), "public", "privacy.html") : path.resolve(process.cwd(), "dist", "public", "privacy.html");
+    if (fs.existsSync(candidate)) return res.sendFile(candidate);
+    return res.status(404).send("Not found");
+  });
+  app.get("/terms", (_req, res) => {
+    const env = app.get("env");
+    const candidate = env === "development" ? path.resolve(process.cwd(), "public", "terms.html") : path.resolve(process.cwd(), "dist", "public", "terms.html");
+    if (fs.existsSync(candidate)) return res.sendFile(candidate);
+    return res.status(404).send("Not found");
+  });
+  app.get("/community-guidelines", (_req, res) => {
+    const env = app.get("env");
+    const candidate = env === "development" ? path.resolve(process.cwd(), "public", "community-guidelines.html") : path.resolve(process.cwd(), "dist", "public", "community-guidelines.html");
+    if (fs.existsSync(candidate)) return res.sendFile(candidate);
+    return res.status(404).send("Not found");
   });
   app.use((error, req, res, next) => {
     console.error("API Error:", error);

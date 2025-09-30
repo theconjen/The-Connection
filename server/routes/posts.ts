@@ -1,0 +1,104 @@
+import { Router } from 'express';
+import { insertPostSchema, insertCommentSchema } from '@shared/schema';
+import { isAuthenticated } from '../auth';
+import { storage as storageReal } from '../storage';
+
+const storage: any = storageReal;
+const router = Router();
+
+function getSessionUserId(req: any): number | undefined {
+  const raw = req.session?.userId;
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw === 'number') return raw;
+  const n = parseInt(String(raw));
+  return Number.isFinite(n) ? n : undefined;
+}
+
+router.get('/api/posts', async (req, res) => {
+  try {
+    const filter = req.query.filter as string;
+    const userId = getSessionUserId(req);
+    let posts = await storage.getAllPosts(filter);
+    if (userId) {
+      const blockedIds = await storage.getBlockedUserIdsFor(userId);
+      if (blockedIds && blockedIds.length > 0) {
+        posts = posts.filter(p => !blockedIds.includes(p.authorId));
+      }
+    }
+    res.json(posts);
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    res.status(500).json({ message: 'Error fetching posts' });
+  }
+});
+
+router.get('/api/posts/:id', async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    const post = await storage.getPost(postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    res.json(post);
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    res.status(500).json({ message: 'Error fetching post' });
+  }
+});
+
+router.post('/api/posts', isAuthenticated, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req)!;
+    const validatedData = insertPostSchema.parse({ ...req.body, authorId: userId });
+    const post = await storage.createPost(validatedData);
+    res.status(201).json(post);
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).json({ message: 'Error creating post' });
+  }
+});
+
+router.post('/api/posts/:id/upvote', isAuthenticated, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    const post = await storage.upvotePost(postId);
+    res.json(post);
+  } catch (error) {
+    console.error('Error upvoting post:', error);
+    res.status(500).json({ message: 'Error upvoting post' });
+  }
+});
+
+router.get('/api/posts/:id/comments', async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    const comments = await storage.getCommentsByPostId(postId);
+    res.json(comments);
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ message: 'Error fetching comments' });
+  }
+});
+
+router.post('/api/comments', isAuthenticated, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req)!;
+    const validatedData = insertCommentSchema.parse({ ...req.body, authorId: userId });
+    const comment = await storage.createComment(validatedData);
+    res.status(201).json(comment);
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({ message: 'Error creating comment' });
+  }
+});
+
+router.post('/api/comments/:id/upvote', isAuthenticated, async (req, res) => {
+  try {
+    const commentId = parseInt(req.params.id);
+    const comment = await storage.upvoteComment(commentId);
+    res.json(comment);
+  } catch (error) {
+    console.error('Error upvoting comment:', error);
+    res.status(500).json({ message: 'Error upvoting comment' });
+  }
+});
+
+export default router;

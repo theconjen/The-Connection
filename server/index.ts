@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
+import cors from 'cors';
 import { setupVite, serveStatic, log } from "./vite.js";
 // Seed imports removed for production
 import { initializeEmailTemplates } from "./email";
@@ -21,16 +22,10 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// Set up PostgreSQL session store
-const PgSessionStore = connectPgSimple(session);
-const sessionStore = new PgSessionStore({
-  pool: pool,
-  tableName: 'sessions',
-  createTableIfMissing: true
-});
-
-app.use(session({
-  store: sessionStore,
+// Session store: use Postgres-backed store only when USE_DB=true; otherwise
+// fall back to the default in-memory store for a lightweight MVP run.
+const USE_DB = process.env.USE_DB === 'true';
+let sessionOptions: any = {
   secret: process.env.SESSION_SECRET || "theconnection-session-secret",
   resave: false,
   saveUninitialized: false,
@@ -41,15 +36,41 @@ app.use(session({
     httpOnly: true,
     sameSite: 'lax' // Allow cross-origin requests in development
   }
-}));
+};
+
+if (USE_DB) {
+  // Set up PostgreSQL session store
+  const PgSessionStore = connectPgSimple(session);
+  const sessionStore = new PgSessionStore({
+    pool: pool,
+    tableName: 'sessions',
+    createTableIfMissing: true
+  });
+
+  sessionOptions.store = sessionStore;
+}
+
+app.use(session(sessionOptions));
 
 // Initialize passport with proper serialization
 app.use(passport.initialize());
 app.use(passport.session());
 passport.serializeUser((user: Express.User, done) => {
-  done(null, (user as User).id);
+  // If running without DB, store the whole user object in session (best-effort)
+  try {
+    const uid = (user as any).id ?? user;
+    done(null, uid);
+  } catch (e) {
+    done(null, user as any);
+  }
 });
+
 passport.deserializeUser(async (id: number, done) => {
+  if (!USE_DB) {
+    // In DB-less mode we can't look up users; return null so req.user won't be set.
+    return done(null, null);
+  }
+
   try {
     const { storage } = await import("./storage");
     const user = await storage.getUser(id);
@@ -60,6 +81,17 @@ passport.deserializeUser(async (id: number, done) => {
 });
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Enable minimal CORS for the mobile wrapper and local dev
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost',
+    'capacitor://localhost',
+    process.env.BASE_URL || ''
+  ].filter(Boolean),
+  credentials: true
+}));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -94,13 +126,17 @@ app.use((req, res, next) => {
 (async () => {
   // Run migrations for locality and interest features
   try {
-    await runAllMigrations();
-    
-    // Run organization migrations
-    const { runOrganizationMigrations } = await import("./run-migrations-organizations");
-    await runOrganizationMigrations();
-    
-    console.log("✅ Database migrations completed");
+    if (USE_DB) {
+      await runAllMigrations();
+
+      // Run organization migrations
+      const { runOrganizationMigrations } = await import("./run-migrations-organizations");
+      await runOrganizationMigrations();
+
+      console.log("✅ Database migrations completed");
+    } else {
+      console.log("⚠️ Skipping database migrations because USE_DB != 'true'");
+    }
   } catch (error) {
     console.error("❌ Error running database migrations:", error);
   }
@@ -118,10 +154,7 @@ app.use((req, res, next) => {
   // If SENTRY_DSN is provided, dynamically import Sentry and initialize it
   if (process.env.SENTRY_DSN) {
     try {
-      const SentryModule = await import("@sentry/node");
-      // Normalize module shape: prefer default export if present
-      const Sentry = (SentryModule as any).default ?? SentryModule;
-
+      const Sentry = await import("@sentry/node");
       Sentry.init({
         dsn: process.env.SENTRY_DSN,
         environment: process.env.NODE_ENV || "production",

@@ -1,16 +1,22 @@
 import {
   users,
   communities,
+  communityWallPosts,
   groupMembers,
   livestreams,
+  events,
   prayerRequests,
   livestreamerApplications,
   apologistScholarApplications,
-  messages
+  messages,
+  contentReports,
+  userBlocks
 } from "./shared/schema.js";
 import { db } from "./db.js";
 import { eq, and, or, inArray, like } from "drizzle-orm";
+import { whereNotDeleted } from "./db/helpers.js";
 import { geocodeAddress } from "./geocoding.js";
+import softDelete from "./db/softDelete.js";
 class StorageSafety {
   static implementedMethods = /* @__PURE__ */ new Set([
     "getUser",
@@ -192,7 +198,8 @@ class MemStorage {
         isPrivate: false,
         hasPrivateWall: true,
         hasPublicWall: true,
-        createdAt: /* @__PURE__ */ new Date()
+        createdAt: /* @__PURE__ */ new Date(),
+        deletedAt: null
       },
       {
         id: 2,
@@ -212,7 +219,8 @@ class MemStorage {
         isPrivate: false,
         hasPrivateWall: true,
         hasPublicWall: true,
-        createdAt: /* @__PURE__ */ new Date()
+        createdAt: /* @__PURE__ */ new Date(),
+        deletedAt: null
       },
       {
         id: 3,
@@ -232,7 +240,8 @@ class MemStorage {
         isPrivate: false,
         hasPrivateWall: true,
         hasPublicWall: true,
-        createdAt: /* @__PURE__ */ new Date()
+        createdAt: /* @__PURE__ */ new Date(),
+        deletedAt: null
       }
     ],
     communityMembers: [],
@@ -261,7 +270,10 @@ class MemStorage {
     bibleReadingProgress: [],
     bibleStudyNotes: [],
     userPreferences: [],
-    messages: []
+    messages: [],
+    // Moderation in-memory stores
+    contentReports: [],
+    userBlocks: []
   };
   nextId = 1;
   // User methods
@@ -284,7 +296,7 @@ class MemStorage {
     );
   }
   async getAllUsers() {
-    return [...this.data.users];
+    return this.data.users.filter((u) => !u.deletedAt).map((u) => ({ ...u }));
   }
   async updateUser(id, userData) {
     const userIndex = this.data.users.findIndex((u) => u.id === id);
@@ -330,7 +342,8 @@ class MemStorage {
       isVerifiedApologeticsAnswerer: false,
       isAdmin: user.isAdmin || false,
       createdAt: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
+      updatedAt: /* @__PURE__ */ new Date(),
+      deletedAt: null
     };
     this.data.users.push(newUser);
     return newUser;
@@ -350,11 +363,11 @@ class MemStorage {
     return user;
   }
   async getVerifiedApologeticsAnswerers() {
-    return this.data.users.filter((u) => u.isVerifiedApologeticsAnswerer);
+    return this.data.users.filter((u) => u.isVerifiedApologeticsAnswerer && !u.deletedAt);
   }
   // Community methods
   async getAllCommunities() {
-    return [...this.data.communities];
+    return this.data.communities.filter((c) => !c.deletedAt).map((c) => ({ ...c }));
   }
   async searchCommunities(searchTerm) {
     const term = searchTerm.toLowerCase();
@@ -363,7 +376,7 @@ class MemStorage {
     );
   }
   async getPublicCommunitiesAndUserCommunities(userId, searchQuery) {
-    let communities2 = this.data.communities.filter((c) => !c.isPrivate);
+    let communities2 = this.data.communities.filter((c) => !c.isPrivate && !c.deletedAt);
     if (userId) {
       const userCommunities = this.data.communityMembers.filter((m) => m.userId === userId).map((m) => this.data.communities.find((c) => c.id === m.communityId)).filter(Boolean);
       const communityMap = /* @__PURE__ */ new Map();
@@ -379,10 +392,10 @@ class MemStorage {
     return communities2;
   }
   async getCommunity(id) {
-    return this.data.communities.find((c) => c.id === id);
+    return this.data.communities.find((c) => c.id === id && !c.deletedAt);
   }
   async getCommunityBySlug(slug) {
-    return this.data.communities.find((c) => c.slug === slug);
+    return this.data.communities.find((c) => c.slug === slug && !c.deletedAt);
   }
   async createCommunity(community) {
     const newCommunity = {
@@ -403,6 +416,7 @@ class MemStorage {
       hasPrivateWall: community.hasPrivateWall || false,
       hasPublicWall: community.hasPublicWall || true,
       createdAt: /* @__PURE__ */ new Date(),
+      deletedAt: null,
       createdBy: community.createdBy
     };
     this.data.communities.push(newCommunity);
@@ -415,9 +429,9 @@ class MemStorage {
     return this.data.communities[index];
   }
   async deleteCommunity(id) {
-    const index = this.data.communities.findIndex((c) => c.id === id);
-    if (index === -1) return false;
-    this.data.communities.splice(index, 1);
+    const comm = this.data.communities.find((c) => c.id === id);
+    if (!comm) return false;
+    comm.deletedAt = /* @__PURE__ */ new Date();
     return true;
   }
   // Community invitation methods
@@ -614,6 +628,7 @@ class MemStorage {
       likeCount: 0,
       commentCount: 0,
       createdAt: /* @__PURE__ */ new Date(),
+      deletedAt: null,
       ...post
     };
     this.data.communityWallPosts.push(newPost);
@@ -626,14 +641,14 @@ class MemStorage {
     return post;
   }
   async deleteCommunityWallPost(id) {
-    const index = this.data.communityWallPosts.findIndex((p) => p.id === id);
-    if (index === -1) return false;
-    this.data.communityWallPosts.splice(index, 1);
+    const post = this.data.communityWallPosts.find((p) => p.id === id);
+    if (!post) return false;
+    post.deletedAt = /* @__PURE__ */ new Date();
     return true;
   }
   // Post methods
   async getAllPosts(filter) {
-    let posts2 = [...this.data.posts];
+    let posts2 = this.data.posts.filter((p) => !p.deletedAt);
     if (filter === "top") {
       posts2.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
     } else if (filter === "hot") {
@@ -648,12 +663,12 @@ class MemStorage {
     return posts2;
   }
   async getPost(id) {
-    return this.data.posts.find((p) => p.id === id);
+    return this.data.posts.find((p) => p.id === id && !p.deletedAt);
   }
   async getPostsByCommunitySlug(communitySlug, filter) {
     const community = this.data.communities.find((c) => c.slug === communitySlug);
     if (!community) return [];
-    let posts2 = this.data.posts.filter((p) => p.communityId === community.id);
+    let posts2 = this.data.posts.filter((p) => p.communityId === community.id && !p.deletedAt);
     if (filter === "top") {
       posts2.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
     } else if (filter === "hot") {
@@ -668,7 +683,7 @@ class MemStorage {
     return posts2;
   }
   async getPostsByGroupId(groupId, filter) {
-    let posts2 = this.data.posts.filter((p) => p.groupId === groupId);
+    let posts2 = this.data.posts.filter((p) => p.groupId === groupId && !p.deletedAt);
     if (filter === "top") {
       posts2.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
     } else if (filter === "hot") {
@@ -683,7 +698,7 @@ class MemStorage {
     return posts2;
   }
   async getUserPosts(userId) {
-    const posts2 = this.data.posts.filter((p) => p.authorId === userId);
+    const posts2 = this.data.posts.filter((p) => p.authorId === userId && !p.deletedAt);
     const microblogs2 = this.data.microblogs.filter((m) => m.authorId === userId);
     const wallPosts = this.data.communityWallPosts.filter((p) => p.authorId === userId);
     return [
@@ -698,6 +713,7 @@ class MemStorage {
       upvotes: 0,
       commentCount: 0,
       createdAt: /* @__PURE__ */ new Date(),
+      deletedAt: null,
       ...post
     };
     this.data.posts.push(newPost);
@@ -958,13 +974,13 @@ class MemStorage {
   }
   // Event methods
   async getAllEvents() {
-    return [...this.data.events].sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+    return this.data.events.filter((e) => !e.deletedAt).sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
   }
   async getEvent(id) {
-    return this.data.events.find((e) => e.id === id);
+    return this.data.events.find((e) => e.id === id && !e.deletedAt);
   }
   async getUserEvents(userId) {
-    return this.data.events.filter((e) => e.creatorId === userId);
+    return this.data.events.filter((e) => e.creatorId === userId && !e.deletedAt);
   }
   async createEvent(event) {
     const newEvent = {
@@ -983,9 +999,9 @@ class MemStorage {
     return event;
   }
   async deleteEvent(id) {
-    const index = this.data.events.findIndex((e) => e.id === id);
-    if (index === -1) return false;
-    this.data.events.splice(index, 1);
+    const ev = this.data.events.find((e) => e.id === id);
+    if (!ev) return false;
+    ev.deletedAt = /* @__PURE__ */ new Date();
     return true;
   }
   // Event RSVP methods
@@ -1079,9 +1095,9 @@ class MemStorage {
     return microblog;
   }
   async deleteMicroblog(id) {
-    const index = this.data.microblogs.findIndex((m) => m.id === id);
-    if (index === -1) return false;
-    this.data.microblogs.splice(index, 1);
+    const mb = this.data.microblogs.find((m) => m.id === id);
+    if (!mb) return false;
+    mb.deletedAt = /* @__PURE__ */ new Date();
     return true;
   }
   // Microblog like methods
@@ -1314,36 +1330,87 @@ class MemStorage {
     this.data.messages.push(newMessage);
     return newMessage;
   }
+  // Moderation methods (in-memory)
+  async createContentReport(report) {
+    const newReport = {
+      id: this.nextId++,
+      reporterId: report.reporterId,
+      contentType: report.contentType,
+      contentId: report.contentId,
+      reason: report.reason || "other",
+      description: report.description || null,
+      status: "pending",
+      moderatorId: null,
+      moderatorNotes: null,
+      resolvedAt: null,
+      createdAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    };
+    this.data.contentReports.push(newReport);
+    return newReport;
+  }
+  async createUserBlock(block) {
+    const exists = this.data.userBlocks.find((b) => b.blockerId === block.blockerId && b.blockedId === block.blockedId);
+    if (exists) return exists;
+    const newBlock = {
+      id: this.nextId++,
+      blockerId: block.blockerId,
+      blockedId: block.blockedId,
+      reason: block.reason || null,
+      createdAt: /* @__PURE__ */ new Date()
+    };
+    this.data.userBlocks.push(newBlock);
+    return newBlock;
+  }
+  async getBlockedUserIdsFor(blockerId) {
+    return this.data.userBlocks.filter((b) => b.blockerId === blockerId).map((b) => b.blockedId);
+  }
 }
 class DbStorage {
   // User methods
   async getUser(id) {
-    const result = await db.select().from(users).where(eq(users.id, id));
+    const result = await db.select().from(users).where(and(eq(users.id, id), whereNotDeleted(users)));
     return result[0];
   }
   async getUserById(id) {
     return this.getUser(id);
   }
   async getUserByUsername(username) {
-    const result = await db.select().from(users).where(eq(users.username, username));
+    const result = await db.select().from(users).where(and(eq(users.username, username), whereNotDeleted(users)));
     return result[0];
   }
   async getUserByEmail(email) {
-    const result = await db.select().from(users).where(eq(users.email, email));
+    const result = await db.select().from(users).where(and(eq(users.email, email), whereNotDeleted(users)));
     return result[0];
   }
   async searchUsers(searchTerm) {
     const term = `%${searchTerm}%`;
-    return await db.select().from(users).where(
+    return await db.select().from(users).where(and(
       or(
         like(users.username, term),
         like(users.email, term),
         like(users.displayName, term)
-      )
-    );
+      ),
+      whereNotDeleted(users)
+    ));
   }
   async getAllUsers() {
-    return await db.select().from(users);
+    return await db.select().from(users).where(whereNotDeleted(users));
+  }
+  // Moderation methods (DB)
+  async createContentReport(report) {
+    const [row] = await db.insert(contentReports).values(report).returning();
+    return row;
+  }
+  async createUserBlock(block) {
+    const inserted = await db.insert(userBlocks).values(block).onConflictDoNothing().returning();
+    if (inserted && inserted.length > 0) return inserted[0];
+    const existing = await db.select().from(userBlocks).where(and(eq(userBlocks.blockerId, block.blockerId), eq(userBlocks.blockedId, block.blockedId)));
+    return existing[0];
+  }
+  async getBlockedUserIdsFor(blockerId) {
+    const rows = await db.select({ blockedId: userBlocks.blockedId }).from(userBlocks).where(eq(userBlocks.blockerId, blockerId));
+    return rows.map((r) => r.blockedId);
   }
   async updateUser(id, userData) {
     const result = await db.update(users).set(userData).where(eq(users.id, id)).returning();
@@ -1378,20 +1445,21 @@ class DbStorage {
     return result[0];
   }
   async getVerifiedApologeticsAnswerers() {
-    return await db.select().from(users).where(eq(users.isVerifiedApologeticsAnswerer, true));
+    return await db.select().from(users).where(and(eq(users.isVerifiedApologeticsAnswerer, true), whereNotDeleted(users)));
   }
   // Community methods - simplified for now
   async getAllCommunities() {
-    return await db.select().from(communities);
+    return await db.select().from(communities).where(whereNotDeleted(communities));
   }
   async searchCommunities(searchTerm) {
     const term = `%${searchTerm}%`;
-    return await db.select().from(communities).where(
+    return await db.select().from(communities).where(and(
       or(
         like(communities.name, term),
         like(communities.description, term)
-      )
-    );
+      ),
+      whereNotDeleted(communities)
+    ));
   }
   async getPublicCommunitiesAndUserCommunities(userId, searchQuery) {
     let whereCondition = eq(communities.isPrivate, false);
@@ -1399,15 +1467,16 @@ class DbStorage {
       const term = `%${searchQuery}%`;
       whereCondition = and(whereCondition, or(like(communities.name, term), like(communities.description, term)));
     }
+    whereCondition = and(whereCondition, whereNotDeleted(communities));
     const query = db.select().from(communities).where(whereCondition);
     return await query;
   }
   async getCommunity(id) {
-    const result = await db.select().from(communities).where(eq(communities.id, id));
+    const result = await db.select().from(communities).where(and(eq(communities.id, id), whereNotDeleted(communities)));
     return result[0];
   }
   async getCommunityBySlug(slug) {
-    const result = await db.select().from(communities).where(eq(communities.slug, slug));
+    const result = await db.select().from(communities).where(and(eq(communities.slug, slug), whereNotDeleted(communities)));
     return result[0];
   }
   async createCommunity(community) {
@@ -1435,8 +1504,8 @@ class DbStorage {
     return result[0];
   }
   async deleteCommunity(id) {
-    const result = await db.delete(communities).where(eq(communities.id, id));
-    return result.rowCount > 0;
+    const result = await softDelete(db, communities, communities.id, id);
+    return !!result;
   }
   // Placeholder implementations for other methods - can be expanded as needed
   async getCommunityMembers(communityId) {
@@ -1534,7 +1603,8 @@ class DbStorage {
     throw new Error("Not implemented");
   }
   async deleteCommunityWallPost(id) {
-    return false;
+    const result = await softDelete(db, communityWallPosts, communityWallPosts.id, id);
+    return !!result;
   }
   // Post methods
   async getAllPosts(filter) {
@@ -1707,7 +1777,8 @@ class DbStorage {
     throw new Error("Not implemented");
   }
   async deleteEvent(id) {
-    return false;
+    const result = await softDelete(db, events, events.id, id);
+    return !!result;
   }
   async getNearbyEvents(latitude, longitude, radius) {
     console.warn("getNearbyEvents is not fully implemented in DbStorage. Returning empty array.");
