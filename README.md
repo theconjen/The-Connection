@@ -19,6 +19,18 @@ A comprehensive religious social platform built with TypeScript, featuring commu
 
 ## Quick Start
 
+### Option 1: GitHub Codespaces (Easiest)
+
+Get started in seconds with a pre-configured cloud development environment:
+
+1. Click the **Code** button on the repository
+2. Select **Codespaces** tab
+3. Click **Create codespace on main**
+
+See the [Codespaces Guide](docs/CODESPACES.md) for detailed instructions.
+
+### Option 2: Local Development
+
 1. **Install Dependencies:**
 ```bash
 npm install
@@ -41,6 +53,8 @@ npm run db:push
 ```bash
 npm run dev
 ```
+
+See the [Local Debugging Guide](docs/LOCAL_DEBUGGING.md) for troubleshooting.
 
 ## Features
 
