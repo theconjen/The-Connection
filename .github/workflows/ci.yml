@@ -16,6 +16,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
@@ -24,7 +25,9 @@ jobs:
         run: npm run build:check || echo "no type-check script"
 
       - name: Run tests
-        run: npm test || echo "no tests"
+        run: npm test
+        env:
+          NODE_ENV: test
 
       - name: Build client & server
         run: |

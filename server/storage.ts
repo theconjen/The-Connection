@@ -329,6 +329,13 @@ export interface IStorage {
   // Direct Messaging methods
   getDirectMessages(userId1: number, userId2: number): Promise<any[]>;
   createDirectMessage(message: any): Promise<any>;
+  // Push notification methods
+  savePushToken(token: { userId: number; token: string; platform?: string; lastUsed?: Date }): Promise<any>;
+  getUserPushTokens(userId: number): Promise<any[]>;
+  deletePushToken(token: string, userId: number): Promise<'deleted'|'notfound'|'forbidden'>;
+  // Notifications
+  getUserNotifications(userId: number): Promise<any[]>;
+  markNotificationAsRead(id: number, userId: number): Promise<boolean>;
   // Moderation methods
   createContentReport(report: InsertContentReport): Promise<ContentReport>;
   createUserBlock(block: InsertUserBlock): Promise<UserBlock>;
@@ -502,6 +509,49 @@ export class MemStorage implements IStorage {
   
   async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
     return this.data.userPreferences.find(p => p.userId === userId);
+  }
+
+  // Push token methods (in-memory)
+  async savePushToken(token: any): Promise<any> {
+    const existing = this.data.messages.find ? null : null; // no-op to keep TS happy
+    const found = this.data.posts.find ? null : null;
+    // Simple behavior: avoid duplicate by token
+    const existingIdx = (this.data as any).pushTokens?.findIndex((p: any) => p.token === token.token) ?? -1;
+    if (existingIdx !== -1) {
+      (this.data as any).pushTokens[existingIdx] = { ...((this.data as any).pushTokens[existingIdx]), ...token, lastUsed: new Date() };
+      return (this.data as any).pushTokens[existingIdx];
+    }
+    if (!(this.data as any).pushTokens) (this.data as any).pushTokens = [];
+    const obj = { id: this.nextId++, ...token };
+    (this.data as any).pushTokens.push(obj);
+    return obj;
+  }
+
+  async getUserPushTokens(userId: number): Promise<any[]> {
+    return ((this.data as any).pushTokens || []).filter((p: any) => p.userId === userId);
+  }
+
+  async deletePushToken(token: string, userId: number): Promise<'deleted'|'notfound'|'forbidden'> {
+    const arr = (this.data as any).pushTokens || [];
+    const idx = arr.findIndex((p: any) => p.token === token);
+    if (idx === -1) return 'notfound';
+    if (arr[idx].userId !== userId) return 'forbidden';
+    arr.splice(idx, 1);
+    return 'deleted';
+  }
+
+  // Notifications (in-memory)
+  async getUserNotifications(userId: number): Promise<any[]> {
+    return ((this.data as any).notifications || []).filter((n: any) => n.userId === userId);
+  }
+
+  async markNotificationAsRead(id: number, userId: number): Promise<boolean> {
+    const arr = (this.data as any).notifications || [];
+    const n = arr.find((x: any) => x.id === id);
+    if (!n) return false;
+    if (n.userId !== userId) return false;
+    n.isRead = true;
+    return true;
   }
   
   async createUser(user: any): Promise<User> {
@@ -2618,9 +2668,30 @@ export class DbStorage implements IStorage {
     const result = await db.insert(messages).values(message).returning();
     return result[0];
   }
+
+  // Push token + notifications (DB) - stubs until full implementation
+  async savePushToken(token: any): Promise<any> {
+    throw new Error('savePushToken not implemented for DbStorage');
+  }
+
+  async getUserPushTokens(userId: number): Promise<any[]> {
+    throw new Error('getUserPushTokens not implemented for DbStorage');
+  }
+
+  async deletePushToken(token: string, userId: number): Promise<'deleted'|'notfound'|'forbidden'> {
+    throw new Error('deletePushToken not implemented for DbStorage');
+  }
+
+  async getUserNotifications(userId: number): Promise<any[]> {
+    throw new Error('getUserNotifications not implemented for DbStorage');
+  }
+
+  async markNotificationAsRead(id: number, userId: number): Promise<boolean> {
+    throw new Error('markNotificationAsRead not implemented for DbStorage');
+  }
 }
 
 // Export storage instance - switch based on environment
-export const storage = process.env.USE_DB === 'true'
+export const storage: IStorage = process.env.USE_DB === 'true'
   ? new DbStorage()
   : new MemStorage();
