@@ -13,7 +13,7 @@ import {
   userBlocks
 } from "./shared/schema.js";
 import { db } from "./db.js";
-import { eq, and, or, inArray, like } from "drizzle-orm";
+import { eq, and, or, desc, inArray, like } from "drizzle-orm";
 import { whereNotDeleted } from "./db/helpers.js";
 import { geocodeAddress } from "./geocoding.js";
 import softDelete from "./db/softDelete.js";
@@ -1365,6 +1365,24 @@ class MemStorage {
   async getBlockedUserIdsFor(blockerId) {
     return this.data.userBlocks.filter((b) => b.blockerId === blockerId).map((b) => b.blockedId);
   }
+  // Admin moderation helpers (in-memory)
+  async getReports(filter) {
+    let rows = this.data.contentReports.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (filter?.status) rows = rows.filter((r) => r.status === filter.status);
+    if (filter?.limit) rows = rows.slice(0, filter.limit);
+    return rows;
+  }
+  async getReportById(id) {
+    return this.data.contentReports.find((r) => r.id === id);
+  }
+  async updateReport(id, update) {
+    const idx = this.data.contentReports.findIndex((r) => r.id === id);
+    if (idx === -1) throw new Error("Report not found");
+    const existing = this.data.contentReports[idx];
+    const updated = { ...existing, ...update, updatedAt: /* @__PURE__ */ new Date() };
+    this.data.contentReports[idx] = updated;
+    return updated;
+  }
 }
 class DbStorage {
   // User methods
@@ -1411,6 +1429,24 @@ class DbStorage {
   async getBlockedUserIdsFor(blockerId) {
     const rows = await db.select({ blockedId: userBlocks.blockedId }).from(userBlocks).where(eq(userBlocks.blockerId, blockerId));
     return rows.map((r) => r.blockedId);
+  }
+  // Admin moderation helpers (DB)
+  async getReports(filter) {
+    const q = db.select().from(contentReports);
+    if (filter?.status) q.where(eq(contentReports.status, filter.status));
+    q.orderBy(desc(contentReports.createdAt));
+    if (filter?.limit) q.limit(filter.limit);
+    const rows = await q;
+    return rows;
+  }
+  async getReportById(id) {
+    const rows = await db.select().from(contentReports).where(eq(contentReports.id, id));
+    return rows[0];
+  }
+  async updateReport(id, update) {
+    const updated = await db.update(contentReports).set(update).where(eq(contentReports.id, id)).returning();
+    if (!updated || updated.length === 0) throw new Error("Report not found");
+    return updated[0];
   }
   async updateUser(id, userData) {
     const result = await db.update(users).set(userData).where(eq(users.id, id)).returning();

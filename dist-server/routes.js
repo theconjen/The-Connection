@@ -13,6 +13,8 @@ const generateToken = () => crypto.randomBytes(32).toString("hex");
 import adminRoutes from "./routes/api/admin.js";
 import userRoutes from "./routes/api/user.js";
 import userSettingsRoutes from "./routes/userSettingsRoutes.js";
+import dmRoutes from "./routes/dmRoutes.js";
+import pushTokenRoutes from "./routes/pushTokens.js";
 import mvpRoutes from "./routes/mvp.js";
 import supportRoutes from "./routes/api/support.js";
 import accountRoutes from "./routes/account.js";
@@ -23,6 +25,7 @@ import postsRoutes from "./routes/posts.js";
 import communitiesRoutes from "./routes/communities.js";
 import eventsRoutes from "./routes/events.js";
 import apologeticsRoutes from "./routes/apologetics.js";
+import moderationRoutes from "./routes/moderation.js";
 function registerRoutes(app, httpServer) {
   setupAuth(app);
   app.use((req, _res, next) => {
@@ -96,6 +99,7 @@ function registerRoutes(app, httpServer) {
     app.use("/api", accountRoutes);
     const safetyRoutes = require("./routes/safety").default;
     app.use("/api", safetyRoutes);
+    app.use("/api", moderationRoutes);
   }
   if (FEATURES.ORGS) {
     app.use("/api/admin", adminRoutes);
@@ -149,6 +153,8 @@ function registerRoutes(app, httpServer) {
   if (FEATURES.AUTH) {
     app.use("/api/user", userRoutes);
     app.use("/api/user", userSettingsRoutes);
+    app.use("/api/dms", dmRoutes);
+    app.use("/api/push-tokens", pushTokenRoutes);
   }
   if (FEATURES.AUTH) {
     app.get("/api/users", async (req, res) => {
