@@ -1,6 +1,5 @@
-import { useRef, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getFeed } from "shared/services/feed";
+import { useRef, useEffect, useMemo, useState, useCallback } from "react";
+import { getFeedPage } from "shared/services/feed";
 
 function Skeleton({ h = 80 }: { h?: number }) {
   return (
@@ -14,25 +13,71 @@ function Skeleton({ h = 80 }: { h?: number }) {
 export default function FeedPage() {
   const lastUpdatedRef = useRef<number | null>(null);
 
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    isRefetching
-  } = useQuery({
-    queryKey: ["feed"],
-    queryFn: getFeed,
-    staleTime: 30_000,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: false,
-    retry: false // disable retries for deterministic UX & E2E error assertions
-  });
+  const [pages, setPages] = useState<import('shared/app-schema').FeedPage[]>([]);
+  const [initialLoading, setInitialLoading] = useState(false);
+  const [initialError, setInitialError] = useState<Error | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    if (data && !isRefetching) lastUpdatedRef.current = Date.now();
-  }, [data, isRefetching]);
+  const items = useMemo(() => pages.flatMap(p => p.items), [pages]);
+  const nextCursor = pages.length ? pages[pages.length - 1].nextCursor : null;
+  const hasNextPage = nextCursor != null;
+
+  const loadInitial = useCallback(async () => {
+    setInitialLoading(true);
+    setInitialError(null);
+    try {
+      const page = await getFeedPage(null);
+      setPages([page]);
+      lastUpdatedRef.current = Date.now();
+    } catch (e: any) {
+      setInitialError(e);
+    } finally {
+      setInitialLoading(false);
+    }
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    setInitialError(null);
+    try {
+      const page = await getFeedPage(null);
+      setPages([page]);
+      lastUpdatedRef.current = Date.now();
+    } catch (e: any) {
+      setInitialError(e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  const fetchNextPage = useCallback(async () => {
+    if (!hasNextPage || loadingMore) return;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const page = await getFeedPage(nextCursor);
+      setPages(prev => [...prev, page]);
+      lastUpdatedRef.current = Date.now();
+    } catch (e: any) {
+      setLoadMoreError(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasNextPage, loadingMore, nextCursor]);
+
+  useEffect(() => { loadInitial(); }, [loadInitial]);
+
+  if (typeof window !== 'undefined') {
+    (window as any).__FEED_PAGE_DEBUG__ = {
+      pageCount: pages.length,
+      itemCount: items.length,
+      hasNextPage,
+      loadingMore
+    };
+    (window as any).__RQ_FETCH_NEXT = () => fetchNextPage();
+  }
 
   return (
     <div>
@@ -45,31 +90,31 @@ export default function FeedPage() {
         </div>
         <button
           className="bg-card border border-border rounded px-3 py-1 text-sm"
-          onClick={() => refetch()}
-          disabled={isRefetching}
+          onClick={() => refresh()}
+          disabled={refreshing}
         >
-          {isRefetching ? "Refreshing…" : "Refresh"}
+          {refreshing ? "Refreshing…" : "Refresh"}
         </button>
       </div>
 
-      {isLoading ? (
+      {initialLoading ? (
         <>
           <Skeleton /><Skeleton /><Skeleton />
         </>
-      ) : isError ? (
+      ) : initialError ? (
         <div className="text-danger">
           Failed to load feed
           <div className="text-muted mt-1 text-sm">
-            {(error as any)?.message || "Unknown error"}
+            {initialError?.message || "Unknown error"}
           </div>
-          <button className="text-primary mt-2" onClick={() => refetch()}>
+          <button className="text-primary mt-2" onClick={() => refresh()}>
             Try again
           </button>
         </div>
       ) : (
         <div>
-          {data?.length ? (
-            data.map((item) => (
+          {items.length ? (
+            items.map((item) => (
               <div key={item.id} className="bg-card border border-border rounded-xl p-4 mb-3">
                 <div className="font-semibold">{item.title}</div>
                 <div className="text-muted mt-1">{item.body}</div>
@@ -79,6 +124,22 @@ export default function FeedPage() {
           ) : (
             <div className="text-muted">No items yet</div>
           )}
+          <div className="mt-4">
+            {hasNextPage ? (
+              <button
+                className="bg-card border border-border rounded px-3 py-1 text-sm"
+                onClick={() => fetchNextPage()}
+                disabled={loadingMore}
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
+            ) : (
+              <div className="text-muted text-sm">End of feed</div>
+            )}
+            {loadMoreError && (
+              <div className="text-danger text-sm mt-2">Failed to load more: {loadMoreError.message}</div>
+            )}
+          </div>
         </div>
       )}
     </div>

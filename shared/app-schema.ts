@@ -23,4 +23,11 @@ export const FeedItemZ = z.object({
 export const FeedZ = z.array(FeedItemZ);
 export type Feed = z.infer<typeof FeedZ>;
 
+// Paginated feed shape (back-compatible: existing non-paginated array still supported via service adapter)
+export const FeedPageZ = z.object({
+  items: z.array(FeedItemZ),
+  nextCursor: z.string().nullable(), // null => end of feed
+});
+export type FeedPage = z.infer<typeof FeedPageZ>;
+
 // Note: we deliberately avoid the bare name User to prevent collisions with Drizzle User.
