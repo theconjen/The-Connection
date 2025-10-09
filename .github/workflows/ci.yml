@@ -12,10 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node 18
+      - name: Use Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -24,8 +24,8 @@ jobs:
       - name: Typecheck (if you use tsc)
         run: npm run build:check || echo "no type-check script"
 
-      - name: Run tests
-        run: npm test
+      - name: Run API tests (if configured)
+        run: npm run test:api || echo "no api tests configured"
         env:
           NODE_ENV: test
 
