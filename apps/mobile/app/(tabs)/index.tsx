@@ -12,6 +12,7 @@ export default function Home() {
     staleTime: 30_000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
+    retry: false, // parity with web: surface errors immediately (E2E determinism)
   });
 
   useEffect(() => {

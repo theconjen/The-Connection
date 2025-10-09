@@ -26,7 +26,8 @@ export default function FeedPage() {
     queryFn: getFeed,
     staleTime: 30_000,
     refetchOnMount: "always",
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    retry: false // disable retries for deterministic UX & E2E error assertions
   });
 
   useEffect(() => {
