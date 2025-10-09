@@ -25,7 +25,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install deps (root only minimal)
-        run: npm install fetch-cookie tough-cookie
+      - name: Check required secrets
+        run: |
+          if [ -z "${API_BASE}" ]; then
+            echo "DEV_API_BASE secret not set; skipping smoke_auth job.";
+            echo "skip=true" >> $GITHUB_OUTPUT;
+            exit 0;
+          fi
+      - name: Install deps (tsx + minimal libs)
+        run: npm install tsx fetch-cookie tough-cookie
       - name: Run smoke auth script
-        run: node tools/smoke-auth.ts
+        run: npx tsx tools/smoke-auth.ts
