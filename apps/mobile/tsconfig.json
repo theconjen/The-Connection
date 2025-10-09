@@ -10,13 +10,30 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "baseUrl": ".",
-  "types": ["node", "../../types/shared-env", "nativewind/types"],
+    "types": [
+      "node",
+      "../../types/shared-env",
+      "nativewind/types"
+    ],
     "paths": {
-      "shared/*": ["../../shared/*"],
-      "shared-env": ["./src/env.native"],
-      "@shared/*": ["../../shared/*"]
+      "shared/*": [
+        "../../shared/*"
+      ],
+      "shared-env": [
+        "./src/env.native"
+      ],
+      "@shared/*": [
+        "../../shared/*"
+      ]
     }
   },
-  "include": ["src", "app"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src",
+    "app"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
+  "extends": "expo/tsconfig.base"
 }

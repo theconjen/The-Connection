@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { me, login as apiLogin, logout as apiLogout, register as apiRegister } from 'shared/services/auth';
+import { getFeedPage } from 'shared/services/feed';
 import type { ApiUser } from 'shared/app-schema';
 
 type Ctx = {
@@ -19,7 +20,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginM = useMutation({
     mutationFn: apiLogin,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['me'] }),
+    onSuccess: async () => {
+      // Refresh user and prefetch first page of feed for faster landing
+      await qc.invalidateQueries({ queryKey: ['me'] });
+      await qc.prefetchQuery({ queryKey: ['feed', null], queryFn: () => getFeedPage(null) });
+    },
   });
 
   const logoutM = useMutation({
