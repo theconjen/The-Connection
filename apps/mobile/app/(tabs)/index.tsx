@@ -2,8 +2,11 @@ import { View, Text, ActivityIndicator, FlatList, RefreshControl } from 'react-n
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { getFeedPage } from 'shared/services/feed';
 import { Skeleton } from '../../src/ui/Skeleton';
+import { useTranslation } from 'react-i18next';
+import { fmtDate } from 'shared/i18n/format';
 
 export default function Home() {
+  const { t, i18n } = useTranslation();
   const lastUpdatedRef = useRef<number | null>(null);
   const [pages, setPages] = useState<import('shared/app-schema').FeedPage[]>([]);
   const [initialLoading, setInitialLoading] = useState(false);
@@ -74,9 +77,9 @@ export default function Home() {
   if (initialError) {
     return (
       <View className="flex-1 items-center justify-center bg-bg p-6">
-        <Text className="text-danger">Failed to load feed</Text>
+        <Text className="text-danger">{t('error.failedToLoadFeed')}</Text>
         <Text className="text-muted">{initialError?.message || 'Unknown error'}</Text>
-        <Text className="text-primary mt-2" onPress={() => refresh()}>Try again</Text>
+        <Text className="text-primary mt-2" onPress={() => refresh()}>{t('feed.tryAgain')}</Text>
       </View>
     );
   }
@@ -85,10 +88,7 @@ export default function Home() {
     <View className="flex-1 bg-bg">
       <View className="px-4 pt-3 pb-1">
         <Text className="text-muted text-xs">
-          Last updated{' '}
-          {lastUpdatedRef.current
-            ? new Date(lastUpdatedRef.current).toLocaleTimeString()
-            : '—'}
+          {t('feed.lastUpdated', { time: lastUpdatedRef.current ? fmtDate(lastUpdatedRef.current, i18n.language) : '—' })}
         </Text>
       </View>
       <FlatList
@@ -105,7 +105,7 @@ export default function Home() {
         )}
         ListEmptyComponent={
           <View className="items-center mt-10">
-            <Text className="text-muted">No items yet</Text>
+            <Text className="text-muted">{t('feed.empty')}</Text>
           </View>
         }
         onEndReachedThreshold={0.5}
@@ -116,15 +116,15 @@ export default function Home() {
               {loadingMore ? (
                 <ActivityIndicator />
               ) : (
-                <Text className="text-primary" onPress={fetchNextPage}>Load more</Text>
+                <Text className="text-primary" onPress={fetchNextPage}>{t('feed.loadMore')}</Text>
               )}
               {loadMoreError && (
-                <Text className="text-danger text-xs mt-2">Failed to load more: {loadMoreError.message}</Text>
+                <Text className="text-danger text-xs mt-2">{t('error.generic')}: {loadMoreError.message}</Text>
               )}
             </View>
           ) : (
             <View className="py-6 items-center">
-              <Text className="text-muted text-xs">End of feed</Text>
+              <Text className="text-muted text-xs">{t('feed.end')}</Text>
             </View>
           )
         }

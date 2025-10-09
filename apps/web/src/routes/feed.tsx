@@ -1,4 +1,6 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { fmtDate } from "shared/i18n/format";
 import { getFeedPage } from "shared/services/feed";
 
 function Skeleton({ h = 80 }: { h?: number }) {
@@ -11,6 +13,7 @@ function Skeleton({ h = 80 }: { h?: number }) {
 }
 
 export default function FeedPage() {
+  const { t, i18n } = useTranslation();
   const lastUpdatedRef = useRef<number | null>(null);
 
   const [pages, setPages] = useState<import('shared/app-schema').FeedPage[]>([]);
@@ -75,17 +78,18 @@ export default function FeedPage() {
     <div>
       <div className="flex items-center justify-between mb-3">
         <div className="text-xs text-muted">
-          Last updated{" "}
-          {lastUpdatedRef.current
-            ? new Date(lastUpdatedRef.current).toLocaleTimeString()
-            : "—"}
+          {t("feed.lastUpdated", {
+            time: lastUpdatedRef.current
+              ? fmtDate(lastUpdatedRef.current, i18n.language)
+              : "—",
+          })}
         </div>
         <button
           className="bg-card border border-border rounded px-3 py-1 text-sm"
           onClick={() => refresh()}
           disabled={refreshing}
         >
-          {refreshing ? "Refreshing…" : "Refresh"}
+          {refreshing ? t("feed.refresh") + "…" : t("feed.refresh")}
         </button>
       </div>
 
@@ -95,12 +99,12 @@ export default function FeedPage() {
         </>
       ) : initialError ? (
         <div className="text-danger">
-          Failed to load feed
+          {t("error.failedToLoadFeed")}
           <div className="text-muted mt-1 text-sm">
             {initialError?.message || "Unknown error"}
           </div>
           <button className="text-primary mt-2" onClick={() => refresh()}>
-            Try again
+            {t("feed.tryAgain")}
           </button>
         </div>
       ) : (
@@ -114,7 +118,7 @@ export default function FeedPage() {
               </div>
             ))
           ) : (
-            <div className="text-muted">No items yet</div>
+            <div className="text-muted">{t("feed.empty")}</div>
           )}
           <div className="mt-4">
             {hasNextPage ? (
@@ -123,13 +127,13 @@ export default function FeedPage() {
                 onClick={() => fetchNextPage()}
                 disabled={loadingMore}
               >
-                {loadingMore ? "Loading…" : "Load more"}
+                {loadingMore ? t("feed.loadMore") + "…" : t("feed.loadMore")}
               </button>
             ) : (
-              <div className="text-muted text-sm">End of feed</div>
+              <div className="text-muted text-sm">{t("feed.end")}</div>
             )}
             {loadMoreError && (
-              <div className="text-danger text-sm mt-2">Failed to load more: {loadMoreError.message}</div>
+              <div className="text-danger text-sm mt-2">{t("error.generic")}: {loadMoreError.message}</div>
             )}
           </div>
         </div>
