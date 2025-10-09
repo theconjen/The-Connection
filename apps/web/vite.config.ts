@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
   plugins: [react()],
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
       shared: path.resolve(__dirname, "../../shared"),
       "shared-env": path.resolve(__dirname, "./src/env.web"),

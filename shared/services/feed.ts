@@ -11,6 +11,7 @@ export async function getFeedPage(cursor?: string | null): Promise<FeedPage> {
   // debug: expose to window for tests (will strip later)
   if (typeof window !== 'undefined') {
     (window as any).__LAST_FEED_CURSOR__ = cursor ?? null;
+    console.debug('[getFeedPage]', `/api/feed${qs}`);
   }
   const res = await http(`/api/feed${qs}`);
   if (Array.isArray(res)) {

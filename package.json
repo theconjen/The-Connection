@@ -89,6 +89,7 @@
     "i18next": "^25.5.3",
     "i18next-icu": "^2.4.0",
     "input-otp": "^1.4.2",
+    "intl-messageformat": "^10.7.18",
     "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.453.0",
