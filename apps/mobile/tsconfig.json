@@ -10,7 +10,7 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "baseUrl": ".",
-    "types": ["node", "../../types/shared-env"],
+  "types": ["node", "../../types/shared-env", "nativewind/types"],
     "paths": {
       "shared/*": ["../../shared/*"],
       "shared-env": ["./src/env.native"],

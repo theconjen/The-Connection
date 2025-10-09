@@ -1,0 +1,31 @@
+name: Parity CI
+
+on:
+  push:
+    branches: [ main, '**/parity**', '**/copilot/**' ]
+  pull_request:
+
+jobs:
+  guard_eas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure only apps/mobile/eas.json exists
+        run: |
+          set -e
+          if [ -f "eas.json" ]; then echo "Root eas.json should not exist"; exit 1; fi
+          test -f "apps/mobile/eas.json"
+
+  smoke_auth:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE: ${{ secrets.DEV_API_BASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps (root only minimal)
+        run: npm install fetch-cookie tough-cookie
+      - name: Run smoke auth script
+        run: node tools/smoke-auth.ts
