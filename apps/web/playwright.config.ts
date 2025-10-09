@@ -7,6 +7,7 @@ export default defineConfig({
     cwd: __dirname,
     command: "VITE_API_BASE=http://localhost:5173 npm run dev",
     url: "http://localhost:5173",
+    timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
   },
   projects: [
