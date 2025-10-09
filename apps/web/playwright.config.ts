@@ -4,7 +4,8 @@ export default defineConfig({
   testDir: "./tests",
   use: { baseURL: "http://localhost:5173" },
   webServer: {
-    command: "VITE_API_BASE=http://localhost:5173 pnpm dev",
+    cwd: __dirname,
+    command: "VITE_API_BASE=http://localhost:5173 npm run dev",
     url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,
   },
