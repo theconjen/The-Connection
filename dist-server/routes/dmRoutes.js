@@ -1,5 +1,5 @@
 import express from "express";
-import { storage } from "../storage.js";
+import { storage } from "../storage-optimized.js";
 const router = express.Router();
 router.get("/:userId", async (req, res) => {
   if (!req.session?.userId) {

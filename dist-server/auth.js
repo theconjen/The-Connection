@@ -1,4 +1,4 @@
-import { storage } from "./storage.js";
+import { storage } from "./storage-optimized.js";
 import { sendWelcomeEmail } from "./email.js";
 function isAuthenticated(req, res, next) {
   if (req.session && req.session.userId) {

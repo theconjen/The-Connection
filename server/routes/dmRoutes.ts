@@ -1,5 +1,5 @@
 import express from "express";
-import { storage } from "../storage";
+import { storage } from "../storage-optimized";
 import { sendPushNotification } from "../services/pushService";
 
 const router = express.Router();

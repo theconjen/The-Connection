@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 import { ArrowLeft, Phone, Video, MoreVertical } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import type { User } from '@shared/mobile-web/types';
 
 interface Message {
   id: string;
@@ -24,14 +25,6 @@ interface Message {
     displayName?: string;
     avatarUrl?: string;
   };
-}
-
-interface User {
-  id: number;
-  username: string;
-  displayName?: string;
-  email: string;
-  avatarUrl?: string;
 }
 
 export default function DMs() {

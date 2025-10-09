@@ -1,7 +1,8 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
-import cors from 'cors';
+import { makeCors } from "./cors";
+import cookieParser from 'cookie-parser';
 import { setupVite, serveStatic, log } from "./vite.js";
 // Seed imports removed for production
 import { initializeEmailTemplates } from "./email";
@@ -50,6 +51,8 @@ if (USE_DB) {
   sessionOptions.store = sessionStore;
 }
 
+// parse cookies before sessions so session middleware can read cookies
+app.use(cookieParser());
 app.use(session(sessionOptions));
 
 // Initialize passport with proper serialization
@@ -82,16 +85,48 @@ passport.deserializeUser(async (id: number, done) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Enable minimal CORS for the mobile wrapper and local dev
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost',
-    'capacitor://localhost',
-    process.env.BASE_URL || ''
-  ].filter(Boolean),
-  credentials: true
-}));
+// Use centralized, dev-friendly CORS middleware
+app.use(makeCors());
+app.options('*', makeCors());
+
+// lightweight health endpoint for mobile/dev smoke tests
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({ ok: true });
+});
+
+// Dev helper: create a test user and set session (ONLY in non-production)
+if (process.env.NODE_ENV !== 'production') {
+  app.post('/api/_dev/create-login', async (req: Request, res: Response) => {
+    try {
+      const { username, email, password, displayName } = req.body ?? {};
+      if (!username) return res.status(400).json({ message: 'username required' });
+
+      const storageModule = await import('./storage');
+      const storage = storageModule.storage as any;
+
+      // Create user (storage implementations handle duplicates)
+      const user = await storage.createUser({
+        username,
+        email: email || `${username}@example.com`,
+        password: password || 'password',
+        displayName: displayName || username,
+      });
+
+      // Attach to session
+      if (!req.session) return res.status(500).json({ message: 'Session unavailable' });
+      req.session.userId = user.id.toString();
+      req.session.username = user.username;
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: 'Failed to save session', err });
+        const { password: _p, ...u } = user as any;
+        return res.json({ ok: true, user: u });
+      });
+    } catch (error) {
+      console.error('Dev create-login error:', error);
+      res.status(500).json({ message: 'Error creating dev user', error: String(error) });
+    }
+  });
+}
 
 app.use((req, res, next) => {
   const start = Date.now();

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import authRoutes from "./api/auth.js";
-import accountRoutes from "../account.js";
+import accountRoutes from "./account.js";
 import userRoutes from "./api/user.js";
-import userSettingsRoutes from "../userSettingsRoutes.js";
+import userSettingsRoutes from "./userSettingsRoutes.js";
 const router = Router();
 router.use("/api", authRoutes);
 router.use("/api", accountRoutes);

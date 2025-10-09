@@ -1,6 +1,6 @@
 import express from "express";
 import { isAuthenticated, isAdmin } from "../auth.js";
-import { storage } from "../storage.js";
+import { storage } from "../storage-optimized.js";
 const router = express.Router();
 router.post("/moderation/report", isAuthenticated, async (req, res) => {
   try {

@@ -1,29 +1,66 @@
 {
   "expo": {
-    "name": "TheConnectionMobile",
-    "slug": "TheConnectionMobile",
+    "name": "The Connection",
+    "slug": "the-connection",
+    "scheme": "theconnection",
+    "owner": "jselou",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "jsEngine": "hermes",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.theconnection.mobile",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow access to choose a profile image.",
+        "NSCameraUsageDescription": "Allow camera use for profile or content images.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "runtimeVersion": "1.0.0"
     },
     "android": {
+      "package": "app.theconnection.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://app.theconnection"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
+      },
+      "apiBase": "${EXPO_PUBLIC_API_BASE}",
+      "router": {
+        "origin": "https://app.theconnection"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
     }
   }
 }

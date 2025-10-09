@@ -1,8 +1,7 @@
 import { Router } from "express";
 import { insertPostSchema, insertCommentSchema } from "./shared/schema.js";
 import { isAuthenticated } from "../auth.js";
-import { storage as storageReal } from "../storage.js";
-const storage = storageReal;
+import { storage } from "../storage-optimized.js";
 const router = Router();
 function getSessionUserId(req) {
   const raw = req.session?.userId;
@@ -42,7 +41,19 @@ router.get("/api/posts/:id", async (req, res) => {
 router.post("/api/posts", isAuthenticated, async (req, res) => {
   try {
     const userId = getSessionUserId(req);
-    const validatedData = insertPostSchema.parse({ ...req.body, authorId: userId });
+    const { text, communityId } = req.body || {};
+    if (!text || typeof text !== "string") return res.status(400).json({ message: "text required" });
+    const content = text.trim();
+    if (content.length === 0 || content.length > 500) return res.status(400).json({ message: "text must be 1-500 chars" });
+    const payload = {
+      title: content.slice(0, 60),
+      content,
+      imageUrl: null,
+      communityId: communityId ? Number(communityId) : null,
+      groupId: null,
+      authorId: userId
+    };
+    const validatedData = insertPostSchema.parse(payload);
     const post = await storage.createPost(validatedData);
     res.status(201).json(post);
   } catch (error) {

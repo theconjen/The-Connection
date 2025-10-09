@@ -53,7 +53,7 @@ import {
 import { format, formatDistance, isAfter, isBefore, isSameDay } from "date-fns";
 import { useToast } from "../../hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Community } from "@shared/schema";
+import type { Community, Event } from "@shared/mobile-web/types";
 
 // Utility functions for event handling
 const isEventPast = (startDateTime: string): boolean => {
@@ -82,32 +82,6 @@ interface CommunityEventsProps {
   isMember: boolean;
   isOwner: boolean;
   isModerator: boolean;
-}
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  startDateTime: string;
-  endDateTime?: string;
-  location?: string;
-  isOnline: boolean;
-  maxAttendees?: number;
-  createdBy: number;
-  communityId: number;
-  imageUrl?: string;
-  tags?: string[];
-  createdAt: string;
-  attendeeCount: number;
-  creator: {
-    id: number;
-    username: string;
-    displayName?: string;
-    avatarUrl?: string;
-  };
-  userRsvp?: {
-    status: "attending" | "maybe" | "declined";
-  };
 }
 
 type ViewMode = "grid" | "list" | "calendar";

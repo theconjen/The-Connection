@@ -1,26 +1,25 @@
 import express from 'express';
 import session from 'express-session';
 import { createServer } from 'http';
-import { registerRoutes } from './routes';
+import feedRoutes from './routes/feed';
 
 // Lightweight in-memory session (no PG) for test harness
 const app = express();
 app.use(express.json());
 app.use(session({ secret: 'test', resave: false, saveUninitialized: true }));
 
-// Immediately register routes without running migrations / email setup
-// We rely on shared FEATURES (already FEED:true). If ever dynamic, could force here.
+// Immediately register only the minimal routes needed for API tests
+// Avoid importing the full server/routes.ts to keep test dependencies light
 let ready = false;
 const httpServer = createServer(app);
 
-(async () => {
-  try {
-    await registerRoutes(app, httpServer);
-    ready = true;
-  } catch (e) {
-    console.error('Failed to register routes in test-app:', e);
-  }
-})();
+try {
+  // Mount just the feed routes under /api
+  app.use('/api', feedRoutes);
+  ready = true;
+} catch (e) {
+  console.error('Failed to register minimal routes in test-app:', e);
+}
 
 // Middleware to wait until routes are registered (cheap spin wait for early test requests)
 app.use((req, res, next) => {

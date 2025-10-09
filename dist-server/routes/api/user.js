@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { isAuthenticated } from "../../auth.js";
-import { storage } from "../../storage.js";
+import { storage } from "../../storage-optimized.js";
 const router = Router();
 router.use(isAuthenticated);
 router.get("/profile", async (req, res, next) => {

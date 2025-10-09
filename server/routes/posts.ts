@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import { insertPostSchema, insertCommentSchema } from '@shared/schema';
 import { isAuthenticated } from '../auth';
-import { storage as storageReal } from '../storage';
+import { storage } from '../storage-optimized';
 
-const storage: any = storageReal;
 const router = Router();
 
 function getSessionUserId(req: any): number | undefined {
@@ -22,7 +21,7 @@ router.get('/api/posts', async (req, res) => {
     if (userId) {
       const blockedIds = await storage.getBlockedUserIdsFor(userId);
       if (blockedIds && blockedIds.length > 0) {
-        posts = posts.filter(p => !blockedIds.includes(p.authorId));
+        posts = posts.filter((p: any) => !blockedIds.includes(p.authorId));
       }
     }
     res.json(posts);
@@ -44,10 +43,25 @@ router.get('/api/posts/:id', async (req, res) => {
   }
 });
 
+// Accept { text, communityId? } and map to schema fields
 router.post('/api/posts', isAuthenticated, async (req, res) => {
   try {
     const userId = getSessionUserId(req)!;
-    const validatedData = insertPostSchema.parse({ ...req.body, authorId: userId });
+    const { text, communityId } = req.body || {};
+    if (!text || typeof text !== 'string') return res.status(400).json({ message: 'text required' });
+    const content = text.trim();
+    if (content.length === 0 || content.length > 500) return res.status(400).json({ message: 'text must be 1-500 chars' });
+
+    // Map to schema: title from first 60 chars, content is full text
+    const payload = {
+      title: content.slice(0, 60),
+      content,
+      imageUrl: null,
+      communityId: communityId ? Number(communityId) : null,
+      groupId: null,
+      authorId: userId,
+    };
+    const validatedData = insertPostSchema.parse(payload as any);
     const post = await storage.createPost(validatedData);
     res.status(201).json(post);
   } catch (error) {

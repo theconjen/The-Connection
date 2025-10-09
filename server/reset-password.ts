@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { storage } from './storage';
+import { storage } from './storage-optimized';
 import { sendPasswordResetEmail } from './email';
 import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 

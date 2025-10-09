@@ -1,4 +1,4 @@
-import { storage } from "../../storage.js";
+import { storage } from "../../storage-optimized.js";
 import { z } from "zod";
 const searchSchema = z.object({
   city: z.string().optional(),

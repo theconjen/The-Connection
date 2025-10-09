@@ -1,4 +1,4 @@
-import { storage } from "../../storage.js";
+import { storage } from "../../storage-optimized.js";
 import { isAuthenticated } from "../../auth.js";
 import { z } from "zod";
 const onboardingSchema = z.object({

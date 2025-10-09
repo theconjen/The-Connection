@@ -1,6 +1,6 @@
 import express from 'express';
 import { isAuthenticated } from '../auth';
-import { storage } from '../storage';
+import { storage } from '../storage-optimized';
 
 const router = express.Router();
 
@@ -12,6 +12,9 @@ router.post('/reports', isAuthenticated, async (req: any, res) => {
 
     if (!reporterId) return res.status(401).json({ message: 'Not authenticated' });
     if (!subjectType || !subjectId) return res.status(400).json({ message: 'Missing subjectType or subjectId' });
+
+    const allowed = ['post', 'community', 'event'];
+    if (!allowed.includes(String(subjectType))) return res.status(400).json({ message: 'Invalid subjectType' });
 
     const report = await storage.createContentReport({
       reporterId: reporterId,

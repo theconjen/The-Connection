@@ -53,7 +53,7 @@ import {
   livestreamerApplications, apologistScholarApplications,
   userPreferences, messages,
   // moderation tables
-  contentReports, userBlocks
+    contentReports, userBlocks, pushTokens, notifications
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql, inArray, like } from "drizzle-orm";
@@ -2671,23 +2671,42 @@ export class DbStorage implements IStorage {
 
   // Push token + notifications (DB) - stubs until full implementation
   async savePushToken(token: any): Promise<any> {
-    throw new Error('savePushToken not implemented for DbStorage');
+    // Insert or update by token (unique). Return the row.
+    const existing = await db.select().from(pushTokens).where(eq(pushTokens.token, token.token));
+    if (existing && existing.length > 0) {
+      const [row] = await db.update(pushTokens).set({ userId: token.userId, platform: token.platform || existing[0].platform, lastUsed: new Date() }).where(eq(pushTokens.token, token.token)).returning();
+      return row;
+    }
+
+    const [inserted] = await db.insert(pushTokens).values({ userId: token.userId, token: token.token, platform: token.platform || 'unknown', lastUsed: token.lastUsed || new Date() } as any).returning();
+    return inserted;
   }
 
   async getUserPushTokens(userId: number): Promise<any[]> {
-    throw new Error('getUserPushTokens not implemented for DbStorage');
+    return await db.select().from(pushTokens).where(eq(pushTokens.userId, userId));
   }
 
   async deletePushToken(token: string, userId: number): Promise<'deleted'|'notfound'|'forbidden'> {
-    throw new Error('deletePushToken not implemented for DbStorage');
+    const rows = await db.select().from(pushTokens).where(eq(pushTokens.token, token));
+    if (!rows || rows.length === 0) return 'notfound';
+    const row = rows[0] as any;
+    if (row.userId !== userId) return 'forbidden';
+    await db.delete(pushTokens).where(eq(pushTokens.token, token));
+    return 'deleted';
   }
 
   async getUserNotifications(userId: number): Promise<any[]> {
-    throw new Error('getUserNotifications not implemented for DbStorage');
+    // Only return notifications for the user; order by newest
+    return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(notifications.createdAt);
   }
 
   async markNotificationAsRead(id: number, userId: number): Promise<boolean> {
-    throw new Error('markNotificationAsRead not implemented for DbStorage');
+    const rows = await db.select().from(notifications).where(eq(notifications.id, id));
+    if (!rows || rows.length === 0) return false;
+    const n = rows[0] as any;
+    if (n.userId !== userId) return false;
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
+    return true;
   }
 }
 

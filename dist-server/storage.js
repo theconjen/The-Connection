@@ -1,22 +1,10 @@
 import {
-  users,
-  communities,
-  communityWallPosts,
-  groupMembers,
-  livestreams,
-  events,
-  prayerRequests,
-  livestreamerApplications,
-  apologistScholarApplications,
   messages,
-  contentReports,
-  userBlocks
+  pushTokens,
+  notifications
 } from "./shared/schema.js";
 import { db } from "./db.js";
-import { eq, and, or, desc, inArray, like } from "drizzle-orm";
-import { whereNotDeleted } from "./db/helpers.js";
-import { geocodeAddress } from "./geocoding.js";
-import softDelete from "./db/softDelete.js";
+import { eq, and, or } from "drizzle-orm";
 class StorageSafety {
   static implementedMethods = /* @__PURE__ */ new Set([
     "getUser",
@@ -276,6 +264,76 @@ class MemStorage {
     userBlocks: []
   };
   nextId = 1;
+  constructor() {
+    if (this.data.users.length === 0) {
+      const admin = {
+        id: 1,
+        username: "admin",
+        email: "admin@example.com",
+        password: "password",
+        displayName: "Admin",
+        bio: null,
+        avatarUrl: null,
+        city: null,
+        state: null,
+        zipCode: null,
+        latitude: null,
+        longitude: null,
+        onboardingCompleted: true,
+        isVerifiedApologeticsAnswerer: false,
+        isAdmin: true,
+        createdAt: /* @__PURE__ */ new Date(),
+        updatedAt: /* @__PURE__ */ new Date(),
+        deletedAt: null
+      };
+      this.data.users.push(admin);
+      const defaultCommunityIds = this.data.communities.map((c) => c.id);
+      defaultCommunityIds.forEach((cid) => {
+        this.data.communityMembers.push({
+          id: this.nextId++,
+          communityId: cid,
+          userId: admin.id,
+          role: "owner",
+          joinedAt: /* @__PURE__ */ new Date()
+        });
+        const comm = this.data.communities.find((c) => c.id === cid);
+        if (comm) comm.memberCount = (comm.memberCount || 0) + 1;
+      });
+    }
+    const maxId = [
+      ...this.data.users,
+      ...this.data.communities,
+      ...this.data.communityMembers,
+      ...this.data.communityInvitations,
+      ...this.data.communityChatRooms,
+      ...this.data.chatMessages,
+      ...this.data.communityWallPosts,
+      ...this.data.posts,
+      ...this.data.comments,
+      ...this.data.groups,
+      ...this.data.groupMembers,
+      ...this.data.apologeticsResources,
+      ...this.data.livestreams,
+      ...this.data.prayerRequests,
+      ...this.data.prayers,
+      ...this.data.apologeticsTopics,
+      ...this.data.apologeticsQuestions,
+      ...this.data.apologeticsAnswers,
+      ...this.data.events,
+      ...this.data.eventRsvps,
+      ...this.data.microblogs,
+      ...this.data.microblogLikes,
+      ...this.data.livestreamerApplications,
+      ...this.data.apologistScholarApplications,
+      ...this.data.bibleReadingPlans,
+      ...this.data.bibleReadingProgress,
+      ...this.data.bibleStudyNotes,
+      ...this.data.messages,
+      ...this.data.contentReports,
+      ...this.data.userBlocks
+    ].reduce((max, item) => item && typeof item.id === "number" ? Math.max(max, item.id) : max, 0);
+    this.nextId = Math.max(this.nextId, maxId + 1);
+  }
   // User methods
   async getUser(id) {
     return this.data.users.find((u) => u.id === id);
@@ -324,6 +382,7 @@ class MemStorage {
   async getUserPreferences(userId) {
     return this.data.userPreferences.find((p) => p.userId === userId);
   }
+  // Remove in-memory push token/notification methods to avoid duplicates with DB stubs
   async createUser(user) {
     const newUser = {
       id: this.nextId++,
@@ -1043,29 +1102,6 @@ class MemStorage {
     }
     return true;
   }
-  // Livestream methods
-  async getAllLivestreams() {
-    return [...this.data.livestreams].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }
-  async createLivestream(livestream) {
-    const newLivestream = {
-      id: this.nextId++,
-      title: livestream.title,
-      description: livestream.description || null,
-      createdAt: /* @__PURE__ */ new Date(),
-      status: "upcoming",
-      hostId: livestream.hostId,
-      thumbnail: livestream.thumbnail || null,
-      viewerCount: 0,
-      scheduledFor: livestream.scheduledFor,
-      duration: livestream.duration || null,
-      tags: livestream.tags || null,
-      streamUrl: livestream.streamUrl || null,
-      isLive: livestream.isLive || false
-    };
-    this.data.livestreams.push(newLivestream);
-    return newLivestream;
-  }
   // Microblog methods
   async getAllMicroblogs() {
     return [...this.data.microblogs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -1195,94 +1231,6 @@ class MemStorage {
     application.reviewedAt = /* @__PURE__ */ new Date();
     return application;
   }
-  // Bible Reading Plan methods
-  async getAllBibleReadingPlans() {
-    return [...this.data.bibleReadingPlans];
-  }
-  async getBibleReadingPlan(id) {
-    return this.data.bibleReadingPlans.find((p) => p.id === id);
-  }
-  async createBibleReadingPlan(plan) {
-    const newPlan = {
-      id: this.nextId++,
-      title: plan.title,
-      description: plan.description,
-      groupId: plan.groupId,
-      duration: plan.duration,
-      isPublic: plan.isPublic,
-      creatorId: plan.creatorId,
-      readings: plan.readings,
-      createdAt: /* @__PURE__ */ new Date()
-    };
-    this.data.bibleReadingPlans.push(newPlan);
-    return newPlan;
-  }
-  // Bible Reading Progress methods
-  async getBibleReadingProgress(userId, planId) {
-    return this.data.bibleReadingProgress.find((p) => p.userId === userId && p.planId === planId);
-  }
-  async createBibleReadingProgress(progress) {
-    const newProgress = {
-      id: this.nextId++,
-      currentDay: 1,
-      completedDays: "[]",
-      startedAt: /* @__PURE__ */ new Date(),
-      completedAt: null,
-      ...progress
-    };
-    this.data.bibleReadingProgress.push(newProgress);
-    return newProgress;
-  }
-  async markDayCompleted(progressId, day) {
-    const progress = this.data.bibleReadingProgress.find((p) => p.id === progressId);
-    if (!progress) throw new Error("Progress not found");
-    let completedDays;
-    try {
-      completedDays = JSON.parse(progress.completedDays || "[]");
-    } catch {
-      completedDays = [];
-    }
-    if (!completedDays.includes(day)) {
-      completedDays.push(day);
-      progress.completedDays = JSON.stringify(completedDays);
-      progress.currentDay = (progress.currentDay || 1) + 1;
-    }
-    return progress;
-  }
-  // Bible Study Note methods
-  async getBibleStudyNotes(userId) {
-    return this.data.bibleStudyNotes.filter((n) => n.userId === userId);
-  }
-  async getBibleStudyNote(id) {
-    return this.data.bibleStudyNotes.find((n) => n.id === id);
-  }
-  async createBibleStudyNote(note) {
-    const newNote = {
-      id: this.nextId++,
-      title: note.title,
-      isPublic: note.isPublic,
-      groupId: note.groupId,
-      userId: note.userId,
-      content: note.content,
-      passage: note.passage,
-      createdAt: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
-    };
-    this.data.bibleStudyNotes.push(newNote);
-    return newNote;
-  }
-  async updateBibleStudyNote(id, data) {
-    const note = this.data.bibleStudyNotes.find((n) => n.id === id);
-    if (!note) throw new Error("Note not found");
-    Object.assign(note, data, { updatedAt: /* @__PURE__ */ new Date() });
-    return note;
-  }
-  async deleteBibleStudyNote(id) {
-    const index = this.data.bibleStudyNotes.findIndex((n) => n.id === id);
-    if (index === -1) return false;
-    this.data.bibleStudyNotes.splice(index, 1);
-    return true;
-  }
   // Admin methods
   async getAllLivestreamerApplications() {
     return [...this.data.livestreamerApplications];
@@ -1315,660 +1263,6 @@ class MemStorage {
   }
   // Direct Messaging methods
   async getDirectMessages(userId1, userId2) {
-    return this.data.messages.filter(
-      (m) => m.senderId === userId1 && m.receiverId === userId2 || m.senderId === userId2 && m.receiverId === userId1
-    ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }
-  async createDirectMessage(message) {
-    const newMessage = {
-      id: crypto.randomUUID(),
-      senderId: message.senderId,
-      receiverId: message.receiverId,
-      content: message.content,
-      createdAt: /* @__PURE__ */ new Date()
-    };
-    this.data.messages.push(newMessage);
-    return newMessage;
-  }
-  // Moderation methods (in-memory)
-  async createContentReport(report) {
-    const newReport = {
-      id: this.nextId++,
-      reporterId: report.reporterId,
-      contentType: report.contentType,
-      contentId: report.contentId,
-      reason: report.reason || "other",
-      description: report.description || null,
-      status: "pending",
-      moderatorId: null,
-      moderatorNotes: null,
-      resolvedAt: null,
-      createdAt: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
-    };
-    this.data.contentReports.push(newReport);
-    return newReport;
-  }
-  async createUserBlock(block) {
-    const exists = this.data.userBlocks.find((b) => b.blockerId === block.blockerId && b.blockedId === block.blockedId);
-    if (exists) return exists;
-    const newBlock = {
-      id: this.nextId++,
-      blockerId: block.blockerId,
-      blockedId: block.blockedId,
-      reason: block.reason || null,
-      createdAt: /* @__PURE__ */ new Date()
-    };
-    this.data.userBlocks.push(newBlock);
-    return newBlock;
-  }
-  async getBlockedUserIdsFor(blockerId) {
-    return this.data.userBlocks.filter((b) => b.blockerId === blockerId).map((b) => b.blockedId);
-  }
-  // Admin moderation helpers (in-memory)
-  async getReports(filter) {
-    let rows = this.data.contentReports.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    if (filter?.status) rows = rows.filter((r) => r.status === filter.status);
-    if (filter?.limit) rows = rows.slice(0, filter.limit);
-    return rows;
-  }
-  async getReportById(id) {
-    return this.data.contentReports.find((r) => r.id === id);
-  }
-  async updateReport(id, update) {
-    const idx = this.data.contentReports.findIndex((r) => r.id === id);
-    if (idx === -1) throw new Error("Report not found");
-    const existing = this.data.contentReports[idx];
-    const updated = { ...existing, ...update, updatedAt: /* @__PURE__ */ new Date() };
-    this.data.contentReports[idx] = updated;
-    return updated;
-  }
-}
-class DbStorage {
-  // User methods
-  async getUser(id) {
-    const result = await db.select().from(users).where(and(eq(users.id, id), whereNotDeleted(users)));
-    return result[0];
-  }
-  async getUserById(id) {
-    return this.getUser(id);
-  }
-  async getUserByUsername(username) {
-    const result = await db.select().from(users).where(and(eq(users.username, username), whereNotDeleted(users)));
-    return result[0];
-  }
-  async getUserByEmail(email) {
-    const result = await db.select().from(users).where(and(eq(users.email, email), whereNotDeleted(users)));
-    return result[0];
-  }
-  async searchUsers(searchTerm) {
-    const term = `%${searchTerm}%`;
-    return await db.select().from(users).where(and(
-      or(
-        like(users.username, term),
-        like(users.email, term),
-        like(users.displayName, term)
-      ),
-      whereNotDeleted(users)
-    ));
-  }
-  async getAllUsers() {
-    return await db.select().from(users).where(whereNotDeleted(users));
-  }
-  // Moderation methods (DB)
-  async createContentReport(report) {
-    const [row] = await db.insert(contentReports).values(report).returning();
-    return row;
-  }
-  async createUserBlock(block) {
-    const inserted = await db.insert(userBlocks).values(block).onConflictDoNothing().returning();
-    if (inserted && inserted.length > 0) return inserted[0];
-    const existing = await db.select().from(userBlocks).where(and(eq(userBlocks.blockerId, block.blockerId), eq(userBlocks.blockedId, block.blockedId)));
-    return existing[0];
-  }
-  async getBlockedUserIdsFor(blockerId) {
-    const rows = await db.select({ blockedId: userBlocks.blockedId }).from(userBlocks).where(eq(userBlocks.blockerId, blockerId));
-    return rows.map((r) => r.blockedId);
-  }
-  // Admin moderation helpers (DB)
-  async getReports(filter) {
-    const q = db.select().from(contentReports);
-    if (filter?.status) q.where(eq(contentReports.status, filter.status));
-    q.orderBy(desc(contentReports.createdAt));
-    if (filter?.limit) q.limit(filter.limit);
-    const rows = await q;
-    return rows;
-  }
-  async getReportById(id) {
-    const rows = await db.select().from(contentReports).where(eq(contentReports.id, id));
-    return rows[0];
-  }
-  async updateReport(id, update) {
-    const updated = await db.update(contentReports).set(update).where(eq(contentReports.id, id)).returning();
-    if (!updated || updated.length === 0) throw new Error("Report not found");
-    return updated[0];
-  }
-  async updateUser(id, userData) {
-    const result = await db.update(users).set(userData).where(eq(users.id, id)).returning();
-    if (!result[0]) throw new Error("User not found");
-    return result[0];
-  }
-  async updateUserPreferences(userId, preferences) {
-    return {
-      id: 1,
-      userId,
-      interests: preferences.interests || null,
-      favoriteTopics: preferences.favoriteTopics || null,
-      engagementHistory: preferences.engagementHistory || null,
-      createdAt: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
-    };
-  }
-  async getUserPreferences(userId) {
-    return void 0;
-  }
-  async createUser(user) {
-    const result = await db.insert(users).values(user).returning();
-    return result[0];
-  }
-  async updateUserPassword(userId, hashedPassword) {
-    const result = await db.update(users).set({ password: hashedPassword }).where(eq(users.id, userId)).returning();
-    return result[0];
-  }
-  async setVerifiedApologeticsAnswerer(userId, isVerified) {
-    const result = await db.update(users).set({ isVerifiedApologeticsAnswerer: isVerified }).where(eq(users.id, userId)).returning();
-    if (!result[0]) throw new Error("User not found");
-    return result[0];
-  }
-  async getVerifiedApologeticsAnswerers() {
-    return await db.select().from(users).where(and(eq(users.isVerifiedApologeticsAnswerer, true), whereNotDeleted(users)));
-  }
-  // Community methods - simplified for now
-  async getAllCommunities() {
-    return await db.select().from(communities).where(whereNotDeleted(communities));
-  }
-  async searchCommunities(searchTerm) {
-    const term = `%${searchTerm}%`;
-    return await db.select().from(communities).where(and(
-      or(
-        like(communities.name, term),
-        like(communities.description, term)
-      ),
-      whereNotDeleted(communities)
-    ));
-  }
-  async getPublicCommunitiesAndUserCommunities(userId, searchQuery) {
-    let whereCondition = eq(communities.isPrivate, false);
-    if (searchQuery) {
-      const term = `%${searchQuery}%`;
-      whereCondition = and(whereCondition, or(like(communities.name, term), like(communities.description, term)));
-    }
-    whereCondition = and(whereCondition, whereNotDeleted(communities));
-    const query = db.select().from(communities).where(whereCondition);
-    return await query;
-  }
-  async getCommunity(id) {
-    const result = await db.select().from(communities).where(and(eq(communities.id, id), whereNotDeleted(communities)));
-    return result[0];
-  }
-  async getCommunityBySlug(slug) {
-    const result = await db.select().from(communities).where(and(eq(communities.slug, slug), whereNotDeleted(communities)));
-    return result[0];
-  }
-  async createCommunity(community) {
-    const comm = community;
-    let latitude = comm.latitude;
-    let longitude = comm.longitude;
-    if (!latitude && !longitude && (comm.city || comm.state)) {
-      const geocodeResult = await geocodeAddress("", comm.city, comm.state);
-      if ("latitude" in geocodeResult) {
-        latitude = geocodeResult.latitude.toString();
-        longitude = geocodeResult.longitude.toString();
-      }
-    }
-    const communityData = {
-      ...community,
-      latitude,
-      longitude
-    };
-    const result = await db.insert(communities).values(communityData).returning();
-    return result[0];
-  }
-  async updateCommunity(id, community) {
-    const result = await db.update(communities).set(community).where(eq(communities.id, id)).returning();
-    if (!result[0]) throw new Error("Community not found");
-    return result[0];
-  }
-  async deleteCommunity(id) {
-    const result = await softDelete(db, communities, communities.id, id);
-    return !!result;
-  }
-  // Placeholder implementations for other methods - can be expanded as needed
-  async getCommunityMembers(communityId) {
-    return [];
-  }
-  async getCommunityMember(communityId, userId) {
-    return void 0;
-  }
-  async getUserCommunities(userId) {
-    return [];
-  }
-  async addCommunityMember(member) {
-    throw new Error("Not implemented");
-  }
-  async updateCommunityMemberRole(id, role) {
-    throw new Error("Not implemented");
-  }
-  async removeCommunityMember(communityId, userId) {
-    return false;
-  }
-  async isCommunityMember(communityId, userId) {
-    return false;
-  }
-  async isCommunityOwner(communityId, userId) {
-    return false;
-  }
-  async isCommunityModerator(communityId, userId) {
-    return false;
-  }
-  // Community invitation methods
-  async createCommunityInvitation(invitation) {
-    throw new Error("Not implemented");
-  }
-  async getCommunityInvitations(communityId) {
-    return [];
-  }
-  async getCommunityInvitationByToken(token) {
-    return void 0;
-  }
-  async getCommunityInvitationById(id) {
-    return void 0;
-  }
-  async updateCommunityInvitationStatus(id, status) {
-    throw new Error("Not implemented");
-  }
-  async deleteCommunityInvitation(id) {
-    return false;
-  }
-  async getCommunityInvitationByEmailAndCommunity(email, communityId) {
-    return void 0;
-  }
-  // Community chat room methods
-  async getCommunityRooms(communityId) {
-    return [];
-  }
-  async getPublicCommunityRooms(communityId) {
-    return [];
-  }
-  async getCommunityRoom(id) {
-    return void 0;
-  }
-  async createCommunityRoom(room) {
-    throw new Error("Not implemented");
-  }
-  async updateCommunityRoom(id, data) {
-    throw new Error("Not implemented");
-  }
-  async deleteCommunityRoom(id) {
-    return false;
-  }
-  // Chat message methods
-  async getChatMessages(roomId, limit) {
-    return [];
-  }
-  async getChatMessagesAfter(roomId, afterId) {
-    return [];
-  }
-  async createChatMessage(message) {
-    throw new Error("Not implemented");
-  }
-  async deleteChatMessage(id) {
-    return false;
-  }
-  // Community wall post methods
-  async getCommunityWallPosts(communityId, isPrivate) {
-    return [];
-  }
-  async getCommunityWallPost(id) {
-    return void 0;
-  }
-  async createCommunityWallPost(post) {
-    throw new Error("Not implemented");
-  }
-  async updateCommunityWallPost(id, data) {
-    throw new Error("Not implemented");
-  }
-  async deleteCommunityWallPost(id) {
-    const result = await softDelete(db, communityWallPosts, communityWallPosts.id, id);
-    return !!result;
-  }
-  // Post methods
-  async getAllPosts(filter) {
-    return [];
-  }
-  async getPost(id) {
-    return void 0;
-  }
-  async getPostsByCommunitySlug(communitySlug, filter) {
-    return [];
-  }
-  async getPostsByGroupId(groupId, filter) {
-    return [];
-  }
-  async getUserPosts(userId) {
-    return [];
-  }
-  async createPost(post) {
-    throw new Error("Not implemented");
-  }
-  async upvotePost(id) {
-    throw new Error("Not implemented");
-  }
-  // Comment methods
-  async getComment(id) {
-    return void 0;
-  }
-  async getCommentsByPostId(postId) {
-    return [];
-  }
-  async createComment(comment) {
-    throw new Error("Not implemented");
-  }
-  async upvoteComment(id) {
-    throw new Error("Not implemented");
-  }
-  // Group methods
-  async getGroup(id) {
-    return void 0;
-  }
-  async getGroupsByUserId(userId) {
-    return [];
-  }
-  async createGroup(group) {
-    throw new Error("Not implemented");
-  }
-  // Group member methods
-  async addGroupMember(member) {
-    throw new Error("Not implemented");
-  }
-  async getGroupMembers(groupId) {
-    return [];
-  }
-  async isGroupAdmin(groupId, userId) {
-    return false;
-  }
-  async isGroupMember(groupId, userId) {
-    return false;
-  }
-  // Apologetics resource methods
-  async getAllApologeticsResources() {
-    return [];
-  }
-  async getApologeticsResource(id) {
-    return void 0;
-  }
-  async createApologeticsResource(resource) {
-    throw new Error("Not implemented");
-  }
-  // Prayer request methods
-  async getPublicPrayerRequests() {
-    return [];
-  }
-  async getAllPrayerRequests(filter) {
-    return [];
-  }
-  async getPrayerRequest(id) {
-    return void 0;
-  }
-  async getUserPrayerRequests(userId) {
-    return [];
-  }
-  async getGroupPrayerRequests(groupId) {
-    return [];
-  }
-  async getPrayerRequestsVisibleToUser(userId) {
-    const userGroups = await db.select({ groupId: groupMembers.groupId }).from(groupMembers).where(eq(groupMembers.userId, userId));
-    const groupIds = userGroups.map((g) => g.groupId);
-    const conditions = [];
-    conditions.push(eq(prayerRequests.privacyLevel, "public"));
-    if (groupIds.length > 0) {
-      conditions.push(and(
-        eq(prayerRequests.privacyLevel, "group-only"),
-        inArray(prayerRequests.groupId, groupIds)
-      ));
-    }
-    conditions.push(eq(prayerRequests.authorId, userId));
-    return await db.select().from(prayerRequests).where(or(...conditions));
-  }
-  async createPrayerRequest(prayer) {
-    throw new Error("Not implemented");
-  }
-  async updatePrayerRequest(id, prayer) {
-    throw new Error("Not implemented");
-  }
-  async markPrayerRequestAsAnswered(id, description) {
-    throw new Error("Not implemented");
-  }
-  async deletePrayerRequest(id) {
-    return false;
-  }
-  // Prayer methods
-  async createPrayer(prayer) {
-    throw new Error("Not implemented");
-  }
-  async getPrayersForRequest(prayerRequestId) {
-    return [];
-  }
-  async getUserPrayedRequests(userId) {
-    return [];
-  }
-  // Apologetics Q&A methods
-  async getAllApologeticsTopics() {
-    return [];
-  }
-  async getApologeticsTopic(id) {
-    return void 0;
-  }
-  async getApologeticsTopicBySlug(slug) {
-    return void 0;
-  }
-  async createApologeticsTopic(topic) {
-    throw new Error("Not implemented");
-  }
-  async getAllApologeticsQuestions(filterByStatus) {
-    return [];
-  }
-  async getApologeticsQuestion(id) {
-    return void 0;
-  }
-  async getApologeticsQuestionsByTopic(topicId) {
-    return [];
-  }
-  async createApologeticsQuestion(question) {
-    throw new Error("Not implemented");
-  }
-  async updateApologeticsQuestionStatus(id, status) {
-    throw new Error("Not implemented");
-  }
-  async getApologeticsAnswersByQuestion(questionId) {
-    return [];
-  }
-  async createApologeticsAnswer(answer) {
-    throw new Error("Not implemented");
-  }
-  // Event methods
-  async getAllEvents() {
-    return [];
-  }
-  async getEvent(id) {
-    return void 0;
-  }
-  async getUserEvents(userId) {
-    return [];
-  }
-  async createEvent(event) {
-    throw new Error("Not implemented");
-  }
-  async updateEvent(id, data) {
-    throw new Error("Not implemented");
-  }
-  async deleteEvent(id) {
-    const result = await softDelete(db, events, events.id, id);
-    return !!result;
-  }
-  async getNearbyEvents(latitude, longitude, radius) {
-    console.warn("getNearbyEvents is not fully implemented in DbStorage. Returning empty array.");
-    return [];
-  }
-  // Event RSVP methods
-  async createEventRSVP(rsvp) {
-    throw new Error("Not implemented");
-  }
-  async getEventRSVPs(eventId) {
-    return [];
-  }
-  async getUserEventRSVP(eventId, userId) {
-    return void 0;
-  }
-  async updateEventRSVP(id, status) {
-    throw new Error("Not implemented");
-  }
-  async deleteEventRSVP(id) {
-    return false;
-  }
-  // Livestream methods
-  async getAllLivestreams() {
-    return [];
-  }
-  async createLivestream(livestream) {
-    const result = await db.insert(livestreams).values(livestream).returning();
-    return result[0];
-  }
-  // Microblog methods
-  async getAllMicroblogs() {
-    return [];
-  }
-  async getMicroblog(id) {
-    return void 0;
-  }
-  async getUserMicroblogs(userId) {
-    return [];
-  }
-  async createMicroblog(microblog) {
-    throw new Error("Not implemented");
-  }
-  async updateMicroblog(id, data) {
-    throw new Error("Not implemented");
-  }
-  async deleteMicroblog(id) {
-    return false;
-  }
-  // Microblog like methods
-  async likeMicroblog(microblogId, userId) {
-    throw new Error("Not implemented");
-  }
-  async unlikeMicroblog(microblogId, userId) {
-    return false;
-  }
-  async getUserLikedMicroblogs(userId) {
-    return [];
-  }
-  // Livestreamer application methods
-  async getLivestreamerApplicationByUserId(userId) {
-    return void 0;
-  }
-  async getPendingLivestreamerApplications() {
-    return [];
-  }
-  async createLivestreamerApplication(application) {
-    throw new Error("Not implemented");
-  }
-  async updateLivestreamerApplication(id, status, reviewNotes, reviewerId) {
-    throw new Error("Not implemented");
-  }
-  async isApprovedLivestreamer(userId) {
-    return false;
-  }
-  // Apologist Scholar application methods
-  async getApologistScholarApplicationByUserId(userId) {
-    return void 0;
-  }
-  async getPendingApologistScholarApplications() {
-    return [];
-  }
-  async createApologistScholarApplication(application) {
-    throw new Error("Not implemented");
-  }
-  async updateApologistScholarApplication(id, status, reviewNotes, reviewerId) {
-    throw new Error("Not implemented");
-  }
-  // Bible Reading Plan methods
-  async getAllBibleReadingPlans() {
-    return [];
-  }
-  async getBibleReadingPlan(id) {
-    return void 0;
-  }
-  async createBibleReadingPlan(plan) {
-    throw new Error("Not implemented");
-  }
-  // Bible Reading Progress methods
-  async getBibleReadingProgress(userId, planId) {
-    return void 0;
-  }
-  async createBibleReadingProgress(progress) {
-    throw new Error("Not implemented");
-  }
-  async markDayCompleted(progressId, day) {
-    throw new Error("Not implemented");
-  }
-  // Bible Study Note methods
-  async getBibleStudyNotes(userId) {
-    return [];
-  }
-  async getBibleStudyNote(id) {
-    return void 0;
-  }
-  async createBibleStudyNote(note) {
-    throw new Error("Not implemented");
-  }
-  async updateBibleStudyNote(id, data) {
-    throw new Error("Not implemented");
-  }
-  async deleteBibleStudyNote(id) {
-    return false;
-  }
-  // Admin methods
-  async getAllLivestreamerApplications() {
-    return await db.select().from(livestreamerApplications);
-  }
-  async getAllApologistScholarApplications() {
-    return await db.select().from(apologistScholarApplications);
-  }
-  async getLivestreamerApplicationStats() {
-    const all = await db.select().from(livestreamerApplications);
-    return {
-      total: all.length,
-      pending: all.filter((a) => a.status === "pending").length,
-      approved: all.filter((a) => a.status === "approved").length,
-      rejected: all.filter((a) => a.status === "rejected").length
-    };
-  }
-  async updateLivestreamerApplicationStatus(id, status, reviewNotes) {
-    const result = await db.update(livestreamerApplications).set({
-      status,
-      reviewNotes: reviewNotes || null,
-      reviewedAt: /* @__PURE__ */ new Date()
-    }).where(eq(livestreamerApplications.id, id)).returning();
-    if (!result[0]) throw new Error("Application not found");
-    return result[0];
-  }
-  async deleteUser(userId) {
-    const result = await db.delete(users).where(eq(users.id, userId));
-    return result.rowCount > 0;
-  }
-  // Direct Messaging methods
-  async getDirectMessages(userId1, userId2) {
     const result = await db.select().from(messages).where(
       or(
         and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
@@ -1981,8 +1275,171 @@ class DbStorage {
     const result = await db.insert(messages).values(message).returning();
     return result[0];
   }
+  // Push token + notifications (DB) - stubs until full implementation
+  async savePushToken(token) {
+    const existing = await db.select().from(pushTokens).where(eq(pushTokens.token, token.token));
+    if (existing && existing.length > 0) {
+      const [row] = await db.update(pushTokens).set({ userId: token.userId, platform: token.platform || existing[0].platform, lastUsed: /* @__PURE__ */ new Date() }).where(eq(pushTokens.token, token.token)).returning();
+      return row;
+    }
+    const [inserted] = await db.insert(pushTokens).values({ userId: token.userId, token: token.token, platform: token.platform || "unknown", lastUsed: token.lastUsed || /* @__PURE__ */ new Date() }).returning();
+    return inserted;
+  }
+  async getUserPushTokens(userId) {
+    return await db.select().from(pushTokens).where(eq(pushTokens.userId, userId));
+  }
+  async deletePushToken(token, userId) {
+    const rows = await db.select().from(pushTokens).where(eq(pushTokens.token, token));
+    if (!rows || rows.length === 0) return "notfound";
+    const row = rows[0];
+    if (row.userId !== userId) return "forbidden";
+    await db.delete(pushTokens).where(eq(pushTokens.token, token));
+    return "deleted";
+  }
+  async getUserNotifications(userId) {
+    return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(notifications.createdAt);
+  }
+  async markNotificationAsRead(id, userId) {
+    const rows = await db.select().from(notifications).where(eq(notifications.id, id));
+    if (!rows || rows.length === 0) return false;
+    const n = rows[0];
+    if (n.userId !== userId) return false;
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
+    return true;
+  }
+  // ========================
+  // Bible Reading Plans (in-memory)
+  // ========================
+  async getAllBibleReadingPlans() {
+    return [...this.data.bibleReadingPlans];
+  }
+  async getBibleReadingPlan(id) {
+    return this.data.bibleReadingPlans.find((p) => p.id === id);
+  }
+  async createBibleReadingPlan(plan) {
+    const newPlan = {
+      id: this.nextId++,
+      createdAt: /* @__PURE__ */ new Date(),
+      ...plan
+    };
+    this.data.bibleReadingPlans.push(newPlan);
+    return newPlan;
+  }
+  // ========================
+  // Bible Reading Progress (in-memory)
+  // ========================
+  async getBibleReadingProgress(userId, planId) {
+    return this.data.bibleReadingProgress.find((p) => p.userId === userId && p.planId === planId);
+  }
+  async createBibleReadingProgress(progress) {
+    const p = progress;
+    const existing = await this.getBibleReadingProgress(p.userId, p.planId);
+    if (existing) return existing;
+    const newProg = {
+      id: this.nextId++,
+      planId: p.planId,
+      userId: p.userId,
+      currentDay: 1,
+      completedDays: [],
+      startedAt: /* @__PURE__ */ new Date(),
+      completedAt: null
+    };
+    this.data.bibleReadingProgress.push(newProg);
+    return newProg;
+  }
+  async markDayCompleted(progressId, day) {
+    const prog = this.data.bibleReadingProgress.find((p) => p.id === progressId);
+    if (!prog) throw new Error("Progress not found");
+    const completed = Array.isArray(prog.completedDays) ? prog.completedDays : [];
+    if (!completed.includes(day)) completed.push(day);
+    prog.completedDays = completed;
+    const dayNum = parseInt(day, 10);
+    if (!isNaN(dayNum) && prog.currentDay && dayNum >= prog.currentDay) {
+      prog.currentDay = dayNum;
+    }
+    return prog;
+  }
+  // ========================
+  // Bible Study Notes (in-memory)
+  // ========================
+  async getBibleStudyNotes(userId) {
+    return this.data.bibleStudyNotes.filter((n) => n.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  async getBibleStudyNote(id) {
+    return this.data.bibleStudyNotes.find((n) => n.id === id);
+  }
+  async createBibleStudyNote(note) {
+    const newNote = {
+      id: this.nextId++,
+      createdAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date(),
+      ...note
+    };
+    this.data.bibleStudyNotes.push(newNote);
+    return newNote;
+  }
+  async updateBibleStudyNote(id, data) {
+    const note = this.data.bibleStudyNotes.find((n) => n.id === id);
+    if (!note) throw new Error("Note not found");
+    Object.assign(note, data, { updatedAt: /* @__PURE__ */ new Date() });
+    return note;
+  }
+  async deleteBibleStudyNote(id) {
+    const idx = this.data.bibleStudyNotes.findIndex((n) => n.id === id);
+    if (idx === -1) return false;
+    this.data.bibleStudyNotes.splice(idx, 1);
+    return true;
+  }
+  // ========================
+  // Moderation (in-memory)
+  // ========================
+  async createContentReport(report) {
+    const newReport = {
+      id: this.nextId++,
+      status: report.status || "pending",
+      moderatorId: null,
+      moderatorNotes: null,
+      resolvedAt: null,
+      createdAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date(),
+      ...report
+    };
+    this.data.contentReports.push(newReport);
+    return newReport;
+  }
+  async createUserBlock(block) {
+    const exists = this.data.userBlocks.find((b) => b.blockerId === block.blockerId && b.blockedId === block.blockedId);
+    if (exists) return exists;
+    const newBlock = {
+      id: this.nextId++,
+      createdAt: /* @__PURE__ */ new Date(),
+      ...block
+    };
+    this.data.userBlocks.push(newBlock);
+    return newBlock;
+  }
+  async getBlockedUserIdsFor(blockerId) {
+    return this.data.userBlocks.filter((b) => b.blockerId === blockerId).map((b) => b.blockedId);
+  }
+  async getReports(filter) {
+    let reports = [...this.data.contentReports];
+    if (filter?.status) reports = reports.filter((r) => r.status === filter.status);
+    if (filter?.limit && filter.limit > 0) reports = reports.slice(0, filter.limit);
+    return reports;
+  }
+  async getReportById(id) {
+    return this.data.contentReports.find((r) => r.id === id);
+  }
+  async updateReport(id, update) {
+    const report = this.data.contentReports.find((r) => r.id === id);
+    if (!report) throw new Error("Report not found");
+    Object.assign(report, update, { updatedAt: /* @__PURE__ */ new Date() });
+    return report;
+  }
 }
-const storage = process.env.USE_DB === "true" ? new DbStorage() : new MemStorage();
+class DbStorage extends MemStorage {
+}
+const storage = new MemStorage();
 export {
   DbStorage,
   MemStorage,

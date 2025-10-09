@@ -1,6 +1,6 @@
 import express from 'express';
 import { isAuthenticated, isAdmin } from '../auth';
-import { storage } from '../storage';
+import { storage } from '../storage-optimized';
 import { db } from '../db';
 import { contentReports } from '@shared/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -78,7 +78,7 @@ router.get('/moderation/admin/reports', isAdmin, async (req: any, res) => {
     const status = req.query.status as string | undefined;
     const limit = Math.min(1000, parseInt(String(req.query.limit || '50')) || 50);
 
-    const rows = await (storage as any).getReports?.({ status, limit });
+    const rows = await storage.getReports?.({ status, limit });
     res.json(rows || []);
   } catch (error) {
     console.error('Error listing reports:', error);
@@ -90,7 +90,7 @@ router.get('/moderation/admin/reports/:id', isAdmin, async (req: any, res) => {
   try {
     const id = parseInt(req.params.id);
     if (!id) return res.status(400).json({ message: 'Invalid id' });
-    const row = await (storage as any).getReportById?.(id);
+    const row = await storage.getReportById?.(id);
     if (!row) return res.status(404).json({ message: 'Report not found' });
     res.json(row);
   } catch (error) {
@@ -115,7 +115,7 @@ router.patch('/moderation/admin/reports/:id', isAdmin, async (req: any, res) => 
       resolvedAt: status === 'pending' ? null : new Date()
     } as any;
 
-    const updated = await (storage as any).updateReport?.(id, update);
+    const updated = await storage.updateReport?.(id, update);
     res.json(updated);
   } catch (error) {
     console.error('Error updating report:', error);

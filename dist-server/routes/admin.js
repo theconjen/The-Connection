@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { isAdmin } from "../auth.js";
-import { storage } from "../storage.js";
+import { storage } from "../storage-optimized.js";
 const router = Router();
 router.use(isAdmin);
 router.get("/users", async (req, res, next) => {

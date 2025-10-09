@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { storage } from "./storage.js";
+import { storage } from "./storage-optimized.js";
 import { sendPasswordResetEmail } from "./email.js";
 const TOKEN_EXPIRY = 60 * 60 * 1e3;
 const passwordResetTokens = /* @__PURE__ */ new Map();

@@ -1,5 +1,5 @@
 import { Express, Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
+import { storage } from "./storage-optimized";
 import { User } from "@shared/schema";
 import { sendWelcomeEmail } from "./email";
 import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';

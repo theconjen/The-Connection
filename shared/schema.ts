@@ -1304,6 +1304,30 @@ export const contentReports = pgTable("content_reports", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Push tokens table (used for push notification delivery)
+export const pushTokens = pgTable("push_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  token: text("token").notNull().unique(),
+  platform: text("platform").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUsed: timestamp("last_used").defaultNow(),
+} as any);
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  data: jsonb("data"),
+  category: text("category").default('feed'),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any);
+
+export type PushToken = typeof pushTokens.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+
 export const insertContentReportSchema = createInsertSchema(contentReports).omit({
   id: true,
   createdAt: true,
