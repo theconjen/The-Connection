@@ -1,9 +1,14 @@
-import { View, Text, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getFeed } from 'shared/services/feed';
 
 export default function Home() {
-  const { data, isLoading, isError, error } = useQuery({ queryKey: ['feed'], queryFn: getFeed });
+  const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
+    queryKey: ['feed'],
+    queryFn: getFeed,
+    staleTime: 30_000,
+    refetchOnMount: 'always',
+  });
 
   if (isLoading) {
     return (
@@ -12,11 +17,13 @@ export default function Home() {
       </View>
     );
   }
+
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center bg-bg p-6">
         <Text className="text-danger">Failed to load feed</Text>
         <Text className="text-muted">{(error as any)?.message || 'Unknown error'}</Text>
+        <Text className="text-primary mt-2" onPress={() => refetch()}>Try again</Text>
       </View>
     );
   }
@@ -27,6 +34,9 @@ export default function Home() {
         data={data}
         keyExtractor={(it) => it.id}
         contentContainerStyle={{ padding: 16 }}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />
+        }
         renderItem={({ item }) => (
           <View className="bg-card rounded-xl p-4 mb-3 border border-border">
             <Text className="text-text text-base font-semibold">{item.title}</Text>
@@ -34,6 +44,11 @@ export default function Home() {
             <Text className="text-muted mt-2 text-xs">{item.createdAt}</Text>
           </View>
         )}
+        ListEmptyComponent={
+          <View className="items-center mt-10">
+            <Text className="text-muted">No items yet</Text>
+          </View>
+        }
       />
     </View>
   );
