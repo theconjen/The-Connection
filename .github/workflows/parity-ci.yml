@@ -26,13 +26,17 @@ jobs:
         with:
           node-version: 20
       - name: Check required secrets
+        id: check
         run: |
           if [ -z "${API_BASE}" ]; then
             echo "DEV_API_BASE secret not set; skipping smoke_auth job.";
-            echo "skip=true" >> $GITHUB_OUTPUT;
-            exit 0;
+            echo "has_secrets=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secrets=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Install deps (tsx + minimal libs)
+        if: steps.check.outputs.has_secrets == 'true'
         run: npm install tsx fetch-cookie tough-cookie
       - name: Run smoke auth script
+        if: steps.check.outputs.has_secrets == 'true'
         run: npx tsx tools/smoke-auth.ts
