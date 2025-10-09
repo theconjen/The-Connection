@@ -1,0 +1,17 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "channel": "dev",
+      "env": { "EXPO_PUBLIC_API_BASE": "https://dev.api.<yourdomain>.com" }
+    },
+    "preview": {
+      "channel": "preview",
+      "env": { "EXPO_PUBLIC_API_BASE": "https://staging.api.<yourdomain>.com" }
+    },
+    "production": {
+      "channel": "production",
+      "env": { "EXPO_PUBLIC_API_BASE": "https://api.<yourdomain>.com" }
+    }
+  }
+}
