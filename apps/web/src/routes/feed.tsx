@@ -69,15 +69,7 @@ export default function FeedPage() {
 
   useEffect(() => { loadInitial(); }, [loadInitial]);
 
-  if (typeof window !== 'undefined') {
-    (window as any).__FEED_PAGE_DEBUG__ = {
-      pageCount: pages.length,
-      itemCount: items.length,
-      hasNextPage,
-      loadingMore
-    };
-    (window as any).__RQ_FETCH_NEXT = () => fetchNextPage();
-  }
+  // (Debug globals removed – tests rely solely on network + DOM now)
 
   return (
     <div>

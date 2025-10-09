@@ -39,16 +39,12 @@ test("pagination: first page then load more to end-of-feed", async ({ page }) =>
 
   await expect(page.getByText("Page1-A")).toBeVisible();
   await expect(page.getByText("Page1-B")).toBeVisible();
-  // Ensure pageCount === 1 before attempting to fetch next
-  await page.waitForFunction(() => (window as any).__FEED_PAGE_DEBUG__?.pageCount === 1);
 
-  await page.waitForFunction(() => !!(window as any).__RQ_FETCH_NEXT);
-  // Trigger next page and wait for its network response concurrently
+  // Click the real button and wait for cursor request
   await Promise.all([
     page.waitForResponse((r) => FEED_RE.test(r.url()) && r.url().includes('cursor=') && r.status() === 200),
-    page.evaluate(() => (window as any).__RQ_FETCH_NEXT())
+    page.getByRole('button', { name: /Load more/i }).click()
   ]);
-  await page.waitForFunction(() => (window as any).__FEED_PAGE_DEBUG__?.pageCount === 2);
 
   await expect(page.getByText("Page2-A")).toBeVisible();
   await expect(page.getByText("Page2-B")).toBeVisible();
