@@ -5,6 +5,15 @@
     "esModuleInterop": true,
     "allowJs": true
   },
-  "include": ["tests/**/*", "server/**/*", "shared/**/*"],
+  "include": [
+    "tests/**/*",
+    "server/test-app.ts",
+    "server/routes/feed.ts",
+    "server/storage-optimized.ts",
+    "server/storage.ts",
+    "server/db.ts",
+    "server/config/**/*",
+    "shared/**/*"
+  ],
   "exclude": ["dist-server", "node_modules"]
 }
