@@ -1,19 +1,29 @@
 import { View, Text, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getFeed } from 'shared/services/feed';
+import { useRef, useEffect } from 'react';
+import { Skeleton } from '../../src/ui/Skeleton';
 
 export default function Home() {
+  const lastUpdatedRef = useRef<number | null>(null);
   const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
     queryKey: ['feed'],
     queryFn: getFeed,
     staleTime: 30_000,
     refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (data && !isRefetching) lastUpdatedRef.current = Date.now();
+  }, [data, isRefetching]);
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-bg">
-        <ActivityIndicator />
+      <View className="flex-1 bg-bg p-4">
+        <Skeleton height={80} className="mb-3" />
+        <Skeleton height={80} className="mb-3" />
+        <Skeleton height={80} className="mb-3" />
       </View>
     );
   }
@@ -30,6 +40,14 @@ export default function Home() {
 
   return (
     <View className="flex-1 bg-bg">
+      <View className="px-4 pt-3 pb-1">
+        <Text className="text-muted text-xs">
+          Last updated{' '}
+          {lastUpdatedRef.current
+            ? new Date(lastUpdatedRef.current).toLocaleTimeString()
+            : '—'}
+        </Text>
+      </View>
       <FlatList
         data={data}
         keyExtractor={(it) => it.id}
