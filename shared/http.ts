@@ -1,11 +1,25 @@
 import { API_BASE } from 'shared-env';
 
-// Narrow RequestInit to ensure JSON body + cookie credentials always included
 export type HttpInit = Omit<RequestInit, 'body' | 'credentials'> & { body?: unknown };
 
+function composeUrl(path: string): string {
+  const isAbsoluteHttp = /^https?:\/\//i.test(path);
+  if (isAbsoluteHttp) return path;
+
+  if (API_BASE && API_BASE.trim().length > 0) {
+    return `${API_BASE.replace(/\/+$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+
+  if (path.startsWith('/')) return path; // allow same-origin absolute paths in web dev/tests
+
+  throw new Error(
+    'API_BASE is not set. Use an absolute "/api/..." path in web dev/tests or configure API_BASE.'
+  );
+}
+
 export async function http<T>(path: string, init: HttpInit = {}): Promise<T> {
-  if (!API_BASE) throw new Error('API_BASE is not set');
-  const res = await fetch(`${API_BASE}${path}`, {
+  const url = composeUrl(path);
+  const res = await fetch(url, {
     ...init,
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },

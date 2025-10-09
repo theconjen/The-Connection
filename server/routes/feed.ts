@@ -14,6 +14,12 @@ function getSessionUserId(req: any): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+// Prefer DB-backed pagination when explicitly enabled
+const USE_DB_FEED = process.env.FEED_USE_DB === 'true';
+if (!USE_DB_FEED && process.env.NODE_ENV !== 'test') {
+  console.warn('[feed] FEED_USE_DB not set, using in-memory fallback');
+}
+
 // GET /api/feed (cursor paginated; newest-first assumed by storage.getAllPosts())
 // Response shape: { items: Post[], nextCursor: string | null }
 router.get('/feed', async (req, res) => {
@@ -21,8 +27,6 @@ router.get('/feed', async (req, res) => {
     const userId = getSessionUserId(req);
     const limit = 25; // page size
     const cursor = (req.query.cursor as string | undefined) || null;
-
-    const USE_DB_FEED = process.env.FEED_USE_DB === 'true';
 
     if (USE_DB_FEED) {
       try {
