@@ -16,7 +16,11 @@
     "check:ts": "node scripts/check-ts-errors.js",
     "db:push": "drizzle-kit up",
     "migrate": "NODE_ENV=production tsx server/run-migrations.ts",
-    "test:api": "NODE_ENV=test jest --runInBand"
+    "test:api": "NODE_ENV=test jest --runInBand",
+    "mobile:start": "pnpm -C apps/mobile run start",
+    "mobile:clear": "pnpm -C apps/mobile exec expo start --dev-client --clear",
+    "web:start": "pnpm -C apps/web run dev",
+    "typecheck": "pnpm -C apps/web tsc --noEmit && pnpm -C apps/mobile tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
