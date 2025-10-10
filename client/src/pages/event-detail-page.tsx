@@ -42,37 +42,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Separator } from "../components/ui/separator";
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  eventDate: string;
-  startTime: string;
-  endTime: string;
-  location: string | null;
-  latitude: string | null;
-  longitude: string | null;
-  isPublic: boolean;
-  communityId: number | null;
-  groupId: number | null;
-  creatorId: number;
-  createdAt: Date | null;
-}
-
-interface EventRsvp {
-  id: number;
-  eventId: number;
-  userId: number;
-  status: string;
-  createdAt: Date | null;
-  user?: {
-    id: number;
-    username: string;
-    displayName: string;
-    avatarUrl: string | null;
-  };
-}
+import type { Event, EventRsvp } from '@shared/mobile-web/types';
 
 export default function EventDetailPage() {
   const [, setLocation] = useLocation();

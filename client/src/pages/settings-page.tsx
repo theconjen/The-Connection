@@ -346,6 +346,38 @@ export default function SettingsPage() {
                   <Button type="button" onClick={handleSave} disabled={loading} variant="outline">
                     {loading ? "Saving..." : "Save Changes"}
                   </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={async () => {
+                      if (!confirm('Are you sure you want to delete your account? This action will soft-delete your account and content.')) return;
+                      setLoading(true);
+                      try {
+                        const resp = await fetch('/api/me', { method: 'DELETE', credentials: 'include' });
+                        if (!resp.ok) throw new Error('Failed to delete account');
+                        // Clear client auth state and cache
+                        try {
+                          localStorage.removeItem('currentUser');
+                        } catch (e) {}
+                        queryClient.setQueryData(['/api/user'], null);
+                        queryClient.invalidateQueries();
+                        toast({ title: 'Account deleted', description: 'Your account has been deleted.' });
+                        // Navigate to login
+                        logout?.();
+                      } catch (err: any) {
+                        console.error('Delete account error', err);
+                        toast({ title: 'Error', description: err?.message || 'Failed to delete account', variant: 'destructive' });
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                  >
+                    Delete Account
+                  </Button>
+                </div>
+                <div className="mt-4 text-sm text-muted-foreground">
+                  <a href="/privacy" target="_blank" rel="noopener" className="text-primary hover:underline mr-4">Privacy Policy</a>
+                  <a href="/terms" target="_blank" rel="noopener" className="text-primary hover:underline">Terms of Service</a>
                 </div>
               </form>
             </CardContent>

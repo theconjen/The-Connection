@@ -1,0 +1,12 @@
+{
+  "app.name": "The Connection",
+  "feed.title": "Novedades",
+  "feed.empty": "Aún no hay elementos",
+  "feed.lastUpdated": "Última actualización {{time}}",
+  "feed.refresh": "Actualizar",
+  "feed.loadMore": "Cargar más",
+  "feed.end": "Fin del feed",
+  "feed.tryAgain": "Intentar de nuevo",
+  "error.generic": "Algo salió mal",
+  "error.failedToLoadFeed": "No se pudo cargar el feed"
+}

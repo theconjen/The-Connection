@@ -1,5 +1,6 @@
 import { log } from "./vite.js";
 import { runMigration as addLocalityInterests } from "./migrations/add-locality-interests";
+import { runMigration as createMvpTables } from "./migrations/0002_create_mvp_tables";
 import { isConnected } from "./db";
 
 /**
@@ -18,6 +19,13 @@ export async function runAllMigrations() {
     const localityResult = await addLocalityInterests();
     if (!localityResult) {
       log("❌ Locality and interests migration failed");
+      return false;
+    }
+
+    // Create MVP tables
+    const mvpResult = await createMvpTables();
+    if (!mvpResult) {
+      log("❌ MVP tables migration failed");
       return false;
     }
 

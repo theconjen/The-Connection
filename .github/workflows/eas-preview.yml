@@ -1,0 +1,46 @@
+name: EAS Preview Build
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+      - 'release/*'
+
+jobs:
+  eas-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Install EAS CLI
+        run: pnpm add -g eas-cli
+
+      - name: Configure Expo (login or token)
+        run: |
+          if [ -n "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "Using EXPO_TOKEN for auth"
+            echo "eas.token=${{ secrets.EXPO_TOKEN }}" > ~/.easrc
+          else
+            npx expo whoami || npx expo login -u "${{ secrets.EXPO_USERNAME }}" -p "${{ secrets.EXPO_PASSWORD }}"
+          fi
+
+      - name: Build iOS Preview
+        run: pnpm -C apps/mobile exec eas build --platform ios --profile preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_API_BASE: ${{ secrets.EXPO_PUBLIC_API_BASE }}
+          EXPO_IOS_BUNDLE_ID: ${{ secrets.EXPO_IOS_BUNDLE_ID }}
+          EXPO_ANDROID_PACKAGE: ${{ secrets.EXPO_ANDROID_PACKAGE }}

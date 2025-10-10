@@ -1,5 +1,6 @@
 import express from "express";
-import { storage } from "../storage";
+import { storage } from "../storage-optimized";
+import { sendPushNotification } from "../services/pushService";
 
 const router = express.Router();
 
@@ -38,6 +39,34 @@ router.post("/send", async (req, res) => {
       receiverId: parseInt(receiverId),
       content: content
     });
+
+    // Send push notification to the receiver
+    try {
+      // TODO: Retrieve the receiver's push token from storage
+      // const receiverUser = await storage.getUser(parseInt(receiverId));
+      // const pushToken = receiverUser?.pushToken;
+      
+      // For now, we'll just log that we would send a notification
+      // Once the push_tokens table is created, uncomment the actual implementation
+      
+      // if (pushToken) {
+      //   const sender = await storage.getUser(senderId);
+      //   const senderName = sender?.displayName || sender?.username || 'Someone';
+      //   
+      //   await sendPushNotification(
+      //     pushToken,
+      //     `New message from ${senderName}`,
+      //     content,
+      //     { type: 'dm', senderId, messageId: message.id }
+      //   );
+      //   console.log('Push notification sent to receiver');
+      // }
+      
+      console.log('Push notification would be sent here once push_tokens table is created');
+    } catch (pushError) {
+      // Don't fail the request if push notification fails
+      console.error('Error sending push notification:', pushError);
+    }
 
     res.json(message);
   } catch (error) {

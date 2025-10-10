@@ -37,7 +37,7 @@ async function seedDatabase() {
   // Add a demo user
   const demoUser = await db.insert(users).values({
     username: 'demo',
-    email: 'demo@faithconnect.com',
+    email: 'demo@theconnection.com',
     password: await hashPassword('password'),
     displayName: 'Demo User',
     bio: 'This is a demo account for testing purposes.',

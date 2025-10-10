@@ -8,30 +8,10 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Map, Users, Calendar, Pin, Info, Clock } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
+import type { Community, Event } from '@shared/mobile-web/types';
 
 // Type definitions
-type Community = {
-  id: number;
-  name: string;
-  description: string;
-  city: string | null;
-  state: string | null;
-  memberCount: number;
-  interestTags: string[] | null;
-  isLocalCommunity: boolean | null;
-  slug: string;
-};
-
-type Event = {
-  id: number;
-  title: string;
-  description: string;
-  city: string | null;
-  state: string | null;
-  eventDate: string;
-  startTime: string;
-  attendeeCount: number;
-};
+// Using shared Community and Event types
 
 export default function NearMe() {
   const { user, isLoading } = useAuth();

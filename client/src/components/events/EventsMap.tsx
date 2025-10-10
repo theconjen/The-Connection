@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Clock, MapPin } from 'lucide-react';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Event } from '@shared/mobile-web/types';
 
 // Dynamically import Leaflet components to avoid SSR issues
 const MapContainer = lazy(() => import('react-leaflet').then(mod => ({ default: mod.MapContainer })));
@@ -22,29 +23,6 @@ const customIcon = new Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 });
-
-export interface Event {
-  id: number;
-  title: string;
-  description: string;
-  eventDate: string;
-  startTime: string;
-  endTime: string;
-  location: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zipCode: string | null;
-  latitude: string | null;
-  longitude: string | null;
-  isPublic: boolean;
-  isVirtual: boolean;
-  showOnMap: boolean;
-  communityId: number | null;
-  groupId: number | null;
-  creatorId: number;
-  createdAt: Date | null;
-}
 
 // Helper function to format dates
 const formatDate = (dateStr: string) => {
@@ -81,15 +59,15 @@ export default function EventsMap({
     console.log('All events:', events);
     
     // First check for events with show on map
-    const eventsWithShowOnMap = events.filter(event => event.showOnMap === true);
+    const eventsWithShowOnMap = events.filter(event => (event as any).showOnMap === true);
     console.log('Events with showOnMap=true:', eventsWithShowOnMap);
     
     // Then filter for those with coordinates
     const eventsWithCoordinates = events.filter(event => 
-      event.latitude && 
-      event.longitude && 
-      event.showOnMap === true && 
-      event.isVirtual === false
+      (event as any).latitude && 
+      (event as any).longitude && 
+      (event as any).showOnMap === true && 
+      (event as any).isVirtual === false
     );
     console.log('Final filtered events for map:', eventsWithCoordinates);
     

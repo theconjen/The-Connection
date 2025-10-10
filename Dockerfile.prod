@@ -1,0 +1,52 @@
+### Multi-stage Dockerfile for production
+# Stage 1: builder - install deps and build client + server
+FROM node:18 AS builder
+WORKDIR /app
+
+# Avoid peer-dependency resolution failures during automated builds
+ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
+
+# Copy package manifests and install all dependencies (including dev)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy the rest of the source
+COPY . .
+
+# Build client and server artifacts
+RUN npm run build
+
+# Reinstall only production dependencies to produce a prod node_modules tree
+# This avoids running npm in the final image where peer conflicts can fail
+RUN npm ci --omit=dev
+
+# Stage 2: runtime - production image with only production deps + artifacts
+FROM node:18-slim AS runtime
+WORKDIR /app
+
+# Copy production node_modules from builder
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy package manifests so Node will respect "type": "module"
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+
+# Copy built artifacts from builder
+COPY --from=builder /app/dist-server ./dist-server
+
+# Place the built client where the server expects it: /app/dist/public
+RUN mkdir -p /app/dist/public
+COPY --from=builder /app/client/dist ./dist/public
+
+# Also copy any public static files into the same folder
+COPY --from=builder /app/public ./dist/public
+
+# Copy any server-side config or scripts that may be referenced at runtime
+COPY --from=builder /app/server ./server
+
+ENV NODE_ENV=production
+ENV PORT=5000
+EXPOSE 5000
+
+# Use the no-bundle index if present, otherwise fallback to built index
+CMD ["node", "dist-server/index.nobundle.js"]

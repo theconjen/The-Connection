@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PostCard from "../components/post-card";
+import { useBlockedUserIds } from '../hooks/use-blocked-users';
 import FeedFilters from "../components/feed-filters";
 import ApologeticsResourceCard from "../components/apologetics-resource";
 import PrivateGroupsList from "../components/private-groups-list";
@@ -19,7 +20,8 @@ export default function PostsPage({ isGuest = false }: PostsPageProps) {
   const [filter, setFilter] = useState<string>("popular");
   const [page, setPage] = useState(1);
   const isMobile = useMediaQuery("(max-width: 768px)");
-  
+  const { blockedIds } = useBlockedUserIds();
+
   const { data: posts, isLoading, isFetching } = useQuery<(Post & { author?: User; community?: Community })[]>({
     queryKey: ["/api/posts", { filter, page }],
   });
@@ -69,13 +71,15 @@ export default function PostsPage({ isGuest = false }: PostsPageProps) {
             ))
           ) : (
             <>
-              {posts && posts.map((post, index) => (
-                <PostCard 
-                  key={post.id} 
-                  post={post} 
-                  featured={index === 0 && page === 1} 
-                />
-              ))}
+                  {posts && posts
+                    .filter(p => !blockedIds.includes(p.author?.id || 0))
+                    .map((post, index) => (
+                      <PostCard 
+                        key={post.id} 
+                        post={post} 
+                        featured={index === 0 && page === 1} 
+                      />
+                    ))}
 
               {posts && posts.length === 0 && (
                 <div className="bg-white rounded-xl shadow-sm border border-neutral-200 mb-6 p-10 text-center">

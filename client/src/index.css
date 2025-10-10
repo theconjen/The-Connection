@@ -40,16 +40,19 @@
 
 .dark {
   /* Deep Navy background (Dark Mode/Contrast) */
-  --background: 225 40% 8%;
-  --foreground: 225 10% 95%; 
-  --muted: 225 30% 15%;
-  --muted-foreground: 225 10% 65%;
-  --popover: 225 40% 8%;
-  --popover-foreground: 225 10% 95%;
-  --card: 225 35% 12%;
-  --card-foreground: 225 10% 95%;
-  --border: 225 30% 20%;
-  --input: 225 30% 20%;
+  --background: 225 38% 7%;
+  --foreground: 225 10% 98%;
+  /* slightly lighter muted/background tones so cards don't feel crushed */
+  --muted: 225 28% 16%;
+  --muted-foreground: 225 10% 85%;
+  --popover: 225 38% 9%;
+  --popover-foreground: 225 10% 98%;
+  /* lighten cards a touch so boxed content reads better */
+  --card: 225 30% 16%;
+  --card-foreground: 225 10% 98%;
+  /* softer border so it reads against the lighter card */
+  --border: 225 26% 26%;
+  --input: 225 26% 26%;
   
   /* Brighter Navy for dark mode */
   --primary: 225 70% 25%;
@@ -378,6 +381,33 @@
   
   ::-webkit-scrollbar-thumb {
     @apply bg-primary/30 rounded-full hover:bg-primary/50 transition-colors;
+  }
+}
+
+/* Dark mode enhancement: slightly stronger shadows and softer card backgrounds */
+/* Scoped helper classes for improved card contrast & depth are applied in the @layer base block below */
+
+@layer base {
+  /* Dark-mode card shadows */
+  .dark .card-hover {
+    box-shadow: 0 6px 20px rgba(4, 13, 30, 0.5);
+    border-color: color-mix(in srgb, hsl(var(--border)) 60%, transparent);
+  }
+
+  .dark .mobile-modern-card,
+  .dark .card,
+  .dark .card-header,
+  .dark .mobile-nav-modern {
+    box-shadow: 0 8px 30px rgba(2, 8, 20, 0.45);
+    border: 1px solid hsl(var(--border));
+    background: linear-gradient(180deg, hsl(var(--card)) 0%, color-mix(in srgb, hsl(var(--card)) 90%, black 5%) 100%);
+    color: hsl(var(--card-foreground));
+  }
+
+  /* Ensure muted text is readable in dark mode */
+  .dark .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
+    opacity: 0.95;
   }
 }
 

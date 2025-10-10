@@ -1,0 +1,1 @@
+export { DbStorage } from './storage';

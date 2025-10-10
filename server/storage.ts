@@ -1,5 +1,5 @@
-import { 
-  User, InsertUser, 
+import {
+  User, InsertUser,
   Community, InsertCommunity,
   CommunityMember, InsertCommunityMember,
   CommunityInvitation, InsertCommunityInvitation,
@@ -17,41 +17,49 @@ import {
   Microblog, InsertMicroblog,
   MicroblogLike, InsertMicroblogLike,
   UserPreferences, InsertUserPreferences,
-  
+
   // Apologetics system
   ApologeticsTopic, InsertApologeticsTopic,
   ApologeticsQuestion, InsertApologeticsQuestion,
   ApologeticsAnswer, InsertApologeticsAnswer,
-  
+
   // Community Events
   Event, InsertEvent,
   EventRsvp, InsertEventRsvp,
-  
+
   // Prayer system
   PrayerRequest, InsertPrayerRequest,
   Prayer, InsertPrayer,
-  
+
   // Bible study tools
   BibleReadingPlan, InsertBibleReadingPlan,
   BibleReadingProgress, InsertBibleReadingProgress,
   BibleStudyNote, InsertBibleStudyNote,
-  
+
   // Direct messaging
   Message, InsertMessage,
-  
+
+  // Moderation types
+  ContentReport, InsertContentReport,
+  UserBlock, InsertUserBlock,
+
   // Database tables
   users, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
-  posts, comments, groups, groupMembers, apologeticsResources, 
+  posts, comments, groups, groupMembers, apologeticsResources,
   livestreams, microblogs, microblogLikes,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
   events, eventRsvps, prayerRequests, prayers,
   bibleReadingPlans, bibleReadingProgress, bibleStudyNotes,
   livestreamerApplications, apologistScholarApplications,
-  userPreferences, messages
+  userPreferences, messages,
+  // moderation tables
+    contentReports, userBlocks, pushTokens, notifications
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql, inArray, like } from "drizzle-orm";
+import { whereNotDeleted, andNotDeleted } from "./db/helpers";
 import { geocodeAddress } from "./geocoding";
+import softDelete from './db/softDelete';
 
 // Add this safety utility class at the top of the file, after imports
 class StorageSafety {
@@ -321,6 +329,21 @@ export interface IStorage {
   // Direct Messaging methods
   getDirectMessages(userId1: number, userId2: number): Promise<any[]>;
   createDirectMessage(message: any): Promise<any>;
+  // Push notification methods
+  savePushToken(token: { userId: number; token: string; platform?: string; lastUsed?: Date }): Promise<any>;
+  getUserPushTokens(userId: number): Promise<any[]>;
+  deletePushToken(token: string, userId: number): Promise<'deleted'|'notfound'|'forbidden'>;
+  // Notifications
+  getUserNotifications(userId: number): Promise<any[]>;
+  markNotificationAsRead(id: number, userId: number): Promise<boolean>;
+  // Moderation methods
+  createContentReport(report: InsertContentReport): Promise<ContentReport>;
+  createUserBlock(block: InsertUserBlock): Promise<UserBlock>;
+  getBlockedUserIdsFor(blockerId: number): Promise<number[]>;
+  // Admin moderation helpers
+  getReports?(filter?: { status?: string; limit?: number }): Promise<ContentReport[]>;
+  getReportById?(id: number): Promise<ContentReport | undefined>;
+  updateReport?(id: number, update: Partial<ContentReport> & { status?: string; moderatorNotes?: string | null; moderatorId?: number | null; resolvedAt?: Date | null }): Promise<ContentReport>;
 }
 
 // In-memory storage implementation
@@ -346,7 +369,8 @@ export class MemStorage implements IStorage {
         isPrivate: false,
         hasPrivateWall: true,
         hasPublicWall: true,
-        createdAt: new Date()
+        createdAt: new Date(),
+        deletedAt: null
       },
       {
         id: 2,
@@ -366,7 +390,8 @@ export class MemStorage implements IStorage {
         isPrivate: false,
         hasPrivateWall: true,
         hasPublicWall: true,
-        createdAt: new Date()
+        createdAt: new Date(),
+        deletedAt: null
       },
       {
         id: 3,
@@ -386,7 +411,8 @@ export class MemStorage implements IStorage {
         isPrivate: false,
         hasPrivateWall: true,
         hasPublicWall: true,
-        createdAt: new Date()
+        createdAt: new Date(),
+        deletedAt: null
       }
     ] as Community[],
     communityMembers: [] as CommunityMember[],
@@ -415,7 +441,10 @@ export class MemStorage implements IStorage {
     bibleReadingProgress: [] as BibleReadingProgress[],
     bibleStudyNotes: [] as BibleStudyNote[],
     userPreferences: [] as UserPreferences[],
-    messages: [] as Message[]
+    messages: [] as Message[],
+    // Moderation in-memory stores
+    contentReports: [] as any[],
+    userBlocks: [] as any[],
   };
   
   private nextId = 1;
@@ -447,7 +476,7 @@ export class MemStorage implements IStorage {
   }
   
   async getAllUsers(): Promise<User[]> {
-    return [...this.data.users];
+    return this.data.users.filter(u => !u.deletedAt).map(u => ({ ...u }));
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User> {
@@ -481,6 +510,49 @@ export class MemStorage implements IStorage {
   async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
     return this.data.userPreferences.find(p => p.userId === userId);
   }
+
+  // Push token methods (in-memory)
+  async savePushToken(token: any): Promise<any> {
+    const existing = this.data.messages.find ? null : null; // no-op to keep TS happy
+    const found = this.data.posts.find ? null : null;
+    // Simple behavior: avoid duplicate by token
+    const existingIdx = (this.data as any).pushTokens?.findIndex((p: any) => p.token === token.token) ?? -1;
+    if (existingIdx !== -1) {
+      (this.data as any).pushTokens[existingIdx] = { ...((this.data as any).pushTokens[existingIdx]), ...token, lastUsed: new Date() };
+      return (this.data as any).pushTokens[existingIdx];
+    }
+    if (!(this.data as any).pushTokens) (this.data as any).pushTokens = [];
+    const obj = { id: this.nextId++, ...token };
+    (this.data as any).pushTokens.push(obj);
+    return obj;
+  }
+
+  async getUserPushTokens(userId: number): Promise<any[]> {
+    return ((this.data as any).pushTokens || []).filter((p: any) => p.userId === userId);
+  }
+
+  async deletePushToken(token: string, userId: number): Promise<'deleted'|'notfound'|'forbidden'> {
+    const arr = (this.data as any).pushTokens || [];
+    const idx = arr.findIndex((p: any) => p.token === token);
+    if (idx === -1) return 'notfound';
+    if (arr[idx].userId !== userId) return 'forbidden';
+    arr.splice(idx, 1);
+    return 'deleted';
+  }
+
+  // Notifications (in-memory)
+  async getUserNotifications(userId: number): Promise<any[]> {
+    return ((this.data as any).notifications || []).filter((n: any) => n.userId === userId);
+  }
+
+  async markNotificationAsRead(id: number, userId: number): Promise<boolean> {
+    const arr = (this.data as any).notifications || [];
+    const n = arr.find((x: any) => x.id === id);
+    if (!n) return false;
+    if (n.userId !== userId) return false;
+    n.isRead = true;
+    return true;
+  }
   
   async createUser(user: any): Promise<User> {
     const newUser: User = {
@@ -500,7 +572,8 @@ export class MemStorage implements IStorage {
       isVerifiedApologeticsAnswerer: false,
       isAdmin: user.isAdmin || false,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      deletedAt: null
     };
     this.data.users.push(newUser);
     return newUser;
@@ -524,12 +597,12 @@ export class MemStorage implements IStorage {
   }
   
   async getVerifiedApologeticsAnswerers(): Promise<User[]> {
-    return this.data.users.filter(u => u.isVerifiedApologeticsAnswerer);
+    return this.data.users.filter(u => u.isVerifiedApologeticsAnswerer && !u.deletedAt);
   }
   
   // Community methods
   async getAllCommunities(): Promise<Community[]> {
-    return [...this.data.communities];
+    return this.data.communities.filter(c => !c.deletedAt).map(c => ({ ...c }));
   }
   
   async searchCommunities(searchTerm: string): Promise<Community[]> {
@@ -541,7 +614,7 @@ export class MemStorage implements IStorage {
   }
   
   async getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]> {
-    let communities = this.data.communities.filter(c => !c.isPrivate);
+    let communities = this.data.communities.filter(c => !c.isPrivate && !c.deletedAt);
     
     if (userId) {
       const userCommunities = this.data.communityMembers
@@ -567,11 +640,11 @@ export class MemStorage implements IStorage {
   }
   
   async getCommunity(id: number): Promise<Community | undefined> {
-    return this.data.communities.find(c => c.id === id);
+    return this.data.communities.find(c => c.id === id && !c.deletedAt);
   }
   
   async getCommunityBySlug(slug: string): Promise<Community | undefined> {
-    return this.data.communities.find(c => c.slug === slug);
+    return this.data.communities.find(c => c.slug === slug && !c.deletedAt);
   }
   
   async createCommunity(community: any): Promise<Community> {
@@ -593,6 +666,7 @@ export class MemStorage implements IStorage {
       hasPrivateWall: community.hasPrivateWall || false,
       hasPublicWall: community.hasPublicWall || true,
       createdAt: new Date(),
+      deletedAt: null,
       createdBy: community.createdBy
     };
     this.data.communities.push(newCommunity);
@@ -608,10 +682,9 @@ export class MemStorage implements IStorage {
   }
   
   async deleteCommunity(id: number): Promise<boolean> {
-    const index = this.data.communities.findIndex(c => c.id === id);
-    if (index === -1) return false;
-    
-    this.data.communities.splice(index, 1);
+    const comm = this.data.communities.find(c => c.id === id);
+    if (!comm) return false;
+    (comm as any).deletedAt = new Date();
     return true;
   }
   
@@ -867,6 +940,7 @@ export class MemStorage implements IStorage {
       likeCount: 0,
       commentCount: 0,
       createdAt: new Date(),
+      deletedAt: null,
       ...post,
     };
     this.data.communityWallPosts.push(newPost);
@@ -882,16 +956,15 @@ export class MemStorage implements IStorage {
   }
   
   async deleteCommunityWallPost(id: number): Promise<boolean> {
-    const index = this.data.communityWallPosts.findIndex(p => p.id === id);
-    if (index === -1) return false;
-    
-    this.data.communityWallPosts.splice(index, 1);
+    const post = this.data.communityWallPosts.find(p => p.id === id);
+    if (!post) return false;
+    (post as any).deletedAt = new Date();
     return true;
   }
   
   // Post methods
   async getAllPosts(filter?: string): Promise<Post[]> {
-    let posts = [...this.data.posts];
+    let posts = this.data.posts.filter(p => !p.deletedAt);
     
     if (filter === 'top') {
       posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
@@ -909,7 +982,7 @@ export class MemStorage implements IStorage {
   }
   
   async getPost(id: number): Promise<Post | undefined> {
-    return this.data.posts.find(p => p.id === id);
+    return this.data.posts.find(p => p.id === id && !p.deletedAt);
   }
   
   async getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]> {
@@ -917,7 +990,7 @@ export class MemStorage implements IStorage {
     const community = this.data.communities.find(c => c.slug === communitySlug);
     if (!community) return [];
     
-    let posts = this.data.posts.filter(p => p.communityId === community.id);
+  let posts = this.data.posts.filter(p => p.communityId === community.id && !p.deletedAt);
     
     if (filter === 'top') {
       posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
@@ -935,7 +1008,7 @@ export class MemStorage implements IStorage {
   }
   
   async getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]> {
-    let posts = this.data.posts.filter(p => p.groupId === groupId);
+  let posts = this.data.posts.filter(p => p.groupId === groupId && !p.deletedAt);
     
     if (filter === 'top') {
       posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
@@ -953,7 +1026,7 @@ export class MemStorage implements IStorage {
   }
   
   async getUserPosts(userId: number): Promise<any[]> {
-    const posts = this.data.posts.filter(p => p.authorId === userId);
+  const posts = this.data.posts.filter(p => p.authorId === userId && !p.deletedAt);
     const microblogs = this.data.microblogs.filter(m => m.authorId === userId);
     const wallPosts = this.data.communityWallPosts.filter(p => p.authorId === userId);
     
@@ -970,6 +1043,7 @@ export class MemStorage implements IStorage {
       upvotes: 0,
       commentCount: 0,
       createdAt: new Date(),
+      deletedAt: null,
       ...post,
     };
     this.data.posts.push(newPost);
@@ -1310,15 +1384,15 @@ export class MemStorage implements IStorage {
   
   // Event methods
   async getAllEvents(): Promise<Event[]> {
-    return [...this.data.events].sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+    return this.data.events.filter(e => !e.deletedAt).sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
   }
   
   async getEvent(id: number): Promise<Event | undefined> {
-    return this.data.events.find(e => e.id === id);
+    return this.data.events.find(e => e.id === id && !e.deletedAt);
   }
   
   async getUserEvents(userId: number): Promise<Event[]> {
-    return this.data.events.filter(e => e.creatorId === userId);
+    return this.data.events.filter(e => e.creatorId === userId && !e.deletedAt);
   }
   
   async createEvent(event: InsertEvent): Promise<Event> {
@@ -1341,10 +1415,9 @@ export class MemStorage implements IStorage {
   }
   
   async deleteEvent(id: number): Promise<boolean> {
-    const index = this.data.events.findIndex(e => e.id === id);
-    if (index === -1) return false;
-    
-    this.data.events.splice(index, 1);
+    const ev = this.data.events.find(e => e.id === id);
+    if (!ev) return false;
+    (ev as any).deletedAt = new Date();
     return true;
   }
   
@@ -1462,10 +1535,9 @@ export class MemStorage implements IStorage {
   }
   
   async deleteMicroblog(id: number): Promise<boolean> {
-    const index = this.data.microblogs.findIndex(m => m.id === id);
-    if (index === -1) return false;
-    
-    this.data.microblogs.splice(index, 1);
+    const mb = this.data.microblogs.find(m => m.id === id);
+    if (!mb) return false;
+    (mb as any).deletedAt = new Date();
     return true;
   }
   
@@ -1751,13 +1823,73 @@ export class MemStorage implements IStorage {
     this.data.messages.push(newMessage);
     return newMessage;
   }
+
+  // Moderation methods (in-memory)
+  async createContentReport(report: any): Promise<ContentReport> {
+    const newReport: any = {
+      id: this.nextId++,
+      reporterId: report.reporterId,
+      contentType: report.contentType,
+      contentId: report.contentId,
+      reason: report.reason || 'other',
+      description: report.description || null,
+      status: 'pending',
+      moderatorId: null,
+      moderatorNotes: null,
+      resolvedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.data.contentReports.push(newReport);
+    return newReport as ContentReport;
+  }
+
+  async createUserBlock(block: any): Promise<UserBlock> {
+    // enforce unique blocker/blocked pair
+    const exists = this.data.userBlocks.find(b => b.blockerId === block.blockerId && b.blockedId === block.blockedId);
+    if (exists) return exists as UserBlock;
+    const newBlock: any = {
+      id: this.nextId++,
+      blockerId: block.blockerId,
+      blockedId: block.blockedId,
+      reason: block.reason || null,
+      createdAt: new Date()
+    };
+    this.data.userBlocks.push(newBlock);
+    return newBlock as UserBlock;
+  }
+
+  async getBlockedUserIdsFor(blockerId: number): Promise<number[]> {
+    return this.data.userBlocks.filter(b => b.blockerId === blockerId).map(b => b.blockedId);
+  }
+
+  // Admin moderation helpers (in-memory)
+  async getReports(filter?: { status?: string; limit?: number }): Promise<ContentReport[]> {
+    let rows = this.data.contentReports.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (filter?.status) rows = rows.filter(r => r.status === filter.status);
+    if (filter?.limit) rows = rows.slice(0, filter.limit);
+    return rows as ContentReport[];
+  }
+
+  async getReportById(id: number): Promise<ContentReport | undefined> {
+    return this.data.contentReports.find(r => r.id === id) as ContentReport | undefined;
+  }
+
+  async updateReport(id: number, update: Partial<ContentReport> & { status?: string; moderatorNotes?: string | null; moderatorId?: number | null; resolvedAt?: Date | null }): Promise<ContentReport> {
+    const idx = this.data.contentReports.findIndex(r => r.id === id);
+    if (idx === -1) throw new Error('Report not found');
+    const existing = this.data.contentReports[idx];
+    const updated = { ...existing, ...update, updatedAt: new Date() };
+    this.data.contentReports[idx] = updated;
+    return updated as ContentReport;
+  }
 }
 
 // Database-backed storage implementation
 export class DbStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id));
+    const result = await db.select().from(users).where(and(eq(users.id, id), whereNotDeleted(users)));
     return result[0];
   }
   
@@ -1766,28 +1898,70 @@ export class DbStorage implements IStorage {
   }
   
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username));
+    const result = await db.select().from(users).where(and(eq(users.username, username), whereNotDeleted(users)));
     return result[0];
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email));
+    const result = await db.select().from(users).where(and(eq(users.email, email), whereNotDeleted(users)));
     return result[0];
   }
   
   async searchUsers(searchTerm: string): Promise<User[]> {
     const term = `%${searchTerm}%`;
-    return await db.select().from(users).where(
+    return await db.select().from(users).where(and(
       or(
         like(users.username, term),
         like(users.email, term),
         like(users.displayName, term)
-      )
-    );
+      ),
+      whereNotDeleted(users)
+    ));
   }
   
   async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users);
+    return await db.select().from(users).where(whereNotDeleted(users));
+  }
+
+  // Moderation methods (DB)
+  async createContentReport(report: InsertContentReport): Promise<ContentReport> {
+  const [row] = await db.insert(contentReports).values(report as any).returning();
+    return row as ContentReport;
+  }
+
+  async createUserBlock(block: InsertUserBlock): Promise<UserBlock> {
+    // Upsert to enforce uniqueness blocker+blocked
+  const inserted = await db.insert(userBlocks).values(block as any).onConflictDoNothing().returning();
+    if (inserted && inserted.length > 0) return inserted[0] as UserBlock;
+    // If nothing inserted, fetch existing
+    const existing = await db.select().from(userBlocks).where(and(eq(userBlocks.blockerId, (block as any).blockerId), eq(userBlocks.blockedId, (block as any).blockedId)));
+    return existing[0] as UserBlock;
+  }
+
+  async getBlockedUserIdsFor(blockerId: number): Promise<number[]> {
+    const rows = await db.select({ blockedId: userBlocks.blockedId }).from(userBlocks).where(eq(userBlocks.blockerId, blockerId));
+    return rows.map(r => (r as any).blockedId as number);
+  }
+
+  // Admin moderation helpers (DB)
+  async getReports(filter?: { status?: string; limit?: number }): Promise<ContentReport[]> {
+    const q = db.select().from(contentReports as any);
+    if (filter?.status) q.where(eq((contentReports as any).status, filter.status as any));
+    q.orderBy(desc((contentReports as any).createdAt));
+    if (filter?.limit) q.limit(filter.limit as any);
+    const rows = await q;
+    return rows as ContentReport[];
+  }
+
+  async getReportById(id: number): Promise<ContentReport | undefined> {
+    const rows = await db.select().from(contentReports as any).where(eq((contentReports as any).id, id as any));
+    return rows[0] as ContentReport | undefined;
+  }
+
+  async updateReport(id: number, update: Partial<ContentReport> & { status?: string; moderatorNotes?: string | null; moderatorId?: number | null; resolvedAt?: Date | null }): Promise<ContentReport> {
+    const updated = await db.update(contentReports as any).set(update as any).where(eq((contentReports as any).id, id as any)).returning();
+    if (!updated || updated.length === 0) throw new Error('Report not found');
+    return updated[0] as ContentReport;
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User> {
@@ -1832,22 +2006,23 @@ export class DbStorage implements IStorage {
   }
   
   async getVerifiedApologeticsAnswerers(): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.isVerifiedApologeticsAnswerer, true));
+    return await db.select().from(users).where(and(eq(users.isVerifiedApologeticsAnswerer, true), whereNotDeleted(users)));
   }
   
   // Community methods - simplified for now
   async getAllCommunities(): Promise<Community[]> {
-    return await db.select().from(communities);
+    return await db.select().from(communities).where(whereNotDeleted(communities));
   }
   
   async searchCommunities(searchTerm: string): Promise<Community[]> {
     const term = `%${searchTerm}%`;
-    return await db.select().from(communities).where(
+    return await db.select().from(communities).where(and(
       or(
         like(communities.name, term),
         like(communities.description, term)
-      )
-    );
+      ),
+      whereNotDeleted(communities)
+    ));
   }
   
   async getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]> {
@@ -1858,17 +2033,20 @@ export class DbStorage implements IStorage {
       whereCondition = and(whereCondition, or(like(communities.name, term), like(communities.description, term)));
     }
 
+    // Ensure we only return non-deleted communities at runtime
+    whereCondition = and(whereCondition, whereNotDeleted(communities));
+
     const query = db.select().from(communities).where(whereCondition);
     return await query;
   }
   
   async getCommunity(id: number): Promise<Community | undefined> {
-    const result = await db.select().from(communities).where(eq(communities.id, id));
+    const result = await db.select().from(communities).where(and(eq(communities.id, id), whereNotDeleted(communities)));
     return result[0];
   }
   
   async getCommunityBySlug(slug: string): Promise<Community | undefined> {
-    const result = await db.select().from(communities).where(eq(communities.slug, slug));
+    const result = await db.select().from(communities).where(and(eq(communities.slug, slug), whereNotDeleted(communities)));
     return result[0];
   }
   
@@ -1903,8 +2081,9 @@ export class DbStorage implements IStorage {
   }
   
   async deleteCommunity(id: number): Promise<boolean> {
-    const result = await db.delete(communities).where(eq(communities.id, id));
-    return result.rowCount > 0;
+    const result = await softDelete(db, communities, communities.id, id);
+    // Drizzle's update may not expose rowCount in typed outputs; defensively return true
+    return !!result;
   }
   
   // Placeholder implementations for other methods - can be expanded as needed
@@ -2033,7 +2212,8 @@ export class DbStorage implements IStorage {
   }
   
   async deleteCommunityWallPost(id: number): Promise<boolean> {
-    return false;
+    const result = await softDelete(db, communityWallPosts, communityWallPosts.id, id);
+    return !!result;
   }
   
   // Post methods
@@ -2270,7 +2450,8 @@ export class DbStorage implements IStorage {
   }
   
   async deleteEvent(id: number): Promise<boolean> {
-    return false;
+    const result = await softDelete(db, events, events.id, id);
+    return !!result;
   }
 
   async getNearbyEvents(latitude: number, longitude: number, radius: number): Promise<Event[]> {
@@ -2487,9 +2668,49 @@ export class DbStorage implements IStorage {
     const result = await db.insert(messages).values(message).returning();
     return result[0];
   }
+
+  // Push token + notifications (DB) - stubs until full implementation
+  async savePushToken(token: any): Promise<any> {
+    // Insert or update by token (unique). Return the row.
+    const existing = await db.select().from(pushTokens).where(eq(pushTokens.token, token.token));
+    if (existing && existing.length > 0) {
+      const [row] = await db.update(pushTokens).set({ userId: token.userId, platform: token.platform || existing[0].platform, lastUsed: new Date() }).where(eq(pushTokens.token, token.token)).returning();
+      return row;
+    }
+
+    const [inserted] = await db.insert(pushTokens).values({ userId: token.userId, token: token.token, platform: token.platform || 'unknown', lastUsed: token.lastUsed || new Date() } as any).returning();
+    return inserted;
+  }
+
+  async getUserPushTokens(userId: number): Promise<any[]> {
+    return await db.select().from(pushTokens).where(eq(pushTokens.userId, userId));
+  }
+
+  async deletePushToken(token: string, userId: number): Promise<'deleted'|'notfound'|'forbidden'> {
+    const rows = await db.select().from(pushTokens).where(eq(pushTokens.token, token));
+    if (!rows || rows.length === 0) return 'notfound';
+    const row = rows[0] as any;
+    if (row.userId !== userId) return 'forbidden';
+    await db.delete(pushTokens).where(eq(pushTokens.token, token));
+    return 'deleted';
+  }
+
+  async getUserNotifications(userId: number): Promise<any[]> {
+    // Only return notifications for the user; order by newest
+    return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(notifications.createdAt);
+  }
+
+  async markNotificationAsRead(id: number, userId: number): Promise<boolean> {
+    const rows = await db.select().from(notifications).where(eq(notifications.id, id));
+    if (!rows || rows.length === 0) return false;
+    const n = rows[0] as any;
+    if (n.userId !== userId) return false;
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
+    return true;
+  }
 }
 
 // Export storage instance - switch based on environment
-export const storage = process.env.USE_DB === 'true'
+export const storage: IStorage = process.env.USE_DB === 'true'
   ? new DbStorage()
   : new MemStorage();

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { isAdmin } from '../auth';
-import { storage } from '../storage';
+import { storage } from '../storage-optimized';
 
 const router = Router();
 

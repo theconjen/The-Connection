@@ -1,0 +1,12 @@
+{
+  "app.name": "The Connection",
+  "feed.title": "Feed",
+  "feed.empty": "No items yet",
+  "feed.lastUpdated": "Last updated {{time}}",
+  "feed.refresh": "Refresh",
+  "feed.loadMore": "Load more",
+  "feed.end": "End of feed",
+  "feed.tryAgain": "Try again",
+  "error.generic": "Something went wrong",
+  "error.failedToLoadFeed": "Failed to load feed"
+}

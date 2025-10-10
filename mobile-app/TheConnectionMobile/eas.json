@@ -1,0 +1,15 @@
+{
+  "cli": { "version": ">= 11.0.0" },
+  "build": {
+    "production": {
+      "channel": "production",
+      "env": { "EXPO_PUBLIC_API_BASE": "https://YOUR_PUBLIC_API/api" },
+      "ios": { "resourceClass": "m-medium" }
+    },
+    "preview": {
+      "channel": "preview",
+      "developmentClient": true
+    }
+  },
+  "submit": { "production": {} }
+}

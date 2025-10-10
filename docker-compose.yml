@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  the-connection:
+    build: .
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      # Set your DATABASE_URL in a .env file or override here
+    ports:
+      - "5000:5000"
+    command: ["node", "dist-server/index.js"]
