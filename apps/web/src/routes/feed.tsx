@@ -28,7 +28,6 @@ export default function FeedPage() {
   const hasNextPage = nextCursor != null;
 
   const loadInitial = useCallback(async () => {
-    if (typeof window !== 'undefined') console.debug('[FeedPage] loadInitial');
     setInitialLoading(true);
     setInitialError(null);
     try {
@@ -58,7 +57,6 @@ export default function FeedPage() {
 
   const fetchNextPage = useCallback(async () => {
     if (!hasNextPage || loadingMore) return;
-    if (typeof window !== 'undefined') console.debug('[FeedPage] fetchNextPage', { nextCursor });
     setLoadingMore(true);
     setLoadMoreError(null);
     try {
@@ -74,7 +72,7 @@ export default function FeedPage() {
 
   useEffect(() => { loadInitial(); }, [loadInitial]);
 
-  // (Debug globals removed – tests rely solely on network + DOM now)
+  // tests rely solely on network stubs + DOM now
 
   return (
     <div>
