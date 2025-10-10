@@ -67,3 +67,7 @@ Uses PostgreSQL with Drizzle ORM. Run `npm run db:push` to apply schema changes.
 ## Development
 
 The application serves both frontend and backend on the same port using Vite's development server.
+
+### Testing
+
+- Web E2E tests are documented in `apps/web/TESTING.md` (use test IDs only; install the fetch stub before navigation; tests run with a blank API base).
