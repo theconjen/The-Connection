@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import FeedPage from "./routes/feed";
+import SettingsPage from "./routes/settings";
 
 export default function App() {
   return (
@@ -8,13 +9,15 @@ export default function App() {
         <header className="p-4 border-b border-border flex items-center justify-between">
           <div className="font-semibold">Web App</div>
           <nav className="text-sm">
-            <Link to="/feed" className="hover:underline">Feed</Link>
+            <Link to="/feed" className="hover:underline">Feed</Link> | 
+            <Link to="/settings" className="hover:underline">Settings</Link>
           </nav>
         </header>
         <main className="p-4">
           <Routes>
             <Route path="/" element={<Navigate to="/feed" replace />} />
             <Route path="/feed" element={<FeedPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<div className="text-danger">Not found</div>} />
           </Routes>
         </main>

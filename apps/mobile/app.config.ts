@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 export default ({ config }) => ({
   ...config,
+  platforms: ['ios', 'android'], // disable web builds
   name: 'The Connection',
   slug: 'the-connection',
   version: '1.0.0',

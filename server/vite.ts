@@ -2,7 +2,8 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { type Server } from "http";
-import { fileURLToPath } from "url";
+import { pathToFileURL } from "url";
+import { createRequire } from "module";
 import { nanoid } from "nanoid";
 
 export function log(message: string, source = "express") {
@@ -17,6 +18,10 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
+  const require = createRequire(import.meta.url);
+  const webRoot = path.resolve(process.cwd(), "apps/web");
+  const configFile = path.resolve(webRoot, "vite.config.ts");
+
   // Use `any` to avoid strict ServerOptions typing mismatches across vite versions
   const serverOptions: any = {
     middlewareMode: true,
@@ -32,9 +37,13 @@ export async function setupVite(app: Express, server: Server) {
   let createViteServer: any;
   let createLogger: any;
   try {
-    const viteModule: any = await import("vite");
-    createViteServer = viteModule.createServer || viteModule.createServer;
-    createLogger = viteModule.createLogger || viteModule.createLogger;
+    const viteModulePath = require.resolve("vite", { paths: [webRoot] });
+    const viteModule: any = await import(pathToFileURL(viteModulePath).href);
+    createViteServer = viteModule.createServer ?? viteModule.default?.createServer;
+    createLogger = viteModule.createLogger ?? viteModule.default?.createLogger;
+    if (!createViteServer || !createLogger) {
+      throw new Error("Failed to load Vite createServer/createLogger exports");
+    }
   } catch (e) {
     // If vite isn't available, log and skip Vite setup rather than crashing the process.
     console.warn("Vite not found; skipping development middleware.", e);
@@ -43,25 +52,9 @@ export async function setupVite(app: Express, server: Server) {
 
   const viteLogger = createLogger();
 
-  // Dynamically import vite.config only in development. Static import causes
-  // Node to attempt resolving vite.config.ts in production which may not exist
-  // (and isn't needed).
-  let viteConfig: any = {};
-  if (isDev) {
-    try {
-      // Import the vite config dynamically; cast to any to avoid missing 'default' on the fallback {}
-      const maybeConfig: any = await import("../vite.config.js").catch(() =>
-        import("../vite.config.ts").catch(() => ({}))
-      );
-      viteConfig = (maybeConfig && maybeConfig.default) || maybeConfig || {};
-    } catch (e) {
-      viteConfig = {};
-    }
-  }
-
   const vite = await createViteServer({
-    ...viteConfig,
-    configFile: false,
+    root: webRoot,
+    configFile,
     customLogger: {
       ...viteLogger,
       error: (msg: any, options: any) => {
@@ -78,12 +71,7 @@ export async function setupVite(app: Express, server: Server) {
     const url = req.originalUrl;
 
     try {
-      const clientTemplate = path.resolve(
-        path.dirname(fileURLToPath(import.meta.url)),
-        "..",
-        "client",
-        "index.html",
-      );
+      const clientTemplate = path.resolve(webRoot, "index.html");
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
@@ -101,11 +89,16 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(process.cwd(), "dist/public");
+  const candidates = [
+    path.resolve(process.cwd(), "apps/web/dist"),
+    path.resolve(process.cwd(), "dist/public"),
+  ];
 
-  if (!fs.existsSync(distPath)) {
+  const distPath = candidates.find((p) => fs.existsSync(p));
+
+  if (!distPath) {
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `Could not find the build directory. Checked: ${candidates.join(", ")}. Build the client first.`,
     );
   }
 

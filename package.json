@@ -17,7 +17,7 @@
     "db:push": "drizzle-kit up",
     "migrate": "NODE_ENV=production tsx server/run-migrations.ts",
     "test:api": "NODE_ENV=test jest --runInBand",
-    "mobile:start": "pnpm -C apps/mobile run start",
+    "mobile:start": "npx dotenv -e .env pnpm -C apps/mobile run start",
     "mobile:clear": "pnpm -C apps/mobile exec expo start --dev-client --clear",
     "web:start": "pnpm -C apps/web run dev",
     "typecheck": "pnpm -C apps/web tsc --noEmit && pnpm -C apps/mobile tsc --noEmit"
@@ -27,6 +27,7 @@
     "@aws-sdk/client-ses": "^3.808.0",
     "@capacitor/cli": "^7.4.0",
     "@capacitor/core": "^7.4.0",
+    "@capacitor/share": "^7.0.2",
     "@google-cloud/storage": "^7.16.0",
     "@hookform/resolvers": "^3.10.0",
     "@neondatabase/serverless": "^0.10.4",

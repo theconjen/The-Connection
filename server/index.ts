@@ -21,6 +21,12 @@ import { createServer } from "http";
 dotenv.config();
 
 const app = express();
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction) {
+  const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 1);
+  app.set("trust proxy", trustProxyHops);
+}
 const httpServer = createServer(app);
 
 // Session store: use Postgres-backed store only when USE_DB=true; otherwise
@@ -33,9 +39,12 @@ let sessionOptions: any = {
   name: 'sessionId', // Explicit session name
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    secure: false, // Disable secure for development
+    secure: isProduction,
     httpOnly: true,
-    sameSite: 'lax' // Allow cross-origin requests in development
+    sameSite: isProduction ? 'none' : 'lax',
+    ...(process.env.SESSION_COOKIE_DOMAIN
+      ? { domain: process.env.SESSION_COOKIE_DOMAIN }
+      : {}),
   }
 };
 
@@ -43,7 +52,7 @@ if (USE_DB) {
   // Set up PostgreSQL session store
   const PgSessionStore = connectPgSimple(session);
   const sessionStore = new PgSessionStore({
-    pool: pool,
+    pool: pool as any,
     tableName: 'sessions',
     createTableIfMissing: true
   });
@@ -86,8 +95,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Use centralized, dev-friendly CORS middleware
-app.use(makeCors());
-app.options('*', makeCors());
+const corsMiddleware = makeCors();
+app.use(corsMiddleware);
+app.options('*', corsMiddleware);
 
 // lightweight health endpoint for mobile/dev smoke tests
 app.get('/api/health', (_req: Request, res: Response) => {

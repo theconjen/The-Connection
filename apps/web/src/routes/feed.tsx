@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { fmtDate } from "shared/i18n/format";
 import { getFeedPage } from "shared/services/feed";
+import { ShareButton } from "../components/ShareButton";
 
 function Skeleton({ h = 80 }: { h?: number }) {
   return (
@@ -115,7 +116,16 @@ export default function FeedPage() {
               <div key={item.id} className="bg-card border border-border rounded-xl p-4 mb-3">
                 <div className="font-semibold">{item.title}</div>
                 <div className="text-muted mt-1">{item.body}</div>
-                <div className="text-muted mt-2 text-xs">{item.createdAt}</div>
+                <div className="flex items-center justify-between mt-3 text-xs text-muted">
+                  <span>{item.createdAt}</span>
+                  <ShareButton
+                    className="text-primary underline-offset-2 hover:underline"
+                    title={item.title}
+                    text={item.body}
+                  >
+                    Share
+                  </ShareButton>
+                </div>
               </div>
             ))
           ) : (
