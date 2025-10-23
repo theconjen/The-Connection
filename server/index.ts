@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes.js";
 import { makeCors } from "./cors";
 import cookieParser from 'cookie-parser';
 import { setupVite, serveStatic, log } from "./vite.js";
+import { csrf } from "lusca";
 // Seed imports removed for production
 import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
@@ -63,6 +64,7 @@ if (USE_DB) {
 // parse cookies before sessions so session middleware can read cookies
 app.use(cookieParser());
 app.use(session(sessionOptions));
+app.use(csrf());
 
 // Initialize passport with proper serialization
 app.use(passport.initialize());
