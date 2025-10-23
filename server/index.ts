@@ -25,8 +25,7 @@ const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
 if (isProduction) {
-  const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 1);
-  app.set("trust proxy", trustProxyHops);
+  app.set("trust proxy", 1);
 }
 const httpServer = createServer(app);
 
@@ -40,12 +39,10 @@ let sessionOptions: any = {
   name: 'sessionId', // Explicit session name
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    secure: isProduction,
+    secure: true,
     httpOnly: true,
-    sameSite: isProduction ? 'none' : 'lax',
-    ...(process.env.SESSION_COOKIE_DOMAIN
-      ? { domain: process.env.SESSION_COOKIE_DOMAIN }
-      : {}),
+    sameSite: 'none',
+    path: '/',
   }
 };
 
@@ -103,6 +100,10 @@ app.options('*', corsMiddleware);
 
 // lightweight health endpoint for mobile/dev smoke tests
 app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({ ok: true });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 

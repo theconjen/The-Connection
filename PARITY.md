@@ -24,9 +24,9 @@
 1. `npm i -g cloudflared` (or brew).
 2. `cloudflared tunnel login` → pick your domain.
 3. `cloudflared tunnel create dev-api`.
-4. `cloudflared tunnel route dns dev-api dev.api.<yourdomain>.com`.
+4. `cloudflared tunnel route dns dev-api dev.api.theconnection.app`.
 5. `cloudflared tunnel run dev-api --url http://localhost:PORT` (replace PORT with your API).
-6. Verify `https://dev.api.<yourdomain>.com/health` resolves.
+6. Verify `https://dev.api.theconnection.app/health` resolves.
 
 ### Option B: ngrok (with custom domain)
 
@@ -46,8 +46,8 @@ app.use(cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true); // native apps often send no Origin
     const allow = [
-      'https://dev.api.<yourdomain>.com', // self (optional)
-      'https://dev.<yourwebapp>.com',     // web dev origin if separate
+  'https://dev.api.theconnection.app', // self (optional)
+  'https://dev.theconnection.app',     // web dev origin if separate
     ];
     return allow.includes(origin) ? cb(null, true) : cb(new Error(`CORS: ${origin}`));
   },
@@ -288,9 +288,9 @@ export default function Register() {
 ```json
 {
   "build": {
-    "development": { "developmentClient": true, "channel": "dev", "env": { "EXPO_PUBLIC_API_BASE": "https://dev.api.<yourdomain>.com" } },
-    "preview":     { "channel": "preview", "env": { "EXPO_PUBLIC_API_BASE": "https://staging.api.<yourdomain>.com" } },
-    "production":  { "channel": "production", "env": { "EXPO_PUBLIC_API_BASE": "https://api.<yourdomain>.com" } }
+  "development": { "developmentClient": true, "channel": "dev", "env": { "EXPO_PUBLIC_API_BASE": "https://dev.api.theconnection.app" } },
+  "preview":     { "channel": "preview", "env": { "EXPO_PUBLIC_API_BASE": "https://staging.api.theconnection.app" } },
+  "production":  { "channel": "production", "env": { "EXPO_PUBLIC_API_BASE": "https://api.theconnection.app" } }
   }
 }
 ```
@@ -306,7 +306,7 @@ export default ({ config }) => ({
 });
 ```
 
-**Web Vite:** `.env.development` → `VITE_API_BASE=https://dev.api.<yourdomain>.com` (staging/prod similarly).
+**Web Vite:** `.env.development` → `VITE_API_BASE=https://dev.api.theconnection.app` (staging/prod similarly).
 
 **Fail-fast guard**: throw if `API_BASE` is empty (already in `http.ts`).
 
@@ -350,7 +350,7 @@ const API = process.env.API_BASE!;
 })();
 ```
 
-**Run:** `pnpm add -D tough-cookie fetch-cookie && API_BASE=https://dev.api.<yourdomain>.com node tools/smoke-auth.ts`
+**Run:** `pnpm add -D tough-cookie fetch-cookie && API_BASE=https://dev.api.theconnection.app node tools/smoke-auth.ts`
 
 **Mobile UI smoke (Maestro minimal):** `apps/mobile/maestro/auth.yaml`
 
@@ -421,14 +421,14 @@ jobs:
 
 - iOS ATS: you already use HTTPS. No exceptions needed.
 - Android cleartext: irrelevant if HTTPS. If you ever test http, add a `network_security_config.xml` and manifest flag (not recommended).
-- Cookie domain: must be exactly the FQDN you call. Do not mix `dev.api.<yourdomain>.com` with raw IPs in the same session.
+- Cookie domain: must be exactly the FQDN you call. Do not mix `dev.api.theconnection.app` with raw IPs in the same session.
 
 ---
 
 ## 14) Release Path Discipline
 
 - **Mobile:** EAS Build per profile; `runtimeVersion: { policy: 'sdkVersion' }`; publish updates to matching channel only.
-- **Web:** Deploy with `.env.production` pointing to `https://api.<yourdomain>.com`.
+- **Web:** Deploy with `.env.production` pointing to `https://api.theconnection.app`.
 - **API:** Enforce HTTPS; HSTS; rate-limit `/api/login`.
 
 ---

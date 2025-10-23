@@ -10,7 +10,7 @@ export type RouteMap = Record<string, (url: URL, meta?: any) => StubbedResponse 
 export async function installFetchStub(page: Page, routes: RouteMap) {
   const DEBUG = false;
   await page.exposeFunction("__FETCH_STUB_DISPATCH__", async (href: string, meta?: any) => {
-    // Safely derive pathname and search without relying on full URL parsing (handles invalid hosts like <yourdomain>)
+  // Safely derive pathname and search without relying on full URL parsing (handles invalid hosts like dev.api.theconnection.app)
     let pathWithSearch = '/';
     try {
       if (/^https?:\/\//i.test(href)) {

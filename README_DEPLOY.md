@@ -3,7 +3,7 @@
 This file contains copy/paste commands to build and run the app locally or on a server using the lightweight "no-bundle" server wrapper at `dist-server/index.nobundle.js`.
 
 Prerequisites
-- Node 18 (recommended via `nvm`)
+- Node 22 (recommended via `nvm`)
 - Docker (optional, for container runs)
 - `npm` (for installing packages if not using Docker)
 

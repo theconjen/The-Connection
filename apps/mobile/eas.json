@@ -3,15 +3,15 @@
     "development": {
       "developmentClient": true,
       "channel": "dev",
-      "env": { "EXPO_PUBLIC_API_BASE": "https://dev.api.<yourdomain>.com" }
+  "env": { "EXPO_PUBLIC_API_BASE": "https://dev.api.theconnection.app" }
     },
     "preview": {
       "channel": "preview",
-      "env": { "EXPO_PUBLIC_API_BASE": "https://staging.api.<yourdomain>.com" }
+  "env": { "EXPO_PUBLIC_API_BASE": "https://staging.api.theconnection.app" }
     },
     "production": {
       "channel": "production",
-      "env": { "EXPO_PUBLIC_API_BASE": "https://api.<yourdomain>.com" }
+  "env": { "EXPO_PUBLIC_API_BASE": "https://api.theconnection.app" }
     }
   }
 }

@@ -1,6 +1,6 @@
 ### Multi-stage Dockerfile for production
 # Stage 1: builder - install deps and build client + server
-FROM node:18 AS builder
+FROM node:22 AS builder
 WORKDIR /app
 
 # Avoid peer-dependency resolution failures during automated builds
@@ -21,7 +21,7 @@ RUN npm run build
 RUN npm ci --omit=dev
 
 # Stage 2: runtime - production image with only production deps + artifacts
-FROM node:18-slim AS runtime
+FROM node:22-slim AS runtime
 WORKDIR /app
 
 # Copy production node_modules from builder

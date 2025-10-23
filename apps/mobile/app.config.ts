@@ -1,6 +1,7 @@
 import 'dotenv/config';
+import { ExpoConfig, ConfigContext } from 'expo/config';
 
-export default ({ config }) => ({
+export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   platforms: ['ios', 'android'], // disable web builds
   name: 'The Connection',
@@ -8,6 +9,7 @@ export default ({ config }) => ({
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
+  assetBundlePatterns: ['**/*'],
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',

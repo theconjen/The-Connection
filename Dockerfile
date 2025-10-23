@@ -1,5 +1,5 @@
 # Dockerfile (production - no-bundle)
-FROM node:18-slim AS deps
+FROM node:22-slim AS deps
 WORKDIR /app
 
 # Install build tools required by some native modules (better-sqlite3, node-gyp)
@@ -29,7 +29,7 @@ RUN npx --yes esbuild server --outdir=dist-server --platform=node --format=esm -
 # Fix import specifiers for ESM compatibility
 RUN node scripts/fix-dist-imports.cjs
 
-FROM node:18-slim
+FROM node:22-slim
 WORKDIR /app
 
 # Minimal runtime dependencies

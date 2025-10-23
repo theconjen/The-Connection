@@ -1,5 +1,5 @@
 # Lightweight local Dockerfile for quick verification (uses local node_modules + dist-server)
-FROM node:18-slim
+FROM node:22-slim
 WORKDIR /app
 
 # Minimal runtime deps
