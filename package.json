@@ -63,7 +63,7 @@
     "@uppy/file-input": "^4.2.2",
     "@uppy/progress-bar": "^4.3.2",
     "@uppy/react": "^4.5.2",
-    "@vercel/node": "^2.3.0",
+    "@vercel/node": "^2.15.10",
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^12.2.0",
     "class-variance-authority": "^0.7.1",
