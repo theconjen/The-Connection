@@ -122,7 +122,8 @@
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
     "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
+    "zod-validation-error": "^3.4.0",
+    "lusca": "^1.7.0"
   },
   "devDependencies": {
     "@capacitor/ios": "^7.4.0",
