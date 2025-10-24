@@ -44,6 +44,14 @@ jobs:
           languages: ${{ matrix.language }}
           config-file: ./.github/codeql/codeql-config.yml
 
+      - name: Dump CodeQL generated config
+        if: always()
+        run: |
+          echo "=== list _temp dir ==="
+          ls -la /home/runner/work/_temp || true
+          echo "=== user-config-from-action.yml ==="
+          sed -n '1,200p' /home/runner/work/_temp/user-config-from-action.yml || true
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
