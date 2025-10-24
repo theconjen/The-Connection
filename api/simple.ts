@@ -1,6 +1,13 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { IncomingMessage, ServerResponse } from 'http';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+type VercelLikeRequest = IncomingMessage;
+
+type VercelLikeResponse = ServerResponse & {
+  status(code: number): VercelLikeResponse;
+  json(body: unknown): void;
+};
+
+export default function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
   // Simple test endpoint
   if (req.url === '/api/simple') {
     return res.status(200).json({ 
