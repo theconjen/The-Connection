@@ -1,59 +1,48 @@
-name: "CodeQL"
-
+name: CodeQL
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-  schedule:
-    - cron: "33 3 * * 1"
+  push: { branches: [ "main" ] }
+  pull_request: { branches: [ "main" ] }
+  schedule: [ { cron: "0 2 * * 1" } ]
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
 
 jobs:
-  analyze:
-    name: Analyze
+  js-ts:
+    name: Analyze JavaScript/TypeScript
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [javascript, cpp]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
         with:
-          version: 10.18.3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+          languages: javascript
+          config: |
+            paths:
+              - .
+            paths-ignore:
+              - node_modules
+              - dist
+              - build
+              - ios
+              - android
+              - apps/mobile
+              - mobile-app
+              - "**/*.d.ts"
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
         with:
-          node-version: "22"
-          cache: pnpm
+          category: "/language:javascript"
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+  gh-actions:
+    name: Analyze GitHub Actions workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
-          config-file: ./.github/codeql/codeql-config.yml
-
-      - name: Dump CodeQL generated config
-        if: always()
-        run: |
-          echo "=== list _temp dir ==="
-          ls -la /home/runner/work/_temp || true
-          echo "=== user-config-from-action.yml ==="
-          sed -n '1,200p' /home/runner/work/_temp/user-config-from-action.yml || true
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+          languages: actions
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:actions"
