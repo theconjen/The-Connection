@@ -2,3 +2,6 @@ paths-ignore:
   - android
   - ios
 
+cpp:
+  build-mode: none
+
