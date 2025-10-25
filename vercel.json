@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://api.theconnection.app/" }
+    { "source": "/api/(.*)", "destination": "https://api.theconnection.app/$1" }
   ]
 }
