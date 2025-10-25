@@ -1,10 +1,19 @@
 import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
+import rateLimit from 'express-rate-limit';
+
+// Set up rate limiter for /apologetics: max 100 requests per 15 minutes per IP
+const apologeticsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true, // Return rate limit info in headers
+  legacyHeaders: false, // Disable X-RateLimit headers
+});
 
 const router = Router();
 
-router.get('/apologetics', (_req, res) => {
+router.get('/apologetics', apologeticsLimiter, (_req, res) => {
   try {
     const env = process.env.NODE_ENV || 'development';
     const candidates = [
