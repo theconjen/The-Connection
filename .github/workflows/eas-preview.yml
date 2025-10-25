@@ -32,12 +32,13 @@ jobs:
         run: pnpm add -g eas-cli
 
       - name: Configure Expo (login or token)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          if [ -n "${{ secrets.EXPO_TOKEN }}" ]; then
-            echo "Using EXPO_TOKEN for auth"
-            echo "eas.token=${{ secrets.EXPO_TOKEN }}" > ~/.easrc
+          if [ -n "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN provided; Expo CLI will authenticate with this token."
           else
-            echo "EXPO_TOKEN not set; proceeding without auth (build may fail if auth required)"
+            echo "EXPO_TOKEN not set; proceeding without auth (build may fail if auth required)."
           fi
 
       - name: Build iOS Preview
@@ -48,4 +49,4 @@ jobs:
       - name: Build Android Preview
         run: pnpm -C apps/mobile exec eas build --platform android --profile preview --non-interactive
         env:
-        
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
