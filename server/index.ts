@@ -17,6 +17,7 @@ import { User } from "@shared/schema";
 import { APP_DOMAIN, BASE_URL } from "./config/domain";
 import { Server as SocketIOServer } from "socket.io";
 import { createServer } from "http";
+import rateLimit from 'express-rate-limit';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -60,6 +61,17 @@ if (USE_DB) {
 
 // parse cookies before sessions so session middleware can read cookies
 app.use(cookieParser());
+
+// Rate limiting to prevent abuse
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+app.use(limiter);
+
 app.use(session(sessionOptions));
 app.use(lusca.csrf());
 
