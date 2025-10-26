@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '../../components/ui/button';
 import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap } from 'lucide-react';
 import AdminLayout from '../../components/layouts/admin-layout';
+import { apiUrl } from '../../lib/env';
 
 interface ApplicationSummary {
   id: number | string;
@@ -30,7 +31,7 @@ export default function AdminDashboard() {
     retry: false,
     enabled: !!(isAuthenticated && user?.isAdmin),
     queryFn: async () => {
-      const res = await fetch('/api/admin/applications/livestreamer');
+      const res = await fetch(apiUrl('/api/admin/applications/livestreamer'));
       if (!res.ok) throw new Error('Failed to fetch livestreamer applications');
       return res.json();
     }
@@ -42,7 +43,7 @@ export default function AdminDashboard() {
     retry: false,
     enabled: !!(isAuthenticated && user?.isAdmin),
     queryFn: async () => {
-      const res = await fetch('/api/admin/apologist-scholar-applications');
+      const res = await fetch(apiUrl('/api/admin/apologist-scholar-applications'));
       if (!res.ok) throw new Error('Failed to fetch apologist scholar applications');
       return res.json();
     }
@@ -54,7 +55,7 @@ export default function AdminDashboard() {
     retry: false,
     enabled: !!(isAuthenticated && user?.isAdmin),
     queryFn: async () => {
-      const res = await fetch('/api/admin/livestreamer-applications/stats');
+      const res = await fetch(apiUrl('/api/admin/livestreamer-applications/stats'));
       if (!res.ok) throw new Error('Failed to fetch application stats');
       return res.json();
     }

@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Image, X, Send, Camera } from "lucide-react";
 import { getInitials } from "../lib/utils";
 import { apiRequest, queryClient } from "../lib/queryClient";
+import { apiUrl } from "../lib/env";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 
 // Local interface to ensure type safety
@@ -67,7 +68,7 @@ export default function MobileMicroblogComposer({
         formData.append('image', imageFile);
         
         // Custom fetch for FormData
-        const response = await fetch('/api/microblogs', {
+  const response = await fetch(apiUrl('/api/microblogs'), {
           method: 'POST',
           body: formData,
           credentials: 'include'

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useToast } from '../../../hooks/use-toast';
 import { apiRequest } from '../../../lib/queryClient';
 import { useAuth } from '../../../hooks/use-auth';
+import { apiUrl } from "../../../lib/env";
 
 const STEPS = [
   'welcome',
@@ -110,7 +111,7 @@ export function OnboardingFlow() {
         onboardingCompleted: true
       };
 
-      await fetch('/api/user/onboarding', {
+      await fetch(apiUrl('/api/user/onboarding'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

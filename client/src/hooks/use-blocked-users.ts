@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { apiUrl } from '../lib/env';
 
 export function useBlockedUserIds() {
   const [blockedIds, setBlockedIds] = useState<number[]>([]);
@@ -6,7 +7,7 @@ export function useBlockedUserIds() {
 
   const fetchBlocked = useCallback(async () => {
     try {
-      const res = await fetch('/api/moderation/blocked-users', { credentials: 'include' });
+  const res = await fetch(apiUrl('/api/moderation/blocked-users'), { credentials: 'include' });
       if (!res.ok) return setBlockedIds([]);
       const data = await res.json();
       // API returns array of blocks with blockedUser objects

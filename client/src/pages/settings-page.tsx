@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiUrl } from "../lib/env";
 import { apiRequest } from "../lib/queryClient";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
 import { Button } from "../components/ui/button";
@@ -152,7 +153,7 @@ export default function SettingsPage() {
   async function handleSave() {
     setLoading(true);
     try {
-      const response = await fetch("/api/user/settings", {
+          const response = await fetch(apiUrl("/api/user/settings"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileData),
@@ -353,7 +354,7 @@ export default function SettingsPage() {
                       if (!confirm('Are you sure you want to delete your account? This action will soft-delete your account and content.')) return;
                       setLoading(true);
                       try {
-                        const resp = await fetch('/api/me', { method: 'DELETE', credentials: 'include' });
+                        const resp = await fetch(apiUrl('/api/me'), { method: 'DELETE', credentials: 'include' });
                         if (!resp.ok) throw new Error('Failed to delete account');
                         // Clear client auth state and cache
                         try {

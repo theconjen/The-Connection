@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { apiUrl } from '../lib/env';
 import { useMutation } from "@tanstack/react-query";
 import MainLayout from "../components/layouts/main-layout";
 import {
@@ -51,7 +52,7 @@ export default function SupportPage() {
   // Mutation for sending support email
   const sendSupportEmail = useMutation({
     mutationFn: async (data: SupportFormValues) => {
-      const response = await fetch('/api/support/contact', {
+      const response = await fetch(apiUrl('/api/support/contact'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

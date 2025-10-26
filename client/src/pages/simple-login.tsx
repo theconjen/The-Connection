@@ -5,6 +5,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { useToast } from '../hooks/use-toast';
+import { apiUrl } from '../lib/env';
 
 export default function SimpleLogin() {
   const [username, setUsername] = useState('');
@@ -28,7 +29,7 @@ export default function SimpleLogin() {
     setLoading(true);
     
     try {
-      const response = await fetch('/api/login', {
+  const response = await fetch(apiUrl('/api/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,7 +70,7 @@ export default function SimpleLogin() {
     setLoading(true);
     
     try {
-      const response = await fetch('/api/admin-login', {
+  const response = await fetch(apiUrl('/api/admin-login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
 } from "../components/ui/card";
+import { apiUrl } from "../lib/env";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { 
@@ -23,7 +24,7 @@ export default function ApologeticsPage() {
   const { data: resources, isLoading: resourcesLoading } = useQuery<ApologeticsResource[]>({
     queryKey: ['/api/apologetics/resources'],
     queryFn: async () => {
-      const response = await fetch('/api/apologetics/resources');
+      const response = await fetch(apiUrl('/api/apologetics/resources'));
       if (!response.ok) {
         throw new Error('Failed to fetch resources');
       }
