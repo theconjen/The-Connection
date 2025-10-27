@@ -3,7 +3,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
 import { makeCors } from "./cors";
 import cookieParser from 'cookie-parser';
-import { setupVite, serveStatic, log } from "./vite.js";
+import viteHelpers from "./vite.cjs";
+const { setupVite, serveStatic, log } = viteHelpers;
 import lusca from "lusca";
 // Seed imports removed for production
 import { initializeEmailTemplates } from "./email";

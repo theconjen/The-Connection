@@ -1,4 +1,5 @@
-import { log } from "./vite.js";
+import viteHelpers from "./vite.cjs";
+const { log } = viteHelpers;
 import { runMigration as addLocalityInterests } from "./migrations/add-locality-interests";
 import { runMigration as createMvpTables } from "./migrations/0002_create_mvp_tables";
 import { isConnected } from "./db";
