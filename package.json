@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "dev:port": "lsof -ti :5000 | xargs -r kill",
-    "build": "vite build && npm run build:server",
-    "build:server": "esbuild \"server/**/*.ts\" --outdir=dist-server --platform=node --format=esm --loader:.ts=ts --target=node22 && node scripts/fix-dist-imports.cjs",
+  "build": "vite build && npm run build:server",
+  "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist-server/index.js --external:vite --external:@vitejs/plugin-react --external:vite-plugin-pwa",
     "build:production": "NODE_OPTIONS='--max-old-space-size=512' npm run build",
     "vercel-build": "npm run build",
     "start": "NODE_ENV=production node dist-server/index.js",
@@ -137,7 +137,7 @@
     "@types/express": "4.17.21",
     "@types/express-session": "^1.18.0",
     "@types/jest": "^29.5.12",
-    "@types/node": "22.12.0",
+  "@types/node": "20.19.5",
     "@types/passport": "^1.0.16",
     "@types/passport-local": "^1.0.38",
     "@types/react": "^18.3.23",
@@ -161,7 +161,7 @@
     "vite-plugin-pwa": "^1.0.3"
   },
   "engines": {
-    "node": "22.x"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"

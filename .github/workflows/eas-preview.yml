@@ -9,8 +9,6 @@ on:
 jobs:
   eas-preview:
     runs-on: ubuntu-latest
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,18 +33,19 @@ jobs:
 
       - name: Configure Expo (login or token)
         run: |
-          if [ -n "$EXPO_TOKEN" ]; then
-            echo "EXPO_TOKEN provided; Expo CLI will authenticate with this token."
-            echo "Writing token to ~/.easrc for EAS CLI."
-            printf 'eas.token=%s\n' "$EXPO_TOKEN" > "$HOME/.easrc"
+          if [ -n "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "Using EXPO_TOKEN for auth"
+            echo "eas.token=${{ secrets.EXPO_TOKEN }}" > ~/.easrc
           else
-            echo "EXPO_TOKEN not set; cannot authenticate EAS CLI."
-            echo "Please add the EXPO_TOKEN secret at https://github.com/${{ github.repository }}/settings/secrets/actions"
-            exit 1
+            echo "EXPO_TOKEN not set; proceeding without auth (build may fail if auth required)"
           fi
 
       - name: Build iOS Preview
         run: pnpm -C apps/mobile exec eas build --platform ios --profile preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android Preview
         run: pnpm -C apps/mobile exec eas build --platform android --profile preview --non-interactive
+        env:
+        

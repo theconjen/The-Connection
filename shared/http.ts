@@ -1,6 +1,9 @@
 import { API_BASE } from 'shared-env';
 
-export type HttpInit = Omit<RequestInit, 'body' | 'credentials'> & { body?: unknown };
+export type HttpInit = Omit<RequestInit, 'body' | 'credentials'> & {
+  body?: unknown;
+  expectJson?: boolean;
+};
 
 function sanitizeApiBase(raw: string | undefined | null): string {
   if (!raw) return '';
@@ -47,19 +50,78 @@ function composeUrl(path: string): string {
   );
 }
 
+function isFormData(value: unknown): value is FormData {
+  return typeof FormData !== 'undefined' && value instanceof FormData;
+}
+
 export async function http<T>(path: string, init: HttpInit = {}): Promise<T> {
   const url = composeUrl(path);
-  const res = await fetch(url, {
-    ...init,
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-  });
-  const text = await res.text();
-  const json = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    const msg = json?.message || json?.error || res.statusText || 'Request failed';
-    throw Object.assign(new Error(msg), { status: res.status, data: json });
+  const { body, expectJson = true, headers, ...rest } = init;
+
+  const requestHeaders = new Headers(headers ?? undefined);
+  if (!requestHeaders.has('Accept')) {
+    requestHeaders.set('Accept', 'application/json');
   }
-  return json as T;
+  if (body !== undefined && !isFormData(body) && !requestHeaders.has('Content-Type')) {
+    requestHeaders.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(url, {
+    ...rest,
+    credentials: 'include',
+    headers: requestHeaders,
+    body:
+      body === undefined
+        ? undefined
+        : isFormData(body)
+        ? body
+        : JSON.stringify(body),
+  });
+
+  const contentType = response.headers.get('content-type') ?? '';
+  const isJson = /application\/json/i.test(contentType);
+  const preview = await response
+    .clone()
+    .text()
+    .catch(() => '');
+
+  if (!response.ok) {
+    const errorMessage = `HTTP ${response.status} for ${url}\nContent-Type: ${contentType}\nFirst 120 chars: ${preview.slice(
+      0,
+      120,
+    )}`;
+    const error = new Error(errorMessage) as Error & { status?: number; data?: unknown };
+    error.status = response.status;
+    if (isJson) {
+      try {
+        error.data = JSON.parse(preview || 'null');
+      } catch {
+        error.data = preview;
+      }
+    } else {
+      error.data = preview;
+    }
+    throw error;
+  }
+
+  if (!expectJson) {
+    return response as unknown as T;
+  }
+
+  if (!isJson) {
+    throw new Error(
+      `Expected JSON from ${url} but received ${contentType || 'unknown content-type'}. First chars: ${preview.slice(
+        0,
+        80,
+      )}`,
+    );
+  }
+
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error(
+      `Failed to parse JSON from ${url}. First chars: ${preview.slice(0, 120)}`,
+    );
+  }
 }
