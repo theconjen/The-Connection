@@ -161,7 +161,7 @@
     "vite-plugin-pwa": "^1.0.3"
   },
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "22.x"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
