@@ -1,7 +1,14 @@
 paths-ignore:
-  - android
-  - ios
+  - "ios"
+  - "android"
+  - "apps/mobile"
+  - "mobile-app"
+  - "**/*.d.ts"
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+  - "node_modules/**"
+  - "dist/**"
+  - "dist-server/**"
 
 cpp:
   build-mode: none
-
