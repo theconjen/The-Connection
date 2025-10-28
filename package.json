@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "dev:port": "lsof -ti :5000 | xargs -r kill",
-  "build": "vite build && npm run build:server",
-  "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist-server/index.js --external:vite --external:@vitejs/plugin-react --external:vite-plugin-pwa",
+    "build": "vite build && npm run build:server",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist-server/index.js --external:vite --external:@vitejs/plugin-react --external:vite-plugin-pwa",
     "build:production": "NODE_OPTIONS='--max-old-space-size=512' npm run build",
     "vercel-build": "npm run build",
     "start": "NODE_ENV=production node dist-server/index.js",

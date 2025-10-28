@@ -48,4 +48,4 @@ jobs:
       - name: Build Android Preview
         run: pnpm -C apps/mobile exec eas build --platform android --profile preview --non-interactive
         env:
-        
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
