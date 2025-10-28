@@ -23,7 +23,7 @@
     "web:start": "pnpm -C apps/web run dev",
     "typecheck": "pnpm -C apps/web tsc --noEmit && pnpm -C apps/mobile tsc --noEmit",
     "build:web": "pnpm -C apps/web build",
-    "ios:bundle": "echo 'Use: nvm use 20 first' && pnpm exec cap copy ios"
+    "ios:bundle": "echo 'Use: nvm use 22 first' && pnpm exec cap copy ios"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
