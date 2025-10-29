@@ -11,11 +11,6 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
-    "paths": {
-      "shared/*": ["../../shared/*"],
-      "shared-env": ["./src/env.web"]
-    },
-    "types": ["vite/client"]
   },
   "include": ["src", "tests", "tests/utils"]
 }
