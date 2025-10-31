@@ -17,9 +17,4 @@ export const AvatarFallback: React.FC<ViewProps & { initials?: string }> = ({ st
   </View>
 );
 
-const AvatarCompound = Object.assign(Avatar, {
-  Image: AvatarImage,
-  Fallback: AvatarFallback,
-});
-
-export default AvatarCompound;
+export default Avatar;

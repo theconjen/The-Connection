@@ -25,12 +25,4 @@ export const CardFooter: React.FC<ViewProps> = ({ style, ...props }) => (
   <View className="px-4 pb-4 flex-row items-center" style={style} {...props} />
 );
 
-const CardCompound = Object.assign(Card, {
-  Header: CardHeader,
-  Title: CardTitle,
-  Description: CardDescription,
-  Content: CardContent,
-  Footer: CardFooter,
-});
-
-export default CardCompound;
+export default Card;

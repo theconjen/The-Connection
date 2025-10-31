@@ -1,25 +1,16 @@
 import React from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { Button, Tabs, TabsList, TabsTrigger, TabsContent, Separator } from '../../src/components/ui';
+import { useRouter } from 'expo-router';
+import { Button } from '../../src/components/ui/Button';
 
 export default function ApologeticsScreen() {
+  const router = useRouter();
   return (
     <ScrollView className="flex-1 bg-white">
-      <View className="p-4 gap-4">
-        <Text className="text-2xl font-semibold">Apologetics</Text>
-        <Text className="text-gray-600">Explore resources and arguments for the faith</Text>
-        <Tabs>
-          <TabsList>
-            <TabsTrigger value="articles">Articles</TabsTrigger>
-            <TabsTrigger value="videos">Videos</TabsTrigger>
-            <TabsTrigger value="qa">Q&A</TabsTrigger>
-          </TabsList>
-          <Separator />
-          <TabsContent>
-            <Text className="text-gray-700">Coming soon...</Text>
-          </TabsContent>
-        </Tabs>
-        <Button title="Back to Feed" href="/(tabs)/feed" />
+      <View className="p-4">
+        <Text className="text-2xl font-semibold mb-2">Apologetics</Text>
+        <Text className="text-gray-600 mb-4">Explore apologetics resources</Text>
+        <Button title="Go to Feed" onPress={() => router.push('/(tabs)/feed')} />
       </View>
     </ScrollView>
   );

@@ -28,11 +28,4 @@ export const TabsContent: React.FC<ViewProps> = ({ children, style }) => (
   <View className="mt-2" style={style}>{children}</View>
 );
 
-// Merge compound components on the default export so usage like <Tabs.List> works
-const TabsCompound = Object.assign(Tabs, {
-  List: TabsList,
-  Trigger: TabsTrigger,
-  Content: TabsContent,
-});
-
-export default TabsCompound;
+export default Tabs;

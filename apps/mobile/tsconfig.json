@@ -11,7 +11,6 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "types": [
-      "node",
       "../../types/shared-env",
       "nativewind/types"
     ],

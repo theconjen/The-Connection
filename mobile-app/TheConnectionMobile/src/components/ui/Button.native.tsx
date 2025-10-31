@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { Colors } from '../../theme/colors';
+import { Colors } from '../../../shared/mobile-web/colors';
 import { useRouter } from 'expo-router';
 
 export type ButtonProps = React.ComponentProps<typeof Pressable> & {

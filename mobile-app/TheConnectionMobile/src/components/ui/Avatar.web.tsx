@@ -16,9 +16,4 @@ export const AvatarFallback: React.FC<React.HTMLAttributes<HTMLDivElement> & { i
   </div>
 );
 
-const AvatarCompound = Object.assign(Avatar, {
-  Image: AvatarImage,
-  Fallback: AvatarFallback,
-});
-
-export default AvatarCompound;
+export default Avatar;

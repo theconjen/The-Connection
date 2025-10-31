@@ -24,12 +24,4 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ sty
   <div style={{ padding: '0 16px 16px', display: 'flex', alignItems: 'center', ...(style as any) }} {...props} />
 );
 
-const CardCompound = Object.assign(Card, {
-  Header: CardHeader,
-  Title: CardTitle,
-  Description: CardDescription,
-  Content: CardContent,
-  Footer: CardFooter,
-});
-
-export default CardCompound;
+export default Card;

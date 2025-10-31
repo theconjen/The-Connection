@@ -25,10 +25,4 @@ export const TabsContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ ch
   <div style={{ marginTop: 8, ...(style as any) }} {...props}>{children}</div>
 );
 
-const TabsCompound = Object.assign(Tabs, {
-  List: TabsList,
-  Trigger: TabsTrigger,
-  Content: TabsContent,
-});
-
-export default TabsCompound;
+export default Tabs;
