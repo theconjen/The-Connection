@@ -1,0 +1,9 @@
+# ignore backend/native in Vercel deployments
+api/
+server/
+ios/
+android/
+apps/mobile/
+Pods/
+*.xcworkspace
+*.xcodeproj
