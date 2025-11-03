@@ -16,6 +16,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     backgroundColor: '#ffffff',
   },
   plugins: ['expo-router'],
+  updates: {
+    url: 'https://u.expo.dev/c11dcfad-026c-4c8d-8dca-bec9e2bc049a',
+  },
   ios: {
     bundleIdentifier: process.env.EXPO_IOS_BUNDLE_ID ?? 'com.theconnection.app',
     supportsTablet: true,
@@ -31,6 +34,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#ffffff',
     },
   },
-  extra: { apiBase: process.env.EXPO_PUBLIC_API_BASE },
+  extra: {
+    apiBase: process.env.EXPO_PUBLIC_API_BASE,
+    eas: {
+      projectId: 'c11dcfad-026c-4c8d-8dca-bec9e2bc049a',
+    },
+  },
   runtimeVersion: { policy: 'sdkVersion' },
 });

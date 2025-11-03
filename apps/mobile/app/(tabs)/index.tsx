@@ -1,11 +1,11 @@
 import { View, Text, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { getFeedPage } from 'shared/services/feed';
-import { Skeleton } from '../../src/ui/Skeleton';
+import { Skeleton } from '../../src/ui';
 import { useTranslation } from 'react-i18next';
 import { fmtDate } from 'shared/i18n/format';
 
-export default function Home() {
+export default function FeedScreen() {
   const { t, i18n } = useTranslation();
   const lastUpdatedRef = useRef<number | null>(null);
   const [pages, setPages] = useState<import('shared/app-schema').FeedPage[]>([]);

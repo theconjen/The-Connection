@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { useAuth } from '../../src/auth/AuthProvider';
+import { useAuth } from '../../src/auth';
 
 export default function Login() {
   const { login, loading, error } = useAuth();
