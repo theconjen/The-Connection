@@ -1,6 +1,6 @@
 import { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage-optimized";
-import { User } from "@shared/schema";
+import { User, insertUserSchema } from "@shared/schema";
 import { sendWelcomeEmail } from "./email";
 import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 
@@ -69,14 +69,16 @@ export function setupAuth(app: Express) {
       }
 
       // Create user
-      console.log(`[REGISTRATION] Creating user with data:`, { username, email, displayName: displayName || username });
-      const user = await storage.createUser({
-        username,
-        email,
+      const parsedNewUser = insertUserSchema.parse({
+        username: username.trim(),
+        email: email.trim().toLowerCase(),
         password, // Store plaintext password for testing
-        displayName: displayName || username,
+        displayName: displayName?.trim() || username.trim(),
         isAdmin: false,
       });
+
+      console.log(`[REGISTRATION] Creating user with data:`, { username: parsedNewUser.username, email: parsedNewUser.email, displayName: parsedNewUser.displayName });
+      const user = await storage.createUser(parsedNewUser);
       
       console.log(`[REGISTRATION] User created successfully:`, { 
         id: user.id, 

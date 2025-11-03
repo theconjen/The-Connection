@@ -32,10 +32,10 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { Skeleton } from "../components/ui/skeleton";
-import { insertGroupSchema, InsertGroup } from "../../../shared/schema";
+import { insertGroupSchema } from "../../../shared/schema";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { User, Users, Home, Church, PlusIcon } from "lucide-react";
@@ -47,7 +47,7 @@ const createGroupSchema = insertGroupSchema.extend({
   description: z.string().min(10, "Description must be at least 10 characters"),
   iconName: z.string(),
   iconColor: z.string(),
-  isPrivate: z.boolean().default(true),
+  isPrivate: z.boolean(),
 });
 
 type CreateGroupFormValues = z.infer<typeof createGroupSchema>;
@@ -73,13 +73,21 @@ export default function GroupsPage() {
   });
   
   const onSubmit = async (data: CreateGroupFormValues) => {
+    if (!user) {
+      toast({
+        title: "You must be signed in",
+        description: "Sign in to create a group.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      // Add createdBy from current user
-      const groupData: InsertGroup = {
+      const groupData = insertGroupSchema.parse({
         ...data,
-        createdBy: user!.id,
-      };
-      
+        createdBy: user.id,
+      });
+
       const response = await apiRequest("POST", "/api/groups", groupData);
       const newGroup = await response.json();
       

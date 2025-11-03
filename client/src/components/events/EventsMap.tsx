@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Clock, MapPin } from 'lucide-react';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Event } from '@shared/mobile-web/types';
+import type { Event as SharedEvent } from '@shared/mobile-web/types';
+
+export type Event = SharedEvent;
 
 // Dynamically import Leaflet components to avoid SSR issues
 const MapContainer = lazy(() => import('react-leaflet').then(mod => ({ default: mod.MapContainer })));

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Colors } from '../../../shared/mobile-web/colors';
+import { Colors } from '../../shared/colors';
 
 type ButtonHTMLProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
@@ -7,7 +7,7 @@ type ButtonHTMLProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   href?: string;
 };
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonHTMLProps>(({ variant = 'default', size = 'default', href, style, children, ...props }, ref) => {
+export const Button = React.forwardRef<HTMLButtonElement, ButtonHTMLProps>(({ variant = 'default', size = 'default', href, style, children, ...props }, ref) => {
   const bg = variant === 'default' ? Colors.primary
     : variant === 'destructive' ? Colors.destructive
     : variant === 'secondary' ? Colors.secondary

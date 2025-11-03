@@ -19,7 +19,7 @@ const styles = {
   filled: { border: '1px solid #e5e7eb', backgroundColor: '#f3f4f6' } as React.CSSProperties,
 };
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(({ style, variant = 'default', onChangeText, onChange, ...props }, ref) => {
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ style, variant = 'default', onChangeText, onChange, ...props }, ref) => {
   const variantStyle = styles[variant] || styles.default;
   return (
     <input

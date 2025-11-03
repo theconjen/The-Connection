@@ -1742,7 +1742,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     if (error.name === 'ZodError') {
       return res.status(400).json({ 
         message: 'Validation error', 
-        errors: error.errors 
+        errors: error.issues 
       });
     }
     

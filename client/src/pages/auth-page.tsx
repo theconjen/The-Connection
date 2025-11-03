@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { Redirect, useLocation } from "wouter";
 import { navigate } from "wouter/use-browser-location";
-import { insertUserSchema, InsertUser } from "../../../shared/schema";
+import { insertUserSchema } from "../../../shared/schema";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
 import logoImage from "../assets/tc-logo.png";
 import {
@@ -38,6 +38,16 @@ const registerSchema = insertUserSchema.extend({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  displayName: z
+    .string()
+    .max(100, "Display name must be 100 characters or less")
+    .optional()
+    .or(z.literal("")),
+  bio: z
+    .string()
+    .max(500, "Bio must be 500 characters or less")
+    .optional()
+    .or(z.literal("")),
   confirmPassword: z.string().min(6, "Please confirm your password"),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -67,7 +77,7 @@ export default function AuthPage() {
   // Register form
   // Use a looser form typing here to allow optional fields like displayName and bio
   // while we incrementally align the shared schema with the UI fields.
-  const registerForm = useForm<any>({
+  const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       username: "",
@@ -85,9 +95,14 @@ export default function AuthPage() {
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
     // Omit confirmPassword as it's not in the InsertUser type
-    const { confirmPassword, ...userData } = data;
-    
-    auth.registerMutation.mutate(userData as InsertUser);
+    const { confirmPassword, displayName, bio, ...userData } = data;
+
+    const parsedData = insertUserSchema.parse({
+      ...userData,
+      displayName: displayName?.trim() ? displayName.trim() : undefined,
+      bio: bio?.trim() ? bio.trim() : undefined,
+    });
+    auth.registerMutation.mutate(parsedData);
   };
 
   // Redirect if user is already logged in

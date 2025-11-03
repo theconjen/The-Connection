@@ -2,6 +2,7 @@
   "expo": {
     "name": "The Connection",
     "slug": "the-connection",
+    "owner": "jselou",
     "scheme": "theconnection",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -22,7 +23,8 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
         }
-      }
+      },
+      "runtimeVersion": "1.0.0"
     },
     "android": {
       "package": "app.theconnection.mobile",
@@ -30,22 +32,33 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      ["expo-router", { "origin": "https://app.theconnection" }]
+      [
+        "expo-router",
+        {
+          "origin": "https://app.theconnection"
+        }
+      ]
     ],
     "extra": {
       "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+        "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
       },
       "apiBase": "${EXPO_PUBLIC_API_BASE}",
       "router": {
         "origin": "https://app.theconnection"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
     }
   }
 }

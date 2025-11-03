@@ -242,9 +242,28 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    const setupViteFn = setupVite as unknown as
+      | ((app: express.Express, server: typeof httpServer) => Promise<void>)
+      | (() => Promise<{ vite?: { middlewares?: express.RequestHandler } | null }>);
+
+    if (setupViteFn.length >= 2) {
+      await (setupViteFn as (app: express.Express, server: typeof httpServer) => Promise<void>)(app, server);
+    } else {
+      const maybeResult = await (setupViteFn as () => Promise<{ vite?: { middlewares?: express.RequestHandler } | null }>)();
+      if (maybeResult?.vite?.middlewares) {
+        app.use(maybeResult.vite.middlewares);
+      }
+    }
   } else {
-    serveStatic(app);
+    const serveStaticFn = serveStatic as unknown as
+      | ((app: express.Express) => void)
+      | (() => express.RequestHandler);
+
+    if (serveStaticFn.length >= 1) {
+      (serveStaticFn as (app: express.Express) => void)(app);
+    } else {
+      app.use((serveStaticFn as () => express.RequestHandler)());
+    }
   }
 
   // Read port from environment (DigitalOcean App Platform sets $PORT)

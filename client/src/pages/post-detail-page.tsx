@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import MainLayout from "../components/layouts/main-layout";
-import { Post, User, Community, Comment, InsertComment, insertCommentSchema } from "../../../shared/schema";
+import { Post, User, Community, Comment, insertCommentSchema } from "../../../shared/schema";
 import { useAuth } from "../hooks/use-auth";
 import {
   Card,
@@ -18,7 +18,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import ShareButtons from "../components/share-buttons";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { format } from "date-fns";
 import {
   ArrowUpIcon,
@@ -81,14 +81,18 @@ export default function PostDetailPage() {
   
   // Comment mutation
   const commentMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const data: InsertComment = {
-        content,
+    mutationFn: async ({ content }: { content: string }) => {
+      if (!user) {
+        throw new Error("Authentication required");
+      }
+
+      const parsedComment = commentFormSchema.parse({
+        content: content.trim(),
         postId,
-        authorId: user!.id,
-      };
-      
-      const res = await apiRequest("POST", "/api/comments", data);
+        authorId: user.id,
+      });
+
+      const res = await apiRequest("POST", "/api/comments", parsedComment);
       return await res.json();
     },
     onSuccess: () => {
@@ -161,7 +165,7 @@ export default function PostDetailPage() {
       return;
     }
     
-    commentMutation.mutate(commentText);
+    commentMutation.mutate({ content: commentText });
   };
   
   const handleUpvoteComment = (commentId: number) => {

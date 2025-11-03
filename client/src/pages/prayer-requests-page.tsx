@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../hooks/use-auth";
 import { useMediaQuery } from "../hooks/use-media-query";
 import MainLayout from "../components/layouts/main-layout";
-import { PrayerRequest } from "../../../shared/schema";
+import { PrayerRequest, insertPrayerRequestSchema } from "../../../shared/schema";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { formatDistanceToNow, format } from "date-fns";
 import FloatingActionButton from "../components/floating-action-button";
@@ -56,7 +56,7 @@ import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import * as z from "zod";
+import * as z from "zod/v4";
 import { HeartHandshakeIcon, PlusIcon, BadgeCheckIcon, ClockIcon } from "lucide-react";
 
 // We use the formatDate function defined at the top of the file
@@ -89,13 +89,15 @@ const formatDate = (dateString?: string | Date | null) => {
 */
 
 // Form schema for creating prayer requests
-const prayerRequestSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title must be less than 100 characters"),
-  content: z.string().min(10, "Request must be at least 10 characters").max(1000, "Request must be less than 1000 characters"),
+const prayerRequestFormSchema = z.object({
+  title: z.string().trim().min(3, "Title must be at least 3 characters").max(100, "Title must be less than 100 characters"),
+  content: z.string().trim().min(10, "Request must be at least 10 characters").max(1000, "Request must be less than 1000 characters"),
   privacyLevel: z.enum(["public", "friends-only", "group-only"]),
-  groupId: z.number().optional().nullable(),
-  isAnonymous: z.boolean().default(false),
+  groupId: z.number().int().positive().optional(),
+  isAnonymous: z.boolean(),
 });
+
+type PrayerRequestFormValues = z.infer<typeof prayerRequestFormSchema>;
 
 export default function PrayerRequestsPage() {
   const { user } = useAuth();
@@ -122,8 +124,21 @@ export default function PrayerRequestsPage() {
   
   // Create prayer request mutation
   const createPrayerMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof prayerRequestSchema>) => {
-      const res = await apiRequest("POST", "/api/prayer-requests", data);
+    mutationFn: async (values: PrayerRequestFormValues) => {
+      if (!user) {
+        throw new Error("Authentication required");
+      }
+
+      const payload = insertPrayerRequestSchema.parse({
+        title: values.title,
+        content: values.content,
+        privacyLevel: values.privacyLevel,
+        groupId: values.groupId ?? undefined,
+        isAnonymous: values.isAnonymous,
+        authorId: user.id,
+      });
+
+      const res = await apiRequest("POST", "/api/prayer-requests", payload);
       return await res.json();
     },
     onSuccess: () => {
@@ -193,13 +208,12 @@ export default function PrayerRequestsPage() {
   });
   
   // Form for creating prayer requests
-  const form = useForm<z.infer<typeof prayerRequestSchema>>({
-    resolver: zodResolver(prayerRequestSchema),
+  const form = useForm<PrayerRequestFormValues>({
+    resolver: zodResolver(prayerRequestFormSchema),
     defaultValues: {
       title: "",
       content: "",
       privacyLevel: "public",
-      groupId: null,
       isAnonymous: false,
     },
   });
@@ -209,7 +223,16 @@ export default function PrayerRequestsPage() {
   const [selectedPrayerForAnswer, setSelectedPrayerForAnswer] = useState<number | null>(null);
   const [answerDescription, setAnswerDescription] = useState("");
   
-  const handleSubmit = (values: z.infer<typeof prayerRequestSchema>) => {
+  const handleSubmit = (values: PrayerRequestFormValues) => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to share a prayer request.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createPrayerMutation.mutate(values);
   };
   
@@ -503,7 +526,7 @@ export default function PrayerRequestsPage() {
                     <FormControl>
                       <RadioGroup
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                         className="flex flex-col space-y-1"
                       >
                         <div className="flex items-center space-x-2">
@@ -535,7 +558,7 @@ export default function PrayerRequestsPage() {
                         type="checkbox"
                         className="h-4 w-4 mt-1"
                         checked={field.value}
-                        onChange={field.onChange}
+                        onChange={(event) => field.onChange(event.target.checked)}
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">

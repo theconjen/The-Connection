@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { useAuth } from "../hooks/use-auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -37,7 +37,7 @@ import {
 import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X, BookOpen, Heart, Music, Camera, Coffee, Globe, Star, Home, MessageCircle, Calendar, Map, Shield, Zap, Target } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { apiRequest, queryClient } from "../lib/queryClient";
-import { insertCommunityObjectSchema, type InsertCommunity } from "../../../shared/schema";
+import { insertCommunityObjectSchema } from "../../../shared/schema";
 import { IconPicker } from "../components/ui/icon-picker";
 import { ColorPicker } from "../components/ui/color-picker";
 import type { Community } from '@shared/mobile-web/types';
@@ -50,11 +50,11 @@ import type { Community } from '@shared/mobile-web/types';
 const createCommunitySchema = z.object({
   name: z.string().min(1, "Community name is required").max(100, "Name must be less than 100 characters"),
   description: z.string().min(1, "Description is required").max(500, "Description must be less than 500 characters"),
-  iconName: z.string().default("users"),
-  iconColor: z.string().default("#3b82f6"),
-  isPrivate: z.boolean().default(false),
-  hasPrivateWall: z.boolean().default(true),
-  hasPublicWall: z.boolean().default(true),
+  iconName: z.string().min(1, "Icon is required"),
+  iconColor: z.string().min(1, "Icon color is required"),
+  isPrivate: z.boolean(),
+  hasPrivateWall: z.boolean(),
+  hasPublicWall: z.boolean(),
 }).refine((data) => data.hasPrivateWall || data.hasPublicWall, {
   message: "At least one wall (private or public) must be enabled",
   path: ["hasPublicWall"], // Show error on public wall field
@@ -109,23 +109,28 @@ export default function CommunitiesPage() {
   // Create community mutation
   const createMutation = useMutation({
     mutationFn: async (data: CreateCommunityForm) => {
-      const payload: InsertCommunity = {
+      const slug = data.name
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+
+      const payload = insertCommunityObjectSchema.parse({
         ...data,
-        slug: data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-        createdBy: undefined, // Will be set by backend
-      };
-      
+        slug,
+        ...(user?.id ? { createdBy: user.id } : {}),
+      });
+
       const res = await apiRequest("POST", "/api/communities", payload);
-      
+
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to create community');
+        throw new Error(errorData.message || "Failed to create community");
       }
-      
+
       return await res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/communities"] });
       toast({
         title: "Community created",
         description: `"${data.name}" has been created successfully.`,

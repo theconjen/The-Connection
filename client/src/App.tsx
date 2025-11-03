@@ -75,50 +75,54 @@ function App() {
           <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div></div>
         }>
           <Switch>
-          <Route path="/" component={() => <HomePage />} />
-          <Route path="/auth" component={AuthPage} />
-          
-          {/* Main Content Pages */}
-          <Route path="/microblogs" component={MicroblogsPage} />
-          <Route path="/microblogs/:id" component={MicroblogDetailPage} />
-          <Route path="/bible-study" component={BibleStudyPage} />
-          <Route path="/communities" component={CommunitiesPage} />
-          <Route path="/communities/:slug" component={CommunityPage} />
-          <Route path="/invitations/:token/accept" component={AcceptInvitationPage} />
-          <Route path="/forums" component={() => <ForumsPage />} />
-          <Route path="/posts" component={() => <PostsPage />} />
-          <Route path="/posts/:id" component={PostDetailPage} />
-          
-          {/* Resources */}
-          <Route path="/events" component={EventsPage} />
-          <Route path="/events/:id" component={EventDetailPage} />
-          <Route path="/prayer-requests" component={PrayerRequestsPage} />
-          <Route path="/livestreams" component={LivestreamsPage} />
-          <Route path="/apologetics" component={ApologeticsPage} />
-          
-          {/* User Actions */}
-          <Route path="/submit" component={SubmitPostPage} />
-          <Route path="/submit-post" component={SubmitPostPage} />
-          <Route path="/profile" component={ProfilePage} />
-          <Route path="/profile/:username" component={ProfilePage} />
-          <Route path="/dms" component={DMsPage} />
-          <Route path="/settings" component={SettingsPage} />
-          <Route path="/support" component={SupportPage} />
-          
-          {/* Organization */}
-          <Route path="/church-signup" component={ChurchSignupPage} />
-          <Route path="/organization-dashboard" component={OrganizationDashboardPage} />
-          
-          {/* Applications */}
-          <Route path="/apologist-scholar-application" component={ApologistScholarApplicationPage} />
-          <Route path="/livestreamer-application" component={LivestreamerApplicationPage} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin" component={AdminDashboard} />
-          <Route path="/admin/apologist-scholar-applications" component={AdminApologistApplications} />
-          <Route path="/admin/livestreamer-applications" component={AdminLivestreamerApplications} />
-          
-          <Route component={NotFound} />
+            <Route path="/" children={() => <HomePage />} />
+            <Route path="/auth" children={() => <AuthPage />} />
+
+            {/* Main Content Pages */}
+            <Route path="/microblogs" children={() => <MicroblogsPage />} />
+            <Route path="/microblogs/:id" children={() => <MicroblogDetailPage />} />
+            <Route path="/bible-study" children={() => <BibleStudyPage />} />
+            <Route path="/communities" children={() => <CommunitiesPage />} />
+            <Route path="/communities/:slug" children={() => <CommunityPage />} />
+            <Route path="/invitations/:token/accept" children={() => <AcceptInvitationPage />} />
+            <Route path="/forums" children={() => <ForumsPage />} />
+            <Route path="/posts" children={() => <PostsPage />} />
+            <Route path="/posts/:id" children={() => <PostDetailPage />} />
+
+            {/* Resources */}
+            <Route path="/events" children={() => <EventsPage />} />
+            <Route path="/events/:id" children={() => <EventDetailPage />} />
+            <Route path="/prayer-requests" children={() => <PrayerRequestsPage />} />
+            <Route path="/livestreams" children={() => <LivestreamsPage />} />
+            <Route path="/apologetics" children={() => <ApologeticsPage />} />
+
+            {/* User Actions */}
+            <Route path="/submit" children={() => <SubmitPostPage />} />
+            <Route path="/submit-post" children={() => <SubmitPostPage />} />
+            <Route path="/profile" children={() => <ProfilePage />} />
+            <Route path="/profile/:username" children={() => <ProfilePage />} />
+            <Route path="/dms" children={() => <DMsPage />} />
+            <Route path="/settings" children={() => <SettingsPage />} />
+            <Route path="/support" children={() => <SupportPage />} />
+            <Route path="/church-signup" children={() => <ChurchSignupPage />} />
+            <Route path="/organization-dashboard" children={() => <OrganizationDashboardPage />} />
+
+            {/* Applications */}
+            <Route path="/apologist-scholar-application" children={() => <ApologistScholarApplicationPage />} />
+            <Route path="/livestreamer-application" children={() => <LivestreamerApplicationPage />} />
+
+            {/* Admin Routes */}
+            <Route path="/admin" children={() => <AdminDashboard />} />
+            <Route
+              path="/admin/apologist-scholar-applications"
+              children={() => <AdminApologistApplications />}
+            />
+            <Route
+              path="/admin/livestreamer-applications"
+              children={() => <AdminLivestreamerApplications />}
+            />
+
+            <Route children={() => <NotFound />} />
           </Switch>
         </Suspense>
       </ResponsiveLayout>

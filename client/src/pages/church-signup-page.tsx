@@ -9,7 +9,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { useToast } from "../hooks/use-toast";
 import { Church, ArrowLeft } from "lucide-react";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const createOrganizationSchema = z.object({
   name: z.string().min(3, "Organization name must be at least 3 characters"),
@@ -85,7 +85,7 @@ export default function ChurchSignupPage() {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        error.errors.forEach((err) => {
+        error.issues.forEach((err) => {
           const field = err.path[0] as string;
           fieldErrors[field] = err.message;
         });

@@ -10,10 +10,10 @@ import { Button } from "../components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
 import { Skeleton } from "../components/ui/skeleton";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Community, Group, InsertPost } from "../../../shared/schema";
+import { Community, Group, insertPostSchema } from "../../../shared/schema";
 import { useAuth } from "../hooks/use-auth";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
@@ -21,15 +21,15 @@ import { Loader2 } from "lucide-react";
 
 // Post creation form schema
 const postFormSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(300, "Title cannot exceed 300 characters"),
-  content: z.string().min(10, "Content must be at least 10 characters"),
-  imageUrl: z.string().optional(),
-  communityId: z.coerce.number().optional(),
-  groupId: z.coerce.number().optional(),
-  includeScripture: z.boolean().default(false),
+  title: z.string().trim().min(3, "Title must be at least 3 characters").max(300, "Title cannot exceed 300 characters"),
+  content: z.string().trim().min(10, "Content must be at least 10 characters"),
+  imageUrl: z.string().trim().optional(),
+  communityId: z.coerce.number().int().positive().optional(),
+  groupId: z.coerce.number().int().positive().optional(),
+  includeScripture: z.boolean(),
 });
 
-type PostFormValues = z.infer<typeof postFormSchema>;
+type PostFormValues = z.input<typeof postFormSchema>;
 
 export default function SubmitPostPage() {
   const { user } = useAuth();
@@ -61,26 +61,27 @@ export default function SubmitPostPage() {
   });
   
   const createPostMutation = useMutation({
-    mutationFn: async (data: PostFormValues) => {
-      // Include scripture if checked
-      let content = data.content;
-      if (data.includeScripture && scripture) {
-        content += `\n\n${scripture}`;
+    mutationFn: async (values: PostFormValues) => {
+      if (!user) {
+        throw new Error("Authentication required");
       }
-      
-      // Remove any field that is empty or undefined
-      const postData: any = {
-        title: data.title,
-        content,
-        authorId: user!.id,
-      };
-      
-      const d = data as any;
-      if (d.imageUrl) postData.imageUrl = d.imageUrl;
-      if (d.communityId) postData.communityId = d.communityId;
-      if (d.groupId) postData.groupId = d.groupId;
-      
-      const res = await apiRequest("POST", "/api/posts", postData);
+
+      const parsedValues = postFormSchema.parse(values);
+
+      const combinedContent = parsedValues.includeScripture && scripture
+        ? `${parsedValues.content}\n\n${scripture}`.trim()
+        : parsedValues.content;
+
+      const payload = insertPostSchema.parse({
+        title: parsedValues.title,
+        content: combinedContent,
+        imageUrl: parsedValues.imageUrl ? parsedValues.imageUrl : undefined,
+        communityId: parsedValues.communityId ?? undefined,
+        groupId: parsedValues.groupId ?? undefined,
+        authorId: user.id,
+      });
+
+      const res = await apiRequest("POST", "/api/posts", payload);
       return await res.json();
     },
     onSuccess: (newPost) => {
@@ -101,6 +102,15 @@ export default function SubmitPostPage() {
   });
   
   const onSubmit = (data: PostFormValues) => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to create a post.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createPostMutation.mutate(data);
   };
   
@@ -139,8 +149,8 @@ export default function SubmitPostPage() {
                         <FormItem>
                           <FormLabel>Community</FormLabel>
                           <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value?.toString()}
+                            onValueChange={(value) => field.onChange(value)} 
+                            value={field.value ? field.value.toString() : undefined}
                             disabled={isLoadingCommunities}
                           >
                             <FormControl>
@@ -177,8 +187,8 @@ export default function SubmitPostPage() {
                         <FormItem>
                           <FormLabel>Private Group (Optional)</FormLabel>
                           <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value?.toString()}
+                            onValueChange={(value) => field.onChange(value)} 
+                            value={field.value ? field.value.toString() : undefined}
                             disabled={isLoadingGroups || !user}
                           >
                             <FormControl>
@@ -267,7 +277,7 @@ export default function SubmitPostPage() {
                         <FormControl>
                           <Checkbox
                             checked={field.value}
-                            onCheckedChange={field.onChange}
+                            onCheckedChange={(checked) => field.onChange(Boolean(checked))}
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">

@@ -1,3 +1,5 @@
+import { QueryClient, QueryFunction } from "@tanstack/react-query";
+
 const RAW_API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
 function normalizeBase(input: string): string {

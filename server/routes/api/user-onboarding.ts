@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { storage } from "../../storage-optimized";
 import { isAuthenticated } from "../../auth";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 // Schema for validating onboarding data
 const onboardingSchema = z.object({
@@ -27,9 +27,9 @@ export const handleOnboarding = async (req: Request, res: Response) => {
     // Validate the request body
     const validation = onboardingSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ 
-        message: "Invalid data", 
-        errors: validation.error.errors 
+      return res.status(400).json({
+        message: "Invalid data",
+        errors: validation.error.issues,
       });
     }
 

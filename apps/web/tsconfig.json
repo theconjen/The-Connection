@@ -11,6 +11,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
+    "paths": {
+      "shared/*": ["../../shared/*"],
+      "shared-env": ["./src/env.web"]
+    }
   },
   "include": ["src", "tests", "tests/utils"]
 }
