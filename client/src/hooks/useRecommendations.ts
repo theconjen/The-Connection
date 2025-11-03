@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../lib/queryClient';
-import { apiUrl } from '../lib/env';
 
 export interface RecommendedMicroblog {
   id: number;
@@ -43,9 +42,9 @@ export interface InteractionData {
 
 export function usePersonalizedFeed(limit = 20) {
   return useQuery({
-    queryKey: ['/api/recommendations/feed', limit],
+    queryKey: ['/recommendations/feed', limit],
     queryFn: async (): Promise<PersonalizedFeedData> => {
-      const response = await apiRequest('GET', `/api/recommendations/feed?limit=${limit}`);
+      const response = await apiRequest('GET', `/recommendations/feed?limit=${limit}`);
       return response.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -58,17 +57,12 @@ export function useRecordInteraction() {
 
   return useMutation({
     mutationFn: async (interaction: InteractionData) => {
-  const response = await fetch(apiUrl('/api/recommendations/interaction'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(interaction),
-      });
-      if (!response.ok) throw new Error('Failed to record interaction');
+      const response = await apiRequest('POST', '/recommendations/interaction', interaction);
       return response.json();
     },
     onSuccess: () => {
       // Invalidate recommendations to potentially refresh with new data
-      queryClient.invalidateQueries({ queryKey: ['/api/recommendations/feed'] });
+      queryClient.invalidateQueries({ queryKey: ['/recommendations/feed'] });
     },
   });
 }

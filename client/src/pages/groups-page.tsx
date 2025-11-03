@@ -30,27 +30,58 @@ import {
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { Skeleton } from "../components/ui/skeleton";
-import { insertGroupSchema } from "../../../shared/schema";
+import { InsertGroup } from "../../../shared/schema";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { User, Users, Home, Church, PlusIcon } from "lucide-react";
 import CommunityGuidelines from "../components/community-guidelines";
+import { useZodForm } from "@/lib/forms";
 
-// Extend the schema with validation
-const createGroupSchema = insertGroupSchema.extend({
-  name: z.string().min(3, "Group name must be at least 3 characters"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  iconName: z.string(),
-  iconColor: z.string(),
+const groupIconNames = ["users", "home", "church", "user"] as const;
+const groupIconColors = ["green", "blue", "purple", "amber"] as const;
+
+const iconNameLabels: Record<(typeof groupIconNames)[number], string> = {
+  users: "Users",
+  home: "Home",
+  church: "Church",
+  user: "Person",
+};
+
+const iconColorLabels: Record<(typeof groupIconColors)[number], string> = {
+  green: "Green",
+  blue: "Blue",
+  purple: "Purple",
+  amber: "Amber",
+};
+
+const createGroupSchema = z.object({
+  name: z
+    .string()
+    .min(3, "Group name must be at least 3 characters")
+    .max(80, "Group name must be 80 characters or less")
+    .trim(),
+  description: z
+    .string()
+    .min(10, "Description must be at least 10 characters")
+    .max(600, "Description must be 600 characters or less")
+    .trim(),
+  iconName: z.enum(groupIconNames),
+  iconColor: z.enum(groupIconColors),
   isPrivate: z.boolean(),
 });
 
 type CreateGroupFormValues = z.infer<typeof createGroupSchema>;
+
+const defaultCreateGroupValues: CreateGroupFormValues = {
+  name: "",
+  description: "",
+  iconName: "users",
+  iconColor: "green",
+  isPrivate: true,
+};
 
 export default function GroupsPage() {
   const { user } = useAuth();
@@ -58,41 +89,37 @@ export default function GroupsPage() {
   const { toast } = useToast();
   
   const { data: groups, isLoading } = useQuery<Group[]>({
-    queryKey: ['/api/groups'],
+    queryKey: ['/groups'],
   });
   
-  const form = useForm<CreateGroupFormValues>({
-    resolver: zodResolver(createGroupSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      iconName: "users",
-      iconColor: "green",
-      isPrivate: true,
-    },
+  const form = useZodForm(createGroupSchema, {
+    defaultValues: defaultCreateGroupValues,
   });
   
   const onSubmit = async (data: CreateGroupFormValues) => {
     if (!user) {
       toast({
-        title: "You must be signed in",
-        description: "Sign in to create a group.",
+        title: "Authentication required",
+        description: "You need to be logged in to create a group.",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      const groupData = insertGroupSchema.parse({
-        ...data,
+      const groupData: InsertGroup = {
+        name: data.name.trim(),
+        description: data.description.trim(),
+        iconName: data.iconName,
+        iconColor: data.iconColor,
+        isPrivate: data.isPrivate,
         createdBy: user.id,
-      });
-
-      const response = await apiRequest("POST", "/api/groups", groupData);
-      const newGroup = await response.json();
+      };
+      
+  await apiRequest("POST", "/groups", groupData);
       
       // Invalidate the groups query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['/api/groups'] });
+      queryClient.invalidateQueries({ queryKey: ["/groups"] });
       
       toast({
         title: "Group Created",
@@ -100,7 +127,7 @@ export default function GroupsPage() {
       });
       
       setIsCreateDialogOpen(false);
-      form.reset();
+      form.reset(defaultCreateGroupValues);
       
     } catch (error) {
       toast({
@@ -428,12 +455,16 @@ export default function GroupsPage() {
                       <FormControl>
                         <select
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          {...field}
+                          value={field.value}
+                          onChange={(event) =>
+                            field.onChange(event.target.value as CreateGroupFormValues["iconName"])
+                          }
                         >
-                          <option value="users">Users</option>
-                          <option value="home">Home</option>
-                          <option value="church">Church</option>
-                          <option value="user">Person</option>
+                          {groupIconNames.map((icon) => (
+                            <option key={icon} value={icon}>
+                              {iconNameLabels[icon]}
+                            </option>
+                          ))}
                         </select>
                       </FormControl>
                       <FormMessage />
@@ -450,12 +481,16 @@ export default function GroupsPage() {
                       <FormControl>
                         <select
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          {...field}
+                          value={field.value}
+                          onChange={(event) =>
+                            field.onChange(event.target.value as CreateGroupFormValues["iconColor"])
+                          }
                         >
-                          <option value="green">Green</option>
-                          <option value="blue">Blue</option>
-                          <option value="purple">Purple</option>
-                          <option value="amber">Amber</option>
+                          {groupIconColors.map((color) => (
+                            <option key={color} value={color}>
+                              {iconColorLabels[color]}
+                            </option>
+                          ))}
                         </select>
                       </FormControl>
                       <FormMessage />
@@ -474,7 +509,7 @@ export default function GroupsPage() {
                         type="checkbox"
                         className="h-4 w-4"
                         checked={field.value}
-                        onChange={field.onChange}
+                        onChange={(event) => field.onChange(event.target.checked)}
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">

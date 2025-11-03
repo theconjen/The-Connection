@@ -16,7 +16,7 @@ import { apiRequest, queryClient } from "../lib/queryClient";
 import { useAuth } from "../hooks/use-auth";
 import { Link } from "wouter";
 import EventsList from "../components/events/EventsList";
-import { Event } from "../components/events/EventsMap";
+import type { Event } from "@shared/mobile-web/types";
 
 export default function EventsPage() {
   const { user } = useAuth();
@@ -28,15 +28,15 @@ export default function EventsPage() {
 
   // Get events based on selected view mode
   const { data: events = [], isLoading } = useQuery({
-    queryKey: [viewMode === "all" ? "/api/events" : `/api/events/${viewMode}`],
+    queryKey: [viewMode === "all" ? "/events" : `/events/${viewMode}`],
     queryFn: async () => {
-      let endpoint = "/api/events";
+      let endpoint = "/events";
       if (viewMode === "public") {
-        endpoint = "/api/events/public";
+        endpoint = "/events/public";
       } else if (viewMode === "nearby" && coordinates.latitude && coordinates.longitude) {
-        endpoint = `/api/events/nearby?latitude=${coordinates.latitude}&longitude=${coordinates.longitude}&radius=10`;
+        endpoint = `/events/nearby?latitude=${coordinates.latitude}&longitude=${coordinates.longitude}&radius=10`;
       }
-      const response = await fetch(endpoint);
+      const response = await apiRequest(endpoint);
       if (!response.ok) throw new Error("Failed to fetch events");
       return response.json();
     },
@@ -125,7 +125,7 @@ export default function EventsPage() {
       let eventData = { ...newEvent };
       
       // Send API request to create event
-      const response = await apiRequest("POST", "/api/events", eventData);
+  const response = await apiRequest("POST", "/events", eventData);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -161,11 +161,11 @@ export default function EventsPage() {
       });
 
       // Invalidate queries to refresh event lists
-      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/events/public"] });
+      queryClient.invalidateQueries({ queryKey: ["/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/events/public"] });
       if (coordinates.latitude && coordinates.longitude) {
         queryClient.invalidateQueries({ 
-          queryKey: [`/api/events/nearby?latitude=${coordinates.latitude}&longitude=${coordinates.longitude}&radius=10`] 
+          queryKey: [`/events/nearby?latitude=${coordinates.latitude}&longitude=${coordinates.longitude}&radius=10`] 
         });
       }
 

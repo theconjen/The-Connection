@@ -4,10 +4,7 @@
 
 export function getApiBase(): string {
   // Try common env vars first
-  const env =
-    typeof globalThis !== 'undefined' && (globalThis as any)?.process?.env
-      ? ((globalThis as any).process.env as Record<string, string | undefined>)
-      : {};
+  const env = typeof process !== 'undefined' ? (process as any).env ?? {} : {};
   const candidates = [
     env.EXPO_PUBLIC_API_BASE,
     env.VITE_API_BASE,

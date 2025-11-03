@@ -4,7 +4,7 @@ import { TID } from "./utils/testids";
 
 test("shows error on second page, recovers on retry", async ({ page }) => {
   await installFetchStub(page, {
-    "/api/feed": (() => {
+  "/feed": (() => {
       let failedOnce = false;
       return (u: URL) => {
         if (!u.searchParams.has('cursor')) {

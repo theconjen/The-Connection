@@ -1,5 +1,5 @@
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
-import { useAuth } from '../../src/auth';
+import { useAuth } from '../../src/auth/AuthProvider';
 
 export default function Settings() {
   const { user, logout, loading } = useAuth();

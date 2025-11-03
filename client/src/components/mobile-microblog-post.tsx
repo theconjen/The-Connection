@@ -59,14 +59,14 @@ export default function MobileMicroblogPost({
   const toggleLikeMutation = useMutation({
     mutationFn: async (liked: boolean) => {
       if (liked) {
-        await apiRequest("DELETE", `/api/microblogs/${post.id}/like`);
+        await apiRequest("DELETE", `/microblogs/${post.id}/like`);
       } else {
-        await apiRequest("POST", `/api/microblogs/${post.id}/like`);
+        await apiRequest("POST", `/microblogs/${post.id}/like`);
       }
     },
     onMutate: (liked) => {
       // Optimistic update
-      queryClient.setQueryData(["/api/microblogs"], (oldData: any) => {
+      queryClient.setQueryData(["/microblogs"], (oldData: any) => {
         if (!oldData) return oldData;
         return oldData.map((p: any) => 
           p.id === post.id 
@@ -80,7 +80,7 @@ export default function MobileMicroblogPost({
       });
       
       // Also update any detailed view
-      queryClient.setQueryData(["/api/microblogs", post.id], (oldData: any) => {
+      queryClient.setQueryData(["/microblogs", post.id], (oldData: any) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
@@ -99,7 +99,7 @@ export default function MobileMicroblogPost({
         variant: "destructive"
       });
       
-      queryClient.setQueryData(["/api/microblogs"], (oldData: any) => {
+      queryClient.setQueryData(["/microblogs"], (oldData: any) => {
         if (!oldData) return oldData;
         return oldData.map((p: any) => 
           p.id === post.id 
@@ -112,7 +112,7 @@ export default function MobileMicroblogPost({
         );
       });
       
-      queryClient.setQueryData(["/api/microblogs", post.id], (oldData: any) => {
+      queryClient.setQueryData(["/microblogs", post.id], (oldData: any) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
@@ -123,8 +123,8 @@ export default function MobileMicroblogPost({
     },
     onSettled: () => {
       // Refresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/microblogs"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/microblogs", post.id] });
+      queryClient.invalidateQueries({ queryKey: ["/microblogs"] });
+      queryClient.invalidateQueries({ queryKey: ["/microblogs", post.id] });
     }
   });
 

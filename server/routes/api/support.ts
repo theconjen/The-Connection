@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { requireAuth } from "../../middleware/auth";
 import { sendEmail } from "../../email";
 import type { User } from "../../../shared/schema";
@@ -90,7 +90,7 @@ router.post("/contact", async (req, res) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         error: 'Validation failed',
-        details: error.issues.map(err => ({
+        details: error.errors.map(err => ({
           field: err.path.join('.'),
           message: err.message
         }))

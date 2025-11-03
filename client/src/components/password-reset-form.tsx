@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
@@ -71,7 +71,7 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
   // Request password reset mutation
   const requestMutation = useMutation({
     mutationFn: async (data: RequestFormValues) => {
-      const res = await apiRequest("POST", "/api/request-password-reset", data);
+  const res = await apiRequest("POST", "/request-password-reset", data);
       return await res.json();
     },
     onSuccess: () => {
@@ -93,7 +93,7 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
   // Reset password mutation
   const resetMutation = useMutation({
     mutationFn: async (data: ResetFormValues) => {
-      const res = await apiRequest("POST", "/api/reset-password", data);
+  const res = await apiRequest("POST", "/reset-password", data);
       return await res.json();
     },
     onSuccess: () => {

@@ -57,3 +57,4 @@ docker compose up --build
 4) Notes & tips
 - If the server throws missing-module errors, run `npm ci` on the host (or ensure docker build completed successfully) so `node_modules` are present.
 - For smaller artifacts and no node_modules on the server, consider building a bundled artifact with `esbuild --bundle` and adjusting the Dockerfile to copy that single file instead of relying on node_modules.
+- Web + mobile release orchestration (build, smokes, rollback) is documented in [`docs/release-playbook.md`](docs/release-playbook.md).

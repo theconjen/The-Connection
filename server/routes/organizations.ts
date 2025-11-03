@@ -2,7 +2,7 @@ import express from "express";
 import { db } from "../db";
 import { organizations, organizationUsers, users } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { insertOrganizationSchema, insertOrganizationUserSchema } from "@shared/schema";
 
 const router = express.Router();

@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { apiUrl } from "./env";
+import { api } from "./env";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -11,31 +11,31 @@ async function throwIfResNotOk(res: Response) {
 // Support both `apiRequest(method, url, data?)` and `apiRequest(url, options?)` call styles
 export async function apiRequest(
   methodOrUrl: string,
-  maybeUrlOrOptions?: string | { method?: string; body?: string } | unknown,
+  maybeUrlOrOptions?: string | RequestInit,
   maybeData?: unknown,
 ): Promise<Response> {
-  let method = 'GET';
   let url = methodOrUrl;
-  let data: unknown | undefined = undefined;
+  let init: RequestInit = {};
 
-  // Caller used (method, url, data)
-  if (maybeUrlOrOptions && typeof maybeUrlOrOptions === 'string') {
-    method = methodOrUrl;
+  if (typeof maybeUrlOrOptions === "string") {
     url = maybeUrlOrOptions;
-    data = maybeData;
-  } else if (maybeUrlOrOptions && typeof maybeUrlOrOptions === 'object') {
-    // Caller used (url, options)
-    const opts = maybeUrlOrOptions as any;
-    method = opts.method || 'GET';
-    data = opts.body ? JSON.parse(opts.body) : undefined;
+    init = {
+      method: methodOrUrl,
+      body: maybeData !== undefined ? JSON.stringify(maybeData) : undefined,
+    };
+  } else if (maybeUrlOrOptions) {
+    init = { ...(maybeUrlOrOptions as RequestInit) };
   }
 
-  const res = await fetch(apiUrl(url), {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+  if (!init.method) {
+    init.method = "GET";
+  }
+
+  if (init.body && typeof init.body !== "string") {
+    init.body = JSON.stringify(init.body);
+  }
+
+  const res = await api(url, init);
 
   await throwIfResNotOk(res);
   return res;
@@ -47,8 +47,8 @@ export const getQueryFn = (options: { on401: UnauthorizedBehavior }): QueryFunct
   const { on401: unauthorizedBehavior } = options;
   return async ({ queryKey }) => {
     try {
-  const res = await fetch(apiUrl(queryKey[0] as string), {
-        credentials: "include",
+      const res = await api(queryKey[0] as string, {
+        method: "GET",
       });
 
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {

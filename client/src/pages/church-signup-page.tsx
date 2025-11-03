@@ -9,7 +9,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { useToast } from "../hooks/use-toast";
 import { Church, ArrowLeft } from "lucide-react";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 const createOrganizationSchema = z.object({
   name: z.string().min(3, "Organization name must be at least 3 characters"),
@@ -44,13 +44,13 @@ export default function ChurchSignupPage() {
 
   const createOrganizationMutation = useMutation({
     mutationFn: async (data: CreateOrganizationData) => {
-      return apiRequest("/api/organizations", {
+      return apiRequest("/organizations", {
         method: "POST",
         body: JSON.stringify(data),
       });
     },
     onSuccess: (organization) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["/organizations"] });
       toast({
         title: "Success!",
         description: "Your church account has been created successfully.",
@@ -85,7 +85,7 @@ export default function ChurchSignupPage() {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        error.issues.forEach((err) => {
+        error.errors.forEach((err) => {
           const field = err.path[0] as string;
           fieldErrors[field] = err.message;
         });

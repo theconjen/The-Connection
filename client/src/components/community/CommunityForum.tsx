@@ -110,7 +110,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
     error,
     refetch,
   } = useQuery<ExtendedMicroblog[]>({
-    queryKey: [`/api/microblogs`, community.id, filter, sortOrder, selectedCategory],
+    queryKey: ["/microblogs", community.id, filter, sortOrder, selectedCategory],
     queryFn: async () => {
       const params = new URLSearchParams({
         communityId: community.id.toString(),
@@ -119,7 +119,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
         category: selectedCategory,
         type: 'forum'
       });
-      const response = await apiRequest('GET', `/api/microblogs?${params}`);
+  const response = await apiRequest('GET', `/microblogs?${params}`);
       return response.json();
     },
     enabled: isMember || !community.isPrivate,
@@ -128,7 +128,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
   // Create topic mutation
   const createTopicMutation = useMutation({
     mutationFn: async (data: { title: string; content: string; category: string }) => {
-      const response = await apiRequest("POST", "/api/microblogs", {
+  const response = await apiRequest("POST", "/microblogs", {
         content: `**${data.title}**\n\n${data.content}`,
         communityId: community.id,
         // Add category as metadata
@@ -137,7 +137,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/microblogs`, community.id] });
+  queryClient.invalidateQueries({ queryKey: ["/microblogs", community.id] });
       setNewTopicTitle("");
       setNewTopicContent("");
       setNewTopicCategory("general");
@@ -159,7 +159,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
   // Reply to topic mutation
   const replyMutation = useMutation({
     mutationFn: async (data: { parentId: number; content: string }) => {
-      const response = await apiRequest("POST", "/api/microblogs", {
+  const response = await apiRequest("POST", "/microblogs", {
         content: data.content,
         communityId: community.id,
         parentId: data.parentId,
@@ -167,7 +167,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/microblogs`, community.id] });
+  queryClient.invalidateQueries({ queryKey: ["/microblogs", community.id] });
       setReplyContent({});
       toast({
         title: "Reply added",
@@ -186,10 +186,10 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
   // Like topic mutation
   const likeMutation = useMutation({
     mutationFn: async (topicId: number) => {
-      await apiRequest("POST", `/api/microblogs/${topicId}/like`, {});
+      await apiRequest("POST", `/microblogs/${topicId}/like`, {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/microblogs`, community.id] });
+      queryClient.invalidateQueries({ queryKey: ["/microblogs", community.id] });
     },
   });
 

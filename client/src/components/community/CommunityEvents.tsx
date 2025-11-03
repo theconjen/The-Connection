@@ -116,9 +116,9 @@ export function CommunityEvents({ community, isMember, isOwner, isModerator }: C
     error,
     refetch,
   } = useQuery<Event[]>({
-    queryKey: [`/api/events`, community.id, filter],
+    queryKey: ["/events", community.id, filter],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/events?communityId=${community.id}&filter=${filter}`);
+      const response = await apiRequest("GET", `/events?communityId=${community.id}&filter=${filter}`);
       return response.json();
     },
     enabled: isMember || !community.isPrivate,
@@ -127,7 +127,7 @@ export function CommunityEvents({ community, isMember, isOwner, isModerator }: C
   // Create event mutation
   const createEventMutation = useMutation({
     mutationFn: async (eventData: any) => {
-      const response = await apiRequest("POST", "/api/events", {
+  const response = await apiRequest("POST", "/events", {
         ...eventData,
         communityId: community.id,
         createdBy: user?.id,
@@ -135,7 +135,7 @@ export function CommunityEvents({ community, isMember, isOwner, isModerator }: C
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/events`, community.id] });
+  queryClient.invalidateQueries({ queryKey: ["/events", community.id] });
       setNewEvent({
         title: "",
         description: "",
@@ -166,11 +166,11 @@ export function CommunityEvents({ community, isMember, isOwner, isModerator }: C
   // RSVP mutation
   const rsvpMutation = useMutation({
     mutationFn: async ({ eventId, status }: { eventId: number; status: "attending" | "maybe" | "declined" }) => {
-      const response = await apiRequest("PATCH", `/api/events/${eventId}/rsvp`, { status });
+  const response = await apiRequest("PATCH", `/events/${eventId}/rsvp`, { status });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/events`, community.id] });
+  queryClient.invalidateQueries({ queryKey: ["/events", community.id] });
       toast({
         title: "RSVP updated",
         description: "Your attendance status has been updated.",

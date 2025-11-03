@@ -1,6 +1,6 @@
 import React, { createContext, useContext, PropsWithChildren, useMemo, useEffect } from 'react';
 import { Appearance, ColorSchemeName, Text } from 'react-native';
-import { colors, spacing, radii, shadows, typeScale, ThemeTokens } from './tokens';
+import { colors, spacing, radii, shadows, typeScale, ThemeTokens } from '../../../shared/theme/tokens';
 
 export type Theme = ThemeTokens & { scheme: ColorSchemeName };
 

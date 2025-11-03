@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Uppy from "@uppy/core";
-import DashboardModal from "@uppy/react/dashboard-modal";
+import Dashboard from "@uppy/react/dashboard";
 import "@uppy/core/dist/style.min.css";
 import "@uppy/dashboard/dist/style.min.css";
 import AwsS3 from "@uppy/aws-s3";
@@ -59,22 +59,65 @@ export function ObjectUploader({
   children,
 }: ObjectUploaderProps) {
   const [showModal, setShowModal] = useState(false);
-  const [uppy] = useState(() =>
-    new Uppy({
+  const modalTitleId = useId();
+
+  const uppy = useMemo(() => {
+    const instance = new Uppy({
+      autoProceed: false,
       restrictions: {
         maxNumberOfFiles,
         maxFileSize,
       },
-      autoProceed: false,
-    })
-      .use(AwsS3, {
-        shouldUseMultipart: false,
-        getUploadParameters: onGetUploadParameters,
-      })
-      .on("complete", (result) => {
-        onComplete?.(result);
-      })
-  );
+    });
+
+    instance.use(AwsS3, {
+      shouldUseMultipart: false,
+      getUploadParameters: onGetUploadParameters,
+    });
+
+    return instance;
+    // We intentionally recreate the instance when core upload options change to ensure fresh configuration.
+  }, [maxFileSize, maxNumberOfFiles, onGetUploadParameters]);
+
+  useEffect(() => {
+    return () => {
+      uppy.destroy();
+    };
+  }, [uppy]);
+
+  useEffect(() => {
+    const handleComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+      onComplete?.(result);
+    };
+
+    uppy.on("complete", handleComplete);
+
+    return () => {
+      uppy.off("complete", handleComplete);
+    };
+  }, [uppy, onComplete]);
+
+  useEffect(() => {
+    if (!showModal) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowModal(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showModal]);
+
+  const handleClose = () => {
+    setShowModal(false);
+  };
 
   return (
     <div>
@@ -82,12 +125,35 @@ export function ObjectUploader({
         {children}
       </Button>
 
-      <DashboardModal
-        uppy={uppy}
-        open={showModal}
-        onRequestClose={() => setShowModal(false)}
-        proudlyDisplayPoweredByUppy={false}
-      />
+      {showModal ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={modalTitleId}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={handleClose}
+        >
+          <div
+            className="w-full max-w-3xl rounded-xl bg-background p-4 shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id={modalTitleId} className="sr-only">
+              Upload files
+            </h2>
+            <Dashboard
+              uppy={uppy}
+              proudlyDisplayPoweredByUppy={false}
+              height={420}
+              doneButtonHandler={handleClose}
+            />
+            <div className="mt-4 flex justify-end">
+              <Button variant="outline" onClick={handleClose}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

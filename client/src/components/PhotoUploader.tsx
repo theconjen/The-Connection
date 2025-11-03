@@ -35,7 +35,7 @@ export function PhotoUploader({
 
   const handleGetUploadParameters = async () => {
     try {
-      const res = await apiRequest("POST", "/api/objects/upload");
+  const res = await apiRequest("POST", "/objects/upload");
       const data = await res.json().catch(() => ({}));
       return {
         method: "PUT" as const,
@@ -60,12 +60,12 @@ export function PhotoUploader({
 
         switch (uploadType) {
           case "avatar":
-            endpoint = "/api/user/avatar";
+            endpoint = "/user/avatar";
             payload = { avatarURL: uploadURL };
             break;
           case "community":
             if (!targetId) throw new Error("Target ID required for community uploads");
-            endpoint = `/api/communities/${targetId}/image`;
+            endpoint = `/communities/${targetId}/image`;
             payload = { imageURL: uploadURL };
             break;
           case "general":
@@ -89,10 +89,10 @@ export function PhotoUploader({
 
         // Invalidate relevant queries
         if (uploadType === "avatar") {
-          queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+          queryClient.invalidateQueries({ queryKey: ["/user"] });
         } else if (uploadType === "community") {
-          queryClient.invalidateQueries({ queryKey: ["/api/communities", targetId] });
-          queryClient.invalidateQueries({ queryKey: ["/api/communities"] });
+          queryClient.invalidateQueries({ queryKey: ["/communities", targetId] });
+          queryClient.invalidateQueries({ queryKey: ["/communities"] });
         }
 
         toast({

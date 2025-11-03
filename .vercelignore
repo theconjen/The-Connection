@@ -1,9 +1,10 @@
-# ignore backend/native in Vercel deployments
-api/
-server/
-ios/
-android/
-apps/mobile/
-Pods/
-*.xcworkspace
-*.xcodeproj
+# Only exclude heavy build artifacts or caches so Vercel can build from source.
+node_modules
+apps/**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/.cache
+**/.pnpm-store
+**/*.map
+**/.DS_Store

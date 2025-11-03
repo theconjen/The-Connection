@@ -58,19 +58,19 @@ const formatDate = (dateString?: string | Date | null) => {
 export default function ApologeticsPage() {
   const { user } = useAuth();
   const { data: resources, isLoading: resourcesLoading } = useQuery<ApologeticsResource[]>({
-    queryKey: ['/api/apologetics'],
+    queryKey: ['/apologetics'],
   });
   
   const { data: topics, isLoading: topicsLoading } = useQuery<ApologeticsTopic[]>({
-    queryKey: ['/api/apologetics/topics'],
+    queryKey: ['/apologetics/topics'],
   });
   
   const { data: questions, isLoading: questionsLoading } = useQuery<ApologeticsQuestion[]>({
-    queryKey: ['/api/apologetics/questions'],
+    queryKey: ['/apologetics/questions'],
   });
   
   const { data: verifiedAnswerers, isLoading: answererLoading } = useQuery<User[]>({
-    queryKey: ['/api/users/verified-apologetics-answerers'],
+    queryKey: ['/users/verified-apologetics-answerers'],
   });
 
   const getResourceIcon = (type: string) => {

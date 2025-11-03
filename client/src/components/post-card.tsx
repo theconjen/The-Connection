@@ -29,14 +29,14 @@ export default function PostCard({ post, featured = false }: PostCardProps) {
   
   const upvoteMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/posts/${post.id}/upvote`);
+      const res = await apiRequest("POST", `/posts/${post.id}/upvote`);
       return await res.json();
     },
     onSuccess: (updatedPost) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/posts"] });
       if (post.communityId) {
         queryClient.invalidateQueries({ 
-          queryKey: ["/api/posts", { community: post.community?.slug }] 
+          queryKey: ["/posts", { community: post.community?.slug }] 
         });
       }
     },

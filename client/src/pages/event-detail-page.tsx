@@ -30,6 +30,7 @@ import {
 } from "../components/ui/dialog";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "../lib/queryClient";
+import { getJson } from "../lib/env";
 import { useAuth } from "../hooks/use-auth";
 import { Link, useLocation, useParams } from "wouter";
 import {
@@ -56,41 +57,39 @@ export default function EventDetailPage() {
   const [shareUrl, setShareUrl] = useState("");
 
   // Get event details
-  const { data: event, isLoading: isLoadingEvent } = useQuery({
-    queryKey: [`/api/events/${eventId}`],
+  const { data: event, isLoading: isLoadingEvent } = useQuery<Event>({
+    queryKey: [`/events/${eventId}`],
     queryFn: async () => {
-      const response = await fetch(`/api/events/${eventId}`);
-      if (!response.ok) {
-        if (response.status === 404) {
+      try {
+        return await getJson<Event>(`/events/${eventId}`);
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith("404")) {
           throw new Error("Event not found");
         }
         throw new Error("Failed to fetch event");
       }
-      return response.json();
     },
   });
 
   // Get RSVPs for the event
-  const { data: rsvps = [], isLoading: isLoadingRsvps } = useQuery({
-    queryKey: [`/api/events/${eventId}/rsvps`],
+  const { data: rsvps = [], isLoading: isLoadingRsvps } = useQuery<EventRsvp[]>({
+    queryKey: [`/events/${eventId}/rsvps`],
     queryFn: async () => {
-      const response = await fetch(`/api/events/${eventId}/rsvps`);
-      if (!response.ok) throw new Error("Failed to fetch RSVPs");
-      return response.json();
+      return await getJson<EventRsvp[]>(`/events/${eventId}/rsvps`);
     },
     enabled: !!event,
   });
 
   // Get user's RSVP status if logged in
-  const { data: userRsvp, isLoading: isLoadingUserRsvp } = useQuery({
-    queryKey: [`/api/events/${eventId}/rsvp`],
+  const { data: userRsvp, isLoading: isLoadingUserRsvp } = useQuery<EventRsvp | null>({
+    queryKey: [`/events/${eventId}/rsvp`],
     queryFn: async () => {
-      const response = await fetch(`/api/events/${eventId}/rsvp`);
-      if (!response.ok) {
-        if (response.status === 404) return null;
+      try {
+        return await getJson<EventRsvp>(`/events/${eventId}/rsvp`);
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith("404")) return null;
         throw new Error("Failed to fetch your RSVP");
       }
-      return response.json();
     },
     enabled: !!user && !!event,
   });
@@ -110,7 +109,7 @@ export default function EventDetailPage() {
   // Create RSVP mutation
   const createRsvpMutation = useMutation({
     mutationFn: async (status: string) => {
-      const response = await apiRequest("POST", `/api/events/${eventId}/rsvp`, { status });
+      const response = await apiRequest("POST", `/events/${eventId}/rsvp`, { status });
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to RSVP");
@@ -122,8 +121,8 @@ export default function EventDetailPage() {
         title: "RSVP Successful",
         description: "Your RSVP has been recorded.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/events/${eventId}/rsvps`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/events/${eventId}/rsvp`] });
+      queryClient.invalidateQueries({ queryKey: [`/events/${eventId}/rsvps`] });
+      queryClient.invalidateQueries({ queryKey: [`/events/${eventId}/rsvp`] });
     },
     onError: (error: Error) => {
       toast({
@@ -137,7 +136,7 @@ export default function EventDetailPage() {
   // Update RSVP mutation
   const updateRsvpMutation = useMutation({
     mutationFn: async (status: string) => {
-      const response = await apiRequest("PATCH", `/api/events/${eventId}/rsvp`, { status });
+      const response = await apiRequest("PATCH", `/events/${eventId}/rsvp`, { status });
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to update RSVP");
@@ -149,8 +148,8 @@ export default function EventDetailPage() {
         title: "RSVP Updated",
         description: "Your RSVP has been updated.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/events/${eventId}/rsvps`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/events/${eventId}/rsvp`] });
+      queryClient.invalidateQueries({ queryKey: [`/events/${eventId}/rsvps`] });
+      queryClient.invalidateQueries({ queryKey: [`/events/${eventId}/rsvp`] });
     },
     onError: (error: Error) => {
       toast({
@@ -164,7 +163,7 @@ export default function EventDetailPage() {
   // Delete event mutation
   const deleteEventMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/events/${eventId}`, {});
+      const response = await apiRequest("DELETE", `/events/${eventId}`, {});
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to delete event");
@@ -177,8 +176,8 @@ export default function EventDetailPage() {
         description: "The event has been successfully deleted.",
       });
       setLocation("/events");
-      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/events/public"] });
+  queryClient.invalidateQueries({ queryKey: ["/events"] });
+  queryClient.invalidateQueries({ queryKey: ["/events/public"] });
     },
     onError: (error: Error) => {
       toast({

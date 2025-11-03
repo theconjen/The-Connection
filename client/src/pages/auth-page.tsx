@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod/v4";
-import { Redirect, useLocation } from "wouter";
-import { navigate } from "wouter/use-browser-location";
-import { insertUserSchema } from "../../../shared/schema";
+import { z } from "zod";
+import { Redirect } from "wouter";
+import { InsertUser } from "../../../shared/schema";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
 import logoImage from "../assets/tc-logo.png";
 import {
@@ -27,6 +24,7 @@ import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import PasswordResetForm from "../components/password-reset-form";
+import { useZodForm } from "@/lib/forms";
 
 // Extend the schema with stronger validation
 const loginSchema = z.object({
@@ -34,25 +32,27 @@ const loginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-const registerSchema = insertUserSchema.extend({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  displayName: z
-    .string()
-    .max(100, "Display name must be 100 characters or less")
-    .optional()
-    .or(z.literal("")),
-  bio: z
-    .string()
-    .max(500, "Bio must be 500 characters or less")
-    .optional()
-    .or(z.literal("")),
-  confirmPassword: z.string().min(6, "Please confirm your password"),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const registerSchema = z
+  .object({
+    username: z.string().min(3, "Username must be at least 3 characters"),
+    email: z.string().email("Please enter a valid email address"),
+    displayName: z
+      .string()
+      .trim()
+      .max(100, "Display name must be 100 characters or less")
+      .optional(),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6, "Please confirm your password"),
+    bio: z
+      .string()
+      .trim()
+      .max(500, "Bio must be 500 characters or less")
+      .optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -66,8 +66,7 @@ export default function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Login form
-  const loginForm = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  const loginForm = useZodForm(loginSchema, {
     defaultValues: {
       username: "",
       password: "",
@@ -75,10 +74,7 @@ export default function AuthPage() {
   });
 
   // Register form
-  // Use a looser form typing here to allow optional fields like displayName and bio
-  // while we incrementally align the shared schema with the UI fields.
-  const registerForm = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+  const registerForm = useZodForm(registerSchema, {
     defaultValues: {
       username: "",
       email: "",
@@ -94,15 +90,17 @@ export default function AuthPage() {
   };
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Omit confirmPassword as it's not in the InsertUser type
-    const { confirmPassword, displayName, bio, ...userData } = data;
+    const { confirmPassword: _ignore, displayName, bio, ...baseUser } = data;
 
-    const parsedData = insertUserSchema.parse({
-      ...userData,
+    const userData: InsertUser = {
+      username: baseUser.username.trim(),
+      email: baseUser.email.trim(),
+      password: baseUser.password,
       displayName: displayName?.trim() ? displayName.trim() : undefined,
       bio: bio?.trim() ? bio.trim() : undefined,
-    });
-    auth.registerMutation.mutate(parsedData);
+    };
+
+    auth.registerMutation.mutate(userData);
   };
 
   // Redirect if user is already logged in

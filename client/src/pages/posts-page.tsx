@@ -23,7 +23,7 @@ export default function PostsPage({ isGuest = false }: PostsPageProps) {
   const { blockedIds } = useBlockedUserIds();
 
   const { data: posts, isLoading, isFetching } = useQuery<(Post & { author?: User; community?: Community })[]>({
-    queryKey: ["/api/posts", { filter, page }],
+    queryKey: ["/posts", { filter, page }],
   });
 
   const handleFilterChange = (newFilter: string) => {

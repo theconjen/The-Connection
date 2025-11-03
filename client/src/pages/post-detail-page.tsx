@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import MainLayout from "../components/layouts/main-layout";
-import { Post, User, Community, Comment, insertCommentSchema } from "../../../shared/schema";
+import { Post, User, Community, Comment, InsertComment, insertCommentSchema } from "../../../shared/schema";
 import { useAuth } from "../hooks/use-auth";
 import {
   Card,
@@ -18,7 +18,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import ShareButtons from "../components/share-buttons";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { format } from "date-fns";
 import {
   ArrowUpIcon,
@@ -48,7 +48,7 @@ export default function PostDetailPage() {
     data: post,
     isLoading: isLoadingPost,
   } = useQuery<Post & { author?: User; community?: Community }>({
-    queryKey: [`/api/posts/${postId}`],
+    queryKey: [`/posts/${postId}`],
     enabled: postId > 0,
   });
   
@@ -57,18 +57,18 @@ export default function PostDetailPage() {
     data: comments,
     isLoading: isLoadingComments,
   } = useQuery<(Comment & { author?: User })[]>({
-    queryKey: [`/api/posts/${postId}/comments`],
+    queryKey: [`/posts/${postId}/comments`],
     enabled: postId > 0,
   });
   
   // Upvote mutation
   const upvoteMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/posts/${postId}/upvote`);
+  const res = await apiRequest("POST", `/posts/${postId}/upvote`);
       return await res.json();
     },
     onSuccess: (updatedPost) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}`] });
+  queryClient.invalidateQueries({ queryKey: [`/posts/${postId}`] });
     },
     onError: (error: Error) => {
       toast({
@@ -81,24 +81,20 @@ export default function PostDetailPage() {
   
   // Comment mutation
   const commentMutation = useMutation({
-    mutationFn: async ({ content }: { content: string }) => {
-      if (!user) {
-        throw new Error("Authentication required");
-      }
-
-      const parsedComment = commentFormSchema.parse({
-        content: content.trim(),
+    mutationFn: async (content: string) => {
+      const data: InsertComment = {
+        content,
         postId,
-        authorId: user.id,
-      });
-
-      const res = await apiRequest("POST", "/api/comments", parsedComment);
+        authorId: user!.id,
+      };
+      
+  const res = await apiRequest("POST", "/comments", data);
       return await res.json();
     },
     onSuccess: () => {
       setCommentText("");
-      queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}/comments`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}`] });
+  queryClient.invalidateQueries({ queryKey: [`/posts/${postId}/comments`] });
+  queryClient.invalidateQueries({ queryKey: [`/posts/${postId}`] });
       toast({
         title: "Comment Added",
         description: "Your comment has been posted successfully.",
@@ -116,11 +112,11 @@ export default function PostDetailPage() {
   // Upvote comment mutation
   const upvoteCommentMutation = useMutation({
     mutationFn: async (commentId: number) => {
-      const res = await apiRequest("POST", `/api/comments/${commentId}/upvote`);
+  const res = await apiRequest("POST", `/comments/${commentId}/upvote`);
       return await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}/comments`] });
+  queryClient.invalidateQueries({ queryKey: [`/posts/${postId}/comments`] });
     },
     onError: (error: Error) => {
       toast({
@@ -165,7 +161,7 @@ export default function PostDetailPage() {
       return;
     }
     
-    commentMutation.mutate({ content: commentText });
+    commentMutation.mutate(commentText);
   };
   
   const handleUpvoteComment = (commentId: number) => {

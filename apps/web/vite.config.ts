@@ -27,7 +27,4 @@ export default defineConfig({
     // Explicit port
     port: 5173,
   },
-  build: {
-    outDir: path.resolve(__dirname, '../../www'),
-  },
 });

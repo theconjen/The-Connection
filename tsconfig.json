@@ -23,8 +23,7 @@
       "dom",
       "dom.iterable"
     ],
-  "jsx": "react-jsx",
-  "jsxImportSource": "react",
+    "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,

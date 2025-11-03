@@ -1,13 +1,13 @@
 import * as React from 'react';
 
-export type SwitchProps = {
+type SwitchProps = {
   checked?: boolean;
   onCheckedChange?: (next: boolean) => void;
   disabled?: boolean;
   style?: React.CSSProperties;
 };
 
-export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(({ checked = false, onCheckedChange, disabled, style }, ref) => {
+const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(({ checked = false, onCheckedChange, disabled, style }, ref) => {
   return (
     <button
       ref={ref}

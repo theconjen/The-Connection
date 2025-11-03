@@ -8,7 +8,9 @@
 		"build": "tsc -b && vite build",
 		"preview": "vite preview",
 		"typecheck": "tsc --noEmit",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"test:smoke": "playwright test tests/smoke.spec.ts",
+		"test:smoke:prod": "SMOKE_BASE_URL=https://www.theconnection.app playwright test tests/smoke.spec.ts"
 	},
 	"dependencies": {
 		"@capacitor/core": "^7.4.4",

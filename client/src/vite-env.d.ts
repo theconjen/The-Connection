@@ -1,5 +1,12 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly PROD: boolean;
+  readonly DEV: boolean;
+  readonly MODE: string;
+  readonly VITE_API_HOST?: string;
+}
+
 declare module '*.png' {
   const value: string;
   export default value;
@@ -13,12 +20,4 @@ declare module '*.jpg' {
 declare module '*.svg' {
   const value: string;
   export default value;
-}
-
-interface ImportMetaEnv {
-  readonly VITE_API_BASE?: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
 }

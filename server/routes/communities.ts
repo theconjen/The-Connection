@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { insertCommunitySchema, insertCommunityMemberSchema } from '@shared/schema';
+import { insertCommunitySchema } from '@shared/schema';
 import { isAuthenticated } from '../auth';
 import { storage } from '../storage-optimized';
 
@@ -102,12 +102,7 @@ router.post('/api/communities', isAuthenticated, async (req, res) => {
     };
     const validatedData = insertCommunitySchema.parse(payload as any);
     const community = await storage.createCommunity(validatedData);
-    const newMember = insertCommunityMemberSchema.parse({
-      communityId: community.id,
-      userId,
-      role: 'owner',
-    });
-    await storage.addCommunityMember(newMember);
+    await storage.addCommunityMember({ communityId: community.id, userId: userId, role: 'owner' });
     res.status(201).json(community);
   } catch (error) {
     console.error('Error creating community:', error);
