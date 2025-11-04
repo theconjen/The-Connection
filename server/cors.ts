@@ -9,7 +9,8 @@ const BUILT_IN_ALLOWED = [
 
 // Patterns for Vercel preview/production deployments
 // Matches: the-connection-*.vercel.app or custom Vercel domains
-const VERCEL_PATTERN = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+// Allows dots in branch names (e.g., feature.branch-name-abc123.vercel.app)
+const VERCEL_PATTERN = /^https:\/\/[a-z0-9.-]+\.vercel\.app$/i;
 
 export function makeCors() {
   const allowlist = new Set<string>(BUILT_IN_ALLOWED);

@@ -58,11 +58,12 @@ The Connection app uses different API endpoints depending on the deployment envi
 This tells Vite to build the frontend to make API requests to `/api/*`, which Vercel will then proxy to the backend via the rewrite rule.
 
 **For the API Server (Backend - wherever Express runs):**
-Set `CORS_ALLOWED_ORIGINS` to include your Vercel deployment URL(s):
-- For single deployment: `https://your-app.vercel.app`
-- For multiple: `https://your-app.vercel.app,https://staging.example.com`
 
-**Note**: The backend CORS configuration now automatically allows all `*.vercel.app` domains in production, so you may not need to set `CORS_ALLOWED_ORIGINS` unless you have custom domains or additional origins.
+The backend CORS configuration now automatically allows all `*.vercel.app` domains, so no additional configuration is needed for Vercel deployments.
+
+If you need to allow **additional custom domains** (staging environments, custom domains, etc.), set the `CORS_ALLOWED_ORIGINS` environment variable:
+- For single domain: `https://custom-domain.com`
+- For multiple: `https://staging.example.com,https://custom-domain.com`
 
 ### Vercel Preview Deployments
 
