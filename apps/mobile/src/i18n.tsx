@@ -3,7 +3,7 @@ import { I18nextProvider, initReactI18next, type I18nextProviderProps } from "re
 import { createI18n } from "shared/i18n";
 import en from "shared/i18n/resources/en.json";
 import es from "shared/i18n/resources/es.json";
-import { ReactNode, useMemo } from "react";
+import { ComponentType, ReactNode, useMemo } from "react";
 import { I18nManager } from "react-native";
 
 const resources = { en: { translation: en }, es: { translation: es } };
@@ -23,5 +23,7 @@ export function I18nProvider({ children, override }: { children: ReactNode; over
     I18nManager.forceRTL(isRTL);
   }
 
-  return <I18nextProvider i18n={i18n}>{children}</I18nextProvider>;
+  const Provider = I18nextProvider as unknown as ComponentType<I18nextProviderProps>;
+
+  return <Provider i18n={i18n}>{children}</Provider>;
 }

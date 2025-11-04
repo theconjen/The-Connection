@@ -1,3 +1,9 @@
+packages:
+  - apps/*
+  - client
+  - shared
+  - server
+  - tools/*
 onlyBuiltDependencies:
   - '@vercel/speed-insights'
   - esbuild

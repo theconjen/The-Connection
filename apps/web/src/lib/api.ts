@@ -6,13 +6,51 @@ const NATIVE_API =
 
 export const API_BASE = Capacitor.isNativePlatform() ? NATIVE_API : WEB_API;
 
+function normalizeBase(base: string): string {
+  const trimmed = (base || "").trim();
+  if (!trimmed) return "/api";
+  return trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
+}
+
+function stripDuplicateApiPrefix(base: string, path: string): string {
+  const normalizedBase = normalizeBase(base).toLowerCase();
+  const normalizedPath = path.toLowerCase();
+
+  if (!normalizedBase.endsWith("/api")) {
+    return path;
+  }
+
+  if (normalizedPath === "/api") {
+    return "";
+  }
+
+  if (normalizedPath.startsWith("/api/")) {
+    return path.slice(4);
+  }
+
+  return path;
+}
+
 ;(window as any).__API_BASE = API_BASE;
 console.log("[API_BASE]", API_BASE, "native=", Capacitor.isNativePlatform());
 
 type FetchOpts = RequestInit & { expectJson?: boolean };
 
 export async function apiFetch(path: string, opts: FetchOpts = {}) {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  if (!path) {
+    throw new Error("apiFetch requires a path");
+  }
+
+  const isAbsolute = /^https?:\/\//i.test(path);
+  const withLeadingSlash = isAbsolute
+    ? path
+    : path.startsWith("/")
+    ? path
+    : `/${path}`;
+
+  const url = isAbsolute
+    ? path
+    : `${normalizeBase(API_BASE)}${stripDuplicateApiPrefix(API_BASE, withLeadingSlash)}`;
   const { expectJson = true, ...rest } = opts;
 
   const response = await fetch(url, {
