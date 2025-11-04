@@ -105,25 +105,25 @@ export default function PrayerRequestsPage() {
   
   // Query prayer requests
   const { data: prayerRequests, isLoading: isLoadingPrayers } = useQuery<PrayerRequest[]>({
-    queryKey: ['/prayer-requests'],
+    queryKey: ['/api/prayer-requests'],
   });
   
   // Query my prayer requests
   const { data: myPrayerRequests, isLoading: isLoadingMyPrayers } = useQuery<PrayerRequest[]>({
-    queryKey: ['/users', user?.id, 'prayer-requests'],
+    queryKey: ['/api/users', user?.id, 'prayer-requests'],
     enabled: !!user, // Only run if user is logged in
   });
   
   // Query my prayed requests
   const { data: prayedIds, isLoading: isLoadingPrayed } = useQuery<number[]>({
-    queryKey: ['/users', user?.id, 'prayed'],
+    queryKey: ['/api/users', user?.id, 'prayed'],
     enabled: !!user, // Only run if user is logged in
   });
   
   // Create prayer request mutation
   const createPrayerMutation = useMutation({
     mutationFn: async (data: z.infer<typeof prayerRequestSchema>) => {
-  const res = await apiRequest("POST", "/prayer-requests", data);
+      const res = await apiRequest("POST", "/api/prayer-requests", data);
       return await res.json();
     },
     onSuccess: () => {
@@ -131,8 +131,8 @@ export default function PrayerRequestsPage() {
         title: "Prayer request created",
         description: "Your prayer request has been shared with the community.",
       });
-  queryClient.invalidateQueries({ queryKey: ['/prayer-requests'] });
-  queryClient.invalidateQueries({ queryKey: ['/users', user?.id, 'prayer-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/prayer-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users', user?.id, 'prayer-requests'] });
       setIsCreateDialogOpen(false);
       form.reset();
     },
@@ -148,7 +148,7 @@ export default function PrayerRequestsPage() {
   // Pray for request mutation
   const prayForRequestMutation = useMutation({
     mutationFn: async (id: number) => {
-  const res = await apiRequest("POST", `/prayer-requests/${id}/pray`);
+      const res = await apiRequest("POST", `/api/prayer-requests/${id}/pray`);
       return await res.json();
     },
     onSuccess: (_, id) => {
@@ -156,9 +156,9 @@ export default function PrayerRequestsPage() {
         title: "Prayer recorded",
         description: "Thank you for praying for this request.",
       });
-  queryClient.invalidateQueries({ queryKey: ['/prayer-requests'] });
-  queryClient.invalidateQueries({ queryKey: ['/users', user?.id, 'prayed'] });
-  queryClient.invalidateQueries({ queryKey: [`/prayer-requests/${id}/prayers`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/prayer-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users', user?.id, 'prayed'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/prayer-requests/${id}/prayers`] });
     },
     onError: (error: Error) => {
       toast({
@@ -172,7 +172,7 @@ export default function PrayerRequestsPage() {
   // Mark as answered mutation
   const markAsAnsweredMutation = useMutation({
     mutationFn: async ({ id, description }: { id: number; description: string }) => {
-  const res = await apiRequest("POST", `/prayer-requests/${id}/answer`, { description });
+      const res = await apiRequest("POST", `/api/prayer-requests/${id}/answer`, { description });
       return await res.json();
     },
     onSuccess: () => {
@@ -180,8 +180,8 @@ export default function PrayerRequestsPage() {
         title: "Prayer marked as answered",
         description: "Praise God! Your testimony has been shared.",
       });
-  queryClient.invalidateQueries({ queryKey: ['/prayer-requests'] });
-  queryClient.invalidateQueries({ queryKey: ['/users', user?.id, 'prayer-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/prayer-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users', user?.id, 'prayer-requests'] });
     },
     onError: (error: Error) => {
       toast({
@@ -633,7 +633,7 @@ function PrayerRequestCard({
   
   // Get prayer count data
   const { data: prayers } = useQuery<any[]>({
-    queryKey: [`/prayer-requests/${prayer.id}/prayers`],
+    queryKey: [`/api/prayer-requests/${prayer.id}/prayers`],
     enabled: showStats,
   });
   

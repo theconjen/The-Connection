@@ -185,7 +185,7 @@ function Menubar() {
 // Feed component to show microblog posts
 function FeedSection() {
   const { data: posts = [], isLoading } = useQuery<MicroblogPost[]>({
-  queryKey: ['/microblogs'],
+    queryKey: ['/api/microblogs'],
   });
 
   if (isLoading) {
@@ -256,7 +256,7 @@ function FeedSection() {
 // Communities section
 function CommunitiesSection() {
   const { data: communities = [], isLoading } = useQuery<Community[]>({
-  queryKey: ['/communities'],
+    queryKey: ['/api/communities'],
   });
 
   if (isLoading) {
@@ -309,7 +309,7 @@ function CommunitiesSection() {
 // Events section
 function EventsSection() {
   const { data: events = [], isLoading } = useQuery<Event[]>({
-  queryKey: ['/events/public'],
+    queryKey: ['/api/events/public'],
   });
 
   if (isLoading) {
@@ -384,7 +384,7 @@ function EventsSection() {
 // Forums section
 function ForumsSection() {
   const { data: forums = [], isLoading } = useQuery<Forum[]>({
-  queryKey: ['/forums'],
+    queryKey: ['/api/forums'],
   });
 
   if (isLoading) {

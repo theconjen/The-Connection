@@ -4,7 +4,7 @@ import { TID } from "./utils/testids";
 
 test("pagination: first page then load more to end-of-feed", async ({ page }) => {
   await installFetchStub(page, {
-  "/feed": (u) => {
+    "/api/feed": (u) => {
       if (u.searchParams.has('cursor')) {
         return { body: { items: [
           { id: '3', title: 'Page2-A', body: 'B', createdAt: '2025-10-08T12:02:00Z' },

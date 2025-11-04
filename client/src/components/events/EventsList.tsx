@@ -20,8 +20,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import EventsMap from './EventsMap';
-import type { Event } from '@shared/mobile-web/types';
+import EventsMap, { Event } from './EventsMap';
 
 interface EventsListProps {
   events: Event[];

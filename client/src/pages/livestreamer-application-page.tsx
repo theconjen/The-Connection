@@ -3,7 +3,10 @@ import { useAuth } from "../hooks/use-auth";
 import { useToast } from "../hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { insertLivestreamerApplicationSchema } from "../../../shared/schema";
 import { Button } from "../components/ui/button";
 import { 
   Form,
@@ -24,68 +27,23 @@ import { Separator } from "../components/ui/separator";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import MainLayout from "../components/layouts/main-layout";
 import { Loader2, CheckCircle, AlertTriangle, ChevronRight } from "lucide-react";
-import { useZodForm } from "@/lib/forms";
 
-const applicationSchema = z.object({
-  ministryName: z
-    .string()
-    .trim()
-    .min(2, "Ministry name is required")
-    .max(120, "Ministry name must be 120 characters or fewer"),
-  ministryDescription: z
-    .string()
-    .trim()
-    .min(20, "Please provide a more detailed description of your ministry")
-    .max(1000, "Description must be 1000 characters or fewer"),
-  ministerialExperience: z
-    .string()
-    .trim()
-    .max(1000, "Experience section must be 1000 characters or fewer")
-    .optional(),
-  statementOfFaith: z
-    .string()
-    .trim()
-    .min(50, "Please provide a detailed statement of faith")
-    .max(1500, "Statement of faith must be 1500 characters or fewer"),
-  socialMediaLinks: z
-    .string()
-    .trim()
-    .max(1000, "Social media links must be 1000 characters or fewer")
-    .optional(),
-  referenceName: z
-    .string()
-    .trim()
-    .min(2, "Reference name is required")
-    .max(120, "Reference name must be 120 characters or fewer"),
-  referenceContact: z
-    .string()
-    .trim()
-    .min(5, "Reference contact information is required")
-    .max(160, "Reference contact must be 160 characters or fewer"),
-  referenceRelationship: z
-    .string()
-    .trim()
-    .min(5, "Relationship with reference is required")
-    .max(160, "Relationship description must be 160 characters or fewer"),
-  sampleContentUrl: z
-    .string()
-    .trim()
-    .url("Please provide a valid URL to your sample content"),
-  livestreamTopics: z
-    .string()
-    .trim()
-    .min(10, "Please describe your intended livestream topics")
-    .max(800, "Livestream topics must be 800 characters or fewer"),
-  targetAudience: z
-    .string()
-    .trim()
-    .min(10, "Please describe your target audience")
-    .max(800, "Target audience description must be 800 characters or fewer"),
-  agreedToTerms: z
-    .boolean()
-    .refine((value) => value === true, {
-      message: "You must agree to the terms and conditions",
-    }),
+// Extend the schema for client-side validation
+const applicationSchema = insertLivestreamerApplicationSchema.extend({
+  ministryName: z.string().min(2, "Ministry name is required"),
+  ministryDescription: z.string().min(20, "Please provide a more detailed description of your ministry"),
+  ministerialExperience: z.string().optional(),
+  statementOfFaith: z.string().min(50, "Please provide a detailed statement of faith"),
+  socialMediaLinks: z.string().optional(),
+  referenceName: z.string().min(2, "Reference name is required"),
+  referenceContact: z.string().min(5, "Reference contact information is required"),
+  referenceRelationship: z.string().min(5, "Relationship with reference is required"),
+  sampleContentUrl: z.string().url("Please provide a valid URL to your sample content"),
+  livestreamTopics: z.string().min(10, "Please describe your intended livestream topics"),
+  targetAudience: z.string().min(10, "Please describe your target audience"),
+  agreedToTerms: z.boolean().refine(val => val === true, {
+    message: "You must agree to the terms and conditions",
+  })
 });
 
 type ApplicationValues = z.infer<typeof applicationSchema>;
@@ -114,7 +72,8 @@ export default function LivestreamerApplicationPage() {
   });
   
   // Define form
-  const form = useZodForm(applicationSchema, {
+  const form = useForm<ApplicationValues>({
+    resolver: zodResolver(applicationSchema),
     defaultValues: {
       ministryName: "",
       ministryDescription: "",
@@ -128,21 +87,17 @@ export default function LivestreamerApplicationPage() {
       livestreamTopics: "",
       targetAudience: "",
       agreedToTerms: false,
-    } satisfies ApplicationValues,
+    }
   });
   
   // Handle application submission
   const applicationMutation = useMutation({
     mutationFn: async (data: ApplicationValues) => {
-      if (!user) {
-        throw new Error("You must be logged in to submit an application.");
-      }
-
-      const response = await apiRequest("POST", "/api/livestreamer-application", {
+      const response = await apiRequest('POST', '/api/livestreamer-application', {
         ...data,
-        userId: user.id,
+        userId: user?.id
       });
-
+      
       return await response.json();
     },
     onSuccess: () => {
@@ -164,15 +119,7 @@ export default function LivestreamerApplicationPage() {
 
   // Handle form submission
   const onSubmit = (data: ApplicationValues) => {
-    const payload: ApplicationValues = {
-      ...data,
-      ministerialExperience: data.ministerialExperience?.trim()
-        ? data.ministerialExperience
-        : undefined,
-      socialMediaLinks: data.socialMediaLinks?.trim() ? data.socialMediaLinks : undefined,
-    };
-
-    applicationMutation.mutate(payload);
+    applicationMutation.mutate(data);
   };
   
   // Redirect to auth page if not logged in
@@ -451,7 +398,7 @@ export default function LivestreamerApplicationPage() {
                                   placeholder="Share your background and experience in ministry" 
                                   className="min-h-[100px]"
                                   {...field}
-                                  value={field.value ?? ""}
+                                  value={field.value || ""}
                                 />
                               </FormControl>
                               <FormDescription>
@@ -553,7 +500,7 @@ export default function LivestreamerApplicationPage() {
                                 <Textarea 
                                   placeholder="Links to your existing ministry social media accounts" 
                                   {...field}
-                                  value={field.value ?? ""}
+                                  value={field.value || ""}
                                 />
                               </FormControl>
                               <FormDescription>
@@ -644,7 +591,7 @@ export default function LivestreamerApplicationPage() {
                                 <FormControl>
                                   <Checkbox
                                     checked={field.value}
-                                    onCheckedChange={(checked) => field.onChange(checked === true)}
+                                    onCheckedChange={field.onChange}
                                   />
                                 </FormControl>
                                 <div className="space-y-1 leading-none">

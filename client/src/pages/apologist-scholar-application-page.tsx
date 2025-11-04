@@ -3,8 +3,10 @@ import { useAuth } from "../hooks/use-auth";
 import { useToast } from "../hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import type { ControllerProps, FieldPath } from "react-hook-form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { insertApologistScholarApplicationSchema } from "../../../shared/schema";
 import { Button } from "../components/ui/button";
 import { 
   Form,
@@ -25,39 +27,34 @@ import { Separator } from "../components/ui/separator";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import MainLayout from "../components/layouts/main-layout";
 import { Loader2, CheckCircle, AlertTriangle, ChevronRight, BookOpen, GraduationCap } from "lucide-react";
-import { useZodForm } from "@/lib/forms";
 
 // Extended schema with validation
-const formSchema = z.object({
+const formSchema = insertApologistScholarApplicationSchema.extend({
   fullName: z.string().min(1, "Full name is required"),
+  agreedToGuidelines: z.literal(true, {
+    errorMap: () => ({ message: "You must agree to the community guidelines" }),
+  }),
+  weeklyTimeCommitment: z.string().min(1, "Please specify your weekly time commitment"),
   academicCredentials: z.string().min(10, "Please provide more details about your academic credentials"),
   educationalBackground: z.string().min(10, "Please provide more details about your educational background"),
   theologicalPerspective: z.string().min(10, "Please provide more details about your theological perspective"),
   statementOfFaith: z.string().min(50, "Please provide a more detailed statement of faith"),
   areasOfExpertise: z.string().min(10, "Please specify your areas of expertise"),
-  publishedWorks: z.string().optional(),
-  priorApologeticsExperience: z.string().min(10, "Please provide more details about your prior experience"),
   writingSample: z.string().min(100, "Please provide a more substantial writing sample"),
-  onlineSocialHandles: z.string().optional(),
-  referenceName: z.string().min(1, "Reference name is required"),
-  referenceContact: z.string().min(1, "Reference contact is required"),
-  referenceInstitution: z.string().min(1, "Reference institution is required"),
   motivation: z.string().min(30, "Please elaborate on your motivation"),
-  weeklyTimeCommitment: z.string().min(1, "Please specify your weekly time commitment"),
-  agreedToGuidelines: z.literal(true, {
-    errorMap: () => ({ message: "You must agree to the community guidelines" }),
-  }),
+  publishedWorks: z.string().optional(),
+  priorApologeticsExperience: z.string().optional(),
+  onlineSocialHandles: z.string().optional(),
+  referenceName: z.string().optional(),
+  referenceContact: z.string().optional(),
+  referenceInstitution: z.string().optional(),
 });
-
-type ScholarFormValues = z.infer<typeof formSchema>;
 
 export default function ApologistScholarApplicationPage() {
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
-  const defaultTab = "personal";
-  const [activeTab, setActiveTab] = useState<string>(defaultTab);
-  const safeActiveTab = activeTab || defaultTab;
+  const [activeTab, setActiveTab] = useState("personal");
   
   // Define the type for the application data
   type ApologistScholarApplication = {
@@ -68,12 +65,13 @@ export default function ApologistScholarApplicationPage() {
   
   // Check if user already has an application
   const { data: existingApplication, isLoading: isCheckingApplication } = useQuery<ApologistScholarApplication | null>({
-    queryKey: ["/apologist-scholar-application"],
+    queryKey: ["/api/apologist-scholar-application"],
     enabled: isAuthenticated,
   });
   
   // Form setup
-  const form = useZodForm(formSchema, {
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       fullName: "",
       academicCredentials: "",
@@ -91,19 +89,15 @@ export default function ApologistScholarApplicationPage() {
       motivation: "",
       weeklyTimeCommitment: "",
       agreedToGuidelines: true,
-    } satisfies ScholarFormValues,
+    },
   });
-
-  const Field = <TName extends FieldPath<ScholarFormValues>>(props: ControllerProps<ScholarFormValues, TName>) => (
-    <FormField<ScholarFormValues, TName> {...props} />
-  );
   
   // Submit mutation
   const { mutate, isPending: isSubmitting } = useMutation({
-    mutationFn: async (values: ScholarFormValues) => {
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
       return await apiRequest(
         "POST",
-        "/apologist-scholar-application",
+        "/api/apologist-scholar-application",
         values
       );
     },
@@ -112,7 +106,7 @@ export default function ApologistScholarApplicationPage() {
         title: "Application Submitted!",
         description: "Your application has been submitted successfully. We'll review it shortly.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/apologist-scholar-application"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/apologist-scholar-application"] });
     },
     onError: (error: any) => {
       toast({
@@ -124,27 +118,36 @@ export default function ApologistScholarApplicationPage() {
   });
   
   // Form submission handler
-  function onSubmit(values: ScholarFormValues) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
     mutate(values);
   }
   
   // Navigation between form tabs
-  const goToNextTab = async () => {
+  const goToNextTab = () => {
     if (activeTab === "personal") {
-      const valid = await form.trigger(
-        ["fullName", "academicCredentials", "educationalBackground", "theologicalPerspective"] as const,
-      );
-      if (valid) setActiveTab("expertise");
+      // Validate fields in the personal tab
+      form.trigger(["fullName", "academicCredentials", "educationalBackground", "theologicalPerspective"]);
+      const hasErrors = !!form.formState.errors.fullName || 
+                        !!form.formState.errors.academicCredentials || 
+                        !!form.formState.errors.educationalBackground ||
+                        !!form.formState.errors.theologicalPerspective;
+      
+      if (!hasErrors) setActiveTab("expertise");
     } else if (activeTab === "expertise") {
-      const valid = await form.trigger(
-        ["statementOfFaith", "areasOfExpertise", "writingSample", "priorApologeticsExperience"] as const,
-      );
-      if (valid) setActiveTab("reference");
+      form.trigger(["statementOfFaith", "areasOfExpertise", "writingSample", "priorApologeticsExperience"]);
+      const hasErrors = !!form.formState.errors.statementOfFaith ||
+                        !!form.formState.errors.areasOfExpertise ||
+                        !!form.formState.errors.writingSample ||
+                        !!form.formState.errors.priorApologeticsExperience;
+      
+      if (!hasErrors) setActiveTab("reference");
     } else if (activeTab === "reference") {
-      const valid = await form.trigger(
-        ["referenceName", "referenceContact", "referenceInstitution"] as const,
-      );
-      if (valid) setActiveTab("commitment");
+      form.trigger(["referenceName", "referenceContact", "referenceInstitution"]);
+      const hasErrors = !!form.formState.errors.referenceName ||
+                        !!form.formState.errors.referenceContact ||
+                        !!form.formState.errors.referenceInstitution;
+      
+      if (!hasErrors) setActiveTab("commitment");
     }
   };
   
@@ -313,7 +316,7 @@ export default function ApologistScholarApplicationPage() {
             
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <Tabs value={safeActiveTab} onValueChange={(value) => setActiveTab(value || defaultTab)}>
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="personal">Personal</TabsTrigger>
                     <TabsTrigger value="expertise">Expertise</TabsTrigger>
@@ -323,7 +326,7 @@ export default function ApologistScholarApplicationPage() {
                   
                   {/* Personal Information Tab */}
                   <TabsContent value="personal" className="space-y-4 pt-4">
-                    <Field
+                    <FormField
                       control={form.control}
                       name="fullName"
                       render={({ field }) => (
@@ -337,7 +340,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="academicCredentials"
                       render={({ field }) => (
@@ -358,7 +361,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="educationalBackground"
                       render={({ field }) => (
@@ -379,7 +382,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="theologicalPerspective"
                       render={({ field }) => (
@@ -401,7 +404,7 @@ export default function ApologistScholarApplicationPage() {
                     />
                     
                     <div className="flex justify-end mt-6">
-                      <Button type="button" onClick={() => void goToNextTab()}>
+                      <Button type="button" onClick={goToNextTab}>
                         Next <ChevronRight className="ml-2 h-4 w-4" />
                       </Button>
                     </div>
@@ -409,7 +412,7 @@ export default function ApologistScholarApplicationPage() {
                   
                   {/* Expertise Tab */}
                   <TabsContent value="expertise" className="space-y-4 pt-4">
-                    <Field
+                    <FormField
                       control={form.control}
                       name="statementOfFaith"
                       render={({ field }) => (
@@ -430,7 +433,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="areasOfExpertise"
                       render={({ field }) => (
@@ -451,7 +454,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="publishedWorks"
                       render={({ field }) => (
@@ -473,7 +476,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="priorApologeticsExperience"
                       render={({ field }) => (
@@ -494,7 +497,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="writingSample"
                       render={({ field }) => (
@@ -515,7 +518,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="onlineSocialHandles"
                       render={({ field }) => (
@@ -541,7 +544,7 @@ export default function ApologistScholarApplicationPage() {
                       <Button type="button" variant="outline" onClick={goToPrevTab}>
                         Back
                       </Button>
-                      <Button type="button" onClick={() => void goToNextTab()}>
+                      <Button type="button" onClick={goToNextTab}>
                         Next <ChevronRight className="ml-2 h-4 w-4" />
                       </Button>
                     </div>
@@ -549,7 +552,7 @@ export default function ApologistScholarApplicationPage() {
                   
                   {/* References Tab */}
                   <TabsContent value="reference" className="space-y-4 pt-4">
-                    <Field
+                    <FormField
                       control={form.control}
                       name="referenceName"
                       render={({ field }) => (
@@ -566,7 +569,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="referenceContact"
                       render={({ field }) => (
@@ -583,7 +586,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="referenceInstitution"
                       render={({ field }) => (
@@ -604,7 +607,7 @@ export default function ApologistScholarApplicationPage() {
                       <Button type="button" variant="outline" onClick={goToPrevTab}>
                         Back
                       </Button>
-                      <Button type="button" onClick={() => void goToNextTab()}>
+                      <Button type="button" onClick={goToNextTab}>
                         Next <ChevronRight className="ml-2 h-4 w-4" />
                       </Button>
                     </div>
@@ -612,7 +615,7 @@ export default function ApologistScholarApplicationPage() {
                   
                   {/* Commitment Tab */}
                   <TabsContent value="commitment" className="space-y-4 pt-4">
-                    <Field
+                    <FormField
                       control={form.control}
                       name="motivation"
                       render={({ field }) => (
@@ -633,7 +636,7 @@ export default function ApologistScholarApplicationPage() {
                       )}
                     />
                     
-                    <Field
+                    <FormField
                       control={form.control}
                       name="weeklyTimeCommitment"
                       render={({ field }) => (
@@ -668,7 +671,7 @@ export default function ApologistScholarApplicationPage() {
                         </ul>
                       </div>
                       
-                      <Field
+                      <FormField
                         control={form.control}
                         name="agreedToGuidelines"
                         render={({ field }) => (
@@ -676,7 +679,7 @@ export default function ApologistScholarApplicationPage() {
                             <FormControl>
                               <Checkbox
                                 checked={field.value}
-                                onCheckedChange={(checked) => field.onChange(checked === true)}
+                                onCheckedChange={field.onChange}
                               />
                             </FormControl>
                             <div className="space-y-1 leading-none">

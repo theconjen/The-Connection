@@ -35,7 +35,7 @@ export function useAuth(): AuthContextType {
     error,
     isLoading,
   } = useQuery<SelectUser | undefined>({
-    queryKey: ["/user"],
+    queryKey: ["/api/user"],
     queryFn: (context) => {
       try {
         return getQueryFn({ on401: "returnNull" })(context);
@@ -64,7 +64,7 @@ export function useAuth(): AuthContextType {
     mutationFn: async (credentials: LoginData) => {
       try {
         // First try server authentication
-  const res = await apiRequest("POST", "/login", credentials);
+        const res = await apiRequest("POST", "/api/login", credentials);
         return await res.json();
       } catch (error) {
         // If server authentication fails, check if we can use fallback authentication
@@ -103,11 +103,11 @@ export function useAuth(): AuthContextType {
       localStorage.setItem('currentUser', JSON.stringify(user));
       
       // First set the query data immediately
-  queryClient.setQueryData(["/user"], user);
+      queryClient.setQueryData(["/api/user"], user);
       
       // Then invalidate to force a fresh fetch and refetch immediately
-  await queryClient.invalidateQueries({ queryKey: ["/user"] });
-  await queryClient.refetchQueries({ queryKey: ["/user"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
       
       // Also invalidate other queries that depend on authentication
       queryClient.invalidateQueries();
@@ -135,7 +135,7 @@ export function useAuth(): AuthContextType {
   const registerMutation: UseMutationResult<SelectUser, Error, InsertUser, unknown> = useMutation({
     mutationFn: async (credentials: InsertUser) => {
       try {
-  const res = await apiRequest("POST", "/register", credentials);
+        const res = await apiRequest("POST", "/api/register", credentials);
         return await res.json();
       } catch (error) {
         // Enhance error messages for common registration issues
@@ -153,7 +153,7 @@ export function useAuth(): AuthContextType {
       console.log("Registration successful, setting auth state:", user);
       
       // Set the query data immediately and don't invalidate
-  queryClient.setQueryData(["/user"], user);
+      queryClient.setQueryData(["/api/user"], user);
       
       // Store user info in local storage as fallback
       localStorage.setItem('currentUser', JSON.stringify(user));
@@ -179,7 +179,7 @@ export function useAuth(): AuthContextType {
   const logoutMutation: UseMutationResult<void, Error, void, unknown> = useMutation({
     mutationFn: async () => {
       try {
-  await apiRequest("POST", "/logout");
+        await apiRequest("POST", "/api/logout");
       } catch (error) {
         // If the server is unreachable, still allow client-side logout
         console.warn("Server logout failed, proceeding with client-side logout:", error);
@@ -187,7 +187,7 @@ export function useAuth(): AuthContextType {
     },
     onSuccess: () => {
       // Clear user data from cache
-  queryClient.setQueryData(["/user"], null);
+      queryClient.setQueryData(["/api/user"], null);
       
       // Invalidate all queries to ensure fresh data on login
       queryClient.invalidateQueries();
@@ -203,7 +203,7 @@ export function useAuth(): AuthContextType {
     },
     onError: (error: Error) => {
       // For logout errors, still perform client-side logout
-  queryClient.setQueryData(["/user"], null);
+      queryClient.setQueryData(["/api/user"], null);
       
       toast({
         title: "Logout issue",
@@ -233,7 +233,7 @@ export function useAuth(): AuthContextType {
         (logoutMutation as any).mutate?.();
       } catch (e) {
         // fallback: clear local cache
-  queryClient.setQueryData(["/user"], null);
+        queryClient.setQueryData(["/api/user"], null);
       }
     },
   } as AuthContextType;

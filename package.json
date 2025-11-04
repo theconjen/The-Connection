@@ -1,15 +1,7 @@
 {
   "name": "esbuild-test",
   "scripts": {
-    "watch": "esbuild src/app.ts --bundle --sourcemap --outdir=www --servedir=www --watch",
-    "typecheck": "pnpm exec tsc --noEmit",
-    "build:web": "pnpm -C apps/web build",
-    "serve:web": "pnpm -C apps/web dlx serve dist -l 5173",
-    "smoke:web": "pnpm -w dlx playwright test apps/web/tests/smoke.spec.ts",
-    "smoke:web:prod": "SMOKE_BASE_URL=https://www.theconnection.app pnpm smoke:web",
-    "smoke:api": "bash scripts/api-smoke.sh",
-    "release:preflight": "pnpm typecheck && curl -fsS https://api.theconnection.app/api/health",
-    "release:web": "pnpm build:web && pnpm smoke:web && pnpm smoke:api"
+    "watch": "esbuild src/app.ts --bundle --sourcemap --outdir=www --servedir=www --watch"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",

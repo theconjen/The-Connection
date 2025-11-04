@@ -24,18 +24,16 @@ export default function LivestreamsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const defaultTab = "all";
-  const [activeTab, setActiveTab] = useState<string>(defaultTab);
-  const safeActiveTab = activeTab || defaultTab;
+  const [activeTab, setActiveTab] = useState("all");
   
   // Fetch livestreams from the API
   const { data: apiLivestreams, isLoading } = useQuery<LivestreamType[]>({
-    queryKey: ["/livestreams", safeActiveTab !== "all" ? { status: safeActiveTab } : {}],
+    queryKey: ["/api/livestreams", activeTab !== "all" ? { status: activeTab } : {}],
   });
   
   // Fetch host details for each livestream
   const { data: users } = useQuery<User[]>({
-    queryKey: ["/users"],
+    queryKey: ["/api/users"],
     enabled: !!apiLivestreams && apiLivestreams.length > 0,
   });
   
@@ -200,11 +198,7 @@ export default function LivestreamsPage() {
         </div>
 
         {/* Livestream Tabs */}
-        <Tabs
-          value={safeActiveTab}
-          onValueChange={(value) => setActiveTab(value || defaultTab)}
-          className="w-full"
-        >
+        <Tabs defaultValue="all" className="w-full">
           <TabsList className="mb-4 bg-muted/50 p-1">
             <TabsTrigger value="all" className="data-[state=active]:bg-background data-[state=active]:text-primary">
               All

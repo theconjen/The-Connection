@@ -39,12 +39,12 @@ export default function SubmitPostPage() {
   
   // Fetch communities
   const { data: communities, isLoading: isLoadingCommunities } = useQuery<Community[]>({
-    queryKey: ['/communities'],
+    queryKey: ['/api/communities'],
   });
   
   // Fetch user's groups
   const { data: groups, isLoading: isLoadingGroups } = useQuery<Group[]>({
-    queryKey: ['/groups', { userId: user?.id }],
+    queryKey: ['/api/communities'],
     enabled: !!user,
   });
   
@@ -80,7 +80,7 @@ export default function SubmitPostPage() {
       if (d.communityId) postData.communityId = d.communityId;
       if (d.groupId) postData.groupId = d.groupId;
       
-  const res = await apiRequest("POST", "/posts", postData);
+      const res = await apiRequest("POST", "/api/posts", postData);
       return await res.json();
     },
     onSuccess: (newPost) => {

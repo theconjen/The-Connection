@@ -62,12 +62,12 @@ export default function OrganizationDashboardPage() {
   const queryClient = useQueryClient();
 
   const { data: organization, isLoading } = useQuery({
-    queryKey: [`/organizations/${id}`],
+    queryKey: [`/api/organizations/${id}`],
     enabled: !!id,
   });
 
   const { data: members = [] } = useQuery<Member[]>({
-    queryKey: [`/organizations/${id}/members`],
+    queryKey: [`/api/organizations/${id}/members`],
     enabled: !!id,
   });
 

@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
   const onSubmit = async (data: AdminLoginFormValues) => {
     setIsLoading(true);
     try {
-  await apiRequest("POST", "/admin-login", data);
+      await apiRequest("POST", "/api/admin-login", data);
       
       toast({
         title: "Admin login successful",

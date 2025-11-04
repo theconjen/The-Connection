@@ -48,7 +48,7 @@ export default function PostDetailPage() {
     data: post,
     isLoading: isLoadingPost,
   } = useQuery<Post & { author?: User; community?: Community }>({
-    queryKey: [`/posts/${postId}`],
+    queryKey: [`/api/posts/${postId}`],
     enabled: postId > 0,
   });
   
@@ -57,18 +57,18 @@ export default function PostDetailPage() {
     data: comments,
     isLoading: isLoadingComments,
   } = useQuery<(Comment & { author?: User })[]>({
-    queryKey: [`/posts/${postId}/comments`],
+    queryKey: [`/api/posts/${postId}/comments`],
     enabled: postId > 0,
   });
   
   // Upvote mutation
   const upvoteMutation = useMutation({
     mutationFn: async () => {
-  const res = await apiRequest("POST", `/posts/${postId}/upvote`);
+      const res = await apiRequest("POST", `/api/posts/${postId}/upvote`);
       return await res.json();
     },
     onSuccess: (updatedPost) => {
-  queryClient.invalidateQueries({ queryKey: [`/posts/${postId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}`] });
     },
     onError: (error: Error) => {
       toast({
@@ -88,13 +88,13 @@ export default function PostDetailPage() {
         authorId: user!.id,
       };
       
-  const res = await apiRequest("POST", "/comments", data);
+      const res = await apiRequest("POST", "/api/comments", data);
       return await res.json();
     },
     onSuccess: () => {
       setCommentText("");
-  queryClient.invalidateQueries({ queryKey: [`/posts/${postId}/comments`] });
-  queryClient.invalidateQueries({ queryKey: [`/posts/${postId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}/comments`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}`] });
       toast({
         title: "Comment Added",
         description: "Your comment has been posted successfully.",
@@ -112,11 +112,11 @@ export default function PostDetailPage() {
   // Upvote comment mutation
   const upvoteCommentMutation = useMutation({
     mutationFn: async (commentId: number) => {
-  const res = await apiRequest("POST", `/comments/${commentId}/upvote`);
+      const res = await apiRequest("POST", `/api/comments/${commentId}/upvote`);
       return await res.json();
     },
     onSuccess: () => {
-  queryClient.invalidateQueries({ queryKey: [`/posts/${postId}/comments`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/posts/${postId}/comments`] });
     },
     onError: (error: Error) => {
       toast({

@@ -95,10 +95,10 @@ export default function CommunitiesPage() {
   
   // Fetch communities with search support
   const { data: communities, isLoading, error } = useQuery<Community[]>({
-    queryKey: ["/communities", debouncedSearchQuery],
+    queryKey: ['/api/communities', debouncedSearchQuery],
     queryFn: async () => {
       const searchParam = debouncedSearchQuery ? `?search=${encodeURIComponent(debouncedSearchQuery)}` : '';
-      const response = await apiRequest(`/communities${searchParam}`);
+      const response = await fetch(`/api/communities${searchParam}`);
       if (!response.ok) {
         throw new Error('Failed to fetch communities');
       }
@@ -115,7 +115,7 @@ export default function CommunitiesPage() {
         createdBy: undefined, // Will be set by backend
       };
       
-  const res = await apiRequest("POST", "/communities", payload);
+      const res = await apiRequest("POST", "/api/communities", payload);
       
       if (!res.ok) {
         const errorData = await res.json();
@@ -125,7 +125,7 @@ export default function CommunitiesPage() {
       return await res.json();
     },
     onSuccess: (data) => {
-  queryClient.invalidateQueries({ queryKey: ["/communities"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
       toast({
         title: "Community created",
         description: `"${data.name}" has been created successfully.`,

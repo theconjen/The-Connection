@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../hooks/use-auth";
 import { formatDateForDisplay } from "../lib/utils";
-import { apiRequest, queryClient } from "../lib/queryClient";
 import { useMediaQuery } from "../hooks/use-media-query";
 import MobileBibleReadingCard from "../components/mobile-bible-reading-card";
 
@@ -62,15 +61,14 @@ interface BibleStudyNote {
 const BibleStudyPage: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const defaultTab = "reading-plans";
-  const [activeTab, setActiveTab] = useState<string>(defaultTab);
-  const safeActiveTab = activeTab || defaultTab;
+  const [activeTab, setActiveTab] = useState("reading-plans");
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Fetch public reading plans
   const { data: publicReadingPlansData, isLoading: plansLoading } = useQuery<BibleReadingPlan[]>({
-    queryKey: ["/bible-reading-plans"],
-    enabled: safeActiveTab === "reading-plans",
+    queryKey: ["/api/bible-reading-plans"],
+    queryFn: () => fetch("/api/bible-reading-plans").then(res => res.json()),
+    enabled: activeTab === "reading-plans",
   });
   
   // Ensure we have an array, even if the API returns something else
@@ -81,8 +79,9 @@ const BibleStudyPage: React.FC = () => {
 
   // Fetch user's reading progress
   const { data: userProgressData, isLoading: progressLoading } = useQuery<BibleReadingProgress[]>({
-    queryKey: ["/bible-reading-progress", user?.id],
-    enabled: !!user && safeActiveTab === "reading-plans",
+    queryKey: ["/api/bible-reading-progress", user?.id],
+    queryFn: () => fetch("/api/bible-reading-progress").then(res => res.json()),
+    enabled: !!user && activeTab === "reading-plans",
   });
   
   // Ensure we have an array, even if the API returns something else
@@ -95,8 +94,9 @@ const BibleStudyPage: React.FC = () => {
   
   // Fetch user's notes
   const { data: userNotesData, isLoading: notesLoading } = useQuery<BibleStudyNote[]>({
-    queryKey: ["/bible-study-notes"],
-    enabled: !!user && safeActiveTab === "notes",
+    queryKey: ["/api/bible-study-notes"],
+    queryFn: () => fetch("/api/bible-study-notes").then(res => res.json()),
+    enabled: !!user && activeTab === "notes",
   });
   
   const userNotes = Array.isArray(userNotesData) ? userNotesData : [];
@@ -112,19 +112,29 @@ const BibleStudyPage: React.FC = () => {
     }
     
     try {
-      await apiRequest("POST", "/bible-reading-progress", { planId });
-
+      const response = await fetch("/api/bible-reading-progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ planId }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to join reading plan");
+      }
+      
       toast({
         title: "Success!",
         description: "You've joined the reading plan",
       });
       
-      await queryClient.invalidateQueries({ queryKey: ["/bible-reading-progress", user.id] });
-      await queryClient.invalidateQueries({ queryKey: ["/bible-reading-plans"] });
+      // Refetch the progress data
+      window.location.reload();
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to join reading plan",
+        description: error.message,
         variant: "destructive",
       });
     }
@@ -134,18 +144,29 @@ const BibleStudyPage: React.FC = () => {
     if (!user) return;
     
     try {
-      await apiRequest("POST", "/bible-reading-progress/mark-completed", { planId, day });
-
+      const response = await fetch("/api/bible-reading-progress/mark-completed", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ planId, day }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to mark reading as completed");
+      }
+      
       toast({
         title: "Great job!",
         description: "Reading marked as completed",
       });
       
-      await queryClient.invalidateQueries({ queryKey: ["/bible-reading-progress", user.id] });
+      // Refetch the progress data
+      window.location.reload();
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update reading progress",
+        description: error.message,
         variant: "destructive",
       });
     }
@@ -454,10 +475,7 @@ const BibleStudyPage: React.FC = () => {
         )}
       </div>
       
-      <Tabs
-        value={safeActiveTab}
-        onValueChange={(value) => setActiveTab(value || defaultTab)}
-      >
+      <Tabs defaultValue="reading-plans" onValueChange={setActiveTab}>
         <TabsList className={`mb-6 ${isMobile ? 'grid grid-cols-3 w-full' : ''}`}>
           <TabsTrigger value="reading-plans" className="flex items-center">
             <BookOpen className="h-4 w-4 mr-2" />

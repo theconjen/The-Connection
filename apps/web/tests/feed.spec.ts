@@ -4,7 +4,7 @@ import { TID } from "./utils/testids";
 
 test("feed renders, refresh works, and error retry path", async ({ page }) => {
   await installFetchStub(page, {
-  "/feed": (_u, meta) => {
+    "/api/feed": (_u, meta) => {
       const mode = meta?.mode ?? 'initial';
       if (mode === 'initial') {
         return { body: { items: [

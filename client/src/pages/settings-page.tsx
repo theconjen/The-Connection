@@ -91,13 +91,13 @@ export default function SettingsPage() {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest(`/user/${user?.id}`, {
+      return apiRequest(`/api/user/${user?.id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       toast({
         title: "Success",
         description: "Profile updated successfully",
@@ -115,7 +115,7 @@ export default function SettingsPage() {
   // Update password mutation
   const updatePasswordMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("/user/change-password", {
+      return apiRequest("/api/user/change-password", {
         method: "POST",
         body: JSON.stringify(data),
       });
@@ -153,7 +153,7 @@ export default function SettingsPage() {
   async function handleSave() {
     setLoading(true);
     try {
-          const response = await fetch(apiUrl("/user/settings"), {
+          const response = await fetch(apiUrl("/api/user/settings"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileData),
@@ -164,7 +164,7 @@ export default function SettingsPage() {
           title: "Success",
           description: "Settings updated successfully!",
         });
-  queryClient.invalidateQueries({ queryKey: ["/user"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       } else {
         throw new Error("Failed to update settings");
       }
@@ -354,13 +354,13 @@ export default function SettingsPage() {
                       if (!confirm('Are you sure you want to delete your account? This action will soft-delete your account and content.')) return;
                       setLoading(true);
                       try {
-                        const resp = await fetch(apiUrl('/me'), { method: 'DELETE', credentials: 'include' });
+                        const resp = await fetch(apiUrl('/api/me'), { method: 'DELETE', credentials: 'include' });
                         if (!resp.ok) throw new Error('Failed to delete account');
                         // Clear client auth state and cache
                         try {
                           localStorage.removeItem('currentUser');
                         } catch (e) {}
-                        queryClient.setQueryData(['/user'], null);
+                        queryClient.setQueryData(['/api/user'], null);
                         queryClient.invalidateQueries();
                         toast({ title: 'Account deleted', description: 'Your account has been deleted.' });
                         // Navigate to login

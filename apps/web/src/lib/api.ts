@@ -1,60 +1,52 @@
-const DEV_API_HOST = (import.meta.env.VITE_API_HOST as string | undefined) ?? "http://localhost:5000/api";
+import { Capacitor } from "@capacitor/core";
 
-const API_HOST = import.meta.env.PROD
-  ? "https://api.theconnection.app/api"
-  : DEV_API_HOST;
+const WEB_API = import.meta.env.VITE_API_BASE || "/api";
+const NATIVE_API = "https://api.theconnection.app";
 
-if (typeof window !== "undefined") {
-  (window as any).__API_BASE = API_HOST;
-}
+export const API_BASE = Capacitor.isNativePlatform() ? NATIVE_API : WEB_API;
 
-const stripApiPrefix = (segment: string) => {
-  const lower = segment.toLowerCase();
-  if (lower === "api") return "";
-  if (lower.startsWith("api/")) {
-    return segment.slice(segment.toLowerCase().indexOf("api/") + 4);
-  }
-  return segment;
-};
+;(window as any).__API_BASE = API_BASE;
+console.log("[API_BASE]", API_BASE, "native=", Capacitor.isNativePlatform());
 
-const join = (...parts: string[]) =>
-  parts
-    .map((p) => (p ?? "").toString().replace(/^\/+|\/+$/g, ""))
-    .map(stripApiPrefix)
-    .filter(Boolean)
-    .join("/");
+type FetchOpts = RequestInit & { expectJson?: boolean };
 
-export const API_BASE = API_HOST;
+export async function apiFetch(path: string, opts: FetchOpts = {}) {
+  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const { expectJson = true, ...rest } = opts;
 
-export const apiUrl = (path: string) => {
-  if (!path) return API_HOST;
-  if (/^https?:\/\//i.test(path)) return path;
-  const normalized = join(path);
-  if (!normalized) return API_HOST;
-  return `${API_HOST}/${normalized}`;
-};
-
-export async function api(path: string, init: RequestInit = {}) {
-  const url = apiUrl(path);
-  const res = await fetch(url, {
+  const response = await fetch(url, {
     credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers || {}),
-    },
+    ...rest,
   });
-  return res;
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const isJson = /application\/json/i.test(contentType);
+  const preview = await response
+    .clone()
+    .text()
+    .catch(() => "");
+
+  if (!response.ok) {
+    throw new Error(
+      `HTTP ${response.status} for ${url}\nContent-Type: ${contentType}\nFirst 120 chars: ${preview.slice(0, 120)}`
+    );
+  }
+
+  if (!expectJson) {
+    return response;
+  }
+
+  if (!isJson) {
+    throw new Error(
+      `Expected JSON from ${url} but got ${contentType}. First chars: ${preview.slice(0, 80)}`
+    );
+  }
+
+  try {
+    return await response.json();
+  } catch (error) {
+    throw new Error(
+      `Failed to parse JSON from ${url}. First chars: ${preview.slice(0, 120)}`
+    );
+  }
 }
-
-export const getJson = async <T>(path: string) => {
-  const r = await api(path);
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-  return (await r.json()) as T;
-};
-
-export const postJson = async <T>(path: string, body: unknown) => {
-  const r = await api(path, { method: "POST", body: JSON.stringify(body) });
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-  return (await r.json()) as T;
-};

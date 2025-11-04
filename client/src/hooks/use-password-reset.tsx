@@ -8,7 +8,7 @@ export function usePasswordReset() {
   // Request password reset email
   const requestResetMutation = useMutation({
     mutationFn: async (email: string) => {
-  const res = await apiRequest("POST", "/request-password-reset", { email });
+      const res = await apiRequest("POST", "/api/request-password-reset", { email });
       return await res.json();
     },
     onSuccess: () => {
@@ -29,7 +29,7 @@ export function usePasswordReset() {
   // Reset password with token
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ token, password }: { token: string; password: string }) => {
-  const res = await apiRequest("POST", "/reset-password", { token, password });
+      const res = await apiRequest("POST", "/api/reset-password", { token, password });
       return await res.json();
     },
     onSuccess: () => {

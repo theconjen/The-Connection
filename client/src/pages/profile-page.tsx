@@ -21,29 +21,29 @@ export default function ProfilePage() {
 
   // Get current user data
   const { data: user, isLoading } = useQuery<UserType>({
-    queryKey: ["/user"],
+    queryKey: ["/api/user"],
   });
 
   // Get user's communities
   const { data: userCommunities, isLoading: communitiesLoading } = useQuery({
-    queryKey: ["/users", user?.id, "communities"],
+    queryKey: ["/api/users", user?.id, "communities"],
     enabled: !!user?.id,
   });
 
   // Get user's posts
   const { data: userPosts, isLoading: postsLoading } = useQuery({
-    queryKey: ["/users", user?.id, "posts"],
+    queryKey: ["/api/users", user?.id, "posts"],
     enabled: !!user?.id,
   });
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (userData: Partial<UserType>) => {
-      const response = await apiRequest("PATCH", `/user/${user?.id}`, userData);
+      const response = await apiRequest("PATCH", `/api/user/${user?.id}`, userData);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       setIsEditing(false);
       toast({
         title: "Profile updated",
@@ -81,7 +81,7 @@ export default function ProfilePage() {
   const handleAvatarUpload = (photoUrl: string) => {
     // Avatar upload is handled by PhotoUploader component
     // It automatically updates the user's avatar in the database
-    queryClient.invalidateQueries({ queryKey: ["/user"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/user"] });
   };
 
   if (isLoading) {

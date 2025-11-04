@@ -44,13 +44,13 @@ export default function ChurchSignupPage() {
 
   const createOrganizationMutation = useMutation({
     mutationFn: async (data: CreateOrganizationData) => {
-      return apiRequest("/organizations", {
+      return apiRequest("/api/organizations", {
         method: "POST",
         body: JSON.stringify(data),
       });
     },
     onSuccess: (organization) => {
-      queryClient.invalidateQueries({ queryKey: ["/organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
       toast({
         title: "Success!",
         description: "Your church account has been created successfully.",

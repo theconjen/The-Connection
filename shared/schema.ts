@@ -2,8 +2,6 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-type InsertType<T extends { $inferInsert: unknown }> = T["$inferInsert"];
-
 // Session storage table for authentication
 export const sessions = pgTable(
   "sessions",
@@ -161,11 +159,11 @@ export const insertCommunityMemberSchema = createInsertSchema(communityMembers).
 } as any);
 
 export type User = typeof users.$inferSelect;
-export type InsertUser = InsertType<typeof users>;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Organization = typeof organizations.$inferSelect;
-export type InsertOrganization = InsertType<typeof organizations>;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type OrganizationUser = typeof organizationUsers.$inferSelect;
-export type InsertOrganizationUser = InsertType<typeof organizationUsers>;
+export type InsertOrganizationUser = z.infer<typeof insertOrganizationUserSchema>;
 // Community invitations table schema
 export const communityInvitations = pgTable("community_invitations", {
   id: serial("id").primaryKey(),
@@ -190,17 +188,17 @@ export const insertCommunityInvitationSchema = createInsertSchema(communityInvit
 } as any);
 
 export type Community = typeof communities.$inferSelect;
-export type InsertCommunity = InsertType<typeof communities>;
+export type InsertCommunity = z.infer<typeof insertCommunitySchema>;
 export type CommunityMember = typeof communityMembers.$inferSelect;
-export type InsertCommunityMember = InsertType<typeof communityMembers>;
+export type InsertCommunityMember = z.infer<typeof insertCommunityMemberSchema>;
 export type CommunityInvitation = typeof communityInvitations.$inferSelect;
-export type InsertCommunityInvitation = InsertType<typeof communityInvitations>;
+export type InsertCommunityInvitation = z.infer<typeof insertCommunityInvitationSchema>;
 export type CommunityChatRoom = typeof communityChatRooms.$inferSelect;
-export type InsertCommunityChatRoom = InsertType<typeof communityChatRooms>;
+export type InsertCommunityChatRoom = z.infer<typeof insertCommunityChatRoomSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
-export type InsertChatMessage = InsertType<typeof chatMessages>;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type CommunityWallPost = typeof communityWallPosts.$inferSelect;
-export type InsertCommunityWallPost = InsertType<typeof communityWallPosts>;
+export type InsertCommunityWallPost = z.infer<typeof insertCommunityWallPostSchema>;
 
 // User Follows table schema for social graph
 export const userFollows = pgTable("user_follows", {
@@ -236,9 +234,9 @@ export const insertUserInteractionSchema = createInsertSchema(userInteractions).
 } as any);
 
 export type UserFollow = typeof userFollows.$inferSelect;
-export type InsertUserFollow = InsertType<typeof userFollows>;
+export type InsertUserFollow = z.infer<typeof insertUserFollowSchema>;
 export type UserInteraction = typeof userInteractions.$inferSelect;
-export type InsertUserInteraction = InsertType<typeof userInteractions>;
+export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
 
 
 
@@ -452,28 +450,28 @@ export const insertApologeticsAnswerSchema = createInsertSchema(apologeticsAnswe
 
 // Remove these duplicate type definitions - they're already defined earlier
 
-export type InsertGroup = InsertType<typeof groups>;
+export type InsertGroup = z.infer<typeof insertGroupSchema>;
 export type Group = typeof groups.$inferSelect;
 
-export type InsertGroupMember = InsertType<typeof groupMembers>;
+export type InsertGroupMember = z.infer<typeof insertGroupMemberSchema>;
 export type GroupMember = typeof groupMembers.$inferSelect;
 
-export type InsertPost = InsertType<typeof posts>;
+export type InsertPost = z.infer<typeof insertPostSchema>;
 export type Post = typeof posts.$inferSelect;
 
-export type InsertComment = InsertType<typeof comments>;
+export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type Comment = typeof comments.$inferSelect;
 
-export type InsertApologeticsResource = InsertType<typeof apologeticsResources>;
+export type InsertApologeticsResource = z.infer<typeof insertApologeticsResourceSchema>;
 export type ApologeticsResource = typeof apologeticsResources.$inferSelect;
 
-export type InsertApologeticsTopic = InsertType<typeof apologeticsTopics>;
+export type InsertApologeticsTopic = z.infer<typeof insertApologeticsTopicSchema>;
 export type ApologeticsTopic = typeof apologeticsTopics.$inferSelect;
 
-export type InsertApologeticsQuestion = InsertType<typeof apologeticsQuestions>;
+export type InsertApologeticsQuestion = z.infer<typeof insertApologeticsQuestionSchema>;
 export type ApologeticsQuestion = typeof apologeticsQuestions.$inferSelect;
 
-export type InsertApologeticsAnswer = InsertType<typeof apologeticsAnswers>;
+export type InsertApologeticsAnswer = z.infer<typeof insertApologeticsAnswerSchema>;
 export type ApologeticsAnswer = typeof apologeticsAnswers.$inferSelect;
 
 // Livestreams table schema
@@ -502,7 +500,7 @@ export const insertLivestreamSchema = createInsertSchema(livestreams).pick({
   tags: true,
 } as any);
 
-export type InsertLivestream = InsertType<typeof livestreams>;
+export type InsertLivestream = z.infer<typeof insertLivestreamSchema>;
 export type Livestream = typeof livestreams.$inferSelect;
 
 // Livestreamer application and approval system
@@ -619,7 +617,7 @@ export const insertLivestreamGiftSchema = createInsertSchema(livestreamGifts).pi
 } as any);
 
 // Export additional types
-export type InsertLivestreamerApplication = InsertType<typeof livestreamerApplications>;
+export type InsertLivestreamerApplication = z.infer<typeof insertLivestreamerApplicationSchema>;
 export type LivestreamerApplication = typeof livestreamerApplications.$inferSelect;
 
 // Apologist Scholar Contributor application system
@@ -669,19 +667,19 @@ export const insertApologistScholarApplicationSchema = createInsertSchema(apolog
   agreedToGuidelines: true
 } as any);
 
-export type InsertApologistScholarApplication = InsertType<typeof apologistScholarApplications>;
+export type InsertApologistScholarApplication = z.infer<typeof insertApologistScholarApplicationSchema>;
 export type ApologistScholarApplication = typeof apologistScholarApplications.$inferSelect;
 
-export type InsertCreatorTier = InsertType<typeof creatorTiers>;
+export type InsertCreatorTier = z.infer<typeof insertCreatorTierSchema>;
 export type CreatorTier = typeof creatorTiers.$inferSelect;
 
-export type InsertUserCreatorTier = InsertType<typeof userCreatorTiers>;
+export type InsertUserCreatorTier = z.infer<typeof insertUserCreatorTierSchema>;
 export type UserCreatorTier = typeof userCreatorTiers.$inferSelect;
 
-export type InsertVirtualGift = InsertType<typeof virtualGifts>;
+export type InsertVirtualGift = z.infer<typeof insertVirtualGiftSchema>;
 export type VirtualGift = typeof virtualGifts.$inferSelect;
 
-export type InsertLivestreamGift = InsertType<typeof livestreamGifts>;
+export type InsertLivestreamGift = z.infer<typeof insertLivestreamGiftSchema>;
 export type LivestreamGift = typeof livestreamGifts.$inferSelect;
 
 // Microblog posts (Twitter-like) schema
@@ -721,10 +719,10 @@ export const insertMicroblogLikeSchema = createInsertSchema(microblogLikes).pick
   userId: true,
 } as any);
 
-export type InsertMicroblog = InsertType<typeof microblogs>;
+export type InsertMicroblog = z.infer<typeof insertMicroblogSchema>;
 export type Microblog = typeof microblogs.$inferSelect;
 
-export type InsertMicroblogLike = InsertType<typeof microblogLikes>;
+export type InsertMicroblogLike = z.infer<typeof insertMicroblogLikeSchema>;
 export type MicroblogLike = typeof microblogLikes.$inferSelect;
 
 // Duplicate type definitions removed - they're already defined earlier in the file
@@ -1205,40 +1203,40 @@ export const insertServiceTestimonialSchema = createInsertSchema(serviceTestimon
 
 // Type exports for all community features
 export type Event = typeof events.$inferSelect;
-export type InsertEvent = InsertType<typeof events>;
+export type InsertEvent = z.infer<typeof insertEventSchema>;
 
 export type EventRsvp = typeof eventRsvps.$inferSelect;
-export type InsertEventRsvp = InsertType<typeof eventRsvps>;
+export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
 
 export type PrayerRequest = typeof prayerRequests.$inferSelect;
-export type InsertPrayerRequest = InsertType<typeof prayerRequests>;
+export type InsertPrayerRequest = z.infer<typeof insertPrayerRequestSchema>;
 
 export type Prayer = typeof prayers.$inferSelect;
-export type InsertPrayer = InsertType<typeof prayers>;
+export type InsertPrayer = z.infer<typeof insertPrayerSchema>;
 
 export type MentorProfile = typeof mentorProfiles.$inferSelect;
-export type InsertMentorProfile = InsertType<typeof mentorProfiles>;
+export type InsertMentorProfile = z.infer<typeof insertMentorProfileSchema>;
 
 export type MentorshipRequest = typeof mentorshipRequests.$inferSelect;
-export type InsertMentorshipRequest = InsertType<typeof mentorshipRequests>;
+export type InsertMentorshipRequest = z.infer<typeof insertMentorshipRequestSchema>;
 
 export type MentorshipRelationship = typeof mentorshipRelationships.$inferSelect;
-export type InsertMentorshipRelationship = InsertType<typeof mentorshipRelationships>;
+export type InsertMentorshipRelationship = z.infer<typeof insertMentorshipRelationshipSchema>;
 
 export type BibleReadingPlan = typeof bibleReadingPlans.$inferSelect;
-export type InsertBibleReadingPlan = InsertType<typeof bibleReadingPlans>;
+export type InsertBibleReadingPlan = z.infer<typeof insertBibleReadingPlanSchema>;
 
 export type BibleReadingProgress = typeof bibleReadingProgress.$inferSelect;
-export type InsertBibleReadingProgress = InsertType<typeof bibleReadingProgress>;
+export type InsertBibleReadingProgress = z.infer<typeof insertBibleReadingProgressSchema>;
 
 export type BibleStudyNote = typeof bibleStudyNotes.$inferSelect;
-export type InsertBibleStudyNote = InsertType<typeof bibleStudyNotes>;
+export type InsertBibleStudyNote = z.infer<typeof insertBibleStudyNotesSchema>;
 
 export type VerseMemorization = typeof verseMemorization.$inferSelect;
-export type InsertVerseMemorization = InsertType<typeof verseMemorization>;
+export type InsertVerseMemorization = z.infer<typeof insertVerseMemorizationSchema>;
 
 export type UserPreferences = typeof userPreferences.$inferSelect;
-export type InsertUserPreferences = InsertType<typeof userPreferences>;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 
 // Messages table for private messaging between users
 export const messages = pgTable("messages", {
@@ -1255,40 +1253,40 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
 } as any);
 
 export type Message = typeof messages.$inferSelect;
-export type InsertMessage = InsertType<typeof messages>;
+export type InsertMessage = typeof insertMessageSchema._input;
 
 export type ContentRecommendation = typeof contentRecommendations.$inferSelect;
-export type InsertContentRecommendation = InsertType<typeof contentRecommendations>;
+export type InsertContentRecommendation = z.infer<typeof insertContentRecommendationSchema>;
 
 export type Challenge = typeof challenges.$inferSelect;
-export type InsertChallenge = InsertType<typeof challenges>;
+export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
 
 export type ChallengeParticipant = typeof challengeParticipants.$inferSelect;
-export type InsertChallengeParticipant = InsertType<typeof challengeParticipants>;
+export type InsertChallengeParticipant = z.infer<typeof insertChallengeParticipantSchema>;
 
 export type ChallengeTestimonial = typeof challengeTestimonials.$inferSelect;
-export type InsertChallengeTestimonial = InsertType<typeof challengeTestimonials>;
+export type InsertChallengeTestimonial = z.infer<typeof insertChallengeTestimonialSchema>;
 
 export type Resource = typeof resources.$inferSelect;
-export type InsertResource = InsertType<typeof resources>;
+export type InsertResource = z.infer<typeof insertResourceSchema>;
 
 export type ResourceRating = typeof resourceRatings.$inferSelect;
-export type InsertResourceRating = InsertType<typeof resourceRatings>;
+export type InsertResourceRating = z.infer<typeof insertResourceRatingSchema>;
 
 export type ResourceCollection = typeof resourceCollections.$inferSelect;
-export type InsertResourceCollection = InsertType<typeof resourceCollections>;
+export type InsertResourceCollection = z.infer<typeof insertResourceCollectionSchema>;
 
 export type CollectionResource = typeof collectionResources.$inferSelect;
-export type InsertCollectionResource = InsertType<typeof collectionResources>;
+export type InsertCollectionResource = z.infer<typeof insertCollectionResourceSchema>;
 
 export type ServiceProject = typeof serviceProjects.$inferSelect;
-export type InsertServiceProject = InsertType<typeof serviceProjects>;
+export type InsertServiceProject = z.infer<typeof insertServiceProjectSchema>;
 
 export type ServiceVolunteer = typeof serviceVolunteers.$inferSelect;
-export type InsertServiceVolunteer = InsertType<typeof serviceVolunteers>;
+export type InsertServiceVolunteer = z.infer<typeof insertServiceVolunteerSchema>;
 
 export type ServiceTestimonial = typeof serviceTestimonials.$inferSelect;
-export type InsertServiceTestimonial = InsertType<typeof serviceTestimonials>;
+export type InsertServiceTestimonial = z.infer<typeof insertServiceTestimonialSchema>;
 
 // Content Moderation System Tables
 export const contentReports = pgTable("content_reports", {
@@ -1385,13 +1383,13 @@ export const insertModerationSettingsSchema = createInsertSchema(moderationSetti
 
 // Type exports for content moderation
 export type ContentReport = typeof contentReports.$inferSelect;
-export type InsertContentReport = InsertType<typeof contentReports>;
+export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
 
 export type UserBlock = typeof userBlocks.$inferSelect;
-export type InsertUserBlock = InsertType<typeof userBlocks>;
+export type InsertUserBlock = z.infer<typeof insertUserBlockSchema>;
 
 export type ModerationAction = typeof moderationActions.$inferSelect;
-export type InsertModerationAction = InsertType<typeof moderationActions>;
+export type InsertModerationAction = z.infer<typeof insertModerationActionSchema>;
 
 export type ModerationSettings = typeof moderationSettings.$inferSelect;
-export type InsertModerationSettings = InsertType<typeof moderationSettings>;
+export type InsertModerationSettings = z.infer<typeof insertModerationSettingsSchema>;
