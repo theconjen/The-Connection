@@ -12,17 +12,19 @@ The Connection app uses different API endpoints depending on the deployment envi
 
 ## Environment Files
 
-### Root `.env`
-- Used for production Vercel deployments
-- Sets `VITE_API_BASE=/api` to enable Vercel proxy rewrites
+### `apps/web/.env.example`
+- Template file showing required environment variables
+- Copy to `.env` for local overrides (gitignored)
+- **Not used by Vercel** - set variables in Vercel dashboard instead
 
 ### `apps/web/.env.development`
-- Used during local development
+- Used during local development (`npm run dev`)
 - Sets `VITE_API_BASE=https://dev.api.theconnection.app` to connect to dev API
 
-### `apps/web/.env.production`
-- Used during production builds (including Vercel)
-- Ensures `VITE_API_BASE=/api` for proxy functionality
+### `.env` files (gitignored)
+- `.env`, `.env.local`, `.env.production` are all gitignored for security
+- These files should NOT be committed to the repository
+- For Vercel deployments, set environment variables in the Vercel dashboard
 
 ## Vercel Deployment
 
@@ -45,48 +47,60 @@ The Connection app uses different API endpoints depending on the deployment envi
 ```
 
 #### Environment Variables in Vercel Dashboard
-Set these in your Vercel project settings:
 
-- `VITE_API_BASE=/api` (for production and preview deployments)
-- For the API server, set:
-  - `CORS_ALLOWED_ORIGINS=https://your-vercel-app.vercel.app,https://app.theconnection.app`
+**CRITICAL**: Set these in your Vercel project settings (Project Settings > Environment Variables):
+
+**For the Web App (Frontend):**
+- Variable: `VITE_API_BASE`
+- Value: `/api`
+- Environments: Production, Preview (check both)
+
+This tells Vite to build the frontend to make API requests to `/api/*`, which Vercel will then proxy to the backend via the rewrite rule.
+
+**For the API Server (Backend - wherever Express runs):**
+Set `CORS_ALLOWED_ORIGINS` to include your Vercel deployment URL(s):
+- For single deployment: `https://your-app.vercel.app`
+- For multiple: `https://your-app.vercel.app,https://staging.example.com`
+
+**Note**: The backend CORS configuration now automatically allows all `*.vercel.app` domains in production, so you may not need to set `CORS_ALLOWED_ORIGINS` unless you have custom domains or additional origins.
 
 ### Vercel Preview Deployments
 
 Each PR creates a preview deployment with a unique URL like:
 `https://the-connection-git-branch-username.vercel.app`
 
-To allow CORS for preview deployments, the backend should:
-1. Allow all Vercel preview domains via pattern matching, OR
-2. Set `CORS_ALLOWED_ORIGINS` to include preview URLs (comma-separated)
+**Good News**: The backend CORS configuration has been updated to automatically allow all `*.vercel.app` domains, so preview deployments will work without additional configuration.
 
-The backend already supports wildcarding in development mode and respects the `CORS_ALLOWED_ORIGINS` environment variable.
+If you need to allow additional origins (custom domains, staging environments, etc.), set the `CORS_ALLOWED_ORIGINS` environment variable on your backend deployment.
 
 ## Backend CORS Configuration
 
-The server at `server/cors.ts` supports:
+The server at `server/cors.ts` now supports:
+
+1. **Built-in allowed origins**:
+   - `capacitor://localhost` - iOS/Android native apps
+   - `https://app.theconnection.app` - Production web app
+
+2. **Automatic Vercel domain support**:
+   - Any origin matching `https://*.vercel.app` is automatically allowed
+   - This includes all preview and production deployments on Vercel
+
+3. **Custom origins via environment variable**:
+   ```bash
+   # Set this on your backend deployment if needed
+   export CORS_ALLOWED_ORIGINS="https://custom-domain.com,https://staging.example.com"
+   ```
+
+### Implementation
 
 ```typescript
-// Built-in allowed origins
-const BUILT_IN_ALLOWED = [
-  "capacitor://localhost",        // iOS/Android native
-  "https://app.theconnection.app", // Production web
-];
+// Pattern for Vercel deployments (server/cors.ts)
+const VERCEL_PATTERN = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
 
-// Additional origins from environment
-// Set this in your backend deployment (e.g., Railway, Heroku, etc.)
-process.env.CORS_ALLOWED_ORIGINS = "https://your-vercel.vercel.app,https://staging.app.com"
-```
-
-### Setting CORS_ALLOWED_ORIGINS
-
-For your API server deployment (wherever Express runs):
-```bash
-# Single origin
-export CORS_ALLOWED_ORIGINS="https://the-connection-git-main-username.vercel.app"
-
-# Multiple origins (comma-separated, no spaces)
-export CORS_ALLOWED_ORIGINS="https://preview1.vercel.app,https://preview2.vercel.app"
+// CORS origin check automatically allows:
+// - Built-in origins (capacitor, production)
+// - Any *.vercel.app domain
+// - Additional origins from CORS_ALLOWED_ORIGINS env var
 ```
 
 ## Cookie Configuration
@@ -190,10 +204,15 @@ Expected: Status `200` with user JSON or `401` if not logged in (but still JSON 
 
 **For Vercel Web Deployment:**
 - [x] `vercel.json` has rewrite rule for `/api/*`
-- [x] Root `.env` has `VITE_API_BASE=/api`
-- [x] `apps/web/.env.production` has `VITE_API_BASE=/api`
-- [ ] Vercel environment variables include `VITE_API_BASE=/api`
-- [ ] Backend `CORS_ALLOWED_ORIGINS` includes Vercel deployment URL(s)
+- [x] `apps/web/.env.example` documents required variables
+- [x] Backend CORS automatically allows `*.vercel.app` domains
+- [ ] Set `VITE_API_BASE=/api` in Vercel environment variables (Project Settings)
+- [ ] Deploy to Vercel and test with console snippet (see Testing Configuration below)
+
+**For Backend API Server:**
+- [x] CORS configuration allows Vercel domains automatically
+- [x] Cookie settings are correct (secure, httpOnly, sameSite: none, no Domain)
+- [ ] Optional: Set `CORS_ALLOWED_ORIGINS` for additional custom domains
 
 **For Native App:**
 - [x] `apps/web/src/lib/api.ts` uses direct API URL for native
