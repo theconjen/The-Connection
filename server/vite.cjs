@@ -4,11 +4,11 @@ function log(...args) {
   }
 }
 
-async function setupVite() {
+async function setupVite(_app, _server) {
   return { vite: null };
 }
 
-function serveStatic() {
+function serveStatic(_app) {
   return (_req, _res, next) => next();
 }
 

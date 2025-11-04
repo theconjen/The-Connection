@@ -16,7 +16,7 @@ import { apiRequest, queryClient } from "../lib/queryClient";
 import { useAuth } from "../hooks/use-auth";
 import { Link } from "wouter";
 import EventsList from "../components/events/EventsList";
-import { Event } from "../components/events/EventsMap";
+import type { Event } from "@shared/mobile-web/types";
 
 export default function EventsPage() {
   const { user } = useAuth();

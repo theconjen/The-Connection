@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { insertApologistScholarApplicationSchema } from "../../../shared/schema";
 import { Button } from "../components/ui/button";
 import { 
@@ -31,9 +31,11 @@ import { Loader2, CheckCircle, AlertTriangle, ChevronRight, BookOpen, Graduation
 // Extended schema with validation
 const formSchema = insertApologistScholarApplicationSchema.extend({
   fullName: z.string().min(1, "Full name is required"),
-  agreedToGuidelines: z.literal(true, {
-    errorMap: () => ({ message: "You must agree to the community guidelines" }),
-  }),
+  agreedToGuidelines: z
+    .boolean()
+    .refine((value) => value === true, {
+      message: "You must agree to the community guidelines",
+    }),
   weeklyTimeCommitment: z.string().min(1, "Please specify your weekly time commitment"),
   academicCredentials: z.string().min(10, "Please provide more details about your academic credentials"),
   educationalBackground: z.string().min(10, "Please provide more details about your educational background"),
@@ -678,8 +680,8 @@ export default function ApologistScholarApplicationPage() {
                           <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                             <FormControl>
                               <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
+                                checked={field.value === true}
+                                onCheckedChange={(checked) => field.onChange(checked === true)}
                               />
                             </FormControl>
                             <div className="space-y-1 leading-none">

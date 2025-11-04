@@ -14,7 +14,7 @@ import { storage as storageReal } from './storage';
 // compile-time checking here. We should revisit and fix the shared schema
 // inference upstream for proper typings.
 const storage: any = storageReal;
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertMicroblogSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema, InsertLivestreamerApplication, InsertApologistScholarApplication } from '@shared/schema';
 import { APP_DOMAIN, BASE_URL, APP_URLS, EMAIL_FROM } from './config/domain';
 import { sendCommunityInvitationEmail, sendNotificationEmail } from './email';
@@ -1742,7 +1742,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     if (error.name === 'ZodError') {
       return res.status(400).json({ 
         message: 'Validation error', 
-        errors: error.errors 
+        errors: error.issues 
       });
     }
     

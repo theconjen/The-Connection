@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { storage } from "../../storage-optimized";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const searchSchema = z.object({
   city: z.string().optional(),
@@ -29,7 +29,7 @@ export const handleLocationSearch = async (req: Request, res: Response) => {
     if (!validation.success) {
       return res.status(400).json({ 
         message: "Invalid search parameters", 
-        errors: validation.error.errors 
+        errors: validation.error.issues 
       });
     }
     

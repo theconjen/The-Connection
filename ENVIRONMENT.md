@@ -1,5 +1,213 @@
 # Environment Configuration Guide
 
+> **Golden rule:** Web builds deployed to Vercel must talk to the API through the `/api/*` rewrite so that cookies remain first-party and session bootstrap succeeds.
+
+This document is the single source of truth for environment variables, rewrites, and platform-specific conventions across local development, staging, production, and native builds. Refer to it before promoting builds or debugging loader/authentication issues.
+
+---
+
+## Core Variables
+
+| Variable | Required | Description | Recommended value(s) |
+| --- | --- | --- | --- |
+| `SESSION_SECRET` | ✅ | Secret used by `express-session`; must be long and random. | Unique per environment. Rotate alongside cache invalidation. |
+| `DATABASE_URL` | ✅ (when `USE_DB=true`) | PostgreSQL connection string for the primary database. | Neon/Render/Cloud provider DSN. |
+| `USE_DB` | ✅ | Toggles Postgres session store & migrations. | `true` in deployed environments. |
+| `CORS_ALLOWED_ORIGINS` | ✅ | Additional comma-separated origins allowed by CORS. | Include every deployed web/mobile origin beyond the defaults. |
+| `APP_DOMAIN` | ✅ | Public host for canonical URLs and emails. | `app.theconnection.app` (prod), `staging.theconnection.app`, etc. |
+| `AWS_SES_FROM_EMAIL` | Optional | Override for transactional email sender. | `"The Connection" <noreply@theconnection.app>` |
+| `VITE_API_BASE` | ✅ (web) | Frontend API base consumed by Vite/React bundles. | `/api` in prod/preview, `https://dev.api.theconnection.app` in dev. |
+| `SHARED_ENV__API_BASE` | ✅ (server/shared) | Mirrors `API_BASE` in `shared/http.ts`. Prefer setting via build tooling. | Same value as `VITE_API_BASE`. |
+| `EXPO_PUBLIC_API_BASE` | ✅ (mobile) | Native API base (Capacitor/Expo). | `https://api.theconnection.app` (prod) or env-specific host. |
+
+---
+
+## Environment Files & Templates
+
+### `apps/web/.env.example`
+- Template listing required frontend variables.
+- Copy to `.env` for local overrides (gitignored).
+- **Not used by Vercel**: configure variables in the Vercel dashboard instead.
+
+### `apps/web/.env.development`
+- Loaded by `pnpm --filter web dev`.
+- Sets `VITE_API_BASE=https://dev.api.theconnection.app` to point at the dev API cluster.
+
+### `.env`, `.env.local`, `.env.production`
+- Gitignored for security. Never commit these.
+- Suitable for local/staging overrides; keep in sync with the tables above.
+
+---
+
+## Environment Matrices
+
+### Local Development
+
+- Backend: run via `pnpm --filter server dev` (Express) on localhost with relaxed CORS.
+- Frontend: `VITE_API_BASE=https://dev.api.theconnection.app` (see `.env.development`).
+- Native: `EXPO_PUBLIC_API_BASE=https://dev.api.theconnection.app` (update in Expo/Capacitor configs).
+- Optionally add preview/staging hosts to `CORS_ALLOWED_ORIGINS` in `.env.local` for quick testing.
+
+### Vercel Preview & Production
+
+1. **Rewrite** – Ensure `vercel.json` ships with:
+   ```json
+   {
+     "rewrites": [
+       { "source": "/api/(.*)", "destination": "https://api.theconnection.app/$1" }
+     ]
+   }
+   ```
+2. **Frontend variables (Project Settings → Environment Variables):**
+   - `VITE_API_BASE=/api`
+   - `SHARED_ENV__API_BASE=/api`
+   - Any additional build-time secrets (Stripe, Sentry, etc.).
+3. **Backend variables:**
+   - `SESSION_SECRET`, `DATABASE_URL`, `USE_DB=true`
+   - `CORS_ALLOWED_ORIGINS=https://<your-vercel>.vercel.app,https://app.theconnection.app` (+ any custom domains).
+4. **Cookie contract** – Session cookie must remain host-only with:
+   ```javascript
+   {
+     secure: true,
+     httpOnly: true,
+     sameSite: 'none',
+     path: '/',
+     // no domain attribute
+   }
+   ```
+5. **Verification checklist** – Run in the deployed site’s console after each deploy:
+   ```js
+   (async () => {
+     const health = await fetch('/api/health', { credentials: 'include' });
+     console.log('health', health.status, health.headers.get('content-type'));
+     console.log('health body', await health.text());
+
+     const me = await fetch('/api/me', { credentials: 'include' });
+     console.log('me', me.status, me.headers.get('content-type'));
+     console.log('me body preview', (await me.text()).slice(0, 180));
+   })();
+   ```
+   Expect **HTTP 200 + JSON** on `/api/health` and either **200 JSON** or **401 JSON** on `/api/me`.
+
+### Native (iOS / Expo / Capacitor)
+
+- API base is the absolute production (or env-specific) host, e.g. `https://api.theconnection.app`.
+- Ensure DNS resolves on the device/simulator.
+- CORS allowlist must include `capacitor://localhost` and any Expo origins.
+- Rebuild native bundle after adjusting `EXPO_PUBLIC_API_BASE` or shared env values.
+
+---
+
+## Backend CORS Configuration
+
+The backend (`server/cors.ts`) automatically permits:
+
+1. Built-in origins:
+   - `capacitor://localhost`
+   - `https://app.theconnection.app`
+2. Any origin matching `https://*.vercel.app`
+3. Additional origins supplied via `CORS_ALLOWED_ORIGINS` (comma-separated).
+
+Example:
+```bash
+export CORS_ALLOWED_ORIGINS="https://custom-domain.com,https://staging.example.com"
+```
+
+Implementation snippet:
+```ts
+const VERCEL_PATTERN = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+// Origin check automatically allows built-ins, *.vercel.app, and any extra configured domains
+```
+
+---
+
+## Cookie Behaviour
+
+Session cookies (see `server/app.ts` / `server/index.ts`) are configured as:
+
+```js
+cookie: {
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  secure: true,
+  httpOnly: true,
+  sameSite: 'none',
+  path: '/',
+  // No domain attribute → host-only cookie compatible with Vercel proxying
+}
+```
+
+Removing the `domain` attribute keeps cookies first-party when the frontend talks to the API through the `/api` rewrite.
+
+---
+
+## Native & Shared HTTP Configuration
+
+- Web API base (`WEB_API`) defaults to `import.meta.env.VITE_API_BASE`.
+- Native API base (`NATIVE_API`) is always the absolute host (see `apps/web/src/lib/api.ts`).
+- Shared callers should reference `shared/http.ts`, which in turn reads `SHARED_ENV__API_BASE`.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+| --- | --- | --- |
+| Loader hangs, `/api/health` returns HTML | Frontend bypassing rewrite, hitting wrong domain. | Ensure `VITE_API_BASE=/api`, redeploy, clear cache/service worker. |
+| `/api/me` 401/403 unexpectedly | Cookie not included or CORS blocked. | Check request headers, confirm `CORS_ALLOWED_ORIGINS`, ensure `credentials: 'include'` and cookie settings above. |
+| Native app requests fail | Missing Capacitor/Expo origin in allowlist or wrong API base. | Add origin via `CORS_ALLOWED_ORIGINS`, verify `EXPO_PUBLIC_API_BASE`, rebuild native bundle. |
+
+---
+
+## Testing Recipes
+
+```js
+// Test API rewrite from browser console
+(async () => {
+  const r = await fetch('/api/health', { credentials: 'include' });
+  console.log('Status:', r.status);
+  console.log('Content-Type:', r.headers.get('content-type'));
+  console.log('Body:', await r.text());
+})();
+```
+
+```js
+// Test authenticated request (after login)
+(async () => {
+  const r = await fetch('/api/me', { credentials: 'include' });
+  console.log('Status:', r.status);
+  console.log('Body:', await r.json());
+})();
+```
+
+---
+
+## Deployment Checklist
+
+### Vercel Web
+- [x] `vercel.json` contains `/api/(.*)` rewrite
+- [x] Environment variables configured (`VITE_API_BASE=/api`, `SHARED_ENV__API_BASE=/api`, secrets)
+- [x] Backend CORS covers `*.vercel.app` and custom domains
+- [ ] Deployment verified with console health/me snippet
+
+### Backend API
+- [x] `SESSION_SECRET`, `DATABASE_URL`, `USE_DB=true`
+- [x] Cookie settings match proxy requirements
+- [ ] Optional: extend `CORS_ALLOWED_ORIGINS` for extra domains
+
+### Native Apps
+- [x] `EXPO_PUBLIC_API_BASE` set to correct absolute host
+- [x] `capacitor://localhost` included in CORS
+- [ ] Rebuild native clients after env changes
+
+### Local Development
+- [x] `.env.development` points to dev API server
+- [x] Backend dev mode allows all origins
+
+---
+
+_Last updated: November 4, 2025_# Environment Configuration Guide
+
+<<<<<<< HEAD
 This document explains how environment variables are configured across different deployment targets.
 
 ## Overview
@@ -222,3 +430,78 @@ Expected: Status `200` with user JSON or `401` if not logged in (but still JSON 
 **For Local Development:**
 - [x] `apps/web/.env.development` points to dev API server
 - [x] Backend runs in dev mode (allows all origins)
+=======
+This document defines the required environment variables and deployment conventions for The Connection across local development, staging, and production. Use it as the single source of truth before promoting builds or debugging loader issues.
+
+> **Golden rule:** Web builds deployed to Vercel must talk to the API through the `/api/*` rewrite so that cookies remain first-party and session bootstrap succeeds.
+
+---
+
+## Core variables
+
+| Variable | Required | Description | Recommended value(s) |
+| --- | --- | --- | --- |
+| `SESSION_SECRET` | ✅ | Secret used by `express-session`; must be long and random. | Unique per environment. |
+| `DATABASE_URL` | ✅ (when `USE_DB=true`) | PostgreSQL connection string for the primary database. | Neon/Render/Cloud provider DSN. |
+| `USE_DB` | ✅ | Toggles Postgres session store & migrations. | `true` in deployed environments. |
+| `CORS_ALLOWED_ORIGINS` | ✅ | Additional comma-separated origins allowed by CORS. | Include every deployed web/mobile origin. |
+| `APP_DOMAIN` | ✅ | Public host for canonical URLs and emails. | `app.theconnection.app` (prod), `staging.theconnection.app`, etc. |
+| `AWS_SES_FROM_EMAIL` | Optional | Override for transactional email sender. | `"The Connection" <noreply@theconnection.app>` |
+| `VITE_API_BASE` | ✅ (web) | Frontend API base consumed by Vite/React bundles. | `/api` in prod, `https://dev.api.theconnection.app` in dev. |
+| `EXPO_PUBLIC_API_BASE` | ✅ (mobile) | Native API base (Capacitor/Expo). | `https://api.theconnection.app` (prod), env-specific host in other channels. |
+| `SHARED_ENV__API_BASE` | ✅ (server/shared) | Mirrors `API_BASE` in `shared/http.ts`. Prefer setting via build tooling. | Same as `VITE_API_BASE`. |
+
+---
+
+## Environment matrices
+
+### Local development
+
+- API runs from `pnpm --filter server dev` (or equivalent) on `https://localhost` behind the dev proxy.
+- `VITE_API_BASE=https://dev.api.theconnection.app` (see `apps/web/.env.development`).
+- `EXPO_PUBLIC_API_BASE=https://dev.api.theconnection.app` (set in `apps/mobile/eas.json`).
+- Add any preview/staging hosts to `CORS_ALLOWED_ORIGINS` via `.env.local` for quick testing.
+
+### Vercel preview & production
+
+1. **Rewrite** – Ensure `vercel.json` is packaged with the build so `/api/(.*)` forwards to `https://api.theconnection.app/$1`.
+2. **Environment variables** – In Vercel Project Settings → Environment Variables:
+   - `VITE_API_BASE=/api`
+   - `SHARED_ENV__API_BASE=/api`
+   - `SESSION_SECRET`, `DATABASE_URL`, `USE_DB=true`, `CORS_ALLOWED_ORIGINS=https://<your-vercel>.vercel.app,https://app.theconnection.app`
+   - Any other secrets (Stripe, AWS) as needed.
+3. **Cookie contract** – Backend session cookie (`sessionId`) must remain host-only, `Secure`, `HttpOnly`, `SameSite=None`, `Path=/`. No `Domain=` attribute to keep it first-party through the proxy.
+4. **Verification checklist** (run in the deployed site’s console after each deploy):
+   ```js
+   (async () => {
+     const health = await fetch('/api/health', { credentials: 'include' });
+     console.log('health', health.status, health.headers.get('content-type'));
+     console.log('health body', await health.text());
+
+     const me = await fetch('/api/me', { credentials: 'include' });
+     console.log('me', me.status, me.headers.get('content-type'));
+     console.log('me body preview', (await me.text()).slice(0, 180));
+   })();
+   ```
+   Expect **HTTP 200 + `application/json`** on `/api/health` and either **200 JSON** or **401 JSON** on `/api/me`.
+
+### Native (iOS / Expo)
+
+- API base is always the absolute host (`https://api.theconnection.app` or dev/staging counterpart).
+- Ensure the API DNS name resolves for the device/simulator.
+- CORS allowlist must include `capacitor://localhost` and any Capacitor/Expo origins.
+- Rebuild native bundle after changing `EXPO_PUBLIC_API_BASE` or shared env.
+
+---
+
+## Operational tips
+
+- Keep `.env.production` consistent with the values above if you generate artefacts locally before deploying.
+- Rotate `SESSION_SECRET` in tandem with cache invalidation to avoid stale sessions.
+- When adding a new surface (e.g., beta mobile build), update `CORS_ALLOWED_ORIGINS` and re-deploy the API so cookies/CORS continue to succeed.
+- If `/api/*` ever returns HTML, double-check the rewrite and `VITE_API_BASE`. This is the primary root cause of loader hangs.
+
+---
+
+_Last updated: November 4, 2025_
+>>>>>>> 4fa3eeb (Fix TypeScript errors and update schemas)

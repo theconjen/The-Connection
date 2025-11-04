@@ -10,7 +10,7 @@ import { Button } from "../components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
 import { Skeleton } from "../components/ui/skeleton";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Community, Group, InsertPost } from "../../../shared/schema";
@@ -28,8 +28,8 @@ const postFormSchema = z.object({
   groupId: z.coerce.number().optional(),
   includeScripture: z.boolean().default(false),
 });
-
-type PostFormValues = z.infer<typeof postFormSchema>;
+type PostFormInput = z.input<typeof postFormSchema>;
+type PostFormValues = z.output<typeof postFormSchema>;
 
 export default function SubmitPostPage() {
   const { user } = useAuth();
@@ -48,7 +48,7 @@ export default function SubmitPostPage() {
     enabled: !!user,
   });
   
-  const form = useForm<PostFormValues>({
+  const form = useForm<PostFormInput, undefined, PostFormValues>({
     resolver: zodResolver(postFormSchema),
     defaultValues: {
       title: "",
@@ -57,7 +57,7 @@ export default function SubmitPostPage() {
       communityId: undefined,
       groupId: undefined,
       includeScripture: false,
-    },
+    } satisfies PostFormInput,
   });
   
   const createPostMutation = useMutation({

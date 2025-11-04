@@ -1,7 +1,8 @@
 import { Capacitor } from "@capacitor/core";
 
 const WEB_API = import.meta.env.VITE_API_BASE || "/api";
-const NATIVE_API = "https://api.theconnection.app";
+const NATIVE_API =
+  import.meta.env.VITE_NATIVE_API || "https://api.theconnection.app";
 
 export const API_BASE = Capacitor.isNativePlatform() ? NATIVE_API : WEB_API;
 

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 /** API-facing shapes (client contracts) */
 export const ApiUserZ = z.object({
