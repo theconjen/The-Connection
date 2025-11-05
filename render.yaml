@@ -1,9 +1,10 @@
 services:
   - type: web
+    runtime: node
     name: the-connection-api
     env: node
     plan: starter
-    region: oregon
+    region: ohio
     autoDeploy: true
     repo: https://github.com/The-Connection-App/The-Connection
     branch: main
@@ -13,15 +14,15 @@ services:
       (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) &&
       pnpm -w build
     startCommand: node dist-server/index.js
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: USE_DB
         value: "true"
       - key: SESSION_SECRET
-        sync: false
+        sync: true
       - key: DATABASE_URL
-        sync: false
+        sync: true
       - key: REDIS_URL
-        sync: false
+        sync: true

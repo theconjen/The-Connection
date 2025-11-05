@@ -251,9 +251,9 @@ app.use((req, res, next) => {
   }
 
   // Read port from environment (DigitalOcean App Platform sets $PORT)
-  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  const port = Number(process.env.PORT) || 3000;
 
-  app.listen(port, () => {
-    console.log('API listening on', port);
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`API listening on ${port}`);
   });
 })();
