@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { useAuth } from "../hooks/use-auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -60,8 +60,7 @@ const createCommunitySchema = z.object({
   path: ["hasPublicWall"], // Show error on public wall field
 });
 
-type CreateCommunityFormInput = z.input<typeof createCommunitySchema>;
-type CreateCommunityForm = z.output<typeof createCommunitySchema>;
+type CreateCommunityForm = z.infer<typeof createCommunitySchema>;
 
 export default function CommunitiesPage() {
   const [, navigate] = useLocation();
@@ -81,7 +80,7 @@ export default function CommunitiesPage() {
   }, [searchQuery]);
   
   // Form setup with validation
-  const form = useForm<CreateCommunityFormInput, undefined, CreateCommunityForm>({
+  const form = useForm<CreateCommunityForm>({
     resolver: zodResolver(createCommunitySchema),
     defaultValues: {
       name: "",
@@ -91,7 +90,7 @@ export default function CommunitiesPage() {
       isPrivate: false,
       hasPrivateWall: true,
       hasPublicWall: true,
-    } satisfies CreateCommunityFormInput,
+    },
   });
   
   // Fetch communities with search support

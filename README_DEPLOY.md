@@ -57,3 +57,25 @@ docker compose up --build
 4) Notes & tips
 - If the server throws missing-module errors, run `npm ci` on the host (or ensure docker build completed successfully) so `node_modules` are present.
 - For smaller artifacts and no node_modules on the server, consider building a bundled artifact with `esbuild --bundle` and adjusting the Dockerfile to copy that single file instead of relying on node_modules.
+
+## Render deployment (Web Service)
+
+Use these settings when creating a new Render Web Service that tracks the GitHub repo:
+
+- **Environment**: Node 18.x (matches the version confirmed to work with the current server build; you can upgrade later if desired).
+- **Build Command**:
+
+	```bash
+	corepack enable
+	corepack prepare pnpm@10.19.0 --activate
+	pnpm install --frozen-lockfile
+	pnpm run build:server
+	```
+
+- **Start Command**:
+
+	```bash
+	node dist-server/index.js
+	```
+
+Render automatically runs `npm install` (or `pnpm install` when Corepack is enabled) before the build step; the explicit `corepack` commands ensure the correct pnpm version is available. After deployment, update your environment variables (DATABASE_URL, SESSION_SECRET, etc.) in the Render dashboard as needed.

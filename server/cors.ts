@@ -2,9 +2,10 @@ import cors from "cors";
 
 const DEV = process.env.NODE_ENV !== "production";
 
-const BUILT_IN_ALLOWED = [
-  "capacitor://localhost",
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://<your-vercel-app>.vercel.app",
   "https://app.theconnection.app",
+  "capacitor://localhost",
 ];
 
 // Patterns for Vercel preview/production deployments
@@ -13,7 +14,7 @@ const BUILT_IN_ALLOWED = [
 const VERCEL_PATTERN = /^https:\/\/[a-z0-9.-]+\.vercel\.app$/i;
 
 export function makeCors() {
-  const allowlist = new Set<string>(BUILT_IN_ALLOWED);
+  const allowlist = new Set<string | undefined>([undefined, ...DEFAULT_ALLOWED_ORIGINS]);
   const extraOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim())
@@ -25,21 +26,13 @@ export function makeCors() {
 
   return cors({
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
       if (DEV) return cb(null, true);
-      
-      // Check if origin is in the explicit allowlist
-      if (allowlist.has(origin)) {
+
+      if (origin && VERCEL_PATTERN.test(origin)) {
         return cb(null, true);
       }
-      
-      // Check if origin matches Vercel deployment pattern
-      if (VERCEL_PATTERN.test(origin)) {
-        return cb(null, true);
-      }
-      
-      // Deny all other origins
-      cb(null, false);
+
+      return cb(null, allowlist.has(origin));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

@@ -30,6 +30,7 @@ if (isProduction) {
   app.set("trust proxy", 1);
 }
 const httpServer = createServer(app);
+(app as any).listen = httpServer.listen.bind(httpServer);
 
 // Session store: use Postgres-backed store only when USE_DB=true; otherwise
 // fall back to the default in-memory store for a lightweight MVP run.
@@ -248,12 +249,9 @@ app.use((req, res, next) => {
   }
 
   // Read port from environment (DigitalOcean App Platform sets $PORT)
-  const port = Number(process.env.PORT) || 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+
+  app.listen(port, () => {
+    console.log('API listening on', port);
   });
 })();
