@@ -174,8 +174,8 @@ export async function seedEvents() {
   }
 }
 
-// Run this directly if called directly
-if (import.meta.url === new URL(import.meta.url).href) {
+// Execute immediately when invoked via `node dist-server/seed-events.js`
+if (typeof module !== "undefined" && typeof require !== "undefined" && require.main === module) {
   seedEvents()
     .then(() => process.exit(0))
     .catch((error) => {

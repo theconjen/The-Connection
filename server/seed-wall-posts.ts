@@ -155,8 +155,7 @@ export async function seedWallPosts() {
   }
 }
 
-// Run this directly if called directly
-if (import.meta.url === new URL(import.meta.url).href) {
+if (typeof module !== "undefined" && typeof require !== "undefined" && require.main === module) {
   seedWallPosts()
     .then(() => process.exit(0))
     .catch((error) => {

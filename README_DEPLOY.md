@@ -1,81 +1,78 @@
-# Deployment & local run (no-bundle server)
+# Deployment & runtime quick reference
 
-This file contains copy/paste commands to build and run the app locally or on a server using the lightweight "no-bundle" server wrapper at `dist-server/index.nobundle.js`.
+`dist-server/` is now a generated artifact. Build it with `pnpm run build:server` (or the all-in-one `pnpm run build`) and keep it out of source control.
 
-Prerequisites
-- Node 22 (recommended via `nvm`)
-- Docker (optional, for container runs)
-- `npm` (for installing packages if not using Docker)
+## Prerequisites
 
-1) Quick local dev (use existing node env)
+- Node.js 22 (managed with `nvm` or similar)
+- pnpm 10.19 (installed automatically via Corepack)
+- Docker (optional, for container workflows)
+
+## Local workflow
 
 ```bash
-# Install deps (if you haven't already)
-npm ci
+# Install dependencies
+corepack enable
+corepack prepare pnpm@10.19.0 --activate
+pnpm install --frozen-lockfile
 
-# Build client and server if needed (project may already have the built artifacts)
-# npm run build  # if you usually build both client + server
+# Build both the web client and the server bundle
+pnpm run build
 
-# Run the tiny no-bundle server in foreground for debugging
-node dist-server/index.nobundle.js
+# Boot the server locally (PORT defaults to 3000)
+node dist-server/index.js
 
-# In another terminal, test health
-curl -i http://localhost:5000/api/health
+# In another terminal, smoke-test the API
+curl -i http://localhost:3000/api/health
 ```
 
-2) Run with PM2 (process manager) — recommended for single-VM production
+The compiled server honors `USE_DB`. Leave it unset (or `false`) to skip database connections when running locally; set `USE_DB=true` in environments with a configured Postgres database.
+
+### PM2 (process manager)
 
 ```bash
-# install pm2 (once)
-npm install -g pm2
-
-# start the no-bundle server with pm2
-pm2 start dist-server/index.nobundle.js --name the-connection --update-env
-pm2 save
-
-# view logs
+pnpm run build
+pm2 start dist-server/index.js --name the-connection --update-env
 pm2 logs the-connection --lines 200
 ```
 
-3) Docker (recommended for reproducible runtime)
+### Docker
 
-Build image locally
 ```bash
 docker build -t the-connection:local .
+docker run --rm \
+	-p 3000:3000 \
+	-e USE_DB=true \
+	-e DATABASE_URL="$DATABASE_URL" \
+	the-connection:local
 ```
 
-Run the image (set DATABASE_URL and other envs as needed)
-```bash
-docker run --rm -e DATABASE_URL="$DATABASE_URL" -p 5000:5000 the-connection:local
-```
+Or bring everything up with Compose:
 
-Or use docker-compose for local development
 ```bash
 docker compose up --build
 ```
 
-4) Notes & tips
-- If the server throws missing-module errors, run `npm ci` on the host (or ensure docker build completed successfully) so `node_modules` are present.
-- For smaller artifacts and no node_modules on the server, consider building a bundled artifact with `esbuild --bundle` and adjusting the Dockerfile to copy that single file instead of relying on node_modules.
-
 ## Render deployment (Web Service)
 
-Use these settings when creating a new Render Web Service that tracks the GitHub repo:
+Use these settings for Render:
 
-- **Environment**: Node 18.x (matches the version confirmed to work with the current server build; you can upgrade later if desired).
-- **Build Command**:
+- **Environment**: Node 18.x (upgradeable once validated)
+- **Build Command**
 
 	```bash
 	corepack enable
 	corepack prepare pnpm@10.19.0 --activate
 	pnpm install --frozen-lockfile
-	pnpm run build:server
+	pnpm run build
 	```
 
-- **Start Command**:
+	The unified build step creates `dist/public/` for the client and `dist-server/index.js` for the server.
+
+- **Start Command**
 
 	```bash
 	node dist-server/index.js
 	```
 
-Render automatically runs `npm install` (or `pnpm install` when Corepack is enabled) before the build step; the explicit `corepack` commands ensure the correct pnpm version is available. After deployment, update your environment variables (DATABASE_URL, SESSION_SECRET, etc.) in the Render dashboard as needed.
+Configure production environment variables in Render (`DATABASE_URL`, `SESSION_SECRET`, `USE_DB=true`, etc.) before promoting a deploy.

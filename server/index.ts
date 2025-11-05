@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes.js";
+import { registerRoutes } from "./routes";
 import { makeCors } from "./cors";
 import cookieParser from 'cookie-parser';
 import viteHelpers from "./vite.cjs";
@@ -35,6 +35,9 @@ const httpServer = createServer(app);
 // Session store: use Postgres-backed store only when USE_DB=true; otherwise
 // fall back to the default in-memory store for a lightweight MVP run.
 const USE_DB = process.env.USE_DB === 'true';
+const isSecureCookie = isProduction && process.env.COOKIE_SECURE !== 'false';
+const sameSiteMode = isSecureCookie ? 'none' : 'lax';
+
 let sessionOptions: any = {
   secret: process.env.SESSION_SECRET || "theconnection-session-secret",
   resave: false,
@@ -42,9 +45,9 @@ let sessionOptions: any = {
   name: 'sessionId', // Explicit session name
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    secure: true,
+    secure: isSecureCookie,
     httpOnly: true,
-    sameSite: 'none',
+    sameSite: sameSiteMode,
     path: '/',
   }
 };
@@ -110,7 +113,6 @@ app.use(express.urlencoded({ extended: false }));
 // Use centralized, dev-friendly CORS middleware
 const corsMiddleware = makeCors();
 app.use(corsMiddleware);
-app.options('*', corsMiddleware);
 
 // lightweight health endpoint for mobile/dev smoke tests
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -118,7 +120,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 });
 
 app.get('/health', (_req: Request, res: Response) => {
-  res.json({ ok: true });
+  res.type('application/json').status(200).json({ status: 'ok' });
 });
 
 // Dev helper: create a test user and set session (ONLY in non-production)

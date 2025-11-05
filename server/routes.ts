@@ -77,6 +77,7 @@ import { registerOnboardingRoutes } from './routes/api/user-onboarding';
 import registerLocationSearchRoutes from './routes/api/location-search';
 import supportRoutes from './routes/api/support';
 import accountRoutes from './routes/account';
+import safetyRoutes from './routes/safety';
 import { FEATURES } from './config/features';
 
 // Modular route imports
@@ -201,11 +202,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   if (FEATURES.AUTH) {
     app.use('/api', authRoutes);
     app.use('/api', accountRoutes);
-    // safety routes (reports, blocks) kept for backwards compatibility
-  // dynamic import because this file is loaded as ESM where `require` is not defined
-  const safetyModule = await import('./routes/safety');
-  const safetyRoutes = safetyModule.default;
-  app.use('/api', safetyRoutes);
+    app.use('/api', safetyRoutes);
     // compatibility moderation router (client expects /api/moderation/*)
     app.use('/api', moderationRoutes);
   }
