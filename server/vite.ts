@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { type Server } from "http";
+import { randomUUID } from "crypto";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -70,10 +71,9 @@ export async function setupVite(app: Express, server: Server) {
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      const { nanoid } = await import("nanoid");
       template = template.replace(
         `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
+        `src="/src/main.tsx?v=${randomUUID()}"`,
       );
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
