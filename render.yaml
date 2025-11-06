@@ -2,7 +2,6 @@ services:
   - type: web
     runtime: node
     name: the-connection-api
-    env: node
     plan: starter
     region: ohio
     autoDeploy: true
