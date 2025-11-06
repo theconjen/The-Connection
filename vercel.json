@@ -2,6 +2,6 @@
   "buildCommand": "pnpm exec vite build",
   "outputDirectory": "dist/public",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://api.theconnection.app/$1" }
+    { "source": "/api/(.*)", "destination": "https://the-connection.onrender.com/$1" }
   ]
 }
