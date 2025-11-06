@@ -43,7 +43,7 @@ jobs:
               - android
               - apps/mobile
               - mobile-app
-              - **/*.d.ts
+              - "**/*.d.ts"
 
       # JS/TS doesn’t need a custom build for CodeQL (Vite output isn’t analyzed)
       - uses: github/codeql-action/autobuild@v3
