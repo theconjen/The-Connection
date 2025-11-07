@@ -1,8 +1,13 @@
+# For most projects, this workflow file will not need changing; you simply need
 name: CodeQL
+
 on:
-  push: { branches: [ "main" ] }
-  pull_request: { branches: [ "main" ] }
-  schedule: [ { cron: "0 2 * * 1" } ]
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 2 * * 1"  # weekly Monday scan
 
 permissions:
   contents: read
@@ -13,14 +18,23 @@ jobs:
   js-ts:
     name: Analyze JavaScript/TypeScript
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
+
+      # Only scan JS/TS (CodeQL language key is "javascript" for both)
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript
+          # Limit the scope to your real app code and ignore generated/native stuff
           config: |
             paths:
-              - .
+              - web
+              - apps/web
+              - server
+              - apps/server
+              - client
             paths-ignore:
               - node_modules
               - dist
@@ -30,7 +44,10 @@ jobs:
               - apps/mobile
               - mobile-app
               - "**/*.d.ts"
+
+      # JS/TS doesn’t need a custom build for CodeQL (Vite output isn’t analyzed)
       - uses: github/codeql-action/autobuild@v3
+
       - uses: github/codeql-action/analyze@v3
         with:
           category: "/language:javascript"
@@ -40,9 +57,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: github/codeql-action/init@v3
         with:
           languages: actions
+
       - uses: github/codeql-action/analyze@v3
         with:
           category: "/language:actions"
