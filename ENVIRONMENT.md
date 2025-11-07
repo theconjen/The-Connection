@@ -10,8 +10,8 @@ This document is the single source of truth for environment variables, rewrites,
 
 | Variable | Required | Description | Recommended value(s) |
 | --- | --- | --- | --- |
-| `SESSION_SECRET` | ✅ | Secret used by `express-session`; must be long and random. | Unique per environment. Rotate alongside cache invalidation. |
-| `DATABASE_URL` | ✅ (when `USE_DB=true`) | PostgreSQL connection string for the primary database. | Neon/Render/Cloud provider DSN. |
+| `SESSION_SECRET` | ✅ | Secret used by `express-session`; must be long and random. | Current deploy secret: `372f79df29a1113a00d5bde03125eddc`. Rotate alongside cache invalidation. |
+| `DATABASE_URL` | ✅ (when `USE_DB=true`) | PostgreSQL connection string for the primary database. | Neon DSN: `postgresql://neondb_owner:npg_MfB8mlWiSkN4@ep-hidden-band-adzjfzr3-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require`. |
 | `USE_DB` | ✅ | Toggles Postgres session store & migrations. | `true` in deployed environments. |
 | `CORS_ALLOWED_ORIGINS` | ✅ | Additional comma-separated origins allowed by CORS. | Include every deployed web/mobile origin beyond the defaults. |
 | `APP_DOMAIN` | ✅ | Public host for canonical URLs and emails. | `app.theconnection.app` (prod), `staging.theconnection.app`, etc. |

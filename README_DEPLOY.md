@@ -20,7 +20,7 @@ pnpm install --frozen-lockfile
 pnpm run build
 
 # Boot the server locally (PORT defaults to 3000)
-node dist-server/index.js
+node dist-server/index.cjs
 
 # In another terminal, smoke-test the API
 curl -i http://localhost:3000/api/health
@@ -32,7 +32,7 @@ The compiled server honors `USE_DB`. Leave it unset (or `false`) to skip databas
 
 ```bash
 pnpm run build
-pm2 start dist-server/index.js --name the-connection --update-env
+pm2 start dist-server/index.cjs --name the-connection --update-env
 pm2 logs the-connection --lines 200
 ```
 
@@ -67,12 +67,16 @@ Use these settings for Render:
 	pnpm run build
 	```
 
-	The unified build step creates `dist/public/` for the client and `dist-server/index.js` for the server.
+	The unified build step creates `dist/public/` for the client and `dist-server/index.cjs` for the server.
 
 - **Start Command**
 
 	```bash
-	node dist-server/index.js
+	node dist-server/index.cjs
 	```
 
 Configure production environment variables in Render (`DATABASE_URL`, `SESSION_SECRET`, `USE_DB=true`, etc.) before promoting a deploy.
+
+- `SESSION_SECRET` should be set to `372f79df29a1113a00d5bde03125eddc` unless you rotate it.
+
+- `DATABASE_URL` should be set to `postgresql://neondb_owner:npg_MfB8mlWiSkN4@ep-hidden-band-adzjfzr3-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require` for the Neon cluster currently provisioned.

@@ -1,10 +1,12 @@
 {
   "name": "esbuild-test",
+  "type": "module",
   "scripts": {
-    "watch": "esbuild src/app.ts --bundle --sourcemap --outdir=www --servedir=www --watch",
-    "build:web": "node ./scripts/build-web.mjs",
-    "build:server": "node ./scripts/build-server.mjs",
-    "build": "pnpm run build:web && pnpm run build:server"
+    "build:server": "node scripts/build-server.mjs && node scripts/assert-no-nanoid.mjs",
+    "build": "pnpm run build:server",
+    "prestart": "node -e \"require('fs').accessSync('dist-server/index.cjs')\"",
+    "start": "node dist-server/index.cjs",
+    "build:web": "node ./scripts/build-web.mjs"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
@@ -27,7 +29,7 @@
     "vite-plugin-pwa": "^0.19.8"
   },
   "engines": {
-    "node": "22.x"
+    "node": ">=20.0.0"
   },
   "packageManager": "pnpm@10.19.0",
   "dependencies": {

@@ -1,7 +1,6 @@
 import { db } from "../db";
 import { sql } from "drizzle-orm";
-import viteHelpers from "../vite.cjs";
-const { log } = viteHelpers;
+import { log } from "../vite-shim";
 
 /**
  * Migration to add locality and interest features to the database

@@ -1,6 +1,6 @@
 node_modules
 dist
-dist-server
+dist-server/
 .DS_Store
 server/public
 vite.config.ts.*
@@ -14,7 +14,7 @@ vite.config.ts.*
 .idea
 .replit
 .vercel
-\n+# Expo/React Native local artifacts
+# Expo/React Native local artifacts
 apps/mobile/.expo/
 apps/mobile/android/
 apps/mobile/ios/

@@ -2,7 +2,6 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { type Server } from "http";
-import { randomUUID } from "crypto";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -42,7 +41,8 @@ export async function setupVite(app: Express, server: Server) {
     }
   } catch (e) {
     // If vite isn't available, log and skip Vite setup rather than crashing the process.
-    console.warn("Vite not found; skipping development middleware.", e);
+    const reason = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    console.warn(`Vite dev middleware disabled (${reason}).`);
     return;
   }
 
@@ -71,10 +71,9 @@ export async function setupVite(app: Express, server: Server) {
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${randomUUID()}"`,
-      );
+      const q = process.env.NODE_ENV === "development" ? Date.now().toString(36) : "";
+      const mainSrc = q ? `/src/main.tsx?v=${q}` : `/src/main.tsx`;
+      template = template.replace(`src="/src/main.tsx"`, `src="${mainSrc}"`);
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
