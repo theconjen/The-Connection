@@ -204,8 +204,7 @@ export async function seedQandA() {
   }
 }
 
-// Run this directly if called directly
-if (import.meta.url === new URL(import.meta.url).href) {
+if (typeof module !== "undefined" && typeof require !== "undefined" && require.main === module) {
   seedQandA()
     .then(() => process.exit(0))
     .catch((error) => {

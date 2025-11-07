@@ -14,11 +14,16 @@ import { createServer } from "http";
 dotenv.config();
 
 const app = express();
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
 
 // Set up PostgreSQL session store
 const PgSessionStore = connectPgSimple(session);
 const sessionStore = new PgSessionStore({
-  pool: pool,
+  pool: pool as any,
   tableName: 'sessions',
   createTableIfMissing: true,
 });
@@ -31,9 +36,10 @@ app.use(session({
   name: 'sessionId',
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000,
-    secure: false,
+    secure: true,
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: 'none',
+    path: '/',
   },
 }));
 
@@ -42,6 +48,14 @@ app.use(passport.session());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+app.get('/health', (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true });
+});
 
 // Basic logging middleware
 app.use((req, res, next) => {

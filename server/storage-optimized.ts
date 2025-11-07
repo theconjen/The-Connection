@@ -1,12 +1,8 @@
-// Optimized storage configuration for production
-// This file eliminates MemStorage bloat when using database
+// In many modules we import from `storage-optimized` for performance reasons.
+// To avoid surprising DB calls in development when USE_DB is not set, re-export
+// the canonical `storage` from `./storage` which already respects USE_DB.
+export { storage } from './storage';
 
-import { DbStorage } from './storage-db-only';
-
-// Force database storage in production to eliminate MemStorage bloat
-export const storage = new DbStorage();
-
-// Remove all MemStorage code from production builds
 if (process.env.NODE_ENV === 'development') {
-  console.log('🚀 Using optimized database-only storage (MemStorage removed for performance)');
+  console.log('Using storage-optimized shim (delegates to ./storage)');
 }

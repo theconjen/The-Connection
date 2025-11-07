@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../lib/queryClient';
+import { apiUrl } from '../lib/env';
 
 export interface RecommendedMicroblog {
   id: number;
@@ -57,7 +58,7 @@ export function useRecordInteraction() {
 
   return useMutation({
     mutationFn: async (interaction: InteractionData) => {
-      const response = await fetch('/api/recommendations/interaction', {
+  const response = await fetch(apiUrl('/api/recommendations/interaction'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(interaction),

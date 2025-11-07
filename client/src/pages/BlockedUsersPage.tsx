@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { UserX, UserCheck, Shield } from 'lucide-react';
+import { apiUrl } from '../lib/env';
 import { BlockUserModal } from "../components/moderation/BlockUserModal";
 
 interface BlockedUser {
@@ -32,7 +33,7 @@ export default function BlockedUsersPage() {
 
   const fetchBlockedUsers = async () => {
     try {
-      const response = await fetch('/api/moderation/blocked-users', {
+      const response = await fetch(apiUrl('/api/moderation/blocked-users'), {
         credentials: 'include'
       });
       

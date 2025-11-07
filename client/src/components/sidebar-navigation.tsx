@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
+import { ThemeToggle } from "./ui/theme-toggle";
 import { 
   Home,
   MessageCircle,
@@ -118,6 +119,14 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
             </nav>
           </div>
         ))}
+      </div>
+
+      {/* Theme Toggle */}
+      <div className="px-3 border-t border-border/20 pt-4">
+        <div className="flex items-center justify-between py-2">
+          <span className="text-sm font-medium text-foreground">Theme</span>
+          <ThemeToggle />
+        </div>
       </div>
 
       {!user && (

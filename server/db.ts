@@ -1,24 +1,35 @@
+import { WebSocket } from 'ws';
+(globalThis as any).WebSocket = WebSocket;
+
 import { neon, Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from "@shared/schema";
 
-// For development MVP, use a simple DATABASE_URL if not set
-const databaseUrl = process.env.DATABASE_URL || "postgresql://user:password@localhost:5432/theconnection";
+const databaseUrl = process.env.DATABASE_URL;
+const useDb = process.env.USE_DB === 'true';
 
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
+  if (useDb) {
+    throw new Error('DATABASE_URL must be set when USE_DB=true');
+  } else {
+    console.warn('DATABASE_URL not set; database connections are disabled. Set USE_DB=true with a valid URL to enable Postgres features.');
+  }
 }
 
-// Create a Neon connection
-console.log("Attempting to connect to database...");
-export const sql = neon(databaseUrl);
+export const isConnected = Boolean(databaseUrl && useDb);
 
-// Create a pool for session store
-export const pool = new Pool({ connectionString: databaseUrl });
+let sqlInstance: ReturnType<typeof neon> | undefined;
+let poolInstance: Pool | undefined;
 
-// Create a Drizzle instance
-export const db = drizzle(sql, { schema });
-export const isConnected = true;
+if (isConnected && databaseUrl) {
+  console.log("Attempting to connect to database...");
+  sqlInstance = neon(databaseUrl);
+  poolInstance = new Pool({ connectionString: databaseUrl });
+}
+
+export const sql = sqlInstance;
+export const pool = poolInstance;
+export const db = sqlInstance ? drizzle(sqlInstance, { schema }) : undefined;
 
 // Test the database connection
 // sql`SELECT NOW()`

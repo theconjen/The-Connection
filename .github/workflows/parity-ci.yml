@@ -1,0 +1,47 @@
+name: Parity CI
+
+on:
+  push:
+    branches: [ main, '**/parity**', '**/copilot/**' ]
+  pull_request:
+
+jobs:
+  guard_eas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure only apps/mobile/eas.json exists
+        run: |
+          set -e
+          if [ -f "eas.json" ]; then echo "Root eas.json should not exist"; exit 1; fi
+          test -f "apps/mobile/eas.json"
+
+  smoke_auth:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check required secrets
+        id: check
+        env:
+          # actionlint: allow read secrets.DEV_API_BASE
+          API_BASE: ${{ secrets.DEV_API_BASE }}
+        run: |
+          if [ -z "${API_BASE}" ]; then
+            echo "DEV_API_BASE secret not set; skipping smoke_auth job.";
+            echo "has_secrets=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secrets=true" >> "$GITHUB_OUTPUT"
+            echo "api_base=${API_BASE}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install deps (tsx + minimal libs)
+        if: steps.check.outputs.has_secrets == 'true'
+        run: npm install tsx fetch-cookie tough-cookie
+      - name: Run smoke auth script
+        if: steps.check.outputs.has_secrets == 'true'
+        env:
+          API_BASE: ${{ steps.check.outputs.api_base }}
+        run: npx tsx tools/smoke-auth.ts

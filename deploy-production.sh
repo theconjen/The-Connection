@@ -3,43 +3,35 @@
 # Production deployment script for DigitalOcean
 # Handles memory constraints and proper build setup
 
-set -e
+set -euo pipefail
 
 echo "Starting production deployment..."
 
 # Set memory limit for Node.js processes
 export NODE_OPTIONS="--max-old-space-size=512"
 
+# Ensure pnpm is available
+corepack enable > /dev/null 2>&1 || true
+corepack prepare pnpm@10.19.0 --activate
+
 # Clean previous builds
 echo "Cleaning previous builds..."
 rm -rf dist/ dist-server/
 
-# Install production dependencies only
-echo "Installing production dependencies..."
-npm ci --production
-
-# Install dev dependencies needed for build
-echo "Installing build dependencies..."
-npm install --no-save vite @vitejs/plugin-react vite-plugin-pwa esbuild tsx
+# Install workspace dependencies
+echo "Installing dependencies..."
+pnpm install --frozen-lockfile
 
 # Build client first (less memory intensive)
 echo "Building client..."
-npm run build 2>&1 | head -n 100  # Limit output to prevent memory issues
+pnpm run build:web 2>&1 | head -n 200
 
 # Create server build directory
 mkdir -p dist-server
 
 # Build server with memory constraints
 echo "Building server..."
-NODE_OPTIONS="--max-old-space-size=512" npx esbuild server/index.ts \
-  --platform=node \
-  --packages=external \
-  --format=esm \
-  --outfile=dist-server/index.js \
-  --external:vite \
-  --external:@vitejs/plugin-react \
-  --external:vite-plugin-pwa \
-  --define:process.env.USE_DB='"true"'
+NODE_OPTIONS="--max-old-space-size=512" pnpm run build:server
 
 # Create vite.js shim for production
 echo "Creating vite production shim..."
@@ -71,8 +63,8 @@ EOF
 # Ensure shared schema is available
 echo "Compiling shared schema..."
 mkdir -p dist-server/shared
-npx esbuild shared/schema.ts --format=esm --outfile=dist-server/shared/schema.js
+pnpm exec esbuild shared/schema.ts --format=esm --outfile=dist-server/shared/schema.js
 
 echo "Build complete!"
 echo "To start the application:"
-echo "NODE_ENV=production USE_DB=true PORT=5000 node -r tsconfig-paths/register dist-server/index.js"
+echo "NODE_ENV=production USE_DB=true PORT=5000 node dist-server/index.cjs"

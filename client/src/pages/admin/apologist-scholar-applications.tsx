@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
+import { apiUrl } from '../../lib/env';
 import AdminLayout from '../../components/layouts/admin-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Button } from '../../components/ui/button';
@@ -121,7 +122,7 @@ export default function ApologistScholarApplicationsAdminPage() {
     retry: false,
     enabled: !!(isAuthenticated && user?.isAdmin),
     queryFn: async () => {
-      const res = await fetch('/api/admin/apologist-scholar-applications');
+      const res = await fetch(apiUrl('/api/admin/apologist-scholar-applications'));
       if (!res.ok) throw new Error('Failed to fetch applications');
       return res.json();
     }

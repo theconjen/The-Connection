@@ -6,6 +6,7 @@ import { InsertMicroblog } from "../../../shared/schema";
 import { Card, CardContent, CardFooter } from "./ui/card";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
+import { apiUrl } from "../lib/env";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Label } from "./ui/label";
 import { Image, X } from "lucide-react";
@@ -58,7 +59,7 @@ export function MicroblogComposer({
         formData.append('image', imageFile);
         
         // Custom fetch for FormData
-        const response = await fetch('/api/microblogs', {
+        const response = await fetch(apiUrl('/api/microblogs'), {
           method: 'POST',
           body: formData,
           credentials: 'include'

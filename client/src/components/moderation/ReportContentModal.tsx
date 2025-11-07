@@ -3,6 +3,7 @@
  * Apple Store requirement: mechanism to report offensive content
  */
 import React, { useState } from 'react';
+import { apiUrl } from "../../lib/env";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -12,7 +13,7 @@ import { AlertTriangle, CheckCircle } from "lucide-react";
 interface ReportContentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  contentType: 'post' | 'microblog' | 'comment' | 'event' | 'prayer_request';
+  contentType: 'post' | 'microblog' | 'comment' | 'event' | 'prayer_request' | 'community';
   contentId: number;
   contentPreview?: string;
 }
@@ -43,7 +44,7 @@ export function ReportContentModal({
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/moderation/report', {
+        const response = await fetch(apiUrl('/api/moderation/report'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

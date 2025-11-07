@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { sql } from "drizzle-orm";
-import { log } from "../vite.js";
+import { log } from "../vite-shim";
 
 /**
  * Migration to add locality and interest features to the database

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { Redirect, useLocation } from "wouter";
 import { navigate } from "wouter/use-browser-location";
 import { insertUserSchema, InsertUser } from "../../../shared/schema";
@@ -403,7 +403,7 @@ export default function AuthPage() {
       </div>
       
       {/* Right Side - Hero */}
-      <div className="flex-1 bg-gradient-to-br from-primary via-primary to-secondary p-12 flex flex-col justify-center relative hidden md:flex overflow-hidden">
+      <div className="flex-1 bg-gradient-to-br from-primary via-primary to-secondary p-12 hidden md:flex md:flex-col md:justify-center relative overflow-hidden">
         {/* Enhanced background pattern */}
         <div className="absolute inset-0 opacity-8">
           <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">

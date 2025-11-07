@@ -3,6 +3,11 @@ import { Link } from 'wouter';
 import { format } from 'date-fns';
 import { CalendarDays, ChevronRight, Clock, MapPin, Filter, List, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ContentActions } from '@/components/moderation/ContentActions';
+import { useBlockedUserIds } from '@/hooks/use-blocked-users';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -15,7 +20,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import EventsMap, { Event } from './EventsMap';
+import EventsMap from './EventsMap';
+import type { Event } from '@shared/mobile-web/types';
 
 interface EventsListProps {
   events: Event[];
@@ -36,6 +42,9 @@ export default function EventsList({
   isGettingLocation,
   coordinates
 }: EventsListProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const qc = queryClient;
   const [displayMode, setDisplayMode] = useState<"list" | "map">("list");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchCity, setSearchCity] = useState("");
@@ -51,6 +60,8 @@ export default function EventsList({
   };
 
   // Filter events by search term & city
+  const { blockedIds, addBlocked, removeBlocked } = useBlockedUserIds();
+
   const filteredEvents = events.filter(event => {
     const matchesSearch = !searchTerm || 
       event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -59,7 +70,9 @@ export default function EventsList({
     const matchesCity = !searchCity || 
       (event.city && event.city.toLowerCase().includes(searchCity.toLowerCase()));
     
-    return matchesSearch && matchesCity;
+    // hide events created by blocked users
+    const isBlocked = blockedIds.includes(event.creatorId);
+    return matchesSearch && matchesCity && !isBlocked;
   });
 
   return (
@@ -247,12 +260,28 @@ export default function EventsList({
               </CardContent>
               
               <CardFooter className="flex justify-between border-t pt-4">
-                <Link href={`/events/${event.id}`}>
-                  <Button variant="outline" size="sm" className="gap-1 text-primary hover:text-primary hover:bg-primary/5">
-                    View Details
-                    <ChevronRight size={14} />
-                  </Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link href={`/events/${event.id}`}>
+                    <Button variant="outline" size="sm" className="gap-1 text-primary hover:text-primary hover:bg-primary/5">
+                      View Details
+                      <ChevronRight size={14} />
+                    </Button>
+                  </Link>
+
+                  <ContentActions
+                    contentId={event.id}
+                    contentType="event"
+                    authorId={event.creatorId}
+                    authorName={`user_${event.creatorId}`}
+                    currentUserId={user?.id}
+                    onBlockStatusChange={(userId, isBlocked) => {
+                      // update local block list for immediate UI change
+                      if (isBlocked) addBlocked(userId); else removeBlocked(userId);
+                      qc.invalidateQueries();
+                      toast({ title: isBlocked ? 'User blocked' : 'User unblocked', description: isBlocked ? 'This user is now blocked.' : 'User unblocked.' });
+                    }}
+                  />
+                </div>
               </CardFooter>
             </Card>
           ))}

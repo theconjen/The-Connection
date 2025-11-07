@@ -18,7 +18,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import ShareButtons from "../components/share-buttons";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { format } from "date-fns";
 import {
   ArrowUpIcon,

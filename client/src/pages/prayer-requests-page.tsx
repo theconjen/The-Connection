@@ -56,7 +56,7 @@ import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import * as z from "zod";
+import * as z from "zod/v4";
 import { HeartHandshakeIcon, PlusIcon, BadgeCheckIcon, ClockIcon } from "lucide-react";
 
 // We use the formatDate function defined at the top of the file
@@ -97,6 +97,9 @@ const prayerRequestSchema = z.object({
   isAnonymous: z.boolean().default(false),
 });
 
+type PrayerRequestFormInput = z.input<typeof prayerRequestSchema>;
+type PrayerRequestFormValues = z.output<typeof prayerRequestSchema>;
+
 export default function PrayerRequestsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -122,7 +125,7 @@ export default function PrayerRequestsPage() {
   
   // Create prayer request mutation
   const createPrayerMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof prayerRequestSchema>) => {
+    mutationFn: async (data: PrayerRequestFormValues) => {
       const res = await apiRequest("POST", "/api/prayer-requests", data);
       return await res.json();
     },
@@ -193,7 +196,7 @@ export default function PrayerRequestsPage() {
   });
   
   // Form for creating prayer requests
-  const form = useForm<z.infer<typeof prayerRequestSchema>>({
+  const form = useForm<PrayerRequestFormInput, undefined, PrayerRequestFormValues>({
     resolver: zodResolver(prayerRequestSchema),
     defaultValues: {
       title: "",
@@ -201,7 +204,7 @@ export default function PrayerRequestsPage() {
       privacyLevel: "public",
       groupId: null,
       isAnonymous: false,
-    },
+    } satisfies PrayerRequestFormInput,
   });
   
   // Form for marking prayer as answered
@@ -209,7 +212,7 @@ export default function PrayerRequestsPage() {
   const [selectedPrayerForAnswer, setSelectedPrayerForAnswer] = useState<number | null>(null);
   const [answerDescription, setAnswerDescription] = useState("");
   
-  const handleSubmit = (values: z.infer<typeof prayerRequestSchema>) => {
+  const handleSubmit = (values: PrayerRequestFormValues) => {
     createPrayerMutation.mutate(values);
   };
   

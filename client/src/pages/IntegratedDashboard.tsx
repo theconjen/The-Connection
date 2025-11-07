@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { format } from 'date-fns';
+import type { Community, Event } from '@shared/mobile-web/types';
 
 // Types for data
 interface MicroblogPost {
@@ -29,28 +30,6 @@ interface MicroblogPost {
     displayName: string;
     avatarUrl: string | null;
   };
-}
-
-interface Community {
-  id: number;
-  name: string;
-  description: string;
-  slug: string;
-  memberCount: number | null;
-  isLocalCommunity?: boolean;
-  city?: string;
-  state?: string;
-}
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  eventDate: string;
-  startTime: string;
-  endTime: string;
-  location: string | null;
-  isVirtual: boolean;
 }
 
 interface Forum {

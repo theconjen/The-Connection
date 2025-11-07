@@ -40,21 +40,8 @@ import { apiRequest, queryClient } from "../lib/queryClient";
 import { insertCommunityObjectSchema, type InsertCommunity } from "../../../shared/schema";
 import { IconPicker } from "../components/ui/icon-picker";
 import { ColorPicker } from "../components/ui/color-picker";
+import type { Community } from '@shared/mobile-web/types';
 
-interface Community {
-  id: number;
-  name: string;
-  description: string;
-  slug: string;
-  iconName: string;
-  iconColor: string;
-  memberCount: number | null;
-  isPrivate: boolean | null;
-  hasPrivateWall: boolean | null;
-  hasPublicWall: boolean | null;
-  createdAt: Date | null;
-  createdBy: number | null;
-}
 
 // Community form schema with frontend validation
 // Cast to any to allow extending the generated schema in the UI layer while we

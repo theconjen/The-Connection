@@ -14,15 +14,23 @@ import { APP_DOMAIN, BASE_URL, EMAIL_FROM, APP_URLS } from './config/domain';
 // Check for AWS credentials
 // Email functionality configuration
 let emailFunctionalityEnabled = false;
-// Force mock mode - ALWAYS USE MOCK MODE FOR DEVELOPMENT
-const forceMockMode = true; // Hardcoded to true for development
 
-console.log("📧 [SETUP] Using hardcoded MOCK MODE for email functionality");
+// Control whether to use real email sending via env var. By default we run
+// in mock mode to avoid accidental sends during development. To enable real
+// SES email sending, set ENABLE_REAL_EMAIL=true in production and provide
+// AWS credentials.
+const ENABLE_REAL_EMAIL = process.env.ENABLE_REAL_EMAIL === 'true';
+const forceMockMode = process.env.FORCE_EMAIL_MOCK_MODE === 'true';
+
+console.log(`📧 [SETUP] Email mock mode = ${forceMockMode ? 'ON' : 'OFF'} (FORCE_EMAIL_MOCK_MODE=${process.env.FORCE_EMAIL_MOCK_MODE || 'unset'}, ENABLE_REAL_EMAIL=${process.env.ENABLE_REAL_EMAIL || 'unset'})`);
 
 if (forceMockMode) {
-  console.log("📧 Email functionality running in FORCED MOCK MODE. No actual emails will be sent.");
+  console.log("📧 Email functionality running in MOCK MODE. No actual emails will be sent.");
   console.log("📧 All email operations will simulate success for testing purposes.");
   // We don't enable real email functionality in mock mode
+} else if (!ENABLE_REAL_EMAIL) {
+  console.log("📧 Email functionality disabled. Set ENABLE_REAL_EMAIL=true to enable real sending.");
+  console.log("📧 All email operations will continue to run in mock mode.");
 } else if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
   console.warn("⚠️ AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) not set. Email functionality will be disabled.");
   console.warn("⚠️ Users can still register but won't receive actual emails.");

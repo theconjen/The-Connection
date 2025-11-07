@@ -1,0 +1,36 @@
+name: web-e2e
+on: [push, pull_request]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        locale: [en-US, es-ES]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies (web)
+        working-directory: apps/web
+        run: npm ci || npm install
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: npx playwright install --with-deps
+      - name: Run E2E tests
+        working-directory: apps/web
+        env:
+          VITE_API_BASE: ""
+          PLAYWRIGHT_TEST_LOCALE: ${{ matrix.locale }}
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          if-no-files-found: ignore

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    runtime: node
+    name: the-connection-api
+    plan: starter
+    region: ohio
+    autoDeploy: true
+    repo: https://github.com/The-Connection-App/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.19.0 --activate &&
+      (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) &&
+      pnpm -w build
+    startCommand: node dist-server/index.cjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: USE_DB
+        value: "true"
+      - key: SESSION_SECRET
+        sync: true
+      - key: DATABASE_URL
+        value: "postgresql://neondb_owner:npg_MfB8mlWiSkN4@ep-hidden-band-adzjfzr3-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+      - key: REDIS_URL
+        sync: true

@@ -17,7 +17,7 @@ import { BlockUserModal } from './BlockUserModal';
 
 interface ContentActionsProps {
   contentId: number;
-  contentType: 'post' | 'microblog' | 'comment' | 'event' | 'prayer_request';
+  contentType: 'post' | 'microblog' | 'comment' | 'event' | 'prayer_request' | 'community';
   authorId: number;
   authorName: string;
   contentPreview?: string;

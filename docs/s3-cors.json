@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedHeaders": ["*", "Authorization", "Content-Type", "x-amz-*"] ,
+    "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
+    "AllowedOrigins": ["https://app.theconnection.app"],
+    "ExposeHeaders": ["ETag", "x-amz-request-id", "x-amz-id-2"],
+    "MaxAgeSeconds": 3000
+  }
+]

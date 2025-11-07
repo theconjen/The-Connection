@@ -32,7 +32,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { Skeleton } from "../components/ui/skeleton";
 import { insertGroupSchema, InsertGroup } from "../../../shared/schema";
@@ -50,7 +50,8 @@ const createGroupSchema = insertGroupSchema.extend({
   isPrivate: z.boolean().default(true),
 });
 
-type CreateGroupFormValues = z.infer<typeof createGroupSchema>;
+type CreateGroupFormInput = z.input<typeof createGroupSchema>;
+type CreateGroupFormValues = z.output<typeof createGroupSchema>;
 
 export default function GroupsPage() {
   const { user } = useAuth();
@@ -61,7 +62,7 @@ export default function GroupsPage() {
     queryKey: ['/api/groups'],
   });
   
-  const form = useForm<CreateGroupFormValues>({
+  const form = useForm<CreateGroupFormInput, undefined, CreateGroupFormValues>({
     resolver: zodResolver(createGroupSchema),
     defaultValues: {
       name: "",
@@ -69,7 +70,7 @@ export default function GroupsPage() {
       iconName: "users",
       iconColor: "green",
       isPrivate: true,
-    },
+    } satisfies CreateGroupFormInput,
   });
   
   const onSubmit = async (data: CreateGroupFormValues) => {

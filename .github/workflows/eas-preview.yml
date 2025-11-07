@@ -1,0 +1,51 @@
+name: EAS Preview
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'release/*'
+
+jobs:
+  eas-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.18.2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install deps (root)
+        run: pnpm install
+
+      - name: Install deps (mobile)
+        run: pnpm -C apps/mobile install
+
+      - name: Install EAS CLI
+        run: pnpm add -g eas-cli
+
+      - name: Configure Expo (login or token)
+        run: |
+          if [ -n "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "Using EXPO_TOKEN for auth"
+            echo "eas.token=${{ secrets.EXPO_TOKEN }}" > ~/.easrc
+          else
+            echo "EXPO_TOKEN not set; proceeding without auth (build may fail if auth required)"
+          fi
+
+      - name: Build iOS Preview
+        run: pnpm -C apps/mobile exec eas build --platform ios --profile preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android Preview
+        run: pnpm -C apps/mobile exec eas build --platform android --profile preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
