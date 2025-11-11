@@ -26,7 +26,7 @@ jobs:
         run: pnpm install
 
       - name: Install deps (mobile)
-        run: pnpm -C apps/mobile install
+        run: pnpm -C mobile-app/TheConnectionMobile install
 
       - name: Install EAS CLI
         run: pnpm add -g eas-cli
@@ -41,11 +41,11 @@ jobs:
           fi
 
       - name: Build iOS Preview
-        run: pnpm -C apps/mobile exec eas build --platform ios --profile preview --non-interactive
+        run: pnpm -C mobile-app/TheConnectionMobile exec eas build --platform ios --profile preview --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android Preview
-        run: pnpm -C apps/mobile exec eas build --platform android --profile preview --non-interactive
+        run: pnpm -C mobile-app/TheConnectionMobile exec eas build --platform android --profile preview --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

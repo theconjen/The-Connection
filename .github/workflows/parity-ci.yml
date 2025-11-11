@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Ensure only apps/mobile/eas.json exists
+      - name: Ensure only mobile-app/TheConnectionMobile/eas.json exists
         run: |
           set -e
           if [ -f "eas.json" ]; then echo "Root eas.json should not exist"; exit 1; fi
-          test -f "apps/mobile/eas.json"
+          test -f "mobile-app/TheConnectionMobile/eas.json"
 
   smoke_auth:
     if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false) }}
