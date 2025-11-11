@@ -5,7 +5,7 @@
   },
   "build": {
     "production": {
-      "node": "20",
+      "node": "20.18.0",
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_API_BASE": "https://app.theconnection.app/api"
