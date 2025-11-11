@@ -14,6 +14,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { prayerRequestsAPI } from '../../src/lib/apiClient';
 
@@ -28,6 +29,7 @@ interface PrayerRequest {
 }
 
 export default function PrayersScreen() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [newPrayerContent, setNewPrayerContent] = useState('');
   const [isCreateVisible, setIsCreateVisible] = useState(false);
@@ -146,7 +148,11 @@ export default function PrayersScreen() {
           </View>
         ) : (
           prayers.map((prayer) => (
-            <View key={prayer.id} style={styles.prayerCard}>
+            <TouchableOpacity
+              key={prayer.id}
+              style={styles.prayerCard}
+              onPress={() => router.push(`/prayers/${prayer.id}`)}
+            >
               <View style={styles.prayerHeader}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>
@@ -177,7 +183,7 @@ export default function PrayersScreen() {
                   {prayer.prayerCount} {prayer.prayerCount === 1 ? 'person' : 'people'} prayed
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
