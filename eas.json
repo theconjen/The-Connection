@@ -12,7 +12,14 @@
       "distribution": "internal"
     },
     "production": {
-      "node": "20.18.0",
+      "node": "20.19.4",
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://app.theconnection.app/api"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      },
       "autoIncrement": true
     }
   },
