@@ -8,4 +8,4 @@ services:
       # Set your DATABASE_URL in a .env file or override here
     ports:
       - "5000:5000"
-    command: ["node", "dist-server/index.js"]
+    command: ["node", "dist-server/index.cjs"]

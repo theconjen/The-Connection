@@ -12,7 +12,7 @@ services:
       corepack prepare pnpm@10.19.0 --activate &&
       (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) &&
       pnpm -w build
-    startCommand: node dist-server/index.js
+    startCommand: node dist-server/index.cjs
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
@@ -22,6 +22,6 @@ services:
       - key: SESSION_SECRET
         sync: true
       - key: DATABASE_URL
-        sync: true
+        value: "postgresql://neondb_owner:npg_MfB8mlWiSkN4@ep-hidden-band-adzjfzr3-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       - key: REDIS_URL
         sync: true

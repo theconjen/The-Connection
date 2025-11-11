@@ -15,16 +15,20 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
 }
 
-// Create a Neon connection
-console.log("Attempting to connect to database...");
-export const sql = neon(databaseUrl);
+export const isConnected = Boolean(databaseUrl && useDb);
 
-// Create a pool for session store
-export const pool = new Pool({ connectionString: databaseUrl });
+let sqlInstance: ReturnType<typeof neon> | undefined;
+let poolInstance: Pool | undefined;
 
-// Create a Drizzle instance
-export const db = drizzle(sql, { schema });
-export const isConnected = true;
+if (isConnected && databaseUrl) {
+  console.log("Attempting to connect to database...");
+  sqlInstance = neon(databaseUrl);
+  poolInstance = new Pool({ connectionString: databaseUrl });
+}
+
+export const sql = sqlInstance;
+export const pool = poolInstance;
+export const db = sqlInstance ? drizzle(sqlInstance, { schema }) : undefined;
 
 // Test the database connection
 // sql`SELECT NOW()`

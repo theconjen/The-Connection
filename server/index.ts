@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { makeCors } from "./cors";
@@ -13,9 +12,6 @@ import session from "express-session";
 import passport from "passport";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
-import { User } from "@shared/schema";
-import { APP_DOMAIN, BASE_URL } from "./config/domain";
-import { Server as SocketIOServer } from "socket.io";
 import { createServer } from "http";
 import rateLimit from 'express-rate-limit';
 import type { EventEmitter } from "events";
@@ -65,8 +61,21 @@ if (USE_DB) {
     createTableIfMissing: true
   });
 
-  sessionOptions.store = sessionStore;
-}
+async function bootstrap() {
+  const app = express();
+  app.set('trust proxy', 1); // needed for secure cookies behind Render proxy
+  const httpServer = createServer(app);
+  (app as any).listen = httpServer.listen.bind(httpServer);
+
+  // Session store: use Postgres-backed store only when USE_DB=true; otherwise
+  // fall back to the default in-memory store for a lightweight MVP run.
+  const USE_DB = process.env.USE_DB === 'true';
+  const isProd = process.env.NODE_ENV === 'production';
+  let sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret) {
+    if (isProd) {
+      throw new Error('SESSION_SECRET is required in production');
+    }
 
 // SECURITY: Add helmet for security headers
 app.use(helmet({
@@ -90,106 +99,85 @@ app.use(helmet({
 // parse cookies before sessions so session middleware can read cookies
 app.use(cookieParser());
 
-// Rate limiting to prevent abuse
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
-app.use(limiter);
+  const sessionOptions: session.SessionOptions = {
+  secret: sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: isProd,
+      httpOnly: true,
+      sameSite: isProd ? 'strict' : 'lax',
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+    },
+  };
 
-app.use(session(sessionOptions));
-app.use(lusca.csrf());
+  if (USE_DB) {
+    // Set up PostgreSQL session store
+    const PgSessionStore = connectPgSimple(session);
+    const sessionStore = new PgSessionStore({
+      pool: pool as any,
+      tableName: 'sessions',
+      createTableIfMissing: true
+    });
 
-// Initialize passport with proper serialization
-app.use(passport.initialize());
-app.use(passport.session());
-passport.serializeUser((user: Express.User, done) => {
-  // If running without DB, store the whole user object in session (best-effort)
-  try {
-    const uid = (user as any).id ?? user;
-    done(null, uid);
-  } catch (e) {
-    done(null, user as any);
-  }
-});
-
-passport.deserializeUser(async (id: number, done) => {
-  if (!USE_DB) {
-    // In DB-less mode we can't look up users; return null so req.user won't be set.
-    return done(null, null);
+    sessionOptions.store = sessionStore;
   }
 
-  try {
-    const { storage } = await import("./storage");
-    const user = await storage.getUser(id);
-    done(null, user);
-  } catch (error) {
-    done(error, null);
-  }
-});
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+  // parse cookies before sessions so session middleware can read cookies
+  app.use(cookieParser());
 
-// Use centralized, dev-friendly CORS middleware
-const corsMiddleware = makeCors();
-app.use(corsMiddleware);
+  // Rate limiting to prevent abuse
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  });
+  app.use(limiter);
 
-// lightweight health endpoint for mobile/dev smoke tests
-app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ ok: true });
-});
+  app.use(session(sessionOptions));
+  app.use(lusca.csrf());
 
-app.get('/health', (_req: Request, res: Response) => {
-  res.type('application/json').status(200).json({ status: 'ok' });
-});
-
-// Dev helper: create a test user and set session (ONLY in non-production)
-if (process.env.NODE_ENV !== 'production') {
-  app.post('/api/_dev/create-login', async (req: Request, res: Response) => {
+  // Initialize passport with proper serialization
+  app.use(passport.initialize());
+  app.use(passport.session());
+  passport.serializeUser((user: Express.User, done) => {
+    // If running without DB, store the whole user object in session (best-effort)
     try {
-      const { username, email, password, displayName } = req.body ?? {};
-      if (!username) return res.status(400).json({ message: 'username required' });
-
-      const storageModule = await import('./storage');
-      const storage = storageModule.storage as any;
-
-      // Create user (storage implementations handle duplicates)
-      const user = await storage.createUser({
-        username,
-        email: email || `${username}@example.com`,
-        password: password || 'password',
-        displayName: displayName || username,
-      });
-
-      // Attach to session
-      if (!req.session) return res.status(500).json({ message: 'Session unavailable' });
-      req.session.userId = user.id.toString();
-      req.session.username = user.username;
-      req.session.save((err) => {
-        if (err) return res.status(500).json({ message: 'Failed to save session', err });
-        const { password: _p, ...u } = user as any;
-        return res.json({ ok: true, user: u });
-      });
-    } catch (error) {
-      console.error('Dev create-login error:', error);
-      res.status(500).json({ message: 'Error creating dev user', error: String(error) });
+      const uid = (user as any).id ?? user;
+      done(null, uid);
+    } catch (e) {
+      done(null, user as any);
     }
   });
-}
+
+  passport.deserializeUser(async (id: number, done) => {
+    if (!USE_DB) {
+      // In DB-less mode we can't look up users; return null so req.user won't be set.
+      return done(null, null);
+    }
+
+    try {
+      const { storage } = await import("./storage");
+      const user = await storage.getUser(id);
+      done(null, user);
+    } catch (error) {
+      done(error, null);
+    }
+  });
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: false }));
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
+  // lightweight health endpoint for mobile/dev smoke tests
+  app.get('/api/health', (_req: Request, res: Response) => {
+    res.json({ ok: true });
+  });
 
   const nodeResponse = res as Response & NodeJS.EventEmitter & { statusCode: number };
 
@@ -200,19 +188,39 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
+    });
+  }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+  app.use((req, res, next) => {
+    const start = Date.now();
+    const path = req.path;
+    let capturedJsonResponse: Record<string, any> | undefined = undefined;
+
+    const originalResJson = res.json;
+    res.json = function (bodyJson, ...args) {
+      capturedJsonResponse = bodyJson;
+      return originalResJson.apply(res, [bodyJson, ...args]);
+    };
+
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      if (path.startsWith("/api")) {
+        let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+        if (capturedJsonResponse) {
+          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        }
+
+        if (logLine.length > 80) {
+          logLine = logLine.slice(0, 79) + "…";
+        }
+
+        log(logLine);
       }
+    });
 
-      log(logLine);
-    }
+    next();
   });
 
-  next();
-});
-
-(async () => {
   // Run migrations for locality and interest features
   try {
     if (USE_DB) {
@@ -229,7 +237,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   } catch (error) {
     console.error("❌ Error running database migrations:", error);
   }
-  
+
   // Initialize email templates
   try {
     await initializeEmailTemplates();
@@ -237,7 +245,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     console.error("Error initializing email templates:", error);
     // Continue with server startup even if email template initialization fails
   }
-  
+
   const server = await registerRoutes(app, httpServer);
 
   // If SENTRY_DSN is provided, dynamically import Sentry and initialize it
@@ -281,4 +289,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   app.listen(port, "0.0.0.0", () => {
     console.log(`API listening on ${port}`);
   });
-})();
+}
+
+bootstrap().catch((error) => {
+  console.error("❌ Fatal error during server bootstrap:", error);
+  process.exit(1);
+});

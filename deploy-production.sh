@@ -67,4 +67,4 @@ pnpm exec esbuild shared/schema.ts --format=esm --outfile=dist-server/shared/sch
 
 echo "Build complete!"
 echo "To start the application:"
-echo "NODE_ENV=production USE_DB=true PORT=5000 node -r tsconfig-paths/register dist-server/index.js"
+echo "NODE_ENV=production USE_DB=true PORT=5000 node dist-server/index.cjs"
