@@ -2,7 +2,7 @@
   "expo": {
     "extra": {
       "eas": {
-        "projectId": "258d1512-5a8b-43d7-9684-ea7d60b7b252"
+        "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
       }
     },
     "ios": {
@@ -10,6 +10,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
-    }
+    },
+    "owner": "jselou",
+    "slug": "the-connection"
   }
 }
