@@ -7,6 +7,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="communities" options={{ title: 'Communities' }} />
       <Tabs.Screen name="events" options={{ title: 'Events' }} />
       <Tabs.Screen name="prayers" options={{ title: 'Prayers' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );
 }
