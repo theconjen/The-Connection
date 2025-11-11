@@ -3,6 +3,10 @@ import { storage } from "./storage-optimized";
 import { User } from "@shared/schema";
 import { sendWelcomeEmail } from "./email";
 import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
+import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
+import { logLogin, logLoginFailed, logLogout, logRegistration } from './audit-logger';
+import { sanitizePlainText } from './xss-protection';
 
 /**
  * Ultra Simple Auth System
@@ -17,8 +21,39 @@ declare module 'express-session' {
     isAdmin?: boolean;
     email?: string;
     isVerifiedApologeticsAnswerer?: boolean;
+    loginAttempts?: number;
+    lastLoginAttempt?: number;
   }
 }
+
+// SECURITY: Rate limiters for authentication endpoints
+// Login rate limiter: 5 attempts per 15 minutes
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 login attempts per windowMs
+  message: 'Too many login attempts from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Don't count successful logins
+});
+
+// Registration rate limiter: 3 registrations per hour
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // limit each IP to 3 registrations per windowMs
+  message: 'Too many registration attempts from this IP, please try again after an hour',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Password reset rate limiter: 3 attempts per hour
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  message: 'Too many password reset attempts from this IP, please try again after an hour',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Export authentication check middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -38,21 +73,39 @@ export function isAdmin(req: Request, res: Response, next: NextFunction) {
 
 // Sets up the authentication system
 export function setupAuth(app: Express) {
-  // User registration endpoint
-  app.post("/api/register", async (req, res) => {
+  // User registration endpoint with rate limiting
+  app.post("/api/register", registerLimiter, async (req, res) => {
     try {
-      const { username, email, password, displayName } = req.body;
-      
+      let { username, email, password, displayName } = req.body;
+
+      // SECURITY: Sanitize user inputs to prevent XSS
+      username = sanitizePlainText(username);
+      email = sanitizePlainText(email);
+      displayName = displayName ? sanitizePlainText(displayName) : undefined;
+
       // Basic validation
       if (!username || !email || !password) {
-        return res.status(400).json({ 
-          message: "Username, email, and password are required" 
+        return res.status(400).json({
+          message: "Username, email, and password are required"
         });
       }
       
-      if (password.length < 6) {
-        return res.status(400).json({ 
-          message: "Password must be at least 6 characters long" 
+      // Strong password requirements
+      if (password.length < 12) {
+        return res.status(400).json({
+          message: "Password must be at least 12 characters long"
+        });
+      }
+
+      // Check for complexity: uppercase, lowercase, number, and special character
+      const hasUpperCase = /[A-Z]/.test(password);
+      const hasLowerCase = /[a-z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+      if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+        return res.status(400).json({
+          message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
         });
       }
       
@@ -68,12 +121,15 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Email address already in use" });
       }
 
+      // Hash password with bcrypt (salt rounds: 12)
+      const hashedPassword = await bcrypt.hash(password, 12);
+
       // Create user
       console.log(`[REGISTRATION] Creating user with data:`, { username, email, displayName: displayName || username });
       const user = await storage.createUser({
         username,
         email,
-        password, // Store plaintext password for testing
+        password: hashedPassword, // Store hashed password
         displayName: displayName || username,
         isAdmin: false,
       });
@@ -91,6 +147,9 @@ export function setupAuth(app: Express) {
       } catch (error) {
         console.error("Failed to send welcome email:", error);
       }
+
+      // SECURITY: Log registration for audit trail
+      await logRegistration(user.id, user.username, user.email, req);
 
       // Log the user in - ensure session exists first
       if (!req.session) {
@@ -144,8 +203,8 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Login endpoint
-  app.post("/api/login", async (req, res) => {
+  // Login endpoint with rate limiting
+  app.post("/api/login", loginLimiter, async (req, res) => {
     try {
       const { username, password } = req.body;
       
@@ -166,13 +225,66 @@ export function setupAuth(app: Express) {
         
         if (!user) {
           console.log(`User not found: ${username}`);
+          // SECURITY: Log failed login attempt
+          await logLoginFailed(username, 'User not found', req);
           return res.status(401).json({ message: "Invalid username or password" });
         }
-        
-        // Check password (simple comparison for testing)
-        if (user.password !== password) {
+
+        // SECURITY: Check if account is locked out
+        if (user.lockoutUntil && new Date(user.lockoutUntil) > new Date()) {
+          const lockoutMinutes = Math.ceil((new Date(user.lockoutUntil).getTime() - Date.now()) / 60000);
+          console.log(`Account locked for user: ${username}, ${lockoutMinutes} minutes remaining`);
+          await logLoginFailed(username, 'Account locked', req);
+          return res.status(423).json({
+            message: `Account is locked due to too many failed login attempts. Please try again in ${lockoutMinutes} minute(s).`
+          });
+        }
+
+        // Check password using bcrypt
+        const passwordMatches = await bcrypt.compare(password, user.password);
+        if (!passwordMatches) {
           console.log(`Invalid password for user: ${username}`);
-          return res.status(401).json({ message: "Invalid username or password" });
+
+          // SECURITY: Increment failed login attempts
+          const newAttempts = (user.loginAttempts || 0) + 1;
+          const maxAttempts = 5;
+          const lockoutDuration = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+          if (newAttempts >= maxAttempts) {
+            // Lock the account
+            const lockoutUntil = new Date(Date.now() + lockoutDuration);
+            await storage.updateUser(user.id, {
+              loginAttempts: newAttempts,
+              lockoutUntil: lockoutUntil,
+            });
+
+            console.log(`Account locked for user: ${username} after ${maxAttempts} failed attempts`);
+            await logLoginFailed(username, `Account locked after ${maxAttempts} attempts`, req);
+
+            return res.status(423).json({
+              message: `Account locked due to too many failed login attempts. Please try again in 15 minutes.`
+            });
+          } else {
+            // Increment attempts but don't lock yet
+            await storage.updateUser(user.id, {
+              loginAttempts: newAttempts,
+            });
+
+            console.log(`Failed login attempt ${newAttempts}/${maxAttempts} for user: ${username}`);
+            await logLoginFailed(username, `Invalid password (attempt ${newAttempts}/${maxAttempts})`, req);
+
+            return res.status(401).json({
+              message: `Invalid username or password. ${maxAttempts - newAttempts} attempt(s) remaining before account lockout.`
+            });
+          }
+        }
+
+        // SECURITY: Reset failed login attempts on successful login
+        if (user.loginAttempts && user.loginAttempts > 0) {
+          await storage.updateUser(user.id, {
+            loginAttempts: 0,
+            lockoutUntil: null,
+          });
         }
         
         // Save user ID in session
@@ -188,14 +300,17 @@ export function setupAuth(app: Express) {
         });
         
         // Create session and return user data
-        req.session.save((err) => {
+        req.session.save(async (err) => {
           if (err) {
             console.error("Session save error:", err);
             return res.status(500).json({ message: "Error creating session" });
           }
-          
+
           console.log(`User logged in successfully: ${username} (ID: ${user.id}), Session saved with ID: ${req.sessionID}`);
-          
+
+          // SECURITY: Log successful login
+          await logLogin(user.id, user.username, req);
+
           // Return user data without password
           const { password, ...userWithoutPassword } = user;
           return res.status(200).json(userWithoutPassword);
@@ -210,43 +325,20 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Direct admin login for testing - no password needed
-  app.post("/api/admin-login", async (req, res) => {
-    try {
-      // Get the admin user directly
-      const admin = await storage.getUserByUsername('admin123');
-      
-      if (!admin) {
-        return res.status(404).json({ message: "Admin user not found" });
-      }
-      
-      // Set session data
-      req.session.userId = admin.id.toString();
-      req.session.username = admin.username;
-      req.session.isAdmin = true;
-      
-      // Save session
-      req.session.save((err) => {
-        if (err) {
-          console.error("Session save error:", err);
-          return res.status(500).json({ message: "Error creating session" });
-        }
-        
-        console.log(`Admin login successful: (ID: ${admin.id})`);
-        
-        // Return user data without password
-        const { password, ...adminWithoutPassword } = admin;
-        return res.status(200).json(adminWithoutPassword);
-      });
-    } catch (error) {
-      console.error("Admin login error:", error);
-      return res.status(500).json({ message: "Server error" });
-    }
-  });
+  // SECURITY: Admin login endpoint disabled for security reasons
+  // Admins should use the regular login endpoint with their credentials
+  // If you need to access admin functions, create an admin user with proper credentials
+  // and use the regular /api/login endpoint
 
   // Logout endpoint
-  app.post("/api/logout", (req, res) => {
-    if (req.session) {
+  app.post("/api/logout", async (req, res) => {
+    if (req.session && req.session.userId) {
+      const userId = parseInt(String(req.session.userId));
+      const username = req.session.username || 'unknown';
+
+      // SECURITY: Log logout for audit trail
+      await logLogout(userId, username, req);
+
       req.session.destroy((err) => {
         if (err) {
           return res.status(500).json({ message: "Error logging out" });

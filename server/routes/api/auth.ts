@@ -4,14 +4,32 @@ import { storage } from '../../storage-optimized';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { sendEmail } from '../../email';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
+
+// SECURITY: Rate limiters for magic code authentication
+const magicCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 magic code requests per 15 minutes
+  message: 'Too many magic code requests from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const magicVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 verification attempts per 15 minutes
+  message: 'Too many verification attempts from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // In-memory magic code store
 const magicStore: Record<string, { email: string; code: string; expiresAt: number }> = {};
 
-// Magic code: POST /api/auth/magic { email }
-router.post('/auth/magic', async (req, res) => {
+// Magic code: POST /api/auth/magic { email } with rate limiting
+router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
   try {
     const { email } = req.body || {};
     if (!email) return res.status(400).json({ message: 'email required' });
@@ -43,8 +61,8 @@ router.post('/auth/magic', async (req, res) => {
   }
 });
 
-// Verify magic code: POST /api/auth/verify { token, code }
-router.post('/auth/verify', async (req, res) => {
+// Verify magic code: POST /api/auth/verify { token, code } with rate limiting
+router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
   try {
     const { token, code } = req.body || {};
     const entry = magicStore[token];
@@ -55,8 +73,14 @@ router.post('/auth/verify', async (req, res) => {
     const user = { id: Math.floor(Math.random() * 1000000), email: entry.email };
     delete magicStore[token];
 
-    const jwtSecret = process.env.JWT_SECRET || 'dev-secret';
-    const jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '30d' });
+    // SECURITY: Enforce JWT_SECRET
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error('FATAL ERROR: JWT_SECRET environment variable is required');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+
+    const jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });
     return res.json({ token: jwtToken, user });
   } catch (error) {
     console.error('Magic verify error:', error);
@@ -80,11 +104,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: "Invalid username or password" });
     }
     
-    // Simple password check (for development only)
-    const passwordMatches = password === user.password;
-    
-    // For production, use bcrypt compare:
-    // const passwordMatches = await bcrypt.compare(password, user.password);
+    // Use bcrypt to compare password
+    const passwordMatches = await bcrypt.compare(password, user.password);
     
     if (!passwordMatches) {
       return res.status(401).json({ message: "Invalid username or password" });
@@ -113,38 +134,8 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Admin quick login (for testing only)
-router.post('/admin-login', async (req, res) => {
-  try {
-    // Find an admin user
-    const adminUser = await storage.getUserByUsername('admin123');
-    
-    if (!adminUser) {
-      return res.status(404).json({ message: "Admin user not found" });
-    }
-    
-    // Set admin user in session
-    req.session.userId = adminUser.id;
-    req.session.username = adminUser.username;
-    req.session.isAdmin = true;
-    
-    // Save session explicitly to ensure it's stored before responding
-    req.session.save(err => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).json({ message: "Error saving session" });
-      }
-      
-      // Return admin user data (excluding password)
-      const { password: _, ...userData } = adminUser;
-      res.json(userData);
-    });
-    
-  } catch (error) {
-    console.error('Admin login error:', error);
-    res.status(500).json({ message: "Server error during admin login" });
-  }
-});
+// SECURITY: Admin quick login endpoint disabled for security reasons
+// Admins should use the regular login endpoint with their credentials
 
 // Logout endpoint
 router.post('/logout', (req, res) => {

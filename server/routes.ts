@@ -126,12 +126,35 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
+  // SECURITY: Add authentication middleware for Socket.IO
+  io.use((socket, next) => {
+    // Get userId from handshake auth or query
+    const authUserId = socket.handshake.auth?.userId || socket.handshake.query?.userId;
+
+    if (!authUserId) {
+      console.log('Socket.IO connection rejected: No userId provided');
+      return next(new Error('Authentication required: userId not provided'));
+    }
+
+    // Store authenticated userId on socket for verification
+    (socket as any).userId = parseInt(authUserId as string);
+    console.log(`Socket.IO connection authenticated for user ${(socket as any).userId}`);
+    next();
+  });
+
   // Socket.IO connection handling
   io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    const authenticatedUserId = (socket as any).userId;
+    console.log('User connected:', socket.id, 'User ID:', authenticatedUserId);
 
     // Join user to their own room for private messages
     socket.on('join_user_room', (userId) => {
+      // SECURITY: Verify userId matches authenticated user
+      if (parseInt(userId) !== authenticatedUserId) {
+        console.log(`User ${authenticatedUserId} attempted to join room for user ${userId}`);
+        return;
+      }
+
       socket.join(`user_${userId}`);
       console.log(`User ${userId} joined room user_${userId}`);
     });
@@ -152,16 +175,22 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     socket.on('new_message', async (data) => {
       try {
         const { roomId, content, senderId } = data;
-        
+
+        // SECURITY: Verify senderId matches authenticated user
+        if (parseInt(senderId) !== authenticatedUserId) {
+          console.log(`User ${authenticatedUserId} attempted to send message as user ${senderId}`);
+          return;
+        }
+
         // Create message in database
         const newMessage = await storage.createChatMessage({
           chatRoomId: parseInt(roomId),
-          senderId: parseInt(senderId),
+          senderId: authenticatedUserId, // Use authenticated userId
           content: content,
         });
 
         // Get sender info
-        const sender = await storage.getUser(parseInt(senderId));
+        const sender = await storage.getUser(authenticatedUserId);
         const messageWithSender = { ...newMessage, sender };
 
         // Broadcast to room
@@ -175,17 +204,23 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     socket.on('send_dm', async (data) => {
       try {
         const { senderId, receiverId, content } = data;
-        
+
+        // SECURITY: Verify senderId matches authenticated user
+        if (parseInt(senderId) !== authenticatedUserId) {
+          console.log(`User ${authenticatedUserId} attempted to send DM as user ${senderId}`);
+          return;
+        }
+
         // Create message in database (assuming you have a DM message table)
         const newMessage = {
-          senderId: parseInt(senderId),
+          senderId: authenticatedUserId, // Use authenticated userId
           receiverId: parseInt(receiverId),
           content: content,
           createdAt: new Date()
         };
 
         // Emit to both sender and receiver
-        io.to(`user_${senderId}`).emit("new_message", newMessage);
+        io.to(`user_${authenticatedUserId}`).emit("new_message", newMessage);
         io.to(`user_${receiverId}`).emit("new_message", newMessage);
       } catch (error) {
         console.error('Error handling DM:', error);

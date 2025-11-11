@@ -30,6 +30,8 @@ export const users = pgTable("users", {
   onboardingCompleted: boolean("onboarding_completed").default(false),
   isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
   isAdmin: boolean("is_admin").default(false),
+  loginAttempts: integer("login_attempts").default(0),
+  lockoutUntil: timestamp("lockout_until"),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -1381,6 +1383,26 @@ export const insertModerationSettingsSchema = createInsertSchema(moderationSetti
   updatedAt: true,
 } as any);
 
+// Audit logs table for security tracking
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id), // null for failed login attempts
+  username: text("username"), // Store username for failed login attempts
+  action: text("action").notNull(), // 'login', 'logout', 'register', 'password_change', 'admin_action', etc.
+  entityType: text("entity_type"), // 'user', 'community', 'post', etc.
+  entityId: integer("entity_id"), // ID of affected entity
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  status: text("status").notNull(), // 'success', 'failure', 'blocked'
+  details: jsonb("details"), // Additional context in JSON format
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+} as any);
+
 // Type exports for content moderation
 export type ContentReport = typeof contentReports.$inferSelect;
 export type InsertContentReport = typeof contentReports.$inferInsert;
@@ -1393,3 +1415,6 @@ export type InsertModerationAction = typeof moderationActions.$inferInsert;
 
 export type ModerationSettings = typeof moderationSettings.$inferSelect;
 export type InsertModerationSettings = typeof moderationSettings.$inferInsert;
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;

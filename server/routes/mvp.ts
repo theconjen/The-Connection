@@ -57,8 +57,14 @@ router.post('/auth/verify', async (req, res) => {
   const user = { id: Math.floor(Math.random() * 1000000), email: entry.email };
   delete magicStore[token];
 
-  const jwtSecret = process.env.JWT_SECRET || 'dev-secret';
-  const jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '30d' });
+  // SECURITY: Enforce JWT_SECRET
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    console.error('FATAL ERROR: JWT_SECRET environment variable is required');
+    return res.status(500).json({ message: 'Server configuration error' });
+  }
+
+  const jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });
   return res.json({ token: jwtToken, user });
 });
 

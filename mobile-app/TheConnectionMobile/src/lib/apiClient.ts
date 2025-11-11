@@ -1,0 +1,263 @@
+/**
+ * API Client
+ * Centralized HTTP client with authentication and error handling
+ */
+
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import Constants from 'expo-constants';
+import { getAuthToken } from './secureStorage';
+
+// Get API base URL from environment
+const API_BASE_URL = Constants.expoConfig?.extra?.apiBase || process.env.EXPO_PUBLIC_API_BASE || 'http://localhost:3000/api';
+
+console.log('API Base URL:', API_BASE_URL);
+
+/**
+ * Create axios instance with default configuration
+ */
+const apiClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30000, // 30 seconds
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+/**
+ * Request interceptor to add auth token to requests
+ */
+apiClient.interceptors.request.use(
+  async (config: InternalAxiosRequestConfig) => {
+    try {
+      const token = await getAuthToken();
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.error('Error adding auth token to request:', error);
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * Response interceptor for error handling
+ */
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    if (error.response) {
+      // Server responded with error status
+      const status = error.response.status;
+
+      if (status === 401) {
+        // Unauthorized - token might be expired
+        console.log('Unauthorized request - redirecting to login');
+        // You can dispatch a logout action here or emit an event
+      } else if (status === 403) {
+        console.log('Forbidden - insufficient permissions');
+      } else if (status === 404) {
+        console.log('Resource not found');
+      } else if (status >= 500) {
+        console.error('Server error:', error.response.data);
+      }
+    } else if (error.request) {
+      // Request made but no response received
+      console.error('Network error - no response received');
+    } else {
+      // Error in request setup
+      console.error('Request error:', error.message);
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
+
+/**
+ * API helper functions
+ */
+
+export interface LoginCredentials {
+  username: string;
+  password: string;
+}
+
+export interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+  displayName?: string;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  displayName?: string;
+  avatarUrl?: string;
+  bio?: string;
+  isAdmin?: boolean;
+  createdAt?: string;
+}
+
+/**
+ * Authentication API
+ */
+export const authAPI = {
+  /**
+   * Login user
+   */
+  login: async (credentials: LoginCredentials): Promise<User> => {
+    const response = await apiClient.post('/login', credentials);
+    return response.data;
+  },
+
+  /**
+   * Register new user
+   */
+  register: async (data: RegisterData): Promise<User> => {
+    const response = await apiClient.post('/register', data);
+    return response.data;
+  },
+
+  /**
+   * Logout user
+   */
+  logout: async (): Promise<void> => {
+    await apiClient.post('/logout');
+  },
+
+  /**
+   * Get current user
+   */
+  getCurrentUser: async (): Promise<User> => {
+    const response = await apiClient.get('/user');
+    return response.data;
+  },
+
+  /**
+   * Request magic code
+   */
+  requestMagicCode: async (email: string): Promise<{ token: string; message: string }> => {
+    const response = await apiClient.post('/auth/magic', { email });
+    return response.data;
+  },
+
+  /**
+   * Verify magic code
+   */
+  verifyMagicCode: async (token: string, code: string): Promise<{ token: string; user: User }> => {
+    const response = await apiClient.post('/auth/verify', { token, code });
+    return response.data;
+  },
+};
+
+/**
+ * Communities API
+ */
+export const communitiesAPI = {
+  getAll: async () => {
+    const response = await apiClient.get('/communities');
+    return response.data;
+  },
+
+  getById: async (id: number) => {
+    const response = await apiClient.get(`/communities/${id}`);
+    return response.data;
+  },
+
+  create: async (data: any) => {
+    const response = await apiClient.post('/communities', data);
+    return response.data;
+  },
+
+  join: async (id: number) => {
+    const response = await apiClient.post(`/communities/${id}/join`);
+    return response.data;
+  },
+
+  leave: async (id: number) => {
+    const response = await apiClient.post(`/communities/${id}/leave`);
+    return response.data;
+  },
+
+  getWallPosts: async (id: number) => {
+    const response = await apiClient.get(`/communities/${id}/wall`);
+    return response.data;
+  },
+
+  createWallPost: async (id: number, content: string) => {
+    const response = await apiClient.post(`/communities/${id}/wall`, { content });
+    return response.data;
+  },
+
+  getMembers: async (id: number) => {
+    const response = await apiClient.get(`/communities/${id}/members`);
+    return response.data;
+  },
+};
+
+/**
+ * Posts API
+ */
+export const postsAPI = {
+  getAll: async () => {
+    const response = await apiClient.get('/posts');
+    return response.data;
+  },
+
+  create: async (data: any) => {
+    const response = await apiClient.post('/posts', data);
+    return response.data;
+  },
+
+  upvote: async (id: number) => {
+    const response = await apiClient.post(`/posts/${id}/upvote`);
+    return response.data;
+  },
+};
+
+/**
+ * Events API
+ */
+export const eventsAPI = {
+  getAll: async () => {
+    const response = await apiClient.get('/events');
+    return response.data;
+  },
+
+  create: async (data: any) => {
+    const response = await apiClient.post('/events', data);
+    return response.data;
+  },
+
+  rsvp: async (id: number, status: string) => {
+    const response = await apiClient.post(`/events/${id}/rsvp`, { status });
+    return response.data;
+  },
+};
+
+/**
+ * Prayer Requests API
+ */
+export const prayerRequestsAPI = {
+  getAll: async () => {
+    const response = await apiClient.get('/prayer-requests');
+    return response.data;
+  },
+
+  create: async (data: any) => {
+    const response = await apiClient.post('/prayer-requests', data);
+    return response.data;
+  },
+
+  pray: async (id: number) => {
+    const response = await apiClient.post(`/prayer-requests/${id}/pray`);
+    return response.data;
+  },
+};

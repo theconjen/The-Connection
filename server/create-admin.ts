@@ -1,20 +1,38 @@
 /**
  * Script to create an admin user account directly
+ *
+ * SECURITY: Admin credentials must be provided via environment variables
+ * Set ADMIN_USERNAME, ADMIN_EMAIL, and ADMIN_PASSWORD before running this script
  */
 import { db } from './db';
 import { users } from '../shared/schema';
 import { eq, sql } from 'drizzle-orm';
-import { scrypt, randomBytes } from 'crypto';
-import { promisify } from 'util';
+import bcrypt from 'bcryptjs';
 
 async function createAdminUser() {
   try {
     console.log('=== Creating Admin User ===');
-    
-    // Admin credentials
-    const username = 'admin';
-    const email = 'admin@example.com';
-    const password = 'admin123'; // You should change this in production
+
+    // Get admin credentials from environment variables
+    const username = process.env.ADMIN_USERNAME;
+    const email = process.env.ADMIN_EMAIL;
+    const password = process.env.ADMIN_PASSWORD;
+
+    // Validate environment variables
+    if (!username || !email || !password) {
+      console.error('ERROR: Admin credentials not provided!');
+      console.error('Please set the following environment variables:');
+      console.error('  - ADMIN_USERNAME');
+      console.error('  - ADMIN_EMAIL');
+      console.error('  - ADMIN_PASSWORD (minimum 12 characters with uppercase, lowercase, number, and special character)');
+      process.exit(1);
+    }
+
+    // Validate password strength
+    if (password.length < 12) {
+      console.error('ERROR: Admin password must be at least 12 characters long');
+      process.exit(1);
+    }
     
     // First, check if the isAdmin column exists
     const checkColumnResult = await db.execute(sql`
@@ -44,23 +62,18 @@ async function createAdminUser() {
       
       console.log(`User ${username} has been updated to admin status`);
     } else {
-      // Create new admin user
-      // Use the same hashing method as in auth.ts
-      const scryptAsync = promisify(scrypt);
-      const salt = randomBytes(16).toString("hex");
-      const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-      const hashedPassword = `${buf.toString("hex")}.${salt}`;
-      
+      // Create new admin user with bcrypt hashing (salt rounds: 12)
+      const hashedPassword = await bcrypt.hash(password, 12);
+
       await db.execute(sql`
         INSERT INTO users (username, email, password, is_admin) VALUES (${username}, ${email}, ${hashedPassword}, true)
       `);
-      
+
       console.log(`Admin user ${username} has been created successfully`);
     }
-    
+
     console.log('Admin credentials:');
     console.log(`Username: ${username}`);
-    console.log(`Password: ${password}`);
     console.log('You can now login with these credentials at /auth');
     
   } catch (error) {

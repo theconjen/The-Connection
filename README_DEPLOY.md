@@ -57,7 +57,7 @@ docker compose up --build
 
 Use these settings for Render:
 
-- **Environment**: Node 18.x (upgradeable once validated)
+- **Environment**: Node 22.x (upgradeable once validated)
 - **Build Command**
 
 	```bash

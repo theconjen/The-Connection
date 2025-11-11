@@ -30,6 +30,7 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "types": [
+      "node",
       "./types/shared-env"
     ],
     "paths": {

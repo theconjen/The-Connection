@@ -60,7 +60,8 @@ const createCommunitySchema = z.object({
   path: ["hasPublicWall"], // Show error on public wall field
 });
 
-type CreateCommunityForm = z.infer<typeof createCommunitySchema>;
+type CreateCommunityFormInput = z.input<typeof createCommunitySchema>;
+type CreateCommunityForm = z.output<typeof createCommunitySchema>;
 
 export default function CommunitiesPage() {
   const [, navigate] = useLocation();
@@ -80,7 +81,7 @@ export default function CommunitiesPage() {
   }, [searchQuery]);
   
   // Form setup with validation
-  const form = useForm<CreateCommunityForm>({
+  const form = useForm<CreateCommunityFormInput, undefined, CreateCommunityForm>({
     resolver: zodResolver(createCommunitySchema),
     defaultValues: {
       name: "",

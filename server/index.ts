@@ -4,6 +4,7 @@ import { makeCors } from "./cors";
 import cookieParser from 'cookie-parser';
 import { setupVite, serveStatic, log } from "./vite";
 import lusca from "lusca";
+import helmet from "helmet";
 // Seed imports removed for production
 import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
@@ -13,12 +14,52 @@ import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import { createServer } from "http";
 import rateLimit from 'express-rate-limit';
+import type { EventEmitter } from "events";
 
-// Load .env only in development
-if (process.env.NODE_ENV !== 'production') {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  require('dotenv').config();
+const app = express();
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction) {
+  app.set("trust proxy", 1);
 }
+const httpServer = createServer(app);
+(app as any).listen = httpServer.listen.bind(httpServer);
+
+// SECURITY: Enforce SESSION_SECRET in production
+if (isProduction && !process.env.SESSION_SECRET) {
+  console.error('FATAL ERROR: SESSION_SECRET environment variable is required in production');
+  console.error('Please set a strong, random SESSION_SECRET in your environment variables');
+  process.exit(1);
+}
+
+// Session store: use Postgres-backed store only when USE_DB=true; otherwise
+// fall back to the default in-memory store for a lightweight MVP run.
+const USE_DB = process.env.USE_DB === 'true';
+const isSecureCookie = isProduction && process.env.COOKIE_SECURE !== 'false';
+const sameSiteMode = isSecureCookie ? 'none' : 'lax';
+
+let sessionOptions: any = {
+  secret: process.env.SESSION_SECRET || "theconnection-session-secret-dev-only",
+  resave: false,
+  saveUninitialized: false,
+  name: 'sessionId', // Explicit session name
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (reduced from 30 for security)
+    secure: isSecureCookie,
+    httpOnly: true,
+    sameSite: sameSiteMode,
+    path: '/',
+  }
+};
+
+if (USE_DB) {
+  // Set up PostgreSQL session store
+  const PgSessionStore = connectPgSimple(session);
+  const sessionStore = new PgSessionStore({
+    pool: pool as any,
+    tableName: 'sessions',
+    createTableIfMissing: true
+  });
 
 async function bootstrap() {
   const app = express();
@@ -36,9 +77,27 @@ async function bootstrap() {
       throw new Error('SESSION_SECRET is required in production');
     }
 
-    sessionSecret = '372f79df29a1113a00d5bde03125eddc';
-    console.warn('SESSION_SECRET not set; using development fallback. Set SESSION_SECRET to override.');
-  }
+// SECURITY: Add helmet for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Note: unsafe-eval needed for dev mode
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https:", "wss:"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Disable for compatibility with external resources
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin requests
+}));
+
+// parse cookies before sessions so session middleware can read cookies
+app.use(cookieParser());
 
   const sessionOptions: session.SessionOptions = {
   secret: sessionSecret,
@@ -110,49 +169,24 @@ async function bootstrap() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
-  // Use centralized, dev-friendly CORS middleware
-  const corsMiddleware = makeCors();
-  app.use(corsMiddleware);
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  const path = req.path;
+  let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   // lightweight health endpoint for mobile/dev smoke tests
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ ok: true });
   });
 
-  app.get('/health', (_req: Request, res: Response) => {
-    res.type('application/json').status(200).json({ status: 'ok' });
-  });
+  const nodeResponse = res as Response & NodeJS.EventEmitter & { statusCode: number };
 
-  // Dev helper: create a test user and set session (ONLY in non-production)
-  if (process.env.NODE_ENV !== 'production') {
-    app.post('/api/_dev/create-login', async (req: Request, res: Response) => {
-      try {
-        const { username, email, password, displayName } = req.body ?? {};
-        if (!username) return res.status(400).json({ message: 'username required' });
-
-        const storageModule = await import('./storage');
-        const storage = storageModule.storage as any;
-
-        // Create user (storage implementations handle duplicates)
-        const user = await storage.createUser({
-          username,
-          email: email || `${username}@example.com`,
-          password: password || 'password',
-          displayName: displayName || username,
-        });
-
-        // Attach to session
-        if (!req.session) return res.status(500).json({ message: 'Session unavailable' });
-        req.session.userId = user.id.toString();
-        req.session.username = user.username;
-        req.session.save((err) => {
-          if (err) return res.status(500).json({ message: 'Failed to save session', err });
-          const { password: _p, ...u } = user as any;
-          return res.json({ ok: true, user: u });
-        });
-      } catch (error) {
-        console.error('Dev create-login error:', error);
-        res.status(500).json({ message: 'Error creating dev user', error: String(error) });
+  nodeResponse.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${nodeResponse.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
     });
   }

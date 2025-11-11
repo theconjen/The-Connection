@@ -1,7 +1,0 @@
-{
-  "appId": "com.theconjen.tconnect",
-  "appName": "TConnect",
-  "webDir": "apps/web/dist",
-  "bundledWebRuntime": false,
-  "server": {}
-}

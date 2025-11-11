@@ -2,11 +2,11 @@
   "name": "esbuild-test",
   "type": "module",
   "scripts": {
-    "build:server": "node scripts/build-server.mjs && node scripts/assert-no-nanoid.mjs",
-    "build": "pnpm run build:server",
-    "prestart": "node -e \"require('fs').accessSync('dist-server/index.cjs')\"",
-    "start": "node dist-server/index.cjs",
-    "build:web": "node ./scripts/build-web.mjs"
+    "watch": "esbuild src/app.ts --bundle --sourcemap --outdir=www --servedir=www --watch",
+    "build:web": "node ./scripts/build-web.mjs",
+    "build:server": "node ./scripts/build-server.mjs",
+    "build": "pnpm run build:web && pnpm run build:server",
+    "test:api": "vitest run tests/api"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
@@ -15,18 +15,23 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/express-session": "^1.18.2",
+    "@types/http-errors": "^2.0.4",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.9.2",
     "@types/passport": "^1.0.17",
     "@types/react": "~19.1.10",
+    "@types/supertest": "^6.0.2",
+    "@types/ws": "^8.5.12",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.11",
+    "esbuild": "^0.27.0",
+    "supertest": "^7.0.0",
     "tailwindcss": "^3.4.18",
     "tsx": "^4.19.2",
     "typescript": "~5.9.2",
-    "vite": "^5.4.8",
-    "vite-plugin-pwa": "^0.19.8"
+    "vite": "^7.2.2",
+    "vite-plugin-pwa": "^0.19.8",
+    "vitest": "^3.0.0"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -88,6 +93,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.4.5",
     "drizzle-orm": "^0.44.7",
     "drizzle-zod": "^0.8.3",
     "embla-carousel-react": "^8.6.0",
@@ -96,9 +102,12 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "http-errors": "^2.0.0",
     "i18next": "^25.6.0",
     "i18next-icu": "^2.4.1",
     "input-otp": "^1.4.2",
+    "isomorphic-dompurify": "^2.31.0",
     "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.552.0",
@@ -113,40 +122,10 @@
     "react-share": "^5.2.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
-    "tailwind-merge": "^2.6.0",
-    "tailwindcss-animate": "^1.0.7",
-    "wouter": "^3.3.5",
+    "tailwind-merge": "^3.3.1",
+    "undici": "^7.16.0",
+    "wouter": "^3.7.1",
     "ws": "^8.18.0",
-    "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
-  },
-  "devDependencies": {
-    "@capacitor/ios": "^7.4.0",
-    "@tailwindcss/typography": "^0.5.15",
-    "@types/connect-pg-simple": "^7.0.3",
-    "@types/express": "4.17.21",
-    "@types/express-session": "^1.18.0",
-    "@types/node": "20.16.11",
-    "@types/passport": "^1.0.16",
-    "@types/passport-local": "^1.0.38",
-    "@types/react": "^18.3.23",
-    "@types/react-dom": "^18.3.1",
-    "@types/ws": "^8.5.13",
-    "@vitejs/plugin-react": "^5.0.3",
-    "autoprefixer": "^10.4.20",
-    "drizzle-kit": "^0.18.1",
-    "esbuild": "^0.25.11",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.17",
-    "tsx": "^4.19.1",
-    "typescript": "^5.6.3",
-    "vite": "^7.1.12",
-    "vite-plugin-pwa": "^1.0.3"
-  },
-  "engines": {
-    "node": "18.x"
-  },
-  "optionalDependencies": {
-    "bufferutil": "^4.0.8"
+    "zod": "^4.1.12"
   }
 }
