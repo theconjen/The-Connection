@@ -185,6 +185,21 @@ export const communitiesAPI = {
     const response = await apiClient.post(`/communities/${id}/leave`);
     return response.data;
   },
+
+  getWallPosts: async (id: number) => {
+    const response = await apiClient.get(`/communities/${id}/wall`);
+    return response.data;
+  },
+
+  createWallPost: async (id: number, content: string) => {
+    const response = await apiClient.post(`/communities/${id}/wall`, { content });
+    return response.data;
+  },
+
+  getMembers: async (id: number) => {
+    const response = await apiClient.get(`/communities/${id}/members`);
+    return response.data;
+  },
 };
 
 /**
