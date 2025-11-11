@@ -15,6 +15,7 @@ import { storage as storageReal } from './storage';
 // inference upstream for proper typings.
 const storage: any = storageReal;
 import { z } from 'zod/v4';
+import rateLimit from 'express-rate-limit';
 import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertMicroblogSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema, InsertLivestreamerApplication, InsertApologistScholarApplication } from '@shared/schema';
 import { APP_DOMAIN, BASE_URL, APP_URLS, EMAIL_FROM } from './config/domain';
 import { sendCommunityInvitationEmail, sendNotificationEmail } from './email';
@@ -1727,6 +1728,14 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
+  // Rate limiter for community guidelines route (10 reqs/min per IP)
+  const communityGuidelinesRateLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 10, // limit each IP to 10 requests per windowMs
+    standardHeaders: true, 
+    legacyHeaders: false,
+  });    
+  
   // Health check endpoint
   app.get('/api/health', (req, res) => {
     res.json({ 
@@ -1757,7 +1766,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     return res.status(404).send('Not found');
   });
 
-  app.get('/community-guidelines', (_req, res) => {
+  app.get('/community-guidelines', communityGuidelinesRateLimiter, (_req, res) => {
     const env = app.get('env');
     const candidate = env === 'development'
       ? path.resolve(process.cwd(), 'public', 'community-guidelines.html')
