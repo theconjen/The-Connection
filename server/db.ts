@@ -5,10 +5,13 @@ import { neon, Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from "@shared/schema";
 
-// For development MVP, use a simple DATABASE_URL if not set
-const databaseUrl = process.env.DATABASE_URL || "postgresql://user:password@localhost:5432/theconnection";
+// SECURITY: DATABASE_URL must be provided via environment variable
+const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
+  console.error("FATAL ERROR: DATABASE_URL environment variable is required");
+  console.error("Please set DATABASE_URL in your environment variables");
+  console.error("Example: postgresql://user:password@host:5432/database");
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
 }
 

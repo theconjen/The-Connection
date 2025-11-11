@@ -5,10 +5,10 @@ import { makeCors } from "./cors";
 import cookieParser from 'cookie-parser';
 import { setupVite, serveStatic, log } from "./vite";
 import lusca from "lusca";
+import helmet from "helmet";
 // Seed imports removed for production
 import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
-import dotenv from "dotenv";
 import session from "express-session";
 import passport from "passport";
 import connectPgSimple from "connect-pg-simple";
@@ -18,9 +18,7 @@ import { APP_DOMAIN, BASE_URL } from "./config/domain";
 import { Server as SocketIOServer } from "socket.io";
 import { createServer } from "http";
 import rateLimit from 'express-rate-limit';
-
-// Load environment variables from .env file
-dotenv.config();
+import type { EventEmitter } from "events";
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
@@ -31,6 +29,13 @@ if (isProduction) {
 const httpServer = createServer(app);
 (app as any).listen = httpServer.listen.bind(httpServer);
 
+// SECURITY: Enforce SESSION_SECRET in production
+if (isProduction && !process.env.SESSION_SECRET) {
+  console.error('FATAL ERROR: SESSION_SECRET environment variable is required in production');
+  console.error('Please set a strong, random SESSION_SECRET in your environment variables');
+  process.exit(1);
+}
+
 // Session store: use Postgres-backed store only when USE_DB=true; otherwise
 // fall back to the default in-memory store for a lightweight MVP run.
 const USE_DB = process.env.USE_DB === 'true';
@@ -38,12 +43,12 @@ const isSecureCookie = isProduction && process.env.COOKIE_SECURE !== 'false';
 const sameSiteMode = isSecureCookie ? 'none' : 'lax';
 
 let sessionOptions: any = {
-  secret: process.env.SESSION_SECRET || "theconnection-session-secret",
+  secret: process.env.SESSION_SECRET || "theconnection-session-secret-dev-only",
   resave: false,
   saveUninitialized: false,
   name: 'sessionId', // Explicit session name
   cookie: {
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (reduced from 30 for security)
     secure: isSecureCookie,
     httpOnly: true,
     sameSite: sameSiteMode,
@@ -62,6 +67,25 @@ if (USE_DB) {
 
   sessionOptions.store = sessionStore;
 }
+
+// SECURITY: Add helmet for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Note: unsafe-eval needed for dev mode
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https:", "wss:"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Disable for compatibility with external resources
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin requests
+}));
 
 // parse cookies before sessions so session middleware can read cookies
 app.use(cookieParser());
@@ -156,7 +180,7 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
@@ -167,10 +191,12 @@ app.use((req, res, next) => {
     return originalResJson.apply(res, [bodyJson, ...args]);
   };
 
-  res.on("finish", () => {
+  const nodeResponse = res as Response & NodeJS.EventEmitter & { statusCode: number };
+
+  nodeResponse.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      let logLine = `${req.method} ${path} ${nodeResponse.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
