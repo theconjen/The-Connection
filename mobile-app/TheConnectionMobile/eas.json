@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 11.0.0"
+    "version": ">= 11.0.0",
+    "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
   },
   "build": {
     "production": {
