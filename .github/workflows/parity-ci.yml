@@ -1,4 +1,6 @@
 name: Parity CI
+permissions:
+  contents: read
 
 on:
   push:
