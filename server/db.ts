@@ -7,6 +7,7 @@ import * as schema from "@shared/schema";
 
 // SECURITY: DATABASE_URL must be provided via environment variable
 const databaseUrl = process.env.DATABASE_URL;
+const useDb = process.env.USE_DB === "true";
 
 if (!databaseUrl) {
   console.error("FATAL ERROR: DATABASE_URL environment variable is required");
