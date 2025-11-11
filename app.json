@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "258d1512-5a8b-43d7-9684-ea7d60b7b252"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.jselou.esbuildtest",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
