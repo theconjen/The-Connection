@@ -28,3 +28,5 @@ apps/web/tsconfig.tsbuildinfo
 
 # Root lockfile generated locally
 pnpm-lock.yaml
+mobile-app/TheConnectionMobile/ios/
+mobile-app/TheConnectionMobile/android/
