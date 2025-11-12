@@ -4,7 +4,6 @@
   },
   "build": {
     "production": {
-      "packageManager": "pnpm",
       "node": "22.0.0",
       "channel": "production",
       "env": {
@@ -15,7 +14,6 @@
       }
     },
     "preview": {
-      "packageManager": "pnpm",
       "node": "22.0.0",
       "channel": "preview",
       "developmentClient": true
