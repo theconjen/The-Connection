@@ -21,7 +21,8 @@
         "NSCameraUsageDescription": "Allow camera use for profile or content images.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
-        }
+        },
+        "ITSAppUsesNonExemptEncryption": false
       },
       "runtimeVersion": "1.0.0"
     },
