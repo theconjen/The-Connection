@@ -19,6 +19,7 @@
     "axios": "^1.13.2",
     "expo": "~54.0.12",
     "expo-constants": "~18.0.9",
+    "expo-dev-client": "^6.0.17",
     "expo-linking": "~8.0.8",
     "expo-router": "~6.0.10",
     "expo-secure-store": "^15.0.7",
