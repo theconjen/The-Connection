@@ -4,6 +4,7 @@
     "slug": "the-connection",
     "scheme": "theconnection",
     "version": "1.0.0",
+    "owner": "the-connection-app",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
