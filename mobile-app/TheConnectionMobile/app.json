@@ -40,14 +40,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://app.theconnection"
-        }
-      ]
-    ],
     "extra": {
       "eas": {
         "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
