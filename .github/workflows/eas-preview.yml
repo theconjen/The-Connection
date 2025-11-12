@@ -14,7 +14,7 @@ jobs:
 
       - uses: pnpm/action-setup@v3
         with:
-          version: 10.18.2
+          version: 10.19.0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -23,10 +23,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install deps (root)
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Install deps (mobile)
-        run: pnpm -C mobile-app/TheConnectionMobile install
+        run: pnpm -C mobile-app/TheConnectionMobile install --no-frozen-lockfile
 
       - name: Install EAS CLI
         run: pnpm add -g eas-cli

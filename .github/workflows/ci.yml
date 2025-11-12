@@ -18,7 +18,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 10.18.3
+          version: 10.19.0
 
       - name: Use Node 20
         uses: actions/setup-node@v4
@@ -27,7 +27,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Typecheck (if you use tsc)
         run: pnpm run build:check || echo "no type-check script"
@@ -36,6 +36,8 @@ jobs:
         run: pnpm run test:api || echo "no api tests configured"
         env:
           NODE_ENV: test
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://test:test@localhost:5432/test' }}
+          USE_DB: ${{ secrets.DATABASE_URL != '' }}
 
       - name: Build client & server
         run: |

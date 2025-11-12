@@ -82,7 +82,9 @@ export default function CommunitiesPage() {
   
   // Form setup with validation
   const form = useForm<CreateCommunityFormInput, undefined, CreateCommunityForm>({
-    resolver: zodResolver(createCommunitySchema),
+    // Cast schema to any to work around Zod version/type differences between
+    // @hookform/resolvers and the installed zod types.
+    resolver: zodResolver(createCommunitySchema as any),
     defaultValues: {
       name: "",
       description: "",

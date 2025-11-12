@@ -14,6 +14,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { postsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -30,6 +31,7 @@ interface Post {
 }
 
 export default function FeedScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [newPostContent, setNewPostContent] = useState('');
@@ -179,9 +181,11 @@ export default function FeedScreen() {
                   <Text style={styles.upvoteCount}>{post.upvotesCount || 0}</Text>
                 </TouchableOpacity>
                 {post.commentsCount !== undefined && (
-                  <Text style={styles.commentsCount}>
-                    {post.commentsCount} {post.commentsCount === 1 ? 'comment' : 'comments'}
-                  </Text>
+                  <TouchableOpacity onPress={() => router.push(`/posts/${post.id}`)}>
+                    <Text style={styles.commentsCount}>
+                      {post.commentsCount} {post.commentsCount === 1 ? 'comment' : 'comments'}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
             </View>

@@ -3,9 +3,10 @@
  */
 import { seedDatabase } from './seed.js';
 import { seedBibleReadingPlans } from './seed-bible-reading-plans.js';
-import { seedCreatorTiersAndGifts } from './seed-creator-tiers.js'; 
+import { seedCreatorTiersAndGifts } from './seed-creator-tiers.js';
 import { seedFeed } from './seed-feed.js';
 import { seedApologetics } from './seed-apologetics.js';
+import { seedResources } from './seed-resources.js';
 import { seedPrayerRequests } from './seed-prayer-requests.js';
 import { seedEvents } from './seed-events.js';
 import { seedWallPosts } from './seed-wall-posts.js';
@@ -42,6 +43,10 @@ async function seedAll() {
     
     // Apologetics content
     await seedApologetics();
+    console.log("-----------------------------------------------");
+
+    // Apologetics resources
+    await seedResources();
     console.log("-----------------------------------------------");
     
     // Prayer requests and responses

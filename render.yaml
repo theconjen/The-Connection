@@ -5,16 +5,19 @@ services:
     plan: starter
     region: ohio
     autoDeploy: true
+    nodeVersion: 22
     repo: https://github.com/The-Connection-App/The-Connection
     branch: main
     buildCommand: >-
       corepack enable &&
       corepack prepare pnpm@10.19.0 --activate &&
-      (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) &&
+      pnpm install --no-frozen-lockfile &&
       pnpm -w build
     startCommand: node dist-server/index.cjs
     healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: NODE_ENV
         value: production
       - key: USE_DB

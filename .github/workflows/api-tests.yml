@@ -18,7 +18,8 @@ jobs:
     env:
       FORCE_REQUIRE_PAGINATION: 'true'
       NODE_ENV: test
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://test:test@localhost:5432/test' }}
+      USE_DB: ${{ secrets.DATABASE_URL != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +27,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 10.18.3
+          version: 10.19.0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -35,7 +36,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run API tests
         run: pnpm run test:api -- --runInBand

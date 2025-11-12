@@ -95,7 +95,11 @@ export default function EventsScreen() {
           </View>
         ) : (
           events.map((event) => (
-            <View key={event.id} style={styles.eventCard}>
+            <TouchableOpacity
+              key={event.id}
+              style={styles.eventCard}
+              onPress={() => router.push(`/events/${event.id}`)}
+            >
               <View style={styles.dateBox}>
                 <Text style={styles.dateMonth}>
                   {new Date(event.startTime).toLocaleString('en-US', { month: 'short' })}
@@ -135,7 +139,7 @@ export default function EventsScreen() {
                   </Text>
                 )}
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
