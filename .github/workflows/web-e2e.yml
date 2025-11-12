@@ -10,12 +10,17 @@ jobs:
         locale: [en-US, es-ES]
     steps:
       - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.19.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: 'pnpm'
       - name: Install dependencies (web)
         working-directory: apps/web
-        run: npm ci || npm install
+        run: pnpm install --no-frozen-lockfile
       - name: Install Playwright browsers
         working-directory: apps/web
         run: npx playwright install --with-deps
@@ -24,7 +29,7 @@ jobs:
         env:
           VITE_API_BASE: ""
           PLAYWRIGHT_TEST_LOCALE: ${{ matrix.locale }}
-        run: npm run test:e2e
+        run: pnpm run test:e2e
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
