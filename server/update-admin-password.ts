@@ -40,7 +40,7 @@ async function updateAdminPassword() {
       .set({ password: hashedPassword })
       .where(eq(users.username, username));
 
-    console.log(`Admin password updated successfully for user: ${username}`);
+    console.log('Admin password updated successfully.');
     console.log('You can now login with the new credentials at /auth');
     
   } catch (error) {
