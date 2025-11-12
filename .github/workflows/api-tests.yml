@@ -18,7 +18,8 @@ jobs:
     env:
       FORCE_REQUIRE_PAGINATION: 'true'
       NODE_ENV: test
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://test:test@localhost:5432/test' }}
+      USE_DB: ${{ secrets.DATABASE_URL != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
