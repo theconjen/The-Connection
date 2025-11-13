@@ -5,8 +5,9 @@ A React Native mobile application converted from the web version of The Connecti
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
-- Expo CLI: `npm install -g @expo/cli`
+- Node.js 18+
+- pnpm 10.19+ (enable via `corepack enable`)
+- Expo CLI: `pnpm dlx expo` (or install globally if you prefer)
 - For iOS: macOS with Xcode 16+ (required for App Store deployment)
 - For Android: Android Studio with API level 35
 
@@ -15,7 +16,7 @@ A React Native mobile application converted from the web version of The Connecti
 1. **Install dependencies:**
 ```bash
 cd mobile-app/TheConnectionMobile
-npm install
+pnpm install
 ```
 
 2. **Start development server:**
@@ -50,8 +51,8 @@ Edit `app.json`:
 
 #### 3. Build for Production
 ```bash
-# Install EAS CLI
-npm install -g eas-cli
+# Install EAS CLI (one-off)
+pnpm dlx eas-cli --version
 
 # Configure EAS
 eas build:configure
