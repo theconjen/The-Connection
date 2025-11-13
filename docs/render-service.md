@@ -2,7 +2,7 @@
 
 - **Service type:** Web Service
 - **Root directory:** Repository root (contains `server/index.ts` and build scripts)
-- **Build command:** `corepack enable && corepack prepare pnpm@10.19.0 --activate && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) && pnpm -w build`
+- **Build command:** `corepack enable && corepack prepare pnpm@10.16.1 --activate && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) && pnpm -w build`
 - **Start command:** `node dist-server/index.cjs`
 - **Environment variables:**
   - `NODE_ENV=production`

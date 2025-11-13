@@ -12,7 +12,7 @@ export NODE_OPTIONS="--max-old-space-size=512"
 
 # Ensure pnpm is available
 corepack enable > /dev/null 2>&1 || true
-corepack prepare pnpm@10.19.0 --activate
+corepack prepare pnpm@10.16.1 --activate
 
 # Clean previous builds
 echo "Cleaning previous builds..."

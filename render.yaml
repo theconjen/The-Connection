@@ -9,7 +9,7 @@ services:
     branch: main
     buildCommand: >-
       corepack enable &&
-      corepack prepare pnpm@10.19.0 --activate &&
+      corepack prepare pnpm@10.16.1 --activate &&
       pnpm install --no-frozen-lockfile &&
       pnpm -w build
     startCommand: node dist-server/index.cjs
