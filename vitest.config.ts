@@ -1,5 +1,16 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import fs from 'fs';
+import { config as loadEnv } from 'dotenv';
+
+const envFiles = ['.env.test', '.env.local', '.env'];
+
+for (const file of envFiles) {
+  const envPath = path.resolve(__dirname, file);
+  if (fs.existsSync(envPath)) {
+    loadEnv({ path: envPath, override: true });
+  }
+}
 
 export default defineConfig({
   resolve: {

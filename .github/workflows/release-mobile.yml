@@ -10,7 +10,7 @@ jobs:
   eas-update:
     runs-on: ubuntu-latest
     env:
-      PNPM_VERSION: 10.19.0
+      PNPM_VERSION: 10.16.1
     steps:
       - uses: actions/checkout@v4
         with:

@@ -1,4 +1,3 @@
-
 {
   "name": "theconnectionmobile",
   "version": "1.0.0",
@@ -10,12 +9,13 @@
     "web": "expo start --web",
     "build:ios-local": "expo prebuild --platform ios && (cd ios && xcodebuild -workspace TheConnectionMobile.xcworkspace -scheme TheConnectionMobile -configuration Release -destination 'generic/platform=iOS')",
     "prebuild": "expo prebuild --clean",
-    "sync:assets": "bash ./scripts/sync-web-assets.sh"
+    "sync:assets": "bash ./scripts/sync-web-assets.sh",
+  "eas-build-pre-install": "corepack enable && corepack prepare pnpm@10.16.1 --activate"
   },
   "dependencies": {
-    "@expo-google-fonts/inter": "^0.2.3",
-    "@expo-google-fonts/merriweather": "^0.2.3",
-    "@expo-google-fonts/playfair-display": "^0.2.3",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/merriweather": "^0.4.2",
+    "@expo-google-fonts/playfair-display": "^0.4.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@tanstack/react-query": "^5.90.8",
     "@types/react": "~19.1.10",
@@ -29,7 +29,7 @@
     "expo-secure-store": "^15.0.7",
     "expo-status-bar": "~3.0.8",
     "expo-updates": "~29.0.12",
-    "lucide-react-native": "^0.544.0",
+    "lucide-react-native": "^0.553.0",
     "nativewind": "^4.2.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -42,10 +42,12 @@
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",
-    "@types/node": "^24.10.1"
+    "@types/node": "^24.10.1",
+    "playwright": "^1.56.1"
   },
   "engines": {
     "node": ">=22.0.0"
   },
+  "packageManager": "pnpm@10.16.1",
   "private": true
 }

@@ -16,7 +16,7 @@ await build({
   platform: 'node',
   target: 'node20',
   bundle: true,
-  packages: 'bundle',
+  packages: 'external',
   external,
   format: 'cjs',        // <-- key change
   sourcemap: false,

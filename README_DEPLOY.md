@@ -5,7 +5,7 @@
 ## Prerequisites
 
 - Node.js 22 (managed with `nvm` or similar)
-- pnpm 10.19 (installed automatically via Corepack)
+- pnpm 10.16 (installed automatically via Corepack)
 - Docker (optional, for container workflows)
 
 ## Local workflow
@@ -13,7 +13,7 @@
 ```bash
 # Install dependencies
 corepack enable
-corepack prepare pnpm@10.19.0 --activate
+corepack prepare pnpm@10.16.1 --activate
 pnpm install --frozen-lockfile
 
 # Build both the web client and the server bundle
@@ -62,7 +62,7 @@ Use these settings for Render:
 
 	```bash
 	corepack enable
-	corepack prepare pnpm@10.19.0 --activate
+	corepack prepare pnpm@10.16.1 --activate
 	pnpm install --frozen-lockfile
 	pnpm run build
 	```

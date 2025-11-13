@@ -9,7 +9,7 @@ services:
     branch: main
     buildCommand: >-
       corepack enable &&
-      corepack prepare pnpm@10.19.0 --activate &&
+      corepack prepare pnpm@10.16.1 --activate &&
       pnpm install --no-frozen-lockfile &&
       pnpm -w build
     startCommand: node dist-server/index.cjs
@@ -26,4 +26,4 @@ services:
       - key: DATABASE_URL
         value: "postgresql://neondb_owner:npg_MfB8mlWiSkN4@ep-hidden-band-adzjfzr3-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       - key: REDIS_URL
-        sync: true
+        sync: false

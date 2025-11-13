@@ -23,7 +23,7 @@ A comprehensive religious social platform built with TypeScript, featuring commu
 
 1. **Install Dependencies:**
 ```bash
-npm install
+pnpm install
 ```
 
 2. **Set up Environment Variables:**
@@ -43,12 +43,12 @@ cp .env.example .env
 
 3. **Set up Database:**
 ```bash
-npm run db:push
+pnpm run db:push
 ```
 
 4. **Start Development Server:**
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ### Vercel Deployment
@@ -102,7 +102,7 @@ To deploy the web app to Vercel:
 
 ## Database
 
-Uses PostgreSQL with Drizzle ORM. Run `npm run db:push` to apply schema changes.
+Uses PostgreSQL with Drizzle ORM. Run `pnpm run db:push` to apply schema changes.
 
 ## Development
 
