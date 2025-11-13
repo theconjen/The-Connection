@@ -367,6 +367,22 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         res.status(500).json({ message: 'Error fetching liked microblogs' });
       }
     });
+
+    app.get('/api/users/verified-apologetics-answerers', async (req, res) => {
+      try {
+        const users = await storage.getAllUsers();
+        const verifiedAnswerers = users.filter(user => user.isVerifiedApologeticsAnswerer);
+        // Remove password and other sensitive fields from each user
+        const sanitizedUsers = verifiedAnswerers.map(user => {
+          const { password, ...userData } = user;
+          return userData;
+        });
+        res.json(sanitizedUsers);
+      } catch (error) {
+        console.error('Error fetching verified apologetics answerers:', error);
+        res.status(500).json({ message: 'Error fetching verified apologetics answerers' });
+      }
+    });
   }
 
   // Community endpoints (gated by COMMUNITIES feature)
