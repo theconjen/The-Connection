@@ -5,7 +5,6 @@ services:
     plan: starter
     region: ohio
     autoDeploy: true
-    nodeVersion: 22
     repo: https://github.com/The-Connection-App/The-Connection
     branch: main
     buildCommand: >-

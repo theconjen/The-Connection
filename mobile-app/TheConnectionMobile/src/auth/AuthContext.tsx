@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { api, ApiUser } from '../lib/api';
+import { clearAuthData } from '../lib/secureStorage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 type AuthContextType = {
@@ -45,6 +46,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await api.post('/logout', {});
     },
     onSuccess: async () => {
+      // Clear any locally-stored auth data (tokens, user) on successful logout
+      try {
+        await clearAuthData();
+      } catch (e) {
+        // ignore storage clearing errors but log for visibility
+        // eslint-disable-next-line no-console
+        console.warn('Failed to clear secure storage on logout:', e);
+      }
       await qc.invalidateQueries({ queryKey: ['auth', 'me'] });
     },
   });

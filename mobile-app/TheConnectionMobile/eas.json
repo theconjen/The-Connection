@@ -4,17 +4,17 @@
   },
   "build": {
     "production": {
-      "node": "22.0.0",
+      "node": "22.11.0",
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://app.theconnection.app/api"
+        "EXPO_PUBLIC_API_BASE": "https://api.theconnection.app"
       },
       "ios": {
         "resourceClass": "m-medium"
       }
     },
     "preview": {
-      "node": "22.0.0",
+      "node": "22.11.0",
       "channel": "preview",
       "developmentClient": true
     }
