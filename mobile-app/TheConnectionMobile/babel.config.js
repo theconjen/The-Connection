@@ -9,6 +9,7 @@ module.exports = function (api) {
       // transform file-system based routes and entry points during build.
       'expo-router/babel',
       'nativewind/babel',
+      'react-native-reanimated/plugin',
     ],
   };
 };
