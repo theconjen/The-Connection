@@ -4,6 +4,7 @@ import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { setupAuth, isAuthenticated, isAdmin } from './auth';
 import { storage as storageReal } from './storage';
+import rateLimit from 'express-rate-limit';
 
 // NOTE: many of the shared "Insert..." Zod-derived types are being inferred
 // in a way that causes object literal properties to appear as `never` in this
@@ -118,6 +119,23 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     next();
   });
 
+  // Rate limiters for content creation to prevent spam
+  const contentCreationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // 20 requests per 15 minutes
+    message: 'Too many requests, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const messageCreationLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 30, // 30 messages per minute
+    message: 'Too many messages, please slow down',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   // Set up Socket.IO for real-time chat
   const io = new SocketIOServer(httpServer, {
     cors: {
@@ -179,6 +197,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         // SECURITY: Verify senderId matches authenticated user
         if (parseInt(senderId) !== authenticatedUserId) {
           console.log(`User ${authenticatedUserId} attempted to send message as user ${senderId}`);
+          socket.emit('error', {
+            message: 'Unauthorized: Cannot send message as another user',
+            code: 'UNAUTHORIZED_SENDER'
+          });
           return;
         }
 
@@ -197,6 +219,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         io.to(`room_${roomId}`).emit('message_received', messageWithSender);
       } catch (error) {
         console.error('Error handling chat message:', error);
+        socket.emit('error', {
+          message: 'Failed to send message',
+          code: 'MESSAGE_ERROR'
+        });
       }
     });
 
@@ -208,6 +234,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         // SECURITY: Verify senderId matches authenticated user
         if (parseInt(senderId) !== authenticatedUserId) {
           console.log(`User ${authenticatedUserId} attempted to send DM as user ${senderId}`);
+          socket.emit('error', {
+            message: 'Unauthorized: Cannot send DM as another user',
+            code: 'UNAUTHORIZED_SENDER'
+          });
           return;
         }
 
@@ -224,6 +254,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         io.to(`user_${receiverId}`).emit("new_message", newMessage);
       } catch (error) {
         console.error('Error handling DM:', error);
+        socket.emit('error', {
+          message: 'Failed to send direct message',
+          code: 'DM_ERROR'
+        });
       }
     });
 
@@ -367,6 +401,22 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         res.status(500).json({ message: 'Error fetching liked microblogs' });
       }
     });
+
+    app.get('/api/users/verified-apologetics-answerers', async (req, res) => {
+      try {
+        const users = await storage.getAllUsers();
+        const verifiedAnswerers = users.filter(user => user.isVerifiedApologeticsAnswerer);
+        // Remove password and other sensitive fields from each user
+        const sanitizedUsers = verifiedAnswerers.map(user => {
+          const { password, ...userData } = user;
+          return userData;
+        });
+        res.json(sanitizedUsers);
+      } catch (error) {
+        console.error('Error fetching verified apologetics answerers:', error);
+        res.status(500).json({ message: 'Error fetching verified apologetics answerers' });
+      }
+    });
   }
 
   // Community endpoints (gated by COMMUNITIES feature)
@@ -416,7 +466,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/communities', isAuthenticated, async (req, res) => {
+  app.post('/api/communities', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
   const userId = getSessionUserId(req)!;
       const validatedData = insertCommunitySchema.parse({
@@ -972,7 +1022,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/posts', isAuthenticated, async (req, res) => {
+  app.post('/api/posts', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
   const userId = getSessionUserId(req)!;
       const validatedData = insertPostSchema.parse({
@@ -1011,7 +1061,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/comments', isAuthenticated, async (req, res) => {
+  app.post('/api/comments', messageCreationLimiter, isAuthenticated, async (req, res) => {
     try {
   const userId = getSessionUserId(req)!;
       const validatedData = insertCommentSchema.parse({
@@ -1065,7 +1115,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/microblogs', isAuthenticated, async (req, res) => {
+  app.post('/api/microblogs', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
   const userId = getSessionUserId(req)!;
       const validatedData = insertMicroblogSchema.parse({
@@ -1162,7 +1212,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/events', isAuthenticated, async (req, res) => {
+  app.post('/api/events', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
   const userId = getSessionUserId(req)!;
       const validatedData = insertEventSchema.parse({
@@ -1181,8 +1231,32 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.patch('/api/events/:id/rsvp', isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.id);
-  const userId = getSessionUserId(req)!;
+      const userId = getSessionUserId(req)!;
       const { status } = req.body;
+
+      // Validate RSVP status
+      const validStatuses = ['going', 'maybe', 'not_going'];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({
+          message: 'Invalid RSVP status. Must be one of: going, maybe, not_going'
+        });
+      }
+
+      // Verify event exists and user can access it
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      // Check authorization for private events
+      if (!event.isPublic && event.communityId) {
+        const isMember = await storage.isCommunityMember(userId, event.communityId);
+        if (!isMember) {
+          return res.status(403).json({
+            message: 'You do not have access to this private event'
+          });
+        }
+      }
 
       const rsvp = await storage.updateEventRSVP(eventId, status);
       res.json(rsvp);
@@ -1203,8 +1277,14 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(404).json({ message: 'Event not found' });
       }
 
-      if (event.organizerId !== userId && !req.session.isAdmin) {
-        return res.status(403).json({ message: 'Only the organizer or admin can delete this event' });
+      // Check if user is organizer or admin (verify admin status from database)
+      if (event.organizerId !== userId) {
+        const user = await storage.getUser(userId);
+        if (!user?.isAdmin) {
+          return res.status(403).json({
+            message: 'Only the organizer or admin can delete this event'
+          });
+        }
       }
 
       await storage.deleteEvent(eventId);
@@ -1226,7 +1306,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/prayer-requests', isAuthenticated, async (req, res) => {
+  app.post('/api/prayer-requests', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
   const userId = getSessionUserId(req)!;
       const validatedData = insertPrayerRequestSchema.parse({
@@ -1290,7 +1370,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/apologetics/questions', isAuthenticated, async (req, res) => {
+  app.post('/api/apologetics/questions', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
   const userId = getSessionUserId(req)!;
       const { topicId, title, content } = req.body;

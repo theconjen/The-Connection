@@ -80,3 +80,16 @@ Configure production environment variables in Render (`DATABASE_URL`, `SESSION_S
 - `SESSION_SECRET` should be set to `372f79df29a1113a00d5bde03125eddc` unless you rotate it.
 
 - `DATABASE_URL` should be set to `postgresql://neondb_owner:npg_MfB8mlWiSkN4@ep-hidden-band-adzjfzr3-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require` for the Neon cluster currently provisioned.
+
+## Expo / EAS mobile builds
+
+- Builds run from the monorepo root but target `mobile-app/TheConnectionMobile`. The `EAS_PROJECT_ROOT` env var in `eas.json` already points the remote worker at that directory.
+- Install dependencies locally with `pnpm install` so the root `pnpm-lock.yaml` stays up to date and ships with each build.
+- Invoke the CLI with pnpm on demand to avoid pinning it as a devDependency:
+
+	```bash
+	pnpm dlx eas-cli build --platform ios --profile production --non-interactive
+	```
+
+- If you need to inspect logs, replace `build` with `build:list` or `build:view`, keeping the `pnpm dlx eas-cli` prefix.
+- Ensure `.expo/` is ignored in git (already covered in `.gitignore`) to keep local state out of CI.

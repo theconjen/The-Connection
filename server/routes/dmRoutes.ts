@@ -31,7 +31,7 @@ router.post("/send", async (req, res) => {
   const senderId = parseInt(String(req.session.userId));
   const { receiverId, content } = req.body;
 
-  if (!content) return res.status(400).send("Message content required");
+  if (!content) return res.status(400).json({ message: "Message content required" });
 
   try {
     const message = await storage.createDirectMessage({

@@ -11,7 +11,10 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-    "owner": "jselou",
-    "slug": "the-connection"
+    "owner": "the-connection-app",
+    "slug": "the-connection",
+    "android": {
+      "package": "com.jselou.esbuildtest"
+    }
   }
 }
