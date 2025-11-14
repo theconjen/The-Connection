@@ -10,7 +10,7 @@
     "build:ios-local": "expo prebuild --platform ios && (cd ios && xcodebuild -workspace TheConnectionMobile.xcworkspace -scheme TheConnectionMobile -configuration Release -destination 'generic/platform=iOS')",
     "prebuild": "expo prebuild --clean",
     "sync:assets": "bash ./scripts/sync-web-assets.sh",
-    "eas-build-pre-install": "if command -v pnpm >/dev/null 2>&1; then pnpm --version; else npm install -g pnpm@10.16.1 && pnpm --version; fi"
+    "eas-build-pre-install": "npm install -g pnpm@10.16.1 && pnpm --version"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -48,6 +48,5 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "packageManager": "pnpm@10.16.1",
   "private": true
 }

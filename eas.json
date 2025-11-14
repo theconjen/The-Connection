@@ -7,33 +7,15 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "node": {
-        "version": "22.0.0",
-        "packageManager": "pnpm"
-      },
-      "pnpm": {
-        "installArgs": ["--frozen-lockfile"]
-      }
+      "node": "22.0.0"
     },
     "preview": {
       "distribution": "internal",
-      "node": {
-        "version": "22.0.0",
-        "packageManager": "pnpm"
-      },
-      "pnpm": {
-        "installArgs": ["--frozen-lockfile"]
-      }
+      "node": "22.0.0"
     },
     "production": {
       "autoIncrement": true,
-      "node": {
-        "version": "22.0.0",
-        "packageManager": "pnpm"
-      },
-      "pnpm": {
-        "installArgs": ["--frozen-lockfile"]
-      }
+      "node": "22.0.0"
     }
   },
   "submit": {
