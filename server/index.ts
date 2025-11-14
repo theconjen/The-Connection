@@ -102,7 +102,15 @@ async function bootstrap() {
   }
 
   app.use(session(sessionOptions));
-  app.use(lusca.csrf());
+
+  const csrfProtection = lusca.csrf();
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith("/api")) {
+      return next();
+    }
+
+    return csrfProtection(req, res, next);
+  });
 
   app.use(passport.initialize());
   app.use(passport.session());

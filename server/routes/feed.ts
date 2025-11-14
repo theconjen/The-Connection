@@ -28,6 +28,33 @@ router.get('/feed', async (req, res) => {
     const limit = 25; // page size
     const cursor = (req.query.cursor as string | undefined) || null;
 
+    const respondWithStorageFallback = async () => {
+      let allPosts = await storage.getAllPosts();
+      // Hard cap window for performance safety
+      allPosts = allPosts.slice(0, 500);
+
+      if (userId) {
+        const blockedIds = await storage.getBlockedUserIdsFor(userId);
+        if (blockedIds?.length) {
+          allPosts = allPosts.filter((p: any) => !blockedIds.includes(p.authorId));
+        }
+      }
+
+      let startIndex = 0;
+      if (cursor) {
+        const idx = allPosts.findIndex((p: any) => String(p.id) === cursor);
+        if (idx === -1) {
+          return res.status(400).json({ message: 'Invalid cursor' });
+        }
+        startIndex = idx + 1; // start after the cursor item
+      }
+
+      const slice = allPosts.slice(startIndex, startIndex + limit);
+      const nextCursor = slice.length === limit ? String(slice[slice.length - 1].id) : null;
+
+      return res.json({ items: slice, nextCursor });
+    };
+
     if (USE_DB_FEED) {
       try {
         // Determine blocked author IDs if user is logged in
@@ -60,6 +87,10 @@ router.get('/feed', async (req, res) => {
           .orderBy(desc(posts.id))
           .limit(limit + 1);
 
+        if (rows.length === 0) {
+          return respondWithStorageFallback();
+        }
+
         const items = rows.slice(0, limit);
         const nextCursor = rows.length > limit ? String(rows[limit].id) : null;
         return res.json({ items, nextCursor });
@@ -69,31 +100,7 @@ router.get('/feed', async (req, res) => {
       }
     }
 
-    // Fallback to storage-based pagination (used in tests and when DB is unavailable)
-    let allPosts = await storage.getAllPosts();
-    // Hard cap window for performance safety
-    allPosts = allPosts.slice(0, 500);
-
-    if (userId) {
-      const blockedIds = await storage.getBlockedUserIdsFor(userId);
-      if (blockedIds?.length) {
-        allPosts = allPosts.filter((p: any) => !blockedIds.includes(p.authorId));
-      }
-    }
-
-    let startIndex = 0;
-    if (cursor) {
-      const idx = allPosts.findIndex((p: any) => String(p.id) === cursor);
-      if (idx === -1) {
-        return res.status(400).json({ message: 'Invalid cursor' });
-      }
-      startIndex = idx + 1; // start after the cursor item
-    }
-
-    const slice = allPosts.slice(startIndex, startIndex + limit);
-    const nextCursor = slice.length === limit ? String(slice[slice.length - 1].id) : null;
-
-    res.json({ items: slice, nextCursor });
+    return respondWithStorageFallback();
   } catch (err) {
     console.error('Error fetching feed:', err);
     res.status(500).json({ message: 'Error fetching feed' });
