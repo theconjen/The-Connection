@@ -1,5 +1,5 @@
 {
-"include": [
+  "include": [
     "client/src/**/*",
     "shared/**/*",
     "server/**/*"
@@ -44,6 +44,5 @@
         "./client/src/assets/*"
       ]
     }
-  },
-  "extends": "expo/tsconfig.base"
+  }
 }
