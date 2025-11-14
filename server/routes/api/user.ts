@@ -104,8 +104,8 @@ router.get('/communities', async (req, res, next) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    // Get communities where user is a member (this would need to be implemented in storage)
-    const communities = await storage.getAllCommunities(); // Temporary - should filter by user membership
+    // Get communities where user is a member
+    const communities = await storage.getUserCommunities(resolvedUserId);
     res.json(communities);
   } catch (error) {
     next(error);
@@ -137,8 +137,8 @@ router.get('/posts', async (req, res, next) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    // Get user's posts (this would need to be implemented in storage)
-  const posts = await storage.getAllPosts(); // Temporary - should filter by user
+    // Get user's posts
+    const posts = await storage.getUserPosts(resolvedUserId);
     res.json(posts);
   } catch (error) {
     next(error);
@@ -154,8 +154,8 @@ router.get('/events', async (req, res, next) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    // Get user's event RSVPs (this would need to be implemented in storage)
-  const events = await storage.getAllEvents(); // Temporary - should filter by user RSVPs
+    // Get user's event RSVPs
+    const events = await storage.getUserEvents(resolvedUserId);
     res.json(events);
   } catch (error) {
     next(error);

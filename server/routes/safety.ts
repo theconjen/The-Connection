@@ -76,4 +76,23 @@ router.get('/blocked-users', isAuthenticated, async (req: any, res) => {
   }
 });
 
+// DELETE /blocks/:userId - unblock a user
+router.delete('/blocks/:userId', isAuthenticated, async (req: any, res) => {
+  try {
+    const blockerId = req.session?.userId;
+    const blockedUserId = parseInt(req.params.userId);
+
+    if (!blockerId) return res.status(401).json({ message: 'Not authenticated' });
+    if (!blockedUserId || isNaN(blockedUserId)) {
+      return res.status(400).json({ message: 'Invalid userId' });
+    }
+
+    await storage.removeUserBlock(blockerId, blockedUserId);
+    res.json({ ok: true, message: 'User unblocked successfully' });
+  } catch (error) {
+    console.error('Error removing block:', error);
+    res.status(500).json({ message: 'Error removing block' });
+  }
+});
+
 export default router;
