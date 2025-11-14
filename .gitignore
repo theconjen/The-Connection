@@ -15,6 +15,7 @@ vite.config.ts.*
 .idea
 .replit
 .vercel
+.expo
 # Expo/React Native local artifacts
 apps/mobile/.expo/
 apps/mobile/android/
@@ -27,7 +28,5 @@ apps/web/test-results/
 apps/web/playwright-report/
 apps/web/tsconfig.tsbuildinfo
 
-# Root lockfile generated locally
-pnpm-lock.yaml
 mobile-app/TheConnectionMobile/ios/
 mobile-app/TheConnectionMobile/android/

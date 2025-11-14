@@ -1,24 +1,36 @@
 {
-  "cli": {
-    "version": ">= 16.26.0",
-    "appVersionSource": "remote"
-  },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "node": "22.0.0"
-    },
-    "preview": {
-      "distribution": "internal",
-      "node": "22.0.0"
-    },
-    "production": {
-      "autoIncrement": true,
-      "node": "22.0.0"
-    }
-  },
-  "submit": {
-    "production": {}
-  }
+	"cli": {
+		"version": ">= 16.26.0",
+		"appVersionSource": "remote"
+	},
+	"build": {
+		"development": {
+			"developmentClient": true,
+			"distribution": "internal",
+			"node": "22.0.0",
+			"pnpm": "10.16.1",
+			"env": {
+				"EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile"
+			}
+		},
+		"preview": {
+			"distribution": "internal",
+			"node": "22.0.0",
+			"pnpm": "10.16.1",
+			"env": {
+				"EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile"
+			}
+		},
+		"production": {
+			"autoIncrement": true,
+			"node": "22.0.0",
+			"pnpm": "10.16.1",
+			"env": {
+				"EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile"
+			}
+		}
+	},
+	"submit": {
+		"production": {}
+	}
 }
