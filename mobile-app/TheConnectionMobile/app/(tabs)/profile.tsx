@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -74,6 +75,20 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Support</Text>
           <TouchableOpacity style={styles.menuItem}>
             <Text style={styles.menuItemText}>Help Center</Text>
+            <Text style={styles.menuItemIcon}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => Linking.openURL('https://app.theconnection.app/privacy')}
+          >
+            <Text style={styles.menuItemText}>Privacy Policy</Text>
+            <Text style={styles.menuItemIcon}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => Linking.openURL('https://app.theconnection.app/community-guidelines')}
+          >
+            <Text style={styles.menuItemText}>Community Guidelines</Text>
             <Text style={styles.menuItemIcon}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem}>
