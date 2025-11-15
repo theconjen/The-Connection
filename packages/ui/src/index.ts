@@ -14,3 +14,9 @@ export { Textarea } from './Textarea/Textarea';
 export { Toggle } from './Toggle/Toggle';
 export { Skeleton } from './Skeleton/Skeleton';
 export { Modal } from './Modal/Modal';
+
+// New components with platform splits
+export * from './Dialog/Dialog';
+export * from './Badge/Badge';
+export * from './Select/Select';
+export * from './Form/Form';
