@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../hooks/use-auth";
-import { Microblog, User } from "../../../shared/schema";
+import { Microblog, User } from "@connection/shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Loader2, RefreshCw, PenSquare, Plus } from "lucide-react";
 import MicroblogPost from "../components/microblog-post";

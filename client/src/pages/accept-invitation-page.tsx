@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { apiRequest, queryClient } from "../lib/queryClient";
-import type { CommunityInvitation, Community } from "../../../shared/schema";
+import type { CommunityInvitation, Community } from "@connection/shared/schema";
 
 export default function AcceptInvitationPage() {
   const params = useParams();

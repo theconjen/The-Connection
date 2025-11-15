@@ -1,333 +1,268 @@
-# Web-Native Parity Implementation Progress
+# Web/Native Parity Progress
 
-**Last Updated**: 2025-11-15
-**Status**: ✅ **COMPLETE** (100%)
-**Branch**: `claude/web-native-parity-019uKoXrYM1ZZjcecb1mjurn`
+This document tracks the progress toward achieving full feature parity between the web app and React Native mobile app.
 
-## 🎯 Objective
+## ✅ Completed Phases
 
-Achieve full feature parity between web and React Native apps for App Store deployment.
+### Phase 1: Structure Foundation (Complete)
+**Goal**: Set up proper monorepo workspace architecture
 
----
-
-## ✅ Completed Tasks
-
-### Phase 1: Platform Abstraction Layer ✅
-
-**Created**: `shared/platform/` directory with unified APIs for cross-platform functionality
-
-| Service | Web Implementation | Native Implementation | Status |
-|---------|-------------------|----------------------|--------|
-| **Storage** | `localStorage` | `AsyncStorage` | ✅ Complete |
-| **Navigation** | `wouter` | `expo-router` | ✅ Complete |
-| **Sharing** | Web Share API | `react-native-share` | ✅ Complete |
+**Achievements**:
+- ✅ Created `packages/shared` with package.json and proper exports
+- ✅ Created `packages/ui` for shared component library
+- ✅ Moved `/shared` → `/packages/shared/src`
+- ✅ Updated `pnpm-workspace.yaml` to include packages
+- ✅ Configured TypeScript paths (`@connection/shared`, `@connection/ui`)
+- ✅ Configured Metro bundler for mobile to watch workspace packages
+- ✅ Set up clean imports: `@connection/shared` instead of `../../../shared`
 
 **Files Created**:
-- ✅ `shared/platform/storage.ts` (interface)
-- ✅ `shared/platform/storage.web.ts` (localStorage)
-- ✅ `shared/platform/storage.native.ts` (AsyncStorage)
-- ✅ `shared/platform/navigation.ts` (interface)
-- ✅ `shared/platform/navigation.web.ts` (wouter)
-- ✅ `shared/platform/navigation.native.ts` (expo-router)
-- ✅ `shared/platform/sharing.ts` (interface)
-- ✅ `shared/platform/sharing.web.ts` (Web Share API)
-- ✅ `shared/platform/sharing.native.ts` (react-native-share)
-- ✅ `shared/platform/README.md` (documentation)
+- `/packages/shared/package.json`
+- `/packages/shared/tsconfig.json`
+- `/packages/shared/src/index.ts`
+- `/packages/ui/package.json`
+- `/packages/ui/tsconfig.json`
+- `/packages/ui/src/index.ts`
 
-**Lines of Code**: ~500 LOC
+**Commit**: `077efd7`
 
 ---
 
-### Phase 2: Missing UI Components ✅
+### Phase 4: Dependency Cleanup (Complete)
+**Goal**: Separate platform-specific dependencies into proper workspaces
 
-**Created**: 4 critical UI components with `.web.tsx` and `.native.tsx` platform splits
+**Achievements**:
+- ✅ Removed web dependencies from mobile package (react-dom, @types/react-dom, react-native-web)
+- ✅ Created `client/package.json` with web-only dependencies
+- ✅ Moved 27 `@radix-ui/*` packages from root → client
+- ✅ Moved web libraries from root → client (leaflet, wouter, uppy, react-share)
+- ✅ Cleaned root package.json (only server + shared deps)
+- ✅ Deleted duplicate `/apps/web` directory (32 files, 4,500+ lines)
+- ✅ Updated workspace configuration
 
-| Component | Web Implementation | Native Implementation | Status |
-|-----------|-------------------|----------------------|--------|
-| **Dialog** | Radix UI Dialog | React Native Modal | ✅ Complete |
-| **Badge** | HTML + CVA variants | View + Text + CVA | ✅ Complete |
-| **Select** | Radix UI Select | Custom Modal Picker | ✅ Complete |
-| **Form** | react-hook-form + Radix | react-hook-form + RN | ✅ Complete |
+**Dependencies Moved to Client**:
+- `@radix-ui/*` (27 packages)
+- `@uppy/*` (5 packages)
+- `leaflet`, `react-leaflet`
+- `wouter`
+- `react-share`, `react-day-picker`
+- `embla-carousel-react`
+- `input-otp`, `isomorphic-dompurify`
+- `lucide-react`
+- Web devDependencies (tailwindcss, vite, autoprefixer)
 
-**Files Created** (12 files):
-- ✅ `Dialog.tsx`, `Dialog.web.tsx`, `Dialog.native.tsx`
-- ✅ `Badge.tsx`, `Badge.web.tsx`, `Badge.native.tsx`
-- ✅ `Select.tsx`, `Select.web.tsx`, `Select.native.tsx`
-- ✅ `Form.tsx`, `Form.web.tsx`, `Form.native.tsx`
-
-**Location**: `mobile-app/TheConnectionMobile/src/components/ui/`
-
-**Lines of Code**: ~1,200 LOC
-
----
-
-### Phase 3: Environment Configuration ✅
-
-**Objective**: Unified API_BASE configuration across web and native platforms
-
-#### Created Files:
-- ✅ `mobile-app/TheConnectionMobile/src/env.native.ts` - Native environment config using expo-constants
-
-#### Updated Files:
-- ✅ `eas.json` - Added `EXPO_PUBLIC_API_BASE` for all build profiles:
-  - **Development**: `http://localhost:3000/api`
-  - **Preview**: `https://api-preview.theconnection.app`
-  - **Production**: `https://api.theconnection.app`
-
-- ✅ `mobile-app/TheConnectionMobile/tsconfig.json` - Added path mappings:
-  - `@shared/*` → `../../shared/*`
-  - `shared/*` → `../../shared/*`
-  - `shared-env` → `./src/env.native` (virtual module)
-
-**Result**: Both web and native apps now use `shared-env` virtual module for consistent API_BASE resolution
+**Commit**: `cdf1f17`
 
 ---
 
-### Phase 4: Native Libraries Installation ✅
+### Phase 2: Platform Abstractions (Complete)
+**Goal**: Create unified APIs that work across web and React Native
 
-**Installed** via `pnpm` in `mobile-app/TheConnectionMobile`:
+**Achievements**:
+- ✅ Created storage abstraction (localStorage vs AsyncStorage/SecureStore)
+- ✅ Created navigation abstraction (wouter vs expo-router)
+- ✅ Created sharing abstraction (Web Share API vs react-native-share)
+- ✅ Installed `react-native-share` for mobile
+- ✅ Documented platform abstraction pattern
+- ✅ Exported from `@connection/shared/platform`
 
-| Library | Version | Purpose |
-|---------|---------|---------|
-| `react-native-maps` | ^1.26.18 | Native map support (iOS/Android) |
-| `expo-document-picker` | ^14.0.7 | Document/file picking |
-| `expo-image-picker` | ^17.0.8 | Camera & photo library access |
-| `react-native-share` | ^12.2.1 | Native sharing functionality |
+**Platform Abstractions Created**:
 
-**Installation Output**: +1516 dependencies, completed in 1m 7.5s
+1. **Storage** (`packages/shared/src/platform/storage.*`)
+   - Interface: Async storage API
+   - Web: localStorage
+   - Native: AsyncStorage + SecureStore (encrypted for "secure:" prefix)
+
+2. **Navigation** (`packages/shared/src/platform/navigation.*`)
+   - Interface: Navigation API
+   - Web: Browser history / wouter
+   - Native: expo-router
+
+3. **Sharing** (`packages/shared/src/platform/sharing.*`)
+   - Interface: Share API
+   - Web: Web Share API with clipboard fallback
+   - Native: react-native-share
+
+**Usage Example**:
+```typescript
+import { storage, navigation, sharing } from '@connection/shared/platform';
+
+// Storage - works on both platforms!
+await storage.setItem('user_id', '123');
+await storage.setItem('secure:token', 'abc'); // Encrypted on native
+
+// Navigation - unified API
+navigation.navigate('/profile/123');
+navigation.goBack();
+
+// Sharing - platform-appropriate
+await sharing.share({
+  url: 'https://example.com',
+  title: 'Check this out!',
+});
+```
+
+**Commit**: `c0e68d1`
+
+---
+
+## 🚧 Remaining Tasks
+
+### Phase 3: Component Migration
+**Status**: Not Started
+
+**Tasks**:
+- [ ] Move web components from `mobile-app/TheConnectionMobile/assets/*.tsx` to `client/src/components/ui/`
+- [ ] Organize UI package with platform splits
+- [ ] Create component directory structure in `packages/ui/src/`
+
+**Estimated Time**: 2-3 hours
+
+---
+
+### Phase 5: Update Import Paths
+**Status**: Not Started
+
+**Tasks**:
+- [ ] Replace `"../../../shared/schema"` → `"@connection/shared/schema"` in client
+- [ ] Replace `"../../../shared/api"` → `"@connection/shared"` in client
+- [ ] Replace relative imports in mobile app with workspace imports
+- [ ] Update all components to use new import paths
+- [ ] Verify TypeScript resolves correctly
+
+**Estimated Time**: 1-2 hours
+
+---
+
+### Missing Features in Mobile
+
+**Critical** (needed for basic parity):
+1. [ ] **Maps**: Implement `react-native-maps` (currently uses `react-leaflet` on web)
+2. [ ] **File Upload**: Implement `expo-document-picker` + `expo-image-picker` (currently uses `@uppy/*` on web)
+3. [ ] **Dialog Component**: Create native modal dialog (6 uses in web app)
+4. [ ] **Form Component**: Create native form handling (9 uses in web app)
+
+**Important** (nice to have):
+5. [ ] **Badge Component**: Create native status badges (6 uses)
+6. [ ] **Select Component**: Create native dropdown (3 uses)
+7. [ ] **Admin Routes**: Port 3 admin dashboard routes to mobile
+8. [ ] **Organization Dashboard**: Port organization management screen
 
 ---
 
 ## 📊 Metrics
 
-| Metric | Value |
-|--------|-------|
-| **Component Coverage** | **14/14 UI components (100%)** |
-| **Platform Abstractions** | **3/3 (100%)** |
-| **Missing Components Added** | **4 (Dialog, Badge, Select, Form)** |
-| **Files Created** | **23** |
-| **Files Modified** | **2** |
-| **Lines Added** | **~1,700+** |
-| **Native Libraries Installed** | **4** |
-| **Build Profiles Configured** | **3 (dev, preview, prod)** |
+### Dependency Cleanup
+
+| Package | Before | After | Improvement |
+|---------|--------|-------|-------------|
+| **Mobile web deps** | 3 (react-dom, etc.) | 0 | ✅ 100% clean |
+| **Root web deps** | 50+ (@radix-ui, etc.) | 0 | ✅ 100% clean |
+| **Root package size** | 130 lines | 73 lines | ✅ 44% smaller |
+
+### Component Coverage
+
+| Component | Web | Native | Status |
+|-----------|-----|--------|--------|
+| Button | ✅ | ✅ | Complete |
+| Card | ✅ | ✅ | Complete |
+| Avatar | ✅ | ✅ | Complete |
+| Input | ✅ | ✅ | Complete |
+| Textarea | ✅ | ✅ | Complete |
+| Tabs | ✅ | ✅ | Complete |
+| Label | ✅ | ✅ | Complete |
+| Separator | ✅ | ✅ | Complete |
+| Switch | ✅ | ✅ | Complete |
+| Toggle | ✅ | ✅ | Complete |
+| Skeleton | ✅ | ✅ | Complete |
+| Modal | ✅ | ✅ | Complete |
+| Dialog | ✅ | ❌ | **Missing** |
+| Form | ✅ | ❌ | **Missing** |
+| Badge | ✅ | ❌ | **Missing** |
+| Select | ✅ | ❌ | **Missing** |
+
+**Coverage**: 12/16 components (75%)
+
+### Route Coverage
+
+| Route Type | Web | Mobile | Status |
+|------------|-----|--------|--------|
+| Core routes | 40+ | ~20 | 50% |
+| Admin routes | 3 | 0 | Missing |
+| Organization | 1 | 0 | Missing |
+| Application forms | 2 | 0 | Missing |
 
 ---
 
-## 🏗️ Architecture Summary
+## 🎯 Next Steps
 
-### Current Monorepo Structure:
+### Immediate (Do Now)
+1. ✅ ~~Phase 1: Structure~~ (Complete)
+2. ✅ ~~Phase 4: Dependencies~~ (Complete)
+3. ✅ ~~Phase 2: Platform Abstractions~~ (Complete)
+
+### Short-term (This Week)
+4. Phase 5: Update import paths across codebase
+5. Install and configure `react-native-maps` for mobile
+6. Install and configure `expo-document-picker` and `expo-image-picker`
+7. Create Dialog, Form, Badge, and Select native components
+
+### Medium-term (Next 2 Weeks)
+8. Phase 3: Component migration and organization
+9. Port admin routes to mobile
+10. Port organization dashboard to mobile
+11. Complete all missing routes
+
+---
+
+## 🏗️ Current Architecture
+
 ```
-The-Connection/
-├── apps/
-│   └── web/                     # Vite web app
-├── mobile-app/
-│   └── TheConnectionMobile/     # Expo React Native app
-├── shared/                      # Shared code & services
-│   ├── platform/                # ✅ NEW: Platform abstractions
-│   │   ├── storage.*
-│   │   ├── navigation.*
-│   │   ├── sharing.*
-│   │   └── README.md
-│   ├── services/                # Shared API services
-│   │   ├── auth.ts
-│   │   └── feed.ts
-│   ├── http.ts                  # Shared HTTP client
-│   ├── app-schema.ts            # Zod API schemas
-│   └── i18n/                    # Internationalization
-├── client/                      # Legacy web app
-└── server/                      # Backend services
-```
-
-### Platform Resolution:
-- **Web**: Metro/Vite resolves `.web.tsx` → `.tsx` fallback
-- **Native**: Metro resolves `.native.tsx` → `.tsx` fallback
-- **Shared**: Both platforms use workspace imports (`@shared/*`, `shared/*`)
-
----
-
-## 🧪 Component Coverage
-
-### Existing Components (10):
-1. ✅ Avatar (.tsx | .web.tsx | .native.tsx)
-2. ✅ Button (.tsx | .web.tsx | .native.tsx)
-3. ✅ Card (.tsx | .web.tsx | .native.tsx)
-4. ✅ Input (.tsx | .web.tsx | .native.tsx)
-5. ✅ Modal (.tsx | .web.tsx | .native.tsx)
-6. ✅ Separator (.tsx | .web.tsx | .native.tsx)
-7. ✅ Switch (.tsx | .web.tsx | .native.tsx)
-8. ✅ Tabs (.tsx | .web.tsx | .native.tsx)
-9. ✅ Toggle (.tsx | .web.tsx | .native.tsx)
-10. ✅ Label (.tsx - web only)
-
-### NEW Components (4):
-11. ✅ **Dialog** (.tsx | .web.tsx | .native.tsx)
-12. ✅ **Badge** (.tsx | .web.tsx | .native.tsx)
-13. ✅ **Select** (.tsx | .web.tsx | .native.tsx)
-14. ✅ **Form** (.tsx | .web.tsx | .native.tsx)
-
-**Total**: 14 UI components with full platform support
-
----
-
-## 🎁 Benefits
-
-### 1. **Clean Architecture**
-- Proper monorepo structure with shared code
-- Clear separation of web/native implementations
-- Unified APIs via platform abstractions
-
-### 2. **Platform Parity**
-- All 14 UI components work on web + native
-- Consistent behavior across platforms
-- No feature gaps between web/mobile
-
-### 3. **Type Safety**
-- Full TypeScript with workspace imports
-- Shared Zod schemas for API contracts
-- Type-safe platform abstractions
-
-### 4. **Developer Experience**
-- No more `../../../` relative path hell
-- Workspace imports (`@shared/*`, `shared/*`)
-- Virtual `shared-env` module for API_BASE
-
-### 5. **Production Ready**
-- Environment-specific API_BASE configuration
-- Zero dependency contamination
-- Native libraries installed and ready
-
-### 6. **Maintainability**
-- Platform-specific code clearly separated
-- Shared business logic in one place
-- Easy to add new platform abstractions
-
----
-
-## 🔄 Migration Path
-
-### For Existing Components:
-
-**Before** (relative imports):
-```typescript
-import { getFeed } from '../../../shared/services/feed';
-import { API_BASE } from '../../../shared/api';
+/
+├── packages/
+│   ├── shared/              ✅ Business logic, schemas, services
+│   │   ├── package.json     ✅ Proper workspace
+│   │   └── src/
+│   │       ├── api.ts
+│   │       ├── schema.ts
+│   │       ├── services/
+│   │       ├── theme/
+│   │       └── platform/    ✅ NEW - Platform abstractions
+│   │           ├── storage.*
+│   │           ├── navigation.*
+│   │           └── sharing.*
+│   │
+│   └── ui/                  ✅ Shared UI components
+│       ├── package.json     ✅ Component library
+│       └── src/
+│
+├── client/                  ✅ Web app
+│   ├── package.json         ✅ Web deps only
+│   └── src/
+│       ├── App.tsx
+│       ├── components/
+│       └── pages/
+│
+├── mobile-app/              ✅ React Native app
+│   └── TheConnectionMobile/
+│       ├── package.json     ✅ Clean - No web deps
+│       ├── app/             (expo-router screens)
+│       └── src/
+│           └── components/
+│
+├── server/                  ✅ Server code
+│   └── ...
+│
+└── package.json             ✅ Server + shared deps only
 ```
 
-**After** (workspace imports):
-```typescript
-import { getFeed } from '@shared/services/feed';
-import { API_BASE } from 'shared-env';
-```
-
-### For New Features:
-
-1. **Use Platform Abstractions**:
-   ```typescript
-   import storage from '@shared/platform/storage';
-   import { navigate } from '@shared/platform/navigation';
-   import sharing from '@shared/platform/sharing';
-   ```
-
-2. **Create Platform-Specific UI** (if needed):
-   - `Component.tsx` - exports from `.native` by default
-   - `Component.web.tsx` - web implementation
-   - `Component.native.tsx` - native implementation
-
-3. **Share Business Logic**:
-   - Add shared services to `shared/services/`
-   - Add API schemas to `shared/app-schema.ts`
-   - Use Zod for validation
-
 ---
 
-## 🚀 Deployment Readiness
+## 📝 Notes
 
-### Web App ✅
-- ✅ Vite build configured
-- ✅ Environment variables via `VITE_API_BASE`
-- ✅ Playwright E2E tests
-- ✅ CI/CD pipeline (`web-e2e.yml`)
+- Metro bundler automatically resolves `.web.ts` vs `.native.ts` files
+- Platform abstractions eliminate need for platform checks in business logic
+- Workspace imports (`@connection/*`) provide clean, maintainable code
+- All dependencies are properly scoped to their platform
 
-### Mobile App ✅
-- ✅ EAS build configured
-- ✅ Environment variables via `EXPO_PUBLIC_API_BASE`
-- ✅ Development/Preview/Production builds
-- ✅ Native libraries installed
-- ✅ CI/CD pipeline (`eas-preview.yml`, `release-mobile.yml`)
-
-### API Parity ✅
-- ✅ Shared HTTP client (`shared/http.ts`)
-- ✅ Shared API services (`shared/services/`)
-- ✅ Unified `API_BASE` via `shared-env`
-- ✅ Cookie/credential handling
-
----
-
-## 📝 Documentation
-
-| Document | Purpose | Status |
-|----------|---------|--------|
-| `PARITY.md` | Original parity plan | ✅ Exists |
-| `PARITY_PROGRESS.md` | This file - progress tracking | ✅ Created |
-| `shared/platform/README.md` | Platform abstractions guide | ✅ Created |
-
----
-
-## 🎯 Next Steps (Optional Enhancements)
-
-### Future Improvements:
-1. **Consolidate Client Apps**
-   - Consider merging `client/` into `apps/web/`
-   - Remove duplicate code paths
-
-2. **Maestro E2E for Mobile**
-   - Add Maestro tests for mobile flows
-   - Currently only web has Playwright tests
-
-3. **Workspace Scoped Imports**
-   - Consider migrating to `@connection/*` scoped imports
-   - Currently using bare `shared/*` and `@shared/*`
-
-4. **Shared Tailwind Tokens**
-   - Import shared design tokens into Tailwind configs
-   - Currently tokens exist but not integrated
-
-5. **Metro Config Optimization**
-   - Optimize Metro bundler for faster native builds
-   - Add code splitting for mobile
-
----
-
-## ✅ Sign-Off
-
-**Implementation Status**: COMPLETE ✅
-**Test Status**: Not yet tested (requires manual QA)
-**Deployment Status**: Ready for staging
-**App Store Status**: Ready for submission after QA
-
-**Implemented by**: Claude AI
-**Date Completed**: 2025-11-15
-**Branch**: `claude/web-native-parity-019uKoXrYM1ZZjcecb1mjurn`
-
----
-
-## 🧪 Testing Checklist
-
-Before deploying to production:
-
-- [ ] Test Dialog component on web and native
-- [ ] Test Badge component on web and native
-- [ ] Test Select component on web and native
-- [ ] Test Form component on web and native
-- [ ] Test storage abstraction (localStorage vs AsyncStorage)
-- [ ] Test navigation abstraction (wouter vs expo-router)
-- [ ] Test sharing abstraction (Web Share API vs react-native-share)
-- [ ] Verify API_BASE resolution in all environments (dev, preview, prod)
-- [ ] Test mobile app builds (iOS + Android)
-- [ ] Run web E2E tests
-- [ ] Run mobile smoke tests
-- [ ] Verify no dependency contamination (web deps in mobile)
-
----
-
-**Ready for App Store Submission!** 🚀
+**Last Updated**: 2025-11-15
