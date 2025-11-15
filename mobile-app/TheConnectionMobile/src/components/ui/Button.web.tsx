@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Colors } from '../../shared/mobile-web/colors';
+import { Colors } from '@connection/shared/mobile-web/colors';
 
 type ButtonHTMLProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';

@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
 import { Redirect, useLocation } from "wouter";
 import { navigate } from "wouter/use-browser-location";
-import { insertUserSchema, InsertUser } from "../../../shared/schema";
+import { insertUserSchema, InsertUser } from "@connection/shared/schema";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
 import logoImage from "../assets/tc-logo.png";
 import {

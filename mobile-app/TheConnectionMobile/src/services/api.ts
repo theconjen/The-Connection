@@ -1,1 +1,1 @@
-export * from '../shared/api';
+export * from '@connection/shared';

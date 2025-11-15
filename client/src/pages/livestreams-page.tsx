@@ -11,7 +11,7 @@ import { Search, Play, Users, Calendar, Clock, Heart, MessageSquare, Share2, Eye
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../hooks/use-auth";
 
-import { Livestream as LivestreamType, User } from "../../../shared/schema";
+import { Livestream as LivestreamType, User } from "@connection/shared/schema";
 
 // Extended livestream type with host details
 interface EnhancedLivestream extends Omit<LivestreamType, 'tags'> {

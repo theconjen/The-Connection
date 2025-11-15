@@ -56,7 +56,7 @@ import { InvitationManager } from "../components/community/InvitationManager";
 import { CommunityFeed } from "../components/community/CommunityFeed";
 import { CommunityForum } from "../components/community/CommunityForum";
 import { CommunityEvents } from "../components/community/CommunityEvents";
-import type { Community, CommunityMember } from "../../../shared/schema";
+import type { Community, CommunityMember } from "@connection/shared/schema";
 
 export default function CommunityPage() {
   const params = useParams();

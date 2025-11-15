@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import MainLayout from "../components/layouts/main-layout";
-import { Post, User, Community, Comment, InsertComment, insertCommentSchema } from "../../../shared/schema";
+import { Post, User, Community, Comment, InsertComment, insertCommentSchema } from "@connection/shared/schema";
 import { useAuth } from "../hooks/use-auth";
 import {
   Card,
