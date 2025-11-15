@@ -3,10 +3,9 @@
     "types": ["nativewind/types"],
     "baseUrl": ".",
     "paths": {
-      "@connection/shared": ["../../packages/shared/src"],
-      "@connection/shared/*": ["../../packages/shared/src/*"],
-      "@connection/ui": ["../../packages/ui/src"],
-      "@connection/ui/*": ["../../packages/ui/src/*"]
+      "@shared/*": ["../../shared/*"],
+      "shared/*": ["../../shared/*"],
+      "shared-env": ["./src/env.native"]
     }
   },
   "extends": "expo/tsconfig.base",
