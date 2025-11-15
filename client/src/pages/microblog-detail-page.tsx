@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { useAuth } from "../hooks/use-auth";
-import { Microblog, User } from "../../../shared/schema";
+import { Microblog, User } from "@connection/shared/schema";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "../components/ui/button";

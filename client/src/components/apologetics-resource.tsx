@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ApologeticsResource } from '../../../shared/schema';
+import { ApologeticsResource } from '@connection/shared/schema';
 import { 
   Card, 
   CardContent, 

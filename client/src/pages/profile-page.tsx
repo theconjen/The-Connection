@@ -11,7 +11,7 @@ import { useToast } from "../hooks/use-toast";
 import { apiRequest } from "../lib/queryClient";
 import { PhotoUploader } from "../components/PhotoUploader";
 import { Link } from "wouter";
-import type { User as UserType } from "../../../shared/schema";
+import type { User as UserType } from "@connection/shared/schema";
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
