@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import apiClient from '../lib/apiClient';
 
 export type FeedPost = {
   id: number | string;
@@ -15,7 +15,8 @@ export function useFeed() {
   return useQuery<FeedPost[]>({
     queryKey: ['feed'],
     queryFn: async () => {
-      const data = await api.get('/feed');
+      const response = await apiClient.get('/feed');
+      const data = response.data;
       return Array.isArray(data) ? data : [];
     },
   });

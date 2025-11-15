@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, Switch, Pressable, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../src/components/ui/Button';
-import { Colors } from '../src/shared/mobile-web/colors';
+import { Colors } from '../src/shared/colors';
 
 export default function SettingsScreen() {
   const router = useRouter();
