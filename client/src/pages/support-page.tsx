@@ -24,7 +24,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { Button } from "../components/ui/button";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Loader2, Mail, MessageSquare, User, CheckCircle } from "lucide-react";
+import { Loader2, Mail, MessageSquare, User, CheckCircle, ShieldCheck, ScrollText, Users } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 
 // Form validation schema
@@ -160,6 +160,61 @@ export default function SupportPage() {
                     For faster support, please include as much detail as possible about your issue or question.
                   </AlertDescription>
                 </Alert>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Policies & Guidelines */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Policies & Guidelines
+            </CardTitle>
+            <CardDescription>
+              Stay informed about how we protect your data and foster a safe, faith-centered community.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="rounded-lg border border-border p-4">
+                <div className="flex items-start gap-3">
+                  <ScrollText className="mt-1 h-5 w-5 text-primary" />
+                  <div>
+                    <h3 className="text-base font-semibold">Privacy Policy</h3>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      Learn how The Connection collects, safeguards, and uses your personal data.
+                    </p>
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener"
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      View Privacy Policy
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border p-4">
+                <div className="flex items-start gap-3">
+                  <Users className="mt-1 h-5 w-5 text-primary" />
+                  <div>
+                    <h3 className="text-base font-semibold">Community Guidelines</h3>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      Understand the expectations that keep our community compassionate, respectful, and Christ-centered.
+                    </p>
+                    <a
+                      href="/community-guidelines"
+                      target="_blank"
+                      rel="noopener"
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      Review Community Guidelines
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
