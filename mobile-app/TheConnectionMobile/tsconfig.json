@@ -1,7 +1,19 @@
 {
   "compilerOptions": {
-    "types": ["nativewind/types"]
+    "types": ["nativewind/types"],
+    "baseUrl": ".",
+    "paths": {
+      "@connection/shared": ["../../packages/shared/src"],
+      "@connection/shared/*": ["../../packages/shared/src/*"],
+      "@connection/ui": ["../../packages/ui/src"],
+      "@connection/ui/*": ["../../packages/ui/src/*"]
+    }
   },
   "extends": "expo/tsconfig.base",
-  "include": ["src/**/*", "app/**/*"]
+  "include": [
+    "src/**/*",
+    "app/**/*",
+    "../../packages/shared/src/**/*",
+    "../../packages/ui/src/**/*"
+  ]
 }

@@ -1,8 +1,8 @@
 packages:
   - apps/*
   - mobile-app/*
+  - packages/*
   - client
-  - shared
   - server
   - tools/*
 onlyBuiltDependencies:
