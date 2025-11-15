@@ -10,7 +10,8 @@
 			"node": "22.0.0",
 			"pnpm": "10.16.1",
 			"env": {
-				"EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile"
+				"EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile",
+				"EXPO_PUBLIC_API_BASE": "http://localhost:3000/api"
 			}
 		},
 		"preview": {
@@ -18,7 +19,8 @@
 			"node": "22.0.0",
 			"pnpm": "10.16.1",
 			"env": {
-				"EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile"
+				"EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile",
+				"EXPO_PUBLIC_API_BASE": "https://api-preview.theconnection.app"
 			}
 		},
 		"production": {
@@ -26,7 +28,8 @@
 			"node": "22.0.0",
 			"pnpm": "10.16.1",
 			"env": {
-				"EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile"
+				"EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile",
+				"EXPO_PUBLIC_API_BASE": "https://api.theconnection.app"
 			}
 		}
 	},
