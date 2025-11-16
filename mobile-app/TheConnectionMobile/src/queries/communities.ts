@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import apiClient from '../lib/apiClient';
 
 export type Community = {
   id: number | string;
@@ -13,7 +13,8 @@ export function useCommunities(search?: string) {
   return useQuery<Community[]>({
     queryKey: ['communities', { search: search || '' }],
     queryFn: async () => {
-      const data = await api.get(`/communities${search ? `?search=${encodeURIComponent(search)}` : ''}`);
+      const response = await apiClient.get(`/communities${search ? `?search=${encodeURIComponent(search)}` : ''}`);
+      const data = response.data;
       return Array.isArray(data) ? data : [];
     },
   });
