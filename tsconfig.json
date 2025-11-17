@@ -3,14 +3,9 @@
     "client/src/**/*",
     "packages/shared/src/**/*",
     "packages/ui/src/**/*",
-    "server/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "build",
-    "dist",
-    "**/*.test.ts",
-    "server/seed*.ts"
+    "shared/**/*",
+    "server/**/*",
+    "types/**/*"
   ],
   "compilerOptions": {
     "incremental": true,
@@ -27,12 +22,13 @@
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
+  // removed allowImportingTsExtensions because it can conflict with composite/noEmit settings
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "types": [
-      "node",
-      "./types/shared-env"
+  "types": ["node", "react", "react-dom"],
+    "typeRoots": [
+      "./types",
+      "./node_modules/@types"
     ],
     "paths": {
       "@/*": [
