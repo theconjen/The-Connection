@@ -1,1 +1,1 @@
-export { FEATURES } from './packages/shared/src/features';
+export { FEATURES } from '../packages/shared/src/features';
