@@ -26,5 +26,16 @@ export default defineConfig({
     },
     // Explicit port
     port: 5173,
+    // Proxy API requests to the backend server during development
+    proxy: {
+      // forward /api/* to the backend (default backend port is 3000)
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        ws: true,
+      },
+    },
   },
 });

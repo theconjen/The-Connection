@@ -25,6 +25,38 @@ const isProduction = process.env.NODE_ENV === "production";
 app.use(makeCors());
 
 // Add secure HTTP headers with Helmet
+// Use a strict Content Security Policy in production but a dev-friendly
+// configuration locally to avoid breaking hot-reload, inline scripts, etc.
+if (isProduction) {
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+          imgSrc: ["'self'", "data:", "https:", "blob:"],
+          connectSrc: ["'self'", "https:", "wss:"],
+          fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    })
+  );
+} else {
+  // Dev-friendly Helmet: disable CSP to avoid disrupting dev tooling
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    })
+  );
+}
 app.use(
   helmet({
     contentSecurityPolicy: {
