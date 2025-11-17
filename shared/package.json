@@ -1,0 +1,20 @@
+{
+  "name": "@shared/schema",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./schema": "./schema.ts",
+    "./api": "./api.ts",
+    "./http": "./http.ts",
+    "./features": "./features.ts",
+    "./app-schema": "./app-schema.ts",
+    "./quotes": "./quotes.ts",
+    "./tokens": "./tokens.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "*",
+    "drizzle-zod": "*",
+    "zod": "*"
+  }
+}

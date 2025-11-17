@@ -10,14 +10,109 @@ import { runAllMigrations } from "./run-migrations";
 import { setupVite, serveStatic, log } from "./vite.js";
 import dotenv from "dotenv";
 import { createServer } from "http";
+import helmet from "helmet";
+import lusca from "lusca";
+import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
+import { makeCors } from "./cors";
 
 dotenv.config();
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
+// Apply CORS configuration early so that preflight requests are handled correctly
+app.use(makeCors());
+
+// Add secure HTTP headers with Helmet
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        connectSrc: ["'self'", "https:", "wss:"],
+        fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+
+// Add HSTS and Referrer Policy in production
+if (isProduction) {
+  app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true }));
+  app.use(helmet.referrerPolicy({ policy: 'no-referrer-when-downgrade' }));
+}
+
+// Apply a basic rate limiter to prevent brute-force and DDoS attacks
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+// Apply limiter only for /api and skip in test env
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api/', limiter);
+}
+
+// Stricter rate limiter for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // allow fewer attempts for auth routes
+  message: 'Too many authentication attempts from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/auth/', authLimiter);
+
+// Parse cookies before sessions (needed for CSRF tokens)
+app.use(cookieParser());
+
+// Limit JSON and form body sizes to mitigate DoS
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+
+// Recursively escape '<' and '>' in strings from req.body, req.query and req.params to neutralise basic XSS
+app.use((req, _res, next) => {
+  const sanitize = (value: any): any => {
+    if (typeof value === 'string') {
+      return value.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    if (Array.isArray(value)) {
+      return value.map(sanitize);
+    }
+    if (value && typeof value === 'object') {
+      for (const key of Object.keys(value)) {
+        // @ts-ignore
+        value[key] = sanitize(value[key]);
+      }
+    }
+    return value;
+  };
+  req.body = sanitize(req.body);
+  req.query = sanitize(req.query);
+  req.params = sanitize(req.params);
+  next();
+});
+
 if (isProduction) {
   app.set("trust proxy", 1);
+}
+
+// Enforce strong session secret in production
+if (isProduction && !process.env.SESSION_SECRET) {
+  console.error("FATAL ERROR: SESSION_SECRET environment variable is required in production");
+  console.error("Please set a strong, random SESSION_SECRET in your environment variables");
+  process.exit(1);
 }
 
 // Set up PostgreSQL session store
@@ -36,7 +131,7 @@ app.use(session({
   name: 'sessionId',
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000,
-    secure: true,
+    secure: isProduction,
     httpOnly: true,
     sameSite: 'none',
     path: '/',
@@ -46,8 +141,18 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// CSRF protection for non-API routes
+const csrfProtection = lusca.csrf();
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  return csrfProtection(req, res, next);
+});
+
+// (global/api limiter handled above)
+
+// Lusca protections (depends on cookie/session)
+app.use(lusca.xframe('SAMEORIGIN'));
+app.use(lusca.xssProtection(true));
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true });

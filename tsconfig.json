@@ -3,14 +3,9 @@
     "client/src/**/*",
     "packages/shared/src/**/*",
     "packages/ui/src/**/*",
-    "server/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "build",
-    "dist",
-    "**/*.test.ts",
-    "server/seed*.ts"
+    "shared/**/*",
+    "server/**/*",
+    "types/**/*"
   ],
   "compilerOptions": {
     "incremental": true,

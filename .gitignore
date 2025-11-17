@@ -30,3 +30,6 @@ apps/web/tsconfig.tsbuildinfo
 
 mobile-app/TheConnectionMobile/ios/
 mobile-app/TheConnectionMobile/android/
+
+# Prevent root eas.json (should only be in mobile-app/TheConnectionMobile/)
+/eas.json
