@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../hooks/use-auth";
 import MainLayout from "../components/layouts/main-layout";
-import { ApologeticsResource, ApologeticsTopic, ApologeticsQuestion, User } from "../../../shared/schema";
+import { ApologeticsResource, ApologeticsTopic, ApologeticsQuestion, User } from "@connection/shared/schema";
 import {
   Card,
   CardContent,

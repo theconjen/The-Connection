@@ -1,9 +1,9 @@
 {
   "include": [
     "client/src/**/*",
-    "shared/**/*",
-    "server/**/*",
-    "types/**/*"
+    "packages/shared/src/**/*",
+    "packages/ui/src/**/*",
+    "server/**/*"
   ],
   "exclude": [
     "node_modules",
@@ -38,8 +38,20 @@
       "@/*": [
         "./client/src/*"
       ],
+      "@connection/shared": [
+        "./packages/shared/src"
+      ],
+      "@connection/shared/*": [
+        "./packages/shared/src/*"
+      ],
+      "@connection/ui": [
+        "./packages/ui/src"
+      ],
+      "@connection/ui/*": [
+        "./packages/ui/src/*"
+      ],
       "@shared/*": [
-        "./shared/*"
+        "./packages/shared/src/*"
       ],
       "@assets/*": [
         "./client/src/assets/*"

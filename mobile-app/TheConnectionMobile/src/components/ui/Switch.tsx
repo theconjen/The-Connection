@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { Colors } from '../../shared/mobile-web/colors';
+import { Colors } from '../../shared/colors';
 
 export type SwitchProps = {
   value?: boolean;

@@ -3,7 +3,7 @@ import {
   useMutation,
   UseMutationResult,
 } from "@tanstack/react-query";
-import { User as SelectUser, InsertUser } from "../../../shared/schema";
+import { User as SelectUser, InsertUser } from "@connection/shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "./use-toast";
 import { navigate } from "wouter/use-browser-location";

@@ -1,7 +1,18 @@
 {
   "compilerOptions": {
-    "types": ["nativewind/types"]
+    "types": ["nativewind/types"],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../../shared/*"],
+      "shared/*": ["../../shared/*"],
+      "shared-env": ["./src/env.native"]
+    }
   },
   "extends": "expo/tsconfig.base",
-  "include": ["src/**/*", "app/**/*"]
+  "include": [
+    "src/**/*",
+    "app/**/*",
+    "../../packages/shared/src/**/*",
+    "../../packages/ui/src/**/*"
+  ]
 }

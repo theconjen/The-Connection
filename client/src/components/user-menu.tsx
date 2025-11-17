@@ -1,4 +1,4 @@
-import { User } from "../../../shared/schema";
+import { User } from "@connection/shared/schema";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";

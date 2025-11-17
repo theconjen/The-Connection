@@ -37,7 +37,7 @@ import {
 import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X, BookOpen, Heart, Music, Camera, Coffee, Globe, Star, Home, MessageCircle, Calendar, Map, Shield, Zap, Target } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { apiRequest, queryClient } from "../lib/queryClient";
-import { insertCommunityObjectSchema, type InsertCommunity } from "../../../shared/schema";
+import { insertCommunityObjectSchema, type InsertCommunity } from "@connection/shared/schema";
 import { IconPicker } from "../components/ui/icon-picker";
 import { ColorPicker } from "../components/ui/color-picker";
 import type { Community } from '@shared/mobile-web/types';

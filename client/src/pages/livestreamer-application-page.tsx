@@ -6,7 +6,7 @@ import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
-import { insertLivestreamerApplicationSchema } from "../../../shared/schema";
+import { insertLivestreamerApplicationSchema } from "@connection/shared/schema";
 import { Button } from "../components/ui/button";
 import { 
   Form,

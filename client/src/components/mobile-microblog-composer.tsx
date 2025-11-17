@@ -2,7 +2,7 @@ import { useState, useRef, ChangeEvent } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../hooks/use-auth";
 import { useToast } from "../hooks/use-toast";
-import { InsertMicroblog } from "../../../shared/schema";
+import { InsertMicroblog } from "@connection/shared/schema";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
