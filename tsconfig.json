@@ -22,12 +22,13 @@
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
+  // removed allowImportingTsExtensions because it can conflict with composite/noEmit settings
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "types": [
-      "node",
-      "./types/shared-env"
+    "types": ["node"],
+    "typeRoots": [
+      "./types",
+      "./node_modules/@types"
     ],
     "paths": {
       "@/*": [
