@@ -7,6 +7,13 @@
     "server/**/*",
     "types/**/*"
   ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "dist",
+    "**/*.test.ts",
+    "server/seed*.ts"
+  ],
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
@@ -14,44 +21,23 @@
     "module": "ESNext",
     "strict": false,
     "noImplicitAny": false,
-    "lib": [
-      "esnext",
-      "dom",
-      "dom.iterable"
-    ],
+    "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
-  // removed allowImportingTsExtensions because it can conflict with composite/noEmit settings
+    // removed allowImportingTsExtensions because it can conflict with composite/noEmit settings
     "moduleResolution": "bundler",
     "baseUrl": ".",
-  "types": ["node", "react", "react-dom"],
-    "typeRoots": [
-      "./types",
-      "./node_modules/@types"
-    ],
+    "types": ["node", "react", "react-dom"],
+    "typeRoots": ["./types", "./node_modules/@types"],
     "paths": {
-      "@/*": [
-        "./client/src/*"
-      ],
-      "@connection/shared": [
-        "./packages/shared/src"
-      ],
-      "@connection/shared/*": [
-        "./packages/shared/src/*"
-      ],
-      "@connection/ui": [
-        "./packages/ui/src"
-      ],
-      "@connection/ui/*": [
-        "./packages/ui/src/*"
-      ],
-      "@shared/*": [
-        "./packages/shared/src/*"
-      ],
-      "@assets/*": [
-        "./client/src/assets/*"
-      ]
+      "@/*": ["./client/src/*"],
+      "@connection/shared": ["./packages/shared/src"],
+      "@connection/shared/*": ["./packages/shared/src/*"],
+      "@connection/ui": ["./packages/ui/src"],
+      "@connection/ui/*": ["./packages/ui/src/*"],
+      "@shared/*": ["./packages/shared/src/*"],
+      "@assets/*": ["./client/src/assets/*"]
     }
   }
 }

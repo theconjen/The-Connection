@@ -1,0 +1,30 @@
+name: Dependency audit
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.16.1
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install workspace
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run pnpm audit
+        run: |
+          pnpm -w audit --json > audit.json || true
+          node -e "const a=require('./audit.json'); if(a.metadata && a.metadata.vulnerabilities && (a.metadata.vulnerabilities.low||a.metadata.vulnerabilities.moderate||a.metadata.vulnerabilities.high||a.metadata.vulnerabilities.critical)) { console.error('Vulnerabilities found'); process.exit(1) } else { console.log('No vulnerabilities'); }"
