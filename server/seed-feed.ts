@@ -2,7 +2,7 @@
  * Seed script for posts, microblogs, and other feed content
  */
 import { db } from "./db";
-import { users, posts, comments, communities, groups, microblogs } from "../shared/schema";
+import { users, posts, comments, communities, groups, microblogs } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function seedFeed() {

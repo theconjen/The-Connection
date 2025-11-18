@@ -1,5 +1,5 @@
 import { db } from './db';
-import { creatorTiers, virtualGifts } from '../shared/schema';
+import { creatorTiers, virtualGifts } from '@shared/schema';
 
 async function seedCreatorTiersAndGifts() {
   console.log("Starting to seed creator tiers and virtual gifts...");

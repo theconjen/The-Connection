@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "server/**/*",
+    "packages/shared/src/**/*",
+    "types/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "client",
+    "apps/web",
+    "mobile-app",
+    "server/seed*.ts",
+    "packages/ui/src/**/*",
+    "**/*.native.tsx",
+    "**/*.native.ts"
+  ]
+}

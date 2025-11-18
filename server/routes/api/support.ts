@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod/v4";
 import { requireAuth } from "../../middleware/auth";
 import { sendEmail } from "../../email";
-import type { User } from "../../../shared/schema";
+import type { User } from "@shared/schema";
 
 const router = Router();
 

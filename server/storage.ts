@@ -340,6 +340,8 @@ export interface IStorage {
   createContentReport(report: InsertContentReport): Promise<ContentReport>;
   createUserBlock(block: InsertUserBlock): Promise<UserBlock>;
   getBlockedUserIdsFor(blockerId: number): Promise<number[]>;
+  // Remove a user block (unblock)
+  removeUserBlock(blockerId: number, blockedId: number): Promise<boolean>;
   // Admin moderation helpers
   getReports?(filter?: { status?: string; limit?: number }): Promise<ContentReport[]>;
   getReportById?(id: number): Promise<ContentReport | undefined>;
@@ -571,6 +573,8 @@ export class MemStorage implements IStorage {
       onboardingCompleted: user.onboardingCompleted || false,
       isVerifiedApologeticsAnswerer: false,
       isAdmin: user.isAdmin || false,
+      loginAttempts: 0,
+      lockoutUntil: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null
@@ -1863,6 +1867,14 @@ export class MemStorage implements IStorage {
     return this.data.userBlocks.filter(b => b.blockerId === blockerId).map(b => b.blockedId);
   }
 
+  // Remove a user block (in-memory)
+  async removeUserBlock(blockerId: number, blockedId: number): Promise<boolean> {
+    const idx = this.data.userBlocks.findIndex(b => b.blockerId === blockerId && b.blockedId === blockedId);
+    if (idx === -1) return false;
+    this.data.userBlocks.splice(idx, 1);
+    return true;
+  }
+
   // Admin moderation helpers (in-memory)
   async getReports(filter?: { status?: string; limit?: number }): Promise<ContentReport[]> {
     let rows = this.data.contentReports.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -1941,6 +1953,21 @@ export class DbStorage implements IStorage {
   async getBlockedUserIdsFor(blockerId: number): Promise<number[]> {
     const rows = await db.select({ blockedId: userBlocks.blockedId }).from(userBlocks).where(eq(userBlocks.blockerId, blockerId));
     return rows.map(r => (r as any).blockedId as number);
+  }
+
+  // Remove a user block (DB)
+  async removeUserBlock(blockerId: number, blockedId: number): Promise<boolean> {
+    const res = await db.delete(userBlocks).where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)));
+    // `res` may be a number of rows deleted or an object with rowCount depending on driver; normalize
+    if (typeof (res as any).rowCount === 'number') {
+      return (res as any).rowCount > 0;
+    }
+    if (typeof res === 'number') {
+      return res > 0;
+    }
+    // Fallback: attempt to select to see if it still exists
+    const remaining = await db.select().from(userBlocks).where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)));
+    return remaining.length === 0;
   }
 
   // Admin moderation helpers (DB)

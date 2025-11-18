@@ -2,7 +2,7 @@
  * Seed apologetics resources (books, podcasts, videos)
  */
 import { db } from "./db";
-import { apologeticsResources } from "../shared/schema";
+import { apologeticsResources } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
 export async function seedResources() {

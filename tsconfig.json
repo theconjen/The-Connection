@@ -7,6 +7,19 @@
     "server/**/*",
     "types/**/*"
   ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "dist",
+    "**/*.test.ts",
+    "server/seed*.ts",
+    "mobile-app",
+    "**/*.native.ts",
+    "**/*.native.tsx",
+    "**/*.native.d.ts",
+    "mobile-app/**",
+    "packages/*/src/**/native/**"
+  ],
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
@@ -22,6 +35,9 @@
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
+  "allowImportingTsExtensions": true,
+  "downlevelIteration": true,
+  "target": "ES2018",
   // removed allowImportingTsExtensions because it can conflict with composite/noEmit settings
     "moduleResolution": "bundler",
     "baseUrl": ".",

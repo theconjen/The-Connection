@@ -1,6 +1,6 @@
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { db } from '../db';
-import { users, microblogs, communities, userFollows, microblogLikes, communityMembers, userInteractions } from '../../shared/schema';
+import { users, microblogs, communities, userFollows, microblogLikes, communityMembers, userInteractions } from '@shared/schema';
 import { whereNotDeleted } from '../db/helpers';
 
 export interface RecommendationScore {

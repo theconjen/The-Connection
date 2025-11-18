@@ -5,7 +5,7 @@
  * Set ADMIN_USERNAME, ADMIN_EMAIL, and ADMIN_PASSWORD before running this script
  */
 import { db } from './db';
-import { users } from '../shared/schema';
+import { users } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
