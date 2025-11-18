@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "readFiles": true,
+    "writeFiles": true,
+    "runTerminal": true,
+    "executeTasks": true
+  },
+  "limits": {
+    "maxEditLines": 8000,
+    "maxFiles": 50
+  },
+  "behavior": {
+    "aggressiveRefactor": true,
+    "autoFix": true,
+    "preferTypescript": true,
+    "followProjectStructure": true
+  }
+}

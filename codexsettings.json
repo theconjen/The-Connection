@@ -1,0 +1,23 @@
+{
+  "files.exclude": {
+    "**/node_modules": false,
+    "**/dist": false,
+    "**/.expo": false
+  },
+  "search.exclude": {
+    "**/node_modules": true
+  },
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.inlineSuggest.enabled": true,
+  "editor.suggest.showSnippets": true,
+  "terminal.integrated.shellIntegration.enabled": true,
+  "typescript.tsserver.watchOptions": {
+    "watchFile": "useFsEvents",
+    "watchDirectory": "useFsEvents"
+  },
+  "codex.workspaceContext": "full",
+  "codex.readContextAutomatically": true,
+  "codex.model": "gpt-4o",
+  "codex.enableAutoFix": true
+}

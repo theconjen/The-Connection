@@ -1,0 +1,7 @@
+{
+  "allowCodeEdits": true,
+  "allowTerminal": true,
+  "allowFileCreation": true,
+  "allowProjectRead": true,
+  "maxEditLines": 5000
+}
