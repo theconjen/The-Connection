@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import { sendEmail } from '../../email';
 import rateLimit from 'express-rate-limit';
 import { buildErrorResponse } from '../../utils/errors';
+import { setSessionUserId } from '../../utils/session';
 
 const router = Router();
 
@@ -113,7 +114,7 @@ router.post('/login', async (req, res) => {
     }
     
     // Set user in session
-    req.session.userId = user.id;
+    setSessionUserId(req, user.id);
     req.session.username = user.username;
     req.session.isAdmin = user.isAdmin || false;
     

@@ -98,7 +98,7 @@ class StorageSafety {
     'createApologeticsQuestion', 'updateApologeticsQuestionStatus',
     'getApologeticsAnswersByQuestion', 'createApologeticsAnswer', 'getAllEvents',
     'getEvent', 'getUserEvents', 'createEvent', 'updateEvent', 'deleteEvent',
-    'createEventRSVP', 'getEventRSVPs', 'getUserEventRSVP', 'updateEventRSVP',
+    'createEventRSVP', 'getEventRSVPs', 'getUserEventRSVP', 'upsertEventRSVP',
     'deleteEventRSVP', 'getAllMicroblogs', 'getMicroblog', 'getUserMicroblogs',
     'createMicroblog', 'updateMicroblog', 'deleteMicroblog', 'likeMicroblog',
     'unlikeMicroblog', 'getUserLikedMicroblogs', 'getAllLivestreams',
@@ -270,7 +270,7 @@ export interface IStorage {
   createEventRSVP(rsvp: InsertEventRsvp): Promise<EventRsvp>;
   getEventRSVPs(eventId: number): Promise<EventRsvp[]>;
   getUserEventRSVP(eventId: number, userId: number): Promise<EventRsvp | undefined>;
-  updateEventRSVP(id: number, status: string): Promise<EventRsvp>;
+  upsertEventRSVP(eventId: number, userId: number, status: string): Promise<EventRsvp>;
   deleteEventRSVP(id: number): Promise<boolean>;
   
   // Microblog methods
@@ -1472,12 +1472,28 @@ export class MemStorage implements IStorage {
     return this.data.eventRsvps.find(r => r.eventId === eventId && r.userId === userId);
   }
   
-  async updateEventRSVP(id: number, status: string): Promise<EventRsvp> {
-    const rsvp = this.data.eventRsvps.find(r => r.id === id);
-    if (!rsvp) throw new Error('RSVP not found');
-    
-    rsvp.status = status;
-    return rsvp;
+  async upsertEventRSVP(eventId: number, userId: number, status: string): Promise<EventRsvp> {
+    let rsvp = this.data.eventRsvps.find(r => r.eventId === eventId && r.userId === userId);
+    if (rsvp) {
+      rsvp.status = status;
+      return rsvp;
+    }
+
+    const created: EventRsvp = {
+      id: this.nextId++,
+      eventId,
+      userId,
+      status,
+      createdAt: new Date(),
+    };
+    this.data.eventRsvps.push(created);
+
+    const event = this.data.events.find(e => e.id === eventId);
+    if (event) {
+      (event as any).rsvpCount = ((event as any).rsvpCount || 0) + 1;
+    }
+
+    return created;
   }
   
   async deleteEventRSVP(id: number): Promise<boolean> {
@@ -2592,8 +2608,13 @@ export class DbStorage implements IStorage {
     return undefined;
   }
   
-  async updateEventRSVP(id: number, status: string): Promise<EventRsvp> {
-    throw new Error('Not implemented');
+  async upsertEventRSVP(eventId: number, userId: number, status: string): Promise<EventRsvp> {
+    const values = { eventId, userId, status } as InsertEventRsvp;
+    const [row] = await db.insert(eventRsvps).values(values as any).onConflictDoUpdate({
+      target: [eventRsvps.eventId, eventRsvps.userId],
+      set: { status },
+    }).returning();
+    return row as EventRsvp;
   }
   
   async deleteEventRSVP(id: number): Promise<boolean> {

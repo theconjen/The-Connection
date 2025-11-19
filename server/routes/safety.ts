@@ -1,24 +1,37 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import { isAuthenticated } from '../auth';
 import { storage } from '../storage-optimized';
 import { buildErrorResponse } from '../utils/errors';
+import { getSessionUserId } from '../utils/session';
 
 const router = express.Router();
 
+const requireUserId = (req: Request, res: Response): number | undefined => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ message: 'Not authenticated' });
+    return undefined;
+  }
+  return userId;
+};
+
 // POST /reports - report content
-router.post('/reports', isAuthenticated, async (req: any, res) => {
+router.post('/reports', isAuthenticated, async (req: Request, res) => {
   try {
-    const reporterId = req.session?.userId;
+    const reporterId = requireUserId(req, res);
+    if (!reporterId) {
+      return;
+    }
     const { subjectType, subjectId, reason, description } = req.body;
 
-    if (!reporterId) return res.status(401).json({ message: 'Not authenticated' });
     if (!subjectType || !subjectId) return res.status(400).json({ message: 'Missing subjectType or subjectId' });
 
     const allowed = ['post', 'community', 'event'];
     if (!allowed.includes(String(subjectType))) return res.status(400).json({ message: 'Invalid subjectType' });
 
     const report = await storage.createContentReport({
-      reporterId: reporterId,
+      reporterId,
       contentType: subjectType,
       contentId: parseInt(subjectId as any) || subjectId,
       reason: reason || 'other',
@@ -33,17 +46,19 @@ router.post('/reports', isAuthenticated, async (req: any, res) => {
 });
 
 // POST /blocks - block a user
-router.post('/blocks', isAuthenticated, async (req: any, res) => {
+router.post('/blocks', isAuthenticated, async (req: Request, res) => {
   try {
-    const blockerId = req.session?.userId;
+    const blockerId = requireUserId(req, res);
+    if (!blockerId) {
+      return;
+    }
     const { userId, reason } = req.body;
 
-    if (!blockerId) return res.status(401).json({ message: 'Not authenticated' });
     const blockedUserId = parseInt(userId as any);
     if (!blockedUserId || blockedUserId === blockerId) return res.status(400).json({ message: 'Invalid userId' });
 
     const block = await storage.createUserBlock({
-      blockerId: blockerId,
+      blockerId,
       blockedId: blockedUserId,
       reason: reason || null
     } as any);
@@ -56,10 +71,12 @@ router.post('/blocks', isAuthenticated, async (req: any, res) => {
 });
 
 // GET /blocked-users - return list of users the current user has blocked
-router.get('/blocked-users', isAuthenticated, async (req: any, res) => {
+router.get('/blocked-users', isAuthenticated, async (req: Request, res) => {
   try {
-    const userId = req.session?.userId;
-    if (!userId) return res.status(401).json({ message: 'Not authenticated' });
+    const userId = requireUserId(req, res);
+    if (!userId) {
+      return;
+    }
 
     const blockedIds = await storage.getBlockedUserIdsFor(userId);
     // Optionally return minimal user info for each blocked id
@@ -78,13 +95,15 @@ router.get('/blocked-users', isAuthenticated, async (req: any, res) => {
 });
 
 // DELETE /blocks/:userId - unblock a user
-router.delete('/blocks/:userId', isAuthenticated, async (req: any, res) => {
+const unblockUserHandler = async (req: Request, res: Response) => {
   try {
-    const blockerId = req.session?.userId;
-    const blockedUserId = parseInt(req.params.userId);
+    const blockerId = requireUserId(req, res);
+    if (!blockerId) {
+      return;
+    }
 
-    if (!blockerId) return res.status(401).json({ message: 'Not authenticated' });
-    if (!blockedUserId || isNaN(blockedUserId)) {
+    const blockedUserId = parseInt(req.params.userId);
+    if (!Number.isFinite(blockedUserId) || blockedUserId <= 0) {
       return res.status(400).json({ message: 'Invalid userId' });
     }
 
@@ -94,6 +113,9 @@ router.delete('/blocks/:userId', isAuthenticated, async (req: any, res) => {
     console.error('Error removing block:', error);
     res.status(500).json(buildErrorResponse('Error removing block', error));
   }
-});
+};
+
+router.delete('/blocks/:userId', isAuthenticated, unblockUserHandler);
+router.delete('/safety/block/:userId', isAuthenticated, unblockUserHandler);
 
 export default router;

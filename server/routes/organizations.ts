@@ -5,21 +5,34 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { insertOrganizationSchema, insertOrganizationUserSchema } from "@shared/schema";
 import { buildErrorResponse } from "../utils/errors";
+import { getSessionUserId } from "../utils/session";
 
 const router = express.Router();
 
 // Middleware to check authentication (use session userId)
 const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!req.session || !req.session.userId) {
+  if (!getSessionUserId(req)) {
     return res.status(401).json({ message: "Authentication required" });
   }
   next();
 };
 
+const requireUserId = (req: express.Request, res: express.Response): number | undefined => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ message: "Authentication required" });
+    return undefined;
+  }
+  return userId;
+};
+
 // Create a new organization (church)
 router.post("/", requireAuth, async (req, res) => {
   try {
-  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+    const currentUserId = requireUserId(req, res);
+    if (!currentUserId) {
+      return;
+    }
     const data = insertOrganizationSchema.parse({
       ...req.body,
       adminUserId: currentUserId
@@ -48,7 +61,10 @@ router.post("/", requireAuth, async (req, res) => {
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
-  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+    const currentUserId = requireUserId(req, res);
+    if (!currentUserId) {
+      return;
+    }
 
     // Check if user is a member of the organization
     const membership = await db
@@ -84,7 +100,10 @@ router.get("/:id", requireAuth, async (req, res) => {
 // Get organizations for current user
 router.get("/", requireAuth, async (req, res) => {
   try {
-  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+    const currentUserId = requireUserId(req, res);
+    if (!currentUserId) {
+      return;
+    }
 
     const userOrganizations = await db
       .select({
@@ -108,7 +127,10 @@ router.post("/:id/invite", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const { userId, role = "member" } = req.body;
-    const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+    const currentUserId = requireUserId(req, res);
+    if (!currentUserId) {
+      return;
+    }
 
     // Check if current user is admin of the organization
     const adminCheck = await db
@@ -158,7 +180,10 @@ router.post("/:id/invite", requireAuth, async (req, res) => {
 router.get("/:id/members", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
-  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+    const currentUserId = requireUserId(req, res);
+    if (!currentUserId) {
+      return;
+    }
 
     // Check if user is a member of the organization
     const membership = await db
@@ -201,7 +226,10 @@ router.patch("/:id/plan", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const { plan } = req.body;
-  const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+    const currentUserId = requireUserId(req, res);
+    if (!currentUserId) {
+      return;
+    }
 
     // Check if current user is admin of the organization
     const adminCheck = await db
@@ -239,7 +267,10 @@ router.delete("/:id/members/:userId", requireAuth, async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const memberUserId = parseInt(req.params.userId);
-    const currentUserId = typeof req.session!.userId === "string" ? parseInt(req.session!.userId as any) : (req.session!.userId as number);
+    const currentUserId = requireUserId(req, res);
+    if (!currentUserId) {
+      return;
+    }
 
     // Check if current user is admin of the organization
     const adminCheck = await db

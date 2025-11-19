@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import { isAuthenticated } from '../../auth';
 import { storage } from '../../storage-optimized';
 import { buildErrorResponse } from '../../utils/errors';
+import { getSessionUserId } from '../../utils/session';
 
 const router = Router();
 
@@ -9,19 +11,27 @@ const allowedVisibilities = ["public", "friends", "private"] as const;
 const isValidVisibility = (value: unknown): value is (typeof allowedVisibilities)[number] =>
   typeof value === "string" && (allowedVisibilities as readonly string[]).includes(value);
 
+const requireAuthedUserId = (req: Request, res: Response): number | undefined => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ message: 'Not authenticated' });
+    return undefined;
+  }
+  return userId;
+};
+
 // Apply authentication middleware to all routes in this file
 router.use(isAuthenticated);
 
 // Get current user's profile
 router.get('/profile', async (req, res, next) => {
   try {
-  const userId = req.session.userId;
-  const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+    const userId = requireAuthedUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
     
-  const user = await storage.getUser(resolvedUserId);
+    const user = await storage.getUser(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -38,10 +48,9 @@ router.get('/profile', async (req, res, next) => {
 // Update user profile - supports both /profile and /:id endpoints
 router.patch('/profile', async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+    const userId = requireAuthedUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
     
     const { displayName, bio, avatarUrl, email, city, state, zipCode, profileVisibility, showLocation, showInterests } = req.body;
@@ -64,7 +73,7 @@ router.patch('/profile', async (req, res, next) => {
     if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
     
-  const updatedUser = await storage.updateUser(resolvedUserId, updateData);
+    const updatedUser = await storage.updateUser(userId, updateData);
     
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;
@@ -77,12 +86,13 @@ router.patch('/profile', async (req, res, next) => {
 // Alternative endpoint for updating user by ID (same functionality)
 router.patch('/:id', async (req, res, next) => {
   try {
-  const userId = req.session.userId;
-  const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
-  const targetUserId = parseInt(req.params.id);
-    
-    // Only allow users to update their own profile
-    if (!userId || resolvedUserId !== targetUserId) {
+    const userId = requireAuthedUserId(req, res);
+    if (!userId) {
+      return;
+    }
+
+    const targetUserId = parseInt(req.params.id);
+    if (!Number.isFinite(targetUserId) || targetUserId !== userId) {
       return res.status(401).json({ message: 'Not authorized to update this profile' });
     }
     
@@ -106,7 +116,7 @@ router.patch('/:id', async (req, res, next) => {
     if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
     
-  const updatedUser = await storage.updateUser(targetUserId, updateData);
+    const updatedUser = await storage.updateUser(targetUserId, updateData);
     
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;
@@ -119,14 +129,13 @@ router.patch('/:id', async (req, res, next) => {
 // Get communities the user is a member of
 router.get('/communities', async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+    const userId = requireAuthedUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
     
     // Get communities where user is a member
-    const communities = await storage.getUserCommunities(resolvedUserId);
+    const communities = await storage.getUserCommunities(userId);
     res.json(communities);
   } catch (error) {
     next(error);
@@ -136,13 +145,12 @@ router.get('/communities', async (req, res, next) => {
 // Get user's prayer requests
 router.get('/prayer-requests', async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+    const userId = requireAuthedUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
 
-    const prayerRequests = await storage.getUserPrayerRequests(resolvedUserId);
+    const prayerRequests = await storage.getUserPrayerRequests(userId);
     res.json(prayerRequests);
   } catch (error) {
     next(error);
@@ -152,14 +160,13 @@ router.get('/prayer-requests', async (req, res, next) => {
 // Get user's feed posts
 router.get('/posts', async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+    const userId = requireAuthedUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
     
     // Get user's posts
-    const posts = await storage.getUserPosts(resolvedUserId);
+    const posts = await storage.getUserPosts(userId);
     res.json(posts);
   } catch (error) {
     next(error);
@@ -169,14 +176,13 @@ router.get('/posts', async (req, res, next) => {
 // Get user's upcoming events (RSVPs)
 router.get('/events', async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+    const userId = requireAuthedUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
     
     // Get user's event RSVPs
-    const events = await storage.getUserEvents(resolvedUserId);
+    const events = await storage.getUserEvents(userId);
     res.json(events);
   } catch (error) {
     next(error);
@@ -186,13 +192,12 @@ router.get('/events', async (req, res, next) => {
 // User settings endpoints using your approach
 router.get("/settings", async (req, res) => {
   try {
-    const userId = req.session.userId;
-    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+    const userId = requireAuthedUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
     
-  const user = await storage.getUser(resolvedUserId);
+    const user = await storage.getUser(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -208,10 +213,9 @@ router.get("/settings", async (req, res) => {
 // Update user settings using your approach
 router.put("/settings", async (req, res) => {
   try {
-    const userId = req.session.userId;
-    const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
+    const userId = requireAuthedUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
     
     const { displayName, email, bio, city, state, zipCode, profileVisibility, showLocation, showInterests } = req.body;
@@ -233,7 +237,7 @@ router.put("/settings", async (req, res) => {
     if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
     
-  await storage.updateUser(resolvedUserId, updateData);
+    await storage.updateUser(userId, updateData);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json(buildErrorResponse('Error updating user settings', error));

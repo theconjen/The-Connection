@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { isAdmin } from '../../auth';
 import { storage } from '../../storage-optimized';
+import { getSessionUserId } from '../../utils/session';
 
 const router = Router();
 
@@ -101,7 +102,7 @@ router.delete('/users/:id', async (req, res, next) => {
     }
     
     // Don't allow admins to delete themselves
-    const currentUserId = typeof req.session?.userId === 'string' ? parseInt(req.session.userId as string) : req.session?.userId;
+    const currentUserId = getSessionUserId(req);
     if (userId === currentUserId) {
       return res.status(400).json({ message: 'You cannot delete your own account' });
     }

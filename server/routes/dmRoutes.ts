@@ -4,6 +4,7 @@ import { storage } from "../storage-optimized";
 import { sendPushNotification } from "../services/pushService";
 import { ensureCleanText, handleModerationError } from "../utils/moderation";
 import { buildErrorResponse } from "../utils/errors";
+import { getSessionUserId } from '../utils/session';
 
 const router = express.Router();
 const dmLimiter = rateLimit({
@@ -14,12 +15,15 @@ const dmLimiter = rateLimit({
 
 // Fetch DMs between two users
 router.get("/:userId", async (req, res) => {
-  if (!req.session?.userId) {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
 
-  const currentUserId = parseInt(String(req.session.userId)); // Logged-in user
-  const otherUserId = parseInt(req.params.userId);
+  const otherUserId = Number(req.params.userId);
+  if (!Number.isFinite(otherUserId)) {
+    return res.status(400).json({ message: 'Invalid user id' });
+  }
 
   try {
     const chat = await storage.getDirectMessages(currentUserId, otherUserId);
@@ -32,12 +36,16 @@ router.get("/:userId", async (req, res) => {
 
 // Send a new DM
 router.post("/send", dmLimiter, async (req, res) => {
-  if (!req.session?.userId) {
+  const senderId = getSessionUserId(req);
+  if (!senderId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
 
-  const senderId = parseInt(String(req.session.userId));
   const { receiverId, content } = req.body;
+  const parsedReceiverId = Number(receiverId);
+  if (!Number.isFinite(parsedReceiverId)) {
+    return res.status(400).json({ message: 'Invalid receiverId' });
+  }
 
   if (!content) return res.status(400).json({ message: "Message content required" });
 
@@ -45,7 +53,7 @@ router.post("/send", dmLimiter, async (req, res) => {
     ensureCleanText(content, 'Direct message');
     const message = await storage.createDirectMessage({
       senderId: senderId,
-      receiverId: parseInt(receiverId),
+      receiverId: parsedReceiverId,
       content: content
     });
 

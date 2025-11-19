@@ -1,9 +1,10 @@
 import express from "express";
 import { storage } from "../storage";
 import { buildErrorResponse } from "../utils/errors";
+import { getSessionUserId } from "../utils/session";
 // Authentication middleware
 const isAuthenticated = (req: any, res: any, next: any) => {
-  if (!req.session || !req.session.userId) {
+  if (!getSessionUserId(req)) {
     return res.status(401).json({ message: "Not authenticated" });
   }
   next();
@@ -11,19 +12,27 @@ const isAuthenticated = (req: any, res: any, next: any) => {
 
 const router = express.Router();
 
+const requireUserId = (req: any, res: any): number | undefined => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ message: "Not authenticated" });
+    return undefined;
+  }
+  return userId;
+};
+
 // Apply authentication middleware to all routes
 router.use(isAuthenticated);
 
 // Fetch user settings
 router.get("/settings", async (req, res) => {
   try {
-    const userId = req.session.userId;
+    const userId = requireUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
     
-  const resolvedUserId = typeof userId === 'number' ? userId : parseInt(String(userId));
-  const user = await storage.getUser(resolvedUserId);
+    const user = await storage.getUser(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -40,9 +49,9 @@ router.get("/settings", async (req, res) => {
 // Update user settings
 router.put("/settings", async (req, res) => {
   try {
-    const userId = req.session.userId;
+    const userId = requireUserId(req, res);
     if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
     
     const { displayName, email, bio, city, state, zipCode } = req.body;
@@ -56,8 +65,7 @@ router.put("/settings", async (req, res) => {
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     
-  const resolvedUserId2 = typeof userId === 'number' ? userId : parseInt(String(userId));
-  await storage.updateUser(resolvedUserId2, updateData);
+    await storage.updateUser(userId, updateData);
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating user settings:', error);

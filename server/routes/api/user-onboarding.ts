@@ -3,6 +3,7 @@ import { storage } from "../../storage-optimized";
 import { isAuthenticated } from "../../auth";
 import { z } from "zod/v4";
 import { buildErrorResponse } from "../../utils/errors";
+import { getSessionUserId } from "../../utils/session";
 
 // Schema for validating onboarding data
 const onboardingSchema = z.object({
@@ -20,8 +21,8 @@ const onboardingSchema = z.object({
  */
 export const handleOnboarding = async (req: Request, res: Response) => {
   try {
-    // Check if the user is authenticated
-    if (!req.session.userId) {
+    const userId = getSessionUserId(req);
+    if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
@@ -34,7 +35,6 @@ export const handleOnboarding = async (req: Request, res: Response) => {
       });
     }
 
-  const userId = typeof req.session.userId === 'string' ? parseInt(req.session.userId as string) : req.session.userId;
     const { 
       city, 
       state, 
@@ -46,7 +46,7 @@ export const handleOnboarding = async (req: Request, res: Response) => {
     } = validation.data;
 
     // Update user with onboarding data
-    await storage.updateUser(userId as number, {
+    await storage.updateUser(userId, {
       city,
       state,
       zipCode,
@@ -57,7 +57,7 @@ export const handleOnboarding = async (req: Request, res: Response) => {
 
     // If interests are provided, update user preferences
     if (interests && interests.length > 0) {
-      await storage.updateUserPreferences(userId as number, {
+      await storage.updateUserPreferences(userId, {
         interests: interests
       });
     }

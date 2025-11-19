@@ -23,3 +23,17 @@ export function requireSessionUserId(req: Request): number {
   }
   return userId;
 }
+
+export function setSessionUserId(req: Request, value: number | string): number {
+  if (!req.session) {
+    throw createHttpError(500, 'Session is not initialized');
+  }
+
+  const normalized = normalizeSessionValue(value as any);
+  if (!normalized || normalized <= 0) {
+    throw createHttpError(500, 'Invalid user id for session');
+  }
+
+  req.session.userId = normalized;
+  return normalized;
+}

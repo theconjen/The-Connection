@@ -257,6 +257,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       // SECURITY: Verify userId matches authenticated user
       if (parseInt(userId) !== authenticatedUserId) {
         console.log(`User ${authenticatedUserId} attempted to join room for user ${userId}`);
+        socket.emit('error', {
+          message: 'Unauthorized: Cannot join another user room',
+          code: 'UNAUTHORIZED_JOIN'
+        });
         return;
       }
 
@@ -985,7 +989,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  app.post('/api/chat-rooms/:roomId/messages', isAuthenticated, async (req, res) => {
+  app.post('/api/chat-rooms/:roomId/messages', messageCreationLimiter, isAuthenticated, async (req, res) => {
     try {
       const roomId = parseInt(req.params.roomId);
   const userId = getSessionUserId(req)!;

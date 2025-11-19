@@ -2,14 +2,17 @@ import express from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { buildErrorResponse } from "../utils/errors";
+import { getSessionUserId } from "../utils/session";
 
 const router = express.Router();
 
 // Register push token
 router.post("/register", isAuthenticated, async (req, res) => {
   try {
-    const rawUserId = req.session.userId;
-    const userId = typeof rawUserId === "number" ? rawUserId : parseInt(String(rawUserId || ""), 10);
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     const { token, platform } = req.body;
 
     if (!token) return res.status(400).json({ message: "Token required" });
@@ -38,8 +41,10 @@ let metrics = {
 async function handleUnregister(req: express.Request, res: express.Response) {
   try {
     const token = req.body?.token || req.query?.token;
-    const rawUserId = req.session.userId;
-    const userId = typeof rawUserId === "number" ? rawUserId : parseInt(String(rawUserId || ""), 10);
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     metrics.unregisterAttempts++;
 
     if (!token) return res.status(400).json({ message: "Token required" });
