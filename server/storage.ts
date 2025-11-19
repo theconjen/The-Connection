@@ -133,6 +133,7 @@ export interface IStorage {
   getUserById(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByEmailVerificationToken(token: string): Promise<User | undefined>;
   searchUsers(searchTerm: string): Promise<User[]>;
   getAllUsers(): Promise<User[]>;
   updateUser(id: number, userData: Partial<User>): Promise<User>;
@@ -467,6 +468,11 @@ export class MemStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     return this.data.users.find(u => u.email === email);
   }
+
+  async getUserByEmailVerificationToken(token: string): Promise<User | undefined> {
+    if (!token) return undefined;
+    return this.data.users.find(u => u.emailVerificationToken === token);
+  }
   
   async searchUsers(searchTerm: string): Promise<User[]> {
     const term = searchTerm.toLowerCase();
@@ -573,6 +579,19 @@ export class MemStorage implements IStorage {
       onboardingCompleted: user.onboardingCompleted || false,
       isVerifiedApologeticsAnswerer: false,
       isAdmin: user.isAdmin || false,
+      profileVisibility: user.profileVisibility || 'public',
+      showLocation: user.showLocation !== undefined ? user.showLocation : true,
+      showInterests: user.showInterests !== undefined ? user.showInterests : true,
+      notifyDms: user.notifyDms !== undefined ? user.notifyDms : true,
+      notifyCommunities: user.notifyCommunities !== undefined ? user.notifyCommunities : true,
+      notifyForums: user.notifyForums !== undefined ? user.notifyForums : true,
+      notifyFeed: user.notifyFeed !== undefined ? user.notifyFeed : true,
+      dmPrivacy: user.dmPrivacy || 'everyone',
+      emailVerified: user.emailVerified || false,
+      smsVerified: user.smsVerified || false,
+      phoneNumber: user.phoneNumber || null,
+      emailVerificationToken: user.emailVerificationToken || null,
+      smsVerificationCode: user.smsVerificationCode || null,
       loginAttempts: 0,
       lockoutUntil: null,
       createdAt: new Date(),
@@ -1916,6 +1935,12 @@ export class DbStorage implements IStorage {
   
   async getUserByEmail(email: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(and(eq(users.email, email), whereNotDeleted(users)));
+    return result[0];
+  }
+
+  async getUserByEmailVerificationToken(token: string): Promise<User | undefined> {
+    if (!token) return undefined;
+    const result = await db.select().from(users).where(and(eq(users.emailVerificationToken, token), whereNotDeleted(users)));
     return result[0];
   }
   

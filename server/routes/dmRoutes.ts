@@ -1,8 +1,15 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { storage } from "../storage-optimized";
 import { sendPushNotification } from "../services/pushService";
+import { ensureCleanText, handleModerationError } from "../utils/moderation";
 
 const router = express.Router();
+const dmLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 25,
+  message: 'You are sending messages too quickly.',
+});
 
 // Fetch DMs between two users
 router.get("/:userId", async (req, res) => {
@@ -23,7 +30,7 @@ router.get("/:userId", async (req, res) => {
 });
 
 // Send a new DM
-router.post("/send", async (req, res) => {
+router.post("/send", dmLimiter, async (req, res) => {
   if (!req.session?.userId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
@@ -34,6 +41,7 @@ router.post("/send", async (req, res) => {
   if (!content) return res.status(400).json({ message: "Message content required" });
 
   try {
+    ensureCleanText(content, 'Direct message');
     const message = await storage.createDirectMessage({
       senderId: senderId,
       receiverId: parseInt(receiverId),
@@ -70,6 +78,7 @@ router.post("/send", async (req, res) => {
 
     res.json(message);
   } catch (error) {
+    if (handleModerationError(res, error)) return;
     console.error('Error sending direct message:', error);
     res.status(500).json({ message: 'Error sending message' });
   }

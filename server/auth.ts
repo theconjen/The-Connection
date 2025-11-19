@@ -1,13 +1,15 @@
 import { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage-optimized";
 import { User, insertUserSchema } from "@shared/schema";
-import { sendWelcomeEmail } from "./email";
+import { sendWelcomeEmail, sendEmail } from "./email";
 import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { logLogin, logLoginFailed, logLogout, logRegistration } from './audit-logger';
 import { sanitizePlainText } from './xss-protection';
 import { z } from "zod";
+import crypto from "crypto";
+import { verifyRecaptchaToken } from "./utils/recaptcha";
 
 /**
  * Ultra Simple Auth System
@@ -79,16 +81,24 @@ export function setupAuth(app: Express) {
     email: z.string().email("Please enter a valid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     displayName: z.string().min(0).optional(),
+    phoneNumber: z.string().optional(),
   });
 
   // User registration endpoint with rate limiting
   app.post("/api/register", registerLimiter, async (req, res) => {
     try {
+      const recaptchaToken = typeof req.body.recaptchaToken === 'string' ? req.body.recaptchaToken : undefined;
+      const recaptchaValid = await verifyRecaptchaToken(recaptchaToken);
+      if (!recaptchaValid) {
+        return res.status(400).json({ message: "reCAPTCHA verification failed" });
+      }
+
       const sanitizedPayload = {
         username: sanitizePlainText(req.body.username),
         email: sanitizePlainText(req.body.email),
         password: req.body.password,
         displayName: req.body.displayName ? sanitizePlainText(req.body.displayName) : undefined,
+        phoneNumber: req.body.phoneNumber ? sanitizePlainText(req.body.phoneNumber) : undefined,
       };
 
       const parsed = registrationSchema.safeParse(sanitizedPayload);
@@ -98,7 +108,8 @@ export function setupAuth(app: Express) {
           message: firstError?.message ?? "Invalid registration data",
         });
       }
-      const { username, email, password, displayName } = parsed.data;
+      const { username, email, password, displayName, phoneNumber } = parsed.data;
+      const normalizedPhone = phoneNumber ? phoneNumber.replace(/[^+\d]/g, '') : undefined;
       
       // Check if username is taken
       const existingUserByUsername = await storage.getUserByUsername(username);
@@ -123,6 +134,7 @@ export function setupAuth(app: Express) {
         password: hashedPassword, // Store hashed password
         displayName: displayName || username,
         isAdmin: false,
+        phoneNumber: normalizedPhone || undefined,
       });
       
       console.log(`[REGISTRATION] User created successfully:`, { 
@@ -132,11 +144,32 @@ export function setupAuth(app: Express) {
         userObject: JSON.stringify(user, null, 2)
       });
 
+      const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+      const smsVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      await storage.updateUser(user.id, {
+        emailVerificationToken,
+        smsVerificationCode,
+        emailVerified: false,
+        smsVerified: false,
+        phoneNumber: normalizedPhone || null,
+      });
+
       // Send welcome email (ignore errors)
       try {
         await sendWelcomeEmail(user.email, user.displayName || username);
+        await sendEmail({
+          to: user.email,
+          from: process.env.EMAIL_FROM || 'noreply@theconnection.app',
+          subject: "Verify your email",
+          html: `<p>Welcome to The Connection!</p><p>Use this token to verify your email: <strong>${emailVerificationToken}</strong></p>`,
+        });
       } catch (error) {
-        console.error("Failed to send welcome email:", error);
+        console.error("Failed to send welcome/verification email:", error);
+      }
+
+      if (normalizedPhone) {
+        console.log(`[SMS] Verification code for user ${user.id}: ${smsVerificationCode}`);
       }
 
       // SECURITY: Log registration for audit trail
@@ -194,6 +227,95 @@ export function setupAuth(app: Express) {
     }
   });
 
+  app.post("/api/auth/verify-email", async (req, res) => {
+    try {
+      const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+      if (!token) {
+        return res.status(400).json({ message: "Verification token is required" });
+      }
+      const user = await storage.getUserByEmailVerificationToken(token);
+      if (!user) {
+        return res.status(404).json({ message: "Invalid or expired token" });
+      }
+      await storage.updateUser(user.id, { emailVerified: true, emailVerificationToken: null });
+      res.json({ message: "Email verified successfully" });
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.status(500).json({ message: "Failed to verify email" });
+    }
+  });
+
+  app.post("/api/auth/request-email-verification", isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(String(req.session!.userId));
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const token = crypto.randomBytes(32).toString('hex');
+      await storage.updateUser(userId, { emailVerificationToken: token, emailVerified: false });
+      try {
+        await sendEmail({
+          to: user.email,
+          from: process.env.EMAIL_FROM || 'noreply@theconnection.app',
+          subject: "Verify your email",
+          html: `<p>Use this token to verify your email: <strong>${token}</strong></p>`,
+        });
+      } catch (emailErr) {
+        console.error("Failed to send verification email:", emailErr);
+      }
+      res.json({ message: "Verification email sent" });
+    } catch (error) {
+      console.error("Error requesting verification email:", error);
+      res.status(500).json({ message: "Failed to send verification email" });
+    }
+  });
+
+  app.post("/api/auth/request-sms-code", isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(String(req.session!.userId));
+      const phoneNumberRaw = typeof req.body?.phoneNumber === 'string' ? req.body.phoneNumber : '';
+      if (!phoneNumberRaw) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+      const normalizedPhone = sanitizePlainText(phoneNumberRaw).replace(/[^+\d]/g, '');
+      if (!normalizedPhone) {
+        return res.status(400).json({ message: "Invalid phone number" });
+      }
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      await storage.updateUser(userId, {
+        phoneNumber: normalizedPhone,
+        smsVerificationCode: code,
+        smsVerified: false,
+      });
+      console.log(`[SMS] Verification code for user ${userId}: ${code}`);
+      res.json({ message: "SMS verification code generated" });
+    } catch (error) {
+      console.error("Error requesting SMS code:", error);
+      res.status(500).json({ message: "Failed to generate SMS code" });
+    }
+  });
+
+  app.post("/api/auth/verify-sms-code", isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(String(req.session!.userId));
+      const submittedCode = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+      if (!submittedCode) {
+        return res.status(400).json({ message: "Verification code is required" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user || !user.smsVerificationCode) {
+        return res.status(400).json({ message: "No SMS code on record" });
+      }
+      if (user.smsVerificationCode !== submittedCode) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+      await storage.updateUser(userId, { smsVerified: true, smsVerificationCode: null });
+      res.json({ message: "SMS verified successfully" });
+    } catch (error) {
+      console.error("SMS verification error:", error);
+      res.status(500).json({ message: "Failed to verify SMS" });
+    }
+  });
+
   // Login endpoint with rate limiting
   app.post("/api/login", loginLimiter, async (req, res) => {
     try {
@@ -223,11 +345,12 @@ export function setupAuth(app: Express) {
 
         // SECURITY: Check if account is locked out
         if (user.lockoutUntil && new Date(user.lockoutUntil) > new Date()) {
-          const lockoutMinutes = Math.ceil((new Date(user.lockoutUntil).getTime() - Date.now()) / 60000);
+          const remainingMs = new Date(user.lockoutUntil).getTime() - Date.now();
+          const lockoutMinutes = Math.ceil(remainingMs / 60000);
           console.log(`Account locked for user: ${username}, ${lockoutMinutes} minutes remaining`);
           await logLoginFailed(username, 'Account locked', req);
           return res.status(423).json({
-            message: `Account is locked due to too many failed login attempts. Please try again in ${lockoutMinutes} minute(s).`
+            message: `Account locked due to repeated failed attempts. Try again in ${lockoutMinutes} minute(s).`
           });
         }
 
@@ -236,38 +359,32 @@ export function setupAuth(app: Express) {
         if (!passwordMatches) {
           console.log(`Invalid password for user: ${username}`);
 
-          // SECURITY: Increment failed login attempts
           const newAttempts = (user.loginAttempts || 0) + 1;
-          const maxAttempts = 5;
-          const lockoutDuration = 15 * 60 * 1000; // 15 minutes in milliseconds
+          const maxAttempts = 10;
+          const lockoutDuration = 2 * 60 * 60 * 1000;
 
           if (newAttempts >= maxAttempts) {
-            // Lock the account
             const lockoutUntil = new Date(Date.now() + lockoutDuration);
             await storage.updateUser(user.id, {
               loginAttempts: newAttempts,
-              lockoutUntil: lockoutUntil,
+              lockoutUntil,
             });
 
             console.log(`Account locked for user: ${username} after ${maxAttempts} failed attempts`);
             await logLoginFailed(username, `Account locked after ${maxAttempts} attempts`, req);
 
             return res.status(423).json({
-              message: `Account locked due to too many failed login attempts. Please try again in 15 minutes.`
-            });
-          } else {
-            // Increment attempts but don't lock yet
-            await storage.updateUser(user.id, {
-              loginAttempts: newAttempts,
-            });
-
-            console.log(`Failed login attempt ${newAttempts}/${maxAttempts} for user: ${username}`);
-            await logLoginFailed(username, `Invalid password (attempt ${newAttempts}/${maxAttempts})`, req);
-
-            return res.status(401).json({
-              message: `Invalid username or password. ${maxAttempts - newAttempts} attempt(s) remaining before account lockout.`
+              message: `Account locked due to too many failed login attempts. Please try again in 2 hours.`
             });
           }
+
+          await storage.updateUser(user.id, { loginAttempts: newAttempts });
+          console.log(`Failed login attempt ${newAttempts}/${maxAttempts} for user: ${username}`);
+          await logLoginFailed(username, `Invalid password (attempt ${newAttempts}/${maxAttempts})`, req);
+
+          return res.status(401).json({
+            message: `Invalid username or password. ${maxAttempts - newAttempts} attempt(s) remaining before lockout.`
+          });
         }
 
         // SECURITY: Reset failed login attempts on successful login
@@ -276,6 +393,14 @@ export function setupAuth(app: Express) {
             loginAttempts: 0,
             lockoutUntil: null,
           });
+        }
+
+        if (!user.emailVerified) {
+          return res.status(403).json({ message: "Please verify your email before logging in." });
+        }
+
+        if (user.phoneNumber && !user.smsVerified) {
+          return res.status(403).json({ message: "Please verify your phone number before logging in." });
         }
         
         // Save user ID in session

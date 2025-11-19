@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { z } from "zod/v4";
+import rateLimit from "express-rate-limit";
 import { requireAuth } from "../../middleware/auth";
 import { sendEmail } from "../../email";
 import type { User } from "@shared/schema";
+import { ensureCleanText, handleModerationError } from "../../utils/moderation";
 
 const router = Router();
 
@@ -13,11 +15,18 @@ const contactFormSchema = z.object({
   message: z.string().min(10, "Message must be at least 10 characters long"),
 });
 
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many support requests sent. Please try again later.',
+});
+
 // POST /api/support/contact - Send support email
-router.post("/contact", async (req, res) => {
+router.post("/contact", contactLimiter, async (req, res) => {
   try {
     const validatedData = contactFormSchema.parse(req.body);
     const { name, email, message } = validatedData;
+    ensureCleanText(message, 'Support request');
 
     // Get user info if authenticated (optional)
     const user = req.user as any || null;
@@ -85,6 +94,7 @@ router.post("/contact", async (req, res) => {
     });
 
   } catch (error) {
+    if (handleModerationError(res, error)) return;
     console.error('Error sending support email:', error);
     
     if (error instanceof z.ZodError) {

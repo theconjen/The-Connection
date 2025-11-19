@@ -1,5 +1,5 @@
 import { getUserId } from "./utils/session"
-import { Express } from 'express';
+import express, { Express } from 'express';
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { setupAuth, isAuthenticated, isAdmin } from './auth';
@@ -16,13 +16,14 @@ import rateLimit from 'express-rate-limit';
 // inference upstream for proper typings.
 const storage: any = storageReal;
 import { z } from 'zod/v4';
-import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertMicroblogSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema, InsertLivestreamerApplication, InsertApologistScholarApplication } from '@shared/schema';
+import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertMicroblogSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema, InsertLivestreamerApplication, InsertApologistScholarApplication, User } from '@shared/schema';
 import { APP_DOMAIN, BASE_URL, APP_URLS, EMAIL_FROM } from './config/domain';
 import { sendCommunityInvitationEmail, sendNotificationEmail } from './email';
 import { sendLivestreamerApplicationNotificationEmail, sendApplicationStatusUpdateEmail, sendApologistScholarApplicationNotificationEmail } from './email-notifications';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
+import { ensureCleanText, ensureSafeBinaryUpload, ensureAllowedMimeType, handleModerationError } from './utils/moderation';
 
 // Local payload types to avoid fragile inferred types from shared/zod schemas
 interface LivestreamAppPayload {
@@ -100,6 +101,54 @@ declare module 'express-session' {
   }
 }
 
+function canViewProfile(target: User, viewerId?: number, viewerIsAdmin?: boolean) {
+  if (viewerIsAdmin) return true;
+  if (!target.profileVisibility || target.profileVisibility === 'public') return true;
+  if (!viewerId) return false;
+  if (target.id === viewerId) return true;
+  // Treat 'friends' visibility like private until follow graph is implemented
+  return false;
+}
+
+function sanitizeUserForResponse(target: User, viewerId?: number, viewerIsAdmin?: boolean) {
+  const isSelf = viewerId === target.id;
+  const result: Record<string, unknown> = {
+    id: target.id,
+    username: target.username,
+    displayName: target.displayName,
+    bio: target.bio,
+    avatarUrl: target.avatarUrl,
+    onboardingCompleted: target.onboardingCompleted,
+    isVerifiedApologeticsAnswerer: target.isVerifiedApologeticsAnswerer,
+    createdAt: target.createdAt,
+    updatedAt: target.updatedAt,
+  };
+
+  if (viewerIsAdmin || isSelf) {
+    result.email = target.email;
+    result.profileVisibility = target.profileVisibility;
+    result.showLocation = target.showLocation;
+    result.showInterests = target.showInterests;
+    result.notifyDms = target.notifyDms;
+    result.notifyCommunities = target.notifyCommunities;
+    result.notifyForums = target.notifyForums;
+    result.notifyFeed = target.notifyFeed;
+    result.dmPrivacy = target.dmPrivacy;
+  }
+
+  if (target.showLocation || viewerIsAdmin || isSelf) {
+    result.city = target.city;
+    result.state = target.state;
+    result.zipCode = target.zipCode;
+  }
+
+  if ((target.showInterests || viewerIsAdmin || isSelf) && (target as any).interestTags) {
+    result.interestTags = (target as any).interestTags;
+  }
+
+  return result;
+}
+
 export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Set up authentication
   setupAuth(app);
@@ -135,6 +184,24 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     standardHeaders: true,
     legacyHeaders: false,
   });
+
+  const generalApiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    message: 'Rate limit exceeded. Please slow down.',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const uploadLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 20,
+    message: 'Too many uploads. Try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.use('/api', generalApiLimiter);
 
   // Set up Socket.IO for real-time chat
   const io = new SocketIOServer(httpServer, {
@@ -350,24 +417,22 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   // User endpoints (gated by AUTH feature)
   if (FEATURES.AUTH) {
-    app.get('/api/users', async (req, res) => {
+    app.get('/api/users', isAuthenticated, async (req, res) => {
+      const viewerId = getSessionUserId(req)!;
+      const viewerIsAdmin = req.session?.isAdmin === true;
       try {
         if (req.query.search) {
           const searchTerm = req.query.search as string;
           const users = await storage.searchUsers(searchTerm);
-          // Remove password and other sensitive fields from each user
-          const sanitizedUsers = users.map(user => {
-            const { password, ...userData } = user;
-            return userData;
-          });
+          const sanitizedUsers = users
+            .filter(user => canViewProfile(user, viewerId, viewerIsAdmin))
+            .map(user => sanitizeUserForResponse(user, viewerId, viewerIsAdmin));
           return res.json(sanitizedUsers);
         }
         const users = await storage.getAllUsers();
-        // Remove password and other sensitive fields from each user
-        const sanitizedUsers = users.map(user => {
-          const { password, ...userData } = user;
-          return userData;
-        });
+        const sanitizedUsers = users
+          .filter(user => canViewProfile(user, viewerId, viewerIsAdmin))
+          .map(user => sanitizeUserForResponse(user, viewerId, viewerIsAdmin));
         res.json(sanitizedUsers);
       } catch (error) {
         console.error('Error fetching users:', error);
@@ -375,25 +440,33 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
     });
 
-    app.get('/api/users/:id', async (req, res) => {
+    app.get('/api/users/:id', isAuthenticated, async (req, res) => {
       try {
+        const viewerId = getSessionUserId(req)!;
+        const viewerIsAdmin = req.session?.isAdmin === true;
         const userId = parseInt(req.params.id);
         const user = await storage.getUser(userId);
         if (!user) {
           return res.status(404).json({ message: 'User not found' });
         }
-        // Remove password from response
-        const { password, ...userData } = user;
-        res.json(userData);
+        if (!canViewProfile(user, viewerId, viewerIsAdmin)) {
+          return res.status(403).json({ message: 'This profile is private' });
+        }
+        res.json(sanitizeUserForResponse(user, viewerId, viewerIsAdmin));
       } catch (error) {
         console.error('Error fetching user:', error);
         res.status(500).json({ message: 'Error fetching user' });
       }
     });
 
-    app.get('/users/:id/liked-microblogs', async (req, res) => {
+    app.get('/api/users/:id/liked-microblogs', isAuthenticated, async (req, res) => {
       try {
         const userId = parseInt(req.params.id);
+        const viewerId = getSessionUserId(req)!;
+        const viewerIsAdmin = req.session?.isAdmin === true;
+        if (viewerId !== userId && !viewerIsAdmin) {
+          return res.status(403).json({ message: 'Not authorized to view likes' });
+        }
         const likedMicroblogs = await storage.getUserLikedMicroblogs(userId);
         res.json(likedMicroblogs);
       } catch (error) {
@@ -402,15 +475,15 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
     });
 
-    app.get('/api/users/verified-apologetics-answerers', async (req, res) => {
+    app.get('/api/users/verified-apologetics-answerers', isAuthenticated, async (req, res) => {
       try {
+        const viewerId = getSessionUserId(req)!;
+        const viewerIsAdmin = req.session?.isAdmin === true;
         const users = await storage.getAllUsers();
         const verifiedAnswerers = users.filter(user => user.isVerifiedApologeticsAnswerer);
-        // Remove password and other sensitive fields from each user
-        const sanitizedUsers = verifiedAnswerers.map(user => {
-          const { password, ...userData } = user;
-          return userData;
-        });
+        const sanitizedUsers = verifiedAnswerers
+          .filter(user => canViewProfile(user, viewerId, viewerIsAdmin))
+          .map(user => sanitizeUserForResponse(user, viewerId, viewerIsAdmin));
         res.json(sanitizedUsers);
       } catch (error) {
         console.error('Error fetching verified apologetics answerers:', error);
@@ -473,6 +546,8 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         ...req.body,
         createdBy: userId
       });
+      await ensureCleanText(validatedData.name, 'Community name');
+      await ensureCleanText(validatedData.description, 'Community description');
 
       const community = await storage.createCommunity(validatedData);
       
@@ -485,6 +560,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
       res.status(201).json(community);
     } catch (error) {
+      if (handleModerationError(res, error)) return;
       console.error('Error creating community:', error);
       res.status(500).json({ message: 'Error creating community' });
     }
@@ -973,6 +1049,8 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(403).json({ message: 'Must be a member to post on community wall' });
       }
 
+      await ensureCleanText(content, 'Community wall post');
+
       const post = await storage.createCommunityWallPost({
         communityId: communityId,
         authorId: userId,
@@ -982,6 +1060,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
       res.status(201).json(post);
     } catch (error) {
+      if (handleModerationError(res, error)) return;
       console.error('Error creating wall post:', error);
       res.status(500).json({ message: 'Error creating wall post' });
     }
@@ -1029,10 +1108,13 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         ...req.body,
         authorId: userId
       });
+      await ensureCleanText(validatedData.title, 'Post title');
+      await ensureCleanText(validatedData.content, 'Post content');
 
       const post = await storage.createPost(validatedData);
       res.status(201).json(post);
     } catch (error) {
+      if (handleModerationError(res, error)) return;
       console.error('Error creating post:', error);
       res.status(500).json({ message: 'Error creating post' });
     }
@@ -1068,10 +1150,12 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         ...req.body,
         authorId: userId
       });
+      await ensureCleanText(validatedData.content, 'Comment content');
 
       const comment = await storage.createComment(validatedData);
       res.status(201).json(comment);
     } catch (error) {
+      if (handleModerationError(res, error)) return;
       console.error('Error creating comment:', error);
       res.status(500).json({ message: 'Error creating comment' });
     }
@@ -1122,10 +1206,12 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         ...req.body,
         authorId: userId
       });
+      await ensureCleanText(validatedData.content, 'Microblog content');
 
       const microblog = await storage.createMicroblog(validatedData);
       res.status(201).json(microblog);
     } catch (error) {
+      if (handleModerationError(res, error)) return;
       console.error('Error creating microblog:', error);
       res.status(500).json({ message: 'Error creating microblog' });
     }
@@ -1219,10 +1305,14 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         ...req.body,
         organizerId: userId
       });
+      await ensureCleanText(validatedData.title, 'Event title');
+      await ensureCleanText(validatedData.description, 'Event description');
+      await ensureCleanText(validatedData.location, 'Event location');
 
       const event = await storage.createEvent(validatedData);
       res.status(201).json(event);
     } catch (error) {
+      if (handleModerationError(res, error)) return;
       console.error('Error creating event:', error);
       res.status(500).json({ message: 'Error creating event' });
     }
@@ -1313,10 +1403,13 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         ...req.body,
         userId: userId
       });
+      await ensureCleanText(validatedData.title, 'Prayer request title');
+      await ensureCleanText(validatedData.description, 'Prayer request description');
 
       const prayerRequest = await storage.createPrayerRequest(validatedData);
       res.status(201).json(prayerRequest);
     } catch (error) {
+      if (handleModerationError(res, error)) return;
       console.error('Error creating prayer request:', error);
       res.status(500).json({ message: 'Error creating prayer request' });
     }
@@ -1670,32 +1763,73 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   // Object storage endpoints
-  app.post('/api/objects/upload', isAuthenticated, async (req, res) => {
-    try {
-      const { fileName, fileType } = req.body;
-      
-      // Generate upload parameters (would implement actual cloud storage integration)
-      const uploadParams = {
-        url: `/api/objects/upload/${fileName}`,
-        fields: {
-          key: fileName,
-          'Content-Type': fileType
-        }
-      };
+  const uploadsRoot = path.resolve(process.cwd(), 'public', 'uploads');
 
-      res.json(uploadParams);
+  app.post('/api/objects/upload', uploadLimiter, isAuthenticated, async (req, res) => {
+    try {
+      const { fileName, fileType } = req.body as { fileName?: string; fileType?: string };
+      const userId = getSessionUserId(req)!;
+      ensureAllowedMimeType(fileType, 'upload request');
+      const normalizedName = path.basename(fileName || `upload-${Date.now()}`);
+      const safeBase = normalizedName.replace(/[^a-zA-Z0-9._-]/g, '');
+      await ensureCleanText(safeBase, 'File name');
+      const key = `${userId}/${Date.now()}-${safeBase || 'file'}`;
+      await fs.promises.mkdir(path.join(uploadsRoot, `${userId}`), { recursive: true });
+
+      res.json({
+        uploadUrl: `/api/objects/upload/${encodeURIComponent(key)}`,
+        method: 'PUT',
+        headers: { 'Content-Type': fileType || 'application/octet-stream' },
+        assetUrl: `/uploads/${key}`
+      });
     } catch (error) {
+      if (handleModerationError(res, error)) return;
       console.error('Error generating upload parameters:', error);
       res.status(500).json({ message: 'Error generating upload parameters' });
     }
   });
 
+  app.put(
+    '/api/objects/upload/:key',
+    uploadLimiter,
+    isAuthenticated,
+    express.raw({ type: '*/*', limit: '25mb' }),
+    async (req, res) => {
+      try {
+        if (!Buffer.isBuffer(req.body)) {
+          return res.status(400).json({ message: 'Invalid upload payload' });
+        }
+
+        const userId = getSessionUserId(req)!;
+        const rawKey = decodeURIComponent(req.params.key);
+        const relativePath = path.normalize(rawKey).replace(/^(\.\.[/\\])+/, '');
+        const [ownerId] = relativePath.split(/[\\/]/);
+        const isAdminRequest = req.session?.isAdmin === true;
+
+        if (parseInt(ownerId) !== userId && !isAdminRequest) {
+          return res.status(403).json({ message: 'Not authorized to upload for this user' });
+        }
+
+        ensureSafeBinaryUpload(req.body, req.headers['content-type'], 'binary upload');
+
+        const destination = path.join(uploadsRoot, relativePath);
+        await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+        await fs.promises.writeFile(destination, req.body);
+
+        res.json({ url: `/uploads/${relativePath}` });
+      } catch (error) {
+        if (handleModerationError(res, error)) return;
+        console.error('Error saving upload:', error);
+        res.status(500).json({ message: 'Error uploading file' });
+      }
+    }
+  );
+
   // Notifications endpoints
   app.get('/api/notifications', isAuthenticated, async (req, res) => {
     try {
   const userId = getSessionUserId(req)!;
-      // This would need to be implemented in storage
-      const notifications = []; // await storage.getUserNotifications(userId);
+      const notifications = await storage.getUserNotifications(userId);
       res.json(notifications);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -1707,9 +1841,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     try {
       const notificationId = parseInt(req.params.id);
   const userId = getSessionUserId(req)!;
-      
-      // This would need to be implemented in storage
-      // await storage.markNotificationAsRead(notificationId, userId);
+      const updated = await storage.markNotificationAsRead(notificationId, userId);
+      if (!updated) {
+        return res.status(404).json({ message: 'Notification not found' });
+      }
       res.json({ message: 'Notification marked as read' });
     } catch (error) {
       console.error('Error marking notification as read:', error);
