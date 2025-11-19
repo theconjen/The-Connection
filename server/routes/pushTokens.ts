@@ -1,6 +1,7 @@
 import express from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
+import { buildErrorResponse } from "../utils/errors";
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ router.post("/register", isAuthenticated, async (req, res) => {
     res.json(pushToken);
   } catch (error) {
     console.error("Error registering push token:", error);
-    res.status(500).json({ message: "Error registering push token" });
+    res.status(500).json(buildErrorResponse("Error registering push token", error));
   }
 });
 
@@ -55,7 +56,7 @@ async function handleUnregister(req: express.Request, res: express.Response) {
     return res.status(204).end();
   } catch (error) {
     console.error("Error unregistering push token:", error);
-    res.status(500).json({ message: "Error unregistering push token" });
+    res.status(500).json(buildErrorResponse("Error unregistering push token", error));
   }
 }
 

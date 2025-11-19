@@ -93,6 +93,11 @@ To deploy the web app to Vercel:
 - Admin dashboard
 - Real-time features
 
+### Posts vs. Microblogs
+
+- **Posts** are longer-form discussions that belong to communities or groups, support threaded comments, and surface in the forums/feed experiences.
+- **Microblogs** are quick status-style updates (think Twitter threads) limited to a few hundred characters and optimized for lightweight engagement in the feed.
+
 ## Project Structure
 
 - `/server` - Backend API and authentication
@@ -111,3 +116,4 @@ The application serves both frontend and backend on the same port using Vite's d
 ### Testing
 
 - Web E2E tests are documented in `apps/web/TESTING.md` (use test IDs only; install the fetch stub before navigation; tests run with a blank API base).
+gd

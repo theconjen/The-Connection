@@ -4,6 +4,7 @@ import { organizations, organizationUsers, users } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { insertOrganizationSchema, insertOrganizationUserSchema } from "@shared/schema";
+import { buildErrorResponse } from "../utils/errors";
 
 const router = express.Router();
 
@@ -76,7 +77,7 @@ router.get("/:id", requireAuth, async (req, res) => {
     res.json(organization);
   } catch (error) {
     console.error("Error fetching organization:", error);
-    res.status(500).json({ message: "Failed to fetch organization" });
+    res.status(500).json(buildErrorResponse("Failed to fetch organization", error));
   }
 });
 
@@ -98,7 +99,7 @@ router.get("/", requireAuth, async (req, res) => {
     res.json(userOrganizations);
   } catch (error) {
     console.error("Error fetching user organizations:", error);
-    res.status(500).json({ message: "Failed to fetch organizations" });
+    res.status(500).json(buildErrorResponse("Failed to fetch organizations", error));
   }
 });
 
@@ -149,7 +150,7 @@ router.post("/:id/invite", requireAuth, async (req, res) => {
     res.json(membership);
   } catch (error) {
     console.error("Error inviting user:", error);
-    res.status(500).json({ message: "Failed to invite user" });
+    res.status(500).json(buildErrorResponse("Failed to invite user", error));
   }
 });
 
@@ -191,7 +192,7 @@ router.get("/:id/members", requireAuth, async (req, res) => {
     res.json(members);
   } catch (error) {
     console.error("Error fetching members:", error);
-    res.status(500).json({ message: "Failed to fetch members" });
+    res.status(500).json(buildErrorResponse("Failed to fetch members", error));
   }
 });
 
@@ -229,7 +230,7 @@ router.patch("/:id/plan", requireAuth, async (req, res) => {
     res.json(updatedOrg);
   } catch (error) {
     console.error("Error updating organization plan:", error);
-    res.status(500).json({ message: "Failed to update plan" });
+    res.status(500).json(buildErrorResponse("Failed to update plan", error));
   }
 });
 
@@ -279,7 +280,7 @@ router.delete("/:id/members/:userId", requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error("Error removing member:", error);
-    res.status(500).json({ message: "Failed to remove member" });
+    res.status(500).json(buildErrorResponse("Failed to remove member", error));
   }
 });
 

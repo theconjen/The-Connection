@@ -3,16 +3,10 @@ import { storage } from '../storage-optimized';
 import { db } from '../db';
 import { posts, userBlocks } from '@shared/schema';
 import { and, desc, inArray, lt, not, eq } from 'drizzle-orm';
+import { getSessionUserId } from '../utils/session';
+import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
-
-function getSessionUserId(req: any): number | undefined {
-  const raw = req.session?.userId;
-  if (raw === undefined || raw === null) return undefined;
-  if (typeof raw === 'number') return raw;
-  const n = parseInt(String(raw));
-  return Number.isFinite(n) ? n : undefined;
-}
 
 // Prefer DB-backed pagination when explicitly enabled
 const USE_DB_FEED = process.env.FEED_USE_DB === 'true';
@@ -103,7 +97,7 @@ router.get('/feed', async (req, res) => {
     return respondWithStorageFallback();
   } catch (err) {
     console.error('Error fetching feed:', err);
-    res.status(500).json({ message: 'Error fetching feed' });
+    res.status(500).json(buildErrorResponse('Error fetching feed', error));
   }
 });
 

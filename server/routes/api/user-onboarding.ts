@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { storage } from "../../storage-optimized";
 import { isAuthenticated } from "../../auth";
 import { z } from "zod/v4";
+import { buildErrorResponse } from "../../utils/errors";
 
 // Schema for validating onboarding data
 const onboardingSchema = z.object({
@@ -67,7 +68,7 @@ export const handleOnboarding = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Error in onboarding:", error);
-    res.status(500).json({ message: "Server error during onboarding" });
+    res.status(500).json(buildErrorResponse("Server error during onboarding", error));
   }
 };
 

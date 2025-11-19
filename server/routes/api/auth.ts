@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { sendEmail } from '../../email';
 import rateLimit from 'express-rate-limit';
+import { buildErrorResponse } from '../../utils/errors';
 
 const router = Router();
 
@@ -57,7 +58,7 @@ router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
     return res.json({ token, message: 'Magic code sent' });
   } catch (error) {
     console.error('Magic auth error:', error);
-    res.status(500).json({ message: 'Server error during magic auth' });
+    res.status(500).json(buildErrorResponse('Server error during magic auth', error));
   }
 });
 
@@ -77,14 +78,14 @@ router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
       console.error('FATAL ERROR: JWT_SECRET environment variable is required');
-      return res.status(500).json({ message: 'Server configuration error' });
+      return res.status(500).json(buildErrorResponse('Server configuration error', new Error('Missing JWT_SECRET')));
     }
 
     const jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });
     return res.json({ token: jwtToken, user });
   } catch (error) {
     console.error('Magic verify error:', error);
-    res.status(500).json({ message: 'Server error during verification' });
+    res.status(500).json(buildErrorResponse('Server error during verification', error));
   }
 });
 
@@ -120,7 +121,7 @@ router.post('/login', async (req, res) => {
     req.session.save(err => {
       if (err) {
         console.error('Session save error:', err);
-        return res.status(500).json({ message: "Error saving session" });
+        return res.status(500).json(buildErrorResponse("Error saving session", err));
       }
       
       // Return user data (excluding password)
@@ -130,7 +131,7 @@ router.post('/login', async (req, res) => {
     
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: "Server error during login" });
+    res.status(500).json(buildErrorResponse("Server error during login", error));
   }
 });
 
@@ -141,7 +142,7 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      return res.status(500).json({ message: "Error logging out" });
+      return res.status(500).json(buildErrorResponse("Error logging out", err));
     }
     res.json({ message: "Logged out successfully" });
   });
@@ -171,7 +172,7 @@ router.get('/user', async (req, res) => {
     res.json(userData);
   } catch (error) {
     console.error('Error fetching user details:', error);
-    res.status(500).json({ message: "Error fetching user details" });
+    res.status(500).json(buildErrorResponse("Error fetching user details", error));
   }
 });
 

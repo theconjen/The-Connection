@@ -1,5 +1,6 @@
 import express from "express";
 import { storage } from "../storage";
+import { buildErrorResponse } from "../utils/errors";
 // Authentication middleware
 const isAuthenticated = (req: any, res: any, next: any) => {
   if (!req.session || !req.session.userId) {
@@ -32,7 +33,7 @@ router.get("/settings", async (req, res) => {
     res.json(userData);
   } catch (error) {
     console.error('Error fetching user settings:', error);
-    res.status(500).json({ message: 'Error fetching user settings' });
+    res.status(500).json(buildErrorResponse('Error fetching user settings', error));
   }
 });
 
@@ -60,7 +61,7 @@ router.put("/settings", async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating user settings:', error);
-    res.status(500).json({ message: 'Error updating user settings' });
+    res.status(500).json(buildErrorResponse('Error updating user settings', error));
   }
 });
 

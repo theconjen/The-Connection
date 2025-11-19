@@ -1,4 +1,6 @@
-import { getUserId } from "./utils/session"
+import { getSessionUserId } from "./utils/session"
+import { buildErrorResponse } from "./utils/errors"
+import { getPaginationParams, attachPaginationHeaders } from "./utils/pagination"
 import express, { Express } from 'express';
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -147,6 +149,24 @@ function sanitizeUserForResponse(target: User, viewerId?: number, viewerIsAdmin?
   }
 
   return result;
+}
+
+function parseNumericQuery(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  const parsed = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function haversineDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRadians = (deg: number) => (deg * Math.PI) / 180;
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMiles * c;
 }
 
 export async function registerRoutes(app: Express, httpServer: HTTPServer) {
@@ -370,15 +390,6 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api', apologeticsRoutes);
   }
   
-  // Helper to normalize session userId to number
-  function getSessionUserId(req: any): number | undefined {
-    const raw = req.session?.userId;
-    if (raw === undefined || raw === null) return undefined;
-    if (typeof raw === 'number') return raw;
-    const n = parseInt(String(raw));
-    return Number.isFinite(n) ? n : undefined;
-  }
-
   // Get current user endpoint (must be before userRoutes)
   app.get('/api/user', async (req, res) => {
     try {
@@ -403,7 +414,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(userData);
     } catch (error) {
       console.error('Error fetching current user:', error);
-      res.status(500).json({ message: 'Error fetching user' });
+      res.status(500).json(buildErrorResponse('Error fetching user', error));
     }
   });
   
@@ -436,7 +447,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         res.json(sanitizedUsers);
       } catch (error) {
         console.error('Error fetching users:', error);
-        res.status(500).json({ message: 'Error fetching users' });
+        res.status(500).json(buildErrorResponse('Error fetching users', error));
       }
     });
 
@@ -455,7 +466,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         res.json(sanitizeUserForResponse(user, viewerId, viewerIsAdmin));
       } catch (error) {
         console.error('Error fetching user:', error);
-        res.status(500).json({ message: 'Error fetching user' });
+        res.status(500).json(buildErrorResponse('Error fetching user', error));
       }
     });
 
@@ -471,7 +482,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         res.json(likedMicroblogs);
       } catch (error) {
         console.error('Error fetching liked microblogs:', error);
-        res.status(500).json({ message: 'Error fetching liked microblogs' });
+        res.status(500).json(buildErrorResponse('Error fetching liked microblogs', error));
       }
     });
 
@@ -487,7 +498,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         res.json(sanitizedUsers);
       } catch (error) {
         console.error('Error fetching verified apologetics answerers:', error);
-        res.status(500).json({ message: 'Error fetching verified apologetics answerers' });
+        res.status(500).json(buildErrorResponse('Error fetching verified apologetics answerers', error));
       }
     });
   }
@@ -497,19 +508,22 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.get('/api/communities', async (req, res) => {
       try {
         const userId = getSessionUserId(req);
-        const searchQuery = req.query.search as string;
+        const searchQuery = typeof req.query.search === 'string' ? req.query.search : undefined;
         let communities = await storage.getPublicCommunitiesAndUserCommunities(userId, searchQuery);
-        // If user is authenticated, filter out communities owned by users they've blocked
         if (userId) {
           const blockedIds = await storage.getBlockedUserIdsFor(userId);
           if (blockedIds && blockedIds.length > 0) {
             communities = communities.filter(c => !blockedIds.includes(c.createdBy));
           }
         }
-        res.json(communities);
+
+        const pagination = getPaginationParams(req.query);
+        const paginated = communities.slice(pagination.offset, pagination.offset + pagination.limit);
+        attachPaginationHeaders(res, communities.length, pagination);
+        res.json(paginated);
       } catch (error) {
         console.error('Error fetching communities:', error);
-        res.status(500).json({ message: 'Error fetching communities' });
+        res.status(500).json(buildErrorResponse('Error fetching communities', error));
       }
     });
 
@@ -535,7 +549,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(community);
     } catch (error) {
       console.error('Error fetching community:', error);
-      res.status(500).json({ message: 'Error fetching community' });
+      res.status(500).json(buildErrorResponse('Error fetching community', error));
     }
   });
 
@@ -562,7 +576,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       if (handleModerationError(res, error)) return;
       console.error('Error creating community:', error);
-      res.status(500).json({ message: 'Error creating community' });
+      res.status(500).json(buildErrorResponse('Error creating community', error));
     }
   });
 
@@ -598,7 +612,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ message: 'Successfully joined community' });
     } catch (error) {
       console.error('Error joining community:', error);
-      res.status(500).json({ message: 'Error joining community' });
+      res.status(500).json(buildErrorResponse('Error joining community', error));
     }
   });
 
@@ -623,7 +637,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ message: 'Successfully left community' });
     } catch (error) {
       console.error('Error leaving community:', error);
-      res.status(500).json({ message: 'Error leaving community' });
+      res.status(500).json(buildErrorResponse('Error leaving community', error));
     }
   });
 
@@ -646,7 +660,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(members);
     } catch (error) {
       console.error('Error fetching community members:', error);
-      res.status(500).json({ message: 'Error fetching community members' });
+      res.status(500).json(buildErrorResponse('Error fetching community members', error));
     }
   });
 
@@ -715,7 +729,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(invitation);
     } catch (error) {
       console.error('Error creating community invitation:', error);
-      res.status(500).json({ message: 'Error creating community invitation' });
+      res.status(500).json(buildErrorResponse('Error creating community invitation', error));
     }
   });
 
@@ -749,7 +763,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ message: 'Member removed successfully' });
     } catch (error) {
       console.error('Error removing community member:', error);
-      res.status(500).json({ message: 'Error removing community member' });
+      res.status(500).json(buildErrorResponse('Error removing community member', error));
     }
   });
 
@@ -770,7 +784,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(invitation);
     } catch (error) {
       console.error('Error fetching invitation:', error);
-      res.status(500).json({ message: 'Error fetching invitation' });
+      res.status(500).json(buildErrorResponse('Error fetching invitation', error));
     }
   });
 
@@ -809,7 +823,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ message: 'Successfully joined community' });
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      res.status(500).json({ message: 'Error accepting invitation' });
+      res.status(500).json(buildErrorResponse('Error accepting invitation', error));
     }
   });
 
@@ -841,7 +855,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
     } catch (error) {
       console.error('Error fetching chat rooms:', error);
-      res.status(500).json({ message: 'Error fetching chat rooms' });
+      res.status(500).json(buildErrorResponse('Error fetching chat rooms', error));
     }
   });
 
@@ -889,7 +903,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(room);
     } catch (error) {
       console.error('Error creating chat room:', error);
-      res.status(500).json({ message: 'Error creating chat room' });
+      res.status(500).json(buildErrorResponse('Error creating chat room', error));
     }
   });
 
@@ -921,7 +935,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(updatedRoom);
     } catch (error) {
       console.error('Error updating chat room:', error);
-      res.status(500).json({ message: 'Error updating chat room' });
+      res.status(500).json(buildErrorResponse('Error updating chat room', error));
     }
   });
 
@@ -947,7 +961,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ message: 'Chat room deleted successfully' });
     } catch (error) {
       console.error('Error deleting chat room:', error);
-      res.status(500).json({ message: 'Error deleting chat room' });
+      res.status(500).json(buildErrorResponse('Error deleting chat room', error));
     }
   });
 
@@ -967,7 +981,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(messages);
     } catch (error) {
       console.error('Error fetching messages:', error);
-      res.status(500).json({ message: 'Error fetching messages' });
+      res.status(500).json(buildErrorResponse('Error fetching messages', error));
     }
   });
 
@@ -997,7 +1011,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(messageWithSender);
     } catch (error) {
       console.error('Error creating message:', error);
-      res.status(500).json({ message: 'Error creating message' });
+      res.status(500).json(buildErrorResponse('Error creating message', error));
     }
   });
 
@@ -1021,7 +1035,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(posts);
     } catch (error) {
       console.error('Error fetching wall posts:', error);
-      res.status(500).json({ message: 'Error fetching wall posts' });
+      res.status(500).json(buildErrorResponse('Error fetching wall posts', error));
     }
   });
 
@@ -1062,7 +1076,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       if (handleModerationError(res, error)) return;
       console.error('Error creating wall post:', error);
-      res.status(500).json({ message: 'Error creating wall post' });
+      res.status(500).json(buildErrorResponse('Error creating wall post', error));
     }
   });
 
@@ -1070,22 +1084,37 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Posts endpoints
   if (FEATURES.POSTS) {
     app.get('/api/posts', async (req, res) => {
-    try {
-      const filter = req.query.filter as string;
-      const userId = getSessionUserId(req);
-      let posts = await storage.getAllPosts(filter);
-      if (userId) {
-        const blockedIds = await storage.getBlockedUserIdsFor(userId);
-        if (blockedIds && blockedIds.length > 0) {
-          posts = posts.filter(p => !blockedIds.includes(p.authorId));
+      try {
+        const filterMap: Record<string, 'top' | 'hot' | undefined> = {
+          top: 'top',
+          popular: 'top',
+          hot: 'hot',
+          new: undefined,
+          recent: undefined,
+        };
+        const rawFilter = typeof req.query.filter === 'string' ? req.query.filter.toLowerCase() : undefined;
+        if (rawFilter && !(rawFilter in filterMap)) {
+          return res.status(400).json({ message: 'Invalid filter value' });
         }
+
+        const userId = getSessionUserId(req);
+        let posts = await storage.getAllPosts(rawFilter ? filterMap[rawFilter] : undefined);
+        if (userId) {
+          const blockedIds = await storage.getBlockedUserIdsFor(userId);
+          if (blockedIds && blockedIds.length > 0) {
+            posts = posts.filter(p => !blockedIds.includes(p.authorId));
+          }
+        }
+
+        const pagination = getPaginationParams(req.query);
+        const paginated = posts.slice(pagination.offset, pagination.offset + pagination.limit);
+        attachPaginationHeaders(res, posts.length, pagination);
+        res.json(paginated);
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+        res.status(500).json(buildErrorResponse('Error fetching posts', error));
       }
-      res.json(posts);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      res.status(500).json({ message: 'Error fetching posts' });
-    }
-  });
+    });
 
   app.get('/api/posts/:id', async (req, res) => {
     try {
@@ -1097,7 +1126,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(post);
     } catch (error) {
       console.error('Error fetching post:', error);
-      res.status(500).json({ message: 'Error fetching post' });
+      res.status(500).json(buildErrorResponse('Error fetching post', error));
     }
   });
 
@@ -1116,18 +1145,22 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       if (handleModerationError(res, error)) return;
       console.error('Error creating post:', error);
-      res.status(500).json({ message: 'Error creating post' });
+      res.status(500).json(buildErrorResponse('Error creating post', error));
     }
   });
 
     app.post('/api/posts/:id/upvote', isAuthenticated, async (req, res) => {
     try {
       const postId = parseInt(req.params.id);
-      const post = await storage.upvotePost(postId);
-      res.json(post);
+      const userId = getSessionUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+      const result = await storage.togglePostVote(postId, userId);
+      res.json({ ...result.post, userHasUpvoted: result.voted });
     } catch (error) {
-      console.error('Error upvoting post:', error);
-      res.status(500).json({ message: 'Error upvoting post' });
+      console.error('Error toggling post upvote:', error);
+      res.status(500).json(buildErrorResponse('Error toggling post upvote', error));
     }
   });
 
@@ -1139,7 +1172,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(comments);
     } catch (error) {
       console.error('Error fetching comments:', error);
-      res.status(500).json({ message: 'Error fetching comments' });
+      res.status(500).json(buildErrorResponse('Error fetching comments', error));
     }
   });
 
@@ -1157,18 +1190,22 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       if (handleModerationError(res, error)) return;
       console.error('Error creating comment:', error);
-      res.status(500).json({ message: 'Error creating comment' });
+      res.status(500).json(buildErrorResponse('Error creating comment', error));
     }
   });
 
   app.post('/api/comments/:id/upvote', isAuthenticated, async (req, res) => {
     try {
       const commentId = parseInt(req.params.id);
-      const comment = await storage.upvoteComment(commentId);
-      res.json(comment);
+      const userId = getSessionUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+      const result = await storage.toggleCommentVote(commentId, userId);
+      res.json({ ...result.comment, userHasUpvoted: result.voted });
     } catch (error) {
-      console.error('Error upvoting comment:', error);
-      res.status(500).json({ message: 'Error upvoting comment' });
+      console.error('Error toggling comment upvote:', error);
+      res.status(500).json(buildErrorResponse('Error toggling comment upvote', error));
     }
   });
   }
@@ -1181,7 +1218,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(microblogs);
     } catch (error) {
       console.error('Error fetching microblogs:', error);
-      res.status(500).json({ message: 'Error fetching microblogs' });
+      res.status(500).json(buildErrorResponse('Error fetching microblogs', error));
     }
   });
 
@@ -1195,7 +1232,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(microblog);
     } catch (error) {
       console.error('Error fetching microblog:', error);
-      res.status(500).json({ message: 'Error fetching microblog' });
+      res.status(500).json(buildErrorResponse('Error fetching microblog', error));
     }
   });
 
@@ -1213,7 +1250,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       if (handleModerationError(res, error)) return;
       console.error('Error creating microblog:', error);
-      res.status(500).json({ message: 'Error creating microblog' });
+      res.status(500).json(buildErrorResponse('Error creating microblog', error));
     }
   });
 
@@ -1226,7 +1263,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(like);
     } catch (error) {
       console.error('Error liking microblog:', error);
-      res.status(500).json({ message: 'Error liking microblog' });
+      res.status(500).json(buildErrorResponse('Error liking microblog', error));
     }
   });
 
@@ -1239,14 +1276,13 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ message: 'Microblog unliked successfully' });
     } catch (error) {
       console.error('Error unliking microblog:', error);
-      res.status(500).json({ message: 'Error unliking microblog' });
+      res.status(500).json(buildErrorResponse('Error unliking microblog', error));
     }
   });
 
   // Events endpoints
   app.get('/api/events', async (req, res) => {
     try {
-      const filter = req.query.filter as string;
       const userId = getSessionUserId(req);
       let events = await storage.getAllEvents();
       if (userId) {
@@ -1255,10 +1291,13 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
           events = events.filter(e => !blockedIds.includes(e.creatorId));
         }
       }
-      res.json(events);
+      const pagination = getPaginationParams(req.query);
+      const paginated = events.slice(pagination.offset, pagination.offset + pagination.limit);
+      attachPaginationHeaders(res, events.length, pagination);
+      res.json(paginated);
     } catch (error) {
       console.error('Error fetching events:', error);
-      res.status(500).json({ message: 'Error fetching events' });
+      res.status(500).json(buildErrorResponse('Error fetching events', error));
     }
   });
 
@@ -1266,21 +1305,43 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     try {
       const allEvents = await storage.getAllEvents();
       const events = allEvents.filter(event => event.isPublic);
-      res.json(events);
+      const pagination = getPaginationParams(req.query);
+      const paginated = events.slice(pagination.offset, pagination.offset + pagination.limit);
+      attachPaginationHeaders(res, events.length, pagination);
+      res.json(paginated);
     } catch (error) {
       console.error('Error fetching public events:', error);
-      res.status(500).json({ message: 'Error fetching public events' });
+      res.status(500).json(buildErrorResponse('Error fetching public events', error));
     }
   });
 
   app.get('/api/events/nearby', async (req, res) => {
     try {
-      const { latitude, longitude, radius } = req.query;
-      const events = await storage.getAllEvents();
-      res.json(events);
+      const latitude = parseNumericQuery(req.query.latitude);
+      const longitude = parseNumericQuery(req.query.longitude);
+      if (latitude === undefined || longitude === undefined) {
+        return res.status(400).json({ message: 'latitude and longitude query parameters are required' });
+      }
+      const requestedRadius = parseNumericQuery(req.query.radius) ?? 25;
+      const radius = Math.min(Math.max(requestedRadius, 1), 250);
+
+      const allEvents = await storage.getAllEvents();
+      const nearby = allEvents.filter(event => {
+        if (!event.latitude || !event.longitude) return false;
+        const eventLat = parseFloat(String(event.latitude));
+        const eventLng = parseFloat(String(event.longitude));
+        if (!Number.isFinite(eventLat) || !Number.isFinite(eventLng)) return false;
+        const distance = haversineDistanceMiles(latitude, longitude, eventLat, eventLng);
+        return distance <= radius;
+      });
+
+      const pagination = getPaginationParams(req.query);
+      const paginated = nearby.slice(pagination.offset, pagination.offset + pagination.limit);
+      attachPaginationHeaders(res, nearby.length, pagination);
+      res.json(paginated);
     } catch (error) {
       console.error('Error fetching nearby events:', error);
-      res.status(500).json({ message: 'Error fetching nearby events' });
+      res.status(500).json(buildErrorResponse('Error fetching nearby events', error));
     }
   });
 
@@ -1294,7 +1355,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(event);
     } catch (error) {
       console.error('Error fetching event:', error);
-      res.status(500).json({ message: 'Error fetching event' });
+      res.status(500).json(buildErrorResponse('Error fetching event', error));
     }
   });
 
@@ -1303,7 +1364,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   const userId = getSessionUserId(req)!;
       const validatedData = insertEventSchema.parse({
         ...req.body,
-        organizerId: userId
+        creatorId: userId
       });
       await ensureCleanText(validatedData.title, 'Event title');
       await ensureCleanText(validatedData.description, 'Event description');
@@ -1314,7 +1375,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       if (handleModerationError(res, error)) return;
       console.error('Error creating event:', error);
-      res.status(500).json({ message: 'Error creating event' });
+      res.status(500).json(buildErrorResponse('Error creating event', error));
     }
   });
 
@@ -1338,21 +1399,28 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(404).json({ message: 'Event not found' });
       }
 
-      // Check authorization for private events
-      if (!event.isPublic && event.communityId) {
-        const isMember = await storage.isCommunityMember(userId, event.communityId);
-        if (!isMember) {
+      if (!event.isPublic) {
+        let hasAccess = false;
+        if (event.communityId) {
+          hasAccess = await storage.isCommunityMember(event.communityId, userId).catch(() => false);
+        } else if (event.groupId) {
+          hasAccess = await storage.isGroupMember(event.groupId, userId);
+        } else {
+          hasAccess = event.creatorId === userId;
+        }
+
+        if (!hasAccess) {
           return res.status(403).json({
             message: 'You do not have access to this private event'
           });
         }
       }
 
-      const rsvp = await storage.updateEventRSVP(eventId, status);
+      const rsvp = await storage.upsertEventRSVP(eventId, userId, status);
       res.json(rsvp);
     } catch (error) {
       console.error('Error updating RSVP:', error);
-      res.status(500).json({ message: 'Error updating RSVP' });
+      res.status(500).json(buildErrorResponse('Error updating RSVP', error));
     }
   });
 
@@ -1368,7 +1436,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
 
       // Check if user is organizer or admin (verify admin status from database)
-      if (event.organizerId !== userId) {
+      if (event.creatorId !== userId) {
         const user = await storage.getUser(userId);
         if (!user?.isAdmin) {
           return res.status(403).json({
@@ -1381,7 +1449,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ message: 'Event deleted successfully' });
     } catch (error) {
       console.error('Error deleting event:', error);
-      res.status(500).json({ message: 'Error deleting event' });
+      res.status(500).json(buildErrorResponse('Error deleting event', error));
     }
   });
 
@@ -1392,7 +1460,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(prayerRequests);
     } catch (error) {
       console.error('Error fetching prayer requests:', error);
-      res.status(500).json({ message: 'Error fetching prayer requests' });
+      res.status(500).json(buildErrorResponse('Error fetching prayer requests', error));
     }
   });
 
@@ -1411,7 +1479,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       if (handleModerationError(res, error)) return;
       console.error('Error creating prayer request:', error);
-      res.status(500).json({ message: 'Error creating prayer request' });
+      res.status(500).json(buildErrorResponse('Error creating prayer request', error));
     }
   });
 
@@ -1428,7 +1496,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(prayer);
     } catch (error) {
       console.error('Error recording prayer:', error);
-      res.status(500).json({ message: 'Error recording prayer' });
+      res.status(500).json(buildErrorResponse('Error recording prayer', error));
     }
   });
 
@@ -1439,7 +1507,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(resources);
     } catch (error) {
       console.error('Error fetching apologetics resources:', error);
-      res.status(500).json({ message: 'Error fetching apologetics resources' });
+      res.status(500).json(buildErrorResponse('Error fetching apologetics resources', error));
     }
   });
 
@@ -1449,7 +1517,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(topics);
     } catch (error) {
       console.error('Error fetching apologetics topics:', error);
-      res.status(500).json({ message: 'Error fetching apologetics topics' });
+      res.status(500).json(buildErrorResponse('Error fetching apologetics topics', error));
     }
   });
 
@@ -1459,7 +1527,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(questions);
     } catch (error) {
       console.error('Error fetching apologetics questions:', error);
-      res.status(500).json({ message: 'Error fetching apologetics questions' });
+      res.status(500).json(buildErrorResponse('Error fetching apologetics questions', error));
     }
   });
 
@@ -1478,7 +1546,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(question);
     } catch (error) {
       console.error('Error creating apologetics question:', error);
-      res.status(500).json({ message: 'Error creating apologetics question' });
+      res.status(500).json(buildErrorResponse('Error creating apologetics question', error));
     }
   });
 
@@ -1502,7 +1570,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(answer);
     } catch (error) {
       console.error('Error creating apologetics answer:', error);
-      res.status(500).json({ message: 'Error creating apologetics answer' });
+      res.status(500).json(buildErrorResponse('Error creating apologetics answer', error));
     }
   });
 
@@ -1514,7 +1582,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(groups);
     } catch (error) {
       console.error('Error fetching groups:', error);
-      res.status(500).json({ message: 'Error fetching groups' });
+      res.status(500).json(buildErrorResponse('Error fetching groups', error));
     }
   });
 
@@ -1540,7 +1608,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(group);
     } catch (error) {
       console.error('Error creating group:', error);
-      res.status(500).json({ message: 'Error creating group' });
+      res.status(500).json(buildErrorResponse('Error creating group', error));
     }
   });
 
@@ -1551,7 +1619,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(livestreams);
     } catch (error) {
       console.error('Error fetching livestreams:', error);
-      res.status(500).json({ message: 'Error fetching livestreams' });
+      res.status(500).json(buildErrorResponse('Error fetching livestreams', error));
     }
   });
 
@@ -1572,7 +1640,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(livestream);
     } catch (error) {
       console.error('Error creating livestream:', error);
-      res.status(500).json({ message: 'Error creating livestream' });
+      res.status(500).json(buildErrorResponse('Error creating livestream', error));
     }
   });
 
@@ -1610,7 +1678,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(application);
     } catch (error) {
       console.error('Error creating livestreamer application:', error);
-      res.status(500).json({ message: 'Error creating livestreamer application' });
+      res.status(500).json(buildErrorResponse('Error creating livestreamer application', error));
     }
   });
 
@@ -1648,7 +1716,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.status(201).json(application);
     } catch (error) {
       console.error('Error creating apologist scholar application:', error);
-      res.status(500).json({ message: 'Error creating apologist scholar application' });
+      res.status(500).json(buildErrorResponse('Error creating apologist scholar application', error));
     }
   });
 
@@ -1698,7 +1766,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(application);
     } catch (error) {
       console.error('Error reviewing application:', error);
-      res.status(500).json({ message: 'Error reviewing application' });
+      res.status(500).json(buildErrorResponse('Error reviewing application', error));
     }
   });
 
@@ -1742,7 +1810,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(application);
     } catch (error) {
       console.error('Error updating application status:', error);
-      res.status(500).json({ message: 'Error updating application status' });
+      res.status(500).json(buildErrorResponse('Error updating application status', error));
     }
   });
 
@@ -1758,7 +1826,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(communities);
     } catch (error) {
       console.error('Error searching communities:', error);
-      res.status(500).json({ message: 'Error searching communities' });
+      res.status(500).json(buildErrorResponse('Error searching communities', error));
     }
   });
 
@@ -1785,7 +1853,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       if (handleModerationError(res, error)) return;
       console.error('Error generating upload parameters:', error);
-      res.status(500).json({ message: 'Error generating upload parameters' });
+      res.status(500).json(buildErrorResponse('Error generating upload parameters', error));
     }
   });
 
@@ -1820,7 +1888,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       } catch (error) {
         if (handleModerationError(res, error)) return;
         console.error('Error saving upload:', error);
-        res.status(500).json({ message: 'Error uploading file' });
+        res.status(500).json(buildErrorResponse('Error uploading file', error));
       }
     }
   );
@@ -1833,7 +1901,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(notifications);
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      res.status(500).json({ message: 'Error fetching notifications' });
+      res.status(500).json(buildErrorResponse('Error fetching notifications', error));
     }
   });
 
@@ -1848,7 +1916,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ message: 'Notification marked as read' });
     } catch (error) {
       console.error('Error marking notification as read:', error);
-      res.status(500).json({ message: 'Error marking notification as read' });
+      res.status(500).json(buildErrorResponse('Error marking notification as read', error));
     }
   });
 
@@ -1860,7 +1928,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(preferences);
     } catch (error) {
       console.error('Error fetching user preferences:', error);
-      res.status(500).json({ message: 'Error fetching user preferences' });
+      res.status(500).json(buildErrorResponse('Error fetching user preferences', error));
     }
   });
 
@@ -1871,7 +1939,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(preferences);
     } catch (error) {
       console.error('Error updating user preferences:', error);
-      res.status(500).json({ message: 'Error updating user preferences' });
+      res.status(500).json(buildErrorResponse('Error updating user preferences', error));
     }
   });
 
@@ -1889,7 +1957,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ success: true });
     } catch (error) {
       console.error('Error recording interaction:', error);
-      res.status(500).json({ message: 'Error recording interaction' });
+      res.status(500).json(buildErrorResponse('Error recording interaction', error));
     }
   });
 
@@ -1906,7 +1974,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(feed.slice(0, limit));
     } catch (error) {
       console.error('Error generating personalized feed:', error);
-      res.status(500).json({ message: 'Error generating personalized feed' });
+      res.status(500).json(buildErrorResponse('Error generating personalized feed', error));
     }
   });
 
@@ -1922,7 +1990,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json(activity);
     } catch (error) {
       console.error('Error fetching friends activity:', error);
-      res.status(500).json({ message: 'Error fetching friends activity' });
+      res.status(500).json(buildErrorResponse('Error fetching friends activity', error));
     }
   });
 
@@ -1938,7 +2006,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       res.json({ message: `Test email sent to ${email}` });
     } catch (error) {
       console.error('Error sending test email:', error);
-      res.status(500).json({ message: 'Error sending test email' });
+      res.status(500).json(buildErrorResponse('Error sending test email', error));
     }
   });
 

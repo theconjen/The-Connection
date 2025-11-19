@@ -1,17 +1,25 @@
-import createHttpError from 'http-errors'
-import type { Request } from 'express'
+import createHttpError from 'http-errors';
+import type { Request } from 'express';
 
-export function normalizeId(id: number | number | undefined): number {
-  const n = Number(id)
-  if (!Number.isFinite(n)) {
-    throw new Error("Invalid ID")
-  }
-  return n
+function normalizeSessionValue(raw: string | number | undefined): number | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  const parsed = parseInt(String(raw), 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
-export function getUserId(raw: string | number | undefined): number {
-  const n = Number(raw)
-  if (!Number.isFinite(n) || n <= 0) {
-    throw new Error("Invalid or missing user ID in session")
+
+export function getSessionUserId(req: Request): number | undefined {
+  const normalized = normalizeSessionValue(req.session?.userId as any);
+  if (normalized === undefined || normalized <= 0) {
+    return undefined;
   }
-  return n
+  return normalized;
+}
+
+export function requireSessionUserId(req: Request): number {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    throw createHttpError(401, 'Not authenticated');
+  }
+  return userId;
 }

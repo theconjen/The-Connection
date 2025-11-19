@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { storage } from "../../storage-optimized";
 import { z } from "zod/v4";
+import { buildErrorResponse } from "../../utils/errors";
 
 const searchSchema = z.object({
   city: z.string().optional(),
@@ -83,7 +84,7 @@ export const handleLocationSearch = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Error in location search:", error);
-    res.status(500).json({ message: "Server error during location search" });
+    res.status(500).json(buildErrorResponse("Server error during location search", error));
   }
 };
 

@@ -3,6 +3,7 @@ import { isAuthenticated } from '../auth';
 import { db, sql } from '../db';
 import { users, posts, communities, events } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.delete('/me', isAuthenticated, async (req: any, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error('Error deleting account:', err);
-    return res.status(500).json({ message: 'Error deleting account' });
+    return res.status(500).json(buildErrorResponse('Error deleting account', err));
   }
 });
 

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, varchar, index, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, varchar, index, uuid, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -361,6 +361,7 @@ export const posts = pgTable("posts", {
   upvotes: integer("upvotes").default(0),
   commentCount: integer("comment_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 } as any);
 
 export const insertPostSchema = createInsertSchema(posts).pick({
@@ -372,6 +373,24 @@ export const insertPostSchema = createInsertSchema(posts).pick({
   authorId: true,
 } as any);
 
+export const postVotes = pgTable(
+  "post_votes",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id").notNull().references(() => posts.id),
+    userId: integer("user_id").notNull().references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("post_votes_post_user_idx").on(table.postId, table.userId),
+  ],
+);
+
+export const insertPostVoteSchema = createInsertSchema(postVotes).pick({
+  postId: true,
+  userId: true,
+} as any);
+
 // Comments table schema
 export const comments = pgTable("comments", {
   id: serial("id").primaryKey(),
@@ -381,6 +400,7 @@ export const comments = pgTable("comments", {
   parentId: integer("parent_id"),
   upvotes: integer("upvotes").default(0),
   createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 } as any);
 
 export const insertCommentSchema = createInsertSchema(comments).pick({
@@ -388,6 +408,24 @@ export const insertCommentSchema = createInsertSchema(comments).pick({
   postId: true,
   authorId: true,
   parentId: true,
+} as any);
+
+export const commentVotes = pgTable(
+  "comment_votes",
+  {
+    id: serial("id").primaryKey(),
+    commentId: integer("comment_id").notNull().references(() => comments.id),
+    userId: integer("user_id").notNull().references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("comment_votes_comment_user_idx").on(table.commentId, table.userId),
+  ],
+);
+
+export const insertCommentVoteSchema = createInsertSchema(commentVotes).pick({
+  commentId: true,
+  userId: true,
 } as any);
 
 // Apologetics resources schema
@@ -474,8 +512,14 @@ export type GroupMember = typeof groupMembers.$inferSelect;
 export type InsertPost = typeof posts.$inferInsert;
 export type Post = typeof posts.$inferSelect;
 
+export type InsertPostVote = typeof postVotes.$inferInsert;
+export type PostVote = typeof postVotes.$inferSelect;
+
 export type InsertComment = typeof comments.$inferInsert;
 export type Comment = typeof comments.$inferSelect;
+
+export type InsertCommentVote = typeof commentVotes.$inferInsert;
+export type CommentVote = typeof commentVotes.$inferSelect;
 
 export type InsertApologeticsResource = typeof apologeticsResources.$inferInsert;
 export type ApologeticsResource = typeof apologeticsResources.$inferSelect;
@@ -794,13 +838,19 @@ export const insertEventSchema = createInsertSchema(events).pick({
   creatorId: true,
 } as any);
 
-export const eventRsvps = pgTable("event_rsvps", {
-  id: serial("id").primaryKey(),
-  eventId: integer("event_id").notNull().references(() => events.id),
-  userId: integer("user_id").notNull().references(() => users.id),
-  status: text("status").notNull(), // attending, maybe, declined
-  createdAt: timestamp("created_at").defaultNow(),
-} as any);
+export const eventRsvps = pgTable(
+  "event_rsvps",
+  {
+    id: serial("id").primaryKey(),
+    eventId: integer("event_id").notNull().references(() => events.id),
+    userId: integer("user_id").notNull().references(() => users.id),
+    status: text("status").notNull(), // attending, maybe, declined
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("event_rsvps_event_user_idx").on(table.eventId, table.userId),
+  ],
+);
 
 export const insertEventRsvpSchema = createInsertSchema(eventRsvps).pick({
   eventId: true,

@@ -2,7 +2,7 @@
  * Seed script for apologetics content
  */
 import { db } from "./db";
-import { users, apologeticsTopics, apologeticsQuestions, apologeticsAnswers } from "../shared/schema"; // Make sure schema.ts exists in the same directory, or update the path if it's elsewhere
+import { users, apologeticsTopics, apologeticsQuestions, apologeticsAnswers } from "@shared/schema";
 import { eq } from "drizzle-orm";
 // TODO: You need to create a schema.ts file that exports `users`, `apologeticsTopics`, `apologeticsQuestions`, and `apologeticsAnswers`.
 // Example (adjust types/fields as needed for your project):

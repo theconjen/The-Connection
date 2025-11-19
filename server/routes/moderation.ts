@@ -4,6 +4,7 @@ import { storage } from '../storage-optimized';
 import { db } from '../db';
 import { contentReports } from '@shared/schema';
 import { eq, desc } from 'drizzle-orm';
+import { buildErrorResponse } from '../utils/errors';
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.post('/moderation/report', isAuthenticated, async (req: any, res) => {
     res.json({ ok: true, report });
   } catch (error) {
     console.error('Error creating moderation report:', error);
-    res.status(500).json({ message: 'Error creating report' });
+    res.status(500).json(buildErrorResponse('Error creating report', error));
   }
 });
 
@@ -47,7 +48,7 @@ router.post('/moderation/block', isAuthenticated, async (req: any, res) => {
     res.json({ ok: true, block });
   } catch (error) {
     console.error('Error creating block:', error);
-    res.status(500).json({ message: 'Error creating block' });
+    res.status(500).json(buildErrorResponse('Error creating block', error));
   }
 });
 
@@ -67,7 +68,7 @@ router.get('/moderation/blocked-users', isAuthenticated, async (req: any, res) =
     res.json(blockedUsers.filter(Boolean));
   } catch (error) {
     console.error('Error fetching blocked users:', error);
-    res.status(500).json({ message: 'Error fetching blocked users' });
+    res.status(500).json(buildErrorResponse('Error fetching blocked users', error));
   }
 });
 
@@ -82,7 +83,7 @@ router.get('/moderation/admin/reports', isAdmin, async (req: any, res) => {
     res.json(rows || []);
   } catch (error) {
     console.error('Error listing reports:', error);
-    res.status(500).json({ message: 'Error listing reports' });
+    res.status(500).json(buildErrorResponse('Error listing reports', error));
   }
 });
 
@@ -95,7 +96,7 @@ router.get('/moderation/admin/reports/:id', isAdmin, async (req: any, res) => {
     res.json(row);
   } catch (error) {
     console.error('Error getting report:', error);
-    res.status(500).json({ message: 'Error getting report' });
+    res.status(500).json(buildErrorResponse('Error getting report', error));
   }
 });
 
@@ -119,7 +120,7 @@ router.patch('/moderation/admin/reports/:id', isAdmin, async (req: any, res) => 
     res.json(updated);
   } catch (error) {
     console.error('Error updating report:', error);
-    res.status(500).json({ message: 'Error updating report' });
+    res.status(500).json(buildErrorResponse('Error updating report', error));
   }
 });
 

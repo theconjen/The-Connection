@@ -1,6 +1,7 @@
 import express from 'express';
 import { isAuthenticated } from '../auth';
 import { storage } from '../storage-optimized';
+import { buildErrorResponse } from '../utils/errors';
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ router.post('/reports', isAuthenticated, async (req: any, res) => {
     res.json({ ok: true, report });
   } catch (error) {
     console.error('Error creating report:', error);
-    res.status(500).json({ message: 'Error creating report' });
+    res.status(500).json(buildErrorResponse('Error creating report', error));
   }
 });
 
@@ -50,7 +51,7 @@ router.post('/blocks', isAuthenticated, async (req: any, res) => {
     res.json({ ok: true, block });
   } catch (error) {
     console.error('Error creating block:', error);
-    res.status(500).json({ message: 'Error creating block' });
+    res.status(500).json(buildErrorResponse('Error creating block', error));
   }
 });
 
@@ -72,7 +73,7 @@ router.get('/blocked-users', isAuthenticated, async (req: any, res) => {
     res.json(blockedUsers.filter(Boolean));
   } catch (error) {
     console.error('Error fetching blocked users:', error);
-    res.status(500).json({ message: 'Error fetching blocked users' });
+    res.status(500).json(buildErrorResponse('Error fetching blocked users', error));
   }
 });
 
@@ -91,7 +92,7 @@ router.delete('/blocks/:userId', isAuthenticated, async (req: any, res) => {
     res.json({ ok: true, message: 'User unblocked successfully' });
   } catch (error) {
     console.error('Error removing block:', error);
-    res.status(500).json({ message: 'Error removing block' });
+    res.status(500).json(buildErrorResponse('Error removing block', error));
   }
 });
 

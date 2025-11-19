@@ -2,16 +2,10 @@ import { Router } from 'express';
 import { insertEventSchema } from '@shared/schema';
 import { isAuthenticated } from '../auth';
 import { storage } from '../storage-optimized';
+import { getSessionUserId } from '../utils/session';
+import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
-
-function getSessionUserId(req: any): number | undefined {
-  const raw = req.session?.userId;
-  if (raw === undefined || raw === null) return undefined;
-  if (typeof raw === 'number') return raw;
-  const n = parseInt(String(raw));
-  return Number.isFinite(n) ? n : undefined;
-}
 
 router.get('/api/events', async (req, res) => {
   try {
@@ -27,7 +21,7 @@ router.get('/api/events', async (req, res) => {
     res.json(events);
   } catch (error) {
     console.error('Error fetching events:', error);
-    res.status(500).json({ message: 'Error fetching events' });
+    res.status(500).json(buildErrorResponse('Error fetching events', error));
   }
 });
 
@@ -38,7 +32,7 @@ router.get('/api/events/public', async (_req, res) => {
     res.json(events);
   } catch (error) {
     console.error('Error fetching public events:', error);
-    res.status(500).json({ message: 'Error fetching public events' });
+    res.status(500).json(buildErrorResponse('Error fetching public events', error));
   }
 });
 
@@ -50,7 +44,7 @@ router.get('/api/events/upcoming', async (_req, res) => {
     res.json(upcoming);
   } catch (error) {
     console.error('Error fetching upcoming events:', error);
-    res.status(500).json({ message: 'Error fetching upcoming events' });
+    res.status(500).json(buildErrorResponse('Error fetching upcoming events', error));
   }
 });
 
@@ -62,7 +56,7 @@ router.get('/api/events/:id', async (req, res) => {
     res.json(event);
   } catch (error) {
     console.error('Error fetching event:', error);
-    res.status(500).json({ message: 'Error fetching event' });
+    res.status(500).json(buildErrorResponse('Error fetching event', error));
   }
 });
 
@@ -92,7 +86,7 @@ router.post('/api/events', isAuthenticated, async (req, res) => {
     res.status(201).json(event);
   } catch (error) {
     console.error('Error creating event:', error);
-    res.status(500).json({ message: 'Error creating event' });
+    res.status(500).json(buildErrorResponse('Error creating event', error));
   }
 });
 
@@ -109,7 +103,7 @@ router.delete('/api/events/:id', isAuthenticated, async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error('Error deleting event:', error);
-    res.status(500).json({ message: 'Error deleting event' });
+    res.status(500).json(buildErrorResponse('Error deleting event', error));
   }
 });
 

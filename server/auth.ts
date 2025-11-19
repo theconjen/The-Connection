@@ -10,6 +10,7 @@ import { sanitizePlainText } from './xss-protection';
 import { z } from "zod";
 import crypto from "crypto";
 import { verifyRecaptchaToken } from "./utils/recaptcha";
+import { buildErrorResponse } from "./utils/errors";
 
 /**
  * Ultra Simple Auth System
@@ -178,7 +179,7 @@ export function setupAuth(app: Express) {
       // Log the user in - ensure session exists first
       if (!req.session) {
         console.error("[REGISTRATION] No session available on request");
-        return res.status(500).json({ message: "Session initialization failed" });
+        return res.status(500).json(buildErrorResponse("Session initialization failed", new Error("Missing session instance")));
       }
       
       console.log(`[REGISTRATION] Before setting session data - Current session:`, {
@@ -206,7 +207,7 @@ export function setupAuth(app: Express) {
       req.session.save((err) => {
         if (err) {
           console.error("[REGISTRATION] Session save error:", err);
-          return res.status(500).json({ message: "Error creating session" });
+          return res.status(500).json(buildErrorResponse("Error creating session", err));
         }
         
         console.log(`[REGISTRATION] Session saved successfully for user ${user.username} (ID: ${user.id}), Session ID: ${req.sessionID}`);
@@ -223,7 +224,7 @@ export function setupAuth(app: Express) {
       });
     } catch (error) {
       console.error("Registration error:", error);
-      return res.status(500).json({ message: "Error creating user" });
+      return res.status(500).json(buildErrorResponse("Error creating user", error));
     }
   });
 
@@ -241,7 +242,7 @@ export function setupAuth(app: Express) {
       res.json({ message: "Email verified successfully" });
     } catch (error) {
       console.error("Email verification error:", error);
-      res.status(500).json({ message: "Failed to verify email" });
+      res.status(500).json(buildErrorResponse("Failed to verify email", error));
     }
   });
 
@@ -265,7 +266,7 @@ export function setupAuth(app: Express) {
       res.json({ message: "Verification email sent" });
     } catch (error) {
       console.error("Error requesting verification email:", error);
-      res.status(500).json({ message: "Failed to send verification email" });
+      res.status(500).json(buildErrorResponse("Failed to send verification email", error));
     }
   });
 
@@ -290,7 +291,7 @@ export function setupAuth(app: Express) {
       res.json({ message: "SMS verification code generated" });
     } catch (error) {
       console.error("Error requesting SMS code:", error);
-      res.status(500).json({ message: "Failed to generate SMS code" });
+      res.status(500).json(buildErrorResponse("Failed to generate SMS code", error));
     }
   });
 
@@ -312,7 +313,7 @@ export function setupAuth(app: Express) {
       res.json({ message: "SMS verified successfully" });
     } catch (error) {
       console.error("SMS verification error:", error);
-      res.status(500).json({ message: "Failed to verify SMS" });
+      res.status(500).json(buildErrorResponse("Failed to verify SMS", error));
     }
   });
 
@@ -419,7 +420,7 @@ export function setupAuth(app: Express) {
         req.session.save(async (err) => {
           if (err) {
             console.error("Session save error:", err);
-            return res.status(500).json({ message: "Error creating session" });
+            return res.status(500).json(buildErrorResponse("Error creating session", err));
           }
 
           console.log(`User logged in successfully: ${username} (ID: ${user.id}), Session saved with ID: ${req.sessionID}`);
@@ -433,11 +434,11 @@ export function setupAuth(app: Express) {
         });
       } catch (error) {
         console.error(`Error retrieving user ${username}:`, error);
-        return res.status(500).json({ message: "Database error" });
+        return res.status(500).json(buildErrorResponse("Database error", error));
       }
     } catch (error) {
       console.error("Login error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return res.status(500).json(buildErrorResponse("Server error", error));
     }
   });
 
@@ -457,7 +458,7 @@ export function setupAuth(app: Express) {
 
       req.session.destroy((err) => {
         if (err) {
-          return res.status(500).json({ message: "Error logging out" });
+          return res.status(500).json(buildErrorResponse("Error logging out", err));
         }
         res.status(200).json({ message: "Logged out successfully" });
       });
@@ -498,11 +499,11 @@ export function setupAuth(app: Express) {
         return res.json(userWithoutPassword);
       } catch (error) {
         console.error(`Error retrieving user ID ${req.session.userId}:`, error);
-        return res.status(500).json({ message: "Database error" });
+        return res.status(500).json(buildErrorResponse("Database error", error));
       }
     } catch (error) {
       console.error("Error fetching current user:", error);
-      return res.status(500).json({ message: "Server error" });
+      return res.status(500).json(buildErrorResponse("Server error", error));
     }
   });
 }

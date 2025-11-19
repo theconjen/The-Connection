@@ -2,16 +2,10 @@ import { Router } from 'express';
 import { insertCommunitySchema } from '@shared/schema';
 import { isAuthenticated } from '../auth';
 import { storage } from '../storage-optimized';
+import { getSessionUserId } from '../utils/session';
+import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
-
-function getSessionUserId(req: any): number | undefined {
-  const raw = req.session?.userId;
-  if (raw === undefined || raw === null) return undefined;
-  if (typeof raw === 'number') return raw;
-  const n = parseInt(String(raw));
-  return Number.isFinite(n) ? n : undefined;
-}
 
 router.get('/api/communities', async (req, res) => {
   try {
@@ -29,7 +23,7 @@ router.get('/api/communities', async (req, res) => {
     res.json(communities);
   } catch (error) {
     console.error('Error fetching communities:', error);
-    res.status(500).json({ message: 'Error fetching communities' });
+    res.status(500).json(buildErrorResponse('Error fetching communities', error));
   }
 });
 
@@ -48,7 +42,7 @@ router.get('/api/communities/:idOrSlug', async (req, res) => {
     res.json(community);
   } catch (error) {
     console.error('Error fetching community:', error);
-    res.status(500).json({ message: 'Error fetching community' });
+    res.status(500).json(buildErrorResponse('Error fetching community', error));
   }
 });
 
@@ -73,7 +67,7 @@ router.get('/api/communities/:id/feed', async (req, res) => {
     res.json(posts.slice(0, 100));
   } catch (error) {
     console.error('Error fetching community feed:', error);
-    res.status(500).json({ message: 'Error fetching community feed' });
+    res.status(500).json(buildErrorResponse('Error fetching community feed', error));
   }
 });
 
@@ -106,7 +100,7 @@ router.post('/api/communities', isAuthenticated, async (req, res) => {
     res.status(201).json(community);
   } catch (error) {
     console.error('Error creating community:', error);
-    res.status(500).json({ message: 'Error creating community' });
+    res.status(500).json(buildErrorResponse('Error creating community', error));
   }
 });
 
@@ -124,7 +118,7 @@ router.delete('/api/communities/:id', isAuthenticated, async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error('Error deleting community:', error);
-    res.status(500).json({ message: 'Error deleting community' });
+    res.status(500).json(buildErrorResponse('Error deleting community', error));
   }
 });
 

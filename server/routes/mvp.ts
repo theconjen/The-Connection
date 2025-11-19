@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { sendEmail } from '../email';
+import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
 
@@ -61,7 +62,7 @@ router.post('/auth/verify', async (req, res) => {
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
     console.error('FATAL ERROR: JWT_SECRET environment variable is required');
-    return res.status(500).json({ message: 'Server configuration error' });
+    return res.status(500).json(buildErrorResponse('Server configuration error', new Error('Missing JWT_SECRET')));
   }
 
   const jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });

@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import { storage } from "../storage-optimized";
 import { sendPushNotification } from "../services/pushService";
 import { ensureCleanText, handleModerationError } from "../utils/moderation";
+import { buildErrorResponse } from "../utils/errors";
 
 const router = express.Router();
 const dmLimiter = rateLimit({
@@ -25,7 +26,7 @@ router.get("/:userId", async (req, res) => {
     res.json(chat);
   } catch (error) {
     console.error('Error fetching direct messages:', error);
-    res.status(500).json({ message: 'Error fetching messages' });
+    res.status(500).json(buildErrorResponse('Error fetching messages', error));
   }
 });
 
@@ -80,7 +81,7 @@ router.post("/send", dmLimiter, async (req, res) => {
   } catch (error) {
     if (handleModerationError(res, error)) return;
     console.error('Error sending direct message:', error);
-    res.status(500).json({ message: 'Error sending message' });
+    res.status(500).json(buildErrorResponse('Error sending message', error));
   }
 });
 

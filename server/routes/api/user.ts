@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { isAuthenticated } from '../../auth';
 import { storage } from '../../storage-optimized';
+import { buildErrorResponse } from '../../utils/errors';
 
 const router = Router();
 
@@ -200,7 +201,7 @@ router.get("/settings", async (req, res) => {
     const { password, ...userData } = user;
     res.json(userData);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching user settings' });
+    res.status(500).json(buildErrorResponse('Error fetching user settings', error));
   }
 });
 
@@ -235,7 +236,7 @@ router.put("/settings", async (req, res) => {
   await storage.updateUser(resolvedUserId, updateData);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ message: 'Error updating user settings' });
+    res.status(500).json(buildErrorResponse('Error updating user settings', error));
   }
 });
 
