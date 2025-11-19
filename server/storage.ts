@@ -55,6 +55,7 @@ import {
   // moderation tables
     contentReports, userBlocks, pushTokens, notifications
 } from "@shared/schema";
+import { postVotes, commentVotes } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql, inArray, like } from "drizzle-orm";
 import { whereNotDeleted, andNotDeleted } from "./db/helpers";
@@ -342,6 +343,11 @@ export interface IStorage {
   getBlockedUserIdsFor(blockerId: number): Promise<number[]>;
   // Remove a user block (unblock)
   removeUserBlock(blockerId: number, blockedId: number): Promise<boolean>;
+  // Voting helpers
+  togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }>;
+  toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }>;
+  // Email verification helper
+  getUserByEmailVerificationToken(token: string): Promise<User | undefined>;
   // Admin moderation helpers
   getReports?(filter?: { status?: string; limit?: number }): Promise<ContentReport[]>;
   getReportById?(id: number): Promise<ContentReport | undefined>;
@@ -575,6 +581,19 @@ export class MemStorage implements IStorage {
       isAdmin: user.isAdmin || false,
       loginAttempts: 0,
       lockoutUntil: null,
+  profileVisibility: user.profileVisibility || 'public',
+  showLocation: typeof user.showLocation === 'boolean' ? user.showLocation : true,
+  showInterests: typeof user.showInterests === 'boolean' ? user.showInterests : true,
+  notifyDms: typeof user.notifyDms === 'boolean' ? user.notifyDms : true,
+  notifyCommunities: typeof user.notifyCommunities === 'boolean' ? user.notifyCommunities : true,
+  notifyForums: typeof user.notifyForums === 'boolean' ? user.notifyForums : true,
+  notifyFeed: typeof user.notifyFeed === 'boolean' ? user.notifyFeed : true,
+  dmPrivacy: user.dmPrivacy || 'everyone',
+  emailVerified: typeof user.emailVerified === 'boolean' ? user.emailVerified : false,
+  smsVerified: typeof user.smsVerified === 'boolean' ? user.smsVerified : false,
+  phoneNumber: user.phoneNumber || null,
+  emailVerificationToken: user.emailVerificationToken || null,
+  smsVerificationCode: user.smsVerificationCode || null,
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null
@@ -1875,6 +1894,45 @@ export class MemStorage implements IStorage {
     return true;
   }
 
+  // Toggle post vote (in-memory)
+  async togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }> {
+    // Simple in-memory vote tracking store
+    if (!(this.data as any).postVotes) (this.data as any).postVotes = [] as any[];
+    const pv = (this.data as any).postVotes as any[];
+    const idx = pv.findIndex(v => v.postId === postId && v.userId === userId);
+    const post = this.data.posts.find((p: any) => p.id === postId);
+    if (!post) throw new Error('Post not found');
+    if (idx !== -1) {
+      pv.splice(idx, 1);
+      post.upvotes = Math.max(0, (post.upvotes || 0) - 1);
+      return { voted: false, post };
+    }
+    pv.push({ id: this.nextId++, postId, userId, createdAt: new Date() });
+    post.upvotes = (post.upvotes || 0) + 1;
+    return { voted: true, post };
+  }
+
+  // Toggle comment vote (in-memory)
+  async toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }> {
+    if (!(this.data as any).commentVotes) (this.data as any).commentVotes = [] as any[];
+    const cv = (this.data as any).commentVotes as any[];
+    const idx = cv.findIndex(v => v.commentId === commentId && v.userId === userId);
+    const comment = this.data.comments.find((c: any) => c.id === commentId);
+    if (!comment) throw new Error('Comment not found');
+    if (idx !== -1) {
+      cv.splice(idx, 1);
+      comment.upvotes = Math.max(0, (comment.upvotes || 0) - 1);
+      return { voted: false, comment };
+    }
+    cv.push({ id: this.nextId++, commentId, userId, createdAt: new Date() });
+    comment.upvotes = (comment.upvotes || 0) + 1;
+    return { voted: true, comment };
+  }
+
+  async getUserByEmailVerificationToken(token: string): Promise<User | undefined> {
+    return this.data.users.find((u: any) => u.emailVerificationToken === token) as User | undefined;
+  }
+
   // Admin moderation helpers (in-memory)
   async getReports(filter?: { status?: string; limit?: number }): Promise<ContentReport[]> {
     let rows = this.data.contentReports.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -1968,6 +2026,39 @@ export class DbStorage implements IStorage {
     // Fallback: attempt to select to see if it still exists
     const remaining = await db.select().from(userBlocks).where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)));
     return remaining.length === 0;
+  }
+
+  // Toggle post vote (DB)
+  async togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }> {
+    // Check existing vote
+    const existing = await db.select().from(postVotes).where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
+    if (existing && existing.length > 0) {
+      await db.delete(postVotes).where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
+      // decrement post count
+      const updated = await db.update(posts).set({ upvotes: sql`GREATEST(${posts.upvotes} - 1, 0)` as any }).where(eq(posts.id, postId)).returning();
+      return { voted: false, post: updated[0] } as any;
+    }
+    await db.insert(postVotes).values({ postId, userId } as any);
+    const updated = await db.update(posts).set({ upvotes: sql`${posts.upvotes} + 1` as any }).where(eq(posts.id, postId)).returning();
+    return { voted: true, post: updated[0] } as any;
+  }
+
+  // Toggle comment vote (DB)
+  async toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }> {
+    const existing = await db.select().from(commentVotes).where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
+    if (existing && existing.length > 0) {
+      await db.delete(commentVotes).where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
+      const updated = await db.update(comments).set({ upvotes: sql`GREATEST(${comments.upvotes} - 1, 0)` as any }).where(eq(comments.id, commentId)).returning();
+      return { voted: false, comment: updated[0] } as any;
+    }
+    await db.insert(commentVotes).values({ commentId, userId } as any);
+    const updated = await db.update(comments).set({ upvotes: sql`${comments.upvotes} + 1` as any }).where(eq(comments.id, commentId)).returning();
+    return { voted: true, comment: updated[0] } as any;
+  }
+
+  async getUserByEmailVerificationToken(token: string): Promise<User | undefined> {
+    const rows = await db.select().from(users).where(eq(users.emailVerificationToken, token));
+    return rows[0] as User | undefined;
   }
 
   // Admin moderation helpers (DB)

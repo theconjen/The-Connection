@@ -97,7 +97,7 @@ router.get('/feed', async (req, res) => {
     return respondWithStorageFallback();
   } catch (err) {
     console.error('Error fetching feed:', err);
-    res.status(500).json(buildErrorResponse('Error fetching feed', error));
+    res.status(500).json(buildErrorResponse('Error fetching feed', err));
   }
 });
 

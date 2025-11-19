@@ -18,3 +18,6 @@ declare module '*.native.ts';
 // Server dev optional modules
 declare module 'isomorphic-dompurify';
 declare module 'vite';
+declare module 'qs' {
+	export type ParsedQs = Record<string, any>;
+}
