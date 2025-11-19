@@ -1,20 +1,22 @@
 {
   "expo": {
-    "extra": {
-      "eas": {
-        "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
-      }
-    },
+    "name": "The Connection",
+    "slug": "the-connection",
+    "owner": "the-connection-app",
+    "orientation": "portrait",
     "ios": {
-      "bundleIdentifier": "com.jselou.esbuildtest",
+      "bundleIdentifier": "app.theconnection.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-    "owner": "the-connection-app",
-    "slug": "the-connection",
     "android": {
-      "package": "com.jselou.esbuildtest"
+      "package": "app.theconnection.mobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
+      }
     }
   }
 }

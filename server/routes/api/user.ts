@@ -4,6 +4,10 @@ import { storage } from '../../storage-optimized';
 
 const router = Router();
 
+const allowedVisibilities = ["public", "friends", "private"] as const;
+const isValidVisibility = (value: unknown): value is (typeof allowedVisibilities)[number] =>
+  typeof value === "string" && (allowedVisibilities as readonly string[]).includes(value);
+
 // Apply authentication middleware to all routes in this file
 router.use(isAuthenticated);
 
@@ -39,7 +43,7 @@ router.patch('/profile', async (req, res, next) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    const { displayName, bio, avatarUrl, email, city, state, zipCode } = req.body;
+    const { displayName, bio, avatarUrl, email, city, state, zipCode, profileVisibility, showLocation, showInterests } = req.body;
     
     // Only allow updating specific fields
     const updateData: any = {};
@@ -50,6 +54,14 @@ router.patch('/profile', async (req, res, next) => {
     if (city !== undefined) updateData.city = city;
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
+    if (profileVisibility !== undefined) {
+      if (!isValidVisibility(profileVisibility)) {
+        return res.status(400).json({ message: "Invalid profile visibility option" });
+      }
+      updateData.profileVisibility = profileVisibility;
+    }
+    if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
+    if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
     
   const updatedUser = await storage.updateUser(resolvedUserId, updateData);
     
@@ -73,7 +85,7 @@ router.patch('/:id', async (req, res, next) => {
       return res.status(401).json({ message: 'Not authorized to update this profile' });
     }
     
-    const { displayName, bio, avatarUrl, email, city, state, zipCode } = req.body;
+    const { displayName, bio, avatarUrl, email, city, state, zipCode, profileVisibility, showLocation, showInterests } = req.body;
     
     // Only allow updating specific fields
     const updateData: any = {};
@@ -84,6 +96,14 @@ router.patch('/:id', async (req, res, next) => {
     if (city !== undefined) updateData.city = city;
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
+    if (profileVisibility !== undefined) {
+      if (!isValidVisibility(profileVisibility)) {
+        return res.status(400).json({ message: "Invalid profile visibility option" });
+      }
+      updateData.profileVisibility = profileVisibility;
+    }
+    if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
+    if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
     
   const updatedUser = await storage.updateUser(targetUserId, updateData);
     
@@ -193,7 +213,7 @@ router.put("/settings", async (req, res) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    const { displayName, email, bio, city, state, zipCode } = req.body;
+    const { displayName, email, bio, city, state, zipCode, profileVisibility, showLocation, showInterests } = req.body;
     
     // Only allow updating specific fields
     const updateData: any = {};
@@ -203,6 +223,14 @@ router.put("/settings", async (req, res) => {
     if (city !== undefined) updateData.city = city;
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
+    if (profileVisibility !== undefined) {
+      if (!isValidVisibility(profileVisibility)) {
+        return res.status(400).json({ message: "Invalid profile visibility option" });
+      }
+      updateData.profileVisibility = profileVisibility;
+    }
+    if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
+    if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
     
   await storage.updateUser(resolvedUserId, updateData);
     res.json({ success: true });

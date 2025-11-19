@@ -1,3 +1,3 @@
-// Re-export the TSX implementation to ensure consumers get the full hook & types
-export { useAuth } from './use-auth';
-export type { AuthContextType, AuthUser } from './use-auth';
+// Re-export the hook implementation to support legacy import casing
+export { useAuth } from './use-auth.impl';
+export type { AuthContextType, AuthUser } from './use-auth.impl';

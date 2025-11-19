@@ -22,6 +22,20 @@
       "when": 1758474397960,
       "tag": "0002_tan_unicorn",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1763507800854,
+      "tag": "0003_faithful_amphibian",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1763508047898,
+      "tag": "0004_hard_captain_britain",
+      "breakpoints": true
     }
   ]
 }

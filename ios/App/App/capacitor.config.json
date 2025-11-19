@@ -1,7 +1,7 @@
 {
-	"appId": "com.theconjen.tconnect",
-	"appName": "TConnect",
-	"webDir": "dist/public",
+	"appId": "app.theconnection.mobile",
+	"appName": "The Connection",
+	"webDir": "../../client/dist",
 	"bundledWebRuntime": false,
 	"packageClassList": []
 }

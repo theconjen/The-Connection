@@ -1,3 +1,3 @@
-// Re-export the TSX implementation so imports of '../../hooks/useAuth' resolve correctly
-export { useAuth } from './use-auth';
-export type { AuthContextType, AuthUser } from './use-auth';
+// Re-export the hook implementation for compatibility with TSX consumers
+export { useAuth } from './use-auth.impl';
+export type { AuthContextType, AuthUser } from './use-auth.impl';

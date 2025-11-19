@@ -1,12 +1,13 @@
 import { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage-optimized";
-import { User } from "@shared/schema";
+import { User, insertUserSchema } from "@shared/schema";
 import { sendWelcomeEmail } from "./email";
 import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { logLogin, logLoginFailed, logLogout, logRegistration } from './audit-logger';
 import { sanitizePlainText } from './xss-protection';
+import { z } from "zod";
 
 /**
  * Ultra Simple Auth System
@@ -73,41 +74,31 @@ export function isAdmin(req: Request, res: Response, next: NextFunction) {
 
 // Sets up the authentication system
 export function setupAuth(app: Express) {
+  const registrationSchema = insertUserSchema.extend({
+    username: z.string().min(3, "Username must be at least 3 characters"),
+    email: z.string().email("Please enter a valid email address"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    displayName: z.string().min(0).optional(),
+  });
+
   // User registration endpoint with rate limiting
   app.post("/api/register", registerLimiter, async (req, res) => {
     try {
-      let { username, email, password, displayName } = req.body;
+      const sanitizedPayload = {
+        username: sanitizePlainText(req.body.username),
+        email: sanitizePlainText(req.body.email),
+        password: req.body.password,
+        displayName: req.body.displayName ? sanitizePlainText(req.body.displayName) : undefined,
+      };
 
-      // SECURITY: Sanitize user inputs to prevent XSS
-      username = sanitizePlainText(username);
-      email = sanitizePlainText(email);
-      displayName = displayName ? sanitizePlainText(displayName) : undefined;
-
-      // Basic validation
-      if (!username || !email || !password) {
+      const parsed = registrationSchema.safeParse(sanitizedPayload);
+      if (!parsed.success) {
+        const firstError = parsed.error.issues?.[0];
         return res.status(400).json({
-          message: "Username, email, and password are required"
+          message: firstError?.message ?? "Invalid registration data",
         });
       }
-      
-      // Strong password requirements
-      if (password.length < 12) {
-        return res.status(400).json({
-          message: "Password must be at least 12 characters long"
-        });
-      }
-
-      // Check for complexity: uppercase, lowercase, number, and special character
-      const hasUpperCase = /[A-Z]/.test(password);
-      const hasLowerCase = /[a-z]/.test(password);
-      const hasNumber = /[0-9]/.test(password);
-      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-      if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
-        return res.status(400).json({
-          message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
-        });
-      }
+      const { username, email, password, displayName } = parsed.data;
       
       // Check if username is taken
       const existingUserByUsername = await storage.getUserByUsername(username);

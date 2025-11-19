@@ -39,36 +39,29 @@
 }
 
 .dark {
-  /* Deep Navy background (Dark Mode/Contrast) */
-  --background: 225 38% 7%;
-  --foreground: 225 10% 98%;
-  /* slightly lighter muted/background tones so cards don't feel crushed */
-  --muted: 225 28% 16%;
-  --muted-foreground: 225 10% 85%;
-  --popover: 225 38% 9%;
-  --popover-foreground: 225 10% 98%;
-  /* lighten cards a touch so boxed content reads better */
-  --card: 225 30% 16%;
-  --card-foreground: 225 10% 98%;
-  /* softer border so it reads against the lighter card */
-  --border: 225 26% 26%;
-  --input: 225 26% 26%;
+  /* Deepened background while keeping legible contrast */
+  --background: 226 38% 6%;
+  --foreground: 220 24% 96%;
+  --muted: 226 30% 13%;
+  --muted-foreground: 226 18% 82%;
+  --popover: 226 32% 10%;
+  --popover-foreground: 220 24% 96%;
+  --card: 226 28% 14%;
+  --card-foreground: 220 24% 96%;
+  --border: 226 24% 26%;
+  --input: 226 26% 24%;
   
-  /* Brighter Navy for dark mode */
-  --primary: 225 70% 25%;
-  --primary-foreground: 0 0% 100%;
+  /* Elevated accents for dark UI */
+  --primary: 225 78% 54%;
+  --primary-foreground: 0 0% 6%;
+  --secondary: 230 72% 62%;
+  --secondary-foreground: 0 0% 6%;
+  --accent: 214 86% 72%;
+  --accent-foreground: 0 0% 8%;
   
-  /* Brighter Royal Blue for dark mode */
-  --secondary: 230 75% 50%;
-  --secondary-foreground: 0 0% 100%;
-  
-  /* Brighter Blue Accent for dark mode */
-  --accent: 215 85% 65%;
-  --accent-foreground: 0 0% 100%;
-  
-  --destructive: 0 80% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --ring: 225 70% 25%;
+  --destructive: 358 78% 66%;
+  --destructive-foreground: 0 0% 5%;
+  --ring: 225 78% 54%;
   --radius: 0.5rem;
 }
 
@@ -116,6 +109,26 @@
     background: linear-gradient(135deg, #0B132B, #222D99, #4A90E2);
     @apply text-white shadow-sm hover:shadow-md hover:shadow-secondary/20 transition-all;
   }
+
+  .dark .btn-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    color: hsl(var(--primary-foreground));
+  }
+  
+  .dark .btn-secondary {
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--secondary)) 90%);
+    color: hsl(var(--secondary-foreground));
+  }
+  
+  .dark .btn-subtle {
+    background-color: color-mix(in srgb, hsl(var(--muted)) 85%, white 10%);
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border));
+  }
+  
+  .dark .btn-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 60%, hsl(var(--secondary)) 100%);
+  }
   
   .text-gradient {
     color: hsl(var(--primary)); /* Fallback color */
@@ -131,6 +144,11 @@
     background: linear-gradient(135deg, #0B132B, #222D99, #4A90E2) !important;
     color: white !important;
     border: none !important;
+  }
+  .dark [data-state="active"].custom-tab-trigger {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+    color: hsl(var(--primary-foreground)) !important;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.55);
   }
 
   /* Enhanced auth page styling */
@@ -390,8 +408,9 @@
 @layer base {
   /* Dark-mode card shadows */
   .dark .card-hover {
-    box-shadow: 0 6px 20px rgba(4, 13, 30, 0.5);
-    border-color: color-mix(in srgb, hsl(var(--border)) 60%, transparent);
+    box-shadow: 0 12px 35px rgba(2, 8, 20, 0.65);
+    border-color: color-mix(in srgb, hsl(var(--border)) 70%, transparent);
+    background: linear-gradient(180deg, hsl(var(--card)) 0%, color-mix(in srgb, hsl(var(--card)) 90%, black 6%) 100%);
   }
 
   .dark .mobile-modern-card,
@@ -407,7 +426,15 @@
   /* Ensure muted text is readable in dark mode */
   .dark .text-muted-foreground {
     color: hsl(var(--muted-foreground));
-    opacity: 0.95;
+    opacity: 0.98;
+  }
+  
+  .dark .section-description {
+    color: color-mix(in srgb, hsl(var(--muted-foreground)) 90%, white 15%);
+  }
+  
+  .dark .text-gradient {
+    background: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--secondary)));
   }
 }
 

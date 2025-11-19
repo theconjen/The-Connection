@@ -12,6 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Switch } from "../components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { useToast } from "../hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { 
   User, 
   Bell, 
@@ -35,6 +42,9 @@ interface UserProfile {
   state: string | null;
   zipCode: string | null;
   interestTags: string[];
+  profileVisibility?: 'public' | 'private' | 'friends';
+  showLocation?: boolean;
+  showInterests?: boolean;
 }
 
 interface UserPreferences {
@@ -50,6 +60,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const [privacySaving, setPrivacySaving] = useState(false);
 
   const [profileData, setProfileData] = useState({
     displayName: "",
@@ -71,6 +82,12 @@ export default function SettingsPage() {
         zipCode: user.zipCode || "",
         email: user.email || "",
       });
+      setPreferences(prev => ({
+        ...prev,
+        profileVisibility: (user.profileVisibility as UserPreferences['profileVisibility']) || "public",
+        showLocation: user.showLocation ?? true,
+        showInterests: user.showInterests ?? true,
+      }));
     }
   }, [user]);
 
@@ -178,6 +195,39 @@ export default function SettingsPage() {
       setLoading(false);
     }
   }
+
+  const handlePrivacySave = async () => {
+    setPrivacySaving(true);
+    try {
+      const response = await fetch(apiUrl("/api/user/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileVisibility: preferences.profileVisibility,
+          showLocation: preferences.showLocation,
+          showInterests: preferences.showInterests,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update privacy settings");
+      }
+
+      toast({
+        title: "Privacy settings updated",
+        description: "Your visibility preferences have been saved.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update privacy settings",
+        variant: "destructive",
+      });
+    } finally {
+      setPrivacySaving(false);
+    }
+  };
 
   const handlePasswordUpdate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -444,6 +494,31 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="profile-visibility">Profile Visibility</Label>
+                <Select
+                  value={preferences.profileVisibility}
+                  onValueChange={(value) =>
+                    setPreferences((prev) => ({
+                      ...prev,
+                      profileVisibility: value as UserPreferences["profileVisibility"],
+                    }))
+                  }
+                >
+                  <SelectTrigger id="profile-visibility">
+                    <SelectValue placeholder="Select who can view your profile" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Public - anyone can view your profile</SelectItem>
+                    <SelectItem value="friends">Friends only - only approved connections</SelectItem>
+                    <SelectItem value="private">Private - only you can view</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Choose how visible your profile, posts, and activity should be to others.
+                </p>
+              </div>
+
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <div className="text-base font-medium">Show Location</div>
@@ -474,7 +549,9 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <Button>Save Privacy Settings</Button>
+              <Button onClick={handlePrivacySave} disabled={privacySaving}>
+                {privacySaving ? "Saving..." : "Save Privacy Settings"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
