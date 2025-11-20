@@ -103,7 +103,7 @@ export default function EventsScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-  <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }

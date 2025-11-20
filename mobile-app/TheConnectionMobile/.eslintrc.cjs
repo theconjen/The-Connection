@@ -1,31 +1,25 @@
 module.exports = {
   root: true,
-  env: {
-    browser: true,
-    es2024: true,
-    node: true,
-  },
   extends: [
-    'eslint:recommended',
-    'plugin:react/recommended',
+    '@react-native',
     'plugin:@typescript-eslint/recommended',
   ],
+  parser: '@typescript-eslint/parser',
+  plugins: ['@typescript-eslint', 'react', 'react-native'],
   parserOptions: {
+    ecmaVersion: 2021,
+    sourceType: 'module',
     ecmaFeatures: {
       jsx: true,
     },
-    ecmaVersion: 'latest',
-    sourceType: 'module',
   },
-  parser: '@typescript-eslint/parser',
-  plugins: ['react', 'react-native', '@typescript-eslint'],
+  env: {
+    'react-native/react-native': true,
+  },
   rules: {
-    'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-explicit-any': 'warn',
     'react/react-in-jsx-scope': 'off',
-  },
-  settings: {
-    react: {
-      version: 'detect',
-    },
+    'react-native/no-inline-styles': 'warn',
   },
 };

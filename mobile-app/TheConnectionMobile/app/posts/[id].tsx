@@ -64,7 +64,7 @@ export default function PostDetailScreen() {
   if (postLoading) {
     return (
       <View style={styles.centerContainer}>
-  <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -98,7 +98,7 @@ export default function PostDetailScreen() {
 
         <View style={styles.commentsSection}>
           <Text style={styles.commentsTitle}>Comments ({comments.length})</Text>
-          
+
           {commentsLoading ? (
             <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
           ) : comments.length === 0 ? (

@@ -19,7 +19,7 @@ export default function CreateScreen() {
 
   return (
     <View style={styles.container}>
-  <ActivityIndicator size="large" color={Colors.primary} />
+      <ActivityIndicator size="large" color={Colors.primary} />
       <Text style={styles.text}>Loading...</Text>
     </View>
   );

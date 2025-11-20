@@ -84,7 +84,7 @@ export default function PrayerDetailScreen() {
   if (prayerLoading) {
     return (
       <View style={styles.centerContainer}>
-  <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -134,7 +134,7 @@ export default function PrayerDetailScreen() {
 
         <View style={styles.commentsSection}>
           <Text style={styles.commentsTitle}>Prayer Updates & Encouragement ({comments.length})</Text>
-          
+
           {commentsLoading ? (
             <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
           ) : comments.length === 0 ? (
