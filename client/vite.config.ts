@@ -24,6 +24,8 @@ export default defineConfig({
     },
   },
   build: {
+    outDir: path.resolve(__dirname, "../dist/public"),
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         // Split major vendor libraries into separate chunks to avoid very large bundles
