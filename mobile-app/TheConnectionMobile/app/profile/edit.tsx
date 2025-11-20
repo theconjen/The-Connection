@@ -111,7 +111,7 @@ export default function EditProfileScreen() {
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color=Colors.primary />
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       )}
     </KeyboardAvoidingView>

@@ -75,7 +75,7 @@ export default function CreatePostScreen() {
 
       {createMutation.isPending && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color=Colors.primary />
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       )}
     </KeyboardAvoidingView>

@@ -164,7 +164,7 @@ export default function CommunityDetailScreen() {
   if (communityLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color=Colors.primary />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -305,7 +305,7 @@ export default function CommunityDetailScreen() {
 
             {/* Wall Posts */}
             {postsLoading ? (
-              <ActivityIndicator size="large" color=Colors.primary style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 20 }} />
             ) : wallPosts.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>No posts yet</Text>
@@ -341,7 +341,7 @@ export default function CommunityDetailScreen() {
         {activeTab === 'members' && (
           <View style={styles.membersContent}>
             {membersLoading ? (
-              <ActivityIndicator size="large" color=Colors.primary style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 20 }} />
             ) : members.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>No members yet</Text>

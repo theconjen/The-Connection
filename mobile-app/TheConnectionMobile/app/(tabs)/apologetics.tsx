@@ -74,7 +74,7 @@ export default function ApologeticsScreen() {
       <View style={styles.container}>
         <TopHeader />
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color=Colors.primary />
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       </View>
     );

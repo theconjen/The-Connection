@@ -72,7 +72,7 @@ export default function BlockedUsersScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color=Colors.primary />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -135,7 +135,7 @@ export default function BlockedUsersScreen() {
                   disabled={unblockMutation.isPending}
                 >
                   {unblockMutation.isPending ? (
-                    <ActivityIndicator size="small" color=Colors.primary />
+                    <ActivityIndicator size="small" color={Colors.primary} />
                   ) : (
                     <Text style={styles.unblockButtonText}>Unblock</Text>
                   )}
