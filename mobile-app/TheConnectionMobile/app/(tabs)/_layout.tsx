@@ -16,25 +16,19 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="posts"
+        options={{
+          title: 'Forum',
+          tabBarIcon: () => '💬',
+          href: '/(tabs)/posts'
+        }}
+      />
+      <Tabs.Screen
         name="communities"
         options={{
           title: 'Communities',
           tabBarIcon: () => '👥',
           href: '/(tabs)/communities'
-        }}
-      />
-      <Tabs.Screen
-        name="create"
-        options={{
-          title: '',
-          tabBarIcon: () => '➕',
-          tabBarButton: (props) => (
-            <TouchableOpacity
-              {...props}
-              style={styles.createButton}
-              onPress={() => router.push('/create-post')}
-            />
-          ),
         }}
       />
       <Tabs.Screen
@@ -46,11 +40,23 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: () => '👤',
+          href: '/(tabs)/profile'
+        }}
+      />
+      <Tabs.Screen
+        name="create"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="apologetics"
         options={{
-          title: 'Resources',
-          tabBarIcon: () => '📚',
-          href: '/(tabs)/apologetics'
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -61,12 +67,6 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="messages"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
         options={{
           href: null,
         }}
