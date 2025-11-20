@@ -8,24 +8,33 @@ import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
 
-// Prefer DB-backed pagination when explicitly enabled
-const USE_DB_FEED = process.env.FEED_USE_DB === 'true';
-if (!USE_DB_FEED && process.env.NODE_ENV !== 'test') {
-  console.warn('[feed] FEED_USE_DB not set, using in-memory fallback');
-}
+const DEFAULT_FEED_LIMIT = 25;
+const MAX_FEED_LIMIT = 50;
+const MAX_FALLBACK_WINDOW = 500;
+
+const envFeedFlag = process.env.FEED_USE_DB;
+const defaultDbFeed = process.env.NODE_ENV !== 'test' && process.env.USE_DB === 'true';
+const USE_DB_FEED = envFeedFlag ? envFeedFlag === 'true' : defaultDbFeed;
+let warnedMissingDb = false;
+
+const parseLimit = (raw: unknown): number => {
+  if (Array.isArray(raw)) raw = raw[0];
+  const parsed = raw !== undefined ? parseInt(String(raw), 10) : DEFAULT_FEED_LIMIT;
+  if (!Number.isFinite(parsed)) return DEFAULT_FEED_LIMIT;
+  return Math.min(MAX_FEED_LIMIT, Math.max(1, parsed));
+};
 
 // GET /api/feed (cursor paginated; newest-first assumed by storage.getAllPosts())
 // Response shape: { items: Post[], nextCursor: string | null }
 router.get('/feed', async (req, res) => {
   try {
     const userId = getSessionUserId(req);
-    const limit = 25; // page size
+    const limit = parseLimit(req.query.limit);
     const cursor = (req.query.cursor as string | undefined) || null;
 
     const respondWithStorageFallback = async () => {
       let allPosts = await storage.getAllPosts();
-      // Hard cap window for performance safety
-      allPosts = allPosts.slice(0, 500);
+      allPosts = allPosts.slice(0, MAX_FALLBACK_WINDOW);
 
       if (userId) {
         const blockedIds = await storage.getBlockedUserIdsFor(userId);
@@ -40,7 +49,7 @@ router.get('/feed', async (req, res) => {
         if (idx === -1) {
           return res.status(400).json({ message: 'Invalid cursor' });
         }
-        startIndex = idx + 1; // start after the cursor item
+        startIndex = idx + 1;
       }
 
       const slice = allPosts.slice(startIndex, startIndex + limit);
@@ -49,12 +58,17 @@ router.get('/feed', async (req, res) => {
       return res.json({ items: slice, nextCursor });
     };
 
-    if (USE_DB_FEED) {
+    const dbAvailable = Boolean(db);
+    if (USE_DB_FEED && !dbAvailable && !warnedMissingDb) {
+      console.warn('[feed] USE_DB_FEED enabled but database client unavailable; using storage fallback');
+      warnedMissingDb = true;
+    }
+
+    if (USE_DB_FEED && dbAvailable) {
       try {
-        // Determine blocked author IDs if user is logged in
         let blockedIds: number[] = [];
         if (userId) {
-          const rows = await db
+          const rows = await db!
             .select({ blockedId: userBlocks.blockedId })
             .from(userBlocks)
             .where(eq(userBlocks.blockerId, userId as number));
@@ -62,7 +76,6 @@ router.get('/feed', async (req, res) => {
         }
 
         const whereClauses = [] as any[];
-        // Use numeric ID cursor with descending id ordering
         if (cursor) {
           const cursorNum = Number(cursor);
           if (!Number.isFinite(cursorNum)) {
@@ -74,22 +87,21 @@ router.get('/feed', async (req, res) => {
           whereClauses.push(not(inArray(posts.authorId, blockedIds)));
         }
 
-        const rows = await db
+        const rows = await db!
           .select()
           .from(posts)
           .where(whereClauses.length ? and(...whereClauses) : undefined)
           .orderBy(desc(posts.id))
           .limit(limit + 1);
 
-        if (rows.length === 0) {
-          return respondWithStorageFallback();
-        }
-
         const items = rows.slice(0, limit);
-        const nextCursor = rows.length > limit ? String(rows[limit].id) : null;
-        return res.json({ items, nextCursor });
+        if (items.length || cursor === null) {
+          const nextCursor = rows.length > limit ? String(rows[limit].id) : null;
+          return res.json({ items, nextCursor });
+        }
+        // No rows returned (e.g., DB empty) -> fall back
+        return respondWithStorageFallback();
       } catch (dbErr) {
-        // Fall through to storage-based implementation on DB errors
         console.warn('DB feed query failed, falling back to storage-based feed:', dbErr);
       }
     }

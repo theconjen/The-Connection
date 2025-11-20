@@ -69,6 +69,7 @@
     "jsonwebtoken": "^9.0.2",
     "lusca": "^1.7.0",
     "passport": "^0.7.0",
+    "resend": "^6.5.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "undici": "^7.16.0",

@@ -59,6 +59,22 @@ const sesClient = new SESClient({
   } : undefined
 });
 
+// Optional Resend integration. Install `resend` and set RESEND_API_KEY to enable.
+let resendClient: any = null;
+const RESEND_API_KEY = process.env.RESEND_API_KEY || process.env.RESEND__API_KEY || '';
+if (RESEND_API_KEY) {
+  try {
+    // Import lazily to avoid adding a hard runtime dependency when not used
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Resend } = require('resend');
+    resendClient = new Resend(RESEND_API_KEY);
+    console.log('📧 Resend client initialized');
+  } catch (err) {
+    console.warn('📧 Resend package not available or failed to initialize; falling back to SES if enabled');
+    resendClient = null;
+  }
+}
+
 interface EmailParams {
   to: string;
   from: string; 
@@ -80,6 +96,23 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
   }
   
   try {
+    // If Resend is configured, prefer using it for simple email sends
+    if (resendClient) {
+      try {
+        await resendClient.emails.send({
+          from: params.from || EMAIL_FROM,
+          to: params.to,
+          subject: params.subject,
+          html: params.html,
+          text: params.text
+        });
+        console.log(`Email sent via Resend to ${params.to}`);
+        return true;
+      } catch (resendErr) {
+        console.error('Resend send error, falling back to SES:', resendErr);
+        // fall through to SES below
+      }
+    }
     // Create the email command
     const sendEmailCommand = new SendEmailCommand({
       Destination: {

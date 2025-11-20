@@ -1,4 +1,4 @@
-// Ambient module shims for native-only or optional packages
+
 declare module '@capacitor/share';
 declare module 'expo-router';
 declare module 'react-native-share';
