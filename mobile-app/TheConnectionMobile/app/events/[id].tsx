@@ -35,7 +35,7 @@ interface Event {
 
 export default function EventDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams() as { id: string };
   const queryClient = useQueryClient();
   const eventId = parseInt(id || '0');
   const [showMap, setShowMap] = useState(true);

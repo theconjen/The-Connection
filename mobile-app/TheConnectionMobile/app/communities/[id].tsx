@@ -43,7 +43,7 @@ interface Community {
 
 export default function CommunityDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams() as { id: string };
   const { user } = useAuth();
   const queryClient = useQueryClient();
 

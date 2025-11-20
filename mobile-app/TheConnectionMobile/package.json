@@ -48,8 +48,20 @@
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",
+    "@react-native-community/cli": "^20.0.2",
+    "@react-native-masked-view/masked-view": "^0.3.2",
+    "@react-native-picker/picker": "^2.11.4",
+    "@react-native/metro-config": "^0.82.1",
     "@types/node": "^24.10.1",
-    "playwright": "^1.56.1"
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
+    "babel-preset-expo": "^54.0.7",
+    "eslint": "^8.48.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-native": "^5.0.0",
+    "metro": "0.83.2",
+    "playwright": "^1.56.1",
+    "react-native-css-interop": "^0.2.1"
   },
   "engines": {
     "node": ">=22.0.0"

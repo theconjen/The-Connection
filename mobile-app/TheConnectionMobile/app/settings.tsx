@@ -20,6 +20,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { colors, preference, setThemePreference } = useTheme();
+  const styles = createStyles(colors);
 
   const handleLogout = () => {
     Alert.alert(
@@ -217,101 +218,103 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    paddingTop: 60,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backIcon: {
-    fontSize: 24,
-    color: colors.text,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  content: {
-    flex: 1,
-  },
-  sectionHeader: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 24,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  section: {
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
-  settingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  settingIconText: {
-    fontSize: 20,
-  },
-  settingContent: {
-    flex: 1,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  settingSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  settingArrow: {
-    fontSize: 24,
-    color: colors.mutedForeground,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.destructive,
-  },
-  logoutIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.destructive,
-  },
-});
+function createStyles(colors: any) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+      paddingTop: 60,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    backIcon: {
+      fontSize: 24,
+      color: colors.text,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    content: {
+      flex: 1,
+    },
+    sectionHeader: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      paddingTop: 24,
+      backgroundColor: colors.surfaceSecondary,
+    },
+    section: {
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    settingItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    settingIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceSecondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    settingIconText: {
+      fontSize: 20,
+    },
+    settingContent: {
+      flex: 1,
+    },
+    settingTitle: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    settingSubtitle: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    settingArrow: {
+      fontSize: 24,
+      color: colors.mutedForeground,
+    },
+    logoutButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      margin: 16,
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.destructive,
+    },
+    logoutIcon: {
+      fontSize: 20,
+      marginRight: 8,
+    },
+    logoutText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.destructive,
+    },
+  });
+}

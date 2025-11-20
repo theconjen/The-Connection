@@ -33,7 +33,7 @@ interface Message {
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { userId } = useLocalSearchParams<{ userId: string }>();
+  const { userId } = useLocalSearchParams() as { userId: string };
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const scrollViewRef = useRef<ScrollView>(null);

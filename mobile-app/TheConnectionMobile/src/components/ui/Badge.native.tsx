@@ -41,13 +41,11 @@ const badgeTextVariants = cva('text-xs font-semibold', {
   },
 });
 
-export interface BadgeProps
-  extends ViewProps,
-    VariantProps<typeof badgeVariants> {
+export interface BadgeProps extends ViewProps {
   children: React.ReactNode;
 }
 
-function Badge({ className, variant, children, ...props }: BadgeProps) {
+function Badge({ className, variant, children, ...props }: BadgeProps & any) {
   return (
     <View className={cn(badgeVariants({ variant }), className)} {...props}>
       <Text className={badgeTextVariants({ variant })}>{children}</Text>

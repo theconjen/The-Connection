@@ -21,7 +21,7 @@ import { Colors } from '../../src/shared/colors';
 
 export default function PostDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams() as { id: string };
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState('');

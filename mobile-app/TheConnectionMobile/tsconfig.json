@@ -13,6 +13,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "baseUrl": ".",
+    "skipLibCheck": true,
     "paths": {
       "@connection/shared": ["../../packages/shared/src"],
       "@connection/shared/*": ["../../packages/shared/src/*"],

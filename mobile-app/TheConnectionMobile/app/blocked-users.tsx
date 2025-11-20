@@ -16,7 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { blockedUsersAPI } from '../src/lib/apiClient';
-import { Colors } from '../../src/shared/colors';
+import { Colors } from '../src/shared/colors';
 
 interface BlockedUser {
   id: number;
