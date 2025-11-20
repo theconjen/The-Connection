@@ -34,6 +34,8 @@ const AdminDashboard = lazy(() => import("./pages/admin"));
 const AdminApologistApplications = lazy(() => import("./pages/admin/apologist-scholar-applications"));
 const AdminLivestreamerApplications = lazy(() => import("./pages/admin/livestreamer-applications"));
 const OrganizationDashboardPage = lazy(() => import("./pages/organization-dashboard-page"));
+const OrganizationSettingsPage = lazy(() => import("./pages/organization-settings-page"));
+const OrganizationInvitePage = lazy(() => import("./pages/organization-invite-page"));
 const AcceptInvitationPage = lazy(() => import("./pages/accept-invitation-page"));
 const SupportPage = lazy(() => import("./pages/support-page"));
 
@@ -108,6 +110,9 @@ function App() {
           {/* Organization */}
           <Route path="/church-signup" component={ChurchSignupPage} />
           <Route path="/organization-dashboard" component={OrganizationDashboardPage} />
+          <Route path="/organizations/:id" component={OrganizationDashboardPage} />
+          <Route path="/organizations/:id/settings" component={OrganizationSettingsPage} />
+          <Route path="/organizations/:id/invite" component={OrganizationInvitePage} />
           
           {/* Applications */}
           <Route path="/apologist-scholar-application" component={ApologistScholarApplicationPage} />

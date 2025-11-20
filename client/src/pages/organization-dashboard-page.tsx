@@ -8,20 +8,40 @@ import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { useToast } from "../hooks/use-toast";
-import { 
-  Church, 
-  Users, 
-  Crown, 
-  Calendar, 
-  MessageSquare, 
-  Settings, 
+import { useAuth } from "../hooks/use-auth";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import {
+  Church,
+  Users,
+  Crown,
+  Calendar,
+  MessageSquare,
+  Settings,
   Plus,
   CreditCard,
   Shield,
   Mail,
   Phone,
   MapPin,
-  Globe
+  Globe,
+  User,
+  Trash2
 } from "lucide-react";
 
 interface Organization {
@@ -60,6 +80,9 @@ export default function OrganizationDashboardPage() {
   const [_, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
 
   const { data: organization, isLoading } = useQuery({
     queryKey: [`/api/organizations/${id}`],
@@ -69,6 +92,60 @@ export default function OrganizationDashboardPage() {
   const { data: members = [] } = useQuery<Member[]>({
     queryKey: [`/api/organizations/${id}/members`],
     enabled: !!id,
+  });
+
+  // Check if current user is admin
+  const currentUserMembership = members.find(m => m.user.id === user?.id);
+  const isAdmin = currentUserMembership?.membership.role === 'admin';
+
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
+      const response = await apiRequest(`/api/organizations/${id}/members/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Member role updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${id}/members`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update member role",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest(`/api/organizations/${id}/members/${userId}`, {
+        method: "DELETE",
+      });
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Member removed successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${id}/members`] });
+      setMemberToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove member",
+        variant: "destructive",
+      });
+      setMemberToDelete(null);
+    },
   });
 
   const upgradePlanMutation = useMutation({
@@ -89,6 +166,16 @@ export default function OrganizationDashboardPage() {
       });
     },
   });
+
+  const handleRoleChange = (userId: number, newRole: string) => {
+    updateRoleMutation.mutate({ userId, role: newRole });
+  };
+
+  const handleRemoveMember = () => {
+    if (memberToDelete) {
+      removeMemberMutation.mutate(memberToDelete.user.id);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -302,42 +389,112 @@ export default function OrganizationDashboardPage() {
         <TabsContent value="members" className="space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Organization Members</h3>
-            <Button onClick={() => navigate(`/organizations/${id}/invite`)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Invite Members
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => navigate(`/organizations/${id}/invite`)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Invite Members
+              </Button>
+            )}
           </div>
 
           <Card>
             <CardContent className="p-0">
               <div className="divide-y">
-                {members.map((member) => (
-                  <div key={member.user.id} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={member.user.avatarUrl} />
-                        <AvatarFallback>
-                          {member.user.displayName?.charAt(0) || member.user.username.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">
-                          {member.user.displayName || member.user.username}
+                {members.map((member) => {
+                  const isCurrentUser = member.user.id === user?.id;
+                  const canModify = isAdmin && !isCurrentUser;
+
+                  return (
+                    <div key={member.user.id} className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={member.user.avatarUrl} />
+                          <AvatarFallback>
+                            {member.user.displayName?.charAt(0) || member.user.username.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">
+                            {member.user.displayName || member.user.username}
+                            {isCurrentUser && (
+                              <Badge variant="outline" className="ml-2">You</Badge>
+                            )}
+                          </p>
+                          <p className="text-sm text-gray-500">{member.user.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {canModify ? (
+                          <Select
+                            value={member.membership.role}
+                            onValueChange={(newRole) => handleRoleChange(member.user.id, newRole)}
+                          >
+                            <SelectTrigger className="w-[140px]">
+                              <SelectValue>
+                                <div className="flex items-center gap-2">
+                                  {member.membership.role === 'admin' && <Crown className="w-3 h-3" />}
+                                  {(member.membership.role === 'pastor' || member.membership.role === 'leader') && (
+                                    <Shield className="w-3 h-3" />
+                                  )}
+                                  {member.membership.role === 'member' && <User className="w-3 h-3" />}
+                                  <span className="capitalize">{member.membership.role}</span>
+                                </div>
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="member">
+                                <div className="flex items-center gap-2">
+                                  <User className="w-4 h-4" />
+                                  Member
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="leader">
+                                <div className="flex items-center gap-2">
+                                  <Shield className="w-4 h-4" />
+                                  Leader
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="pastor">
+                                <div className="flex items-center gap-2">
+                                  <Shield className="w-4 h-4" />
+                                  Pastor
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="admin">
+                                <div className="flex items-center gap-2">
+                                  <Crown className="w-4 h-4" />
+                                  Admin
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant={member.membership.role === 'admin' ? 'default' : 'secondary'}>
+                            {member.membership.role === 'admin' && <Crown className="w-3 h-3 mr-1" />}
+                            {(member.membership.role === 'pastor' || member.membership.role === 'leader') && (
+                              <Shield className="w-3 h-3 mr-1" />
+                            )}
+                            {member.membership.role === 'member' && <User className="w-3 h-3 mr-1" />}
+                            {member.membership.role.charAt(0).toUpperCase() + member.membership.role.slice(1)}
+                          </Badge>
+                        )}
+                        <p className="text-sm text-gray-500 min-w-[100px]">
+                          Joined {new Date(member.membership.joinedAt).toLocaleDateString()}
                         </p>
-                        <p className="text-sm text-gray-500">{member.user.email}</p>
+                        {canModify && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setMemberToDelete(member)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant={member.membership.role === 'admin' ? 'default' : 'secondary'}>
-                        {member.membership.role === 'admin' && <Shield className="w-3 h-3 mr-1" />}
-                        {member.membership.role.charAt(0).toUpperCase() + member.membership.role.slice(1)}
-                      </Badge>
-                      <p className="text-sm text-gray-500">
-                        Joined {new Date(member.membership.joinedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -403,6 +560,29 @@ export default function OrganizationDashboardPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Member Confirmation Dialog */}
+      <AlertDialog open={!!memberToDelete} onOpenChange={() => setMemberToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove{" "}
+              <strong>{memberToDelete?.user.displayName || memberToDelete?.user.username}</strong>{" "}
+              from {organization.name}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveMember}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Remove Member
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
