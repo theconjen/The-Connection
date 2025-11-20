@@ -6,7 +6,7 @@
 import { Redirect } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { useAuth } from '../src/contexts/AuthContext';
-import { Colors } from '../../src/shared/colors';
+import { Colors } from '../src/shared/colors';
 
 export default function Index() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -15,7 +15,7 @@ export default function Index() {
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color=Colors.primary />
+  <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }

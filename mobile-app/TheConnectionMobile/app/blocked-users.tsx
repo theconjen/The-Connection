@@ -16,7 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { blockedUsersAPI } from '../src/lib/apiClient';
-import { Colors } from '../../src/shared/colors';
+import { Colors } from '../src/shared/colors';
 
 interface BlockedUser {
   id: number;
@@ -72,7 +72,7 @@ export default function BlockedUsersScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color=Colors.primary />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -135,7 +135,7 @@ export default function BlockedUsersScreen() {
                   disabled={unblockMutation.isPending}
                 >
                   {unblockMutation.isPending ? (
-                    <ActivityIndicator size="small" color=Colors.primary />
+                    <ActivityIndicator size="small" color={Colors.primary} />
                   ) : (
                     <Text style={styles.unblockButtonText}>Unblock</Text>
                   )}

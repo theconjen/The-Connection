@@ -21,7 +21,7 @@ import { Colors } from '../../src/shared/colors';
 
 export default function PrayerDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams() as { id: string };
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState('');
@@ -84,7 +84,7 @@ export default function PrayerDetailScreen() {
   if (prayerLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color=Colors.primary />
+  <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -136,7 +136,7 @@ export default function PrayerDetailScreen() {
           <Text style={styles.commentsTitle}>Prayer Updates & Encouragement ({comments.length})</Text>
           
           {commentsLoading ? (
-            <ActivityIndicator size="small" color=Colors.primary style={{ marginTop: 20 }} />
+            <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
           ) : comments.length === 0 ? (
             <Text style={styles.noComments}>No comments yet. Be the first to encourage!</Text>
           ) : (

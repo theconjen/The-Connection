@@ -17,7 +17,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postsAPI } from '../src/lib/apiClient';
-import { Colors } from '../../src/shared/colors';
+import { Colors } from '../src/shared/colors';
 
 export default function CreatePostScreen() {
   const router = useRouter();
@@ -75,7 +75,7 @@ export default function CreatePostScreen() {
 
       {createMutation.isPending && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color=Colors.primary />
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       )}
     </KeyboardAvoidingView>

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
-import { Colors } from '../../src/shared/colors';
+import { Colors } from '../src/shared/colors';
 
 export default function MenuScreen() {
   const router = useRouter();

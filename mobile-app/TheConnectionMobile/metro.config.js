@@ -3,29 +3,34 @@ const path = require('path');
 
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '../..');
+const workspaceRoot = path.resolve(monorepoRoot, '..');
 
+// Start from Expo's default config for this project
 const config = getDefaultConfig(projectRoot);
 
-// Watch the monorepo packages
+// Ensure Metro uses the mobile app folder as the project root
+config.projectRoot = projectRoot;
+
+// Include relevant workspace packages so Metro can resolve shared code
 config.watchFolders = [
-  projectRoot,
   path.resolve(monorepoRoot, 'packages/shared'),
   path.resolve(monorepoRoot, 'packages/ui'),
+  // Also watch the repository root so Metro can find workspace node_modules
+  path.resolve(workspaceRoot),
 ];
 
-// Ensure proper resolution for node_modules and workspace packages
+// Resolve modules from both the mobile app and monorepo node_modules
+config.resolver = config.resolver || {};
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(monorepoRoot, 'node_modules'),
+  path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// Add extra node modules for workspace packages
-config.resolver.extraNodeModules = {
-  '@connection/shared': path.resolve(monorepoRoot, 'packages/shared/src'),
-  '@connection/ui': path.resolve(monorepoRoot, 'packages/ui/src'),
-};
-
-// Ensure proper platform support
-config.resolver.platforms = ['ios', 'android', 'native', 'web'];
+// Map specific packages to the workspace node_modules to avoid resolution
+// issues in monorepo setups (expo-router is installed at the repo root).
+config.resolver.extraNodeModules = Object.assign({}, config.resolver.extraNodeModules || {}, {
+  'expo-router': path.resolve(workspaceRoot, 'node_modules', 'expo-router'),
+});
 
 module.exports = config;
