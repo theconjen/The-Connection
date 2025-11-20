@@ -3,7 +3,8 @@
  */
 
 import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 
 const cn = (...classes: (string | undefined)[]) => classes.filter(Boolean).join(" ");
 
@@ -28,8 +29,9 @@ const badgeVariants = cva(
 );
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+  extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: "default" | "secondary" | "destructive" | "outline";
+}
 
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
