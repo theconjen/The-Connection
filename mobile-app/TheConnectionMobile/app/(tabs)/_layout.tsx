@@ -1,12 +1,22 @@
 import { Tabs } from 'expo-router';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTheme } from '../../src/shared/ThemeProvider';
 
 export default function TabsLayout() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: '#8b5cf6' }}>
+    <Tabs screenOptions={{
+      headerShown: false,
+      tabBarActiveTintColor: colors.primary,
+      tabBarInactiveTintColor: colors.textSecondary,
+      tabBarStyle: {
+        backgroundColor: colors.surface,
+        borderTopColor: colors.border,
+      }
+    }}>
       <Tabs.Screen
         name="feed"
         options={{
@@ -75,19 +85,4 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  createButton: {
-    top: -10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#8b5cf6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-});
+// Unused styles - can be removed in future cleanup

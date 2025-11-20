@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { Colors } from '../../src/shared/colors';
 
 export default function PostDetailScreen() {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function PostDetailScreen() {
   if (postLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color=Colors.primary />
       </View>
     );
   }
@@ -99,7 +100,7 @@ export default function PostDetailScreen() {
           <Text style={styles.commentsTitle}>Comments ({comments.length})</Text>
           
           {commentsLoading ? (
-            <ActivityIndicator size="small" color="#8b5cf6" style={{ marginTop: 20 }} />
+            <ActivityIndicator size="small" color=Colors.primary style={{ marginTop: 20 }} />
           ) : comments.length === 0 ? (
             <Text style={styles.noComments}>No comments yet</Text>
           ) : (
@@ -149,12 +150,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backIcon: { fontSize: 24, color: '#8b5cf6' },
+  backIcon: { fontSize: 24, color: Colors.primary },
   title: { fontSize: 18, fontWeight: '600', color: '#1f2937' },
   content: { flex: 1 },
   postSection: { backgroundColor: '#fff', padding: 16, borderBottomWidth: 8, borderBottomColor: '#f3f4f6' },
   postHeader: { flexDirection: 'row', marginBottom: 12 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   avatarText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   authorName: { fontSize: 14, fontWeight: '600', color: '#1f2937' },
   postContent: { fontSize: 15, color: '#374151', lineHeight: 22 },
@@ -163,13 +164,13 @@ const styles = StyleSheet.create({
   noComments: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginTop: 20 },
   commentCard: { backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e5e7eb' },
   commentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  smallAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', marginRight: 8 },
+  smallAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
   smallAvatarText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   commentAuthor: { fontSize: 13, fontWeight: '600', color: '#1f2937' },
   commentContent: { fontSize: 14, color: '#374151', lineHeight: 20 },
   inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb', alignItems: 'center' },
   input: { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, maxHeight: 80, marginRight: 8 },
-  postButton: { backgroundColor: '#8b5cf6', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  postButton: { backgroundColor: Colors.primary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
   postButtonDisabled: { opacity: 0.5 },
   postButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });

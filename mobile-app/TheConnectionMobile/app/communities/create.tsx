@@ -20,6 +20,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI } from '../../src/lib/apiClient';
+import { Colors } from '../../src/shared/colors';
 
 export default function CreateCommunityScreen() {
   const router = useRouter();
@@ -173,7 +174,7 @@ export default function CreateCommunityScreen() {
                 value={isPrivate}
                 onValueChange={setIsPrivate}
                 trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
-                thumbColor={isPrivate ? '#8b5cf6' : '#f3f4f6'}
+                thumbColor={isPrivate ? Colors.primary : '#f3f4f6'}
                 disabled={createMutation.isPending}
               />
             </View>
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   cancelButtonText: {
-    color: '#8b5cf6',
+    color: Colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   createButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.primary,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',

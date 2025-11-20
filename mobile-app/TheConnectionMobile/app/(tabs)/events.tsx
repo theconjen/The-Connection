@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calendar, DateData } from 'react-native-calendars';
 import { eventsAPI } from '../../src/lib/apiClient';
+import { Colors } from '../../src/shared/colors';
 
 interface Event {
   id: number;
@@ -78,15 +79,15 @@ export default function EventsScreen() {
       const dateKey = new Date(event.startTime).toISOString().split('T')[0];
       marked[dateKey] = {
         marked: true,
-        dotColor: '#8b5cf6',
-        selectedColor: '#8b5cf6',
+        dotColor: Colors.primary,
+        selectedColor: Colors.primary,
       };
     });
     // Also mark selected date
     marked[selectedDate] = {
       ...marked[selectedDate],
       selected: true,
-      selectedColor: '#8b5cf6',
+      selectedColor: Colors.primary,
     };
     return marked;
   };
@@ -102,7 +103,7 @@ export default function EventsScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color=Colors.primary />
       </View>
     );
   }
@@ -153,10 +154,10 @@ export default function EventsScreen() {
           markedDates={getMarkedDates()}
           onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
           theme={{
-            selectedDayBackgroundColor: '#8b5cf6',
-            todayTextColor: '#8b5cf6',
-            dotColor: '#8b5cf6',
-            arrowColor: '#8b5cf6',
+            selectedDayBackgroundColor: Colors.primary,
+            todayTextColor: Colors.primary,
+            dotColor: Colors.primary,
+            arrowColor: Colors.primary,
           }}
         />
       )}
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   createButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
@@ -298,7 +299,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   viewModeTextActive: {
-    color: '#8b5cf6',
+    color: Colors.primary,
     fontWeight: '600',
   },
   content: {
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
   dateBox: {
     width: 60,
     height: 60,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.primary,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -361,11 +362,11 @@ const styles = StyleSheet.create({
   },
   attendeeCount: {
     fontSize: 12,
-    color: '#8b5cf6',
+    color: Colors.primary,
     fontWeight: '600',
   },
   rsvpButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,

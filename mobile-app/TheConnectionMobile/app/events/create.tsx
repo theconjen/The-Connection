@@ -18,6 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { eventsAPI } from '../../src/lib/apiClient';
+import { Colors } from '../../src/shared/colors';
 
 export default function CreateEventScreen() {
   const router = useRouter();
@@ -146,7 +147,7 @@ export default function CreateEventScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  cancelText: { color: '#8b5cf6', fontSize: 16, fontWeight: '600' },
+  cancelText: { color: Colors.primary, fontSize: 16, fontWeight: '600' },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
   content: { flex: 1 },
   form: { padding: 20 },
@@ -156,7 +157,7 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 100, paddingTop: 12 },
   hint: { fontSize: 12, color: '#9ca3af', marginTop: 4 },
   footer: { backgroundColor: '#fff', padding: 20, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
-  createButton: { backgroundColor: '#8b5cf6', borderRadius: 8, padding: 16, alignItems: 'center' },
+  createButton: { backgroundColor: Colors.primary, borderRadius: 8, padding: 16, alignItems: 'center' },
   createButtonDisabled: { opacity: 0.6 },
   createButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
