@@ -3,15 +3,17 @@
  */
 import { db } from "./db";
 import { users, posts, comments, communities, groups, microblogs } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export async function seedFeed() {
   console.log("Starting feed data seeding...");
   
   try {
     // Check if posts already exist
-    const existingPosts = await db.select({ count: { count: 'id' }}).from(posts) as { count: number }[];
-    if (existingPosts[0]?.count > 0) {
+    const [existingPosts] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(posts);
+    if (existingPosts?.count > 0) {
       console.log("Posts already exist, skipping seeding");
       return;
     }

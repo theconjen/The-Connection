@@ -111,10 +111,11 @@ export default function OrganizationInvitePage() {
 
     setSearching(true);
     try {
-      const response = await apiRequest(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
-      setSearchResults(response || []);
+    const response = await apiRequest(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+    const results = Array.isArray(response) ? response : [];
+    setSearchResults(results);
 
-      if (!response || response.length === 0) {
+    if (results.length === 0) {
         toast({
           title: "No results",
           description: "No users found matching your search",

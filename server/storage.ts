@@ -84,7 +84,7 @@ class StorageSafety {
     'deleteChatMessage', 'getCommunityWallPosts', 'getCommunityWallPost',
     'createCommunityWallPost', 'updateCommunityWallPost', 'deleteCommunityWallPost',
     'getAllPosts', 'getPost', 'getPostsByCommunitySlug', 'getPostsByGroupId',
-    'getUserPosts', 'createPost', 'upvotePost', 'getComment',
+    'getUserPosts', 'createPost', 'updatePost', 'deletePost', 'upvotePost', 'getComment',
     'getCommentsByPostId', 'createComment', 'upvoteComment', 'getGroup',
     'getGroupsByUserId', 'createGroup', 'addGroupMember', 'getGroupMembers',
     'isGroupAdmin', 'isGroupMember', 'getAllApologeticsResources',
@@ -204,6 +204,8 @@ export interface IStorage {
   getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]>;
   getUserPosts(userId: number): Promise<any[]>;
   createPost(post: InsertPost): Promise<Post>;
+  updatePost(id: number, data: Partial<Post>): Promise<Post>;
+  deletePost(id: number): Promise<boolean>;
   upvotePost(id: number): Promise<Post>;
   searchPosts(searchTerm: string): Promise<Post[]>;
   
@@ -1084,6 +1086,24 @@ export class MemStorage implements IStorage {
     };
     this.data.posts.push(newPost);
     return newPost;
+  }
+
+  async updatePost(id: number, data: Partial<Post>): Promise<Post> {
+    const post = this.data.posts.find(p => p.id === id && !p.deletedAt);
+    if (!post) {
+      throw new Error('Post not found');
+    }
+    Object.assign(post, data, { updatedAt: new Date() });
+    return post;
+  }
+
+  async deletePost(id: number): Promise<boolean> {
+    const post = this.data.posts.find(p => p.id === id && !p.deletedAt);
+    if (!post) {
+      return false;
+    }
+    post.deletedAt = new Date();
+    return true;
   }
   
   async upvotePost(id: number): Promise<Post> {
@@ -2517,6 +2537,22 @@ export class DbStorage implements IStorage {
   
   async createPost(post: InsertPost): Promise<Post> {
     throw new Error('Not implemented');
+  }
+
+  async updatePost(id: number, data: Partial<Post>): Promise<Post> {
+    const [updated] = await db.update(posts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(posts.id, id), whereNotDeleted(posts)))
+      .returning();
+    if (!updated) {
+      throw new Error('Post not found');
+    }
+    return updated;
+  }
+
+  async deletePost(id: number): Promise<boolean> {
+    const result = await softDelete(db, posts, posts.id, id);
+    return !!result;
   }
   
   async upvotePost(id: number): Promise<Post> {

@@ -458,7 +458,7 @@ export default function EventDetailPage() {
                 <TabsContent value="going" className="mt-4">
                   {going.length > 0 ? (
                     <div className="space-y-4">
-                      {going.map((rsvp: EventRsvp) => (
+                      {going.map((rsvp: EventRsvp & { user?: { avatarUrl?: string | null; displayName?: string; username?: string } }) => (
                         <div key={rsvp.id} className="flex items-center gap-3">
                           <Avatar>
                             <AvatarImage src={rsvp.user?.avatarUrl || ""} alt={rsvp.user?.displayName} />
@@ -480,7 +480,7 @@ export default function EventDetailPage() {
                 <TabsContent value="maybe" className="mt-4">
                   {maybe.length > 0 ? (
                     <div className="space-y-4">
-                      {maybe.map((rsvp: EventRsvp) => (
+                      {maybe.map((rsvp: EventRsvp & { user?: { avatarUrl?: string | null; displayName?: string; username?: string } }) => (
                         <div key={rsvp.id} className="flex items-center gap-3">
                           <Avatar>
                             <AvatarImage src={rsvp.user?.avatarUrl || ""} alt={rsvp.user?.displayName} />

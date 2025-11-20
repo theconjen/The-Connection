@@ -7,6 +7,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import { setupAuth, isAuthenticated, isAdmin } from './auth';
 import { storage as storageReal } from './storage';
 import rateLimit from 'express-rate-limit';
+import { sendPushNotification } from './services/pushService';
 
 // NOTE: many of the shared "Insert..." Zod-derived types are being inferred
 // in a way that causes object literal properties to appear as `never` in this
