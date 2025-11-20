@@ -1,0 +1,221 @@
+================================================================================
+THE CONNECTION - NOTIFICATIONS SYSTEM QUICK REFERENCE
+================================================================================
+
+KEY FINDING: Notifications feature is DISABLED (FEATURES.NOTIFICATIONS: false)
+Full infrastructure exists but is not in use.
+
+================================================================================
+FEATURE FLAG STATUS
+================================================================================
+File: /home/user/The-Connection/packages/shared/src/features.ts
+Status: DISABLED (false)
+Impact: Routes gated behind other features (COMMUNITIES, POSTS, FEED)
+
+================================================================================
+DATABASE TABLES
+================================================================================
+1. pushTokens - Store Expo push tokens for mobile devices
+   Location: /packages/shared/src/schema.ts (lines 1372-1380)
+   Columns: id, userId, token (unique), platform, createdAt, lastUsed
+   
+2. notifications - Store in-app notifications
+   Location: /packages/shared/src/schema.ts (lines 1382-1391)
+   Columns: id, userId, title, body, data (JSONB), category, isRead, createdAt
+   Indexes: idx_notifications_user_id, idx_notifications_user_id_is_read
+   
+3. User Notification Preferences (users table)
+   Location: /packages/shared/src/schema.ts (lines 36-39)
+   Columns: notifyDms, notifyCommunities, notifyForums, notifyFeed
+   NOTE: Defined but NEVER ENFORCED
+
+================================================================================
+API ENDPOINTS
+================================================================================
+PUSH TOKEN MANAGEMENT:
+  POST   /api/push/register           - Register device token
+  POST   /api/push/unregister         - Unregister token
+  DELETE /api/push/unregister         - Unregister token (alt method)
+  File: /server/routes/pushTokens.ts
+  Status: ✅ Fully Implemented
+
+NOTIFICATION MANAGEMENT:
+  GET    /api/notifications            - Get user's notifications
+  PUT    /api/notifications/:id/read   - Mark notification as read
+  File: /server/routes.ts (lines 1901-1925)
+  Status: ✅ Fully Implemented
+
+NOTE: No endpoint to CREATE notifications exists
+
+================================================================================
+SERVICE LAYER
+================================================================================
+File: /server/services/pushService.ts
+Status: ✅ Fully Implemented with Expo SDK
+
+Functions:
+  - sendPushNotifications(notifications): Send batch of push notifications
+  - sendPushNotification(token, title, body, data): Send single notification
+
+Details:
+  - Uses expo-server-sdk v4.0.0
+  - Token validation implemented
+  - Batch sending for efficiency
+  - Error handling
+  
+Issue: NEVER CALLED from active code (commented out in dmRoutes.ts)
+
+================================================================================
+PUSH NOTIFICATION DISABLED CODE
+================================================================================
+File: /server/routes/dmRoutes.ts (lines 62-86)
+Status: ⚠️ COMMENTED OUT
+
+What it should do:
+  - Send push notification when user receives DM
+  - Get receiver's push tokens
+  - Show sender name and message preview
+  
+Code comment: "TODO: Retrieve the receiver's push token from storage"
+              "Once the push_tokens table is created, uncomment the actual implementation"
+
+Why disabled: Incomplete implementation - relies on push_tokens table creation
+
+================================================================================
+STORAGE LAYER
+================================================================================
+File: /server/storage.ts
+Status: ✅ Fully Implemented
+
+Push Token Methods:
+  - savePushToken(token): Save or update push token
+  - getUserPushTokens(userId): Get all user's tokens
+  - deletePushToken(token, userId): Delete token with ownership check
+
+Notification Methods:
+  - getUserNotifications(userId): Get user's notifications (ordered by date)
+  - markNotificationAsRead(id, userId): Mark notification as read
+
+All methods fully implement database backend with Drizzle ORM
+
+================================================================================
+TESTING
+================================================================================
+Unit Tests: /tests/unit/db.push_notifications.spec.ts
+  ✅ Save, retrieve, delete push tokens
+  ✅ Create, read, mark notifications as read
+  ✅ User isolation enforcement
+  Status: Requires DATABASE_URL
+
+Integration Tests: /tests/integration/push_notifications.spec.ts
+  ✅ User registration
+  ✅ Push token registration/unregistration
+  ✅ Notification retrieval and read marking
+  Status: Uses in-memory mock, fully functional
+
+================================================================================
+EMAIL NOTIFICATIONS
+================================================================================
+File: /server/email-notifications.ts
+Status: ✅ Implemented for Application Management only
+
+Current Emails:
+  - Livestreamer application notification (to admins)
+  - Apologist scholar application notification (to admins)
+  - Application status update (to applicants)
+
+NOT connected to push notification system
+
+================================================================================
+CLIENT-SIDE
+================================================================================
+Status: ⚠️ INCOMPLETE
+
+Files mentioning notifications:
+  - /client/src/pages/settings-page.tsx
+    * Has push notification toggle in state
+    * Never saved to backend
+    * No UI implementation
+  
+  - /client/src/components/header.tsx
+  - /client/src/components/mobile-header.tsx
+  - /client/src/hooks/use-chat-websocket.tsx
+  
+Mobile: /mobile-app/TheConnectionMobile/app/settings.tsx
+  Status: ❌ No push notification integration
+
+What's missing:
+  - Notification bell UI
+  - Notification panel/dropdown
+  - Real notification count badge
+  - Notification click handlers
+  - Sound/badge preferences
+  - Deep linking from notifications
+
+================================================================================
+WHAT'S IMPLEMENTED ✅
+================================================================================
+1. Database schema (2 tables + 4 preference columns)
+2. Push token API (register, unregister)
+3. Notification API (list, mark as read)
+4. Expo push service (fully configured)
+5. Storage layer (database queries)
+6. Unit & integration tests
+7. Email notification system (app-specific)
+8. User preference columns (users table)
+9. Database migrations
+10. API route registration
+
+================================================================================
+WHAT'S MISSING ❌
+================================================================================
+1. Feature flag DISABLED (NOTIFICATIONS: false)
+2. No notification creation trigger
+3. No notification creation endpoint
+4. Push notifications commented out in code
+5. User preferences not enforced
+6. No real-time Socket.IO integration
+7. Client-side UI components
+8. Mobile app integration
+9. Notification delivery triggers for:
+   - DMs
+   - Community invitations
+   - Event updates
+   - Post comments
+   - Prayer requests
+   - Admin actions
+10. Delivery tracking & retry logic
+11. Notification cleanup/expiration
+
+================================================================================
+TO ENABLE NOTIFICATIONS
+================================================================================
+STEP 1: Enable feature flag
+  File: /packages/shared/src/features.ts
+  Change: NOTIFICATIONS: false → true
+
+STEP 2: Implement notification creation endpoint
+  POST /api/notifications
+  Body: { userId, title, body, category, data }
+
+STEP 3: Uncomment push notification code
+  File: /server/routes/dmRoutes.ts (lines 62-86)
+  Fetch receiver's push tokens and send notification
+
+STEP 4: Enforce user preferences
+  Check notifyDms, notifyCommunities, notifyForums, notifyFeed
+  Skip notifications if user opted out
+
+STEP 5: Build client UI
+  - Notification bell
+  - Notification panel
+  - Settings for preferences
+
+================================================================================
+DEPENDENCIES
+================================================================================
+✅ expo-server-sdk: ^4.0.0 (installed)
+✅ Other dependencies: All necessary packages installed
+   (express-session, drizzle-orm, etc.)
+
+================================================================================

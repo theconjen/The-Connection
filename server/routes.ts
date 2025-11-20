@@ -365,10 +365,11 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api', safetyRoutes);
     // compatibility moderation router (client expects /api/moderation/*)
     app.use('/api', moderationRoutes);
+    app.use('/api/admin', adminRoutes);
   }
 
   if (FEATURES.ORGS) {
-    app.use('/api/admin', adminRoutes);
+    app.use('/api/organizations', organizationRoutes);
   }
 
   if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {
@@ -1578,6 +1579,44 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
+  app.post('/api/apologetics/answers/:id/upvote', isAuthenticated, async (req, res) => {
+    try {
+      const answerId = parseInt(req.params.id);
+      if (isNaN(answerId)) {
+        return res.status(400).json({ message: 'Invalid answer ID' });
+      }
+
+      const answer = await storage.upvoteApologeticsAnswer(answerId);
+      res.json(answer);
+    } catch (error) {
+      console.error('Error upvoting answer:', error);
+      res.status(500).json(buildErrorResponse('Error upvoting answer', error));
+    }
+  });
+
+  app.get('/api/apologetics/questions/:id', async (req, res) => {
+    try {
+      const questionId = parseInt(req.params.id);
+      if (isNaN(questionId)) {
+        return res.status(400).json({ message: 'Invalid question ID' });
+      }
+
+      // Increment view count
+      await storage.incrementApologeticsQuestionViews(questionId);
+
+      const question = await storage.getApologeticsQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ message: 'Question not found' });
+      }
+
+      const answers = await storage.getApologeticsAnswersByQuestion(questionId);
+      res.json({ question, answers });
+    } catch (error) {
+      console.error('Error fetching question:', error);
+      res.status(500).json(buildErrorResponse('Error fetching question', error));
+    }
+  });
+
   // Groups endpoints
   app.get('/api/groups', isAuthenticated, async (req, res) => {
     try {
@@ -1819,18 +1858,43 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   // Search endpoints
-  app.get('/api/search/communities', async (req, res) => {
+  // Location-based community search (supports city, state, interests, radius)
+  registerLocationSearchRoutes(app);
+
+  // Global search endpoint
+  app.get('/api/search', async (req, res) => {
     try {
       const query = req.query.q as string;
-      if (!query) {
+      if (!query || query.trim().length === 0) {
         return res.status(400).json({ message: 'Search query is required' });
       }
 
-      const communities = await storage.searchCommunities(query);
-      res.json(communities);
+      // Search all entities in parallel
+      const [users, communities, posts, events, microblogs, prayerRequests, apologeticsQuestions] = await Promise.all([
+        storage.searchUsers(query),
+        storage.searchCommunities(query),
+        storage.searchPosts(query),
+        storage.searchEvents(query),
+        storage.searchMicroblogs(query),
+        storage.searchPrayerRequests(query),
+        storage.searchApologeticsQuestions(query)
+      ]);
+
+      // Format results with type labels
+      const results = {
+        users: users.map(u => ({ ...u, type: 'user' as const })),
+        communities: communities.map(c => ({ ...c, type: 'community' as const })),
+        posts: posts.map(p => ({ ...p, type: 'post' as const })),
+        events: events.map(e => ({ ...e, type: 'event' as const })),
+        microblogs: microblogs.map(m => ({ ...m, type: 'microblog' as const })),
+        prayerRequests: prayerRequests.map(pr => ({ ...pr, type: 'prayer' as const })),
+        apologeticsQuestions: apologeticsQuestions.map(q => ({ ...q, type: 'question' as const }))
+      };
+
+      res.json(results);
     } catch (error) {
-      console.error('Error searching communities:', error);
-      res.status(500).json(buildErrorResponse('Error searching communities', error));
+      console.error('Error performing global search:', error);
+      res.status(500).json(buildErrorResponse('Error performing search', error));
     }
   });
 

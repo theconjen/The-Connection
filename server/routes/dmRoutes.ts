@@ -59,27 +59,28 @@ router.post("/send", dmLimiter, async (req, res) => {
 
     // Send push notification to the receiver
     try {
-      // TODO: Retrieve the receiver's push token from storage
-      // const receiverUser = await storage.getUser(parseInt(receiverId));
-      // const pushToken = receiverUser?.pushToken;
-      
-      // For now, we'll just log that we would send a notification
-      // Once the push_tokens table is created, uncomment the actual implementation
-      
-      // if (pushToken) {
-      //   const sender = await storage.getUser(senderId);
-      //   const senderName = sender?.displayName || sender?.username || 'Someone';
-      //   
-      //   await sendPushNotification(
-      //     pushToken,
-      //     `New message from ${senderName}`,
-      //     content,
-      //     { type: 'dm', senderId, messageId: message.id }
-      //   );
-      //   console.log('Push notification sent to receiver');
-      // }
-      
-      console.log('Push notification would be sent here once push_tokens table is created');
+      // Get push tokens for the receiver
+      const pushTokens = await storage.getUserPushTokens(parsedReceiverId);
+
+      if (pushTokens && pushTokens.length > 0) {
+        const sender = await storage.getUser(senderId);
+        const senderName = sender?.displayName || sender?.username || 'Someone';
+
+        // Send to all registered devices
+        for (const tokenData of pushTokens) {
+          try {
+            await sendPushNotification(
+              tokenData.token,
+              `New message from ${senderName}`,
+              content,
+              { type: 'dm', senderId, messageId: message.id }
+            );
+          } catch (tokenError) {
+            console.error('Error sending to specific token:', tokenError);
+          }
+        }
+        console.log(`Push notifications sent to ${pushTokens.length} device(s)`);
+      }
     } catch (pushError) {
       // Don't fail the request if push notification fails
       console.error('Error sending push notification:', pushError);
