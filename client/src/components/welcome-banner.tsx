@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getDailyQuote, getRandomQuote, type DailyQuote } from "@shared/quotes";
+import { getDailyQuote, getRandomQuote, type DailyQuote } from "@connection/shared/quotes";
 import { useAuth } from "../hooks/use-auth";
 import { Button } from "./ui/button";
 import { RefreshCw } from "lucide-react";

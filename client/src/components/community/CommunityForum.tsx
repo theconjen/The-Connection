@@ -45,7 +45,7 @@ import {
 import { formatDistance } from "date-fns";
 import { useToast } from "../../hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Microblog, Community } from "@shared/schema";
+import type { Microblog, Community } from "@connection/shared/schema";
 
 interface CommunityForumProps {
   community: Community;

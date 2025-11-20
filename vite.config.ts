@@ -39,7 +39,9 @@ export default async function defineConfig(): Promise<UserConfig> {
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('client/src', import.meta.url)),
-        '@shared': fileURLToPath(new URL('shared', import.meta.url)),
+        '@connection/shared': fileURLToPath(new URL('packages/shared/src', import.meta.url)),
+        '@connection/ui': fileURLToPath(new URL('packages/ui/src', import.meta.url)),
+        '@shared': fileURLToPath(new URL('packages/shared/src', import.meta.url)),
         '@assets': fileURLToPath(new URL('client/src/assets', import.meta.url)),
       },
     },

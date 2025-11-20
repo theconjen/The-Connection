@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 import { ArrowLeft, Phone, Video, MoreVertical } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import type { User } from '@shared/mobile-web/types';
+import type { User } from '@connection/shared/mobile-web/types';
 
 interface Message {
   id: string;

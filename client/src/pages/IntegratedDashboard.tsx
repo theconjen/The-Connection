@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { format } from 'date-fns';
-import type { Community, Event } from '@shared/mobile-web/types';
+import type { Community, Event } from '@connection/shared/mobile-web/types';
 
 // Types for data
 interface MicroblogPost {

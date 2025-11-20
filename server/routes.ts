@@ -1310,37 +1310,6 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  // DELETE /api/microblogs/:id - Delete own microblog
-  app.delete('/api/microblogs/:id', isAuthenticated, async (req, res) => {
-    try {
-      const userId = getSessionUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-
-      const microblogId = parseInt(req.params.id);
-      if (!Number.isFinite(microblogId)) {
-        return res.status(400).json({ message: 'Invalid microblog ID' });
-      }
-
-      // Verify ownership
-      const existingMicroblog = await storage.getMicroblog(microblogId);
-      if (!existingMicroblog) {
-        return res.status(404).json({ message: 'Microblog not found' });
-      }
-      if (existingMicroblog.authorId !== userId) {
-        return res.status(403).json({ message: 'Not authorized to delete this microblog' });
-      }
-
-      // Delete microblog
-      await storage.deleteMicroblog(microblogId);
-      res.json({ ok: true, message: 'Microblog deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting microblog:', error);
-      res.status(500).json(buildErrorResponse('Error deleting microblog', error));
-    }
-  });
-
   // Events endpoints
   app.get('/api/events', async (req, res) => {
     try {

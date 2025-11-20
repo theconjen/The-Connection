@@ -42,7 +42,7 @@ import {
 import { formatDistance } from "date-fns";
 import { useToast } from "../../hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { CommunityWallPost, Community } from "@shared/schema";
+import type { CommunityWallPost, Community } from "@connection/shared/schema";
 
 interface CommunityFeedProps {
   community: Community;

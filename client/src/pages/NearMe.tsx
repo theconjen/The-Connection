@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Map, Users, Calendar, Pin, Info, Clock } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
-import type { Community, Event } from '@shared/mobile-web/types';
+import type { Community, Event } from '@connection/shared/mobile-web/types';
 
 // Type definitions
 // Using shared Community and Event types

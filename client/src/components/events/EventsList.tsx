@@ -21,7 +21,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import EventsMap from './EventsMap';
-import type { Event } from '@shared/mobile-web/types';
+import type { Event } from '@connection/shared/mobile-web/types';
 
 interface EventsListProps {
   events: Event[];

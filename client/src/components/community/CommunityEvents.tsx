@@ -53,7 +53,7 @@ import {
 import { format, formatDistance, isAfter, isBefore, isSameDay } from "date-fns";
 import { useToast } from "../../hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Community, Event } from "@shared/mobile-web/types";
+import type { Community, Event } from "@connection/shared/mobile-web/types";
 
 // Utility functions for event handling
 const isEventPast = (startDateTime: string): boolean => {

@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { CommunityInvitation } from "@shared/schema";
+import type { CommunityInvitation } from "@connection/shared/schema";
 
 interface InvitationManagerProps {
   communityId: string;
