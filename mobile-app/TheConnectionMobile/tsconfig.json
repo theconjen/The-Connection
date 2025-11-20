@@ -14,6 +14,7 @@
     "noEmit": true,
     "baseUrl": ".",
     "skipLibCheck": true,
+    "types": ["react-native", "node"],
     "paths": {
       "@connection/shared": ["../../packages/shared/src"],
       "@connection/shared/*": ["../../packages/shared/src/*"],
