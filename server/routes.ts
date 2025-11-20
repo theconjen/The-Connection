@@ -86,7 +86,7 @@ import { FEATURES } from './config/features';
 
 // Modular route imports
 import authRoutes from './routes/auth';
-import feedRoutes from './routes/feed';
+import createFeedRouter from './routes/createFeedRouter';
 import postsRoutes from './routes/posts';
 import communitiesRoutes from './routes/communities';
 import eventsRoutes from './routes/events';
@@ -379,7 +379,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.use('/api/mvp', mvpRoutes);
 
   if (FEATURES.FEED) {
-    app.use('/api', feedRoutes);
+  app.use('/api', createFeedRouter(storage));
   }
   if (FEATURES.POSTS) {
     app.use('/api', postsRoutes);

@@ -1,7 +1,8 @@
 import express from 'express';
 import session from 'express-session';
 import { createServer } from 'http';
-import feedRoutes from './routes/feed';
+import createFeedRouter from './routes/createFeedRouter';
+import { MemStorage } from './storage';
 
 // Lightweight in-memory session (no PG) for test harness
 const app = express();
@@ -13,9 +14,12 @@ app.use(session({ secret: 'test', resave: false, saveUninitialized: true }));
 let ready = false;
 const httpServer = createServer(app);
 
+// Create a shared MemStorage instance for tests to manipulate directly.
+export const testMemStorage = new MemStorage();
+
 try {
-  // Mount just the feed routes under /api
-  app.use('/api', feedRoutes);
+  // Mount just the feed routes under /api using the test MemStorage
+  app.use('/api', createFeedRouter(testMemStorage));
   ready = true;
 } catch (e) {
   console.error('Failed to register minimal routes in test-app:', e);

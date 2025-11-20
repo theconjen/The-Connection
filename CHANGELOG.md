@@ -9,6 +9,13 @@
 - Restructured layout components for cleaner code organization
 - Improved import paths for better component management
 
+### Nov 20, 2025 — Router DI refactor (testing/migration note)
+- Refactored the feed routes into a dependency-injected factory: `createFeedRouter(storage)`.
+	- Production: the server mounts the feed router with the canonical storage instance (DB-backed) as before.
+	- Tests: the lightweight `server/test-app.ts` now exports a `testMemStorage` (in-memory) instance and mounts the router using it. Tests should populate `testMemStorage.data.posts` and other in-memory stores directly to provide deterministic fixtures for API tests.
+	- Rationale: avoids test-only globals, makes the route explicitly testable, and prevents brittle cross-worker/module-instance issues when running Vitest in parallel.
+	- Action for contributors: when adding new routes that need deterministic testing, prefer the factory pattern and accept a storage-like interface so tests can inject simple in-memory doubles.
+
 ## Previous Updates
 
 ### Infrastructure & Database

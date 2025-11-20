@@ -12,8 +12,7 @@
 
 import request from 'supertest';
 // Use lightweight test app (no migrations, faster & deterministic)
-import app from '../../server/test-app';
-import { storage } from '../../server/storage-optimized';
+import app, { testMemStorage } from '../../server/test-app';
 
 type LegacyFeedItem = {
   id: string | number;
@@ -31,7 +30,7 @@ interface PaginatedFeed {
 const REQUIRE_PAGINATION = true;
 
 // Provide deterministic posts so pagination traversal is stable.
-beforeAll(() => {
+beforeEach(async () => {
   const posts = Array.from({ length: 55 }).map((_, i) => ({
     id: String(i + 1),
     title: `Post ${i + 1}`,
@@ -39,9 +38,9 @@ beforeAll(() => {
     createdAt: new Date(Date.now() - i * 1000).toISOString(),
     authorId: 1,
   }));
-  // Newest-first assumption: storage.getAllPosts currently returns that; ensure same ordering.
-  (storage as any).getAllPosts = async () => posts; // deterministic
-  (storage as any).getBlockedUserIdsFor = async () => [];
+  // Populate the test MemStorage instance directly used by test-app
+  (testMemStorage as any).data.posts = posts;
+  (testMemStorage as any).data.userBlocks = [];
 });
 
 describe('GET /api/feed pagination (strict)', () => {
@@ -58,6 +57,8 @@ describe('GET /api/feed pagination (strict)', () => {
     if (Array.isArray(first.body)) {
       throw new Error('Expected paginated object but received legacy array feed response.');
     }
+
+  // (no-op diagnostics removed)
 
     const seenIds = new Set<string | number>();
     let page: PaginatedFeed = first.body;
