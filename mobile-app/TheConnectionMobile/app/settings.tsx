@@ -1,13 +1,12 @@
 /**
- * Comprehensive Settings Screen
+ * Settings Screen
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   ScrollView,
-  Switch,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -20,20 +19,6 @@ import { Colors } from '../../src/shared/colors';
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
-
-  // Notification Settings
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [commentNotifications, setCommentNotifications] = useState(true);
-  const [mentionNotifications, setMentionNotifications] = useState(true);
-
-  // Privacy Settings
-  const [profileVisibility, setProfileVisibility] = useState(true);
-  const [showEmail, setShowEmail] = useState(false);
-  const [allowMessages, setAllowMessages] = useState(true);
-
-  // App Settings
-  const [darkMode, setDarkMode] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -92,36 +77,6 @@ export default function SettingsScreen() {
     </TouchableOpacity>
   );
 
-  const SettingToggle = ({
-    icon,
-    title,
-    subtitle,
-    value,
-    onValueChange,
-  }: {
-    icon: string;
-    title: string;
-    subtitle?: string;
-    value: boolean;
-    onValueChange: (value: boolean) => void;
-  }) => (
-    <View style={styles.settingItem}>
-      <View style={styles.settingIcon}>
-        <Text style={styles.settingIconText}>{icon}</Text>
-      </View>
-      <View style={styles.settingContent}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
-        thumbColor={value ? 'Colors.primary' : '#f3f4f6'}
-      />
-    </View>
-  );
-
   const SectionHeader = ({ title }: { title: string }) => (
     <Text style={styles.sectionHeader}>{title}</Text>
   );
@@ -148,105 +103,10 @@ export default function SettingsScreen() {
             onPress={() => router.push('/profile/edit')}
           />
           <SettingItem
-            icon="🔒"
-            title="Change Password"
-            subtitle="Update your account password"
-            onPress={() => Alert.alert('Coming Soon', 'Password change feature')}
-          />
-          <SettingItem
-            icon="📧"
-            title="Email Settings"
-            subtitle={user?.email || 'Update your email'}
-            onPress={() => Alert.alert('Coming Soon', 'Email settings feature')}
-          />
-        </View>
-
-        {/* Notifications Section */}
-        <SectionHeader title="NOTIFICATIONS" />
-        <View style={styles.section}>
-          <SettingToggle
-            icon="🔔"
-            title="Push Notifications"
-            subtitle="Receive push notifications"
-            value={pushNotifications}
-            onValueChange={setPushNotifications}
-          />
-          <SettingToggle
-            icon="📬"
-            title="Email Notifications"
-            subtitle="Receive email notifications"
-            value={emailNotifications}
-            onValueChange={setEmailNotifications}
-          />
-          <SettingToggle
-            icon="💬"
-            title="Comment Notifications"
-            subtitle="When someone comments on your posts"
-            value={commentNotifications}
-            onValueChange={setCommentNotifications}
-          />
-          <SettingToggle
-            icon="@"
-            title="Mention Notifications"
-            subtitle="When someone mentions you"
-            value={mentionNotifications}
-            onValueChange={setMentionNotifications}
-          />
-        </View>
-
-        {/* Privacy Section */}
-        <SectionHeader title="PRIVACY & SECURITY" />
-        <View style={styles.section}>
-          <SettingToggle
-            icon="👁️"
-            title="Public Profile"
-            subtitle="Make your profile visible to everyone"
-            value={profileVisibility}
-            onValueChange={setProfileVisibility}
-          />
-          <SettingToggle
-            icon="📧"
-            title="Show Email"
-            subtitle="Display email on your profile"
-            value={showEmail}
-            onValueChange={setShowEmail}
-          />
-          <SettingToggle
-            icon="✉️"
-            title="Allow Messages"
-            subtitle="Let other users send you messages"
-            value={allowMessages}
-            onValueChange={setAllowMessages}
-          />
-          <SettingItem
             icon="🚫"
             title="Blocked Users"
             subtitle="Manage blocked users"
             onPress={() => router.push('/blocked-users')}
-          />
-        </View>
-
-        {/* App Settings */}
-        <SectionHeader title="APP SETTINGS" />
-        <View style={styles.section}>
-          <SettingToggle
-            icon="🌙"
-            title="Dark Mode"
-            subtitle="Enable dark theme"
-            value={darkMode}
-            onValueChange={setDarkMode}
-          />
-          <SettingItem
-            icon="🌐"
-            title="Language"
-            subtitle="English (US)"
-            onPress={() => Alert.alert('Coming Soon', 'Language selection')}
-          />
-          <SettingItem
-            icon="💾"
-            title="Data Usage"
-            subtitle="Manage data and storage"
-            onPress={() => Alert.alert('Coming Soon', 'Data usage settings')}
           />
         </View>
 
@@ -279,12 +139,6 @@ export default function SettingsScreen() {
             subtitle="Get help with the app"
             onPress={() => openLink('https://app.theconnection.app/support')}
           />
-          <SettingItem
-            icon="📝"
-            title="Send Feedback"
-            subtitle="Help us improve"
-            onPress={() => Alert.alert('Coming Soon', 'Feedback form')}
-          />
         </View>
 
         {/* About */}
@@ -295,12 +149,6 @@ export default function SettingsScreen() {
             title="About The Connection"
             subtitle="Version 1.0.0"
             showArrow={false}
-          />
-          <SettingItem
-            icon="⭐"
-            title="Rate the App"
-            subtitle="Share your experience"
-            onPress={() => Alert.alert('Coming Soon', 'App store rating')}
           />
         </View>
 

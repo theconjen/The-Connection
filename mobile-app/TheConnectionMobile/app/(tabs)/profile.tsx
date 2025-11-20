@@ -62,22 +62,14 @@ export default function ProfileScreen() {
             <Text style={styles.menuItemText}>Edit Profile</Text>
             <Text style={styles.menuItemIcon}>›</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Notifications</Text>
-            <Text style={styles.menuItemIcon}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Privacy</Text>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/settings')}>
+            <Text style={styles.menuItemText}>Settings</Text>
             <Text style={styles.menuItemIcon}>›</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Help Center</Text>
-            <Text style={styles.menuItemIcon}>›</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Legal & Support</Text>
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => Linking.openURL('https://app.theconnection.app/privacy')}
@@ -90,10 +82,6 @@ export default function ProfileScreen() {
             onPress={() => Linking.openURL('https://app.theconnection.app/community-guidelines')}
           >
             <Text style={styles.menuItemText}>Community Guidelines</Text>
-            <Text style={styles.menuItemIcon}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>About</Text>
             <Text style={styles.menuItemIcon}>›</Text>
           </TouchableOpacity>
         </View>
