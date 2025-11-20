@@ -1,4 +1,6 @@
 import { db } from './db';
+
+if (!db) throw new Error('db is not initialized. Run with USE_DB=true or initialize the database first.');
 import { eq } from 'drizzle-orm';
 import { 
   users, 

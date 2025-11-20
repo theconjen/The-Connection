@@ -2,15 +2,18 @@
  * Seed script for posts, microblogs, and other feed content
  */
 import { db } from "./db";
+
+if (!db) throw new Error('db is not initialized. Run with USE_DB=true or initialize the database first.');
 import { users, posts, comments, communities, groups, microblogs } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export async function seedFeed() {
   console.log("Starting feed data seeding...");
   
   try {
     // Check if posts already exist
-    const existingPosts = await db.select({ count: { count: 'id' }}).from(posts) as { count: number }[];
+  // Drizzle typing here is strict; cast to any for seed-time convenience
+  const existingPosts = (await db.select({ count: sql<number>`count(*)` }).from(posts)) as any as { count: number }[];
     if (existingPosts[0]?.count > 0) {
       console.log("Posts already exist, skipping seeding");
       return;

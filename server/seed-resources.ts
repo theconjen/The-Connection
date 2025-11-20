@@ -2,6 +2,8 @@
  * Seed apologetics resources (books, podcasts, videos)
  */
 import { db } from "./db";
+
+if (!db) throw new Error('db is not initialized. Run with USE_DB=true or initialize the database first.');
 import { apologeticsResources } from "@shared/schema";
 import { sql } from "drizzle-orm";
 

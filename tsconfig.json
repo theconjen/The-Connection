@@ -41,10 +41,11 @@
   // removed allowImportingTsExtensions because it can conflict with composite/noEmit settings
     "moduleResolution": "bundler",
     "baseUrl": ".",
-  "types": ["node", "react", "react-dom"],
+  "types": ["node", "react", "react-dom", "vitest"],
     "typeRoots": [
       "./types",
-      "./node_modules/@types"
+      "./node_modules/@types",
+      "./node_modules/vitest"
     ],
     "paths": {
       "@/*": [
