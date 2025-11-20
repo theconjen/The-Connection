@@ -117,4 +117,79 @@ router.post('/api/comments/:id/upvote', isAuthenticated, async (req, res) => {
   }
 });
 
+// PATCH /api/posts/:id - Update own post
+router.patch('/api/posts/:id', isAuthenticated, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    const postId = parseInt(req.params.id);
+    if (!Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid post ID' });
+    }
+
+    // Verify ownership
+    const existingPost = await storage.getPost(postId);
+    if (!existingPost) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    if (existingPost.authorId !== userId) {
+      return res.status(403).json({ message: 'Not authorized to edit this post' });
+    }
+
+    // Update post
+    const { text } = req.body;
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ message: 'text required' });
+    }
+    const content = text.trim();
+    if (content.length === 0 || content.length > 500) {
+      return res.status(400).json({ message: 'text must be 1-500 chars' });
+    }
+
+    const updatedPost = await storage.updatePost(postId, {
+      title: content.slice(0, 60),
+      content,
+    });
+
+    res.json(updatedPost);
+  } catch (error) {
+    console.error('Error updating post:', error);
+    res.status(500).json(buildErrorResponse('Error updating post', error));
+  }
+});
+
+// DELETE /api/posts/:id - Delete own post
+router.delete('/api/posts/:id', isAuthenticated, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    const postId = parseInt(req.params.id);
+    if (!Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid post ID' });
+    }
+
+    // Verify ownership
+    const existingPost = await storage.getPost(postId);
+    if (!existingPost) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    if (existingPost.authorId !== userId) {
+      return res.status(403).json({ message: 'Not authorized to delete this post' });
+    }
+
+    // Delete post (soft delete)
+    await storage.deletePost(postId);
+    res.json({ ok: true, message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json(buildErrorResponse('Error deleting post', error));
+  }
+});
+
 export default router;

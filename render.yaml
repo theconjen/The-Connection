@@ -23,7 +23,23 @@ services:
         value: "true"
       - key: SESSION_SECRET
         sync: true
+      - key: JWT_SECRET
+        sync: true
       - key: DATABASE_URL
-        value: "postgresql://neondb_owner:npg_MfB8mlWiSkN4@ep-hidden-band-adzjfzr3-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+        sync: true
       - key: REDIS_URL
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: SENTRY_DSN
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: GOOGLE_CLOUD_PROJECT_ID
+        sync: false
+      - key: GOOGLE_CLOUD_STORAGE_BUCKET
         sync: false
