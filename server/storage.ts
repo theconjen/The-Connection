@@ -203,6 +203,7 @@ export interface IStorage {
   getUserPosts(userId: number): Promise<any[]>;
   createPost(post: InsertPost): Promise<Post>;
   upvotePost(id: number): Promise<Post>;
+  searchPosts(searchTerm: string): Promise<Post[]>;
   
   // Comment methods
   getComment(id: number): Promise<Comment | undefined>;
@@ -237,6 +238,7 @@ export interface IStorage {
   updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest>;
   markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest>;
   deletePrayerRequest(id: number): Promise<boolean>;
+  searchPrayerRequests(searchTerm: string): Promise<PrayerRequest[]>;
   
   // Prayer methods
   createPrayer(prayer: InsertPrayer): Promise<Prayer>;
@@ -254,6 +256,7 @@ export interface IStorage {
   getApologeticsQuestionsByTopic(topicId: number): Promise<ApologeticsQuestion[]>;
   createApologeticsQuestion(question: InsertApologeticsQuestion): Promise<ApologeticsQuestion>;
   updateApologeticsQuestionStatus(id: number, status: string): Promise<ApologeticsQuestion>;
+  searchApologeticsQuestions(searchTerm: string): Promise<ApologeticsQuestion[]>;
   
   getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]>;
   createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer>;
@@ -265,6 +268,7 @@ export interface IStorage {
   createEvent(event: InsertEvent): Promise<Event>;
   updateEvent(id: number, data: Partial<Event>): Promise<Event>;
   deleteEvent(id: number): Promise<boolean>;
+  searchEvents(searchTerm: string): Promise<Event[]>;
   
   // Event RSVP methods
   createEventRSVP(rsvp: InsertEventRsvp): Promise<EventRsvp>;
@@ -280,6 +284,7 @@ export interface IStorage {
   createMicroblog(microblog: InsertMicroblog): Promise<Microblog>;
   updateMicroblog(id: number, data: Partial<Microblog>): Promise<Microblog>;
   deleteMicroblog(id: number): Promise<boolean>;
+  searchMicroblogs(searchTerm: string): Promise<Microblog[]>;
   
   // Microblog like methods
   likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike>;
@@ -1076,11 +1081,21 @@ export class MemStorage implements IStorage {
   async upvotePost(id: number): Promise<Post> {
     const post = this.data.posts.find(p => p.id === id);
     if (!post) throw new Error('Post not found');
-    
+
     post.upvotes = (post.upvotes || 0) + 1;
     return post;
   }
-  
+
+  async searchPosts(searchTerm: string): Promise<Post[]> {
+    const term = searchTerm.toLowerCase();
+    return this.data.posts.filter(p =>
+      !p.deletedAt && (
+        p.title.toLowerCase().includes(term) ||
+        p.content?.toLowerCase().includes(term)
+      )
+    );
+  }
+
   // Comment methods
   async getComment(id: number): Promise<Comment | undefined> {
     return this.data.comments.find(c => c.id === id);
@@ -1280,11 +1295,19 @@ export class MemStorage implements IStorage {
   async deletePrayerRequest(id: number): Promise<boolean> {
     const index = this.data.prayerRequests.findIndex(p => p.id === id);
     if (index === -1) return false;
-    
+
     this.data.prayerRequests.splice(index, 1);
     return true;
   }
-  
+
+  async searchPrayerRequests(searchTerm: string): Promise<PrayerRequest[]> {
+    const term = searchTerm.toLowerCase();
+    return this.data.prayerRequests.filter(pr =>
+      pr.title?.toLowerCase().includes(term) ||
+      pr.description?.toLowerCase().includes(term)
+    );
+  }
+
   // Prayer methods
   async createPrayer(prayer: any): Promise<Prayer> {
     const newPrayer: Prayer = {
@@ -1380,11 +1403,19 @@ export class MemStorage implements IStorage {
   async updateApologeticsQuestionStatus(id: number, status: string): Promise<ApologeticsQuestion> {
     const question = this.data.apologeticsQuestions.find(q => q.id === id);
     if (!question) throw new Error('Question not found');
-    
+
     question.status = status;
     return question;
   }
-  
+
+  async searchApologeticsQuestions(searchTerm: string): Promise<ApologeticsQuestion[]> {
+    const term = searchTerm.toLowerCase();
+    return this.data.apologeticsQuestions.filter(q =>
+      q.title.toLowerCase().includes(term) ||
+      q.content.toLowerCase().includes(term)
+    );
+  }
+
   async getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]> {
     return this.data.apologeticsAnswers
       .filter(a => a.questionId === questionId)
@@ -1443,7 +1474,18 @@ export class MemStorage implements IStorage {
     (ev as any).deletedAt = new Date();
     return true;
   }
-  
+
+  async searchEvents(searchTerm: string): Promise<Event[]> {
+    const term = searchTerm.toLowerCase();
+    return this.data.events.filter(e =>
+      !(e as any).deletedAt && (
+        e.title.toLowerCase().includes(term) ||
+        e.description?.toLowerCase().includes(term) ||
+        e.location?.toLowerCase().includes(term)
+      )
+    );
+  }
+
   // Event RSVP methods
   async createEventRSVP(rsvp: any): Promise<EventRsvp> {
     const newRsvp: EventRsvp = {
@@ -1579,7 +1621,15 @@ export class MemStorage implements IStorage {
     (mb as any).deletedAt = new Date();
     return true;
   }
-  
+
+  async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
+    const term = searchTerm.toLowerCase();
+    return this.data.microblogs.filter(m =>
+      !(m as any).deletedAt &&
+      m.content.toLowerCase().includes(term)
+    );
+  }
+
   // Microblog like methods
   async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
     // Check if already liked
@@ -2378,7 +2428,20 @@ export class DbStorage implements IStorage {
   async upvotePost(id: number): Promise<Post> {
     throw new Error('Not implemented');
   }
-  
+
+  async searchPosts(searchTerm: string): Promise<Post[]> {
+    const term = `%${searchTerm}%`;
+    return await db.select()
+      .from(posts)
+      .where(and(
+        or(
+          like(posts.title, term),
+          like(posts.content, term)
+        ),
+        whereNotDeleted(posts)
+      ));
+  }
+
   // Comment methods
   async getComment(id: number): Promise<Comment | undefined> {
     return undefined;
@@ -2503,7 +2566,17 @@ export class DbStorage implements IStorage {
   async deletePrayerRequest(id: number): Promise<boolean> {
     return false;
   }
-  
+
+  async searchPrayerRequests(searchTerm: string): Promise<PrayerRequest[]> {
+    const term = `%${searchTerm}%`;
+    return await db.select()
+      .from(prayerRequests)
+      .where(or(
+        like(prayerRequests.title, term),
+        like(prayerRequests.description, term)
+      ));
+  }
+
   // Prayer methods
   async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
     throw new Error('Not implemented');
@@ -2553,11 +2626,21 @@ export class DbStorage implements IStorage {
   async updateApologeticsQuestionStatus(id: number, status: string): Promise<ApologeticsQuestion> {
     throw new Error('Not implemented');
   }
-  
+
+  async searchApologeticsQuestions(searchTerm: string): Promise<ApologeticsQuestion[]> {
+    const term = `%${searchTerm}%`;
+    return await db.select()
+      .from(apologeticsQuestions)
+      .where(or(
+        like(apologeticsQuestions.title, term),
+        like(apologeticsQuestions.content, term)
+      ));
+  }
+
   async getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]> {
     return [];
   }
-  
+
   async createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer> {
     throw new Error('Not implemented');
   }
@@ -2586,6 +2669,20 @@ export class DbStorage implements IStorage {
   async deleteEvent(id: number): Promise<boolean> {
     const result = await softDelete(db, events, events.id, id);
     return !!result;
+  }
+
+  async searchEvents(searchTerm: string): Promise<Event[]> {
+    const term = `%${searchTerm}%`;
+    return await db.select()
+      .from(events)
+      .where(and(
+        or(
+          like(events.title, term),
+          like(events.description, term),
+          like(events.location, term)
+        ),
+        whereNotDeleted(events)
+      ));
   }
 
   async getNearbyEvents(latitude: number, longitude: number, radius: number): Promise<Event[]> {
@@ -2655,7 +2752,14 @@ export class DbStorage implements IStorage {
   async deleteMicroblog(id: number): Promise<boolean> {
     return false;
   }
-  
+
+  async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
+    const term = `%${searchTerm}%`;
+    return await db.select()
+      .from(microblogs)
+      .where(like(microblogs.content, term));
+  }
+
   // Microblog like methods
   async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
     throw new Error('Not implemented');

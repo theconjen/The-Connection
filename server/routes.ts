@@ -365,10 +365,11 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api', safetyRoutes);
     // compatibility moderation router (client expects /api/moderation/*)
     app.use('/api', moderationRoutes);
+    app.use('/api/admin', adminRoutes);
   }
 
   if (FEATURES.ORGS) {
-    app.use('/api/admin', adminRoutes);
+    app.use('/api/organizations', organizationRoutes);
   }
 
   if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {
@@ -1831,6 +1832,43 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       console.error('Error searching communities:', error);
       res.status(500).json(buildErrorResponse('Error searching communities', error));
+    }
+  });
+
+  // Global search endpoint
+  app.get('/api/search', async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query || query.trim().length === 0) {
+        return res.status(400).json({ message: 'Search query is required' });
+      }
+
+      // Search all entities in parallel
+      const [users, communities, posts, events, microblogs, prayerRequests, apologeticsQuestions] = await Promise.all([
+        storage.searchUsers(query),
+        storage.searchCommunities(query),
+        storage.searchPosts(query),
+        storage.searchEvents(query),
+        storage.searchMicroblogs(query),
+        storage.searchPrayerRequests(query),
+        storage.searchApologeticsQuestions(query)
+      ]);
+
+      // Format results with type labels
+      const results = {
+        users: users.map(u => ({ ...u, type: 'user' as const })),
+        communities: communities.map(c => ({ ...c, type: 'community' as const })),
+        posts: posts.map(p => ({ ...p, type: 'post' as const })),
+        events: events.map(e => ({ ...e, type: 'event' as const })),
+        microblogs: microblogs.map(m => ({ ...m, type: 'microblog' as const })),
+        prayerRequests: prayerRequests.map(pr => ({ ...pr, type: 'prayer' as const })),
+        apologeticsQuestions: apologeticsQuestions.map(q => ({ ...q, type: 'question' as const }))
+      };
+
+      res.json(results);
+    } catch (error) {
+      console.error('Error performing global search:', error);
+      res.status(500).json(buildErrorResponse('Error performing search', error));
     }
   });
 

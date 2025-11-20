@@ -8,8 +8,8 @@ export const FEATURES = {
   COMMUNITIES: true,
   EVENTS: true,
   APOLOGETICS: true, // read-only
-  ORGS: false,
+  ORGS: true,
   PAYMENTS: false,
-  NOTIFICATIONS: false,
+  NOTIFICATIONS: true,
   RECOMMENDATIONS: false,
 };

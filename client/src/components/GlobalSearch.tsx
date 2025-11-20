@@ -89,81 +89,101 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
     queryKey: ['global-search', debouncedQuery],
     queryFn: async (): Promise<SearchResult[]> => {
       if (!debouncedQuery.trim()) return [];
-      
-      // Simulate API call - replace with actual search endpoint
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      const mockResults: SearchResult[] = [
-        {
-          id: '1',
-          type: 'community',
-          title: 'Daily Devotions',
-          content: 'A community for sharing daily reflections and spiritual insights',
-          path: '/communities/1',
-          tags: ['devotions', 'prayer', 'study']
-        },
-        {
-          id: '2',
-          type: 'user',
-          title: 'Sarah M.',
-          author: {
-            username: 'faithfulserv',
-            displayName: 'Sarah M.',
-          },
-          path: '/profile/faithfulserv',
-        },
-        {
-          id: '3',
-          type: 'post',
-          title: 'Finding Hope in Difficult Times',
-          content: 'I wanted to share how reading Psalm 23 this morning reminded me that even in our darkest valleys...',
-          author: {
-            username: 'faithfulserv',
-            displayName: 'Sarah M.',
-          },
-          community: { id: '1', name: 'Daily Devotions' },
-          path: '/posts/3',
-          tags: ['hope', 'psalms', 'encouragement'],
-          createdAt: '2024-01-07T10:30:00Z'
-        },
-        {
-          id: '4',
-          type: 'verse',
-          title: 'Jeremiah 29:11',
-          content: '"For I know the plans I have for you," declares the Lord, "plans to prosper you and not to harm you..."',
-          path: '/bible-study/jeremiah-29-11',
-          tags: ['hope', 'future', 'gods-plan']
-        },
-        {
-          id: '5',
-          type: 'event',
-          title: 'Youth Bible Study - This Friday 7PM',
-          content: 'Join us this Friday for an engaging Bible study focused on the Beatitudes.',
-          community: { id: '4', name: 'Youth Group' },
-          path: '/events/5',
-          tags: ['youth', 'bible-study', 'beatitudes']
-        },
-        {
-          id: '6',
-          type: 'prayer',
-          title: 'Prayer Request: Family Healing',
-          content: 'My father is going through a difficult health challenge...',
-          author: {
-            username: 'hopeinChrist',
-            displayName: 'Michael T.',
-          },
-          community: { id: '2', name: 'Prayer Circle' },
-          path: '/prayer-requests/6',
-          tags: ['prayer-request', 'healing', 'family']
-        }
-      ];
 
-      // Filter results based on query
-      return mockResults.filter(result => 
-        result.title.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-        result.content?.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-        result.tags?.some(tag => tag.toLowerCase().includes(debouncedQuery.toLowerCase()))
-      );
+      const response = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`);
+      if (!response.ok) throw new Error('Search failed');
+
+      const data = await response.json();
+      const results: SearchResult[] = [];
+
+      // Transform users
+      data.users?.forEach((user: any) => {
+        results.push({
+          id: user.id.toString(),
+          type: 'user',
+          title: user.displayName || user.username,
+          author: {
+            username: user.username,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl
+          },
+          path: `/profile/${user.username}`
+        });
+      });
+
+      // Transform communities
+      data.communities?.forEach((community: any) => {
+        results.push({
+          id: community.id.toString(),
+          type: 'community',
+          title: community.name,
+          content: community.description,
+          path: `/communities/${community.slug || community.id}`,
+          tags: community.tags || []
+        });
+      });
+
+      // Transform posts
+      data.posts?.forEach((post: any) => {
+        results.push({
+          id: post.id.toString(),
+          type: 'post',
+          title: post.title,
+          content: post.content?.substring(0, 150),
+          path: `/posts/${post.id}`,
+          createdAt: post.createdAt
+        });
+      });
+
+      // Transform events
+      data.events?.forEach((event: any) => {
+        results.push({
+          id: event.id.toString(),
+          type: 'event',
+          title: event.title,
+          content: event.description?.substring(0, 150),
+          path: `/events/${event.id}`,
+          createdAt: event.createdAt
+        });
+      });
+
+      // Transform microblogs (shown as posts)
+      data.microblogs?.forEach((microblog: any) => {
+        results.push({
+          id: microblog.id.toString(),
+          type: 'post',
+          title: microblog.content.substring(0, 60) + '...',
+          content: microblog.content,
+          path: `/microblogs`,
+          createdAt: microblog.createdAt
+        });
+      });
+
+      // Transform prayer requests
+      data.prayerRequests?.forEach((prayer: any) => {
+        results.push({
+          id: prayer.id.toString(),
+          type: 'prayer',
+          title: prayer.title || 'Prayer Request',
+          content: prayer.description?.substring(0, 150),
+          path: `/prayer-requests/${prayer.id}`,
+          createdAt: prayer.createdAt
+        });
+      });
+
+      // Transform apologetics questions
+      data.apologeticsQuestions?.forEach((question: any) => {
+        results.push({
+          id: question.id.toString(),
+          type: 'post',
+          title: question.title,
+          content: question.content?.substring(0, 150),
+          path: `/apologetics/questions/${question.id}`,
+          createdAt: question.createdAt
+        });
+      });
+
+      return results;
     },
     enabled: debouncedQuery.length > 0
   });
