@@ -16,6 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { blockedUsersAPI } from '../src/lib/apiClient';
+import { Colors } from '../../src/shared/colors';
 
 interface BlockedUser {
   id: number;
@@ -71,7 +72,7 @@ export default function BlockedUsersScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color="Colors.primary" />
       </View>
     );
   }
@@ -134,7 +135,7 @@ export default function BlockedUsersScreen() {
                   disabled={unblockMutation.isPending}
                 >
                   {unblockMutation.isPending ? (
-                    <ActivityIndicator size="small" color="#8b5cf6" />
+                    <ActivityIndicator size="small" color="Colors.primary" />
                   ) : (
                     <Text style={styles.unblockButtonText}>Unblock</Text>
                   )}
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 24,
-    color: '#8b5cf6',
+    color: 'Colors.primary',
   },
   title: {
     fontSize: 18,
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -250,12 +251,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#8b5cf6',
+    borderColor: 'Colors.primary',
     minWidth: 80,
     alignItems: 'center',
   },
   unblockButtonText: {
-    color: '#8b5cf6',
+    color: 'Colors.primary',
     fontSize: 14,
     fontWeight: '600',
   },

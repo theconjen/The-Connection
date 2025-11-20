@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { postsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { Colors } from '../../src/shared/colors';
 
 interface ForumPost {
   id: number;
@@ -76,7 +77,7 @@ export default function PostsListScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color="Colors.primary" />
       </View>
     );
   }
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   createButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
   },
   communityName: {
     fontSize: 12,
-    color: '#8b5cf6',
+    color: 'Colors.primary',
     fontWeight: '500',
   },
   postTitle: {
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
   },
   readMore: {
     fontSize: 13,
-    color: '#8b5cf6',
+    color: 'Colors.primary',
     fontWeight: '600',
   },
   emptyState: {
@@ -388,7 +389,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

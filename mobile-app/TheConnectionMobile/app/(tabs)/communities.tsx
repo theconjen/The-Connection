@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { Colors } from '../../src/shared/colors';
 
 interface Community {
   id: number;
@@ -93,7 +94,7 @@ export default function CommunitiesScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color="Colors.primary" />
         <Text style={styles.loadingText}>Loading communities...</Text>
       </View>
     );
@@ -251,7 +252,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
   },
   createButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
@@ -314,7 +315,7 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
   },
   actionButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
@@ -356,7 +357,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

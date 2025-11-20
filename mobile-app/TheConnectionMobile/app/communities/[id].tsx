@@ -19,6 +19,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { Colors } from '../../src/shared/colors';
 
 interface WallPost {
   id: number;
@@ -163,7 +164,7 @@ export default function CommunityDetailScreen() {
   if (communityLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color="Colors.primary" />
       </View>
     );
   }
@@ -304,7 +305,7 @@ export default function CommunityDetailScreen() {
 
             {/* Wall Posts */}
             {postsLoading ? (
-              <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color="Colors.primary" style={{ marginTop: 20 }} />
             ) : wallPosts.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>No posts yet</Text>
@@ -340,7 +341,7 @@ export default function CommunityDetailScreen() {
         {activeTab === 'members' && (
           <View style={styles.membersContent}>
             {membersLoading ? (
-              <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color="Colors.primary" style={{ marginTop: 20 }} />
             ) : members.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>No members yet</Text>
@@ -398,7 +399,7 @@ const styles = StyleSheet.create({
   },
   backIconText: {
     fontSize: 24,
-    color: '#8b5cf6',
+    color: 'Colors.primary',
   },
   headerContent: {
     flex: 1,
@@ -425,7 +426,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   joinButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -453,7 +454,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: '#8b5cf6',
+    borderBottomColor: 'Colors.primary',
   },
   tabText: {
     fontSize: 16,
@@ -461,7 +462,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   activeTabText: {
-    color: '#8b5cf6',
+    color: 'Colors.primary',
     fontWeight: '600',
   },
   content: {
@@ -516,7 +517,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitPostButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
@@ -548,7 +549,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -622,7 +623,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   backButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

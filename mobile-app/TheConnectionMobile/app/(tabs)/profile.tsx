@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { Colors } from '../../src/shared/colors';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -111,7 +112,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', color: '#1f2937' },
   content: { flex: 1 },
   profileSection: { backgroundColor: '#fff', padding: 24, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'Colors.primary', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   avatarText: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
   displayName: { fontSize: 24, fontWeight: 'bold', color: '#1f2937', marginBottom: 4 },
   username: { fontSize: 16, color: '#6b7280', marginBottom: 4 },

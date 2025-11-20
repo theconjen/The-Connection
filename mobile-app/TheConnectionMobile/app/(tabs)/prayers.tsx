@@ -17,6 +17,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { prayerRequestsAPI } from '../../src/lib/apiClient';
+import { Colors } from '../../src/shared/colors';
 
 interface PrayerRequest {
   id: number;
@@ -80,7 +81,7 @@ export default function PrayersScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color="Colors.primary" />
       </View>
     );
   }
@@ -205,18 +206,18 @@ const styles = StyleSheet.create({
   formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   cancelButton: { paddingVertical: 8, paddingHorizontal: 16 },
   cancelButtonText: { color: '#6b7280', fontSize: 14, fontWeight: '600' },
-  submitButton: { backgroundColor: '#8b5cf6', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 6 },
+  submitButton: { backgroundColor: 'Colors.primary', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 6 },
   submitButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   prayerCard: { backgroundColor: '#fff', padding: 16, marginBottom: 1, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   prayerHeader: { flexDirection: 'row', marginBottom: 12 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'Colors.primary', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   avatarText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   prayerMeta: { flex: 1 },
   authorName: { fontSize: 14, fontWeight: '600', color: '#1f2937' },
   prayerTime: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   prayerContent: { fontSize: 14, color: '#374151', lineHeight: 20, marginBottom: 12 },
   prayerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  prayButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#8b5cf6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6 },
+  prayButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'Colors.primary', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6 },
   prayButtonPrayed: { backgroundColor: '#10b981' },
   prayButtonIcon: { fontSize: 16, marginRight: 6 },
   prayButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },

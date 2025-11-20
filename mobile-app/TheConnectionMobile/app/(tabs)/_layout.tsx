@@ -1,12 +1,13 @@
 import { Tabs } from 'expo-router';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Colors } from '../../src/shared/colors';
 
 export default function TabsLayout() {
   const router = useRouter();
 
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: '#8b5cf6' }}>
+    <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: 'Colors.primary' }}>
       <Tabs.Screen
         name="feed"
         options={{
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'Colors.primary',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

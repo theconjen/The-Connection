@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
+import { Colors } from '../../src/shared/colors';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -116,7 +117,7 @@ export default function SettingsScreen() {
         value={value}
         onValueChange={onValueChange}
         trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
-        thumbColor={value ? '#8b5cf6' : '#f3f4f6'}
+        thumbColor={value ? 'Colors.primary' : '#f3f4f6'}
       />
     </View>
   );
@@ -332,7 +333,7 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 24,
-    color: '#8b5cf6',
+    color: 'Colors.primary',
   },
   title: {
     fontSize: 20,

@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { eventsAPI } from '../../src/lib/apiClient';
+import { Colors } from '../../src/shared/colors';
 
 interface Event {
   id: number;
@@ -101,7 +102,7 @@ export default function EventDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color="Colors.primary" />
       </View>
     );
   }
@@ -241,11 +242,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backIcon: { fontSize: 24, color: '#8b5cf6' },
+  backIcon: { fontSize: 24, color: 'Colors.primary' },
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#1f2937' },
   content: { flex: 1 },
   dateSection: { flexDirection: 'row', padding: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  dateBox: { width: 70, height: 70, backgroundColor: '#8b5cf6', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  dateBox: { width: 70, height: 70, backgroundColor: 'Colors.primary', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   dateMonth: { color: '#fff', fontSize: 14, fontWeight: '600', textTransform: 'uppercase' },
   dateDay: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
   dateInfo: { flex: 1, justifyContent: 'center' },
@@ -256,14 +257,14 @@ const styles = StyleSheet.create({
   locationSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, padding: 12, backgroundColor: '#f3f4f6', borderRadius: 8 },
   locationIcon: { fontSize: 20, marginRight: 12 },
   locationText: { flex: 1, fontSize: 15, color: '#1f2937' },
-  directionsButton: { backgroundColor: '#8b5cf6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+  directionsButton: { backgroundColor: 'Colors.primary', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
   directionsText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   mapContainer: { marginTop: 12, marginBottom: 12, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e5e7eb' },
   map: { width: '100%', height: 200 },
   mapToggle: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
   mapToggleText: { fontSize: 12, fontWeight: '600', color: '#1f2937' },
   showMapButton: { backgroundColor: '#f3f4f6', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 12 },
-  showMapText: { fontSize: 14, fontWeight: '600', color: '#8b5cf6' },
+  showMapText: { fontSize: 14, fontWeight: '600', color: 'Colors.primary' },
   attendeeSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, padding: 12, backgroundColor: '#f3f4f6', borderRadius: 8 },
   attendeeIcon: { fontSize: 20, marginRight: 12 },
   attendeeText: { fontSize: 15, color: '#1f2937', fontWeight: '600' },
@@ -271,10 +272,10 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1f2937', marginBottom: 12 },
   description: { fontSize: 15, color: '#374151', lineHeight: 24 },
   footer: { backgroundColor: '#fff', padding: 20, borderTopWidth: 1, borderTopColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 5 },
-  rsvpButton: { backgroundColor: '#8b5cf6', borderRadius: 12, padding: 16, alignItems: 'center' },
+  rsvpButton: { backgroundColor: 'Colors.primary', borderRadius: 12, padding: 16, alignItems: 'center' },
   rsvpButtonGoing: { backgroundColor: '#10b981' },
   rsvpButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   errorText: { fontSize: 18, color: '#ef4444', marginBottom: 16, textAlign: 'center' },
-  backButton: { backgroundColor: '#8b5cf6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  backButton: { backgroundColor: 'Colors.primary', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
   backButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

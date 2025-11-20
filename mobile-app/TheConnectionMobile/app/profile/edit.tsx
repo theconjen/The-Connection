@@ -18,6 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import apiClient from '../../src/lib/apiClient';
+import { Colors } from '../../src/shared/colors';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -110,7 +111,7 @@ export default function EditProfileScreen() {
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color="Colors.primary" />
         </View>
       )}
     </KeyboardAvoidingView>
@@ -120,15 +121,15 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  cancelText: { color: '#8b5cf6', fontSize: 16, fontWeight: '600' },
+  cancelText: { color: 'Colors.primary', fontSize: 16, fontWeight: '600' },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
-  saveText: { color: '#8b5cf6', fontSize: 16, fontWeight: '600' },
+  saveText: { color: 'Colors.primary', fontSize: 16, fontWeight: '600' },
   saveTextDisabled: { opacity: 0.5 },
   content: { flex: 1 },
   avatarSection: { backgroundColor: '#fff', padding: 24, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'Colors.primary', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   avatarText: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
-  changePhotoText: { color: '#8b5cf6', fontSize: 14, fontWeight: '600' },
+  changePhotoText: { color: 'Colors.primary', fontSize: 14, fontWeight: '600' },
   form: { padding: 20 },
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 8 },

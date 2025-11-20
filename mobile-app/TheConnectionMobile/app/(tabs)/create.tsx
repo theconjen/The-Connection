@@ -7,6 +7,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Colors } from '../../src/shared/colors';
 
 export default function CreateScreen() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function CreateScreen() {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#8b5cf6" />
+      <ActivityIndicator size="large" color="Colors.primary" />
       <Text style={styles.text}>Loading...</Text>
     </View>
   );

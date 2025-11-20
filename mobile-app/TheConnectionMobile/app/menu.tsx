@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
+import { Colors } from '../../src/shared/colors';
 
 export default function MenuScreen() {
   const router = useRouter();
@@ -67,7 +68,7 @@ export default function MenuScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backIcon: { fontSize: 24, color: '#8b5cf6' },
+  backIcon: { fontSize: 24, color: 'Colors.primary' },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
   content: { flex: 1 },
   section: { marginTop: 16 },
