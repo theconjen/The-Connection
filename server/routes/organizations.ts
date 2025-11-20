@@ -221,6 +221,60 @@ router.get("/:id/members", requireAuth, async (req, res) => {
   }
 });
 
+// Update organization details
+router.patch("/:id", requireAuth, async (req, res) => {
+  try {
+    const organizationId = parseInt(req.params.id);
+    const currentUserId = requireUserId(req, res);
+    if (!currentUserId) {
+      return;
+    }
+
+    // Check if current user is admin of the organization
+    const adminCheck = await db
+      .select()
+      .from(organizationUsers)
+      .where(and(
+        eq(organizationUsers.organizationId, organizationId),
+        eq(organizationUsers.userId, currentUserId),
+        eq(organizationUsers.role, "admin")
+      ))
+      .limit(1);
+
+    if (adminCheck.length === 0) {
+      return res.status(403).json({ message: "Admin privileges required" });
+    }
+
+    // Filter out undefined values and prepare update data
+    const updateData: any = {
+      updatedAt: new Date()
+    };
+
+    const allowedFields = [
+      'name', 'description', 'website', 'email', 'phone',
+      'address', 'city', 'state', 'zipCode', 'denomination',
+      'mission', 'congregationSize', 'foundedDate'
+    ];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    const [updatedOrg] = await db
+      .update(organizations)
+      .set(updateData)
+      .where(eq(organizations.id, organizationId))
+      .returning();
+
+    res.json(updatedOrg);
+  } catch (error) {
+    console.error("Error updating organization:", error);
+    res.status(500).json(buildErrorResponse("Failed to update organization", error));
+  }
+});
+
 // Update organization plan
 router.patch("/:id/plan", requireAuth, async (req, res) => {
   try {
@@ -259,6 +313,63 @@ router.patch("/:id/plan", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Error updating organization plan:", error);
     res.status(500).json(buildErrorResponse("Failed to update plan", error));
+  }
+});
+
+// Update member role
+router.patch("/:id/members/:userId", requireAuth, async (req, res) => {
+  try {
+    const organizationId = parseInt(req.params.id);
+    const memberUserId = parseInt(req.params.userId);
+    const { role } = req.body;
+    const currentUserId = requireUserId(req, res);
+    if (!currentUserId) {
+      return;
+    }
+
+    // Validate role
+    const validRoles = ['admin', 'pastor', 'leader', 'member'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    // Check if current user is admin of the organization
+    const adminCheck = await db
+      .select()
+      .from(organizationUsers)
+      .where(and(
+        eq(organizationUsers.organizationId, organizationId),
+        eq(organizationUsers.userId, currentUserId),
+        eq(organizationUsers.role, "admin")
+      ))
+      .limit(1);
+
+    if (adminCheck.length === 0) {
+      return res.status(403).json({ message: "Admin privileges required" });
+    }
+
+    // Don't allow changing your own role
+    if (memberUserId === currentUserId) {
+      return res.status(400).json({ message: "Cannot change your own role" });
+    }
+
+    const [updatedMembership] = await db
+      .update(organizationUsers)
+      .set({ role })
+      .where(and(
+        eq(organizationUsers.organizationId, organizationId),
+        eq(organizationUsers.userId, memberUserId)
+      ))
+      .returning();
+
+    if (!updatedMembership) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    res.json(updatedMembership);
+  } catch (error) {
+    console.error("Error updating member role:", error);
+    res.status(500).json(buildErrorResponse("Failed to update member role", error));
   }
 });
 
