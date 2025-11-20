@@ -1,5 +1,5 @@
 /**
- * Individual Chat Screen
+ * Individual Chat Screen with Real-time Socket.IO Support
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -15,16 +15,19 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { io, Socket } from 'socket.io-client';
 import apiClient from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 
 interface Message {
-  id: number;
+  id: string;
   senderId: number;
   receiverId: number;
   content: string;
   createdAt: string;
   senderName?: string;
+  isRead?: boolean;
+  readAt?: string | null;
 }
 
 export default function ChatScreen() {
@@ -33,52 +36,128 @@ export default function ChatScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const scrollViewRef = useRef<ScrollView>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   const [messageText, setMessageText] = useState('');
+  const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const otherUserId = parseInt(userId || '0');
 
-  const { data: messages = [] } = useQuery<Message[]>({
+  // Fetch initial messages
+  const { data: initialMessages = [], isLoading } = useQuery<Message[]>({
     queryKey: ['messages', otherUserId],
     queryFn: async () => {
       const response = await apiClient.get(`/messages/${otherUserId}`);
       return response.data;
     },
     enabled: !!otherUserId,
-    refetchInterval: 3000,
   });
 
-  const sendMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const response = await apiClient.post('/messages', {
-        receiverId: otherUserId,
-        content,
-      });
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages', otherUserId] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      setMessageText('');
-    },
-  });
+  // Update local messages when initial messages load
+  useEffect(() => {
+    if (initialMessages.length > 0) {
+      setLocalMessages(initialMessages);
+    }
+  }, [initialMessages]);
+
+  // Socket.IO connection and real-time messaging
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Get the API base URL from the apiClient
+    const baseURL = apiClient.defaults.baseURL || '';
+    const socketURL = baseURL.replace('/api', '');
+
+    // Connect to Socket.IO
+    const socket = io(socketURL, {
+      path: '/socket.io/',
+      auth: { userId: user.id },
+      query: { userId: user.id },
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id);
+      // Join user's room for DMs
+      socket.emit('join_user_room', user.id);
+    });
+
+    socket.on('new_message', (message: Message) => {
+      // Only add message if it's part of this conversation
+      if (
+        (message.senderId === user.id && message.receiverId === otherUserId) ||
+        (message.senderId === otherUserId && message.receiverId === user.id)
+      ) {
+        setLocalMessages((prev) => {
+          // Avoid duplicates
+          if (prev.some((m) => m.id === message.id)) {
+            return prev;
+          }
+          return [...prev, message];
+        });
+
+        // Invalidate conversations to update unread counts
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      }
+    });
+
+    socket.on('error', (error: any) => {
+      console.error('Socket error:', error);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user?.id, otherUserId, queryClient]);
+
+  // Mark conversation as read when screen opens
+  useEffect(() => {
+    if (!user?.id || !otherUserId) return;
+
+    const markAsRead = async () => {
+      try {
+        await apiClient.post(`/messages/mark-conversation-read/${otherUserId}`);
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        queryClient.invalidateQueries({ queryKey: ['messages', otherUserId] });
+      } catch (error) {
+        console.error('Error marking conversation as read:', error);
+      }
+    };
+
+    markAsRead();
+  }, [user?.id, otherUserId, queryClient]);
 
   const handleSend = () => {
-    if (!messageText.trim()) return;
-    sendMutation.mutate(messageText.trim());
+    if (!messageText.trim() || !user?.id || !socketRef.current) return;
+
+    // Send via Socket.IO for real-time delivery
+    socketRef.current.emit('send_dm', {
+      senderId: user.id,
+      receiverId: otherUserId,
+      content: messageText.trim(),
+    });
+
+    setMessageText('');
+    // Invalidate conversations to update last message
+    queryClient.invalidateQueries({ queryKey: ['conversations'] });
   };
 
   useEffect(() => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+  }, [localMessages]);
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
-  const otherUserName = messages[0]?.senderId === otherUserId 
-    ? messages[0]?.senderName 
-    : messages.find(m => m.senderId === otherUserId)?.senderName || 'User';
+  const otherUserName = localMessages[0]?.senderId === otherUserId
+    ? localMessages[0]?.senderName
+    : localMessages.find(m => m.senderId === otherUserId)?.senderName || 'User';
 
   return (
     <KeyboardAvoidingView
@@ -94,18 +173,22 @@ export default function ChatScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
       >
-        {messages.length === 0 ? (
+        {isLoading ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>Loading messages...</Text>
+          </View>
+        ) : localMessages.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No messages yet</Text>
             <Text style={styles.emptyStateSubtext}>Start the conversation!</Text>
           </View>
         ) : (
-          messages.map((msg) => {
+          localMessages.map((msg) => {
             const isMe = msg.senderId === user?.id;
             return (
               <View
@@ -139,7 +222,7 @@ export default function ChatScreen() {
         <TouchableOpacity
           style={[styles.sendButton, !messageText.trim() && styles.sendButtonDisabled]}
           onPress={handleSend}
-          disabled={!messageText.trim() || sendMutation.isPending}
+          disabled={!messageText.trim() || !socketRef.current}
         >
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>

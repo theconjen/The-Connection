@@ -1310,6 +1310,8 @@ export const messages = pgTable("messages", {
   receiverId: integer("receiver_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+  readAt: timestamp("read_at"),
 } as any);
 
 export const insertMessageSchema = createInsertSchema(messages).omit({

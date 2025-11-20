@@ -13,6 +13,38 @@ const dmLimiter = rateLimit({
   message: 'You are sending messages too quickly.',
 });
 
+// Get all conversations for current user
+router.get("/conversations", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  try {
+    const conversations = await storage.getUserConversations(currentUserId);
+    res.json(conversations);
+  } catch (error) {
+    console.error('Error fetching conversations:', error);
+    res.status(500).json(buildErrorResponse('Error fetching conversations', error));
+  }
+});
+
+// Get unread message count
+router.get("/unread-count", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  try {
+    const count = await storage.getUnreadMessageCount(currentUserId);
+    res.json({ count });
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
+    res.status(500).json(buildErrorResponse('Error fetching unread count', error));
+  }
+});
+
 // Fetch DMs between two users
 router.get("/:userId", async (req, res) => {
   const currentUserId = getSessionUserId(req);
@@ -91,6 +123,52 @@ router.post("/send", dmLimiter, async (req, res) => {
     if (handleModerationError(res, error)) return;
     console.error('Error sending direct message:', error);
     res.status(500).json(buildErrorResponse('Error sending message', error));
+  }
+});
+
+// Mark a message as read
+router.post("/mark-read/:messageId", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const messageId = req.params.messageId;
+  if (!messageId) {
+    return res.status(400).json({ message: 'Invalid message id' });
+  }
+
+  try {
+    const success = await storage.markMessageAsRead(messageId, currentUserId);
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ message: 'Message not found or not authorized' });
+    }
+  } catch (error) {
+    console.error('Error marking message as read:', error);
+    res.status(500).json(buildErrorResponse('Error marking message as read', error));
+  }
+});
+
+// Mark all messages in a conversation as read
+router.post("/mark-conversation-read/:userId", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const otherUserId = Number(req.params.userId);
+  if (!Number.isFinite(otherUserId)) {
+    return res.status(400).json({ message: 'Invalid user id' });
+  }
+
+  try {
+    const count = await storage.markConversationAsRead(currentUserId, otherUserId);
+    res.json({ success: true, markedCount: count });
+  } catch (error) {
+    console.error('Error marking conversation as read:', error);
+    res.status(500).json(buildErrorResponse('Error marking conversation as read', error));
   }
 });
 
