@@ -260,7 +260,9 @@ export interface IStorage {
   
   getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]>;
   createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer>;
-  
+  upvoteApologeticsAnswer(id: number): Promise<ApologeticsAnswer>;
+  incrementApologeticsQuestionViews(id: number): Promise<void>;
+
   // Event methods
   getAllEvents(): Promise<Event[]>;
   getEvent(id: number): Promise<Event | undefined>;
@@ -1435,7 +1437,21 @@ export class MemStorage implements IStorage {
     this.data.apologeticsAnswers.push(newAnswer);
     return newAnswer;
   }
-  
+
+  async upvoteApologeticsAnswer(id: number): Promise<ApologeticsAnswer> {
+    const answer = this.data.apologeticsAnswers.find(a => a.id === id);
+    if (!answer) throw new Error('Answer not found');
+    answer.upvotes = (answer.upvotes || 0) + 1;
+    return answer;
+  }
+
+  async incrementApologeticsQuestionViews(id: number): Promise<void> {
+    const question = this.data.apologeticsQuestions.find(q => q.id === id);
+    if (question) {
+      question.viewCount = (question.viewCount || 0) + 1;
+    }
+  }
+
   // Event methods
   async getAllEvents(): Promise<Event[]> {
     return this.data.events.filter(e => !e.deletedAt).sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
@@ -2644,7 +2660,35 @@ export class DbStorage implements IStorage {
   async createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer> {
     throw new Error('Not implemented');
   }
-  
+
+  async upvoteApologeticsAnswer(id: number): Promise<ApologeticsAnswer> {
+    const answer = await db.select()
+      .from(apologeticsAnswers)
+      .where(eq(apologeticsAnswers.id, id))
+      .limit(1);
+
+    if (!answer || answer.length === 0) {
+      throw new Error('Answer not found');
+    }
+
+    await db.update(apologeticsAnswers)
+      .set({ upvotes: sql`${apologeticsAnswers.upvotes} + 1` })
+      .where(eq(apologeticsAnswers.id, id));
+
+    const updated = await db.select()
+      .from(apologeticsAnswers)
+      .where(eq(apologeticsAnswers.id, id))
+      .limit(1);
+
+    return updated[0];
+  }
+
+  async incrementApologeticsQuestionViews(id: number): Promise<void> {
+    await db.update(apologeticsQuestions)
+      .set({ viewCount: sql`${apologeticsQuestions.viewCount} + 1` })
+      .where(eq(apologeticsQuestions.id, id));
+  }
+
   // Event methods
   async getAllEvents(): Promise<Event[]> {
     return [];

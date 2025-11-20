@@ -1579,6 +1579,44 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
+  app.post('/api/apologetics/answers/:id/upvote', isAuthenticated, async (req, res) => {
+    try {
+      const answerId = parseInt(req.params.id);
+      if (isNaN(answerId)) {
+        return res.status(400).json({ message: 'Invalid answer ID' });
+      }
+
+      const answer = await storage.upvoteApologeticsAnswer(answerId);
+      res.json(answer);
+    } catch (error) {
+      console.error('Error upvoting answer:', error);
+      res.status(500).json(buildErrorResponse('Error upvoting answer', error));
+    }
+  });
+
+  app.get('/api/apologetics/questions/:id', async (req, res) => {
+    try {
+      const questionId = parseInt(req.params.id);
+      if (isNaN(questionId)) {
+        return res.status(400).json({ message: 'Invalid question ID' });
+      }
+
+      // Increment view count
+      await storage.incrementApologeticsQuestionViews(questionId);
+
+      const question = await storage.getApologeticsQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ message: 'Question not found' });
+      }
+
+      const answers = await storage.getApologeticsAnswersByQuestion(questionId);
+      res.json({ question, answers });
+    } catch (error) {
+      console.error('Error fetching question:', error);
+      res.status(500).json(buildErrorResponse('Error fetching question', error));
+    }
+  });
+
   // Groups endpoints
   app.get('/api/groups', isAuthenticated, async (req, res) => {
     try {
@@ -1820,20 +1858,8 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   // Search endpoints
-  app.get('/api/search/communities', async (req, res) => {
-    try {
-      const query = req.query.q as string;
-      if (!query) {
-        return res.status(400).json({ message: 'Search query is required' });
-      }
-
-      const communities = await storage.searchCommunities(query);
-      res.json(communities);
-    } catch (error) {
-      console.error('Error searching communities:', error);
-      res.status(500).json(buildErrorResponse('Error searching communities', error));
-    }
-  });
+  // Location-based community search (supports city, state, interests, radius)
+  registerLocationSearchRoutes(app);
 
   // Global search endpoint
   app.get('/api/search', async (req, res) => {
