@@ -218,9 +218,13 @@ router.put("/settings", async (req, res) => {
     if (!userId) {
       return;
     }
-    
-    const { displayName, email, bio, city, state, zipCode, profileVisibility, showLocation, showInterests } = req.body;
-    
+
+    const {
+      displayName, email, bio, city, state, zipCode,
+      profileVisibility, showLocation, showInterests,
+      notifyDms, notifyCommunities, notifyForums, notifyFeed
+    } = req.body;
+
     // Only allow updating specific fields
     const updateData: any = {};
     if (displayName !== undefined) updateData.displayName = displayName;
@@ -237,7 +241,11 @@ router.put("/settings", async (req, res) => {
     }
     if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
-    
+    if (typeof notifyDms === "boolean") updateData.notifyDms = notifyDms;
+    if (typeof notifyCommunities === "boolean") updateData.notifyCommunities = notifyCommunities;
+    if (typeof notifyForums === "boolean") updateData.notifyForums = notifyForums;
+    if (typeof notifyFeed === "boolean") updateData.notifyFeed = notifyFeed;
+
     await storage.updateUser(userId, updateData);
     res.json({ success: true });
   } catch (error) {

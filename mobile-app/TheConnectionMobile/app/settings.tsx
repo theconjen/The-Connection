@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
-import { Colors } from '../../src/shared/colors';
+import { useTheme } from '../src/shared/ThemeProvider';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { colors, preference, setThemePreference } = useTheme();
 
   const handleLogout = () => {
     Alert.alert(
@@ -103,10 +104,62 @@ export default function SettingsScreen() {
             onPress={() => router.push('/profile/edit')}
           />
           <SettingItem
+            icon="🔒"
+            title="Change Password"
+            subtitle="Update your account password"
+            onPress={() => router.push('/settings/change-password')}
+          />
+          <SettingItem
             icon="🚫"
             title="Blocked Users"
             subtitle="Manage blocked users"
             onPress={() => router.push('/blocked-users')}
+          />
+        </View>
+
+        {/* Preferences Section */}
+        <SectionHeader title="PREFERENCES" />
+        <View style={styles.section}>
+          <SettingItem
+            icon="🔔"
+            title="Notifications"
+            subtitle="Manage notification preferences"
+            onPress={() => router.push('/settings/notifications')}
+          />
+          <SettingItem
+            icon="🔒"
+            title="Privacy"
+            subtitle="Control who sees your information"
+            onPress={() => router.push('/settings/privacy')}
+          />
+          <SettingItem
+            icon="🌙"
+            title="Theme"
+            subtitle={
+              preference === 'system' ? 'System (Auto)' :
+              preference === 'dark' ? 'Dark Mode' : 'Light Mode'
+            }
+            onPress={() => {
+              Alert.alert(
+                'Choose Theme',
+                'Select your preferred theme',
+                [
+                  {
+                    text: 'Light',
+                    onPress: () => setThemePreference('light'),
+                  },
+                  {
+                    text: 'Dark',
+                    onPress: () => setThemePreference('dark'),
+                  },
+                  {
+                    text: 'System (Auto)',
+                    onPress: () => setThemePreference('system'),
+                  },
+                  { text: 'Cancel', style: 'cancel' },
+                ]
+              );
+            }}
           />
         </View>
 
@@ -167,7 +220,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -175,18 +228,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     paddingTop: 60,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   backIcon: {
     fontSize: 24,
-    color: 'Colors.primary',
+    color: colors.text,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: colors.text,
   },
   content: {
     flex: 1,
@@ -194,29 +247,29 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#9ca3af',
+    color: colors.textSecondary,
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingTop: 24,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surfaceSecondary,
   },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: colors.borderLight,
   },
   settingIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -230,27 +283,27 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1f2937',
+    color: colors.text,
     marginBottom: 2,
   },
   settingSubtitle: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: colors.textSecondary,
   },
   settingArrow: {
     fontSize: 24,
-    color: '#d1d5db',
+    color: colors.mutedForeground,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     margin: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: colors.destructive,
   },
   logoutIcon: {
     fontSize: 20,
@@ -259,6 +312,6 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ef4444',
+    color: colors.destructive,
   },
 });

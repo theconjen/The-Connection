@@ -1,23 +1,75 @@
 export const colors = {
   light: {
-    background: '#F2F6FA',
-    foreground: '#1F2937',
+    // Brand colors
     primary: '#0B132B',
     primaryForeground: '#FFFFFF',
     secondary: '#222D99',
+    secondaryForeground: '#FFFFFF',
     accent: '#4A90E2',
+    accentForeground: '#FFFFFF',
+
+    // Backgrounds
+    background: '#F9FAFB',
+    foreground: '#1F2937',
+    surface: '#FFFFFF',
+    surfaceSecondary: '#F3F4F6',
+
+    // Borders
     border: '#E5E7EB',
+    borderLight: '#F3F4F6',
+
+    // Status colors
+    destructive: '#EF4444',
+    destructiveForeground: '#FFFFFF',
+    success: '#10B981',
+    warning: '#F59E0B',
+    info: '#3B82F6',
+
+    // UI elements
+    card: '#FFFFFF',
+    cardForeground: '#111827',
     muted: '#F3F4F6',
+    mutedForeground: '#6B7280',
+    input: '#E5E7EB',
+    text: '#1F2937',
+    textSecondary: '#6B7280',
+    textTertiary: '#9CA3AF',
   },
   dark: {
-    background: '#0B1220',
-    foreground: '#E5E7EB',
-    primary: '#1F2A4D',
+    // Brand colors (adjusted for dark mode)
+    primary: '#4A90E2',
     primaryForeground: '#FFFFFF',
-    secondary: '#2F3BC7',
-    accent: '#5AA0F2',
-    border: '#353F4A',
-    muted: '#141923',
+    secondary: '#5B6CC6',
+    secondaryForeground: '#FFFFFF',
+    accent: '#60A5FA',
+    accentForeground: '#FFFFFF',
+
+    // Backgrounds
+    background: '#0F172A',
+    foreground: '#F1F5F9',
+    surface: '#1E293B',
+    surfaceSecondary: '#334155',
+
+    // Borders
+    border: '#334155',
+    borderLight: '#475569',
+
+    // Status colors
+    destructive: '#EF4444',
+    destructiveForeground: '#FFFFFF',
+    success: '#10B981',
+    warning: '#F59E0B',
+    info: '#3B82F6',
+
+    // UI elements
+    card: '#1E293B',
+    cardForeground: '#F1F5F9',
+    muted: '#334155',
+    mutedForeground: '#94A3B8',
+    input: '#334155',
+    text: '#F1F5F9',
+    textSecondary: '#CBD5E1',
+    textTertiary: '#94A3B8',
   },
 } as const;
 
