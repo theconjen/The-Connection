@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
+import { Colors } from '../../src/shared/colors';
 
 export default function MenuScreen() {
   const router = useRouter();
@@ -39,25 +40,13 @@ export default function MenuScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>FEATURES</Text>
           <MenuItem icon="🙏" title="Prayer Requests" onPress={() => router.push('/(tabs)/prayers')} />
-          <MenuItem icon="📖" title="Bible Reading Plans" onPress={() => {}} />
-          <MenuItem icon="💰" title="Give/Donate" onPress={() => {}} />
-          <MenuItem icon="📊" title="My Activity" onPress={() => {}} />
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ACCOUNT</Text>
           <MenuItem icon="👤" title="Profile" onPress={() => router.push('/(tabs)/profile')} />
           <MenuItem icon="⚙️" title="Settings" onPress={() => router.push('/settings')} />
-          <MenuItem icon="🔔" title="Notifications" onPress={() => {}} />
-          <MenuItem icon="🔒" title="Privacy" onPress={() => {}} />
           <MenuItem icon="🚫" title="Blocked Users" onPress={() => router.push('/blocked-users')} />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>SUPPORT</Text>
-          <MenuItem icon="❓" title="Help Center" onPress={() => {}} />
-          <MenuItem icon="📝" title="Feedback" onPress={() => {}} />
-          <MenuItem icon="ℹ️" title="About" onPress={() => {}} />
         </View>
       </ScrollView>
     </View>
@@ -67,7 +56,7 @@ export default function MenuScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backIcon: { fontSize: 24, color: '#8b5cf6' },
+  backIcon: { fontSize: 24, color: Colors.primary },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
   content: { flex: 1 },
   section: { marginTop: 16 },

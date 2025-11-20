@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { isAuthenticated } from '../../auth';
 import { storage } from '../../storage-optimized';
 import { buildErrorResponse } from '../../utils/errors';
@@ -217,9 +218,13 @@ router.put("/settings", async (req, res) => {
     if (!userId) {
       return;
     }
-    
-    const { displayName, email, bio, city, state, zipCode, profileVisibility, showLocation, showInterests } = req.body;
-    
+
+    const {
+      displayName, email, bio, city, state, zipCode,
+      profileVisibility, showLocation, showInterests,
+      notifyDms, notifyCommunities, notifyForums, notifyFeed
+    } = req.body;
+
     // Only allow updating specific fields
     const updateData: any = {};
     if (displayName !== undefined) updateData.displayName = displayName;
@@ -236,11 +241,72 @@ router.put("/settings", async (req, res) => {
     }
     if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
-    
+    if (typeof notifyDms === "boolean") updateData.notifyDms = notifyDms;
+    if (typeof notifyCommunities === "boolean") updateData.notifyCommunities = notifyCommunities;
+    if (typeof notifyForums === "boolean") updateData.notifyForums = notifyForums;
+    if (typeof notifyFeed === "boolean") updateData.notifyFeed = notifyFeed;
+
     await storage.updateUser(userId, updateData);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json(buildErrorResponse('Error updating user settings', error));
+  }
+});
+
+// Change password endpoint
+router.post("/change-password", async (req, res) => {
+  try {
+    const userId = requireAuthedUserId(req, res);
+    if (!userId) {
+      return;
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 12) {
+      return res.status(400).json({ message: 'New password must be at least 12 characters long' });
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      return res.status(400).json({ message: 'New password must contain at least one uppercase letter' });
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      return res.status(400).json({ message: 'New password must contain at least one lowercase letter' });
+    }
+    if (!/[0-9]/.test(newPassword)) {
+      return res.status(400).json({ message: 'New password must contain at least one number' });
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      return res.status(400).json({ message: 'New password must contain at least one special character' });
+    }
+
+    // Get user with password
+    const user = await storage.getUserWithPassword(userId);
+    if (!user || !user.password) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password
+    await storage.updateUser(userId, { password: hashedPassword });
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json(buildErrorResponse('Error changing password', error));
   }
 });
 

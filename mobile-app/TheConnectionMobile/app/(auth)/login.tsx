@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { Colors } from '../../src/shared/colors';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
   },
   button: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.primary,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   link: {
-    color: '#8b5cf6',
+    color: Colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },
