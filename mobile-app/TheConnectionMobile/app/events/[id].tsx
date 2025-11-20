@@ -1,8 +1,8 @@
 /**
- * Event Detail Screen
+ * Event Detail Screen with Map Integration
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { eventsAPI } from '../../src/lib/apiClient';
 
 interface Event {
@@ -21,6 +23,8 @@ interface Event {
   title: string;
   description: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   startTime: string;
   endTime?: string;
   attendeeCount?: number;
@@ -33,6 +37,7 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
   const eventId = parseInt(id || '0');
+  const [showMap, setShowMap] = useState(true);
 
   const { data: event, isLoading } = useQuery<Event>({
     queryKey: ['event', eventId],
@@ -69,6 +74,28 @@ export default function EventDetailScreen() {
   const handleRSVP = () => {
     const newStatus = event?.rsvpStatus === 'going' ? 'not_going' : 'going';
     rsvpMutation.mutate(newStatus);
+  };
+
+  const openInMaps = () => {
+    if (!event?.location) return;
+
+    const query = encodeURIComponent(event.location);
+    const url = event.latitude && event.longitude
+      ? `https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${query}`;
+
+    Linking.openURL(url).catch(() =>
+      Alert.alert('Error', 'Could not open maps')
+    );
+  };
+
+  // Default coordinates (can be replaced with actual location parsing)
+  const getCoordinates = () => {
+    if (event?.latitude && event?.longitude) {
+      return { latitude: event.latitude, longitude: event.longitude };
+    }
+    // Default to a general location if coordinates not available
+    return { latitude: 37.7749, longitude: -122.4194 }; // San Francisco as default
   };
 
   if (isLoading) {
@@ -124,9 +151,53 @@ export default function EventDetailScreen() {
           <Text style={styles.title}>{event.title}</Text>
           
           {event.location && (
-            <View style={styles.locationSection}>
-              <Text style={styles.locationIcon}>📍</Text>
-              <Text style={styles.locationText}>{event.location}</Text>
+            <View>
+              <View style={styles.locationSection}>
+                <Text style={styles.locationIcon}>📍</Text>
+                <Text style={styles.locationText}>{event.location}</Text>
+                <TouchableOpacity
+                  style={styles.directionsButton}
+                  onPress={openInMaps}
+                >
+                  <Text style={styles.directionsText}>Directions</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Map View */}
+              {showMap && (event.latitude && event.longitude) && (
+                <View style={styles.mapContainer}>
+                  <MapView
+                    style={styles.map}
+                    initialRegion={{
+                      ...getCoordinates(),
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    provider={PROVIDER_GOOGLE}
+                  >
+                    <Marker
+                      coordinate={getCoordinates()}
+                      title={event.title}
+                      description={event.location}
+                    />
+                  </MapView>
+                  <TouchableOpacity
+                    style={styles.mapToggle}
+                    onPress={() => setShowMap(!showMap)}
+                  >
+                    <Text style={styles.mapToggleText}>Hide Map</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {!showMap && (event.latitude && event.longitude) && (
+                <TouchableOpacity
+                  style={styles.showMapButton}
+                  onPress={() => setShowMap(true)}
+                >
+                  <Text style={styles.showMapText}>🗺️ Show Map</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -185,6 +256,14 @@ const styles = StyleSheet.create({
   locationSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, padding: 12, backgroundColor: '#f3f4f6', borderRadius: 8 },
   locationIcon: { fontSize: 20, marginRight: 12 },
   locationText: { flex: 1, fontSize: 15, color: '#1f2937' },
+  directionsButton: { backgroundColor: '#8b5cf6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+  directionsText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  mapContainer: { marginTop: 12, marginBottom: 12, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e5e7eb' },
+  map: { width: '100%', height: 200 },
+  mapToggle: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
+  mapToggleText: { fontSize: 12, fontWeight: '600', color: '#1f2937' },
+  showMapButton: { backgroundColor: '#f3f4f6', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 12 },
+  showMapText: { fontSize: 14, fontWeight: '600', color: '#8b5cf6' },
   attendeeSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, padding: 12, backgroundColor: '#f3f4f6', borderRadius: 8 },
   attendeeIcon: { fontSize: 20, marginRight: 12 },
   attendeeText: { fontSize: 15, color: '#1f2937', fontWeight: '600' },

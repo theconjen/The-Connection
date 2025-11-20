@@ -1,5 +1,5 @@
 /**
- * Events Screen
+ * Events Screen with List and Calendar Views
  */
 
 import React, { useState } from 'react';
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Calendar, DateData } from 'react-native-calendars';
 import { eventsAPI } from '../../src/lib/apiClient';
 
 interface Event {
@@ -29,9 +30,15 @@ interface Event {
   createdBy: number;
 }
 
+type ViewMode = 'list' | 'calendar';
+
 export default function EventsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  );
 
   const { data: events = [], isLoading, refetch } = useQuery<Event[]>({
     queryKey: ['events'],
@@ -64,6 +71,34 @@ export default function EventsScreen() {
     rsvpMutation.mutate({ id: eventId, status: newStatus });
   };
 
+  // Get events for calendar (marked dates)
+  const getMarkedDates = () => {
+    const marked: any = {};
+    events.forEach((event) => {
+      const dateKey = new Date(event.startTime).toISOString().split('T')[0];
+      marked[dateKey] = {
+        marked: true,
+        dotColor: '#8b5cf6',
+        selectedColor: '#8b5cf6',
+      };
+    });
+    // Also mark selected date
+    marked[selectedDate] = {
+      ...marked[selectedDate],
+      selected: true,
+      selectedColor: '#8b5cf6',
+    };
+    return marked;
+  };
+
+  // Get events for selected date
+  const getEventsForDate = (date: string) => {
+    return events.filter((event) => {
+      const eventDate = new Date(event.startTime).toISOString().split('T')[0];
+      return eventDate === date;
+    });
+  };
+
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
@@ -72,29 +107,77 @@ export default function EventsScreen() {
     );
   }
 
+  const filteredEvents = viewMode === 'calendar' ? getEventsForDate(selectedDate) : events;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Events</Text>
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => router.push('/events/create')}
-        >
-          <Text style={styles.createButtonText}>+ Create</Text>
-        </TouchableOpacity>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>Events</Text>
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => router.push('/events/create')}
+          >
+            <Text style={styles.createButtonText}>+ Create</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* View Mode Toggle */}
+        <View style={styles.viewModeToggle}>
+          <TouchableOpacity
+            style={[styles.viewModeButton, viewMode === 'list' && styles.viewModeButtonActive]}
+            onPress={() => setViewMode('list')}
+          >
+            <Text
+              style={[styles.viewModeText, viewMode === 'list' && styles.viewModeTextActive]}
+            >
+              📋 List
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewModeButton, viewMode === 'calendar' && styles.viewModeButtonActive]}
+            onPress={() => setViewMode('calendar')}
+          >
+            <Text
+              style={[styles.viewModeText, viewMode === 'calendar' && styles.viewModeTextActive]}
+            >
+              📅 Calendar
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Calendar View */}
+      {viewMode === 'calendar' && (
+        <Calendar
+          markedDates={getMarkedDates()}
+          onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
+          theme={{
+            selectedDayBackgroundColor: '#8b5cf6',
+            todayTextColor: '#8b5cf6',
+            dotColor: '#8b5cf6',
+            arrowColor: '#8b5cf6',
+          }}
+        />
+      )}
 
       <ScrollView
         style={styles.content}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
       >
-        {events.length === 0 ? (
+        {filteredEvents.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No upcoming events</Text>
-            <Text style={styles.emptyStateSubtext}>Create one to get started!</Text>
+            <Text style={styles.emptyStateText}>
+              {viewMode === 'calendar' ? 'No events on this date' : 'No upcoming events'}
+            </Text>
+            <Text style={styles.emptyStateSubtext}>
+              {viewMode === 'calendar'
+                ? 'Select another date or create a new event'
+                : 'Create one to get started!'}
+            </Text>
           </View>
         ) : (
-          events.map((event) => (
+          filteredEvents.map((event) => (
             <TouchableOpacity
               key={event.id}
               style={styles.eventCard}
@@ -158,14 +241,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    paddingTop: 60,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   title: {
     fontSize: 28,
@@ -181,6 +267,38 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  viewModeToggle: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 4,
+  },
+  viewModeButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  viewModeButtonActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  viewModeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  viewModeTextActive: {
+    color: '#8b5cf6',
     fontWeight: '600',
   },
   content: {

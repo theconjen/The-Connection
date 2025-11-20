@@ -261,3 +261,62 @@ export const prayerRequestsAPI = {
     return response.data;
   },
 };
+
+/**
+ * Blocked Users API
+ */
+export const blockedUsersAPI = {
+  getAll: async () => {
+    const response = await apiClient.get('/blocked-users');
+    return response.data;
+  },
+
+  block: async (userId: number) => {
+    const response = await apiClient.post('/blocked-users', { blockedUserId: userId });
+    return response.data;
+  },
+
+  unblock: async (userId: number) => {
+    const response = await apiClient.delete(`/blocked-users/${userId}`);
+    return response.data;
+  },
+};
+
+/**
+ * Admin API
+ */
+export const adminAPI = {
+  getStats: async () => {
+    const response = await apiClient.get('/admin/stats');
+    return response.data;
+  },
+
+  getReports: async () => {
+    const response = await apiClient.get('/admin/reports');
+    return response.data;
+  },
+
+  moderateContent: async (contentType: string, contentId: number, action: string) => {
+    const response = await apiClient.post('/admin/moderate', {
+      contentType,
+      contentId,
+      action,
+    });
+    return response.data;
+  },
+};
+
+/**
+ * Search API
+ */
+export const searchAPI = {
+  global: async (query: string) => {
+    const response = await apiClient.get(`/search?q=${encodeURIComponent(query)}`);
+    return response.data;
+  },
+
+  users: async (query: string) => {
+    const response = await apiClient.get(`/users/search?q=${encodeURIComponent(query)}`);
+    return response.data;
+  },
+};

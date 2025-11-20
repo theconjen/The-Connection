@@ -47,9 +47,10 @@ export default function MenuScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ACCOUNT</Text>
           <MenuItem icon="👤" title="Profile" onPress={() => router.push('/(tabs)/profile')} />
-          <MenuItem icon="⚙️" title="Settings" onPress={() => {}} />
+          <MenuItem icon="⚙️" title="Settings" onPress={() => router.push('/settings')} />
           <MenuItem icon="🔔" title="Notifications" onPress={() => {}} />
           <MenuItem icon="🔒" title="Privacy" onPress={() => {}} />
+          <MenuItem icon="🚫" title="Blocked Users" onPress={() => router.push('/blocked-users')} />
         </View>
 
         <View style={styles.section}>
