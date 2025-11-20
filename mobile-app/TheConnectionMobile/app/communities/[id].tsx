@@ -164,7 +164,7 @@ export default function CommunityDetailScreen() {
   if (communityLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="Colors.primary" />
+        <ActivityIndicator size="large" color=Colors.primary />
       </View>
     );
   }
@@ -305,7 +305,7 @@ export default function CommunityDetailScreen() {
 
             {/* Wall Posts */}
             {postsLoading ? (
-              <ActivityIndicator size="large" color="Colors.primary" style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color=Colors.primary style={{ marginTop: 20 }} />
             ) : wallPosts.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>No posts yet</Text>
@@ -341,7 +341,7 @@ export default function CommunityDetailScreen() {
         {activeTab === 'members' && (
           <View style={styles.membersContent}>
             {membersLoading ? (
-              <ActivityIndicator size="large" color="Colors.primary" style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color=Colors.primary style={{ marginTop: 20 }} />
             ) : members.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>No members yet</Text>
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   },
   backIconText: {
     fontSize: 24,
-    color: 'Colors.primary',
+    color: Colors.primary,
   },
   headerContent: {
     flex: 1,
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   joinButton: {
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: 'Colors.primary',
+    borderBottomColor: Colors.primary,
   },
   tabText: {
     fontSize: 16,
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   activeTabText: {
-    color: 'Colors.primary',
+    color: Colors.primary,
     fontWeight: '600',
   },
   content: {
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitPostButton: {
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   backButton: {
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

@@ -79,15 +79,15 @@ export default function EventsScreen() {
       const dateKey = new Date(event.startTime).toISOString().split('T')[0];
       marked[dateKey] = {
         marked: true,
-        dotColor: 'Colors.primary',
-        selectedColor: 'Colors.primary',
+        dotColor: Colors.primary,
+        selectedColor: Colors.primary,
       };
     });
     // Also mark selected date
     marked[selectedDate] = {
       ...marked[selectedDate],
       selected: true,
-      selectedColor: 'Colors.primary',
+      selectedColor: Colors.primary,
     };
     return marked;
   };
@@ -103,7 +103,7 @@ export default function EventsScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="Colors.primary" />
+        <ActivityIndicator size="large" color=Colors.primary />
       </View>
     );
   }
@@ -154,10 +154,10 @@ export default function EventsScreen() {
           markedDates={getMarkedDates()}
           onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
           theme={{
-            selectedDayBackgroundColor: 'Colors.primary',
-            todayTextColor: 'Colors.primary',
-            dotColor: 'Colors.primary',
-            arrowColor: 'Colors.primary',
+            selectedDayBackgroundColor: Colors.primary,
+            todayTextColor: Colors.primary,
+            dotColor: Colors.primary,
+            arrowColor: Colors.primary,
           }}
         />
       )}
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   createButton: {
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   viewModeTextActive: {
-    color: 'Colors.primary',
+    color: Colors.primary,
     fontWeight: '600',
   },
   content: {
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   dateBox: {
     width: 60,
     height: 60,
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -362,11 +362,11 @@ const styles = StyleSheet.create({
   },
   attendeeCount: {
     fontSize: 12,
-    color: 'Colors.primary',
+    color: Colors.primary,
     fontWeight: '600',
   },
   rsvpButton: {
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,

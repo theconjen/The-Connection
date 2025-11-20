@@ -77,7 +77,7 @@ export default function PostsListScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="Colors.primary" />
+        <ActivityIndicator size="large" color=Colors.primary />
       </View>
     );
   }
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   createButton: {
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   },
   communityName: {
     fontSize: 12,
-    color: 'Colors.primary',
+    color: Colors.primary,
     fontWeight: '500',
   },
   postTitle: {
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   },
   readMore: {
     fontSize: 13,
-    color: 'Colors.primary',
+    color: Colors.primary,
     fontWeight: '600',
   },
   emptyState: {
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

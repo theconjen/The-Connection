@@ -74,7 +74,7 @@ export default function ApologeticsScreen() {
       <View style={styles.container}>
         <TopHeader />
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="Colors.primary" />
+          <ActivityIndicator size="large" color=Colors.primary />
         </View>
       </View>
     );
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: '#6b7280', marginTop: 4 },
   filterContainer: { padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   filterButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', marginRight: 8 },
-  filterButtonActive: { backgroundColor: 'Colors.primary' },
+  filterButtonActive: { backgroundColor: Colors.primary },
   filterText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
   filterTextActive: { color: '#fff' },
   content: { flex: 1 },
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#0284c7' },
   resourceTitle: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 8 },
   resourceDescription: { fontSize: 13, color: '#6b7280', lineHeight: 18, marginBottom: 8 },
-  viewLink: { fontSize: 13, fontWeight: '600', color: 'Colors.primary' },
+  viewLink: { fontSize: 13, fontWeight: '600', color: Colors.primary },
   emptyState: { alignItems: 'center', padding: 40 },
   emptyStateText: { fontSize: 16, fontWeight: '600', color: '#6b7280', marginBottom: 4 },
   emptyStateSubtext: { fontSize: 14, color: '#9ca3af' },

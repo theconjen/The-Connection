@@ -51,7 +51,7 @@ export default function MessagesScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="Colors.primary" />
+        <ActivityIndicator size="large" color=Colors.primary />
       </View>
     );
   }
@@ -109,14 +109,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', color: '#1f2937' },
   content: { flex: 1 },
   conversationItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'Colors.primary', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   avatarText: { color: '#fff', fontSize: 20, fontWeight: '600' },
   conversationInfo: { flex: 1 },
   conversationHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   userName: { fontSize: 16, fontWeight: '600', color: '#1f2937' },
   time: { fontSize: 12, color: '#9ca3af' },
   lastMessage: { fontSize: 14, color: '#6b7280' },
-  unreadBadge: { backgroundColor: 'Colors.primary', borderRadius: 12, minWidth: 24, height: 24, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8 },
+  unreadBadge: { backgroundColor: Colors.primary, borderRadius: 12, minWidth: 24, height: 24, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8 },
   unreadCount: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   emptyState: { alignItems: 'center', padding: 40 },
   emptyStateText: { fontSize: 16, fontWeight: '600', color: '#6b7280', marginBottom: 4 },

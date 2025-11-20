@@ -56,7 +56,7 @@ export default function MenuScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backIcon: { fontSize: 24, color: 'Colors.primary' },
+  backIcon: { fontSize: 24, color: Colors.primary },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
   content: { flex: 1 },
   section: { marginTop: 16 },

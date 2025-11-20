@@ -75,7 +75,7 @@ export default function CreatePostScreen() {
 
       {createMutation.isPending && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="Colors.primary" />
+          <ActivityIndicator size="large" color=Colors.primary />
         </View>
       )}
     </KeyboardAvoidingView>
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 60, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   cancelText: { color: '#6b7280', fontSize: 16 },
   title: { fontSize: 18, fontWeight: '600', color: '#1f2937' },
-  postText: { color: 'Colors.primary', fontSize: 16, fontWeight: '600' },
+  postText: { color: Colors.primary, fontSize: 16, fontWeight: '600' },
   postTextDisabled: { opacity: 0.5 },
   content: { flex: 1, padding: 16 },
   input: { flex: 1, fontSize: 16, textAlignVertical: 'top' },

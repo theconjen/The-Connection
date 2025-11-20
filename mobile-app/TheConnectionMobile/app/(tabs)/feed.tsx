@@ -87,7 +87,7 @@ export default function FeedScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="Colors.primary" />
+        <ActivityIndicator size="large" color=Colors.primary />
       </View>
     );
   }
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'Colors.primary',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   upvoted: {
-    color: 'Colors.primary',
+    color: Colors.primary,
   },
   upvoteCount: {
     fontSize: 14,
