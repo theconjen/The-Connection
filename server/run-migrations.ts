@@ -1,6 +1,7 @@
 import { log } from "./vite-shim";
 import { runMigration as addLocalityInterests } from "./migrations/add-locality-interests";
 import { runMigration as createMvpTables } from "./migrations/0002_create_mvp_tables";
+import { runMigration as addMessageReadStatus } from "./migrations/add-message-read-status";
 import { isConnected } from "./db";
 
 /**
@@ -14,7 +15,7 @@ export async function runAllMigrations() {
 
   try {
     log("Starting database migrations");
-    
+
     // Run the locality and interests migration
     const localityResult = await addLocalityInterests();
     if (!localityResult) {
@@ -29,8 +30,13 @@ export async function runAllMigrations() {
       return false;
     }
 
-    // Add more migrations here as needed
-    
+    // Add message read status fields
+    const messageReadStatusResult = await addMessageReadStatus();
+    if (!messageReadStatusResult) {
+      log("❌ Message read status migration failed");
+      return false;
+    }
+
     log("✅ All migrations completed successfully");
     return true;
   } catch (error) {

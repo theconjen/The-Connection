@@ -332,17 +332,41 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
           return;
         }
 
-        // Create message in database (assuming you have a DM message table)
-        const newMessage = {
+        // Create message in database
+        const messageData = {
           senderId: authenticatedUserId, // Use authenticated userId
           receiverId: parseInt(receiverId),
           content: content,
           createdAt: new Date()
         };
 
-        // Emit to both sender and receiver
-        io.to(`user_${authenticatedUserId}`).emit("new_message", newMessage);
-        io.to(`user_${receiverId}`).emit("new_message", newMessage);
+        // Persist message to database
+        const savedMessage = await storage.createDirectMessage(messageData);
+
+        // Emit to both sender and receiver with saved message (includes ID)
+        io.to(`user_${authenticatedUserId}`).emit("new_message", savedMessage);
+        io.to(`user_${receiverId}`).emit("new_message", savedMessage);
+
+        // Send push notification to receiver if they're offline
+        try {
+          const pushTokens = await storage.getUserPushTokens(parseInt(receiverId));
+          if (pushTokens && pushTokens.length > 0) {
+            const sender = await storage.getUser(authenticatedUserId);
+            const senderName = sender?.displayName || sender?.username || 'Someone';
+
+            for (const tokenData of pushTokens) {
+              await sendPushNotification(
+                tokenData.token,
+                `New message from ${senderName}`,
+                content,
+                { type: 'dm', senderId: authenticatedUserId, messageId: savedMessage.id }
+              );
+            }
+          }
+        } catch (pushError) {
+          console.error('Error sending push notification:', pushError);
+          // Don't fail the message send if push fails
+        }
       } catch (error) {
         console.error('Error handling DM:', error);
         socket.emit('error', {
@@ -427,6 +451,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api/user', userRoutes);
     app.use('/api/user', userSettingsRoutes);
     app.use('/api/dms', dmRoutes);
+    app.use('/api/messages', dmRoutes); // Alias for mobile app compatibility
     app.use('/api/push-tokens', pushTokenRoutes);
   }
 

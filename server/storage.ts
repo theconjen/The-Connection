@@ -112,7 +112,9 @@ class StorageSafety {
     'getAllBibleReadingPlans', 'getBibleReadingPlan', 'createBibleReadingPlan',
     'getBibleReadingProgress', 'createBibleReadingProgress', 'markDayCompleted',
     'getBibleStudyNotes', 'getBibleStudyNote', 'createBibleStudyNote',
-    'updateBibleStudyNote', 'deleteBibleStudyNote', 'getDirectMessages', 'createDirectMessage', 'updateUserPreferences', 'getUserPreferences'
+    'updateBibleStudyNote', 'deleteBibleStudyNote', 'getDirectMessages', 'createDirectMessage',
+    'getUserConversations', 'markMessageAsRead', 'markConversationAsRead', 'getUnreadMessageCount',
+    'updateUserPreferences', 'getUserPreferences'
   ]);
 
   static isMethodImplemented(methodName: string): boolean {
@@ -337,6 +339,10 @@ export interface IStorage {
   // Direct Messaging methods
   getDirectMessages(userId1: number, userId2: number): Promise<any[]>;
   createDirectMessage(message: any): Promise<any>;
+  getUserConversations(userId: number): Promise<any[]>;
+  markMessageAsRead(messageId: string, userId: number): Promise<boolean>;
+  markConversationAsRead(userId: number, otherUserId: number): Promise<number>;
+  getUnreadMessageCount(userId: number): Promise<number>;
   // Push notification methods
   savePushToken(token: { userId: number; token: string; platform?: string; lastUsed?: Date }): Promise<any>;
   getUserPushTokens(userId: number): Promise<any[]>;
@@ -1923,10 +1929,82 @@ export class MemStorage implements IStorage {
       senderId: message.senderId,
       receiverId: message.receiverId,
       content: message.content,
-      createdAt: new Date()
+      createdAt: new Date(),
+      isRead: false,
+      readAt: null
     };
     this.data.messages.push(newMessage);
     return newMessage;
+  }
+
+  async getUserConversations(userId: number): Promise<any[]> {
+    // Get all unique conversation partners
+    const conversationMap = new Map();
+
+    for (const msg of this.data.messages) {
+      if (msg.senderId === userId || msg.receiverId === userId) {
+        const otherUserId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+
+        if (!conversationMap.has(otherUserId) ||
+            new Date(msg.createdAt) > new Date(conversationMap.get(otherUserId).lastMessageTime)) {
+          const unreadCount = this.data.messages.filter(m =>
+            m.senderId === otherUserId &&
+            m.receiverId === userId &&
+            !m.isRead
+          ).length;
+
+          conversationMap.set(otherUserId, {
+            otherUserId,
+            lastMessage: msg.content,
+            lastMessageTime: msg.createdAt,
+            unreadCount
+          });
+        }
+      }
+    }
+
+    // Get user details for each conversation
+    const conversations = [];
+    for (const [otherUserId, conv] of conversationMap) {
+      const otherUser = this.data.users.find(u => u.id === otherUserId);
+      conversations.push({
+        ...conv,
+        otherUserName: otherUser?.username || 'Unknown',
+        otherUserDisplayName: otherUser?.displayName
+      });
+    }
+
+    return conversations.sort((a, b) =>
+      new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+    );
+  }
+
+  async markMessageAsRead(messageId: string, userId: number): Promise<boolean> {
+    const message = this.data.messages.find(m => m.id === messageId);
+    if (!message || message.receiverId !== userId) {
+      return false;
+    }
+    message.isRead = true;
+    message.readAt = new Date();
+    return true;
+  }
+
+  async markConversationAsRead(userId: number, otherUserId: number): Promise<number> {
+    let count = 0;
+    for (const msg of this.data.messages) {
+      if (msg.senderId === otherUserId && msg.receiverId === userId && !msg.isRead) {
+        msg.isRead = true;
+        msg.readAt = new Date();
+        count++;
+      }
+    }
+    return count;
+  }
+
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    return this.data.messages.filter(m =>
+      m.receiverId === userId && !m.isRead
+    ).length;
   }
 
   // Moderation methods (in-memory)
@@ -2954,6 +3032,113 @@ export class DbStorage implements IStorage {
   async createDirectMessage(message: any): Promise<any> {
     const result = await db.insert(messages).values(message).returning();
     return result[0];
+  }
+
+  async getUserConversations(userId: number): Promise<any[]> {
+    // Get all messages for this user
+    const userMessages = await db
+      .select({
+        id: messages.id,
+        senderId: messages.senderId,
+        receiverId: messages.receiverId,
+        content: messages.content,
+        createdAt: messages.createdAt,
+        isRead: messages.isRead,
+      })
+      .from(messages)
+      .where(
+        or(
+          eq(messages.senderId, userId),
+          eq(messages.receiverId, userId)
+        )
+      )
+      .orderBy(desc(messages.createdAt));
+
+    // Group by conversation partner
+    const conversationMap = new Map();
+
+    for (const msg of userMessages) {
+      const otherUserId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+
+      if (!conversationMap.has(otherUserId)) {
+        // Get unread count for this conversation
+        const unreadMessages = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.senderId, otherUserId),
+              eq(messages.receiverId, userId),
+              eq(messages.isRead, false)
+            )
+          );
+
+        conversationMap.set(otherUserId, {
+          otherUserId,
+          lastMessage: msg.content,
+          lastMessageTime: msg.createdAt,
+          unreadCount: unreadMessages[0]?.count || 0
+        });
+      }
+    }
+
+    // Get user details for each conversation
+    const conversations = [];
+    for (const [otherUserId, conv] of conversationMap) {
+      const otherUser = await this.getUser(otherUserId);
+      conversations.push({
+        ...conv,
+        otherUserName: otherUser?.username || 'Unknown',
+        otherUserDisplayName: otherUser?.displayName
+      });
+    }
+
+    return conversations;
+  }
+
+  async markMessageAsRead(messageId: string, userId: number): Promise<boolean> {
+    const result = await db
+      .update(messages)
+      .set({ isRead: true, readAt: new Date() })
+      .where(
+        and(
+          eq(messages.id, messageId),
+          eq(messages.receiverId, userId)
+        )
+      )
+      .returning();
+
+    return result.length > 0;
+  }
+
+  async markConversationAsRead(userId: number, otherUserId: number): Promise<number> {
+    const result = await db
+      .update(messages)
+      .set({ isRead: true, readAt: new Date() })
+      .where(
+        and(
+          eq(messages.senderId, otherUserId),
+          eq(messages.receiverId, userId),
+          eq(messages.isRead, false)
+        )
+      )
+      .returning();
+
+    return result.length;
+  }
+
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.receiverId, userId),
+          eq(messages.isRead, false)
+        )
+      );
+
+    return result[0]?.count || 0;
   }
 
   // Push token + notifications (DB) - stubs until full implementation

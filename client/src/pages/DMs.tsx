@@ -61,7 +61,7 @@ export default function DMs() {
   // Fetch DMs when component mounts or userId changes
   useEffect(() => {
     if (!userIdFromUrl) return;
-    
+
     setIsLoading(true);
     fetch(`/api/dms/${userIdFromUrl}`)
       .then((res) => res.json())
@@ -76,30 +76,51 @@ export default function DMs() {
       });
   }, [userIdFromUrl]);
 
+  // Mark conversation as read when opened
+  useEffect(() => {
+    if (!userIdFromUrl || !user?.id) return;
+
+    fetch(`/api/dms/mark-conversation-read/${userIdFromUrl}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).catch((err) => {
+      console.error("Error marking conversation as read:", err);
+    });
+  }, [userIdFromUrl, user?.id]);
+
   // Socket.IO connection
   useEffect(() => {
     if (!user?.id) return;
 
     const socket = io({
-      path: '/socket.io/'
+      path: '/socket.io/',
+      auth: { userId: user.id },
+      query: { userId: user.id }
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
       console.log('Connected to Socket.IO');
-      socket.emit('join', user.id);
+      // Join user's room for DMs
+      socket.emit('join_user_room', user.id);
     });
 
     socket.on('new_message', (message: Message) => {
       // Only add message if it's from the current conversation
       if (userIdFromUrl && (message.senderId.toString() === userIdFromUrl || message.receiverId.toString() === userIdFromUrl)) {
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => {
+          // Avoid duplicates
+          if (prev.some(m => m.id === message.id)) {
+            return prev;
+          }
+          return [...prev, message];
+        });
       }
     });
 
-    socket.on('message_error', (error: any) => {
-      console.error('Message error:', error);
+    socket.on('error', (error: any) => {
+      console.error('Socket error:', error);
     });
 
     return () => {
@@ -112,14 +133,15 @@ export default function DMs() {
     if (!messageContent.trim() || !user?.id || !userIdFromUrl || !socketRef.current) return;
 
     setIsLoading(true);
-    
+
     // Use Socket.IO for real-time messaging
-    socketRef.current.emit('send_message', {
+    socketRef.current.emit('send_dm', {
       senderId: user.id,
-      receiverId: userIdFromUrl,
+      receiverId: parseInt(userIdFromUrl),
       content: messageContent.trim()
     });
 
+    setContent("");
     setIsLoading(false);
   }
 
