@@ -3,8 +3,10 @@
     "types": ["nativewind/types"],
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["../../shared/*"],
-      "shared/*": ["../../shared/*"],
+      "@connection/shared": ["../../packages/shared/src"],
+      "@connection/shared/*": ["../../packages/shared/src/*"],
+      "@connection/ui": ["../../packages/ui/src"],
+      "@connection/ui/*": ["../../packages/ui/src/*"],
       "shared-env": ["./src/env.native"]
     }
   },

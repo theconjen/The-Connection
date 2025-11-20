@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, MessageCircle, Repeat, Share2, MoreHorizontal, Bookmark, Eye } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
-import { Microblog, User } from "@shared/schema";
+import { Microblog, User } from "@connection/shared/schema";
 import { Button } from "./ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import MobileModernButton from "./mobile-modern-button";

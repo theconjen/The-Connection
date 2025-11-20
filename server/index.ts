@@ -14,6 +14,10 @@ import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
 import { pool } from "./db";
 
+// Hold a module-level reference to the Sentry SDK when initialized so
+// we can mount handlers (tracing + error handler) in other places below.
+let SentryClient: typeof import("@sentry/node") | null = null;
+
 async function bootstrap() {
   const app = express();
   const isProduction = process.env.NODE_ENV === "production";
@@ -197,26 +201,53 @@ async function bootstrap() {
 
   if (process.env.SENTRY_DSN) {
     try {
-      const Sentry = await import("@sentry/node");
-      Sentry.init({
+      SentryClient = await import("@sentry/node");
+      SentryClient.init({
         dsn: process.env.SENTRY_DSN,
         environment: process.env.NODE_ENV || "production",
         tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0.0),
       });
 
-      app.use(Sentry.Handlers.requestHandler() as express.RequestHandler);
+      // Request handler should be the first middleware for Sentry to capture request data
+      app.use(SentryClient.Handlers.requestHandler() as express.RequestHandler);
+
+      // Optionally mount the tracing handler when tracesSampleRate is enabled
+      const tracesRate = Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0);
+      if (tracesRate > 0) {
+        app.use(SentryClient.Handlers.tracingHandler());
+      }
     } catch (error) {
       console.warn("Sentry failed to initialize:", error);
+      SentryClient = null;
     }
   }
 
   const server = await registerRoutes(app, httpServer);
 
+  // If Sentry was initialized above, register its error handler before our
+  // custom error middleware so it can capture exceptions and send them to Sentry.
+  if (SentryClient) {
+    app.use(SentryClient.Handlers.errorHandler() as express.ErrorRequestHandler);
+  }
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    // Ensure Sentry also receives this exception (captureException is safe
+    // to call even if Sentry wasn't initialized because we guard above).
+    try {
+      if (SentryClient) {
+        // The imported Sentry module types don't expose captureException on the
+        // namespace type in a way TypeScript understands here, so use a safe any
+        // cast — this is fine for runtime usage and avoids type errors.
+        (SentryClient as any).captureException?.(err);
+      }
+    } catch (_) {
+      // ignore capture errors
+    }
+
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     res.status(status).json({ message });
-    throw err;
+    // Do not rethrow here — we've already responded and Sentry has the event
   });
 
   if (app.get("env") === "development") {

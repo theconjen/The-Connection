@@ -1,2 +1,2 @@
-export { Colors } from '../shared/colors';
-export type { ColorKeys } from '../shared/colors';
+export { Colors } from '@connection/shared/mobile-web/colors';
+export type { ColorKeys } from '@connection/shared/mobile-web/colors';

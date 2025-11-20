@@ -42,7 +42,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Separator } from "../components/ui/separator";
-import type { Event, EventRsvp } from '@shared/mobile-web/types';
+import type { Event, EventRsvp } from '@connection/shared/mobile-web/types';
 
 export default function EventDetailPage() {
   const [, setLocation] = useLocation();

@@ -106,6 +106,16 @@ await sharing.share({
 
 ---
 
+### Phase 5: Import Path Unification (Complete)
+**Goal**: Standardize workspace imports for shared code across web and native apps.
+
+**Achievements**:
+- ✅ Client imports now use `@connection/shared/*` instead of legacy `@shared` paths
+- ✅ Mobile UI components pull palette tokens from `@connection/shared/mobile-web/colors`
+- ✅ Vite, Expo Metro, and TypeScript configs map `@connection/shared`/`@connection/ui` to workspace packages
+
+---
+
 ## 🚧 Remaining Tasks
 
 ### Phase 3: Component Migration
@@ -117,20 +127,6 @@ await sharing.share({
 - [ ] Create component directory structure in `packages/ui/src/`
 
 **Estimated Time**: 2-3 hours
-
----
-
-### Phase 5: Update Import Paths
-**Status**: Not Started
-
-**Tasks**:
-- [ ] Replace `"../../../shared/schema"` → `"@connection/shared/schema"` in client
-- [ ] Replace `"../../../shared/api"` → `"@connection/shared"` in client
-- [ ] Replace relative imports in mobile app with workspace imports
-- [ ] Update all components to use new import paths
-- [ ] Verify TypeScript resolves correctly
-
-**Estimated Time**: 1-2 hours
 
 ---
 
@@ -202,7 +198,7 @@ await sharing.share({
 3. ✅ ~~Phase 2: Platform Abstractions~~ (Complete)
 
 ### Short-term (This Week)
-4. Phase 5: Update import paths across codebase
+4. ✅ Phase 5: Update import paths across codebase
 5. Install and configure `react-native-maps` for mobile
 6. Install and configure `expo-document-picker` and `expo-image-picker`
 7. Create Dialog, Form, Badge, and Select native components

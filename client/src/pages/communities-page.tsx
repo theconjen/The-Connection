@@ -40,7 +40,7 @@ import { apiRequest, queryClient } from "../lib/queryClient";
 import { insertCommunityObjectSchema, type InsertCommunity } from "@connection/shared/schema";
 import { IconPicker } from "../components/ui/icon-picker";
 import { ColorPicker } from "../components/ui/color-picker";
-import type { Community } from '@shared/mobile-web/types';
+import type { Community } from '@connection/shared/mobile-web/types';
 
 
 // Community form schema with frontend validation

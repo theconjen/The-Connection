@@ -1,0 +1,24 @@
+// Import with `import * as Sentry from "@sentry/node"` if you are using ESM
+const Sentry = require("@sentry/node");
+
+Sentry.init({
+  dsn: "https://50195a543d2fcd9402cf365144b55262@o4510395566718976.ingest.us.sentry.io/4510395580219392",
+  // Setting this option to true will send default PII data to Sentry.
+  // For example, automatic IP address collection on events
+  sendDefaultPii: true,
+});
+
+// IMPORTANT: Make sure to import `instrument.js` at the top of your file.
+// If you're using ECMAScript Modules (ESM) syntax, use `import "./instrument.js";`
+require("./instrument.js");
+
+// All other imports below
+const { createServer } = require("node:http");
+
+const server = createServer((req, res) => {
+  // server code
+});
+
+server.listen(3000, "127.0.0.1");
+
+
