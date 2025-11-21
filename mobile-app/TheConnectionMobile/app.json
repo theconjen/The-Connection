@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.theconnection.mobile",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow access to choose a profile image.",
         "NSCameraUsageDescription": "Allow camera use for profile or content images.",
@@ -60,7 +60,11 @@
       }
     },
     "updates": {
-      "url": "https://u.expo.dev/c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
+      "url": "https://u.expo.dev/c11dcfad-026c-4c8d-8dca-bec9e2bc049a",
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 0,
+      "codeSigningCertificate": "",
+      "codeSigningMetadata": {}
     }
   }
 }
