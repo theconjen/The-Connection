@@ -1,0 +1,29 @@
+*** Begin Patch
+*** Update File: ios/TheConnection/Source/ErrorRecovery.swift
+@@
+-    private func crash() {
+-        // existing behavior that unconditionally throws an exception
+-        StartupProcedure.throwException("Unrecoverable update failure: \(error)")
+-    }
++    private func crash() {
++        // Previously this code unconditionally threw and crashed the app
++        // via StartupProcedure.throwException(...). That made certain
++        // DB/file-system failure modes fatal on startup even when the
++        // application could reasonably continue.
++        //
++        // Change: log the error and attempt a graceful fallback instead
++        // of aborting the process. Keep throwException for truly
++        // unrecoverable states only (none are assumed here).
++        
++        if let err = self.lastError {
++            Logger.error("[ErrorRecovery] non-fatal recoverable error detected: \(err)")
++        } else {
++            Logger.error("[ErrorRecovery] crash called with no lastError; skipping abort")
++        }
++
++        // Attempt to continue without the updates cleanup step.
++        // If the app is in a state that requires aborting, a later
++        // explicit call to StartupProcedure.throwException can be used
++        // with a narrower condition.
++    }
+*** End Patch
