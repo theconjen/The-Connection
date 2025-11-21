@@ -54,21 +54,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (token && storedUser) {
         // We have stored credentials, verify with server
         try {
-          const currentUser = await authAPI.getCurrentUser();
+          // Add timeout to prevent hanging indefinitely
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Auth check timed out')), 10000);
+          });
+
+          const currentUser = await Promise.race([
+            authAPI.getCurrentUser(),
+            timeoutPromise,
+          ]);
+
           setUser(currentUser);
           // Update stored user data in case it changed
           await saveUserData(currentUser);
         } catch (error) {
-          // Token is invalid or expired
-          console.log('Stored token is invalid, clearing auth data');
-          await clearAuthData();
+          // Token is invalid, expired, or network error
+          console.log('Stored token is invalid or network error, clearing auth data:', error);
+          await clearAuthData().catch(err => {
+            console.error('Error clearing auth data:', err);
+          });
           setUser(null);
         }
       }
     } catch (error) {
       console.error('Error initializing auth:', error);
+      // Don't throw - just set user to null and continue
       setUser(null);
     } finally {
+      // Always set loading to false so app doesn't hang
       setIsLoading(false);
     }
   };
