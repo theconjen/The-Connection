@@ -51,20 +51,10 @@
       ]
     ],
     "extra": {
-      "eas": {
-        "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
-      },
       "apiBase": "${EXPO_PUBLIC_API_BASE}",
       "router": {
         "origin": "https://app.theconnection.app"
       }
-    },
-    "updates": {
-      "url": "https://u.expo.dev/c11dcfad-026c-4c8d-8dca-bec9e2bc049a",
-      "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0,
-      "codeSigningCertificate": "",
-      "codeSigningMetadata": {}
     }
   }
 }
