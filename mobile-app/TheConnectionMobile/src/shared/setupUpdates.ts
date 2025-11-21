@@ -85,32 +85,35 @@ export async function setupUpdates(): Promise<void> {
 
     console.log('[Updates] Setting up updates module...');
 
-    // Add event listeners for updates
-    const eventListener = Updates.addListener((event) => {
-      console.log('[Updates] Event:', event);
+    // Add event listeners for updates. The installed `expo-updates`
+    // package may not expose the same TypeScript members across
+    // versions, so cast to `any` and compare the event.type string
+    // values directly.
+    try {
+      const addListener = (Updates as any).addListener;
+      if (typeof addListener === 'function') {
+        addListener((event: any) => {
+          console.log('[Updates] Event:', event);
 
-      if (event.type === Updates.UpdateEventType.ERROR) {
-        console.error('[Updates] Update error:', event.message);
-        // Don't crash - just log
+          // Use string comparisons to avoid depending on exported enums
+          const t = event?.type;
+          if (t === 'error') {
+            console.error('[Updates] Update error:', event.message);
+            // Don't crash - just log
+          } else if (t === 'noUpdateAvailable') {
+            console.log('[Updates] No updates available');
+          } else if (t === 'updateAvailable') {
+            console.log('[Updates] Update available');
+          }
+        });
+      } else {
+        console.log('[Updates] updates.addListener not available on this runtime');
       }
-
-      if (event.type === Updates.UpdateEventType.NO_UPDATE_AVAILABLE) {
-        console.log('[Updates] No updates available');
-      }
-
-      if (event.type === Updates.UpdateEventType.UPDATE_AVAILABLE) {
-        console.log('[Updates] Update available');
-      }
-    });
+    } catch (err) {
+      console.warn('[Updates] Failed to attach update listener:', err);
+    }
 
     console.log('[Updates] Updates module configured successfully');
-
-    // Return cleanup function
-    return () => {
-      if (eventListener) {
-        eventListener.remove();
-      }
-    };
   } catch (error) {
     console.error('[Updates] Error setting up updates:', error);
     // Don't throw - just log and continue
