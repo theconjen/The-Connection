@@ -20,40 +20,53 @@ import * as Updates from 'expo-updates';
  * This prevents the app from crashing and logs errors for debugging
  */
 const setupGlobalErrorHandler = () => {
-  // Store the original error handler
-  const originalHandler = ErrorUtils.getGlobalHandler();
+  try {
+    // Check if ErrorUtils is available (it should be in React Native)
+    if (typeof ErrorUtils === 'undefined') {
+      console.warn('[Updates] ErrorUtils not available, skipping global error handler setup');
+      return;
+    }
 
-  // Set up custom error handler
-  ErrorUtils.setGlobalHandler((error, isFatal) => {
-    // Check if this is an updates-related error
-    const isUpdatesError =
-      error?.message?.includes('expo-updates') ||
-      error?.message?.includes('UpdatesReaper') ||
-      error?.message?.includes('UpdatesDatabase') ||
-      error?.stack?.includes('expo-updates');
+    // Store the original error handler
+    const originalHandler = ErrorUtils.getGlobalHandler();
 
-    if (isUpdatesError) {
-      console.error('[Updates] Caught updates error:', {
-        message: error.message,
-        stack: error.stack,
-        isFatal,
-      });
+    // Set up custom error handler
+    ErrorUtils.setGlobalHandler((error, isFatal) => {
+      // Check if this is an updates-related error
+      const isUpdatesError =
+        error?.message?.includes('expo-updates') ||
+        error?.message?.includes('UpdatesReaper') ||
+        error?.message?.includes('UpdatesDatabase') ||
+        error?.message?.includes('ErrorRecovery') ||
+        error?.message?.includes('StartupProcedure') ||
+        error?.stack?.includes('expo-updates');
 
-      // Log to a monitoring service if available
-      // TODO: Send to Sentry or other error tracking service
+      if (isUpdatesError) {
+        console.error('[Updates] Caught updates error:', {
+          message: error.message,
+          stack: error.stack,
+          isFatal,
+        });
 
-      // Don't propagate fatal errors from updates - they're not worth crashing for
-      if (isFatal) {
-        console.warn('[Updates] Suppressed fatal updates error to prevent crash');
-        return;
+        // Log to a monitoring service if available
+        // TODO: Send to Sentry or other error tracking service
+
+        // Don't propagate fatal errors from updates - they're not worth crashing for
+        if (isFatal) {
+          console.warn('[Updates] Suppressed fatal updates error to prevent crash');
+          return;
+        }
       }
-    }
 
-    // For non-updates errors, use the original handler
-    if (originalHandler) {
-      originalHandler(error, isFatal);
-    }
-  });
+      // For non-updates errors, use the original handler
+      if (originalHandler) {
+        originalHandler(error, isFatal);
+      }
+    });
+  } catch (error) {
+    console.error('[Updates] Error setting up global error handler:', error);
+    // Don't throw - continue without global error handler
+  }
 };
 
 /**

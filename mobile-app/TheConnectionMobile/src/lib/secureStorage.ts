@@ -23,7 +23,7 @@ export async function saveAuthToken(token: string): Promise<void> {
     }
   } catch (error) {
     console.error('Error saving auth token:', error);
-    throw error;
+    // Don't throw - continue gracefully to prevent crashes
   }
 }
 
@@ -55,7 +55,7 @@ export async function removeAuthToken(): Promise<void> {
     }
   } catch (error) {
     console.error('Error removing auth token:', error);
-    throw error;
+    // Don't throw - continue gracefully to prevent crashes
   }
 }
 
@@ -72,7 +72,7 @@ export async function saveUserData(userData: any): Promise<void> {
     }
   } catch (error) {
     console.error('Error saving user data:', error);
-    throw error;
+    // Don't throw - continue gracefully to prevent crashes
   }
 }
 
@@ -106,7 +106,7 @@ export async function removeUserData(): Promise<void> {
     }
   } catch (error) {
     console.error('Error removing user data:', error);
-    throw error;
+    // Don't throw - continue gracefully to prevent crashes
   }
 }
 
