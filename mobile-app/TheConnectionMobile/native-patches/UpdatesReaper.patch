@@ -1,0 +1,21 @@
+*** Begin Patch
+*** Update File: ios/TheConnection/Source/UpdatesReaper.swift
+@@
+-    static func reapUnusedUpdates(withConfig config: Config, database: UpdatesDatabase, directory: URL, selectionPolicy: SelectionPolicy, launchedUpdate: Update?) -> Void {
+-        // existing implementation that may call into UpdatesDatabase.deleteUnusedAssets()
+-        try database.deleteUnusedAssets()
+-    }
++    static func reapUnusedUpdates(withConfig config: Config, database: UpdatesDatabase, directory: URL, selectionPolicy: SelectionPolicy, launchedUpdate: Update?) -> Void {
++        // Make cleanup defensive: database/FS errors are logged and
++        // skipped rather than bubbling up to ErrorRecovery which would
++        // cause an unconditional crash. This makes startup robust
++        // against transient DB locks, corruption, or filesystem errors.
++        do {
++            try database.deleteUnusedAssets()
++        } catch {
++            Logger.error("[UpdatesReaper] Failed to delete unused assets, skipping cleanup to avoid crash: \(error)")
++            // Optionally: record a metric or flag the update for manual cleanup
++            return
++        }
++    }
+*** End Patch
