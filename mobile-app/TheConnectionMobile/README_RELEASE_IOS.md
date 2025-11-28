@@ -52,3 +52,4 @@
 Notes
 - Dev builds use Expo Go; Store builds require EAS build artifacts
 - For push notifications, configure Apple Push keys/certificates later
+- **Automated Fixes**: See [EXPO_SDK_FIXES.md](./EXPO_SDK_FIXES.md) for SDK compatibility patches that run automatically during build
