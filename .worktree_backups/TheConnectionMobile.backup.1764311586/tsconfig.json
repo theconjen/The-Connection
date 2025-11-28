@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "lib": [
+      "esnext",
+      "dom"
+    ],
+    "jsx": "react-native",
+    "strict": false,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@connection/shared": [
+        "../../packages/shared/src"
+      ],
+      "@connection/shared/*": [
+        "../../packages/shared/src/*"
+      ],
+      "@connection/ui": [
+        "../../packages/ui/src"
+      ],
+      "@connection/ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "shared-env": [
+        "./src/env.native"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "app/**/*",
+    "../../packages/shared/src/**/*",
+    "../../packages/ui/src/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ],
+  "extends": "expo/tsconfig.base"
+}
