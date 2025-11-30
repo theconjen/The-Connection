@@ -85,9 +85,10 @@ export async function setupVite(app: Express, server: Server) {
 
 export function serveStatic(app: Express) {
   const candidates = [
-    path.resolve(process.cwd(), "apps/web/dist"),
-    path.resolve(process.cwd(), "dist/public"),
-  ];
+  path.resolve(process.cwd(), "dist/public"),
+  path.resolve(process.cwd(), "../dist/public"),
+  path.resolve(__dirname, "../dist/public"),
+];
 
   const distPath = candidates.find((p) => fs.existsSync(p));
 
