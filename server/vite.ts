@@ -88,7 +88,7 @@ export function serveStatic(app: Express) {
   path.resolve(process.cwd(), "dist/public"),
   path.resolve(process.cwd(), "../dist/public"),
   path.resolve(__dirname, "../dist/public"),
-];
+].filter(Boolean);
 
   const distPath = candidates.find((p) => fs.existsSync(p));
 
