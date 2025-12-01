@@ -114,6 +114,9 @@ importers:
       isomorphic-dompurify:
         specifier: ^2.32.0
         version: 2.33.0
+      jsdom:
+        specifier: ^27.2.0
+        version: 27.2.0
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2
