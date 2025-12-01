@@ -101,7 +101,7 @@ try {
       UNIQUE(blocker_id, blocked_user_id)
     );
   `);
-  log("✅ Blocks table created/verified");
+   log("✅ Blocks table created/verified");
 } catch (blockError: any) {
   // If table already exists or constraint exists, that's fine
   if (blockError.code === '42P07' || blockError.message?.includes('already exists')) {
