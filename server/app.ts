@@ -144,7 +144,7 @@ app.use(passport.session());
 // CSRF protection for non-API routes
 const csrfProtection = lusca.csrf();
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api')) return next();
+  if (req.path.startsWith('/api') || req.url.startsWith('/api')) return next();
   return csrfProtection(req, res, next);
 });
 
