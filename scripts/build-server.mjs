@@ -6,8 +6,8 @@ const entry = 'server/index.ts';
 // keep these out of the bundle so they use native require at runtime
 const external = [
   'node:*',
-  'dotenv', 'dotenv/config',
-  'lightningcss', 'lightningcss/*',
+  'lightningcss',
+  'lightningcss/*',
 ];
 
 await build({
@@ -16,9 +16,8 @@ await build({
   platform: 'node',
   target: 'node20',
   bundle: true,
-  packages: 'external',
   external,
-  format: 'cjs',        // <-- key change
+  format: 'cjs',
   sourcemap: false,
   logLevel: 'info',
 });
