@@ -57,8 +57,6 @@ export async function runMigration() {
     `);
 
     // reports
-    // Create reports table with column types that match existing users/posts tables.
-    // If users.id is uuid, create reporter_id/subject_id as uuid; otherwise use integer types.
     await db.execute(sql`
       DO $$
       BEGIN
@@ -66,7 +64,6 @@ export async function runMigration() {
           SELECT 1 FROM information_schema.columns
           WHERE table_schema='public' AND table_name='users' AND column_name='id' AND data_type='uuid'
         ) THEN
-          -- users.id is uuid
           CREATE TABLE IF NOT EXISTS reports (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             reporter_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -76,7 +73,6 @@ export async function runMigration() {
             created_at TIMESTAMPTZ DEFAULT now()
           );
         ELSE
-          -- users.id is not uuid (legacy integer IDs)
           CREATE TABLE IF NOT EXISTS reports (
             id BIGSERIAL PRIMARY KEY,
             reporter_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -91,22 +87,34 @@ export async function runMigration() {
     `);
 
     // blocks
-try {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS blocks (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      blocker_id UUID REFERENCES users(id) ON DELETE CASCADE,
-      blocked_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-      created_at TIMESTAMPTZ DEFAULT now(),
-      UNIQUE(blocker_id, blocked_user_id)
-    );
-  `);
-   log("✅ Blocks table created/verified");
-} catch (blockError: any) {
-  // If table already exists or constraint exists, that's fine
-  if (blockError.code === '42P07' || blockError.message?.includes('already exists')) {
-    log("✅ Blocks table already exists");
-  } else {
-    log("⚠️ Blocks table creation failed (non-critical): " + String(blockError));
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS blocks (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          blocker_id UUID REFERENCES users(id) ON DELETE CASCADE,
+          blocked_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+          created_at TIMESTAMPTZ DEFAULT now(),
+          UNIQUE(blocker_id, blocked_user_id)
+        );
+      `);
+      log("✅ Blocks table created/verified");
+    } catch (blockError: any) {
+      if (blockError.code === '42P07' || blockError.message?.includes('already exists')) {
+        log("✅ Blocks table already exists");
+      } else {
+        log("⚠️ Blocks table creation failed (non-critical): " + String(blockError));
+      }
+    }
+
+    // Helpful indexes
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts (created_at DESC);`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_communities_created_at ON communities (created_at DESC);`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_events_starts_at ON events (starts_at DESC);`);
+
+    log("✅ MVP tables and indexes created/verified");
+    return true;
+  } catch (error) {
+    log("❌ MVP tables migration failed: " + String(error));
+    return false;
   }
 }
