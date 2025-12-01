@@ -7,15 +7,19 @@
     "build:server": "node ./scripts/build-server.mjs",
     "build": "pnpm run build:web && pnpm run build:server",
     "test:api": "vitest run tests/api",
-    "eas": "pnpm dlx eas-cli"
+    "eas": "pnpm dlx eas-cli",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/express-session": "^1.18.2",
     "@types/http-errors": "^2.0.5",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.10.1",
     "@types/passport": "^1.0.17",
@@ -23,27 +27,33 @@
     "@types/react-dom": "~19.2.3",
     "@types/supertest": "^6.0.3",
     "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^5.1.1",
     "clsx": "^2.1.1",
     "drizzle-kit": "^0.31.7",
     "esbuild": "^0.27.0",
-    "jsdom": "^27.2.0",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "supertest": "^7.1.4",
     "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^3.4.18",
+    "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.20.6",
     "typescript": "~5.9.3",
+    "vite": "^7.2.4",
+    "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.10"
   },
   "engines": {
     "node": ">=22.0.0"
   },
-  "packageManager": "pnpm@10.16.1",
+  "packageManager": "pnpm@10.24.0",
   "pnpm": {
     "overrides": {
-      "glob@>=10.2.0 <10.5.0": ">=10.5.0",
-      "undici@>=4.5.0 <5.29.0": ">=7.16.0",
-      "esbuild@<=0.24.2": ">=0.27.0"
+      "react-native": "0.77.3",
+      "react": "19.1.0",
+      "react-native-reanimated": "3.16.5",
+      "expo": "~54.0.25",
+      "expo-modules-core": "3.0.26"
     }
   },
   "dependencies": {
@@ -67,6 +77,8 @@
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.7",
     "drizzle-zod": "^0.8.3",
+    "expo": "~54.0.25",
+    "expo-modules-core": "3.0.26",
     "expo-server-sdk": "^4.0.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
@@ -77,13 +89,17 @@
     "i18next-icu": "^2.4.1",
     "isomorphic-dompurify": "^2.32.0",
     "jsonwebtoken": "^9.0.2",
-    "lusca": "^1.7.0",
-    "passport": "^0.7.0",
+    "qs": "^6.14.0",
+    "react": "19.1.0",
+    "react-native": "0.77.3",
+    "react-native-reanimated": "3.16.5",
     "resend": "^6.5.2",
+    "serverless-http": "^4.0.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "undici": "^7.16.0",
     "ws": "^8.18.3",
     "zod": "^4.1.12"
-  }
+  },
+  "version": "1.0.0"
 }

@@ -2,19 +2,18 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
-    "lib": ["esnext", "dom"],
+    "lib": ["esnext"],
     "jsx": "react-native",
     "strict": false,
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
+    
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "baseUrl": ".",
-    "skipLibCheck": true,
-    "types": ["react-native", "node"],
+    "types": ["react-native"],
     "paths": {
       "@connection/shared": ["../../packages/shared/src"],
       "@connection/shared/*": ["../../packages/shared/src/*"],

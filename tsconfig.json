@@ -35,13 +35,12 @@
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
-  "allowImportingTsExtensions": true,
-  "downlevelIteration": true,
-  "target": "ES2018",
-  // removed allowImportingTsExtensions because it can conflict with composite/noEmit settings
+    "allowImportingTsExtensions": true,
+    "downlevelIteration": true,
+    "target": "ES2018",
     "moduleResolution": "bundler",
     "baseUrl": ".",
-  "types": ["node", "react", "react-dom"],
+    
     "typeRoots": [
       "./types",
       "./node_modules/@types"
@@ -69,5 +68,6 @@
         "./client/src/assets/*"
       ]
     }
-  }
+  },
+  
 }

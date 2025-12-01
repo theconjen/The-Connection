@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "The Connection",
+    "slug": "theconnection",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "theconnection",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.theconnection.mobile",
+      "buildNumber": "4"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBase": "https://theconnection.app/api",
+      "router": {
+        "origin": "https://app.theconnection.app"
+      },
+      "eas": {
+        "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
+      }
+    }
+  }
+}
