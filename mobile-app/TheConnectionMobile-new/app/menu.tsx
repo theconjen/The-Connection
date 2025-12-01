@@ -1,68 +1,76 @@
-/**
- * Hamburger Menu Screen
- */
-
-import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../src/contexts/AuthContext';
-import { Colors } from '../src/shared/colors';
+import { useTheme } from '../src/shared/ThemeProvider';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function MenuScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { colors } = useTheme();
 
-  const MenuItem = ({ icon, title, onPress }: { icon: string; title: string; onPress: () => void }) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-      <Text style={styles.menuIcon}>{icon}</Text>
-      <Text style={styles.menuTitle}>{title}</Text>
-      <Text style={styles.menuArrow}>›</Text>
-    </TouchableOpacity>
-  );
+  const menuItems = [
+    { title: 'Profile', icon: 'person-outline', route: '/(tabs)/profile' },
+    { title: 'Direct Messages', icon: 'mail-outline', route: '/messages' },
+    { title: 'Prayers', icon: 'heart-outline', route: '/(tabs)/prayers' },
+    { title: 'Privacy Policy', icon: 'shield-outline', route: '/settings/privacy' },
+    { title: 'Community Guidelines', icon: 'book-outline', route: '/settings/guidelines' },
+  ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backIcon}>←</Text>
+          <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Menu</Text>
-        <View style={{ width: 40 }} />
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Menu</Text>
+        <View style={{ width: 28 }} />
       </View>
 
-      <ScrollView style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>FEATURES</Text>
-          <MenuItem icon="🙏" title="Prayer Requests" onPress={() => router.push('/(tabs)/prayers')} />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ACCOUNT</Text>
-          <MenuItem icon="👤" title="Profile" onPress={() => router.push('/(tabs)/profile')} />
-          <MenuItem icon="⚙️" title="Settings" onPress={() => router.push('/settings')} />
-          <MenuItem icon="🚫" title="Blocked Users" onPress={() => router.push('/blocked-users')} />
-        </View>
-      </ScrollView>
+      <View style={styles.menuList}>
+        {menuItems.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            style={[styles.menuItem, { borderBottomColor: colors.border }]}
+            onPress={() => {
+              router.push(item.route as any);
+            }}
+          >
+            <Ionicons name={item.icon as any} size={24} color={colors.primary} />
+            <Text style={[styles.menuText, { color: colors.text }]}>{item.title}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backIcon: { fontSize: 24, color: Colors.primary },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
-  content: { flex: 1 },
-  section: { marginTop: 16 },
-  sectionTitle: { fontSize: 12, fontWeight: '600', color: '#9ca3af', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#f3f4f6' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  menuIcon: { fontSize: 24, marginRight: 16 },
-  menuTitle: { flex: 1, fontSize: 16, color: '#1f2937' },
-  menuArrow: { fontSize: 20, color: '#9ca3af' },
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    paddingTop: 60,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  menuList: {
+    marginTop: 20,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    gap: 16,
+  },
+  menuText: {
+    fontSize: 16,
+    flex: 1,
+  },
 });
