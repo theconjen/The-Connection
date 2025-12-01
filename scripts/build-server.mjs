@@ -8,6 +8,8 @@ const external = [
   'node:*',
   'lightningcss',
   'lightningcss/*',
+  'jsdom',
+  'esbuild',
 ];
 
 await build({
