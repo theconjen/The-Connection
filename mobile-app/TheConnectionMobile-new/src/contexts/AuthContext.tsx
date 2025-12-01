@@ -1,7 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getAuthToken, saveAuthToken, clearAuthToken } from '../lib/secureStorage';
 import apiClient from '../lib/apiClient';
-import CookieManager from '@react-native-cookies/cookies';
 
 interface User {
   id: string;
@@ -30,12 +28,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      // Check if user session exists via the backend
       const response = await apiClient.get('/user');
       setUser(response.data);
     } catch (error) {
       console.error('Auth check failed:', error);
-      await clearAuthToken();
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -43,10 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     try {
-      const response = await apiClient.post('/login', { username, password });
-      
-      // Session cookie is automatically saved by axios
-      await checkAuth(); // Fetch user data
+      await apiClient.post('/login', { username, password });
+      await checkAuth();
     } catch (error: any) {
       console.error('Login error:', error);
       throw new Error(error.response?.data?.message || 'Login failed');
@@ -55,10 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (username: string, email: string, password: string) => {
     try {
-      const response = await apiClient.post('/register', { username, email, password });
-      
-      // Session cookie is automatically saved
-      await checkAuth(); // Fetch user data
+      await apiClient.post('/register', { username, email, password });
+      await checkAuth();
     } catch (error: any) {
       console.error('Registration error:', error);
       throw new Error(error.response?.data?.message || 'Registration failed');
@@ -71,8 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      await clearAuthToken();
-      await CookieManager.clearAll();
       setUser(null);
     }
   };
