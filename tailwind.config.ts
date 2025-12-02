@@ -1,8 +1,19 @@
+import path from "path";
 import type { Config } from "tailwindcss";
+
+// Use absolute paths for content so Tailwind can reliably find files
+// regardless of the working directory (Render/production was missing styles
+// because relative globs weren't being resolved).
+const contentPaths = [
+  path.join(__dirname, "client", "index.html"),
+  path.join(__dirname, "client", "src", "**/*.{js,jsx,ts,tsx}"),
+  path.join(__dirname, "packages", "ui", "src", "**/*.{js,jsx,ts,tsx}"),
+  path.join(__dirname, "packages", "shared", "src", "**/*.{js,jsx,ts,tsx}"),
+];
 
 export default {
   darkMode: ["class"],
-  content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}", "./packages/ui/src/**/*.{js,jsx,ts,tsx}", "./packages/shared/src/**/*.{js,jsx,ts,tsx}"],
+  content: contentPaths,
   theme: {
     extend: {
       borderRadius: {
