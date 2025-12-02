@@ -398,7 +398,28 @@ export function setupAuth(app: Express) {
         }
 
         if (!user.emailVerified) {
-          return res.status(403).json({ message: "Please verify your email before logging in." });
+          try {
+            const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+            await storage.updateUser(user.id, {
+              emailVerificationToken,
+              emailVerified: false,
+            });
+
+            try {
+              await sendEmail({
+                to: user.email,
+                from: process.env.EMAIL_FROM || 'noreply@theconnection.app',
+                subject: "Verify your email",
+                html: `<p>We noticed you tried to log in but your email isn't verified yet.</p><p>Use this token to verify your email: <strong>${emailVerificationToken}</strong></p>`,
+              });
+            } catch (emailError) {
+              console.error("Failed to send verification email during login:", emailError);
+            }
+          } catch (tokenError) {
+            console.error("Failed to generate verification token during login:", tokenError);
+          }
+
+          return res.status(403).json({ message: "Please verify your email before logging in. A new verification email has been sent if possible." });
         }
 
         if (user.phoneNumber && !user.smsVerified) {
