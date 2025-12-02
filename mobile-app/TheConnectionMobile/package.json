@@ -25,6 +25,7 @@
     "expo-router": "~6.0.15",
     "expo-secure-store": "~15.0.7",
     "expo-updates": "~29.0.13",
+    "jest-resolve": "^29.7.0",
     "react": "19.1.0",
     "react-native": "0.77.3",
     "react-native-calendars": "^1.1313.0",
