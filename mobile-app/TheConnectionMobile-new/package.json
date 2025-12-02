@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/metro-config": "~54.0.9",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/merriweather": "^0.4.2",
     "@expo-google-fonts/playfair-display": "^0.4.2",
