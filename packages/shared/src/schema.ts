@@ -42,6 +42,11 @@ export const users = pgTable("users", {
   smsVerified: boolean("sms_verified").default(false),
   phoneNumber: text("phone_number"),
   emailVerificationToken: text("email_verification_token"),
+  // New, more secure fields: store only a hash of the verification token
+  emailVerificationTokenHash: text("email_verification_token_hash"),
+  emailVerificationExpiresAt: timestamp("email_verification_expires_at"),
+  emailVerificationLastSentAt: timestamp("email_verification_last_sent_at"),
+  emailVerifiedAt: timestamp("email_verified_at"),
   smsVerificationCode: text("sms_verification_code"),
   loginAttempts: integer("login_attempts").default(0),
   lockoutUntil: timestamp("lockout_until"),

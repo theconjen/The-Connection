@@ -199,6 +199,17 @@ async function bootstrap() {
     console.error("Error initializing email templates:", error);
   }
 
+  // Start verification cleanup scheduler (safe no-op if DB not configured)
+  try {
+    const { startVerificationCleanup } = await import('./lib/verificationCleanup');
+    startVerificationCleanup({
+      intervalMs: Number(process.env.VERIFICATION_CLEANUP_INTERVAL_MS ?? 24 * 60 * 60 * 1000),
+      retentionDays: Number(process.env.VERIFICATION_RETENTION_DAYS ?? 30),
+    });
+  } catch (err) {
+    console.warn('Failed to start verification cleanup scheduler:', err);
+  }
+
   if (process.env.SENTRY_DSN) {
     try {
       SentryClient = await import("@sentry/node");
