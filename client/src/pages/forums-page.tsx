@@ -58,7 +58,7 @@ export default function ForumsPage({ isGuest = false }: ForumsPageProps) {
           {isLoading ? (
             // Loading skeletons
             Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="bg-white rounded-xl shadow-sm border border-neutral-200 mb-6 p-6">
+              <div key={index} className="bg-card text-card-foreground rounded-xl shadow-sm border border-border mb-6 p-6">
                 <div className="flex items-center mb-4">
                   <Skeleton className="w-10 h-10 rounded-full mr-3" />
                   <div>
@@ -80,7 +80,7 @@ export default function ForumsPage({ isGuest = false }: ForumsPageProps) {
           ) : (
             <>
               {posts && posts.map((post, index) => (
-                <PostCard 
+                <PostCard
                   key={post.id} 
                   post={post} 
                   featured={index === 0 && page === 1} 
@@ -88,17 +88,18 @@ export default function ForumsPage({ isGuest = false }: ForumsPageProps) {
               ))}
 
               {posts && posts.length === 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-neutral-200 mb-6 p-10 text-center">
+                <div className="bg-card text-card-foreground rounded-xl shadow-sm border border-border mb-6 p-10 text-center">
                   <h3 className="text-xl font-semibold mb-3">No Posts Found</h3>
-                  <p className="text-neutral-600 mb-4">
+                  <p className="text-muted-foreground mb-4">
                     There are no posts to display at the moment.
                   </p>
                 </div>
               )}
 
               <div className="text-center py-4">
-                <Button 
-                  className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-100 font-medium" 
+                <Button
+                  variant="outline"
+                  className="bg-card text-foreground border-border hover:bg-muted font-medium"
                   onClick={handleLoadMore}
                   disabled={isFetching}
                 >

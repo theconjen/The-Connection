@@ -16,26 +16,26 @@ export default function FeedFilters({ onFilterChange, currentFilter }: FeedFilte
       <CardContent className="p-3">
         <div className="flex items-center space-x-2">
           <Button
-            variant={currentFilter === "popular" ? "secondary" : "ghost"}
-            className={currentFilter === "popular" ? "bg-primary-50 text-primary" : "text-neutral-600"}
+            variant="ghost"
+            className={`${currentFilter === "popular" ? "bg-primary/15 text-primary shadow-sm" : "text-muted-foreground"} hover:bg-muted`}
             onClick={() => onFilterChange("popular")}
           >
             <FlameIcon className="mr-2 h-4 w-4" />
             <span>Popular</span>
           </Button>
-          
+
           <Button
-            variant={currentFilter === "latest" ? "secondary" : "ghost"}
-            className={currentFilter === "latest" ? "bg-primary-50 text-primary" : "text-neutral-600"}
+            variant="ghost"
+            className={`${currentFilter === "latest" ? "bg-primary/15 text-primary shadow-sm" : "text-muted-foreground"} hover:bg-muted`}
             onClick={() => onFilterChange("latest")}
           >
             <ClockIcon className="mr-2 h-4 w-4" />
             <span>Latest</span>
           </Button>
-          
+
           <Button
-            variant={currentFilter === "top" ? "secondary" : "ghost"}
-            className={`hidden md:flex ${currentFilter === "top" ? "bg-primary-50 text-primary" : "text-neutral-600"}`}
+            variant="ghost"
+            className={`hidden md:flex ${currentFilter === "top" ? "bg-primary/15 text-primary shadow-sm" : "text-muted-foreground"} hover:bg-muted`}
             onClick={() => onFilterChange("top")}
           >
             <TrophyIcon className="mr-2 h-4 w-4" />
@@ -45,7 +45,7 @@ export default function FeedFilters({ onFilterChange, currentFilter }: FeedFilte
           <div className="ml-auto">
             <Button
               variant="ghost"
-              className="text-neutral-600"
+              className="text-muted-foreground hover:bg-muted"
               onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
             >
               <SlidersHorizontalIcon className="mr-2 h-4 w-4" />
@@ -53,10 +53,10 @@ export default function FeedFilters({ onFilterChange, currentFilter }: FeedFilte
             </Button>
           </div>
         </div>
-        
+
         {isFilterMenuOpen && (
-          <div className="mt-3 p-3 border-t border-neutral-200">
-            <p className="text-sm text-neutral-600 mb-2">Additional filters coming soon</p>
+          <div className="mt-3 p-3 border-t border-border">
+            <p className="text-sm text-muted-foreground mb-2">Additional filters coming soon</p>
           </div>
         )}
       </CardContent>

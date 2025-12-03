@@ -31,11 +31,11 @@ export default function ApologeticsResourceCard() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader className="px-4 py-3 bg-primary-50 border-b border-primary-100">
-          <CardTitle className="font-semibold text-primary-800">Apologetics Center</CardTitle>
+      <Card className="border-border shadow-sm">
+        <CardHeader className="px-4 py-3 bg-gradient-to-r from-primary/15 to-secondary/15 border-b border-border">
+          <CardTitle className="font-semibold text-primary">Apologetics Center</CardTitle>
         </CardHeader>
-        <div className="w-full h-32 bg-neutral-200 animate-pulse" />
+        <div className="w-full h-32 bg-muted animate-pulse" />
         <CardContent className="p-4">
           <Skeleton className="h-4 w-32 mb-4" />
           <div className="space-y-3">
@@ -49,13 +49,13 @@ export default function ApologeticsResourceCard() {
   }
 
   return (
-    <Card>
-      <CardHeader className="px-4 py-3 bg-primary-50 border-b border-primary-100">
-        <CardTitle className="font-semibold text-primary-800">Apologetics Center</CardTitle>
+    <Card className="border-border shadow-sm">
+      <CardHeader className="px-4 py-3 bg-gradient-to-r from-primary/15 to-secondary/15 border-b border-border">
+        <CardTitle className="font-semibold text-primary">Apologetics Center</CardTitle>
       </CardHeader>
-      <img 
-        src="https://images.unsplash.com/photo-1585858229735-cd08d8cb510d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=200" 
-        alt="Bible study resources and notes" 
+      <img
+        src="https://images.unsplash.com/photo-1585858229735-cd08d8cb510d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=200"
+        alt="Bible study resources and notes"
         className="w-full h-32 object-cover"
       />
       <CardContent className="p-4">
@@ -64,11 +64,11 @@ export default function ApologeticsResourceCard() {
           {resources?.slice(0, 3).map((resource) => (
             <li key={resource.id} className="flex items-center">
               {getResourceIcon(resource.type)}
-              <a 
-                href={resource.url || '#'} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-neutral-700 hover:text-primary"
+              <a
+                href={resource.url || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground hover:text-primary"
               >
                 {resource.title}
               </a>
@@ -76,7 +76,7 @@ export default function ApologeticsResourceCard() {
           ))}
         </ul>
         <div className="mt-4">
-          <Link href="/apologetics" className="text-primary text-sm font-medium hover:text-primary-700">
+          <Link href="/apologetics" className="text-primary text-sm font-medium hover:text-primary/80">
             Visit Apologetics Center →
           </Link>
         </div>
