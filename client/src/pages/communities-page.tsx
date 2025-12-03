@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
-import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X, BookOpen, Heart, Music, Camera, Coffee, Globe, Star, Home, MessageCircle, Calendar, Map, Shield, Zap, Target } from "lucide-react";
+import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X, BookOpen, Heart, Music, Camera, Coffee, Globe, Star, Home, MessageCircle, Calendar, Map, Shield, Zap, Target, Compass, Sparkles } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { insertCommunityObjectSchema, type InsertCommunity } from "@connection/shared/schema";
@@ -70,6 +70,7 @@ export default function CommunitiesPage() {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<"all" | "popular" | "public" | "private">("all");
   
   // Debounce search query for performance
   useEffect(() => {
@@ -316,51 +317,89 @@ export default function CommunitiesPage() {
     }
   ];
 
+  const filteredCommunities = useMemo(() => {
+    if (!communities) return [];
+
+    let results = [...communities];
+
+    if (activeFilter === "popular") {
+      results = results.sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0));
+    }
+
+    if (activeFilter === "public") {
+      results = results.filter((community) => !community.isPrivate);
+    }
+
+    if (activeFilter === "private") {
+      results = results.filter((community) => community.isPrivate);
+    }
+
+    return results;
+  }, [communities, activeFilter]);
+
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Communities</h1>
-          <p className="text-muted-foreground mt-1">
-            Join or create communities to connect with others
-          </p>
-        </div>
-        
-        {user && (
-          <Dialog open={open} onOpenChange={handleDialogClose}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Community
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Community</DialogTitle>
-                <DialogDescription>
-                  Create a new community for people to join and connect.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleCreateCommunity)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Community Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Bible Study Group"
-                            data-testid="input-community-name"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+    <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950">
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        <div className="rounded-3xl bg-gradient-to-br from-indigo-500 via-blue-500 to-sky-500 text-white p-6 sm:p-8 shadow-sm mb-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm font-medium">
+                <Sparkles className="h-4 w-4" />
+                Made for connecting on mobile
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold leading-tight sm:text-4xl">Communities</h1>
+                <p className="text-white/90 mt-1 max-w-2xl">
+                  Discover groups that feel native to your phone. Join, create, and explore conversations that matter to you.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm">
+                  <Users className="h-4 w-4" />
+                  {communities?.length || "0"} active communities
+                </div>
+                <div className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm">
+                  <Compass className="h-4 w-4" />
+                  Curated for your interests
+                </div>
+              </div>
+            </div>
+
+            {user && (
+              <Dialog open={open} onOpenChange={handleDialogClose}>
+                <DialogTrigger asChild>
+                  <Button size="lg" className="bg-white text-indigo-600 hover:bg-white/90 hover:text-indigo-700 shadow-sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Community
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Community</DialogTitle>
+                    <DialogDescription>
+                      Create a new community for people to join and connect.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleCreateCommunity)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Community Name</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Bible Study Group"
+                                data-testid="input-community-name"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                   
                   <FormField
                     control={form.control}
@@ -519,195 +558,250 @@ export default function CommunitiesPage() {
           </Dialog>
         )}
       </div>
-      
-      {/* Search Section */}
-      <div className="mb-8">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search communities..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-10"
-            data-testid="input-search-communities"
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted"
-              onClick={() => setSearchQuery("")}
-              data-testid="button-clear-search"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
-        {debouncedSearchQuery && (
-          <p className="text-sm text-muted-foreground mt-2">
-            Searching for: <span className="font-medium">"{debouncedSearchQuery}"</span>
-          </p>
-        )}
       </div>
-      
-      {/* Interest-based categories section */}
-      <div className="mb-10">
-        <div className="flex items-center mb-5">
-          <h2 className="text-2xl font-semibold">Interest-Based Communities</h2>
-          <div className="ml-3 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium dark:bg-primary/20 dark:text-primary-foreground">
-            New
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {interestCategories.map((category, index) => (
-            <Card
-              key={index}
-              className={`cursor-pointer hover:shadow-md transition-shadow ${category.color} text-slate-900 dark:text-slate-100 backdrop-blur-sm`}
-              onClick={() => navigate(category.link)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  {category.icon}
-                  <CardTitle className="text-lg">{category.title}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-slate-800 dark:text-slate-100/90">{category.description}</p>
-              </CardContent>
-              <CardFooter className="pt-0">
-                <Button
-                  variant="outline"
-                  className="w-full bg-white/80 text-slate-900 hover:bg-white dark:bg-slate-900/60 dark:text-slate-50 dark:hover:bg-slate-900/50 border border-slate-200 dark:border-slate-700"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(category.link);
-                  }}
-                >
-                  Explore
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      </div>
-      
-      {/* Divider */}
-      <div className="border-t my-8"></div>
-      
-      {/* All Communities section */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold">All Communities</h2>
-      </div>
-      
-      {!communities || communities.length === 0 ? (
-        <div className="text-center py-12">
-          <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          {debouncedSearchQuery ? (
-            <>
-              <h2 className="text-2xl font-bold mb-2">No Communities Found</h2>
-              <p className="text-muted-foreground mb-4">
-                No communities match your search for "{debouncedSearchQuery}". Try a different search term.
-              </p>
-              <Button 
-                variant="outline" 
-                onClick={() => setSearchQuery("")}
-                data-testid="button-clear-search-results"
-              >
-                Clear Search
-              </Button>
-            </>
-          ) : (
-            <>
-              <h2 className="text-2xl font-bold mb-2">No Communities Yet</h2>
-              <p className="text-muted-foreground mb-4">
-                Be the first to create a community!
-              </p>
-              
-              {user ? (
-                <Button onClick={() => setOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Community
-                </Button>
-              ) : (
-                <Button onClick={() => navigate('/auth')}>
-                  Sign In to Create
+      <div className="space-y-10">
+        {/* Search + filters */}
+        <Card className="border-none shadow-sm bg-white/80 dark:bg-slate-900/70">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search communities"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10 h-11 rounded-xl bg-slate-100 border-0 shadow-inner dark:bg-slate-800"
+                  data-testid="input-search-communities"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full"
+                    onClick={() => setSearchQuery("")}
+                    data-testid="button-clear-search"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+                {debouncedSearchQuery && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Searching for <span className="font-medium">"{debouncedSearchQuery}"</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
+                {[{ key: "all", label: "For you" }, { key: "popular", label: "Popular" }, { key: "public", label: "Open" }, { key: "private", label: "Invite only" }].map((filter) => (
+                  <Button
+                    key={filter.key}
+                    variant={activeFilter === filter.key ? "default" : "outline"}
+                    className={`rounded-full border ${activeFilter === filter.key ? "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900" : "bg-white/70 dark:bg-slate-800"}`}
+                    onClick={() => setActiveFilter(filter.key as typeof activeFilter)}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                Browse curated lists that feel closer to a native feed.
+              </div>
+              {!user && (
+                <Button className="rounded-full" variant="ghost" onClick={() => navigate('/auth')}>
+                  Sign in to create your own
                 </Button>
               )}
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {communities.map((community: Community) => {
-            const colorScheme = getCommunityColorScheme(community);
-            const communityIcon = getIconComponent(
-              community.iconName || 'users',
-              (colorScheme.isCustom ? colorScheme.iconStyle : colorScheme.iconColor) || 'text-slate-700 dark:text-slate-200'
-            );
+            </div>
+          </CardContent>
+        </Card>
 
-            const cardProps = colorScheme.isCustom && colorScheme.bgStyle
-              ? { style: colorScheme.bgStyle }
-              : {};
-            const cardBaseClass = "cursor-pointer hover:shadow-md transition-shadow text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 backdrop-blur-sm";
-            const cardClassName = colorScheme.isCustom
-              ? `${cardBaseClass} bg-white/70 dark:bg-slate-900/50`
-              : `${cardBaseClass} ${colorScheme.bg}`;
-            
-            return (
-              <Card 
-                key={community.id} 
-                className={cardClassName}
-                {...cardProps}
-                onClick={() => navigate(`/communities/${community.slug}`)}
+        {/* Interest-based categories section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold">Interest-based picks</h2>
+              <div className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium dark:bg-primary/20 dark:text-primary-foreground">
+                Fresh
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => navigate('/discover')}>
+              See more
+            </Button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+            {interestCategories.map((category, index) => (
+              <Card
+                key={index}
+                className={`min-w-[260px] sm:min-w-[240px] cursor-pointer hover:-translate-y-0.5 transition-transform ${category.color} text-slate-900 dark:text-slate-100 backdrop-blur-sm`}
+                onClick={() => navigate(category.link)}
               >
                 <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
-                    {communityIcon}
-                    <CardTitle className="text-lg flex-1">{community.name}</CardTitle>
-                    <div className="flex items-center gap-1 ml-2">
-                      {community.isPrivate && (
-                        <span title="Invite Only">
-                          <Lock className="h-4 w-4 text-red-500" />
-                        </span>
-                      )}
-                      {community.hasPrivateWall && (
-                        <span title="Has Private Wall">
-                          <Lock className="h-4 w-4 text-amber-500" />
-                        </span>
-                      )}
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-white/60 flex items-center justify-center shadow-sm">
+                      {category.icon}
                     </div>
+                    <CardTitle className="text-lg leading-tight">{category.title}</CardTitle>
                   </div>
                 </CardHeader>
-
-                <CardContent>
-                  <p className="text-sm text-gray-800 dark:text-slate-100/90 line-clamp-2 mb-3">
-                    {community.description}
-                  </p>
-                  <div className="flex items-center text-gray-700 dark:text-slate-300 text-sm">
-                    <Users className="mr-1 h-4 w-4 flex-shrink-0" />
-                    <span>{community.memberCount || 0} members</span>
-                  </div>
+                <CardContent className="pt-0">
+                  <p className="text-sm text-slate-800 dark:text-slate-100/90 leading-relaxed">{category.description}</p>
                 </CardContent>
-
                 <CardFooter className="pt-0">
                   <Button
                     variant="outline"
-                    className="w-full bg-white/70 hover:bg-white/90 text-slate-900 dark:text-slate-50 dark:bg-slate-900/60 dark:hover:bg-slate-900/50 border border-slate-200 dark:border-slate-700"
+                    className="w-full rounded-full bg-white/80 text-slate-900 hover:bg-white dark:bg-slate-900/60 dark:text-slate-50 dark:hover:bg-slate-900/50 border border-slate-200 dark:border-slate-700"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/communities/${community.slug}`);
+                      navigate(category.link);
                     }}
                   >
                     Explore
                   </Button>
                 </CardFooter>
               </Card>
-            );
-          })}
+            ))}
+          </div>
         </div>
+
+        {/* All Communities section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">All communities</h2>
+            <div className="text-sm text-muted-foreground">Tap into groups that feel like native threads.</div>
+          </div>
+
+          {filteredCommunities.length === 0 ? (
+            <div className="text-center py-12 rounded-2xl bg-white/80 dark:bg-slate-900/70 shadow-sm border border-slate-200/70 dark:border-slate-800">
+              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              {debouncedSearchQuery || activeFilter !== "all" ? (
+                <>
+                  <h2 className="text-2xl font-bold mb-2">No Communities Found</h2>
+                  <p className="text-muted-foreground mb-4">
+                    Try adjusting your search or filters to see more groups.
+                  </p>
+                  <div className="flex flex-col gap-3 items-center sm:flex-row sm:justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setActiveFilter("all");
+                      }}
+                      data-testid="button-clear-search-results"
+                    >
+                      Clear search & filters
+                    </Button>
+                    {user && (
+                      <Button onClick={() => setOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Community
+                      </Button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold mb-2">No Communities Yet</h2>
+                  <p className="text-muted-foreground mb-4">
+                    Be the first to create a community!
+                  </p>
+                  {user ? (
+                    <Button onClick={() => setOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Community
+                    </Button>
+                  ) : (
+                    <Button onClick={() => navigate('/auth')}>
+                      Sign In to Create
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+              {filteredCommunities.map((community: Community) => {
+                const colorScheme = getCommunityColorScheme(community);
+                const communityIcon = getIconComponent(
+                  community.iconName || 'users',
+                  (colorScheme.isCustom ? colorScheme.iconStyle : colorScheme.iconColor) || 'text-slate-700 dark:text-slate-200'
+                );
+
+                const cardProps = colorScheme.isCustom && colorScheme.bgStyle
+                  ? { style: colorScheme.bgStyle }
+                  : {};
+                const cardBaseClass = "cursor-pointer hover:-translate-y-0.5 transition-transform text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800 backdrop-blur-sm";
+                const cardClassName = colorScheme.isCustom
+                  ? `${cardBaseClass} bg-white/90 dark:bg-slate-900/60`
+                  : `${cardBaseClass} ${colorScheme.bg}`;
+
+                return (
+                  <Card
+                    key={community.id}
+                    className={cardClassName}
+                    {...cardProps}
+                    onClick={() => navigate(`/communities/${community.slug}`)}
+                  >
+                    <CardHeader className="pb-1">
+                      <div className="flex items-start gap-3">
+                        <div className="h-11 w-11 rounded-2xl bg-white/70 dark:bg-slate-900/70 flex items-center justify-center shadow-sm">
+                          {communityIcon}
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <CardTitle className="text-lg leading-tight">{community.name}</CardTitle>
+                            <div className="flex gap-2">
+                              {community.isPrivate && <span className="rounded-full bg-white/60 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-slate-800/90 dark:text-amber-200">Invite only</span>}
+                              {community.hasPrivateWall && <span className="rounded-full bg-white/60 px-3 py-1 text-xs font-medium text-sky-700 dark:bg-slate-800/90 dark:text-sky-200">Private wall</span>}
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-800 dark:text-slate-100/90 line-clamp-2">{community.description}</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="pt-2">
+                      <div className="flex items-center justify-between text-sm text-gray-700 dark:text-slate-300">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4 flex-shrink-0" />
+                          <span>{community.memberCount || 0} members</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full bg-white/80 hover:bg-white/90 dark:bg-slate-900/60 dark:hover:bg-slate-900/50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/communities/${community.slug}`);
+                          }}
+                        >
+                          Explore
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {user && (
+        <Button
+          className="fixed bottom-6 right-5 h-12 w-12 rounded-full shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white sm:hidden"
+          size="icon"
+          onClick={() => setOpen(true)}
+        >
+          <Plus className="h-5 w-5" />
+        </Button>
       )}
+      </div>
     </div>
   );
 }

@@ -128,7 +128,7 @@ export default function Header() {
             {user ? (
               <>
                 {/* Direct Messages Button - Always visible (FIRST) */}
-                <Link href="/dms">
+                <Link href="/messages">
                   <Button
                     variant="ghost"
                     size="icon"
