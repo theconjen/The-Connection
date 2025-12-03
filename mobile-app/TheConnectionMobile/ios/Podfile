@@ -14,10 +14,6 @@ install! 'cocoapods',
 prepare_react_native_project!
 
 target 'TheConnection' do
-  # Ensure a local stub podspec exists for ReactAppDependencyProvider
-  # so that CocoaPods can resolve Expo's dependency during install.
-  pod 'ReactAppDependencyProvider', :path => File.join(__dir__, 'ReactAppDependencyProvider.podspec')
-
   use_expo_modules!
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'

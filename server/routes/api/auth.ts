@@ -7,6 +7,7 @@ import { sendEmail } from '../../email';
 import rateLimit from 'express-rate-limit';
 import { buildErrorResponse } from '../../utils/errors';
 import { setSessionUserId } from '../../utils/session';
+import { generateVerificationToken, hashToken, createAndSendVerification } from '../../lib/emailVerification';
 
 const router = Router();
 
@@ -177,4 +178,66 @@ router.get('/user', async (req, res) => {
   }
 });
 
+// Send (or resend) verification email for a user's email address
+router.post('/auth/send-verification', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ message: 'email required' });
+
+    const user = await storage.getUserByEmail(String(email));
+    if (!user) return res.status(404).json({ message: 'user not found' });
+    if (user.emailVerified) return res.status(400).json({ message: 'already verified' });
+
+    // Rate limit resend at application level: allow once per 5 minutes
+    const lastSent = (user as any).emailVerificationLastSentAt ? new Date((user as any).emailVerificationLastSentAt) : null;
+    const COOLDOWN_MS = 5 * 60 * 1000;
+    if (lastSent) {
+      const delta = Date.now() - lastSent.getTime();
+      if (delta < COOLDOWN_MS) {
+        const remainingMs = COOLDOWN_MS - delta;
+        const remainingSeconds = Math.ceil(remainingMs / 1000);
+        // Return 429 with remaining cooldown so clients can show UI feedback
+        return res.status(429).json({ message: 'Verification email recently sent; try again later', retryAfterSeconds: remainingSeconds });
+      }
+    }
+
+    const frontend = process.env.FRONTEND_URL || 'https://theconnection.app';
+    const { expiresAt } = await createAndSendVerification(user.id, user.email, frontend);
+    // Inform client when they can resend next (5 minute cooldown)
+    const nextAllowedAt = new Date(Date.now() + COOLDOWN_MS).toISOString();
+    return res.json({ ok: true, expiresAt, nextAllowedAt });
+  } catch (error) {
+    console.error('send-verification error', error);
+    res.status(500).json(buildErrorResponse('Error sending verification', error));
+  }
+});
+
+// Verify token: POST /api/auth/verify-email { token }
+router.post('/auth/verify-email', async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token) return res.status(400).json({ message: 'token required' });
+
+    // Use storage helper to find user by token (updated to check hashes)
+    const user = await storage.getUserByEmailVerificationToken(String(token));
+    if (!user) return res.status(400).json({ message: 'invalid or expired token' });
+
+    // Mark verified and clear token fields
+    await storage.updateUser(user.id, {
+      emailVerified: true,
+      emailVerifiedAt: new Date() as any,
+      emailVerificationToken: null as any,
+      emailVerificationTokenHash: null as any,
+      emailVerificationExpiresAt: null as any,
+      emailVerificationLastSentAt: null as any,
+    } as any);
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('verify-email error', error);
+    res.status(500).json(buildErrorResponse('Error verifying email', error));
+  }
+});
+
 export default router;
+

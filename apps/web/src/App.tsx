@@ -1,10 +1,20 @@
-import React from "react";
+import React from 'react';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import VerifyEmail from './pages/VerifyEmail';
 
 export default function App() {
   return (
-    <div style={{fontFamily: 'Inter, system-ui, sans-serif', padding: 20}}>
-      <h1>The Connection — Web shim</h1>
-      <p>This is a minimal placeholder app used to satisfy builds during merge.</p>
-    </div>
+    <BrowserRouter>
+      <div style={{ fontFamily: 'Inter, system-ui, sans-serif', padding: 20 }}>
+        <h1>The Connection — Web</h1>
+        <p>
+          This app includes a simple email verification page for testing. Use <Link to="/verify-email">Verify Email</Link>.
+        </p>
+        <Routes>
+          <Route path="/" element={<div />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }

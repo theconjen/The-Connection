@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { isAdmin } from '../../auth';
 import { storage } from '../../storage-optimized';
 import { getSessionUserId } from '../../utils/session';
+import { runVerificationCleanupOnce } from '../../lib/verificationCleanup';
 
 const router = Router();
 
@@ -115,3 +116,13 @@ router.delete('/users/:id', async (req, res, next) => {
 });
 
 export default router;
+
+// Admin endpoint: trigger verification cleanup on demand
+router.post('/verification-cleanup', async (req, res, next) => {
+  try {
+    await runVerificationCleanupOnce();
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});

@@ -2110,6 +2110,17 @@ export class MemStorage implements IStorage {
   }
 
   async getUserByEmailVerificationToken(token: string): Promise<User | undefined> {
+    // In-memory fallback should mirror DB logic: check legacy token or hashed token + expiry
+    const crypto = require('crypto');
+    const tokenHash = token ? crypto.createHash('sha256').update(token).digest('hex') : null;
+
+    if (tokenHash) {
+      const now = Date.now();
+      const found = this.data.users.find((u: any) => u.emailVerificationTokenHash === tokenHash && (!u.emailVerificationExpiresAt || new Date(u.emailVerificationExpiresAt).getTime() > now));
+      if (found) return found as User | undefined;
+    }
+
+    // Legacy plaintext token
     return this.data.users.find((u: any) => u.emailVerificationToken === token) as User | undefined;
   }
 
@@ -2237,8 +2248,24 @@ export class DbStorage implements IStorage {
   }
 
   async getUserByEmailVerificationToken(token: string): Promise<User | undefined> {
-    const rows = await db.select().from(users).where(eq(users.emailVerificationToken, token));
-    return rows[0] as User | undefined;
+    // Support both legacy plaintext token (`emailVerificationToken`) and
+    // the newer hashed token (`emailVerificationTokenHash`) with expiry check.
+    const tokenHash = token ? require('crypto').createHash('sha256').update(token).digest('hex') : null;
+
+    // Prefer matching by hash and ensure it's not expired
+    if (tokenHash) {
+      const now = new Date();
+      const rows = await db.select().from(users)
+        .where(and(
+          eq(users.emailVerificationTokenHash, tokenHash),
+          or(eq(users.emailVerificationExpiresAt, null), users.emailVerificationExpiresAt.gt(now))
+        ));
+      if (rows && rows.length > 0) return rows[0] as User;
+    }
+
+    // Fallback: legacy plaintext token field
+    const rowsLegacy = await db.select().from(users).where(eq(users.emailVerificationToken, token));
+    return rowsLegacy[0] as User | undefined;
   }
 
   // Admin moderation helpers (DB)
