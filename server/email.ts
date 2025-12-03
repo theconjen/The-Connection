@@ -11,9 +11,9 @@ import {
 } from '@aws-sdk/client-ses';
 import { APP_DOMAIN, BASE_URL, EMAIL_FROM, APP_URLS } from './config/domain';
 
-// Check for AWS credentials
 // Email functionality configuration
 let emailFunctionalityEnabled = false;
+let sesAvailable = false;
 
 // Control whether to use real email sending via env var. By default we run
 // in mock mode to avoid accidental sends during development. To enable real
@@ -22,7 +22,14 @@ let emailFunctionalityEnabled = false;
 const ENABLE_REAL_EMAIL = process.env.ENABLE_REAL_EMAIL === 'true';
 const forceMockMode = process.env.FORCE_EMAIL_MOCK_MODE === 'true';
 
+// Optional Resend integration. Install `resend` and set RESEND_API_KEY to enable.
+let resendClient: any = null;
+const RESEND_API_KEY = process.env.RESEND_API_KEY || process.env.RESEND__API_KEY || '';
+const hasResend = Boolean(RESEND_API_KEY);
+
 console.log(`📧 [SETUP] Email mock mode = ${forceMockMode ? 'ON' : 'OFF'} (FORCE_EMAIL_MOCK_MODE=${process.env.FORCE_EMAIL_MOCK_MODE || 'unset'}, ENABLE_REAL_EMAIL=${process.env.ENABLE_REAL_EMAIL || 'unset'})`);
+
+const hasAwsCredentials = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION);
 
 if (forceMockMode) {
   console.log("📧 Email functionality running in MOCK MODE. No actual emails will be sent.");
@@ -31,13 +38,18 @@ if (forceMockMode) {
 } else if (!ENABLE_REAL_EMAIL) {
   console.log("📧 Email functionality disabled. Set ENABLE_REAL_EMAIL=true to enable real sending.");
   console.log("📧 All email operations will continue to run in mock mode.");
-} else if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
-  console.warn("⚠️ AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) not set. Email functionality will be disabled.");
+} else if (!hasAwsCredentials && !hasResend) {
+  console.warn("⚠️ No email provider credentials set (AWS or Resend). Email functionality will be disabled.");
   console.warn("⚠️ Users can still register but won't receive actual emails.");
-  // Set the FORCE_EMAIL_MOCK_MODE environment variable to 'true' to simulate email sending
 } else {
-  console.log("📧 Email functionality enabled with AWS SES");
   emailFunctionalityEnabled = true;
+  if (hasAwsCredentials) {
+    console.log("📧 Email functionality enabled with AWS SES");
+    sesAvailable = true;
+  }
+  if (hasResend) {
+    console.log("📧 Email functionality enabled with Resend");
+  }
 }
 
 // Initialize the SES client
@@ -53,15 +65,12 @@ if (process.env.AWS_REGION) {
 
 const sesClient = new SESClient({
   region: awsRegion,
-  credentials: emailFunctionalityEnabled ? {
+  credentials: hasAwsCredentials ? {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
   } : undefined
 });
 
-// Optional Resend integration. Install `resend` and set RESEND_API_KEY to enable.
-let resendClient: any = null;
-const RESEND_API_KEY = process.env.RESEND_API_KEY || process.env.RESEND__API_KEY || '';
 if (RESEND_API_KEY) {
   try {
     // Import lazily to avoid adding a hard runtime dependency when not used
@@ -113,6 +122,12 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
         // fall through to SES below
       }
     }
+
+    if (!sesAvailable) {
+      console.warn('Email sending failed via Resend and no SES credentials are available.');
+      return false;
+    }
+
     // Create the email command
     const sendEmailCommand = new SendEmailCommand({
       Destination: {
@@ -177,7 +192,7 @@ export interface EmailTemplateParams {
  * Creates a new email template in AWS SES
  */
 export async function createEmailTemplate(params: EmailTemplateParams): Promise<boolean> {
-  if (forceMockMode || !emailFunctionalityEnabled) {
+  if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
     console.log('📧 [MOCK] Would have created template:', params.TemplateName);
     return true; // Return true in mock mode to simulate success
   }
@@ -205,7 +220,7 @@ export async function createEmailTemplate(params: EmailTemplateParams): Promise<
  * Updates an existing email template in AWS SES
  */
 export async function updateEmailTemplate(params: EmailTemplateParams): Promise<boolean> {
-  if (forceMockMode || !emailFunctionalityEnabled) {
+  if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
     console.log('📧 [MOCK] Would have updated template:', params.TemplateName);
     return true; // Return true in mock mode to simulate success
   }
@@ -233,7 +248,7 @@ export async function updateEmailTemplate(params: EmailTemplateParams): Promise<
  * Deletes an email template from AWS SES
  */
 export async function deleteEmailTemplate(templateName: string): Promise<boolean> {
-  if (forceMockMode || !emailFunctionalityEnabled) {
+  if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
     console.log('📧 [MOCK] Would have deleted template:', templateName);
     return true; // Return true in mock mode to simulate success
   }
@@ -256,7 +271,7 @@ export async function deleteEmailTemplate(templateName: string): Promise<boolean
  * Gets a list of all email templates in AWS SES
  */
 export async function listEmailTemplates(): Promise<string[]> {
-  if (forceMockMode || !emailFunctionalityEnabled) {
+  if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
     console.log('📧 [MOCK] Would have listed templates.');
     // Return some mock template names to simulate the API
     return Object.values(DEFAULT_TEMPLATES);
@@ -277,7 +292,7 @@ export async function listEmailTemplates(): Promise<string[]> {
  * Gets details of a specific email template from AWS SES
  */
 export async function getEmailTemplate(templateName: string): Promise<Template | null> {
-  if (forceMockMode || !emailFunctionalityEnabled) {
+  if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
     console.log('📧 [MOCK] Would have retrieved template:', templateName);
     // Return a mock template in mock mode
     return {
@@ -311,7 +326,7 @@ export async function sendTemplatedEmail(params: {
   templateData: Record<string, any>
 }): Promise<boolean> {
   const { to, from, templateName, templateData } = params;
-  if (forceMockMode || !emailFunctionalityEnabled) {
+  if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
     console.log('📧 [MOCK] Would have sent templated email to:', to);
     console.log('📧 [MOCK] Template:', templateName);
     console.log('📧 [MOCK] Template data:', JSON.stringify(templateData));
@@ -370,8 +385,8 @@ export async function initializeEmailTemplates(): Promise<void> {
     return;
   }
   
-  if (!emailFunctionalityEnabled) {
-    console.log('Email functionality disabled. Skipping template initialization.');
+  if (!emailFunctionalityEnabled || !sesAvailable) {
+    console.log('Email functionality disabled or SES unavailable. Skipping template initialization.');
     console.log('Email templates initialized in mock mode.');
     return;
   }
