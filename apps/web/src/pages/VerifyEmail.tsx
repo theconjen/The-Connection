@@ -5,6 +5,8 @@ export default function VerifyEmail() {
   const [message, setMessage] = useState<string | null>(null);
   const [email, setEmail] = useState<string>('');
   const [showResend, setShowResend] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState<number | null>(null);
+  const [timerId, setTimerId] = useState<number | null>(null as any);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -58,9 +60,25 @@ export default function VerifyEmail() {
       if (res.ok) {
         setStatus('success');
         setMessage('Verification email sent. Check your inbox.');
+        if (data?.nextAllowedAt) {
+          // compute seconds remaining from server-provided timestamp
+          const next = new Date(data.nextAllowedAt).getTime();
+          const rem = Math.max(0, Math.ceil((next - Date.now()) / 1000));
+          setCooldownSeconds(rem);
+          // start countdown timer
+          if (timerId) window.clearInterval(timerId);
+          const id = window.setInterval(() => setCooldownSeconds((s) => (s && s > 0 ? s - 1 : null)), 1000) as unknown as number;
+          setTimerId(id);
+        }
       } else {
         setStatus('error');
         setMessage(data?.message || 'Failed to send verification email');
+        if (data?.retryAfterSeconds) {
+          setCooldownSeconds(data.retryAfterSeconds);
+          if (timerId) window.clearInterval(timerId);
+          const id = window.setInterval(() => setCooldownSeconds((s) => (s && s > 0 ? s - 1 : null)), 1000) as unknown as number;
+          setTimerId(id);
+        }
       }
     } catch (err) {
       setStatus('error');
@@ -86,7 +104,9 @@ export default function VerifyEmail() {
               style={{ marginLeft: 8 }}
             />
           </label>
-          <button type="submit" style={{ marginLeft: 8 }}>Resend</button>
+          <button type="submit" style={{ marginLeft: 8 }} disabled={!!cooldownSeconds}>
+            {cooldownSeconds ? `Resend (${cooldownSeconds}s)` : 'Resend'}
+          </button>
         </form>
       )}
     </div>
