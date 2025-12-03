@@ -183,16 +183,16 @@ export default function CommunitiesPage() {
   
   // Color rotation system for community cards (fallback for communities without stored colors)
   const communityColors = [
-    { bg: "bg-gradient-to-br from-pink-50 to-pink-100", iconColor: "text-pink-600" },
-    { bg: "bg-gradient-to-br from-blue-50 to-blue-100", iconColor: "text-blue-600" },
-    { bg: "bg-gradient-to-br from-emerald-50 to-emerald-100", iconColor: "text-emerald-600" },
-    { bg: "bg-gradient-to-br from-amber-50 to-amber-100", iconColor: "text-amber-600" },
-    { bg: "bg-gradient-to-br from-purple-50 to-purple-100", iconColor: "text-purple-600" },
-    { bg: "bg-gradient-to-br from-indigo-50 to-indigo-100", iconColor: "text-indigo-600" },
-    { bg: "bg-gradient-to-br from-green-50 to-green-100", iconColor: "text-green-600" },
-    { bg: "bg-gradient-to-br from-orange-50 to-orange-100", iconColor: "text-orange-600" },
-    { bg: "bg-gradient-to-br from-teal-50 to-teal-100", iconColor: "text-teal-600" },
-    { bg: "bg-gradient-to-br from-red-50 to-red-100", iconColor: "text-red-600" },
+    { bg: "bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/50 dark:to-pink-800/60", iconColor: "text-pink-600 dark:text-pink-200" },
+    { bg: "bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/50 dark:to-blue-800/60", iconColor: "text-blue-600 dark:text-blue-200" },
+    { bg: "bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-800/60", iconColor: "text-emerald-600 dark:text-emerald-200" },
+    { bg: "bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/50 dark:to-amber-800/60", iconColor: "text-amber-600 dark:text-amber-200" },
+    { bg: "bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/50 dark:to-purple-800/60", iconColor: "text-purple-600 dark:text-purple-200" },
+    { bg: "bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/50 dark:to-indigo-800/60", iconColor: "text-indigo-600 dark:text-indigo-200" },
+    { bg: "bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/50 dark:to-green-800/60", iconColor: "text-green-600 dark:text-green-200" },
+    { bg: "bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/50 dark:to-orange-800/60", iconColor: "text-orange-600 dark:text-orange-200" },
+    { bg: "bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/50 dark:to-teal-800/60", iconColor: "text-teal-600 dark:text-teal-200" },
+    { bg: "bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/50 dark:to-red-800/60", iconColor: "text-red-600 dark:text-red-200" },
   ];
 
   // Utility functions for color handling
@@ -209,16 +209,18 @@ export default function CommunitiesPage() {
     const rgb = hexToRgb(hex);
     if (!rgb) {
       return {
-        background: 'linear-gradient(to bottom right, rgba(156, 163, 175, 0.1), rgba(156, 163, 175, 0.2))'
+        backgroundImage: 'linear-gradient(to bottom right, rgba(156, 163, 175, 0.14), rgba(156, 163, 175, 0.26))',
+        backgroundBlendMode: 'multiply'
       };
     }
-    
-    // Create lighter versions for gradient background
-    const lightAlpha = 0.1; // Very light background
-    const mediumAlpha = 0.2; // Slightly stronger end of gradient
-    
+
+    // Create lighter versions for gradient background while allowing dark mode overlays
+    const lightAlpha = 0.14;
+    const mediumAlpha = 0.26;
+
     return {
-      background: `linear-gradient(to bottom right, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${lightAlpha}), rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${mediumAlpha}))`
+      backgroundImage: `linear-gradient(to bottom right, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${lightAlpha}), rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${mediumAlpha}))`,
+      backgroundBlendMode: 'multiply'
     };
   };
 
@@ -287,30 +289,30 @@ export default function CommunitiesPage() {
     {
       title: "Christian Creatives",
       description: "Connect with writers, artists, musicians, and other creative Christians.",
-      icon: <Palette className="h-6 w-6 text-pink-600" />,
+      icon: <Palette className="h-6 w-6 text-pink-600 dark:text-pink-200" />,
       link: "/communities/prayer-requests",
-      color: "bg-pink-50"
+      color: "bg-pink-50 dark:bg-pink-900/40 border border-pink-100 dark:border-pink-800/60"
     },
     {
       title: "Christian Entrepreneurs",
       description: "Network with business owners and startup founders who share your faith.",
-      icon: <Briefcase className="h-6 w-6 text-amber-600" />,
+      icon: <Briefcase className="h-6 w-6 text-amber-600 dark:text-amber-200" />,
       link: "/communities/bible-study",
-      color: "bg-amber-50"
+      color: "bg-amber-50 dark:bg-amber-900/40 border border-amber-100 dark:border-amber-800/60"
     },
     {
       title: "Christian Fitness",
       description: "Find workout partners, sports teams, and wellness groups for believers.",
-      icon: <Activity className="h-6 w-6 text-emerald-600" />,
+      icon: <Activity className="h-6 w-6 text-emerald-600 dark:text-emerald-200" />,
       link: "/communities/theology",
-      color: "bg-emerald-50"
+      color: "bg-emerald-50 dark:bg-emerald-900/40 border border-emerald-100 dark:border-emerald-800/60"
     },
     {
       title: "College Students",
       description: "Connect with other Christian students at your university or in your city.",
-      icon: <GraduationCap className="h-6 w-6 text-indigo-600" />,
+      icon: <GraduationCap className="h-6 w-6 text-indigo-600 dark:text-indigo-200" />,
       link: "/communities/christian-life",
-      color: "bg-indigo-50"
+      color: "bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800/60"
     }
   ];
 
@@ -553,16 +555,16 @@ export default function CommunitiesPage() {
       <div className="mb-10">
         <div className="flex items-center mb-5">
           <h2 className="text-2xl font-semibold">Interest-Based Communities</h2>
-          <div className="ml-3 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+          <div className="ml-3 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium dark:bg-primary/20 dark:text-primary-foreground">
             New
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {interestCategories.map((category, index) => (
-            <Card 
-              key={index} 
-              className={`cursor-pointer hover:shadow-md transition-shadow ${category.color} border-none`}
+            <Card
+              key={index}
+              className={`cursor-pointer hover:shadow-md transition-shadow ${category.color} text-slate-900 dark:text-slate-100 backdrop-blur-sm`}
               onClick={() => navigate(category.link)}
             >
               <CardHeader className="pb-2">
@@ -572,12 +574,12 @@ export default function CommunitiesPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-700">{category.description}</p>
+                <p className="text-sm text-slate-800 dark:text-slate-100/90">{category.description}</p>
               </CardContent>
               <CardFooter className="pt-0">
-                <Button 
-                  variant="outline" 
-                  className="w-full bg-white/70"
+                <Button
+                  variant="outline"
+                  className="w-full bg-white/80 text-slate-900 hover:bg-white dark:bg-slate-900/60 dark:text-slate-50 dark:hover:bg-slate-900/50 border border-slate-200 dark:border-slate-700"
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(category.link);
@@ -641,16 +643,17 @@ export default function CommunitiesPage() {
           {communities.map((community: Community) => {
             const colorScheme = getCommunityColorScheme(community);
             const communityIcon = getIconComponent(
-              community.iconName || 'users', 
-              (colorScheme.isCustom ? colorScheme.iconStyle : colorScheme.iconColor) || 'text-gray-600'
+              community.iconName || 'users',
+              (colorScheme.isCustom ? colorScheme.iconStyle : colorScheme.iconColor) || 'text-slate-700 dark:text-slate-200'
             );
-            
+
             const cardProps = colorScheme.isCustom && colorScheme.bgStyle
               ? { style: colorScheme.bgStyle }
               : {};
-            const cardClassName = colorScheme.isCustom 
-              ? "cursor-pointer hover:shadow-md transition-shadow border-none"
-              : `cursor-pointer hover:shadow-md transition-shadow ${colorScheme.bg} border-none`;
+            const cardBaseClass = "cursor-pointer hover:shadow-md transition-shadow text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 backdrop-blur-sm";
+            const cardClassName = colorScheme.isCustom
+              ? `${cardBaseClass} bg-white/70 dark:bg-slate-900/50`
+              : `${cardBaseClass} ${colorScheme.bg}`;
             
             return (
               <Card 
@@ -677,21 +680,21 @@ export default function CommunitiesPage() {
                     </div>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent>
-                  <p className="text-sm text-gray-700 line-clamp-2 mb-3">
+                  <p className="text-sm text-gray-800 dark:text-slate-100/90 line-clamp-2 mb-3">
                     {community.description}
                   </p>
-                  <div className="flex items-center text-gray-600 text-sm">
+                  <div className="flex items-center text-gray-700 dark:text-slate-300 text-sm">
                     <Users className="mr-1 h-4 w-4 flex-shrink-0" />
                     <span>{community.memberCount || 0} members</span>
                   </div>
                 </CardContent>
-                
+
                 <CardFooter className="pt-0">
-                  <Button 
+                  <Button
                     variant="outline"
-                    className="w-full bg-white/70 hover:bg-white/90"
+                    className="w-full bg-white/70 hover:bg-white/90 text-slate-900 dark:text-slate-50 dark:bg-slate-900/60 dark:hover:bg-slate-900/50 border border-slate-200 dark:border-slate-700"
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate(`/communities/${community.slug}`);
