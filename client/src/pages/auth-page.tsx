@@ -99,9 +99,12 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col md:flex-row relative overflow-hidden">
+    <div className="min-h-screen flex flex-col md:flex-row relative overflow-hidden bg-background">
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 auth-gradient-backdrop" />
+        <div className="absolute inset-0 auth-grid-overlay" />
+        <div className="absolute inset-y-0 left-1/2 w-[65vw] -translate-x-1/2 auth-connection-band" />
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
       </div>
@@ -109,7 +112,7 @@ export default function AuthPage() {
       {/* Left Side - Forms */}
       <div className="flex-1 flex items-center justify-center p-6 relative z-10">
         <div className="w-full max-w-md auth-card-enter">
-          <Card className="border border-border/70 shadow-2xl bg-card/95 dark:bg-slate-900/80 backdrop-blur-sm hover:shadow-3xl transition-shadow duration-300">
+          <Card className="border border-border/70 shadow-2xl bg-card/90 dark:bg-slate-900/85 backdrop-blur-md hover:shadow-3xl transition-shadow duration-300">
             <CardHeader className="space-y-4 pb-4">
               <div className="flex justify-center">
                 <div className="flex items-center gap-3 font-bold text-2xl text-primary group">

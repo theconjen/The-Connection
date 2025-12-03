@@ -200,6 +200,29 @@
     transform: translateX(8px);
   }
 
+  /* Auth page continuity styling */
+  .auth-gradient-backdrop {
+    background:
+      radial-gradient(circle at 20% 20%, rgba(34, 45, 153, 0.12), transparent 35%),
+      radial-gradient(circle at 80% 10%, rgba(106, 159, 237, 0.12), transparent 32%),
+      linear-gradient(135deg, rgba(11, 19, 43, 0.08), rgba(106, 159, 237, 0.05));
+  }
+
+  .auth-grid-overlay {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    background-size: 120px 120px, 120px 120px;
+    mask-image: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.35), transparent);
+    opacity: 0.35;
+  }
+
+  .auth-connection-band {
+    background: radial-gradient(circle at 50% 50%, rgba(34, 45, 153, 0.12), transparent 60%);
+    filter: blur(60px);
+    opacity: 0.6;
+  }
+
   /* Pulse animation for accent elements */
   .pulse-accent {
     animation: pulseAccent 4s ease-in-out infinite;
