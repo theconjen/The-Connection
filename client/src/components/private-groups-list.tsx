@@ -27,16 +27,16 @@ export default function PrivateGroupsList() {
     
     switch (iconColor) {
       case 'green':
-        colorClass = 'bg-green-100 text-green-600';
+        colorClass = 'bg-emerald-500/15 text-emerald-400';
         break;
       case 'blue':
-        colorClass = 'bg-blue-100 text-blue-600';
+        colorClass = 'bg-sky-500/15 text-sky-400';
         break;
       case 'purple':
-        colorClass = 'bg-purple-100 text-purple-600';
+        colorClass = 'bg-violet-500/15 text-violet-400';
         break;
       default:
-        colorClass = 'bg-neutral-100 text-neutral-600';
+        colorClass = 'bg-muted text-muted-foreground';
     }
     
     switch (iconName) {
@@ -89,12 +89,12 @@ export default function PrivateGroupsList() {
 
   if (!user) {
     return (
-      <Card>
-        <CardHeader className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
-          <CardTitle className="font-semibold text-neutral-800">Private Groups</CardTitle>
+      <Card className="border-border shadow-sm">
+        <CardHeader className="px-4 py-3 bg-muted border-b border-border">
+          <CardTitle className="font-semibold text-foreground">Private Groups</CardTitle>
         </CardHeader>
         <CardContent className="p-4 text-center">
-          <p className="text-sm text-neutral-600 mb-3">Sign in to see your private groups</p>
+          <p className="text-sm text-muted-foreground mb-3">Sign in to see your private groups</p>
           <Link href="/auth">
             <Button size="sm">Sign In</Button>
           </Link>
@@ -105,9 +105,9 @@ export default function PrivateGroupsList() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
-          <CardTitle className="font-semibold text-neutral-800">Your Private Groups</CardTitle>
+      <Card className="border-border shadow-sm">
+        <CardHeader className="px-4 py-3 bg-muted border-b border-border">
+          <CardTitle className="font-semibold text-foreground">Your Private Groups</CardTitle>
         </CardHeader>
         <CardContent className="p-2">
           {[1, 2, 3].map((i) => (
@@ -125,9 +125,9 @@ export default function PrivateGroupsList() {
   }
 
   return (
-    <Card>
-      <CardHeader className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
-        <CardTitle className="font-semibold text-neutral-800">Your Private Groups</CardTitle>
+    <Card className="border-border shadow-sm">
+      <CardHeader className="px-4 py-3 bg-muted border-b border-border">
+        <CardTitle className="font-semibold text-foreground">Your Private Groups</CardTitle>
       </CardHeader>
       <CardContent className="p-2">
         {groups && groups.length > 0 ? (
@@ -135,11 +135,11 @@ export default function PrivateGroupsList() {
             {groups.map((group) => (
               <li key={group.id}>
                 <Link href={`/communities/${group.id}`}>
-                  <a className="flex items-center p-2 rounded-lg hover:bg-neutral-100">
+                  <a className="flex items-center p-2 rounded-lg hover:bg-muted">
                     {getGroupIcon(group.iconName, group.iconColor)}
                     <div>
                       <span className="font-medium text-sm">{group.name}</span>
-                      <div className="text-xs text-neutral-500">
+                      <div className="text-xs text-muted-foreground">
                         {/* Assuming we can retrieve member count */}
                         {Math.floor(Math.random() * 10) + 3} members • Active
                       </div>
@@ -150,17 +150,17 @@ export default function PrivateGroupsList() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-neutral-600 p-3 text-center">
+          <p className="text-sm text-muted-foreground p-3 text-center">
             You don't have any private groups yet.
           </p>
         )}
       </CardContent>
-      <CardFooter className="px-4 py-2 border-t border-neutral-200 flex justify-between items-center">
+      <CardFooter className="px-4 py-2 border-t border-border flex justify-between items-center">
         <Link href="/communities">
-          <a className="text-primary text-sm font-medium hover:text-primary-700">View All Groups</a>
+          <a className="text-primary text-sm font-medium hover:text-primary/80">View All Groups</a>
         </Link>
         <Link href="/communities">
-          <Button size="sm" className="bg-primary hover:bg-primary-600 text-white rounded-lg">
+          <Button size="sm" className="rounded-lg shadow-sm">
             <PlusIcon className="h-4 w-4 mr-1" /> New Group
           </Button>
         </Link>
