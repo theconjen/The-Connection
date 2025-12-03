@@ -195,7 +195,7 @@ export function MicroblogPost({
   };
   
   return (
-    <Card className="mb-4 overflow-hidden shadow-sm hover:shadow transition-shadow duration-200  border/50">
+    <Card className="mb-4 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 bg-card/95 dark:bg-card/80 border border-border/60">
       <CardContent className="pt-4">
         <div className="flex gap-3">
           <Link href={`/users/${post.authorId}`}>
@@ -277,11 +277,11 @@ export function MicroblogPost({
                   </div>
                 )}
                 <Link href={postUrl}>
-                  <img 
+                  <img
                     ref={imageRef}
-                    src={post.imageUrl} 
-                    alt="Post attachment" 
-                    className={`rounded-lg max-h-96 w-full object-cover border  border/10 ${imageLoaded ? 'block' : 'hidden'}`}
+                    src={post.imageUrl}
+                    alt="Post attachment"
+                    className={`rounded-lg max-h-96 w-full object-cover border border-border/40 dark:border-border/60 ${imageLoaded ? 'block' : 'hidden'}`}
                     loading="lazy"
                     onLoad={handleImageLoad}
                   />
@@ -291,12 +291,12 @@ export function MicroblogPost({
           </div>
         </div>
       </CardContent>
-      
+
       {showControls && (
-        <CardFooter className="py-2 px-4 border-t  border/10">
+        <CardFooter className="py-2 px-4 border-t border-border/50 bg-muted/20 dark:bg-muted/60">
           <div className="flex justify-between w-full">
             <Link href={`/microblogs/${post.id}`}>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-secondary/30">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-secondary/30 dark:hover:bg-muted/70">
                 <MessageCircle className="h-4 w-4 mr-1.5" />
                 <span>{post.replyCount || 0}</span>
               </Button>
@@ -305,7 +305,7 @@ export function MicroblogPost({
             <Button 
               variant="ghost" 
               size="sm" 
-              className="text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50/30"
+              className="text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50/30 dark:hover:text-emerald-300 dark:hover:bg-emerald-600/10"
               disabled={!isAuthenticated}
             >
               <Repeat className="h-4 w-4 mr-1.5" />
@@ -316,17 +316,17 @@ export function MicroblogPost({
               variant="ghost" 
               size="sm" 
               onClick={handleLikeToggle}
-              className={`hover:bg-pink-50/30 ${post.isLiked ? "text-pink-500" : "text-muted-foreground hover:text-pink-500"}`}
+              className={`hover:bg-pink-50/30 dark:hover:bg-pink-500/10 ${post.isLiked ? "text-pink-500" : "text-muted-foreground hover:text-pink-500 dark:hover:text-pink-300"}`}
               disabled={toggleLikeMutation.isPending}
             >
               <Heart className={`h-4 w-4 mr-1.5 transition-all ${post.isLiked ? "fill-pink-500" : ""}`} />
               <span>{post.likeCount || 0}</span>
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-muted-foreground hover:text-blue-500 hover:bg-blue-50/30" 
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-blue-500 hover:bg-blue-50/30 dark:hover:text-blue-300 dark:hover:bg-blue-500/10"
               onClick={handleShare}
             >
               <Share2 className="h-4 w-4 mr-1.5" />
@@ -335,9 +335,9 @@ export function MicroblogPost({
           </div>
         </CardFooter>
       )}
-      
+
       {isSharing && (
-        <div className="p-4 border-t  border/10 bg-secondary/5">
+        <div className="p-4 border-t border-border/50 bg-secondary/5 dark:bg-secondary/20">
           <h4 className="text-sm font-medium mb-2">Share this post</h4>
           <ShareButtons url={`${window.location.origin}${postUrl}`} title={`Post by ${post.author?.displayName || "User"}: ${post.content.substring(0, 30)}...`} />
         </div>

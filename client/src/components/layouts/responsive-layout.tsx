@@ -53,7 +53,7 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
       <div className="flex-1 flex relative">
         {/* Desktop Sidebar - visible on tablet and larger screens */}
         {!isMobile && (
-          <aside className="hidden md:block w-60 border-r border-border/40 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto py-4 bg-background/95 backdrop-blur-sm">
+          <aside className="hidden md:block w-60 border-r border-border/50 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto py-4 bg-card/90 dark:bg-muted/50 backdrop-blur-sm shadow-sm">
             <SidebarNavigation currentPath={location} />
           </aside>
         )}
