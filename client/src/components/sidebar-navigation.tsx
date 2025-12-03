@@ -84,7 +84,7 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
       
       {user && (
         <Link href="/profile">
-          <div className="rounded-lg border border-secondary/20 px-3 py-2 hover:bg-secondary/10 transition-colors cursor-pointer">
+          <div className="rounded-lg border border-secondary/20 dark:border-secondary/30 px-3 py-2 bg-card/60 dark:bg-muted/70 hover:bg-secondary/10 dark:hover:bg-secondary/20 transition-colors cursor-pointer shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">{user.displayName || user.username}</p>
@@ -104,11 +104,11 @@ export default function SidebarNavigation({ currentPath }: SidebarNavigationProp
             <nav className="grid gap-1">
               {section.items.map((item, j) => (
                 <Link key={j} href={item.path}>
-                  <div 
+                  <div
                     className={`flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer text-sm transition-all active-scale touch-target ${
                       currentPath === item.path
-                        ? "bg-secondary/10 text-gradient font-medium"
-                        : "hover:bg-secondary/5 text-foreground"
+                        ? "bg-secondary/10 dark:bg-secondary/25 text-gradient dark:text-primary-foreground font-medium shadow-sm"
+                        : "hover:bg-secondary/5 dark:hover:bg-muted/80 text-foreground"
                     }`}
                   >
                     {item.icon}
