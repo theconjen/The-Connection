@@ -25,7 +25,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBase": "https://theconnection.app/api",
+      "apiBase": "https://api.theconnection.app/api",
       "router": {
         "origin": "https://app.theconnection.app"
       },
