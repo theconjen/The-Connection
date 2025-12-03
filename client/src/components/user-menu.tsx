@@ -59,7 +59,7 @@ export default function UserMenu({ user }: UserMenuProps) {
               Profile
             </DropdownMenuItem>
           </Link>
-          <Link href="/dms">
+          <Link href="/messages">
             <DropdownMenuItem className="cursor-pointer rounded-md py-2.5 active-scale touch-target">
               Messages
             </DropdownMenuItem>
@@ -72,11 +72,6 @@ export default function UserMenu({ user }: UserMenuProps) {
           <Link href="/prayer-requests">
             <DropdownMenuItem className="cursor-pointer rounded-md py-2.5 active-scale touch-target">
               My Prayer Requests
-            </DropdownMenuItem>
-          </Link>
-          <Link href="/messages">
-            <DropdownMenuItem className="cursor-pointer rounded-md py-2.5 active-scale touch-target">
-              Direct Messages
             </DropdownMenuItem>
           </Link>
           {user.isAdmin && (

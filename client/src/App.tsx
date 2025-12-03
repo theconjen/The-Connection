@@ -27,6 +27,7 @@ const SubmitPostPage = lazy(() => import("./pages/submit-post-page"));
 const PostsPage = lazy(() => import("./pages/posts-page"));
 const PostDetailPage = lazy(() => import("./pages/post-detail-page"));
 const DMsPage = lazy(() => import("./pages/dms-page"));
+const DirectMessageThread = lazy(() => import("./pages/DMs"));
 const ChurchSignupPage = lazy(() => import("./pages/church-signup-page"));
 const ApologistScholarApplicationPage = lazy(() => import("./pages/apologist-scholar-application-page"));
 const LivestreamerApplicationPage = lazy(() => import("./pages/livestreamer-application-page"));
@@ -103,6 +104,9 @@ function App() {
           <Route path="/submit-post" component={SubmitPostPage} />
           <Route path="/profile" component={ProfilePage} />
           <Route path="/profile/:username" component={ProfilePage} />
+          <Route path="/messages/:userId" component={DirectMessageThread} />
+          <Route path="/messages" component={DMsPage} />
+          <Route path="/dms/:userId" component={DirectMessageThread} />
           <Route path="/dms" component={DMsPage} />
           <Route path="/settings" component={SettingsPage} />
           <Route path="/support" component={SupportPage} />
