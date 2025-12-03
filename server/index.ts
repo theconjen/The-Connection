@@ -73,6 +73,7 @@ async function bootstrap() {
     message: "Too many requests from this IP, please try again later.",
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.path === '/health' || req.path === '/api/health',
   });
   app.use(limiter);
 
