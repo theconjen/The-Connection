@@ -8,29 +8,133 @@
     <meta property="og:title" content="Privacy Policy — The Connection" />
     <meta property="og:description" content="What data we collect, how we use it, and how to contact us." />
     <style>
-      :root{--fg:#0f172a;--muted:#6b7280;--primary:#0366d6;--bg:#ffffff;--border:#e6e9ee}
-      html,body{height:100%}
-      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; line-height:1.6; color:var(--fg); background:var(--bg); margin:0 }
-      .site-header{border-bottom:1px solid var(--border); background:var(--bg)}
-      .site-header .container{max-width:980px; margin:0 auto; padding:12px 24px}
-      .brand{font-weight:600; color:var(--fg); text-decoration:none}
-      .container{max-width:780px; margin:0 auto; padding:24px}
-      h1 { font-size:1.75rem; margin-bottom:0.5rem }
-      h2 { font-size:1.1rem; margin-top:1.25rem }
-      p { margin:0.5rem 0 }
-      a { color:var(--primary); text-decoration:none }
-      a:hover{color:#024ea2; text-decoration:underline}
-      .muted { color:var(--muted) }
-      footer { padding:12px 24px; color:var(--muted); font-size:0.9rem }
-      hr.footer-sep{border:none;border-top:1px solid var(--border); margin:18px 0}
+      :root {
+        --fg: #0f172a;
+        --muted: #475569;
+        --primary: #4f46e5;
+        --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --card: rgba(255, 255, 255, 0.98);
+        --border: #e6e9ee;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: var(--fg);
+        background: var(--bg);
+        margin: 0;
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .shell {
+        width: 100%;
+        max-width: 920px;
+      }
+
+      .site-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+
+      .brand {
+        font-weight: 700;
+        color: #fff;
+        text-decoration: none;
+        letter-spacing: 0.01em;
+      }
+
+      .back-link {
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        padding: 10px 16px;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 10px;
+        transition: all 0.18s ease;
+      }
+
+      .back-link:hover {
+        border-color: #fff;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .card {
+        background: var(--card);
+        border-radius: 20px;
+        padding: 32px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+      }
+
+      h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+      }
+
+      h2 {
+        font-size: 1.15rem;
+        margin-top: 1.25rem;
+        margin-bottom: 0.35rem;
+      }
+
+      p {
+        margin: 0.5rem 0;
+      }
+
+      ul {
+        padding-left: 1.1rem;
+        margin: 0.35rem 0 0.85rem;
+      }
+
+      a {
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      footer {
+        padding-top: 16px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      hr.footer-sep {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 18px 0;
+      }
     </style>
   </head>
   <body>
-    <header class="site-header">
-      <div class="container"><a class="brand" href="/">The Connection</a></div>
-    </header>
+    <div class="shell">
+      <header class="site-header">
+        <a class="brand" href="/">The Connection</a>
+        <a class="back-link" href="/">← Back to the app</a>
+      </header>
 
-    <main class="container">
+      <main class="card">
       <h1>Privacy Policy</h1>
       <p class="muted">Effective Date: October 1, 2025</p>
 
@@ -67,16 +171,14 @@
 
       <h2>Contact</h2>
       <p>If you have questions about this policy, contact us at: <a href="mailto:contact@theconnection.app">contact@theconnection.app</a> or to report abuse: <a href="mailto:abuse@theconnection.app">abuse@theconnection.app</a></p>
+        <hr />
+        <p class="muted">This is the MVP privacy page. For full legal policies consult the production site.</p>
 
-      <hr />
-      <p class="muted">This is the MVP privacy page. For full legal policies consult the production site.</p>
-    </main>
-
-    <footer>
-      <div class="container">
-        <hr class="footer-sep" />
-        <p>&copy; 2025 The Connection · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/community-guidelines">Community Guidelines</a></p>
-      </div>
-    </footer>
+        <footer>
+          <hr class="footer-sep" />
+          <p>&copy; 2025 The Connection · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/community-guidelines">Community Guidelines</a></p>
+        </footer>
+      </main>
+    </div>
   </body>
 </html>

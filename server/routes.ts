@@ -2114,33 +2114,33 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   // Serve privacy and terms as friendly URLs (no .html extension)
-  app.get('/privacy', (_req, res) => {
-    const env = app.get('env');
-    const candidate = env === 'development'
-      ? path.resolve(process.cwd(), 'public', 'privacy.html')
-      : path.resolve(process.cwd(), 'dist', 'public', 'privacy.html');
+  const resolvePublicFile = (filename: string) => {
+    const candidates = [
+      path.resolve(process.cwd(), 'dist', 'public', filename),
+      path.resolve(process.cwd(), 'public', filename),
+    ];
 
-    if (fs.existsSync(candidate)) return res.sendFile(candidate);
+    return candidates.find((candidate) => fs.existsSync(candidate));
+  };
+
+  app.get('/privacy', (_req, res) => {
+    const candidate = resolvePublicFile('privacy.html');
+
+    if (candidate) return res.sendFile(candidate);
     return res.status(404).send('Not found');
   });
 
   app.get('/terms', (_req, res) => {
-    const env = app.get('env');
-    const candidate = env === 'development'
-      ? path.resolve(process.cwd(), 'public', 'terms.html')
-      : path.resolve(process.cwd(), 'dist', 'public', 'terms.html');
+    const candidate = resolvePublicFile('terms.html');
 
-    if (fs.existsSync(candidate)) return res.sendFile(candidate);
+    if (candidate) return res.sendFile(candidate);
     return res.status(404).send('Not found');
   });
 
   app.get('/community-guidelines', (_req, res) => {
-    const env = app.get('env');
-    const candidate = env === 'development'
-      ? path.resolve(process.cwd(), 'public', 'community-guidelines.html')
-      : path.resolve(process.cwd(), 'dist', 'public', 'community-guidelines.html');
+    const candidate = resolvePublicFile('community-guidelines.html');
 
-    if (fs.existsSync(candidate)) return res.sendFile(candidate);
+    if (candidate) return res.sendFile(candidate);
     return res.status(404).send('Not found');
   });
 
