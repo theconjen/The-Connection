@@ -1,7 +1,7 @@
 /**
- * Native environment configuration
- * Uses expo-constants to access EXPO_PUBLIC_API_BASE
- */
+* Native environment configuration
+* Uses expo-constants to access EXPO_PUBLIC_API_BASE
+*/
 import Constants from 'expo-constants';
 
 const DEVELOPMENT_API = 'http://localhost:3000/api';

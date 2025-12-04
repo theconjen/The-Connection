@@ -58,6 +58,7 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === '/health' || req.path === '/api/health',
 });
 // Apply limiter only for /api and skip in test env
 if (process.env.NODE_ENV !== 'test') {

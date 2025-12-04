@@ -2,6 +2,8 @@ import { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage-optimized";
 import { User, insertUserSchema } from "@shared/schema";
 import { sendWelcomeEmail, sendEmail } from "./email";
+import { createAndSendVerification } from "./lib/emailVerification";
+import { createAndSendVerification } from "./lib/emailVerification";
 import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
@@ -145,27 +147,24 @@ export function setupAuth(app: Express) {
         idType: typeof user.id,
         userObject: JSON.stringify(user, null, 2)
       });
-
-      const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-      const smsVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-      await storage.updateUser(user.id, {
-        emailVerificationToken,
-        smsVerificationCode,
-        emailVerified: false,
-        smsVerified: false,
-        phoneNumber: normalizedPhone || null,
-      });
-
-      // Send welcome email (ignore errors)
+      // Send verification email using new system with branded template
+      const apiBase = process.env.API_BASE_URL || process.env.FRONTEND_URL || 'https://the-connection.onrender.com';
       try {
-        await sendWelcomeEmail(user.email, user.displayName || username);
-        await sendEmail({
-          to: user.email,
-          from: process.env.EMAIL_FROM || 'noreply@theconnection.app',
-          subject: "Verify your email",
-          html: `<p>Welcome to The Connection!</p><p>Use this token to verify your email: <strong>${emailVerificationToken}</strong></p>`,
+        await createAndSendVerification(user.id, user.email, apiBase);
+        console.log(`[REGISTRATION] Verification email sent to ${user.email}`);
+      } catch (error) {
+        console.error("Failed to send verification email:", error);
+      }
+
+      // SMS verification code for phone verification
+      if (normalizedPhone) {
+        const smsVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        await storage.updateUser(user.id, {
+          smsVerificationCode,
+          smsVerified: false,
         });
+        console.log(`[SMS] Verification code for user ${user.id}: ${smsVerificationCode}`);
+      }
       } catch (error) {
         console.error("Failed to send welcome/verification email:", error);
       }
@@ -177,53 +176,21 @@ export function setupAuth(app: Express) {
       // SECURITY: Log registration for audit trail
       await logRegistration(user.id, user.username, user.email, req);
 
-      // Log the user in - ensure session exists first
-      if (!req.session) {
-        console.error("[REGISTRATION] No session available on request");
-        return res.status(500).json(buildErrorResponse("Session initialization failed", new Error("Missing session instance")));
-      }
-      
-      console.log(`[REGISTRATION] Before setting session data - Current session:`, {
-        sessionID: req.sessionID,
-        sessionExists: !!req.session,
-        currentUserId: req.session?.userId,
-        currentUsername: req.session?.username
+
+      // SECURITY: Log registration for audit trail
+      await logRegistration(user.id, user.username, user.email, req);
+
+      // Return success without logging in - user must verify email first
+      return res.status(201).json({
+        message: "Registration successful! Please check your email to verify your account.",
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          displayName: user.displayName
+        },
+        requiresVerification: true
       });
-      
-      setSessionUserId(req, user.id);
-      req.session.username = user.username;
-      req.session.isAdmin = user.isAdmin || false;
-      
-      console.log(`[REGISTRATION] After setting session data for user ${user.username}:`, {
-        userId: req.session.userId,
-        username: req.session.username,
-        isAdmin: req.session.isAdmin,
-        sessionID: req.sessionID,
-        userIdType: typeof req.session.userId,
-        originalUserId: user.id,
-        originalUserIdType: typeof user.id
-      });
-      
-      // Save session and return user data
-      req.session.save((err) => {
-        if (err) {
-          console.error("[REGISTRATION] Session save error:", err);
-          return res.status(500).json(buildErrorResponse("Error creating session", err));
-        }
-        
-        console.log(`[REGISTRATION] Session saved successfully for user ${user.username} (ID: ${user.id}), Session ID: ${req.sessionID}`);
-        console.log(`[REGISTRATION] Final session state after save:`, {
-          userId: req.session?.userId,
-          username: req.session?.username,
-          isAdmin: req.session?.isAdmin,
-          sessionID: req.sessionID
-        });
-        
-        // Return user data without password
-        const { password, ...userWithoutPassword } = user;
-        return res.status(201).json(userWithoutPassword);
-      });
-    } catch (error) {
       console.error("Registration error:", error);
       return res.status(500).json(buildErrorResponse("Error creating user", error));
     }
@@ -397,36 +364,22 @@ export function setupAuth(app: Express) {
           });
         }
 
-        if (!user.emailVerified) {
-          try {
-            const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-            await storage.updateUser(user.id, {
-              emailVerificationToken,
-              emailVerified: false,
-            });
 
-            try {
-              await sendEmail({
-                to: user.email,
-                from: process.env.EMAIL_FROM || 'noreply@theconnection.app',
-                subject: "Verify your email",
-                html: `<p>We noticed you tried to log in but your email isn't verified yet.</p><p>Use this token to verify your email: <strong>${emailVerificationToken}</strong></p>`,
-              });
-            } catch (emailError) {
-              console.error("Failed to send verification email during login:", emailError);
-            }
-          } catch (tokenError) {
-            console.error("Failed to generate verification token during login:", tokenError);
+        if (!user.emailVerified) {
+          // User not verified - send verification email with new branded template
+          const apiBase = process.env.API_BASE_URL || process.env.FRONTEND_URL || 'https://the-connection.onrender.com';
+          try {
+            await createAndSendVerification(user.id, user.email, apiBase);
+            console.log(`[LOGIN] Resent verification email to ${user.email}`);
+          } catch (error) {
+            console.error("Failed to send verification email during login:", error);
           }
 
-          return res.status(403).json({ message: "Please verify your email before logging in. A new verification email has been sent if possible." });
+          return res.status(403).json({ 
+            message: "Please verify your email before logging in. A new verification email has been sent.",
+            requiresVerification: true 
+          });
         }
-
-        if (user.phoneNumber && !user.smsVerified) {
-          return res.status(403).json({ message: "Please verify your phone number before logging in." });
-        }
-        
-        // Save user ID in session
         setSessionUserId(req, user.id);
         req.session.username = user.username;
         req.session.isAdmin = user.isAdmin || false;

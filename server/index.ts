@@ -73,6 +73,7 @@ async function bootstrap() {
     message: "Too many requests from this IP, please try again later.",
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.path === '/health' || req.path === '/api/health',
   });
   app.use(limiter);
 
@@ -88,7 +89,7 @@ async function bootstrap() {
     saveUninitialized: false,
     name: "sessionId",
     cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // ~10 years - Instagram-style indefinite session
       secure: isSecureCookie,
       httpOnly: true,
       sameSite: sameSiteMode,

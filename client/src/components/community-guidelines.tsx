@@ -28,9 +28,9 @@ export default function CommunityGuidelines() {
   ];
 
   return (
-    <Card>
-      <CardHeader className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
-        <CardTitle className="font-semibold text-neutral-800">
+    <Card className="border-border shadow-sm">
+      <CardHeader className="px-4 py-3 bg-muted border-b border-border">
+        <CardTitle className="font-semibold text-foreground">
           Community Guidelines
         </CardTitle>
       </CardHeader>
@@ -44,8 +44,8 @@ export default function CommunityGuidelines() {
           ))}
         </ul>
         <div className="mt-4">
-          <Link href="/guidelines" 
-            className="text-primary text-sm font-medium hover:text-primary-700">
+          <Link href="/guidelines"
+            className="text-primary text-sm font-medium hover:text-primary/80">
             Read Full Guidelines
           </Link>
         </div>

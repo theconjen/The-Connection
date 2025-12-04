@@ -47,6 +47,9 @@ const registerSchema = insertUserSchema.extend({
 type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
+const inputClasses =
+  "h-11 bg-background/70 dark:bg-muted/30 border-border text-foreground placeholder:text-muted-foreground/70 focus:border-primary/60 focus:ring-primary/20 transition-colors";
+
 export default function AuthPage() {
   const auth = useAuth() as AuthContextType;
   const { user } = auth;
@@ -96,9 +99,12 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col md:flex-row relative overflow-hidden">
+    <div className="min-h-screen flex flex-col md:flex-row relative overflow-hidden bg-background">
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 auth-gradient-backdrop" />
+        <div className="absolute inset-0 auth-grid-overlay" />
+        <div className="absolute inset-y-0 left-1/2 w-[65vw] -translate-x-1/2 auth-connection-band" />
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
       </div>
@@ -106,7 +112,7 @@ export default function AuthPage() {
       {/* Left Side - Forms */}
       <div className="flex-1 flex items-center justify-center p-6 relative z-10">
         <div className="w-full max-w-md auth-card-enter">
-          <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm hover:shadow-3xl transition-shadow duration-300">
+          <Card className="border border-border/70 shadow-2xl bg-card/90 dark:bg-slate-900/85 backdrop-blur-md hover:shadow-3xl transition-shadow duration-300">
             <CardHeader className="space-y-4 pb-4">
               <div className="flex justify-center">
                 <div className="flex items-center gap-3 font-bold text-2xl text-primary group">
@@ -130,22 +136,22 @@ export default function AuthPage() {
             </CardHeader>
             <CardContent className="pt-2">
               <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1 rounded-lg">
-                  <TabsTrigger 
-                    value="login" 
-                    className="custom-tab-trigger transition-all duration-200 data-[state=active]:shadow-sm"
+                <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/60 dark:bg-muted/30 p-1 rounded-lg border border-border/70 shadow-inner">
+                  <TabsTrigger
+                    value="login"
+                    className="custom-tab-trigger transition-all duration-200 data-[state=active]:shadow-sm data-[state=active]:bg-background data-[state=active]:dark:bg-slate-800"
                   >
                     Login
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="register" 
-                    className="custom-tab-trigger transition-all duration-200 data-[state=active]:shadow-sm"
+                  <TabsTrigger
+                    value="register"
+                    className="custom-tab-trigger transition-all duration-200 data-[state=active]:shadow-sm data-[state=active]:bg-background data-[state=active]:dark:bg-slate-800"
                   >
                     Register
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="reset" 
-                    className="custom-tab-trigger transition-all duration-200 data-[state=active]:shadow-sm"
+                  <TabsTrigger
+                    value="reset"
+                    className="custom-tab-trigger transition-all duration-200 data-[state=active]:shadow-sm data-[state=active]:bg-background data-[state=active]:dark:bg-slate-800"
                   >
                     Reset
                   </TabsTrigger>
@@ -162,10 +168,10 @@ export default function AuthPage() {
                           <FormLabel className="text-sm font-medium text-foreground">Username</FormLabel>
                           <FormControl>
                             <div className="form-input-focus">
-                              <Input 
-                                placeholder="johnsmith" 
-                                {...field} 
-                                className="h-11 bg-background/50 border-muted-foreground/20 focus:border-primary/50 focus:ring-primary/20"
+                              <Input
+                                placeholder="johnsmith"
+                                {...field}
+                                className={inputClasses}
                               />
                             </div>
                           </FormControl>
@@ -181,11 +187,11 @@ export default function AuthPage() {
                           <FormLabel className="text-sm font-medium text-foreground">Password</FormLabel>
                           <FormControl>
                             <div className="relative form-input-focus">
-                              <Input 
-                                type={showLoginPassword ? "text" : "password"} 
-                                placeholder="••••••••" 
-                                {...field} 
-                                className="h-11 bg-background/50 border-muted-foreground/20 focus:border-primary/50 focus:ring-primary/20 pr-12"
+                              <Input
+                                type={showLoginPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                {...field}
+                                className={`${inputClasses} pr-12`}
                               />
                               <Button
                                 type="button"
@@ -254,7 +260,7 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Username</FormLabel>
                           <FormControl>
-                            <Input placeholder="johnsmith" {...field} />
+                            <Input placeholder="johnsmith" {...field} className={inputClasses} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -267,7 +273,7 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input type="email" placeholder="john@example.com" {...field} />
+                            <Input type="email" placeholder="john@example.com" {...field} className={inputClasses} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -280,7 +286,7 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Display Name (optional)</FormLabel>
                           <FormControl>
-                            <Input placeholder="John Smith" {...field} value={field.value || ''} />
+                            <Input placeholder="John Smith" {...field} value={field.value || ''} className={inputClasses} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -294,10 +300,11 @@ export default function AuthPage() {
                           <FormLabel>Password</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Input 
-                                type={showRegisterPassword ? "text" : "password"} 
-                                placeholder="••••••••" 
-                                {...field} 
+                              <Input
+                                type={showRegisterPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                {...field}
+                                className={`${inputClasses} pr-12`}
                               />
                               <Button
                                 type="button"
@@ -327,10 +334,11 @@ export default function AuthPage() {
                           <FormLabel>Confirm Password</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Input 
-                                type={showConfirmPassword ? "text" : "password"} 
-                                placeholder="••••••••" 
-                                {...field} 
+                              <Input
+                                type={showConfirmPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                {...field}
+                                className={`${inputClasses} pr-12`}
                               />
                               <Button
                                 type="button"
@@ -359,7 +367,12 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Bio (optional)</FormLabel>
                           <FormControl>
-                            <Input placeholder="Tell us a bit about yourself" {...field} value={field.value || ''} />
+                            <Input
+                              placeholder="Tell us a bit about yourself"
+                              {...field}
+                              value={field.value || ""}
+                              className={inputClasses}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

@@ -55,6 +55,8 @@ export default function MobileNavigation({ currentPath, isVisible = true }: Mobi
     // Only highlight the exact current path, not multiple tabs
     if (path === '/' && activeTab === '/') return true;
     if (path === '/dashboard' && activeTab === '/dashboard') return true;
+    // Treat legacy /dms routes as equivalent to /messages for highlighting
+    if (path === '/messages' && activeTab.startsWith('/dms')) return true;
     return activeTab === path || (path !== '/' && activeTab.startsWith(path));
   };
 
@@ -121,14 +123,14 @@ export default function MobileNavigation({ currentPath, isVisible = true }: Mobi
 
         {/* Messages - Show when authenticated */}
         {user ? (
-          <Link href="/dms" className="flex-1 touch-manipulation">
-            <div 
+          <Link href="/messages" className="flex-1 touch-manipulation">
+            <div
               className={`flex flex-col items-center py-1 px-1 rounded-lg transition-all duration-200 ${
-                isActive('/dms') ? 'text-primary bg-primary/15 shadow-sm' : 'text-muted-foreground'
+                isActive('/messages') ? 'text-primary bg-primary/15 shadow-sm' : 'text-muted-foreground'
               } active-scale touch-target mobile-button`}
-              onClick={() => handleTabPress('/dms')}
+              onClick={() => handleTabPress('/messages')}
             >
-              <MessageSquare className={`h-4 w-4 ${isActive('/dms') ? 'fill-primary/20' : ''} transition-all`} />
+              <MessageSquare className={`h-4 w-4 ${isActive('/messages') ? 'fill-primary/20' : ''} transition-all`} />
               <span className="text-xs mt-0.5 font-medium mobile-text-modern">Messages</span>
             </div>
           </Link>

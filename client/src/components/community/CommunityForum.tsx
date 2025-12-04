@@ -412,7 +412,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
       {isLoading && (
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="animate-pulse">
+            <Card key={i} className="animate-pulse bg-card/80 dark:bg-card/60 border border-border/50">
               <CardHeader>
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-muted rounded-full" />
@@ -437,7 +437,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
       {!isLoading && !error && (
         <div className="space-y-4">
           {topics.length === 0 ? (
-            <Card>
+            <Card className="bg-card/90 dark:bg-card/70 border border-border/50 shadow-sm">
               <CardContent className="pt-6 text-center py-12">
                 <MessageSquareText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No discussions yet</h3>
@@ -454,7 +454,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
             </Card>
           ) : (
             topics.map((topic) => (
-              <Card key={topic.id} className="overflow-hidden" data-testid={`topic-${topic.id}`}>
+              <Card key={topic.id} className="overflow-hidden bg-card/90 dark:bg-card/70 border border-border/50 shadow-sm" data-testid={`topic-${topic.id}`}>
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -545,7 +545,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
 
                     {/* Expanded Replies */}
                     {expandedTopics.has(topic.id) && (
-                      <div className="space-y-4 pt-4 border-t">
+                      <div className="space-y-4 pt-4 border-t border-border/50">
                         {/* Reply Input */}
                         {isMember && (
                           <div className="flex items-start space-x-3">
@@ -584,7 +584,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
 
                         {/* Replies List */}
                         {topic.replies?.map((reply) => (
-                          <div key={reply.id} className="flex items-start space-x-3 pl-6 border-l-2 border-muted">
+                          <div key={reply.id} className="flex items-start space-x-3 pl-6 border-l-2 border-muted dark:border-border/60">
                             <Avatar className="w-8 h-8">
                               <AvatarImage src={reply.author.avatarUrl} />
                               <AvatarFallback className="text-xs">
@@ -592,7 +592,7 @@ export function CommunityForum({ community, isMember, isOwner, isModerator }: Co
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
-                              <div className="bg-muted p-3 rounded-lg">
+                              <div className="bg-muted p-3 rounded-lg dark:bg-muted/70">
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="font-semibold text-sm">
                                     {reply.author.displayName || reply.author.username}
