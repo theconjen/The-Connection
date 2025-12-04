@@ -4,6 +4,7 @@ import { useMediaQuery } from "../../hooks/use-media-query";
 import Header from "../header";
 import MobileNavigation from "../mobile-navigation";
 import SidebarNavigation from "../sidebar-navigation";
+import { GuestAccessBanner } from "../guest-access-banner";
 
 type ResponsiveLayoutProps = {
   children: React.ReactNode;
@@ -88,11 +89,14 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
 
       {/* Mobile Navigation Bar - hide when keyboard is visible */}
       {isMobile && (
-        <MobileNavigation 
-          currentPath={location} 
+        <MobileNavigation
+          currentPath={location}
           isVisible={!isKeyboardVisible}
         />
       )}
+
+      {/* Guest call-to-action banner to encourage sign in/up while still allowing browsing */}
+      <GuestAccessBanner />
     </div>
   );
 }

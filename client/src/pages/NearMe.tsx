@@ -16,6 +16,7 @@ import type { Community, Event } from '@connection/shared/mobile-web/types';
 export default function NearMe() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
+  const isGuest = !user;
   const [communities, setCommunities] = useState<Community[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoadingCommunities, setIsLoadingCommunities] = useState(false);
@@ -163,25 +164,6 @@ export default function NearMe() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <h1 className="text-3xl font-bold mb-4">Find Christians Near You</h1>
-        <p className="mb-8 text-center max-w-md">
-          Connect with believers in your area who share your interests and faith.
-        </p>
-        <div className="flex gap-4">
-          <Button asChild>
-            <Link href="/login">Log In</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/signup">Sign Up</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   const INTERESTS = [
     // Creative interests
     'writing', 'art', 'music', 'photography', 'filmmaking', 
@@ -213,6 +195,23 @@ export default function NearMe() {
           Connect with believers in your area who share your faith and interests
         </p>
       </div>
+
+      {isGuest && (
+        <div className="mb-8 p-5 rounded-2xl border bg-card/60 shadow-sm text-center md:text-left">
+          <p className="font-semibold text-lg">Browse nearby communities as a guest</p>
+          <p className="text-muted-foreground mt-1">
+            Search for local groups and events right away. Create an account to RSVP, message organizers, or join communities.
+          </p>
+          <div className="flex gap-3 flex-wrap justify-center md:justify-start mt-4">
+            <Button asChild>
+              <Link href="/auth">Sign in</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/auth">Create account</Link>
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Search Filters */}
       <Card className="mb-8">

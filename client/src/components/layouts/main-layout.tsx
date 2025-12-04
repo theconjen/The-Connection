@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import MobileNavigation from "../mobile-navigation";
+import { GuestAccessBanner } from "../guest-access-banner";
 
 type MainLayoutProps = {
   children: React.ReactNode;
@@ -22,6 +23,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       {/* Mobile Navigation Bar - only show on mobile */}
       {isMobile && <MobileNavigation currentPath={location} />}
+
+      <GuestAccessBanner />
     </div>
   );
 }

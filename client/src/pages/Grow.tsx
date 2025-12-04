@@ -8,30 +8,12 @@ import { BookOpen, Shield, Video, Lightbulb, BookMarked,
 
 export default function Grow() {
   const { user, isLoading } = useAuth();
+  const isGuest = !user;
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <h1 className="text-3xl font-bold mb-4">Grow in Knowledge</h1>
-        <p className="mb-8 text-center max-w-md">
-          Access resources to deepen your understanding of Scripture and strengthen your faith.
-        </p>
-        <div className="flex gap-4">
-          <Button asChild>
-            <Link href="/login">Log In</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/signup">Sign Up</Link>
-          </Button>
-        </div>
       </div>
     );
   }
@@ -111,12 +93,29 @@ export default function Grow() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
+      <div className="mb-8 text-center md:text-left">
         <h1 className="text-3xl font-bold">Grow in Knowledge</h1>
         <p className="text-muted-foreground mt-2">
           Resources to deepen your understanding of Scripture and strengthen your faith
         </p>
       </div>
+
+      {isGuest && (
+        <div className="mb-8 p-5 rounded-2xl border bg-card/60 shadow-sm text-center md:text-left">
+          <p className="font-semibold text-lg">Preview our study tools</p>
+          <p className="text-muted-foreground mt-1">
+            Explore topics, devotionals, and apologetics content as a guest. Sign in when you are ready to save progress and join discussions.
+          </p>
+          <div className="flex gap-3 flex-wrap justify-center md:justify-start mt-4">
+            <Button asChild>
+              <Link href="/auth">Sign in</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/auth">Create account</Link>
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {growFeatures.map((feature, index) => (
