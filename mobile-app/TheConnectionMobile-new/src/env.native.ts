@@ -5,7 +5,7 @@
 import Constants from 'expo-constants';
 
 const DEVELOPMENT_API = 'http://localhost:3000/api';
-const PRODUCTION_API = 'https://api.theconnection.app';
+const PRODUCTION_API = 'https://the-connection.onrender.com/api';
 
 // Get API_BASE from expo environment variables
 // Falls back to production API if not set
