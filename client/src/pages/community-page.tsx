@@ -48,7 +48,7 @@ import {
   Hash
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
-import { apiRequest, queryClient } from "../lib/queryClient";
+import { apiRequest, getQueryFn, queryClient } from "../lib/queryClient";
 import { MemberList } from "../components/community/MemberList";
 import { ChatRoomList } from "../components/community/ChatRoomList";
 import { InviteUserDialog } from "../components/community/InviteUserDialog";
@@ -69,12 +69,14 @@ export default function CommunityPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Fetch community details
-  const { 
-    data: community, 
-    isLoading: isLoadingCommunity, 
-    error: communityError 
-  } = useQuery<Community>({
+  const {
+    data: community,
+    isLoading: isLoadingCommunity,
+    error: communityError
+  } = useQuery<Community | null>({
     queryKey: [`/api/communities/${slug}`],
+    // Allow guests to load the community in read-only mode instead of failing on 401s
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!slug,
   });
   
@@ -220,19 +222,32 @@ export default function CommunityPage() {
     );
   }
   
-  // Community not found
+  // Community not found or requires authentication
   if (!community) {
+    const isGuest = !user;
+
     return (
       <div className="container max-w-6xl mx-auto px-4 py-8">
         <div className="p-6 text-center">
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Community Not Found</h2>
+          <h2 className="text-2xl font-bold mb-2">
+            {isGuest ? "Sign in to view this community" : "Community Not Found"}
+          </h2>
           <p className="text-muted-foreground mb-4">
-            The community you're looking for doesn't exist or has been deleted.
+            {isGuest
+              ? "This community is only available to signed-in members. Sign in to check if you have access."
+              : "The community you're looking for doesn't exist or has been deleted."}
           </p>
-          <Button onClick={() => navigate('/communities')}>
-            Back to Communities
-          </Button>
+          <div className="flex justify-center gap-3">
+            {isGuest && (
+              <Button variant="outline" onClick={() => navigate('/auth')}>
+                Sign In
+              </Button>
+            )}
+            <Button onClick={() => navigate('/communities')}>
+              Back to Communities
+            </Button>
+          </div>
         </div>
       </div>
     );
