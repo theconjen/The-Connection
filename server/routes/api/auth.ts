@@ -351,8 +351,6 @@ router.post('/auth/verify-email', async (req, res) => {
     res.status(500).json(buildErrorResponse('Error verifying email', error));
   }
 });
-  }
-});
 
 export default router;
 
