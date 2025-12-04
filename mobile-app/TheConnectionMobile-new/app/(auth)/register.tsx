@@ -1,22 +1,36 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
-  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors } from '../../src/shared/colors';
-import { Ionicons } from '@expo/vector-icons';
 
-export default function RegisterScreen() {
+const PASSWORD_HINT =
+  'Min 12 characters with uppercase, lowercase, number & special character';
+
+function getPasswordError(password: string) {
+  if (password.length < 12) return 'Password must be at least 12 characters long';
+  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+  if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
+  if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password))
+    return 'Password must contain at least one special character';
+  return '';
+}
+
+const RegisterScreen: React.FC = () => {
   const router = useRouter();
   const { register } = useAuth();
 
@@ -28,28 +42,17 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const validatePassword = (pwd: string): string | null => {
-    if (pwd.length < 12) {
-      return 'Password must be at least 12 characters long';
-    }
-    if (!/[A-Z]/.test(pwd)) {
-      return 'Password must contain at least one uppercase letter';
-    }
-    if (!/[a-z]/.test(pwd)) {
-      return 'Password must contain at least one lowercase letter';
-    }
-    if (!/[0-9]/.test(pwd)) {
-      return 'Password must contain at least one number';
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) {
-      return 'Password must contain at least one special character';
-    }
-    return null;
-  };
+  const passwordError = useMemo(() => getPasswordError(password), [password]);
+
+  const isSubmitDisabled =
+    !username.trim() ||
+    !email.trim() ||
+    !password ||
+    password !== confirmPassword ||
+    !!passwordError;
 
   const handleRegister = async () => {
-    // Validation
-    if (!username.trim() || username.trim().length < 3) {
+    if (username.trim().length < 3) {
       Alert.alert('Error', 'Username must be at least 3 characters');
       return;
     }
@@ -69,7 +72,6 @@ export default function RegisterScreen() {
       return;
     }
 
-    const passwordError = validatePassword(password);
     if (passwordError) {
       Alert.alert('Invalid Password', passwordError);
       return;
@@ -78,13 +80,13 @@ export default function RegisterScreen() {
     setIsLoading(true);
     try {
       await register(username.trim(), email.trim(), password);
-      // Navigate to verification screen instead of auto-login
       router.replace({
         pathname: '/(auth)/verify-email',
-        params: { email: email.trim() }
+        params: { email: email.trim() },
       });
-    } catch (error: any) {
-      Alert.alert('Registration Failed', error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Registration failed';
+      Alert.alert('Registration Failed', message);
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +148,7 @@ export default function RegisterScreen() {
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
-                onPress={() => setShowPassword(!showPassword)}
+                onPress={() => setShowPassword((prev) => !prev)}
               >
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -155,9 +157,7 @@ export default function RegisterScreen() {
                 />
               </TouchableOpacity>
             </View>
-            <Text style={styles.hint}>
-              Min 12 characters with uppercase, lowercase, number & special character
-            </Text>
+            <Text style={styles.hint}>{PASSWORD_HINT}</Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -174,7 +174,7 @@ export default function RegisterScreen() {
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                onPress={() => setShowConfirmPassword((prev) => !prev)}
               >
                 <Ionicons
                   name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -186,9 +186,9 @@ export default function RegisterScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.button, (isLoading || isSubmitDisabled) && styles.buttonDisabled]}
             onPress={handleRegister}
-            disabled={isLoading}
+            disabled={isLoading || isSubmitDisabled}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
@@ -199,10 +199,7 @@ export default function RegisterScreen() {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity
-              onPress={() => router.push('/(auth)/login')}
-              disabled={isLoading}
-            >
+            <TouchableOpacity onPress={() => router.push('/(auth)/login')} disabled={isLoading}>
               <Text style={styles.link}>Sign In</Text>
             </TouchableOpacity>
           </View>
@@ -210,7 +207,9 @@ export default function RegisterScreen() {
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+};
+
+export default RegisterScreen;
 
 const styles = StyleSheet.create({
   container: {
