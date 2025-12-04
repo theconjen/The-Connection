@@ -3,6 +3,7 @@ import { db } from '../db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { sendEmail } from '../email';
+import { EMAIL_FROM } from '../config/domain';
 import { generateVerificationEmail } from '../email-templates/verification-email';
 
 export function generateVerificationToken(): string {
@@ -30,6 +31,7 @@ export async function createAndSendVerification(userId: number, email: string, a
 
   try {
     await sendEmail({
+      from: EMAIL_FROM,
       to: email,
       subject: 'Verify your email - The Connection',
       text,

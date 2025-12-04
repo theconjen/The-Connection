@@ -47,3 +47,9 @@
 ### Content Management
 - Added creator tier program (Bronze/Silver/Gold) for livestreamers
 - Implemented content recommendation engine with user preference tracking
+
+## 2025-12-04 — Email verification & TS cleanup
+- Added secure email verification (hashed token, expiry, resend cooldown) and verification endpoints.
+- Applied DB migration to add verification columns and updated Drizzle schema.
+- Fixed TypeScript errors across client and server; removed temporary `react-native` stub and added `express` `Request.user` typing.
+- Ran API tests — all passing.

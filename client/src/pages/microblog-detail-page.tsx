@@ -15,7 +15,7 @@ import MobileModernButton from "../components/mobile-modern-button";
 import TouchFeedback from "../components/mobile-touch-feedback";
 
 export default function MicroblogDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams() as { id?: string };
   const { user, isLoading: authLoading } = useAuth();
   const postId = parseInt(id);
   const isMobile = useMediaQuery("(max-width: 768px)");

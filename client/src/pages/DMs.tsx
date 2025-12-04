@@ -28,7 +28,7 @@ interface Message {
 }
 
 export default function DMs() {
-  const params = useParams<{ userId: string }>();
+  const params = useParams() as { userId?: string };
   const userIdFromUrl = params.userId;
   const [, navigate] = useLocation();
   const isMobile = useMediaQuery("(max-width: 768px)");

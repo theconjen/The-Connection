@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db';
-import { users } from '../db/schema';
+import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 const router = Router();
@@ -12,7 +12,7 @@ router.get('/me', async (req, res) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    const userId = req.user.id;
+    const userId = (req.user as any).id;
     const [user] = await db
       .select({
         id: users.id,
