@@ -32,14 +32,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data);
     } catch (error) {
       console.error('Auth check failed:', error);
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const login = async (username: string, password: string) => {
-    try {
       await apiClient.post('/login', { username, password });
       await checkAuth();
     } catch (error: any) {

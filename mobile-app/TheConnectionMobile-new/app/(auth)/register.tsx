@@ -45,8 +45,6 @@ export default function RegisterScreen() {
       return 'Password must contain at least one special character';
     }
     return null;
-  };
-
   const handleRegister = async () => {
     // Validation
     if (!username.trim() || username.trim().length < 3) {
@@ -78,13 +76,16 @@ export default function RegisterScreen() {
     setIsLoading(true);
     try {
       await register(username.trim(), email.trim(), password);
-      router.replace('/(tabs)/feed');
+      // Navigate to verification screen instead of auto-login
+      router.replace({
+        pathname: '/(auth)/verify-email',
+        params: { email: email.trim() }
+      });
     } catch (error: any) {
       Alert.alert('Registration Failed', error.message);
     } finally {
       setIsLoading(false);
     }
-  };
 
   return (
     <KeyboardAvoidingView
