@@ -24,6 +24,8 @@ export default function ProfilePage() {
     queryKey: ["/api/user"],
   });
 
+  const needsVerification = user?.emailVerified === false;
+
   // Get user's communities
   const { data: userCommunities, isLoading: communitiesLoading } = useQuery({
     queryKey: ["/api/users", user?.id, "communities"],
@@ -99,10 +101,24 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-center text-gray-500">User not found</p>
+      <div className="container mx-auto px-4 py-6 max-w-3xl">
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl">You are viewing The Connection as a guest</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Create a free account to build your profile, connect with communities, and save your favorites.
+              You can keep browsing pages right now, and sign in whenever you are ready.
+            </p>
+            <div className="flex gap-3 flex-wrap">
+              <Button asChild>
+                <Link href="/auth">Sign in</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/auth">Create your account</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -111,6 +127,16 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl">
+      {needsVerification && (
+        <Card className="mb-4 border-amber-200 bg-amber-50/70 text-amber-900 shadow-none">
+          <CardContent className="py-4 space-y-1">
+            <p className="font-semibold">Confirm your email to unlock everything</p>
+            <p className="text-sm">
+              We just sent a verification link to {user.email}. Check your inbox (and spam folder) so you can post, send messages, and join private communities.
+            </p>
+          </CardContent>
+        </Card>
+      )}
       {/* Profile Header */}
       <Card className="mb-6">
         <CardContent className="p-6">

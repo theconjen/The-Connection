@@ -102,6 +102,48 @@ export default function ApologeticsPage() {
   const filterResourcesByType = (type: string) => {
     return resources?.filter(resource => resource.type === type) || [];
   };
+
+  const renderResourceGrid = (items: ApologeticsResource[]) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {items.map((resource) => (
+        <Card key={resource.id} className="h-full">
+          <CardContent className="p-4">
+            <div className="flex items-start mb-3">
+              {getResourceIcon(resource.type)}
+              <div>
+                <h3 className="font-medium">{resource.title}</h3>
+                <p className="text-sm text-neutral-500 capitalize">{resource.type}</p>
+              </div>
+            </div>
+            <p className="text-neutral-600 text-sm mb-4">{resource.description}</p>
+            {resource.url && (
+              <Button asChild variant="outline" size="sm">
+                <a href={resource.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLinkIcon className="mr-2 h-4 w-4" />
+                  View Resource
+                </a>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  const renderEmptyResources = (title: string, description: string) => (
+    <Card className="border-dashed bg-muted/40">
+      <CardContent className="p-6 text-center space-y-2">
+        <BookOpenIcon className="w-8 h-8 mx-auto text-muted-foreground" />
+        <p className="font-medium">{title}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
+        {!user && (
+          <Button asChild variant="outline" size="sm">
+            <Link href="/auth">Sign in for personalized picks</Link>
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
   
   return (
     <MainLayout>
@@ -173,31 +215,13 @@ export default function ApologeticsPage() {
                       </Card>
                     ))}
                   </div>
+                ) : resources && resources.length > 0 ? (
+                  renderResourceGrid(resources)
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {resources?.map((resource) => (
-                      <Card key={resource.id} className="h-full">
-                        <CardContent className="p-4">
-                          <div className="flex items-start mb-3">
-                            {getResourceIcon(resource.type)}
-                            <div>
-                              <h3 className="font-medium">{resource.title}</h3>
-                              <p className="text-sm text-neutral-500 capitalize">{resource.type}</p>
-                            </div>
-                          </div>
-                          <p className="text-neutral-600 text-sm mb-4">{resource.description}</p>
-                          {resource.url && (
-                            <Button asChild variant="outline" size="sm">
-                              <a href={resource.url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLinkIcon className="mr-2 h-4 w-4" />
-                                View Resource
-                              </a>
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                  renderEmptyResources(
+                    "Resources are being added",
+                    "Check back soon for books, videos, and podcasts curated by our community."
+                  )
                 )}
               </TabsContent>
 
@@ -217,31 +241,13 @@ export default function ApologeticsPage() {
                       </Card>
                     ))}
                   </div>
+                ) : filterResourcesByType('book').length > 0 ? (
+                  renderResourceGrid(filterResourcesByType('book'))
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filterResourcesByType('book').map((resource) => (
-                      <Card key={resource.id} className="h-full">
-                        <CardContent className="p-4">
-                          <div className="flex items-start mb-3">
-                            <BookOpenIcon className="text-amber-500 mr-3 h-5 w-5" />
-                            <div>
-                              <h3 className="font-medium">{resource.title}</h3>
-                              <p className="text-sm text-neutral-500 capitalize">{resource.type}</p>
-                            </div>
-                          </div>
-                          <p className="text-neutral-600 text-sm mb-4">{resource.description}</p>
-                          {resource.url && (
-                            <Button asChild variant="outline" size="sm">
-                              <a href={resource.url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLinkIcon className="mr-2 h-4 w-4" />
-                                View Resource
-                              </a>
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                  renderEmptyResources(
+                    "No books available yet",
+                    "Once our team curates books, you will see them here."
+                  )
                 )}
               </TabsContent>
 
@@ -261,31 +267,13 @@ export default function ApologeticsPage() {
                       </Card>
                     ))}
                   </div>
+                ) : filterResourcesByType('video').length > 0 ? (
+                  renderResourceGrid(filterResourcesByType('video'))
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filterResourcesByType('video').map((resource) => (
-                      <Card key={resource.id} className="h-full">
-                        <CardContent className="p-4">
-                          <div className="flex items-start mb-3">
-                            <VideoIcon className="text-amber-500 mr-3 h-5 w-5" />
-                            <div>
-                              <h3 className="font-medium">{resource.title}</h3>
-                              <p className="text-sm text-neutral-500 capitalize">{resource.type}</p>
-                            </div>
-                          </div>
-                          <p className="text-neutral-600 text-sm mb-4">{resource.description}</p>
-                          {resource.url && (
-                            <Button asChild variant="outline" size="sm">
-                              <a href={resource.url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLinkIcon className="mr-2 h-4 w-4" />
-                                View Resource
-                              </a>
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                  renderEmptyResources(
+                    "No videos have been shared",
+                    "We are gathering trusted video lessons and debates for you."
+                  )
                 )}
               </TabsContent>
 
@@ -305,31 +293,13 @@ export default function ApologeticsPage() {
                       </Card>
                     ))}
                   </div>
+                ) : filterResourcesByType('podcast').length > 0 ? (
+                  renderResourceGrid(filterResourcesByType('podcast'))
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filterResourcesByType('podcast').map((resource) => (
-                      <Card key={resource.id} className="h-full">
-                        <CardContent className="p-4">
-                          <div className="flex items-start mb-3">
-                            <HeadphonesIcon className="text-amber-500 mr-3 h-5 w-5" />
-                            <div>
-                              <h3 className="font-medium">{resource.title}</h3>
-                              <p className="text-sm text-neutral-500 capitalize">{resource.type}</p>
-                            </div>
-                          </div>
-                          <p className="text-neutral-600 text-sm mb-4">{resource.description}</p>
-                          {resource.url && (
-                            <Button asChild variant="outline" size="sm">
-                              <a href={resource.url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLinkIcon className="mr-2 h-4 w-4" />
-                                View Resource
-                              </a>
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                  renderEmptyResources(
+                    "Podcasts are coming soon",
+                    "Listen later for thoughtful conversations and Q&As from trusted voices."
+                  )
                 )}
               </TabsContent>
             </Tabs>
