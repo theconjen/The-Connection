@@ -13,6 +13,27 @@ const dmLimiter = rateLimit({
   message: 'You are sending messages too quickly.',
 });
 
+async function checkBlockingRelationship(currentUserId: number, otherUserId: number): Promise<
+  | { status: 'ok' }
+  | { status: 'selfBlocked' }
+  | { status: 'blockedByOther' }
+> {
+  const [currentUserBlocks, otherUserBlocks] = await Promise.all([
+    storage.getBlockedUserIdsFor(currentUserId),
+    storage.getBlockedUserIdsFor(otherUserId),
+  ]);
+
+  if (currentUserBlocks?.includes(otherUserId)) {
+    return { status: 'selfBlocked' };
+  }
+
+  if (otherUserBlocks?.includes(currentUserId)) {
+    return { status: 'blockedByOther' };
+  }
+
+  return { status: 'ok' };
+}
+
 // Get all conversations for current user
 router.get("/conversations", async (req, res) => {
   const currentUserId = getSessionUserId(req);
@@ -58,6 +79,14 @@ router.get("/:userId", async (req, res) => {
   }
 
   try {
+    const blockStatus = await checkBlockingRelationship(currentUserId, otherUserId);
+    if (blockStatus.status === 'selfBlocked') {
+      return res.status(403).json({ message: 'You have blocked this user' });
+    }
+    if (blockStatus.status === 'blockedByOther') {
+      return res.status(403).json({ message: 'You cannot message this user' });
+    }
+
     const chat = await storage.getDirectMessages(currentUserId, otherUserId);
     res.json(chat);
   } catch (error) {
@@ -82,6 +111,14 @@ router.post("/send", dmLimiter, async (req, res) => {
   if (!content) return res.status(400).json({ message: "Message content required" });
 
   try {
+    const blockStatus = await checkBlockingRelationship(senderId, parsedReceiverId);
+    if (blockStatus.status === 'selfBlocked') {
+      return res.status(403).json({ message: 'You have blocked this user' });
+    }
+    if (blockStatus.status === 'blockedByOther') {
+      return res.status(403).json({ message: 'You cannot message this user' });
+    }
+
     ensureCleanText(content, 'Direct message');
     const message = await storage.createDirectMessage({
       senderId: senderId,
@@ -164,6 +201,14 @@ router.post("/mark-conversation-read/:userId", async (req, res) => {
   }
 
   try {
+    const blockStatus = await checkBlockingRelationship(currentUserId, otherUserId);
+    if (blockStatus.status === 'selfBlocked') {
+      return res.status(403).json({ message: 'You have blocked this user' });
+    }
+    if (blockStatus.status === 'blockedByOther') {
+      return res.status(403).json({ message: 'You cannot modify messages in this conversation' });
+    }
+
     const count = await storage.markConversationAsRead(currentUserId, otherUserId);
     res.json({ success: true, markedCount: count });
   } catch (error) {
