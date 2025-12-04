@@ -46,7 +46,7 @@ import type { Event, EventRsvp } from '@connection/shared/mobile-web/types';
 
 export default function EventDetailPage() {
   const [, setLocation] = useLocation();
-  const params = useParams<{ id: string }>();
+  const params = useParams() as { id?: string };
   const eventId = parseInt(params.id);
   const { user } = useAuth();
   const { toast } = useToast();

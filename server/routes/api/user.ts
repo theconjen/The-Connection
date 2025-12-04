@@ -285,8 +285,8 @@ router.post("/change-password", async (req, res) => {
       return res.status(400).json({ message: 'New password must contain at least one special character' });
     }
 
-    // Get user with password
-    const user = await storage.getUserWithPassword(userId);
+    // Get user (includes password when available)
+    const user = await storage.getUser(userId);
     if (!user || !user.password) {
       return res.status(404).json({ message: 'User not found' });
     }

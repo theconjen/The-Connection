@@ -51,7 +51,7 @@ interface Organization {
 }
 
 export default function OrganizationSettingsPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams() as { id?: string };
   const [_, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();

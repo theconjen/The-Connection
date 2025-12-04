@@ -608,6 +608,10 @@ export class MemStorage implements IStorage {
   smsVerified: typeof user.smsVerified === 'boolean' ? user.smsVerified : false,
   phoneNumber: user.phoneNumber || null,
   emailVerificationToken: user.emailVerificationToken || null,
+  emailVerificationTokenHash: (user as any).emailVerificationTokenHash || null,
+  emailVerificationExpiresAt: (user as any).emailVerificationExpiresAt || null,
+  emailVerificationLastSentAt: (user as any).emailVerificationLastSentAt || null,
+  emailVerifiedAt: (user as any).emailVerifiedAt || null,
   smsVerificationCode: user.smsVerificationCode || null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -2258,7 +2262,7 @@ export class DbStorage implements IStorage {
       const rows = await db.select().from(users)
         .where(and(
           eq(users.emailVerificationTokenHash, tokenHash),
-          or(eq(users.emailVerificationExpiresAt, null), users.emailVerificationExpiresAt.gt(now))
+          or(eq(users.emailVerificationExpiresAt, null), sql`${users.emailVerificationExpiresAt} > ${now}`)
         ));
       if (rows && rows.length > 0) return rows[0] as User;
     }
