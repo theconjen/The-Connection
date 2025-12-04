@@ -45,6 +45,8 @@ export default function RegisterScreen() {
       return 'Password must contain at least one special character';
     }
     return null;
+  };
+
   const handleRegister = async () => {
     // Validation
     if (!username.trim() || username.trim().length < 3) {
@@ -86,6 +88,7 @@ export default function RegisterScreen() {
     } finally {
       setIsLoading(false);
     }
+  };
 
   return (
     <KeyboardAvoidingView
