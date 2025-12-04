@@ -147,6 +147,7 @@ export function setupAuth(app: Express) {
         idType: typeof user.id,
         userObject: JSON.stringify(user, null, 2)
       });
+
       // Send verification email using new system with branded template
       const apiBase = process.env.API_BASE_URL || process.env.FRONTEND_URL || 'https://the-connection.onrender.com';
       try {
@@ -165,17 +166,6 @@ export function setupAuth(app: Express) {
         });
         console.log(`[SMS] Verification code for user ${user.id}: ${smsVerificationCode}`);
       }
-      } catch (error) {
-        console.error("Failed to send welcome/verification email:", error);
-      }
-
-      if (normalizedPhone) {
-        console.log(`[SMS] Verification code for user ${user.id}: ${smsVerificationCode}`);
-      }
-
-      // SECURITY: Log registration for audit trail
-      await logRegistration(user.id, user.username, user.email, req);
-
 
       // SECURITY: Log registration for audit trail
       await logRegistration(user.id, user.username, user.email, req);
@@ -191,7 +181,6 @@ export function setupAuth(app: Express) {
         },
         requiresVerification: true
       });
-      console.error("Registration error:", error);
       return res.status(500).json(buildErrorResponse("Error creating user", error));
     }
   });
