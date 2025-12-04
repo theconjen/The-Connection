@@ -24,8 +24,11 @@ const forceMockMode = process.env.FORCE_EMAIL_MOCK_MODE === 'true';
 
 // Optional Resend integration. Install `resend` and set RESEND_API_KEY to enable.
 let resendClient: any = null;
+let sendGridClient: typeof import('@sendgrid/mail') | null = null;
 const RESEND_API_KEY = process.env.RESEND_API_KEY || process.env.RESEND__API_KEY || '';
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
 const hasResend = Boolean(RESEND_API_KEY);
+const hasSendGrid = Boolean(SENDGRID_API_KEY);
 
 console.log(`📧 [SETUP] Email mock mode = ${forceMockMode ? 'ON' : 'OFF'} (FORCE_EMAIL_MOCK_MODE=${process.env.FORCE_EMAIL_MOCK_MODE || 'unset'}, ENABLE_REAL_EMAIL=${process.env.ENABLE_REAL_EMAIL || 'unset'})`);
 
@@ -38,14 +41,17 @@ if (forceMockMode) {
 } else if (!ENABLE_REAL_EMAIL) {
   console.log("📧 Email functionality disabled. Set ENABLE_REAL_EMAIL=true to enable real sending.");
   console.log("📧 All email operations will continue to run in mock mode.");
-} else if (!hasAwsCredentials && !hasResend) {
-  console.warn("⚠️ No email provider credentials set (AWS or Resend). Email functionality will be disabled.");
+} else if (!hasAwsCredentials && !hasResend && !hasSendGrid) {
+  console.warn("⚠️ No email provider credentials set (AWS, SendGrid, or Resend). Email functionality will be disabled.");
   console.warn("⚠️ Users can still register but won't receive actual emails.");
 } else {
   emailFunctionalityEnabled = true;
   if (hasAwsCredentials) {
     console.log("📧 Email functionality enabled with AWS SES");
     sesAvailable = true;
+  }
+  if (hasSendGrid) {
+    console.log("📧 Email functionality enabled with SendGrid");
   }
   if (hasResend) {
     console.log("📧 Email functionality enabled with Resend");
@@ -82,6 +88,12 @@ if (RESEND_API_KEY) {
     console.warn('📧 Resend package not available or failed to initialize; falling back to SES if enabled');
     resendClient = null;
   }
+}
+
+if (SENDGRID_API_KEY) {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  sendGridClient = require('@sendgrid/mail');
+  sendGridClient.setApiKey(SENDGRID_API_KEY);
 }
 
 interface EmailParams {
@@ -123,8 +135,24 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       }
     }
 
+    if (sendGridClient) {
+      try {
+        await sendGridClient.send({
+          to: params.to,
+          from: params.from || EMAIL_FROM,
+          subject: params.subject,
+          html: params.html,
+          text: params.text
+        });
+        console.log(`Email sent via SendGrid to ${params.to}`);
+        return true;
+      } catch (sendGridErr) {
+        console.warn('SendGrid send failed; falling back to SES if configured', sendGridErr);
+      }
+    }
+
     if (!sesAvailable) {
-      console.warn('Email sending failed via Resend and no SES credentials are available.');
+      console.warn('Email sending failed via configured providers and no SES credentials are available.');
       return false;
     }
 

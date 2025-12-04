@@ -1,4 +1,4 @@
-import { Storage, File } from "@google-cloud/storage";
+import { Storage, File, StorageOptions } from "@google-cloud/storage";
 import { Response } from "express";
 import { randomUUID } from "crypto";
 import {
@@ -13,24 +13,55 @@ import {
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-// The object storage client is used to interact with the object storage service.
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
+function buildStorageOptions(): StorageOptions {
+  const options: StorageOptions = {};
+
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+  if (projectId) {
+    options.projectId = projectId;
+  }
+
+  const base64Credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
+  if (base64Credentials) {
+    try {
+      options.credentials = JSON.parse(
+        Buffer.from(base64Credentials, "base64").toString("utf8")
+      );
+    } catch (error) {
+      console.warn(
+        "GOOGLE_APPLICATION_CREDENTIALS_BASE64 was provided but could not be parsed; falling back to other credential sources",
+        error
+      );
+    }
+  }
+
+  if (!options.credentials && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    options.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  }
+
+  if (!options.credentials && !options.keyFilename) {
+    options.credentials = {
+      audience: "replit",
+      subject_token_type: "access_token",
+      token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+      type: "external_account",
+      credential_source: {
+        url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+        format: {
+          type: "json",
+          subject_token_field_name: "access_token",
+        },
       },
-    },
-    universe_domain: "googleapis.com",
-  },
-  projectId: "",
-});
+      universe_domain: "googleapis.com",
+    } as StorageOptions["credentials"];
+    options.projectId = options.projectId || "";
+  }
+
+  return options;
+}
+
+// The object storage client is used to interact with the object storage service.
+export const objectStorageClient = new Storage(buildStorageOptions());
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -46,7 +77,10 @@ export class ObjectStorageService {
 
   // Gets the public object search paths.
   getPublicObjectSearchPaths(): Array<string> {
-    const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
+    const defaultPublicPath = process.env.GOOGLE_CLOUD_STORAGE_BUCKET
+      ? `/${process.env.GOOGLE_CLOUD_STORAGE_BUCKET}/public`
+      : "";
+    const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || defaultPublicPath;
     const paths = Array.from(
       new Set(
         pathsStr
@@ -66,7 +100,10 @@ export class ObjectStorageService {
 
   // Gets the private object directory.
   getPrivateObjectDir(): string {
-    const dir = process.env.PRIVATE_OBJECT_DIR || "";
+    const defaultPrivateDir = process.env.GOOGLE_CLOUD_STORAGE_BUCKET
+      ? `/${process.env.GOOGLE_CLOUD_STORAGE_BUCKET}/private`
+      : "";
+    const dir = process.env.PRIVATE_OBJECT_DIR || defaultPrivateDir;
     if (!dir) {
       throw new Error(
         "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +

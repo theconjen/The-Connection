@@ -140,6 +140,50 @@ Removing the `domain` attribute keeps cookies first-party when the frontend talk
 
 ---
 
+## Email Delivery Providers
+
+| Variable | Required | Description | Production guidance |
+| --- | --- | --- | --- |
+| `ENABLE_REAL_EMAIL` | ✅ (prod) | Turns on real sends instead of mock mode. | Set to `true` only after provider credentials are configured. |
+| `FORCE_EMAIL_MOCK_MODE` | Optional | Forces mock delivery even if credentials exist (useful for staging). | Leave empty/`false` in production. |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | ✅ (when using SES) | IAM user or SMTP credentials for SES. | Use a restricted IAM user allowed to send mail from the verified domain. |
+| `AWS_REGION` | ✅ (SES) | SES region containing the verified identity. | `us-east-1` unless your SES identity lives elsewhere. |
+| `AWS_SES_FROM_EMAIL` / `EMAIL_FROM` | ✅ | Verified sender used by transactional mailers. | Format: `"The Connection" <noreply@yourdomain.com>`. |
+| `SENDGRID_API_KEY` | ✅ (when using SendGrid) | Auth token for SendGrid’s v3 API. | Create a Restricted API Key with Mail Send rights only. |
+| `RESEND_API_KEY` | Optional | Resend API key as an additional provider. | Leave unset unless using Resend. |
+
+The mailer will attempt providers in the order **Resend → SendGrid → AWS SES** as configured and will log when falling back.
+
+---
+
+## Media Storage & Uploads
+
+| Variable | Required | Description | Production guidance |
+| --- | --- | --- | --- |
+| `GOOGLE_CLOUD_PROJECT_ID` | ✅ | GCP project hosting the storage bucket. | Match the project that owns your service account. |
+| `GOOGLE_CLOUD_STORAGE_BUCKET` | ✅ | Primary bucket for uploads/downloads. | Example: `the-connection-media`. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Optional | Path to the JSON service-account key on disk. | Mount via secret volume or Render disk. |
+| `GOOGLE_APPLICATION_CREDENTIALS_BASE64` | Optional | Base64-encoded JSON key for environments without writable disks. | Prefer this on Render/Heroku; decode on startup automatically. |
+| `PUBLIC_OBJECT_SEARCH_PATHS` | Optional | Comma-separated `/<bucket>/<prefix>` paths to search for public assets. | Defaults to `/<bucket>/public` when `GOOGLE_CLOUD_STORAGE_BUCKET` is set. |
+| `PRIVATE_OBJECT_DIR` | Optional | Root directory for private uploads. | Defaults to `/<bucket>/private` when `GOOGLE_CLOUD_STORAGE_BUCKET` is set. |
+
+If neither credential variable is provided, the storage client falls back to the Replit sidecar credentials used for local development.
+
+---
+
+## Error Monitoring
+
+| Variable | Scope | Description | Production guidance |
+| --- | --- | --- | --- |
+| `SENTRY_DSN` | Server | Enables API error reporting. | Set the project DSN and optionally `SENTRY_TRACES_SAMPLE_RATE` for traces. |
+| `SENTRY_TRACES_SAMPLE_RATE` | Server | Sample rate for tracing (0.0–1.0). | Start with `0.1` in production. |
+| `VITE_SENTRY_DSN` | Web | Frontend DSN for the Vite bundle. | Mirror the same DSN or a frontend-specific project. |
+| `VITE_SENTRY_TRACES_SAMPLE_RATE` | Web | Trace sampling for browser spans. | Keep low (e.g., `0.05`) to control volume. |
+
+Ensure both server and web bundles receive their respective DSNs so runtime exceptions surface in Sentry.
+
+---
+
 ## Native & Shared HTTP Configuration
 
 - Web API base (`WEB_API`) defaults to `import.meta.env.VITE_API_BASE`.
@@ -155,6 +199,22 @@ Removing the `domain` attribute keeps cookies first-party when the frontend talk
 | Loader hangs, `/api/health` returns HTML | Frontend bypassing rewrite, hitting wrong domain. | Ensure `VITE_API_BASE=/api`, redeploy, clear cache/service worker. |
 | `/api/me` 401/403 unexpectedly | Cookie not included or CORS blocked. | Check request headers, confirm `CORS_ALLOWED_ORIGINS`, ensure `credentials: 'include'` and cookie settings above. |
 | Native app requests fail | Missing Capacitor/Expo origin in allowlist or wrong API base. | Add origin via `CORS_ALLOWED_ORIGINS`, verify `EXPO_PUBLIC_API_BASE`, rebuild native bundle. |
+
+---
+
+## Deployment Readiness: What’s Already Wired vs. What You Must Provide
+
+- **Email providers (Resend → SendGrid → SES)**
+  - *Already wired*: Provider auto-selection and fallbacks are implemented in `server/email.ts`, controlled by `ENABLE_REAL_EMAIL` / `FORCE_EMAIL_MOCK_MODE` and the provider API keys. Resend and SendGrid clients initialize when their keys are present; SES uses AWS creds when available.
+  - *You must provide*: A verified sender (`EMAIL_FROM`/`AWS_SES_FROM_EMAIL`) plus at least one provider key (`RESEND_API_KEY`, `SENDGRID_API_KEY`, or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` + `AWS_REGION`). Set `ENABLE_REAL_EMAIL=true` in production once credentials are live.
+
+- **Media uploads (Google Cloud Storage)**
+  - *Already wired*: `server/objectStorage.ts` consumes either `GOOGLE_APPLICATION_CREDENTIALS_BASE64` or `GOOGLE_APPLICATION_CREDENTIALS` and defaults public/private prefixes to `/GOOGLE_CLOUD_STORAGE_BUCKET/{public|private}`. It also falls back to the Replit sidecar creds for local dev.
+  - *You must provide*: A storage bucket (`GOOGLE_CLOUD_STORAGE_BUCKET`), project ID (`GOOGLE_CLOUD_PROJECT_ID`), and either a service-account key (path or base64) or platform IAM binding. Override `PUBLIC_OBJECT_SEARCH_PATHS` / `PRIVATE_OBJECT_DIR` if you need custom prefixes.
+
+- **Error monitoring (Sentry)**
+  - *Already wired*: The server initializes `@sentry/node` when `SENTRY_DSN` is set, and the web bundle bootstraps `@sentry/react` when `VITE_SENTRY_DSN` is defined.
+  - *You must provide*: DSNs and sampling rates for each surface: `SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`, `VITE_SENTRY_DSN`, and `VITE_SENTRY_TRACES_SAMPLE_RATE` in their respective environments.
 
 ---
 
