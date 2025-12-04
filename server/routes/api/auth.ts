@@ -201,8 +201,8 @@ router.post('/auth/send-verification', async (req, res) => {
       }
     }
 
-    const frontend = process.env.FRONTEND_URL || 'https://theconnection.app';
-    const { expiresAt } = await createAndSendVerification(user.id, user.email, frontend);
+    const apiBase = process.env.API_BASE_URL || 'https://theconnection.app';
+    const { expiresAt } = await createAndSendVerification(user.id, user.email, apiBase);
     // Inform client when they can resend next (5 minute cooldown)
     const nextAllowedAt = new Date(Date.now() + COOLDOWN_MS).toISOString();
     return res.json({ ok: true, expiresAt, nextAllowedAt });
@@ -212,15 +212,53 @@ router.post('/auth/send-verification', async (req, res) => {
   }
 });
 
-// Verify token: POST /api/auth/verify-email { token }
-router.post('/auth/verify-email', async (req, res) => {
+// Verify token: GET or POST /api/auth/verify-email?token=... or { token }
+// GET is for one-click email links, POST is for API clients
+router.get('/auth/verify-email', async (req, res) => {
   try {
-    const { token } = req.body || {};
-    if (!token) return res.status(400).json({ message: 'token required' });
+    const token = req.query.token as string;
+    if (!token) {
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Verification Error - The Connection</title>
+            <style>
+              body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+              .error { color: #dc2626; }
+            </style>
+          </head>
+          <body>
+            <h1 class="error">❌ Invalid Link</h1>
+            <p>This verification link is invalid. Please check your email and try again.</p>
+          </body>
+        </html>
+      `);
+    }
 
-    // Use storage helper to find user by token (updated to check hashes)
     const user = await storage.getUserByEmailVerificationToken(String(token));
-    if (!user) return res.status(400).json({ message: 'invalid or expired token' });
+    if (!user) {
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Verification Error - The Connection</title>
+            <style>
+              body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+              .error { color: #dc2626; }
+            </style>
+          </head>
+          <body>
+            <h1 class="error">❌ Invalid or Expired Link</h1>
+            <p>This verification link is invalid or has expired. Please request a new verification email.</p>
+          </body>
+        </html>
+      `);
+    }
 
     // Mark verified and clear token fields
     await storage.updateUser(user.id, {
@@ -232,10 +270,87 @@ router.post('/auth/verify-email', async (req, res) => {
       emailVerificationLastSentAt: null as any,
     } as any);
 
+    // Success page with deep link back to app
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Email Verified - The Connection</title>
+          <style>
+            body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+            .success { color: #059669; }
+            .button { 
+              display: inline-block; 
+              margin-top: 20px; 
+              padding: 12px 30px; 
+              background-color: #4F46E5; 
+              color: white; 
+              text-decoration: none; 
+              border-radius: 5px; 
+            }
+          </style>
+        </head>
+        <body>
+          <h1 class="success">✅ Email Verified!</h1>
+          <p>Your email has been successfully verified. You can now close this page and return to The Connection app.</p>
+          <a href="theconnection://login" class="button">Open The Connection</a>
+          <script>
+            // Auto-redirect to app after 3 seconds
+            setTimeout(() => {
+              window.location.href = 'theconnection://login';
+            }, 3000);
+          </script>
+        </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('verify-email GET error', error);
+    return res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Error - The Connection</title>
+          <style>
+            body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+            .error { color: #dc2626; }
+          </style>
+        </head>
+        <body>
+          <h1 class="error">❌ Server Error</h1>
+          <p>An error occurred while verifying your email. Please try again later.</p>
+        </body>
+      </html>
+    `);
+  }
+});
+
+router.post('/auth/verify-email', async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token) return res.status(400).json({ message: 'token required' });
+
+    const user = await storage.getUserByEmailVerificationToken(String(token));
+    if (!user) return res.status(400).json({ message: 'invalid or expired token' });
+
+    await storage.updateUser(user.id, {
+      emailVerified: true,
+      emailVerifiedAt: new Date() as any,
+      emailVerificationToken: null as any,
+      emailVerificationTokenHash: null as any,
+      emailVerificationExpiresAt: null as any,
+      emailVerificationLastSentAt: null as any,
+    } as any);
+
     return res.json({ ok: true });
   } catch (error) {
-    console.error('verify-email error', error);
+    console.error('verify-email POST error', error);
     res.status(500).json(buildErrorResponse('Error verifying email', error));
+  }
+});
   }
 });
 

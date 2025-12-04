@@ -3,6 +3,7 @@ import { db } from '../db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { sendEmail } from '../email';
+import { generateVerificationEmail } from '../email-templates/verification-email';
 
 export function generateVerificationToken(): string {
   return crypto.randomBytes(32).toString('base64url');
@@ -12,7 +13,7 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-export async function createAndSendVerification(userId: number, email: string, frontendUrl: string) {
+export async function createAndSendVerification(userId: number, email: string, apiBaseUrl: string) {
   const token = generateVerificationToken();
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
@@ -24,13 +25,15 @@ export async function createAndSendVerification(userId: number, email: string, f
     emailVerificationLastSentAt: now
   } as any).where(eq(users.id, userId));
 
-  const link = `${frontendUrl.replace(/\/$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+  const verificationLink = `${apiBaseUrl.replace(/\/$/, '')}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
+  const { html, text } = generateVerificationEmail(verificationLink);
+
   try {
     await sendEmail({
       to: email,
-      subject: 'Verify your email',
-      text: `Please verify your email by visiting: ${link}`,
-      html: `<p>Please verify your email by clicking <a href="${link}">this link</a>. It expires in 24 hours.</p>`
+      subject: 'Verify your email - The Connection',
+      text,
+      html
     });
   } catch (e) {
     console.warn('Failed to send verification email', e);
