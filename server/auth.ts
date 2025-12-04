@@ -3,7 +3,6 @@ import { storage } from "./storage-optimized";
 import { User, insertUserSchema } from "@shared/schema";
 import { sendWelcomeEmail, sendEmail } from "./email";
 import { createAndSendVerification } from "./lib/emailVerification";
-import { createAndSendVerification } from "./lib/emailVerification";
 import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
@@ -181,6 +180,8 @@ export function setupAuth(app: Express) {
         },
         requiresVerification: true
       });
+    } catch (error) {
+      console.error("Registration error:", error);
       return res.status(500).json(buildErrorResponse("Error creating user", error));
     }
   });
