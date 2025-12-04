@@ -202,6 +202,22 @@ Ensure both server and web bundles receive their respective DSNs so runtime exce
 
 ---
 
+## Deployment Readiness: What’s Already Wired vs. What You Must Provide
+
+- **Email providers (Resend → SendGrid → SES)**
+  - *Already wired*: Provider auto-selection and fallbacks are implemented in `server/email.ts`, controlled by `ENABLE_REAL_EMAIL` / `FORCE_EMAIL_MOCK_MODE` and the provider API keys. Resend and SendGrid clients initialize when their keys are present; SES uses AWS creds when available.
+  - *You must provide*: A verified sender (`EMAIL_FROM`/`AWS_SES_FROM_EMAIL`) plus at least one provider key (`RESEND_API_KEY`, `SENDGRID_API_KEY`, or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` + `AWS_REGION`). Set `ENABLE_REAL_EMAIL=true` in production once credentials are live.
+
+- **Media uploads (Google Cloud Storage)**
+  - *Already wired*: `server/objectStorage.ts` consumes either `GOOGLE_APPLICATION_CREDENTIALS_BASE64` or `GOOGLE_APPLICATION_CREDENTIALS` and defaults public/private prefixes to `/GOOGLE_CLOUD_STORAGE_BUCKET/{public|private}`. It also falls back to the Replit sidecar creds for local dev.
+  - *You must provide*: A storage bucket (`GOOGLE_CLOUD_STORAGE_BUCKET`), project ID (`GOOGLE_CLOUD_PROJECT_ID`), and either a service-account key (path or base64) or platform IAM binding. Override `PUBLIC_OBJECT_SEARCH_PATHS` / `PRIVATE_OBJECT_DIR` if you need custom prefixes.
+
+- **Error monitoring (Sentry)**
+  - *Already wired*: The server initializes `@sentry/node` when `SENTRY_DSN` is set, and the web bundle bootstraps `@sentry/react` when `VITE_SENTRY_DSN` is defined.
+  - *You must provide*: DSNs and sampling rates for each surface: `SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`, `VITE_SENTRY_DSN`, and `VITE_SENTRY_TRACES_SAMPLE_RATE` in their respective environments.
+
+---
+
 ## Testing Recipes
 
 ```js
