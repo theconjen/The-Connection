@@ -2,15 +2,18 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import apiClient from '../lib/apiClient';
 
 interface User {
-  id: string;
+  id: number;
   username: string;
   email: string;
   displayName?: string;
+  avatarUrl?: string;
+  bio?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -27,11 +30,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkAuth = async () => {
+    setIsLoading(true);
     try {
       const response = await apiClient.get('/user');
       setUser(response.data);
     } catch (error) {
       console.error('Auth check failed:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const login = async (username: string, password: string) => {
+    try {
       await apiClient.post('/login', { username, password });
       await checkAuth();
     } catch (error: any) {
@@ -61,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
