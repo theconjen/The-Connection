@@ -464,6 +464,9 @@ importers:
       '@babel/runtime':
         specifier: ^7.28.4
         version: 7.28.4
+      '@expo/config-plugins':
+        specifier: 54.0.2
+        version: 54.0.2
       '@expo-google-fonts/inter':
         specifier: ^0.4.2
         version: 0.4.2
@@ -606,6 +609,9 @@ importers:
       react:
         specifier: 19.2.0
         version: 19.2.0
+      react-dom:
+        specifier: 19.2.0
+        version: 19.2.0(react@19.2.0)
       react-native:
         specifier: 0.81.5
         version: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.2.0)
