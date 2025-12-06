@@ -7,7 +7,7 @@
 import { db } from './db';
 import { users } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from './utils/passwords';
 
 async function createAdminUser() {
   try {
@@ -62,8 +62,8 @@ async function createAdminUser() {
       
       console.log(`User ${username} has been updated to admin status`);
     } else {
-      // Create new admin user with bcrypt hashing (salt rounds: 12)
-      const hashedPassword = await bcrypt.hash(password, 12);
+      // Create new admin user with Argon2id hashing
+      const hashedPassword = await hashPassword(password);
 
       await db.execute(sql`
         INSERT INTO users (username, email, password, is_admin) VALUES (${username}, ${email}, ${hashedPassword}, true)

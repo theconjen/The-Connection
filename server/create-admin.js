@@ -4,7 +4,7 @@
 import { db } from './db.js';
 import { users } from '../shared/schema.js';
 import { eq, sql } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
+import argon2 from 'argon2';
 import readline from 'readline';
 
 const rl = readline.createInterface({
@@ -48,7 +48,12 @@ async function createAdminUser() {
               console.log(`User ${username} has been updated to admin status`);
             } else {
               // Create new admin user
-              const hashedPassword = await bcrypt.hash(password, 10);
+              const hashedPassword = await argon2.hash(password, {
+                type: argon2.argon2id,
+                memoryCost: 19456,
+                timeCost: 2,
+                parallelism: 1,
+              });
               
               await db.insert(users).values({
                 username,

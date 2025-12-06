@@ -37,3 +37,34 @@ export function setSessionUserId(req: Request, value: number | string): number {
   req.session.userId = normalized;
   return normalized;
 }
+
+function ensureSession(req: Request) {
+  if (!req.session) {
+    throw createHttpError(500, 'Session is not initialized');
+  }
+  return req.session;
+}
+
+export async function regenerateSession(req: Request): Promise<void> {
+  const session = ensureSession(req);
+  return new Promise((resolve, reject) => {
+    session.regenerate((err) => {
+      if (err) {
+        return reject(createHttpError(500, 'Failed to regenerate session', { cause: err }));
+      }
+      resolve();
+    });
+  });
+}
+
+export async function saveSession(req: Request): Promise<void> {
+  const session = ensureSession(req);
+  return new Promise((resolve, reject) => {
+    session.save((err) => {
+      if (err) {
+        return reject(createHttpError(500, 'Failed to persist session', { cause: err }));
+      }
+      resolve();
+    });
+  });
+}

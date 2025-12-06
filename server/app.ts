@@ -20,6 +20,8 @@ dotenv.config();
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
+const sameSite = (process.env.SESSION_SAMESITE as 'lax' | 'strict' | 'none' | undefined) ?? 'lax';
+const secureCookie = sameSite === 'none' ? true : isProduction;
 
 // Apply CORS configuration early so that preflight requests are handled correctly
 app.use(makeCors());
@@ -132,9 +134,9 @@ app.use(session({
   name: 'sessionId',
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000,
-    secure: isProduction,
+    secure: secureCookie,
     httpOnly: true,
-    sameSite: 'none',
+    sameSite,
     path: '/',
   },
 }));

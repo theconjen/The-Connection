@@ -4,7 +4,6 @@ import { User, insertUserSchema } from "@shared/schema";
 import { sendWelcomeEmail, sendEmail } from "./email";
 import { createAndSendVerification } from "./lib/emailVerification";
 import { APP_DOMAIN, BASE_URL, APP_URLS } from './config/domain';
-import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { logLogin, logLoginFailed, logLogout, logRegistration } from './audit-logger';
 import { sanitizePlainText } from './xss-protection';
@@ -13,6 +12,7 @@ import crypto from "crypto";
 import { verifyRecaptchaToken } from "./utils/recaptcha";
 import { buildErrorResponse } from "./utils/errors";
 import { setSessionUserId } from './utils/session';
+import { hashPassword, verifyPassword } from './utils/passwords';
 
 /**
  * Ultra Simple Auth System
@@ -126,8 +126,8 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Email address already in use" });
       }
 
-      // Hash password with bcrypt (salt rounds: 12)
-      const hashedPassword = await bcrypt.hash(password, 12);
+      // Hash password with Argon2id
+      const hashedPassword = await hashPassword(password);
 
       // Create user
       console.log(`[REGISTRATION] Creating user with data:`, { username, email, displayName: displayName || username });
@@ -313,9 +313,8 @@ export function setupAuth(app: Express) {
           });
         }
 
-        // Check password using bcrypt
-        const passwordMatches = await bcrypt.compare(password, user.password);
-        if (!passwordMatches) {
+        const passwordCheck = await verifyPassword(password, user.password);
+        if (!passwordCheck.valid) {
           console.log(`Invalid password for user: ${username}`);
 
           const newAttempts = (user.loginAttempts || 0) + 1;
@@ -344,6 +343,10 @@ export function setupAuth(app: Express) {
           return res.status(401).json({
             message: `Invalid username or password. ${maxAttempts - newAttempts} attempt(s) remaining before lockout.`
           });
+        }
+
+        if (passwordCheck.upgradedHash) {
+          await storage.updateUser(user.id, { password: passwordCheck.upgradedHash });
         }
 
         // SECURITY: Reset failed login attempts on successful login
