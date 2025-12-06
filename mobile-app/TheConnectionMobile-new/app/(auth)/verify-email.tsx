@@ -1,19 +1,42 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../src/shared/colors';
+import apiClient from '../../src/lib/apiClient';
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const email = params.email as string || 'your email';
+  const email = (params.email as string) || 'your email';
+  const [isSending, setIsSending] = useState(false);
+  const [sentMessage, setSentMessage] = useState<string | null>(null);
+
+  const handleResend = async () => {
+    if (!email || email === 'your email') {
+      Alert.alert('Missing email', 'Return to registration and try again.');
+      return;
+    }
+    setIsSending(true);
+    setSentMessage(null);
+    try {
+      await apiClient.post('/auth/send-verification', { email });
+      setSentMessage('A new verification link has been sent.');
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Could not resend verification. Please try again soon.';
+      Alert.alert('Resend failed', message);
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -50,13 +73,17 @@ export default function VerifyEmailScreen() {
         {/* Resend button */}
         <TouchableOpacity 
           style={styles.resendButton}
-          onPress={() => {
-            // TODO: Implement resend verification email
-            console.log('Resend verification email');
-          }}
+          onPress={handleResend}
+          disabled={isSending}
         >
-          <Text style={styles.resendButtonText}>Request a new link</Text>
+          {isSending ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : (
+            <Text style={styles.resendButtonText}>Request a new link</Text>
+          )}
         </TouchableOpacity>
+
+        {sentMessage && <Text style={styles.sentText}>{sentMessage}</Text>}
 
         {/* Back to login */}
         <TouchableOpacity
@@ -144,6 +171,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primary,
     textAlign: 'center',
+  },
+  sentText: {
+    fontSize: 13,
+    color: '#10b981',
+    textAlign: 'center',
+    marginBottom: 12,
   },
   backButton: {
     paddingVertical: 12,

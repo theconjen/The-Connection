@@ -1,6 +1,6 @@
 import { WebView } from 'react-native-webview';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { StyleSheet, View, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
+import { useMemo, useState } from 'react';
 
 interface LoadingWebViewProps {
   uri: string;
@@ -9,27 +9,43 @@ interface LoadingWebViewProps {
 export default function LoadingWebView({ uri }: LoadingWebViewProps) {
   const [loading, setLoading] = useState(true);
 
-  const mobileUserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+  const mobileUserAgent = useMemo(
+    () =>
+      Platform.select({
+        ios: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36',
+        default: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      }) ?? '',
+    []
+  );
 
-  // JavaScript to force mobile viewport
+  // Keep content locked to the device viewport for a native feel.
   const injectedJavaScript = `
     (function() {
-      // Set viewport meta tag
-      var meta = document.createElement('meta');
-      meta.name = 'viewport';
-      meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-      document.getElementsByTagName('head')[0].appendChild(meta);
-      
-      // Force mobile width
-      document.body.style.width = '100vw';
-      document.body.style.maxWidth = '100vw';
-      document.body.style.overflowX = 'hidden';
+      var head = document.head || document.getElementsByTagName('head')[0];
+      if (!head) { return true; }
+
+      var existing = document.querySelector('meta[name="viewport"]');
+      var content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+      if (existing) {
+        existing.setAttribute('content', content);
+      } else {
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = content;
+        head.appendChild(meta);
+      }
+
+      document.documentElement.style.setProperty('overflow-x', 'hidden', 'important');
+      document.body.style.setProperty('overflow-x', 'hidden', 'important');
+      document.body.style.setProperty('width', '100vw', 'important');
+      document.body.style.setProperty('max-width', '100vw', 'important');
     })();
     true;
   `;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <WebView 
         source={{ 
           uri,
@@ -48,18 +64,26 @@ export default function LoadingWebView({ uri }: LoadingWebViewProps) {
         onLoadStart={() => setLoading(true)}
         startInLoadingState={true}
         scalesPageToFit={true}
+        originWhitelist={['https://*']}
+        allowsBackForwardNavigationGestures
+        allowsInlineMediaPlayback
+        contentInsetAdjustmentBehavior="automatic"
+        pullToRefreshEnabled={Platform.OS === 'android'}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
+        setSupportMultipleWindows={false}
       />
       {loading && (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color="#4F46E5" />
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#ffffff',
   },

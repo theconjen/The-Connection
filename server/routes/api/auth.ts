@@ -335,11 +335,11 @@ router.get('/auth/verify-email', async (req, res) => {
         <body>
           <h1 class="success">✅ Email Verified!</h1>
           <p>Your email has been successfully verified. You can now close this page and return to The Connection app.</p>
-          <a href="theconnection://login" class="button">Open The Connection</a>
+          <a href="theconnection://login?verified=1" class="button">Open The Connection</a>
           <script>
             // Auto-redirect to app after 3 seconds
             setTimeout(() => {
-              window.location.href = 'theconnection://login';
+              window.location.href = 'theconnection://login?verified=1';
             }, 3000);
           </script>
         </body>
@@ -391,6 +391,4 @@ router.post('/auth/verify-email', async (req, res) => {
     res.status(500).json(buildErrorResponse('Error verifying email', error));
   }
 });
-
 export default router;
-

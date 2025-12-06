@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,19 +11,34 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors } from '../../src/shared/colors';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { verified } = useLocalSearchParams();
+  const isVerified = verified === '1' || verified === 'true';
+  const { login, isAuthenticated, refresh } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // If app was opened from a verification link, refresh session and auto-route if already authenticated
+  useEffect(() => {
+    if (isVerified) {
+      refresh().catch(() => {});
+    }
+  }, [isVerified, refresh]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/(tabs)/feed');
+    }
+  }, [isAuthenticated, router]);
 
   const handleLogin = async () => {
     if (!username.trim() || !password) {
@@ -54,6 +69,12 @@ export default function LoginScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue</Text>
+          {isVerified && (
+            <View style={styles.successPill}>
+              <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
+              <Text style={styles.successText}>Email verified. You can sign in now.</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.form}>
@@ -153,6 +174,21 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#666',
+  },
+  successPill: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#ecfdf3',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  successText: {
+    color: '#166534',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   form: {
     width: '100%',

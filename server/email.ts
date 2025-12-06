@@ -15,11 +15,9 @@ import { APP_DOMAIN, BASE_URL, EMAIL_FROM, APP_URLS } from './config/domain';
 let emailFunctionalityEnabled = false;
 let sesAvailable = false;
 
-// Control whether to use real email sending via env var. By default we run
-// in mock mode to avoid accidental sends during development. To enable real
-// SES email sending, set ENABLE_REAL_EMAIL=true in production and provide
-// AWS credentials.
-const ENABLE_REAL_EMAIL = process.env.ENABLE_REAL_EMAIL === 'true';
+// Control whether to use real email sending. If ENABLE_REAL_EMAIL is set, respect it;
+// otherwise auto-enable when a provider (Resend/SendGrid/AWS) is configured.
+const enableRealEmailEnv = process.env.ENABLE_REAL_EMAIL;
 const forceMockMode = process.env.FORCE_EMAIL_MOCK_MODE === 'true';
 
 // Optional Resend integration. Install `resend` and set RESEND_API_KEY to enable.
@@ -30,9 +28,12 @@ const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
 const hasResend = Boolean(RESEND_API_KEY);
 const hasSendGrid = Boolean(SENDGRID_API_KEY);
 
-console.log(`📧 [SETUP] Email mock mode = ${forceMockMode ? 'ON' : 'OFF'} (FORCE_EMAIL_MOCK_MODE=${process.env.FORCE_EMAIL_MOCK_MODE || 'unset'}, ENABLE_REAL_EMAIL=${process.env.ENABLE_REAL_EMAIL || 'unset'})`);
-
 const hasAwsCredentials = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION);
+const ENABLE_REAL_EMAIL =
+  enableRealEmailEnv === 'true' ||
+  (enableRealEmailEnv !== 'false' && (hasResend || hasSendGrid || hasAwsCredentials));
+
+console.log(`📧 [SETUP] Email mock mode = ${forceMockMode ? 'ON' : 'OFF'} (FORCE_EMAIL_MOCK_MODE=${process.env.FORCE_EMAIL_MOCK_MODE || 'unset'}, ENABLE_REAL_EMAIL=${enableRealEmailEnv || 'auto'})`);
 
 if (forceMockMode) {
   console.log("📧 Email functionality running in MOCK MODE. No actual emails will be sent.");

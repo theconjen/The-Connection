@@ -1,7 +1,9 @@
-import { Router } from 'express';
-import path from 'path';
-import fs from 'fs';
+import { Router, Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
+import { isAdmin } from '../auth';
+import { storage } from '../storage-optimized';
+import { buildErrorResponse } from '../utils/errors';
+import { insertApologeticsTopicSchema } from '@shared/schema';
 
 // Set up rate limiter for /apologetics: max 100 requests per 15 minutes per IP
 const apologeticsLimiter = rateLimit({
@@ -15,23 +17,363 @@ const router = Router();
 
 router.get('/apologetics', apologeticsLimiter, (_req, res) => {
   try {
-    const env = process.env.NODE_ENV || 'development';
-    const candidates = [
-      path.resolve(process.cwd(), 'web', 'public', 'apologetics.json'),
-      path.resolve(process.cwd(), 'public', 'apologetics.json'),
-      path.resolve(process.cwd(), 'dist', 'public', 'apologetics.json'),
-    ];
-    for (const file of candidates) {
-      if (fs.existsSync(file)) {
-        const data = fs.readFileSync(file, 'utf-8');
-        return res.json(JSON.parse(data));
-      }
-    }
-    return res.json([]);
+    const resources = storage.getAllApologeticsResources();
+    return res.json(resources);
   } catch (err) {
     console.error('Error serving apologetics:', err);
     return res.json([]);
   }
+});
+
+// Admin guard wrapper to give clearer 403s (isAdmin already checks session).
+const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+  // Reuse isAdmin middleware but allow direct use
+  return (isAdmin as any)(req, res, next);
+};
+
+const slugify = (value: string) =>
+  String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+// Admin CRUD endpoints for apologetics resources (edit the JSON file used by the site).
+router.get('/apologetics/admin/resources', requireAdmin, async (_req, res) => {
+  try {
+    const resources = await storage.getAllApologeticsResources();
+    return res.json(resources);
+  } catch (err) {
+    console.error('Error loading resources:', err);
+    return res.status(500).json(buildErrorResponse('Error loading resources', err));
+  }
+});
+
+router.post('/apologetics/admin/resources', requireAdmin, async (req, res) => {
+  try {
+    const { title, description, type, url, iconName } = req.body || {};
+    if (!title || !description || !type) {
+      return res.status(400).json({ message: 'title, description, and type are required' });
+    }
+    const allowedTypes = ['book', 'podcast', 'video', 'article', 'link'];
+    if (!allowedTypes.includes(String(type))) {
+      return res.status(400).json({ message: `type must be one of: ${allowedTypes.join(', ')}` });
+    }
+
+    const newResource = await storage.createApologeticsResource({
+      title,
+      description,
+      type,
+      url: url || '',
+      iconName: iconName || 'book',
+    });
+    return res.status(201).json(newResource);
+  } catch (err) {
+    console.error('Error creating apologetics resource:', err);
+    return res.status(500).json(buildErrorResponse('Server error creating resource', err));
+  }
+});
+
+router.patch('/apologetics/admin/resources/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid id' });
+    const allowedTypes = ['book', 'podcast', 'video', 'article', 'link'];
+    const incoming = req.body || {};
+    if (incoming.type && !allowedTypes.includes(String(incoming.type))) {
+      return res.status(400).json({ message: `type must be one of: ${allowedTypes.join(', ')}` });
+    }
+
+    const updated = await storage.updateApologeticsResource(id, incoming);
+    if (!updated) return res.status(404).json({ message: 'Resource not found' });
+    return res.json(updated);
+  } catch (err) {
+    console.error('Error updating apologetics resource:', err);
+    return res.status(500).json(buildErrorResponse('Server error updating resource', err));
+  }
+});
+
+router.delete('/apologetics/admin/resources/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid id' });
+    const deleted = await storage.deleteApologeticsResource(id);
+    if (!deleted) return res.status(404).json({ message: 'Resource not found' });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting apologetics resource:', err);
+    return res.status(500).json(buildErrorResponse('Server error deleting resource', err));
+  }
+});
+
+// Admin CRUD for topics
+router.get('/apologetics/admin/topics', requireAdmin, async (_req, res) => {
+  try {
+    const topics = await storage.getAllApologeticsTopics();
+    return res.json(topics);
+  } catch (err) {
+    console.error('Error loading topics:', err);
+    return res.status(500).json(buildErrorResponse('Error loading topics', err));
+  }
+});
+
+router.post('/apologetics/admin/topics', requireAdmin, async (req, res) => {
+  try {
+    const { name, description, iconName, slug } = req.body || {};
+    const parsed = insertApologeticsTopicSchema.safeParse({
+      name,
+      description,
+      iconName,
+      slug: slug || slugify(name),
+    });
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
+      return res.status(400).json({ message: first?.message || 'Invalid payload' });
+    }
+    const topic = await storage.createApologeticsTopic(parsed.data);
+    return res.status(201).json(topic);
+  } catch (err) {
+    console.error('Error creating apologetics topic:', err);
+    return res.status(500).json(buildErrorResponse('Server error creating topic', err));
+  }
+});
+
+router.patch('/apologetics/admin/topics/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid id' });
+    const incoming = req.body || {};
+    if (incoming.slug) {
+      incoming.slug = slugify(incoming.slug);
+    } else if (incoming.name) {
+      incoming.slug = slugify(incoming.name);
+    }
+    const updated = await storage.updateApologeticsTopic(id, incoming);
+    if (!updated) return res.status(404).json({ message: 'Topic not found' });
+    return res.json(updated);
+  } catch (err) {
+    console.error('Error updating apologetics topic:', err);
+    return res.status(500).json(buildErrorResponse('Server error updating topic', err));
+  }
+});
+
+router.delete('/apologetics/admin/topics/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid id' });
+    const deleted = await storage.deleteApologeticsTopic(id);
+    if (!deleted) return res.status(404).json({ message: 'Topic not found' });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting apologetics topic:', err);
+    return res.status(500).json(buildErrorResponse('Server error deleting topic', err));
+  }
+});
+
+// Simple admin UI (HTML) for managing apologetics resources.
+router.get('/apologetics/admin', requireAdmin, (_req, res) => {
+  const html = `<!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Apologetics Admin</title>
+      <style>
+        body { font-family: sans-serif; margin: 24px; }
+        form { display: grid; gap: 8px; max-width: 480px; margin-bottom: 24px; }
+        input, textarea, select { padding: 8px; font-size: 14px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+        th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
+        th { background: #f3f4f6; }
+        .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eef2ff; }
+        .actions button { margin-right: 8px; }
+        .muted { color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <h1>Apologetics Admin</h1>
+      <h2>Resources</h2>
+      <form id="create-form">
+        <input name="title" placeholder="Title" required />
+        <textarea name="description" placeholder="Description" rows="3" required></textarea>
+        <select name="type" required>
+          <option value="book">Book</option>
+          <option value="podcast">Podcast</option>
+          <option value="video">Video</option>
+          <option value="article">Article</option>
+          <option value="link">Link</option>
+        </select>
+        <input name="url" placeholder="URL (optional)" />
+        <input name="iconName" placeholder="Icon name (optional)" />
+        <button type="submit">Create</button>
+      </form>
+      <div id="status" class="muted"></div>
+      <table id="resources">
+        <thead><tr><th>ID</th><th>Title</th><th>Type</th><th>URL</th><th>Updated</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <h2>Topics</h2>
+      <form id="topic-form">
+        <input name="name" placeholder="Name" required />
+        <textarea name="description" placeholder="Description" rows="2" required></textarea>
+        <input name="iconName" placeholder="Icon name (emoji or class)" required />
+        <input name="slug" placeholder="Slug (optional, auto from name)" />
+        <button type="submit">Create Topic</button>
+      </form>
+      <table id="topics">
+        <thead><tr><th>ID</th><th>Name</th><th>Slug</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <script>
+        async function fetchResources() {
+          const res = await fetch('/apologetics/admin/resources');
+          const data = await res.json();
+          const tbody = document.querySelector('#resources tbody');
+          tbody.innerHTML = '';
+          data.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + r.id + '</td>' +
+              '<td>' + (r.title || '') + '<div class="muted">' + (r.description || '') + '</div></td>' +
+              '<td><span class="pill">' + r.type + '</span></td>' +
+              '<td>' + (r.url ? '<a href=\"' + r.url + '\" target=\"_blank\">Link</a>' : '') + '</td>' +
+              '<td>' + (r.createdAt || '') + '</td>' +
+              '<td class="actions">' +
+                '<button data-action="edit" data-id="' + r.id + '">Edit</button>' +
+                '<button data-action="delete" data-id="' + r.id + '">Delete</button>' +
+              '</td>';
+            tbody.appendChild(tr);
+          });
+        }
+
+        async function createResource(evt) {
+          evt.preventDefault();
+          const form = evt.target;
+          const payload = Object.fromEntries(new FormData(form).entries());
+          const res = await fetch('/apologetics/admin/resources', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const msg = await res.json().catch(() => ({}));
+            document.getElementById('status').textContent = 'Error: ' + (msg.message || res.statusText);
+          } else {
+            form.reset();
+            document.getElementById('status').textContent = 'Created.';
+            fetchResources();
+          }
+        }
+
+        document.getElementById('create-form').addEventListener('submit', createResource);
+
+        document.querySelector('#resources').addEventListener('click', async (evt) => {
+          const btn = evt.target.closest('button');
+          if (!btn) return;
+          const id = btn.getAttribute('data-id');
+          const action = btn.getAttribute('data-action');
+          if (action === 'delete') {
+            if (!confirm('Delete resource #' + id + '?')) return;
+            const res = await fetch('/apologetics/admin/resources/' + id, { method: 'DELETE' });
+            if (res.ok) { fetchResources(); }
+          } else if (action === 'edit') {
+            const title = prompt('New title (leave blank to keep current):');
+            const description = prompt('New description (leave blank to keep current):');
+            const type = prompt('Type (book,podcast,video,article,link) or blank to keep:');
+            const url = prompt('URL (blank to keep):');
+            const iconName = prompt('Icon name (blank to keep):');
+            const body = {};
+            if (title) body.title = title;
+            if (description) body.description = description;
+            if (type) body.type = type;
+            if (url) body.url = url;
+            if (iconName) body.iconName = iconName;
+            const res = await fetch('/apologetics/admin/resources/' + id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (res.ok) { fetchResources(); }
+          }
+        });
+
+        // Topics
+        async function fetchTopics() {
+          const res = await fetch('/apologetics/admin/topics');
+          const data = await res.json();
+          const tbody = document.querySelector('#topics tbody');
+          tbody.innerHTML = '';
+          data.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + t.id + '</td>' +
+              '<td>' + (t.name || '') + '<div class="muted">' + (t.description || '') + '</div></td>' +
+              '<td>' + (t.slug || '') + '</td>' +
+              '<td class="actions">' +
+                '<button data-action="edit-topic" data-id="' + t.id + '">Edit</button>' +
+                '<button data-action="delete-topic" data-id="' + t.id + '">Delete</button>' +
+              '</td>';
+            tbody.appendChild(tr);
+          });
+        }
+
+        async function createTopic(evt) {
+          evt.preventDefault();
+          const form = evt.target;
+          const payload = Object.fromEntries(new FormData(form).entries());
+          if (!payload.slug && payload.name) {
+            payload.slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+          }
+          const res = await fetch('/apologetics/admin/topics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const msg = await res.json().catch(() => ({}));
+            document.getElementById('status').textContent = 'Error: ' + (msg.message || res.statusText);
+          } else {
+            form.reset();
+            document.getElementById('status').textContent = 'Topic created.';
+            fetchTopics();
+          }
+        }
+
+        document.getElementById('topic-form').addEventListener('submit', createTopic);
+
+        document.querySelector('#topics').addEventListener('click', async (evt) => {
+          const btn = evt.target.closest('button');
+          if (!btn) return;
+          const id = btn.getAttribute('data-id');
+          const action = btn.getAttribute('data-action');
+          if (action === 'delete-topic') {
+            if (!confirm('Delete topic #' + id + '?')) return;
+            const res = await fetch('/apologetics/admin/topics/' + id, { method: 'DELETE' });
+            if (res.ok) { fetchTopics(); }
+          } else if (action === 'edit-topic') {
+            const name = prompt('New name (blank to keep):');
+            const description = prompt('New description (blank to keep):');
+            const iconName = prompt('Icon name (blank to keep):');
+            const slug = prompt('Slug (blank to keep):');
+            const body = {};
+            if (name) body.name = name;
+            if (description) body.description = description;
+            if (iconName) body.iconName = iconName;
+            if (slug) body.slug = slug;
+            const res = await fetch('/apologetics/admin/topics/' + id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (res.ok) { fetchTopics(); }
+          }
+        });
+
+        fetchResources();
+        fetchTopics();
+      </script>
+    </body>
+  </html>`;
+  return res.send(html);
 });
 
 export default router;
