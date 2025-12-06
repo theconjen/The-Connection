@@ -53,7 +53,8 @@
       "react": "19.2.0",
       "react-native-reanimated": "3.16.5",
       "expo": "~54.0.25",
-      "expo-modules-core": "3.0.26"
+      "expo-modules-core": "3.0.26",
+      "path-to-regexp": "<patched version>"
     }
   },
   "dependencies": {
