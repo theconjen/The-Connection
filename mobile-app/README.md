@@ -169,6 +169,14 @@ eas secret:create --scope project --name ENVIRONMENT --value production
 npx expo start
 ```
 
+### EAS Build Profiles
+- **package manager**: Builds run with `pnpm` (version pinned in `mobile-app/TheConnectionMobile/eas.json`) to match the local setup.
+- **production**: Release build for stores with `EXPO_PUBLIC_API_BASE` set to the production API.
+- **preview**: Internal distribution build that behaves like production (no Metro/dev server required) and uses the production API base.
+- **development**: Development client build for debugging; requires `npx expo start` to be running on the same network.
+
+Use `eas build --profile preview --platform ios|android` for testers so they don’t see the "Could not connect to development server" screen. Reserve the `development` profile for local debugging only.
+
 ### Production Build
 ```bash
 # iOS
