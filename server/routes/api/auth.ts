@@ -1,12 +1,13 @@
 import { Router } from 'express';
-import bcrypt from 'bcryptjs';
 import { storage } from '../../storage-optimized';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { sendEmail } from '../../email';
 import rateLimit from 'express-rate-limit';
 import { buildErrorResponse } from '../../utils/errors';
-import { setSessionUserId } from '../../utils/session';
+import { regenerateSession, saveSession, setSessionUserId } from '../../utils/session';
+import { hashPassword, verifyPassword } from '../../utils/passwords';
+import { logLogin, logLoginFailed } from '../../audit-logger';
 import { generateVerificationToken, hashToken, createAndSendVerification } from '../../lib/emailVerification';
 
 const router = Router();
@@ -100,37 +101,74 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: "Username and password are required" });
     }
     
-    // Find user by username
-    const user = await storage.getUserByUsername(username);
-    
+    // Find user by username (fall back to email for parity with legacy routes)
+    let user = await storage.getUserByUsername(username);
+    if (!user && username.includes('@')) {
+      user = await storage.getUserByEmail(username);
+    }
+
     if (!user) {
+      // Consume hashing time to reduce timing-based user enumeration
+      await hashPassword(password);
+      await logLoginFailed(username, 'User not found', req);
       return res.status(401).json({ message: "Invalid username or password" });
     }
-    
-    // Use bcrypt to compare password
-    const passwordMatches = await bcrypt.compare(password, user.password);
-    
-    if (!passwordMatches) {
+
+    const lockoutUntil = user.lockoutUntil ? new Date(user.lockoutUntil) : undefined;
+    if (lockoutUntil && lockoutUntil.getTime() > Date.now()) {
+      await logLoginFailed(username, 'Account locked', req);
+      return res.status(423).json({
+        message: 'Account locked due to repeated failed attempts. Please try again later.',
+        retryAfter: lockoutUntil.toISOString(),
+      });
+    }
+
+    const passwordCheck = await verifyPassword(password, user.password);
+
+    if (!passwordCheck.valid) {
+      const nextAttempts = (user.loginAttempts || 0) + 1;
+      const lockoutThreshold = 5;
+      const lockoutDurationMs = 15 * 60 * 1000; // 15 minutes
+
+      if (nextAttempts >= lockoutThreshold) {
+        const lockoutTime = new Date(Date.now() + lockoutDurationMs);
+        await storage.updateUser(user.id, { loginAttempts: 0, lockoutUntil: lockoutTime });
+        await logLoginFailed(username, 'Account locked after repeated failures', req);
+        return res.status(423).json({
+          message: 'Account locked due to too many failed login attempts. Please try again later.',
+          retryAfter: lockoutTime.toISOString(),
+        });
+      }
+
+      await storage.updateUser(user.id, { loginAttempts: nextAttempts });
+      await logLoginFailed(username, `Invalid password (attempt ${nextAttempts}/${lockoutThreshold})`, req);
       return res.status(401).json({ message: "Invalid username or password" });
     }
-    
+
+    if (passwordCheck.upgradedHash) {
+      await storage.updateUser(user.id, { password: passwordCheck.upgradedHash });
+    }
+
+    // Reset failed attempts on successful authentication
+    if (user.loginAttempts || user.lockoutUntil) {
+      await storage.updateUser(user.id, { loginAttempts: 0, lockoutUntil: null });
+    }
+
+    await regenerateSession(req);
+
     // Set user in session
     setSessionUserId(req, user.id);
     req.session.username = user.username;
     req.session.isAdmin = user.isAdmin || false;
-    
-    // Save session explicitly to ensure it's stored before responding
-    req.session.save(err => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).json(buildErrorResponse("Error saving session", err));
-      }
-      
-      // Return user data (excluding password)
-      const { password: _, ...userData } = user;
-      res.json(userData);
-    });
-    
+
+    await saveSession(req);
+
+    await logLogin(user.id, user.username, user.email, req);
+
+    // Return user data (excluding password)
+    const { password: _, ...userData } = user;
+    res.json(userData);
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json(buildErrorResponse("Server error during login", error));
@@ -141,13 +179,15 @@ router.post('/login', async (req, res) => {
 // Admins should use the regular login endpoint with their credentials
 
 // Logout endpoint
-router.post('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json(buildErrorResponse("Error logging out", err));
-    }
+router.post('/logout', async (req, res) => {
+  try {
+    await regenerateSession(req);
+    await saveSession(req);
     res.json({ message: "Logged out successfully" });
-  });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json(buildErrorResponse("Error logging out", error));
+  }
 });
 
 // Get current user endpoint

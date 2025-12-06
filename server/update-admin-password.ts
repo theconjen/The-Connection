@@ -1,5 +1,5 @@
 /**
- * Script to update the admin user password with bcrypt hashing
+ * Script to update the admin user password with Argon2 hashing
  *
  * SECURITY: Provide credentials via environment variables
  * Set ADMIN_USERNAME and NEW_ADMIN_PASSWORD before running this script
@@ -7,7 +7,7 @@
 import { db } from './db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from './utils/passwords';
 
 async function updateAdminPassword() {
   try {
@@ -32,8 +32,8 @@ async function updateAdminPassword() {
       process.exit(1);
     }
 
-    // Hash password using bcrypt (salt rounds: 12)
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Hash password using Argon2id
+    const hashedPassword = await hashPassword(password);
 
     // Update the user's password
     const result = await db.update(users)

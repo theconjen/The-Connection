@@ -77,7 +77,7 @@ The codebase uses feature flags defined in `/shared/features.ts`:
 - **Authentication**:
   - express-session with connect-pg-simple (PostgreSQL session store)
   - Passport.js for strategies
-  - bcryptjs for password hashing (12 salt rounds)
+  - Argon2id for password hashing (memory-hard configuration with legacy bcrypt upgrade support)
   - jsonwebtoken for JWTs
 - **Security**:
   - Helmet.js - Security headers
@@ -810,7 +810,7 @@ const { t } = useTranslation()
 - Uppercase + lowercase letters
 - Numbers
 - Special characters
-- Hashed with bcrypt (12 salt rounds)
+- Hashed with Argon2id (memory-hard, legacy bcrypt hashes upgraded on login)
 
 **Account Protection:**
 - Account lockout after 5 failed login attempts

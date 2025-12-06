@@ -71,6 +71,7 @@
     "@types/passport-local": "^1.0.38",
     "@vercel/node": "^5.5.7",
     "axios": "^1.13.2",
+    "argon2": "^0.41.1",
     "bcryptjs": "^3.0.3",
     "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",

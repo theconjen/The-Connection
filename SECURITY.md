@@ -9,7 +9,8 @@ This document outlines the security measures implemented in The Connection appli
 ### 1. Authentication & Authorization
 
 #### Password Security
-- **Bcrypt hashing**: All passwords are hashed using bcrypt with 12 salt rounds
+- **Argon2id hashing**: All new passwords are hashed with Argon2id (memory-hard configuration) and legacy bcrypt hashes are
+  automatically upgraded after the next successful login
 - **Strong password requirements**:
   - Minimum 12 characters
   - Must contain uppercase letters
@@ -21,6 +22,8 @@ This document outlines the security measures implemented in The Connection appli
 - **Account lockout**: After 5 failed login attempts, accounts are locked for 15 minutes
 - **Session management**: Sessions expire after 7 days
 - **Secure session storage**: Sessions stored in PostgreSQL (when USE_DB=true)
+- **Timing-safe failures**: Missing accounts still perform password hashing work to reduce username enumeration via response timing
+- **Login audit trail**: Successful and failed logins are captured for investigation and alerting
 
 #### Authentication Endpoints
 - **Rate limiting**:
@@ -114,6 +117,10 @@ CSRF protection is enabled via Lusca middleware on all state-changing operations
    COOKIE_SECURE=true
    ```
 
+3. **Pick an appropriate SameSite policy for session cookies**
+   - Default is `lax`, which protects against most CSRF attacks while allowing top-level navigations.
+   - Set `SESSION_SAMESITE=none` only when you must share cookies across domains (and only over HTTPS, since `secure` is forced on when `none` is used).
+
 3. **Use HTTPS**: Ensure your application is served over HTTPS in production
 
 4. **Database sessions**
@@ -164,9 +171,14 @@ The application automatically runs migrations on startup. The following security
    - Use the audit logger functions in `server/audit-logger.ts`
 
 5. **Error handling**
-   - Don't expose stack traces in production
-   - Use generic error messages for authentication failures
-   - Log detailed errors server-side for debugging
+  - Don't expose stack traces in production
+  - Use generic error messages for authentication failures
+  - Log detailed errors server-side for debugging
+  - Keep account lockouts and login failures flowing into the audit log for visibility
+
+6. **Session lifecycle hygiene**
+   - Session IDs are rotated on login and logout to mitigate fixation; avoid bypassing the provided helpers.
+   - Keep cookies `httpOnly` and prefer `SameSite=lax` unless cross-site embedding is required.
 
 ### For System Administrators
 

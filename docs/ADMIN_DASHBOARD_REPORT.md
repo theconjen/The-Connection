@@ -350,7 +350,7 @@ PUT    /api/admin/livestreamer-applications/:id     - Update livestreamer app (r
 ### Well Implemented:
 ✓ Admin middleware applied to all admin routes
 ✓ Admin status verified from session
-✓ Password hashing (bcrypt, 12 salt rounds)
+✓ Password hashing (Argon2id with legacy bcrypt upgrade path)
 ✓ Session-based authentication
 ✓ XSS protection via DOMPurify
 ✓ Audit logging for sensitive operations
