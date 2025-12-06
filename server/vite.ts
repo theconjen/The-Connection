@@ -15,7 +15,8 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
-  const webRoot = path.resolve(process.cwd(), "apps/web");
+  // The client app lives in /client, not /apps/web
+  const webRoot = path.resolve(process.cwd(), "client");
   const configFile = path.resolve(webRoot, "vite.config.ts");
 
   // Use `any` to avoid strict ServerOptions typing mismatches across vite versions
