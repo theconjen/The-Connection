@@ -89,7 +89,6 @@ class StorageSafety {
     'getGroupsByUserId', 'createGroup', 'addGroupMember', 'getGroupMembers',
     'isGroupAdmin', 'isGroupMember', 'getAllApologeticsResources',
     'getApologeticsResource', 'createApologeticsResource', 'getPublicPrayerRequests',
-    'updateApologeticsResource', 'deleteApologeticsResource',
     'getAllPrayerRequests', 'getPrayerRequest', 'getUserPrayerRequests',
     'getGroupPrayerRequests', 'getPrayerRequestsVisibleToUser', 'createPrayerRequest',
     'updatePrayerRequest', 'markPrayerRequestAsAnswered', 'deletePrayerRequest',
@@ -115,7 +114,7 @@ class StorageSafety {
     'getBibleStudyNotes', 'getBibleStudyNote', 'createBibleStudyNote',
     'updateBibleStudyNote', 'deleteBibleStudyNote', 'getDirectMessages', 'createDirectMessage',
     'getUserConversations', 'markMessageAsRead', 'markConversationAsRead', 'getUnreadMessageCount',
-    'updateUserPreferences', 'getUserPreferences', 'updateApologeticsTopic', 'deleteApologeticsTopic'
+    'updateUserPreferences', 'getUserPreferences'
   ]);
 
   static isMethodImplemented(methodName: string): boolean {
@@ -231,8 +230,6 @@ export interface IStorage {
   getAllApologeticsResources(): Promise<ApologeticsResource[]>;
   getApologeticsResource(id: number): Promise<ApologeticsResource | undefined>;
   createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource>;
-  updateApologeticsResource(id: number, data: Partial<InsertApologeticsResource>): Promise<ApologeticsResource | undefined>;
-  deleteApologeticsResource(id: number): Promise<boolean>;
   
   // Prayer Request methods
   getPublicPrayerRequests(): Promise<PrayerRequest[]>;
@@ -257,8 +254,6 @@ export interface IStorage {
   getApologeticsTopic(id: number): Promise<ApologeticsTopic | undefined>;
   getApologeticsTopicBySlug(slug: string): Promise<ApologeticsTopic | undefined>;
   createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic>;
-  updateApologeticsTopic(id: number, data: Partial<InsertApologeticsTopic>): Promise<ApologeticsTopic | undefined>;
-  deleteApologeticsTopic(id: number): Promise<boolean>;
   
   getAllApologeticsQuestions(filterByStatus?: string): Promise<ApologeticsQuestion[]>;
   getApologeticsQuestion(id: number): Promise<ApologeticsQuestion | undefined>;
@@ -1235,20 +1230,6 @@ export class MemStorage implements IStorage {
     return newResource;
   }
   
-  async updateApologeticsResource(id: number, data: Partial<InsertApologeticsResource>): Promise<ApologeticsResource | undefined> {
-    const idx = this.data.apologeticsResources.findIndex(r => r.id === id);
-    if (idx === -1) return undefined;
-    const updated = { ...this.data.apologeticsResources[idx], ...data };
-    this.data.apologeticsResources[idx] = updated;
-    return updated;
-  }
-  
-  async deleteApologeticsResource(id: number): Promise<boolean> {
-    const before = this.data.apologeticsResources.length;
-    this.data.apologeticsResources = this.data.apologeticsResources.filter(r => r.id !== id);
-    return this.data.apologeticsResources.length < before;
-  }
-  
   // Prayer request methods
   async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
     return this.data.prayerRequests
@@ -1408,20 +1389,6 @@ export class MemStorage implements IStorage {
     };
     this.data.apologeticsTopics.push(newTopic);
     return newTopic;
-  }
-  
-  async updateApologeticsTopic(id: number, data: Partial<InsertApologeticsTopic>): Promise<ApologeticsTopic | undefined> {
-    const idx = this.data.apologeticsTopics.findIndex(t => t.id === id);
-    if (idx === -1) return undefined;
-    const updated = { ...this.data.apologeticsTopics[idx], ...data };
-    this.data.apologeticsTopics[idx] = updated;
-    return updated;
-  }
-  
-  async deleteApologeticsTopic(id: number): Promise<boolean> {
-    const before = this.data.apologeticsTopics.length;
-    this.data.apologeticsTopics = this.data.apologeticsTopics.filter(t => t.id !== id);
-    return this.data.apologeticsTopics.length < before;
   }
   
   async getAllApologeticsQuestions(filterByStatus?: string): Promise<ApologeticsQuestion[]> {
@@ -2685,29 +2652,15 @@ export class DbStorage implements IStorage {
   
   // Apologetics resource methods
   async getAllApologeticsResources(): Promise<ApologeticsResource[]> {
-    return db.query.apologeticsResources.findMany();
+    return [];
   }
   
   async getApologeticsResource(id: number): Promise<ApologeticsResource | undefined> {
-    return db.query.apologeticsResources.findFirst({
-      where: eq(apologeticsResources.id, id)
-    });
+    return undefined;
   }
   
   async createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource> {
-    const [result] = await db.insert(apologeticsResources).values(resource).returning();
-    return result;
-  }
-  
-  async updateApologeticsResource(id: number, data: Partial<InsertApologeticsResource>): Promise<ApologeticsResource | undefined> {
-    const [result] = await db.update(apologeticsResources).set(data).where(eq(apologeticsResources.id, id)).returning();
-    return result;
-  }
-  
-  async deleteApologeticsResource(id: number): Promise<boolean> {
-    const result = await db.delete(apologeticsResources).where(eq(apologeticsResources.id, id));
-    // drizzle returns rows affected; fallback to true if not available
-    return (result as any)?.rowCount ? (result as any).rowCount > 0 : true;
+    throw new Error('Not implemented');
   }
   
   // Prayer request methods
@@ -2800,34 +2753,19 @@ export class DbStorage implements IStorage {
   
   // Apologetics Q&A methods
   async getAllApologeticsTopics(): Promise<ApologeticsTopic[]> {
-    return db.query.apologeticsTopics.findMany();
+    return [];
   }
   
   async getApologeticsTopic(id: number): Promise<ApologeticsTopic | undefined> {
-    return db.query.apologeticsTopics.findFirst({
-      where: eq(apologeticsTopics.id, id)
-    });
+    return undefined;
   }
   
   async getApologeticsTopicBySlug(slug: string): Promise<ApologeticsTopic | undefined> {
-    return db.query.apologeticsTopics.findFirst({
-      where: eq(apologeticsTopics.slug, slug)
-    });
+    return undefined;
   }
   
   async createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic> {
-    const [result] = await db.insert(apologeticsTopics).values(topic).returning();
-    return result;
-  }
-  
-  async updateApologeticsTopic(id: number, data: Partial<InsertApologeticsTopic>): Promise<ApologeticsTopic | undefined> {
-    const [result] = await db.update(apologeticsTopics).set(data).where(eq(apologeticsTopics.id, id)).returning();
-    return result;
-  }
-  
-  async deleteApologeticsTopic(id: number): Promise<boolean> {
-    const result = await db.delete(apologeticsTopics).where(eq(apologeticsTopics.id, id));
-    return (result as any)?.rowCount ? (result as any).rowCount > 0 : true;
+    throw new Error('Not implemented');
   }
   
   async getAllApologeticsQuestions(filterByStatus?: string): Promise<ApologeticsQuestion[]> {

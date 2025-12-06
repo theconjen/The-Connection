@@ -21,11 +21,7 @@ const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // send/receive session cookies for auth
 });
-
-// Ensure subsequent requests also send cookies
-apiClient.defaults.withCredentials = true;
 
 /**
  * Request interceptor to add auth token to requests

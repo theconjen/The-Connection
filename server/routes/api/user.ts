@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { isAuthenticated } from '../../auth';
 import { storage } from '../../storage-optimized';
 import { buildErrorResponse } from '../../utils/errors';
 import { getSessionUserId } from '../../utils/session';
-import { hashPassword, verifyPassword } from '../../utils/passwords';
 
 const router = Router();
 
@@ -291,13 +291,14 @@ router.post("/change-password", async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const passwordCheck = await verifyPassword(currentPassword, user.password);
-    if (!passwordCheck.valid) {
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
       return res.status(401).json({ message: 'Current password is incorrect' });
     }
 
     // Hash new password
-    const hashedPassword = await hashPassword(newPassword);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     // Update password
     await storage.updateUser(userId, { password: hashedPassword });

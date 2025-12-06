@@ -10,6 +10,10 @@ const external = [
   'lightningcss/*',
   'jsdom',
   'esbuild',
+  // Keep argon2 external so native bindings are required at runtime
+  'argon2',
+  // fsevents contains a native .node binary; avoid bundling it
+  'fsevents',
 ];
 
 await build({

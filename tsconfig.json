@@ -35,7 +35,7 @@
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
+    
     "downlevelIteration": true,
     "target": "ES2018",
     "moduleResolution": "bundler",
