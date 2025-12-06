@@ -54,7 +54,8 @@
       "react-native-reanimated": "3.16.5",
       "expo": "~54.0.25",
       "expo-modules-core": "3.0.26",
-      "path-to-regexp": "<patched version>"
+      "path-to-regexp": "<patched version>",
+      "node-jwks-rsa": "2.3.1"
     }
   },
   "dependencies": {
