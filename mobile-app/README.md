@@ -13,15 +13,15 @@ A React Native mobile application converted from the web version of The Connecti
 
 ### Installation
 
-1. **Install dependencies:**
+1. **Install dependencies for the new Expo app:**
 ```bash
-cd mobile-app/TheConnectionMobile
+cd mobile-app/TheConnectionMobile-new
 pnpm install
 ```
 
 2. **Start development server:**
 ```bash
-npx expo start
+pnpm exec expo start --clear
 ```
 
 3. **Run on devices:**
