@@ -2,20 +2,31 @@
   "cli": {
     "version": ">= 16.26.0"
   },
-  "build": {
-    "production": {
-      "node": "22.11.0",
-      "channel": "production",
-      "env": {
-        "EXPO_PUBLIC_API_BASE": "https://api.theconnection.app/api"
-      },
-      "ios": {
+    "build": {
+      "production": {
+        "node": "22.11.0",
+        "pnpm": "10.19.0",
+        "channel": "production",
+        "env": {
+          "EXPO_PUBLIC_API_BASE": "https://api.theconnection.app/api"
+        },
+        "ios": {
         "resourceClass": "m-medium"
       }
     },
     "preview": {
       "node": "22.11.0",
+      "pnpm": "10.19.0",
       "channel": "preview",
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://api.theconnection.app/api"
+      }
+    },
+    "development": {
+      "node": "22.11.0",
+      "pnpm": "10.19.0",
+      "channel": "development",
       "developmentClient": true
     }
   },

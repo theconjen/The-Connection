@@ -13,15 +13,15 @@ A React Native mobile application converted from the web version of The Connecti
 
 ### Installation
 
-1. **Install dependencies:**
+1. **Install dependencies for the new Expo app:**
 ```bash
-cd mobile-app/TheConnectionMobile
+cd mobile-app/TheConnectionMobile-new
 pnpm install
 ```
 
 2. **Start development server:**
 ```bash
-npx expo start
+pnpm exec expo start --clear
 ```
 
 3. **Run on devices:**
@@ -169,6 +169,20 @@ eas secret:create --scope project --name ENVIRONMENT --value production
 npx expo start
 ```
 
+### EAS Build Profiles
+- **Shared settings**: EAS CLI >= 16.26.0, Node 22.0.0, `pnpm` 10.16.1, and `EAS_PROJECT_ROOT=mobile-app/TheConnectionMobile` as defined in `eas.json`.
+- **production**: Release build for stores with `EXPO_PUBLIC_API_BASE=https://api.theconnection.app`.
+- **preview**: Internal distribution build that mirrors production (no Metro/dev server needed) with `EXPO_PUBLIC_API_BASE=https://api-preview.theconnection.app`.
+- **development**: Development client build for debugging with `EXPO_PUBLIC_API_BASE=http://localhost:3000/api`; requires `npx expo start` running on the same network.
+
+| Profile      | Distribution | Dev Client | API base                                | When to use                               |
+| ------------ | ------------ | ---------- | --------------------------------------- | ----------------------------------------- |
+| development  | internal     | ✅         | http://localhost:3000/api               | Local debugging with Metro running.       |
+| preview      | internal     | ❌         | https://api-preview.theconnection.app   | Testers who should not see Metro errors.  |
+| production   | store/adhoc  | ❌         | https://api.theconnection.app           | Submissions and release candidates.       |
+
+Use `eas build --profile preview --platform ios|android` for testers so they don’t see the "Could not connect to development server" screen. Reserve the `development` profile for local debugging only.
+
 ### Production Build
 ```bash
 # iOS
@@ -242,6 +256,17 @@ For major changes requiring new builds:
 2. **App Store Rejection**: Review guidelines and fix issues
 3. **Performance Issues**: Profile and optimize code
 4. **API Issues**: Verify backend connectivity
+5. **"Could not connect to development server" (red screen on launch)** happens when a **development client build** cannot reach Metro. Pick one of these fixes:
+   - **You want to debug in dev client:**
+     1. Start Metro in tunnel mode so phones off the LAN still reach it: `cd mobile-app/TheConnectionMobile && pnpm install && pnpm dlx expo start --dev-client --tunnel`.
+     2. Leave the QR/web tab open and reopen the app; if it still fails, force-close and reopen so it reconnects.
+     3. If you set `EXPO_PUBLIC_API_BASE=http://localhost:3000/api`, update `.env` to use your machine IP (e.g. `http://192.168.x.x:3000/api`) so devices can reach the API.
+   - **You just want to test without Metro:** install a build that already bundles the JS. Run `eas build --profile preview --platform ios|android`, install that build on the device, and the red screen should disappear because no dev server is required.
+   - **Metro will not start or keeps crashing:**
+     1. Stop all running Expo/Metro processes (close terminals or `pkill -f "expo|metro"`).
+     2. In `mobile-app/TheConnectionMobile`, clear caches and restart: `pnpm dlx expo start --clear --dev-client --tunnel`.
+     3. If port 8081 is occupied, free it (`lsof -i :8081` then kill the process) or set a different port: `EXPO_DEV_SERVER_PORT=8082 pnpm dlx expo start --dev-client --tunnel`.
+     4. If you changed networks, rerun with `--tunnel` so devices reconnect even when IPs change.
 
 ### Support Resources
 - Expo Documentation: https://docs.expo.dev
