@@ -1,17 +1,17 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../auth';
+import { requireAuth } from '../middleware/auth';
 import { db, sql } from '../db';
 import { users, posts, communities, events } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { buildErrorResponse } from '../utils/errors';
+import { requireSessionUserId } from '../utils/session';
 
 const router = Router();
 
 // DELETE /me - soft-delete account and owned content
-router.delete('/me', isAuthenticated, async (req: any, res) => {
+router.delete('/me', requireAuth, async (req: any, res) => {
   try {
-    const userId = req.session?.userId;
-    if (!userId) return res.status(401).json({ message: 'Not authenticated' });
+    const userId = requireSessionUserId(req);
 
     await db.transaction(async (tx) => {
       // Soft-delete the user

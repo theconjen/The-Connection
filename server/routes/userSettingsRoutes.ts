@@ -1,36 +1,18 @@
 import express from "express";
 import { storage } from "../storage";
 import { buildErrorResponse } from "../utils/errors";
-import { getSessionUserId } from "../utils/session";
-// Authentication middleware
-const isAuthenticated = (req: any, res: any, next: any) => {
-  if (!getSessionUserId(req)) {
-    return res.status(401).json({ message: "Not authenticated" });
-  }
-  next();
-};
+import { requireAuth } from "../middleware/auth";
+import { requireSessionUserId } from "../utils/session";
 
 const router = express.Router();
 
-const requireUserId = (req: any, res: any): number | undefined => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ message: "Not authenticated" });
-    return undefined;
-  }
-  return userId;
-};
-
 // Apply authentication middleware to all routes
-router.use(isAuthenticated);
+router.use(requireAuth);
 
 // Fetch user settings
 router.get("/settings", async (req, res) => {
   try {
-    const userId = requireUserId(req, res);
-    if (!userId) {
-      return;
-    }
+    const userId = requireSessionUserId(req);
     
     const user = await storage.getUser(userId);
     if (!user) {
@@ -49,10 +31,7 @@ router.get("/settings", async (req, res) => {
 // Update user settings
 router.put("/settings", async (req, res) => {
   try {
-    const userId = requireUserId(req, res);
-    if (!userId) {
-      return;
-    }
+    const userId = requireSessionUserId(req);
 
     const {
       displayName,

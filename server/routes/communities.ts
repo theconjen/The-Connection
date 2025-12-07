@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { insertCommunitySchema } from '@shared/schema';
-import { isAuthenticated } from '../auth';
+import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
-import { getSessionUserId } from '../utils/session';
+import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
@@ -71,9 +71,9 @@ router.get('/api/communities/:id/feed', async (req, res) => {
   }
 });
 
-router.post('/api/communities', isAuthenticated, async (req, res) => {
+router.post('/api/communities', requireAuth, async (req, res) => {
   try {
-    const userId = getSessionUserId(req)!;
+    const userId = requireSessionUserId(req);
     // Allow title/desc inputs; set defaults for required fields
     const { title, desc, name, description, iconName, iconColor } = req.body || {};
     const effectiveName = name || title;
@@ -104,10 +104,10 @@ router.post('/api/communities', isAuthenticated, async (req, res) => {
   }
 });
 
-router.delete('/api/communities/:id', isAuthenticated, async (req, res) => {
+router.delete('/api/communities/:id', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
-    const userId = getSessionUserId(req)!;
+    const userId = requireSessionUserId(req);
     if (!Number.isFinite(communityId)) return res.status(400).json({ message: 'invalid id' });
 
     const isOwner = await storage.isCommunityOwner(communityId, userId);

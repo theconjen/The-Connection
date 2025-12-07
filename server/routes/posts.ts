@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { insertPostSchema, insertCommentSchema } from '@shared/schema';
-import { isAuthenticated } from '../auth';
+import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
-import { getSessionUserId } from '../utils/session';
+import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { contentCreationLimiter, messageCreationLimiter } from '../rate-limiters';
 
@@ -39,9 +39,9 @@ router.get('/api/posts/:id', async (req, res) => {
 });
 
 // Accept { text, communityId? } and map to schema fields
-router.post('/api/posts', contentCreationLimiter, isAuthenticated, async (req, res) => {
+router.post('/api/posts', contentCreationLimiter, requireAuth, async (req, res) => {
   try {
-    const userId = getSessionUserId(req)!;
+    const userId = requireSessionUserId(req);
     const { text, communityId } = req.body || {};
     if (!text || typeof text !== 'string') return res.status(400).json({ message: 'text required' });
     const content = text.trim();
@@ -65,13 +65,10 @@ router.post('/api/posts', contentCreationLimiter, isAuthenticated, async (req, r
   }
 });
 
-router.post('/api/posts/:id/upvote', isAuthenticated, async (req, res) => {
+router.post('/api/posts/:id/upvote', requireAuth, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
-    const userId = getSessionUserId(req);
-    if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
+    const userId = requireSessionUserId(req);
     const user = await storage.getUser(userId);
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
@@ -95,9 +92,9 @@ router.get('/api/posts/:id/comments', async (req, res) => {
   }
 });
 
-router.post('/api/comments', messageCreationLimiter, isAuthenticated, async (req, res) => {
+router.post('/api/comments', messageCreationLimiter, requireAuth, async (req, res) => {
   try {
-    const userId = getSessionUserId(req)!;
+    const userId = requireSessionUserId(req);
     const validatedData = insertCommentSchema.parse({ ...req.body, authorId: userId });
     const comment = await storage.createComment(validatedData);
     res.status(201).json(comment);
@@ -107,13 +104,10 @@ router.post('/api/comments', messageCreationLimiter, isAuthenticated, async (req
   }
 });
 
-router.post('/api/comments/:id/upvote', isAuthenticated, async (req, res) => {
+router.post('/api/comments/:id/upvote', requireAuth, async (req, res) => {
   try {
     const commentId = parseInt(req.params.id);
-    const userId = getSessionUserId(req);
-    if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
+    const userId = requireSessionUserId(req);
     const result = await storage.toggleCommentVote(commentId, userId);
     res.json({ ...result.comment, userHasUpvoted: result.voted });
   } catch (error) {
@@ -123,12 +117,9 @@ router.post('/api/comments/:id/upvote', isAuthenticated, async (req, res) => {
 });
 
 // PATCH /api/posts/:id - Update own post
-router.patch('/api/posts/:id', isAuthenticated, async (req, res) => {
+router.patch('/api/posts/:id', requireAuth, async (req, res) => {
   try {
-    const userId = getSessionUserId(req);
-    if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
+    const userId = requireSessionUserId(req);
 
     const postId = parseInt(req.params.id);
     if (!Number.isFinite(postId)) {
@@ -167,12 +158,9 @@ router.patch('/api/posts/:id', isAuthenticated, async (req, res) => {
 });
 
 // DELETE /api/posts/:id - Delete own post
-router.delete('/api/posts/:id', isAuthenticated, async (req, res) => {
+router.delete('/api/posts/:id', requireAuth, async (req, res) => {
   try {
-    const userId = getSessionUserId(req);
-    if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
+    const userId = requireSessionUserId(req);
 
     const postId = parseInt(req.params.id);
     if (!Number.isFinite(postId)) {

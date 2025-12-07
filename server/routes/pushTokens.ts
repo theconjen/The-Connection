@@ -1,18 +1,17 @@
 import express from "express";
 import { storage } from "../storage";
-import { isAuthenticated } from "../auth";
+import { requireAuth } from "../middleware/auth";
 import { buildErrorResponse } from "../utils/errors";
-import { getSessionUserId } from "../utils/session";
+import { requireSessionUserId } from "../utils/session";
 
 const router = express.Router();
 
+router.use(requireAuth);
+
 // Register push token
-router.post("/register", isAuthenticated, async (req, res) => {
+router.post("/register", async (req, res) => {
   try {
-    const userId = getSessionUserId(req);
-    if (!userId) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
+    const userId = requireSessionUserId(req);
     const { token, platform } = req.body;
 
     if (!token) return res.status(400).json({ message: "Token required" });
@@ -41,10 +40,7 @@ let metrics = {
 async function handleUnregister(req: express.Request, res: express.Response) {
   try {
     const token = req.body?.token || req.query?.token;
-    const userId = getSessionUserId(req);
-    if (!userId) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
+    const userId = requireSessionUserId(req);
     metrics.unregisterAttempts++;
 
     if (!token) return res.status(400).json({ message: "Token required" });
@@ -65,7 +61,7 @@ async function handleUnregister(req: express.Request, res: express.Response) {
   }
 }
 
-router.delete("/unregister", isAuthenticated, handleUnregister);
-router.post("/unregister", isAuthenticated, handleUnregister);
+router.delete("/unregister", handleUnregister);
+router.post("/unregister", handleUnregister);
 
 export default router;

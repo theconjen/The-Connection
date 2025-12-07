@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { isAuthenticated } from '../../auth';
+import { requireAuth } from '../../middleware/auth';
 import { storage } from '../../storage-optimized';
 import { buildErrorResponse } from '../../utils/errors';
-import { getSessionUserId } from '../../utils/session';
+import { getSessionUserId, requireSessionUserId } from '../../utils/session';
 
 const router = Router();
 
@@ -25,22 +25,13 @@ const filterItemsByUserId = <T>(items: T[], userId: number): T[] =>
     return ownerId === userId;
   });
 
-const requireAuthedUserId = (req: Request, res: Response): number | undefined => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ message: 'Not authenticated' });
-    return undefined;
-  }
-  return userId;
-};
-
 // Apply authentication middleware to all routes in this file
-router.use(isAuthenticated);
+router.use(requireAuth);
 
 // Get current user's profile
 router.get('/profile', async (req, res, next) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
@@ -62,7 +53,7 @@ router.get('/profile', async (req, res, next) => {
 // Update user profile - supports both /profile and /:id endpoints
 router.patch('/profile', async (req, res, next) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
@@ -100,7 +91,7 @@ router.patch('/profile', async (req, res, next) => {
 // Alternative endpoint for updating user by ID (same functionality)
 router.patch('/:id', async (req, res, next) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
@@ -143,7 +134,7 @@ router.patch('/:id', async (req, res, next) => {
 // Get communities the user is a member of
 router.get('/communities', async (req, res, next) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
@@ -159,7 +150,7 @@ router.get('/communities', async (req, res, next) => {
 // Get user's prayer requests
 router.get('/prayer-requests', async (req, res, next) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
@@ -174,7 +165,7 @@ router.get('/prayer-requests', async (req, res, next) => {
 // Get user's feed posts
 router.get('/posts', async (req, res, next) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
@@ -190,7 +181,7 @@ router.get('/posts', async (req, res, next) => {
 // Get user's upcoming events (RSVPs)
 router.get('/events', async (req, res, next) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
@@ -206,7 +197,7 @@ router.get('/events', async (req, res, next) => {
 // User settings endpoints using your approach
 router.get("/settings", async (req, res) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
@@ -227,7 +218,7 @@ router.get("/settings", async (req, res) => {
 // Update user settings using your approach
 router.put("/settings", async (req, res) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
@@ -269,7 +260,7 @@ router.put("/settings", async (req, res) => {
 // Change password endpoint
 router.post("/change-password", async (req, res) => {
   try {
-    const userId = requireAuthedUserId(req, res);
+    const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
