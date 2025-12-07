@@ -6,6 +6,7 @@ import { MemStorage } from './storage';
 import { setSessionUserId } from './utils/session';
 import { createPostsRouter } from './routes/posts';
 import { createMicroblogsRouter } from './routes/microblogs';
+import { createChatMessagesRouter } from './routes/chatMessages';
 
 // Lightweight in-memory session (no PG) for test harness
 const app = express();
@@ -38,6 +39,7 @@ try {
   app.use('/api', createFeedRouter(testMemStorage));
   app.use('/api', createPostsRouter(testMemStorage as any));
   app.use('/api', createMicroblogsRouter(testMemStorage as any));
+  app.use('/api', createChatMessagesRouter(testMemStorage as any));
   ready = true;
 } catch (e) {
   console.error('Failed to register minimal routes in test-app:', e);
