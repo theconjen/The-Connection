@@ -6,4 +6,6 @@ import { getApiBase } from './config';
 
 export const API_BASE = getApiBase();
 
-console.log('[env.native] API_BASE:', API_BASE);
+if (__DEV__) {
+  console.log('[env.native] API_BASE:', API_BASE);
+}

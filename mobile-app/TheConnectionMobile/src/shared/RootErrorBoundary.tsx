@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, Button } from 'react-native';
+import { captureError } from './errorReporting';
 
 interface Props {
   children: ReactNode;
@@ -40,11 +41,12 @@ export class RootErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log the error to console
-    console.error('[ErrorBoundary] Caught error:', {
-      error: error.toString(),
-      errorInfo: errorInfo.componentStack,
-    });
+    if (__DEV__) {
+      console.error('[ErrorBoundary] Caught error:', {
+        error: error.toString(),
+        errorInfo: errorInfo.componentStack,
+      });
+    }
 
     // Update state with error details
     this.setState({
@@ -52,7 +54,10 @@ export class RootErrorBoundary extends Component<Props, State> {
       errorInfo,
     });
 
-    // TODO: Log to error reporting service (Sentry, etc.)
+    captureError(error, {
+      scope: 'ui.render',
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   handleReset = () => {
