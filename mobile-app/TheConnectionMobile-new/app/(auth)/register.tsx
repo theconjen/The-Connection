@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../src/contexts/auth-context';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors } from '../../src/shared/colors';
 import { Ionicons } from '@expo/vector-icons';
 
