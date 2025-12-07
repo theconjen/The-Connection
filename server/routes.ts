@@ -1441,6 +1441,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     try {
       const eventId = parseInt(req.params.id);
       const userId = getSessionUserId(req)!;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
       const { status } = req.body;
 
       // Validate RSVP status
@@ -1493,9 +1497,13 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(404).json({ message: 'Event not found' });
       }
 
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+
       // Check if user is organizer or admin (verify admin status from database)
       if (event.creatorId !== userId) {
-        const user = await storage.getUser(userId);
         if (!user?.isAdmin) {
           return res.status(403).json({
             message: 'Only the organizer or admin can delete this event'
