@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiUrl } from "../lib/env";
 import { apiRequest } from "../lib/queryClient";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
+import { Organization } from "@connection/shared/schema";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -106,28 +107,16 @@ export default function SettingsPage() {
     confirmPassword: "",
   });
 
-  const handleDeleteAccount = async () => {
-    if (!confirm('Are you sure you want to delete your account? This action will soft-delete your account and content.')) return;
-    setDeleting(true);
-    try {
-      const resp = await fetch(apiUrl('/api/me'), { method: 'DELETE', credentials: 'include' });
-      if (!resp.ok) throw new Error('Failed to delete account');
-      // Clear client auth state and cache
-      try {
-        localStorage.removeItem('currentUser');
-      } catch (e) {}
-      queryClient.setQueryData(['/api/user'], null);
-      queryClient.invalidateQueries();
-      toast({ title: 'Account deleted', description: 'Your account has been deleted.' });
-      // Navigate to login
-      logout?.();
-    } catch (err: any) {
-      console.error('Delete account error', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to delete account', variant: 'destructive' });
-    } finally {
-      setDeleting(false);
-    }
-  };
+  const { data: userOrganizations } = useQuery<{ organization: Organization; role: string; joinedAt: string; }[]>({
+    queryKey: ["/api/organizations"],
+    queryFn: async () => {
+      const response = await apiRequest("/api/organizations");
+      return response.json();
+    },
+    enabled: !!user,
+  });
+
+  const hasOrganizationAccess = (userOrganizations?.length ?? 0) > 0;
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
@@ -299,7 +288,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className={`grid w-full ${hasOrganizationAccess ? "grid-cols-5" : "grid-cols-4"}`}>
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="w-4 h-4" />
             Profile
@@ -316,10 +305,12 @@ export default function SettingsPage() {
             <Lock className="w-4 h-4" />
             Security
           </TabsTrigger>
-          <TabsTrigger value="organization" className="flex items-center gap-2">
-            <Building className="w-4 h-4" />
-            Church
-          </TabsTrigger>
+          {hasOrganizationAccess && (
+            <TabsTrigger value="organization" className="flex items-center gap-2">
+              <Building className="w-4 h-4" />
+              Church
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -627,32 +618,34 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="organization" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="w-5 h-5" />
-                Church Account
-              </CardTitle>
-              <CardDescription>
-                Manage your church or organization account
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center py-8">
-                <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Church Account</h3>
-                <p className="text-gray-600 mb-4">
-                  Create a church account to access advanced features like member management, 
-                  event planning, and premium tools.
-                </p>
-                <Button>
-                  Create Church Account
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {hasOrganizationAccess && (
+          <TabsContent value="organization" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="w-5 h-5" />
+                  Church Account
+                </CardTitle>
+                <CardDescription>
+                  Manage your church or organization account
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center py-8">
+                  <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Church Account</h3>
+                  <p className="text-gray-600 mb-4">
+                    Create a church account to access advanced features like member management,
+                    event planning, and premium tools.
+                  </p>
+                  <Button>
+                    Create Church Account
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
