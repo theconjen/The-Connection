@@ -6,11 +6,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authAPI, User, LoginCredentials, RegisterData } from '../lib/apiClient';
 import {
-  saveAuthToken,
   saveUserData,
   getAuthToken,
   getUserData,
-  clearAuthData
+  clearAuthData,
+  removeAuthToken
 } from '../lib/secureStorage';
 import { ensurePushTokenRegistered, unregisterStoredPushToken } from '../lib/pushNotifications';
 
@@ -55,11 +55,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
 
-      // Check if we have a stored token
+      // Check if we have a stored credential (JWT or persisted session cookie)
       const token = await getAuthToken();
       const storedUser = await getUserData();
 
-      if (token && storedUser) {
+      if ((token || storedUser) && storedUser) {
         // We have stored credentials, verify with server
         try {
           // Add timeout to prevent hanging indefinitely
@@ -99,16 +99,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const login = async (credentials: LoginCredentials) => {
     try {
-      // Note: The backend uses session-based auth, not JWT
-      // For mobile, we'll need to handle this differently
-      // For now, we'll call the login endpoint and get the user back
       const userData = await authAPI.login(credentials);
 
       // Save user data locally
       await saveUserData(userData);
-      // For session-based auth, we might need to save a session token
-      // or use cookies. For now, we'll save a placeholder token
-      await saveAuthToken('session-active');
+      // Session cookies are handled automatically; clear any stale bearer token
+      await removeAuthToken();
 
       setUser(userData);
     } catch (error: any) {
@@ -126,7 +122,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Save user data locally
       await saveUserData(userData);
-      await saveAuthToken('session-active');
+      await removeAuthToken();
 
       setUser(userData);
     } catch (error: any) {

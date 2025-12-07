@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'user_data';
+const SESSION_COOKIE_KEY = 'session_cookie';
 
 /**
  * Store auth token securely
@@ -56,6 +57,54 @@ export async function removeAuthToken(): Promise<void> {
   } catch (error) {
     console.error('Error removing auth token:', error);
     // Don't throw - continue gracefully to prevent crashes
+  }
+}
+
+/**
+ * Persist the raw Set-Cookie header so we can manually attach it on platforms
+ * where the fetch/XHR implementation does not manage cookies automatically
+ * (notably some React Native runtimes).
+ */
+export async function saveSessionCookie(cookie: string): Promise<void> {
+  try {
+    if (Platform.OS === 'web') {
+      await AsyncStorage.setItem(SESSION_COOKIE_KEY, cookie);
+    } else {
+      await SecureStore.setItemAsync(SESSION_COOKIE_KEY, cookie);
+    }
+  } catch (error) {
+    console.error('Error saving session cookie:', error);
+  }
+}
+
+/**
+ * Retrieve a previously stored Set-Cookie header value.
+ */
+export async function getSessionCookie(): Promise<string | null> {
+  try {
+    if (Platform.OS === 'web') {
+      return await AsyncStorage.getItem(SESSION_COOKIE_KEY);
+    } else {
+      return await SecureStore.getItemAsync(SESSION_COOKIE_KEY);
+    }
+  } catch (error) {
+    console.error('Error getting session cookie:', error);
+    return null;
+  }
+}
+
+/**
+ * Remove the persisted cookie value (e.g., on logout).
+ */
+export async function removeSessionCookie(): Promise<void> {
+  try {
+    if (Platform.OS === 'web') {
+      await AsyncStorage.removeItem(SESSION_COOKIE_KEY);
+    } else {
+      await SecureStore.deleteItemAsync(SESSION_COOKIE_KEY);
+    }
+  } catch (error) {
+    console.error('Error removing session cookie:', error);
   }
 }
 
@@ -117,5 +166,6 @@ export async function clearAuthData(): Promise<void> {
   await Promise.all([
     removeAuthToken(),
     removeUserData(),
+    removeSessionCookie(),
   ]);
 }
