@@ -3,7 +3,8 @@
  * Lists all communities with search, join/leave functionality
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import * as Location from 'expo-location';
 import {
   View,
   Text,
@@ -20,6 +21,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors } from '../../src/shared/colors';
+import {
+  LocationPermissionState,
+  defaultPermissionState,
+  formatPermissionStatus,
+  hasBackgroundPermission,
+  hasForegroundPermission,
+  loadLocationPermissionState,
+  openAppSettings,
+  requestBackgroundPermission,
+  requestForegroundPermission,
+} from '../../src/lib/locationPermissions';
 
 interface Community {
   id: number;
@@ -35,6 +47,53 @@ export default function CommunitiesScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
+  const [permissionState, setPermissionState] = useState<LocationPermissionState>(defaultPermissionState);
+  const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const state = await loadLocationPermissionState();
+      setPermissionState(state);
+    })();
+  }, []);
+
+  const requestForeground = useCallback(async () => {
+    setIsRequestingPermissions(true);
+    try {
+      const status = await requestForegroundPermission();
+      setPermissionState((prev) => ({ ...prev, foreground: status }));
+    } finally {
+      setIsRequestingPermissions(false);
+    }
+  }, []);
+
+  const requestBackground = useCallback(async () => {
+    setIsRequestingPermissions(true);
+    try {
+      if (!hasForegroundPermission(permissionState)) {
+        const foregroundStatus = await requestForegroundPermission();
+        setPermissionState((prev) => ({ ...prev, foreground: foregroundStatus }));
+
+        if (foregroundStatus !== Location.PermissionStatus.GRANTED) {
+          return;
+        }
+      }
+
+      const status = await requestBackgroundPermission();
+      setPermissionState((prev) => ({ ...prev, background: status }));
+    } finally {
+      setIsRequestingPermissions(false);
+    }
+  }, [permissionState]);
+
+  const openSettings = useCallback(async () => {
+    setIsRequestingPermissions(true);
+    try {
+      await openAppSettings();
+    } finally {
+      setIsRequestingPermissions(false);
+    }
+  }, []);
 
   // Fetch communities
   const { data: communities = [], isLoading, error, refetch } = useQuery({
@@ -117,6 +176,64 @@ export default function CommunitiesScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Communities</Text>
         <Text style={styles.subtitle}>Discover and join communities</Text>
+      </View>
+
+      <View style={styles.permissionCard}>
+        <View style={styles.permissionHeader}>
+          <Text style={styles.permissionTitle}>Location & background refresh</Text>
+          <Text style={styles.permissionSubtitle}>
+            Enable location so we can recommend nearby communities and keep them refreshed in the
+            background.
+          </Text>
+        </View>
+
+        <View style={styles.permissionStatusRow}>
+          <Text style={styles.permissionLabel}>Foreground</Text>
+          <Text style={styles.permissionValue}>{formatPermissionStatus(permissionState.foreground)}</Text>
+        </View>
+        <View style={styles.permissionStatusRow}>
+          <Text style={styles.permissionLabel}>Background</Text>
+          <Text style={styles.permissionValue}>{formatPermissionStatus(permissionState.background)}</Text>
+        </View>
+
+        <View style={styles.permissionActions}>
+          <TouchableOpacity
+            style={styles.permissionButton}
+            onPress={requestForeground}
+            disabled={isRequestingPermissions}
+          >
+            <Text style={styles.permissionButtonText}>Allow location</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.permissionButton, styles.permissionSecondaryButton]}
+            onPress={requestBackground}
+            disabled={isRequestingPermissions}
+          >
+            <Text style={[styles.permissionButtonText, styles.permissionSecondaryButtonText]}>
+              Enable background
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.permissionButton, styles.permissionSettingsButton]}
+            onPress={openSettings}
+            disabled={isRequestingPermissions}
+          >
+            <Text style={[styles.permissionButtonText, styles.permissionSettingsButtonText]}>Open settings</Text>
+          </TouchableOpacity>
+        </View>
+
+        {!hasBackgroundPermission(permissionState) && (
+          <Text style={styles.permissionHint}>
+            Background location lets us refresh nearby recommendations even when the app is not open.
+          </Text>
+        )}
+        {(permissionState.background === Location.PermissionStatus.DENIED ||
+          permissionState.foreground === Location.PermissionStatus.DENIED) && (
+          <Text style={styles.permissionHint}>
+            If permissions are blocked, use the settings button above to enable location access from your
+            device settings.
+          </Text>
+        )}
       </View>
 
       {/* Search Bar */}
@@ -237,6 +354,85 @@ const styles = StyleSheet.create({
   searchContainer: {
     padding: 16,
     backgroundColor: '#fff',
+  },
+  permissionCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  permissionHeader: {
+    marginBottom: 8,
+  },
+  permissionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  permissionSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  permissionStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  permissionLabel: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '600',
+  },
+  permissionValue: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  permissionActions: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
+  permissionButton: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  permissionSecondaryButton: {
+    marginLeft: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  permissionSettingsButton: {
+    marginLeft: 10,
+    backgroundColor: '#fff5f5',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  permissionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  permissionSecondaryButtonText: {
+    color: Colors.primary,
+  },
+  permissionSettingsButtonText: {
+    color: '#b91c1c',
+  },
+  permissionHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#6b7280',
+    lineHeight: 18,
   },
   searchInput: {
     backgroundColor: '#f3f4f6',

@@ -9,7 +9,33 @@ const searchSchema = z.object({
   zipCode: z.string().optional(),
   interests: z.array(z.string()).optional(),
   radius: z.number().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 });
+
+const toNumberOrUndefined = (value?: string | string[]) => {
+  if (value === undefined) return undefined;
+  const numeric = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(numeric);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const milesBetween = (pointA: { latitude: number; longitude: number }, pointB: { latitude: number; longitude: number }) => {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const earthRadiusMiles = 3958.8;
+
+  const dLat = toRad(pointB.latitude - pointA.latitude);
+  const dLon = toRad(pointB.longitude - pointA.longitude);
+
+  const lat1 = toRad(pointA.latitude);
+  const lat2 = toRad(pointB.latitude);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMiles * c;
+};
 
 /**
  * Handle searching for communities based on location and interests
@@ -24,7 +50,9 @@ export const handleLocationSearch = async (req: Request, res: Response) => {
       state: query.state as string,
       zipCode: query.zipCode as string,
       interests: query.interests ? (query.interests as string).split(',') : undefined,
-      radius: query.radius ? query.radius as string : undefined,
+      radius: toNumberOrUndefined(query.radius as string),
+      latitude: toNumberOrUndefined(query.latitude as string),
+      longitude: toNumberOrUndefined(query.longitude as string),
     });
     
     if (!validation.success) {
@@ -34,7 +62,7 @@ export const handleLocationSearch = async (req: Request, res: Response) => {
       });
     }
     
-    const { city, state, interests } = validation.data;
+    const { city, state, interests, latitude, longitude } = validation.data;
     
     // Get all communities
     const allCommunities = await storage.getAllCommunities();
@@ -55,6 +83,32 @@ export const handleLocationSearch = async (req: Request, res: Response) => {
         
         return true;
       });
+    }
+
+    // Geolocation-based filtering when coordinates are provided
+    if (latitude !== undefined && longitude !== undefined) {
+      const radius = validation.data.radius ?? 50; // miles
+      filteredCommunities = filteredCommunities
+        .map((community) => {
+          if (!community.latitude || !community.longitude) return { community, distance: Number.POSITIVE_INFINITY };
+
+          const communityLatitude = Number(community.latitude);
+          const communityLongitude = Number(community.longitude);
+
+          if (!Number.isFinite(communityLatitude) || !Number.isFinite(communityLongitude)) {
+            return { community, distance: Number.POSITIVE_INFINITY };
+          }
+
+          const distance = milesBetween(
+            { latitude, longitude },
+            { latitude: communityLatitude, longitude: communityLongitude }
+          );
+
+          return { community, distance };
+        })
+        .filter((entry) => entry.distance <= radius)
+        .sort((a, b) => a.distance - b.distance)
+        .map((entry) => ({ ...entry.community, distance: entry.distance } as any));
     }
     
     // Filter by interests if provided
@@ -79,7 +133,9 @@ export const handleLocationSearch = async (req: Request, res: Response) => {
       filters: {
         city,
         state,
-        interests
+        interests,
+        latitude,
+        longitude
       }
     });
   } catch (error) {

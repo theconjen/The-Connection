@@ -1,3 +1,4 @@
+import type React from "react";
 import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -41,6 +42,7 @@ import { insertCommunityObjectSchema, type InsertCommunity } from "@connection/s
 import { IconPicker } from "../components/ui/icon-picker";
 import { ColorPicker } from "../components/ui/color-picker";
 import type { Community } from '@connection/shared/mobile-web/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 
 
 // Community form schema with frontend validation
@@ -62,6 +64,16 @@ const createCommunitySchema = z.object({
 
 type CreateCommunityFormInput = z.input<typeof createCommunitySchema>;
 type CreateCommunityForm = z.output<typeof createCommunitySchema>;
+
+type GenderFilter = "any" | "women" | "men" | "coed";
+type AgeGroupFilter = "all" | "youth" | "college" | "young-adults" | "parents" | "seniors";
+
+type CommunityWithMeta = Community & {
+  distance?: number;
+  genderType?: GenderFilter;
+  ageGroups?: string[];
+  lifeStageTags?: string[];
+};
 
 export default function CommunitiesPage() {
   const [, navigate] = useLocation();
@@ -100,17 +112,65 @@ export default function CommunitiesPage() {
   });
   
   // Fetch communities with search support
-  const { data: communities, isLoading, error } = useQuery<Community[]>({
-    queryKey: ['/api/communities', debouncedSearchQuery],
+  const { data: communities, isLoading, error } = useQuery<CommunityWithMeta[]>({
+    queryKey: ['/api/communities', debouncedSearchQuery, userCoords?.latitude, userCoords?.longitude, filterState.distance],
     queryFn: async () => {
       const searchParam = debouncedSearchQuery ? `?search=${encodeURIComponent(debouncedSearchQuery)}` : '';
-      const response = await fetch(`/api/communities${searchParam}`);
+
+      if (debouncedSearchQuery) {
+        const response = await fetch(`/api/communities${searchParam}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch communities');
+        }
+        return response.json();
+      }
+
+      if (userCoords) {
+        const params = new URLSearchParams({
+          latitude: userCoords.latitude.toString(),
+          longitude: userCoords.longitude.toString(),
+          radius: filterState.distance.toString(),
+        });
+        const response = await fetch(`/api/search/communities?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch communities');
+        }
+        const payload = await response.json();
+        return payload.results ?? payload;
+      }
+
+      const response = await fetch(`/api/communities`);
       if (!response.ok) {
         throw new Error('Failed to fetch communities');
       }
       return response.json();
     },
   });
+
+  useEffect(() => {
+    if (!("geolocation" in navigator) || userCoords || locationStatus === "denied") return;
+
+    setLocationStatus("prompting");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserCoords({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setLocationStatus("granted");
+      },
+      (err) => {
+        console.error("Geolocation error", err);
+        setLocationStatus("denied");
+        toast({
+          title: "Location needed for nearby results",
+          description: "We couldn't access your location. You can retry or continue browsing globally.",
+          variant: "destructive",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  }, [toast, userCoords, locationStatus]);
   
   // Create community mutation
   const createMutation = useMutation({
@@ -392,8 +452,58 @@ export default function CommunitiesPage() {
       results = results.filter((community) => community.isPrivate);
     }
 
+    if (debouncedSearchQuery) {
+      const query = debouncedSearchQuery.toLowerCase();
+      results = results.filter((community) =>
+        community.name.toLowerCase().includes(query) ||
+        community.description?.toLowerCase().includes(query) ||
+        community.interestTags?.some((tag) => tag.toLowerCase().includes(query))
+      );
+    }
+
+    if (filterState.gender !== "any") {
+      results = results.filter((community) => {
+        const genderTag = (community as CommunityWithMeta).genderType || community.interestTags?.find((tag) => ["women", "men", "coed"].includes(tag.toLowerCase()));
+        if (!genderTag) return filterState.gender === "coed"; // default to co-ed when no tag
+        return genderTag.toLowerCase() === filterState.gender;
+      });
+    }
+
+    if (filterState.ageGroup !== "all") {
+      const ageTagMap: Record<AgeGroupFilter, string[]> = {
+        all: [],
+        youth: ["youth", "teen", "highschool"],
+        college: ["college", "campus", "university"],
+        "young-adults": ["young-adults", "young-professionals"],
+        parents: ["parents", "families", "family"],
+        seniors: ["seniors", "55+", "retirees", "empty-nesters"],
+      };
+
+      results = results.filter((community) => {
+        if (!community.interestTags || community.interestTags.length === 0) return false;
+        const normalizedTags = community.interestTags.map((tag) => tag.toLowerCase());
+        return ageTagMap[filterState.ageGroup].some((tag) => normalizedTags.includes(tag));
+      });
+    }
+
+    if (filterState.familyFriendly) {
+      results = results.filter((community) => community.interestTags?.some((tag) => ["family", "families", "parents", "kids"].includes(tag.toLowerCase())));
+    }
+
+    if (filterState.prayerFocused) {
+      results = results.filter((community) => community.interestTags?.some((tag) => ["prayer", "worship", "devotional"].includes(tag.toLowerCase())));
+    }
+
+    if (filterState.distance && filterState.distance > 0) {
+      results = results.filter((community) => {
+        const distance = (community as CommunityWithMeta).distance;
+        if (distance === undefined) return true;
+        return distance <= filterState.distance;
+      });
+    }
+
     return results;
-  }, [communities, activeFilter]);
+  }, [communities, activeFilter, debouncedSearchQuery, filterState]);
 
   return (
     <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950">
@@ -702,6 +812,117 @@ export default function CommunitiesPage() {
                   Sign in to create your own
                 </Button>
               )}
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-sm">Distance</Label>
+                <Select
+                  value={filterState.distance.toString()}
+                  onValueChange={(value) => setFilterState((prev) => ({ ...prev, distance: Number(value) }))}
+                >
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-100 dark:bg-slate-800">
+                    <SelectValue placeholder="Select distance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[5, 10, 25, 50, 100].map((miles) => (
+                      <SelectItem key={miles} value={miles.toString()}>{miles} miles</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Defaulting to nearby communities when you share your location.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-sm">Group type</Label>
+                <Select
+                  value={filterState.gender}
+                  onValueChange={(value: GenderFilter) => setFilterState((prev) => ({ ...prev, gender: value }))}
+                >
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-100 dark:bg-slate-800">
+                    <SelectValue placeholder="All groups" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">All</SelectItem>
+                    <SelectItem value="women">Women-only</SelectItem>
+                    <SelectItem value="men">Men-only</SelectItem>
+                    <SelectItem value="coed">Co-ed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Filter by men, women, or co-ed gatherings.</p>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-sm">Age or life stage</Label>
+                <Select
+                  value={filterState.ageGroup}
+                  onValueChange={(value: AgeGroupFilter) => setFilterState((prev) => ({ ...prev, ageGroup: value }))}
+                >
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-100 dark:bg-slate-800">
+                    <SelectValue placeholder="All ages" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="youth">Youth / Teens</SelectItem>
+                    <SelectItem value="college">College</SelectItem>
+                    <SelectItem value="young-adults">Young adults</SelectItem>
+                    <SelectItem value="parents">Parents & families</SelectItem>
+                    <SelectItem value="seniors">Seniors</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Christian community staples like youth, college, parents, or seniors.</p>
+              </div>
+
+              <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={filterState.familyFriendly ? "default" : "outline"}
+                    className="rounded-full"
+                    onClick={() => setFilterState((prev) => ({ ...prev, familyFriendly: !prev.familyFriendly }))}
+                  >
+                    Family-friendly
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={filterState.prayerFocused ? "default" : "outline"}
+                    className="rounded-full"
+                    onClick={() => setFilterState((prev) => ({ ...prev, prayerFocused: !prev.prayerFocused }))}
+                  >
+                    Prayer & worship focused
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="rounded-full"
+                    onClick={() => setFilterState({ distance: 25, gender: "any", ageGroup: "all", familyFriendly: false, prayerFocused: false })}
+                  >
+                    Reset filters
+                  </Button>
+                </div>
+                {locationStatus === "denied" && (
+                  <div className="text-xs text-amber-600 dark:text-amber-300">
+                    Location access denied. Enable permissions to see nearby recommendations.
+                  </div>
+                )}
+                {locationStatus === "prompting" && (
+                  <div className="text-xs text-muted-foreground">Requesting location to personalize results…</div>
+                )}
+                {locationStatus === "idle" && (
+                  <div className="text-xs text-muted-foreground">Share your location to jump straight to nearby Christian communities.</div>
+                )}
+                {locationStatus === "denied" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => setLocationStatus("idle")}
+                  >
+                    Retry location
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
