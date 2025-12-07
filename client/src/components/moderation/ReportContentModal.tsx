@@ -44,7 +44,7 @@ export function ReportContentModal({
 
     setIsSubmitting(true);
     try {
-        const response = await fetch(apiUrl('/api/moderation/report'), {
+      const response = await fetch(apiUrl('/api/reports'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

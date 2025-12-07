@@ -157,7 +157,7 @@ POST /api/admin/apologist-scholar-applications/:id/review
 #### Status: PARTIALLY IMPLEMENTED
 
 #### Implemented Features:
-- Fetch reports from `/api/moderation/admin/reports`
+- Fetch reports from `/api/admin/reports` (legacy `/api/moderation/admin/reports` now redirects here)
 - Filter by status (pending/resolved/dismissed)
 - Review modal for taking action
 - Submit review with status and notes
@@ -165,8 +165,8 @@ POST /api/admin/apologist-scholar-applications/:id/review
 
 #### Backend Endpoints Used (Need Verification):
 ```
-GET  /api/moderation/admin/reports?status=:status&limit=50
-PATCH /api/moderation/admin/reports/:id
+GET  /api/admin/reports?status=:status&limit=50
+PATCH /api/admin/reports/:id
 ```
 
 #### Features:
@@ -326,8 +326,8 @@ DELETE /api/admin/users/:id                          - Delete user
 ```
 GET    /api/admin/apologist-scholar-applications    - List apologist apps
 POST   /api/admin/apologist-scholar-applications/:id/review - Review apologist app
-GET    /api/moderation/admin/reports                - Get content reports
-PATCH  /api/moderation/admin/reports/:id            - Update report status
+GET    /api/admin/reports                - Get content reports
+PATCH  /api/admin/reports/:id            - Update report status
 POST   /api/test-email                              - Test email delivery
 PUT    /api/admin/livestreamer-applications/:id     - Update livestreamer app (redundant?)
 ```

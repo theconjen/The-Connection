@@ -4,6 +4,7 @@ import { isAuthenticated } from '../auth';
 import { storage } from '../storage-optimized';
 import { buildErrorResponse } from '../utils/errors';
 import { getSessionUserId } from '../utils/session';
+import { moderationReportLimiter } from '../rate-limiters';
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ const requireUserId = (req: Request, res: Response): number | undefined => {
 };
 
 // POST /reports - report content
-router.post('/reports', isAuthenticated, async (req: Request, res) => {
+router.post('/reports', moderationReportLimiter, isAuthenticated, async (req: Request, res) => {
   try {
     const reporterId = requireUserId(req, res);
     if (!reporterId) {

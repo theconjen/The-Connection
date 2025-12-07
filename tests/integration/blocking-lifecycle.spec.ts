@@ -101,24 +101,16 @@ describe('User block lifecycle', () => {
     expect(afterList.body).toEqual([]);
   });
 
-  it('supports unblocking through the moderation alias', async () => {
+  it('redirects legacy moderation aliases to canonical safety endpoints', async () => {
     await loginAs(1);
 
-    fixtures.blocks.push({
-      id: fixtures.nextId++,
-      blockerId: 1,
-      blockedId: 2,
-      reason: null,
-      createdAt: new Date(),
-    });
+    const preModerationList = await agent.get('/api/moderation/blocked-users');
+    expect(preModerationList.status).toBe(307);
+    expect(preModerationList.headers.location).toBe('/api/blocked-users');
+    expect(preModerationList.headers.deprecation).toBe('true');
 
-    const preModerationList = await agent.get('/api/moderation/blocked-users').expect(200);
-    expect(preModerationList.body).toHaveLength(1);
-
-    await agent.delete('/api/moderation/block/2').expect(200);
-    expect(fixtures.blocks).toHaveLength(0);
-
-    const postModerationList = await agent.get('/api/moderation/blocked-users').expect(200);
-    expect(postModerationList.body).toEqual([]);
+    const unblockRedirect = await agent.delete('/api/moderation/block/2');
+    expect(unblockRedirect.status).toBe(307);
+    expect(unblockRedirect.headers.location).toBe('/api/blocks/2');
   });
 });
