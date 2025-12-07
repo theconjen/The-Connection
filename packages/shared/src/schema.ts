@@ -469,6 +469,18 @@ export const insertApologeticsTopicSchema = createInsertSchema(apologeticsTopics
   slug: true,
 } as any);
 
+export const apologeticsAnswererPermissions = pgTable("apologetics_answerer_permissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  topicId: integer("topic_id").references(() => apologeticsTopics.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any);
+
+export const insertApologeticsAnswererPermissionSchema = createInsertSchema(apologeticsAnswererPermissions).pick({
+  userId: true,
+  topicId: true,
+} as any);
+
 export const apologeticsQuestions = pgTable("apologetics_questions", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -476,6 +488,7 @@ export const apologeticsQuestions = pgTable("apologetics_questions", {
   authorId: integer("author_id").references(() => users.id).notNull(),
   topicId: integer("topic_id").references(() => apologeticsTopics.id).notNull(),
   status: text("status").notNull().default("open"), // open, answered, closed
+  requiresVerifiedAnswerer: boolean("requires_verified_answerer").notNull().default(false),
   answerCount: integer("answer_count").default(0),
   viewCount: integer("view_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
@@ -487,6 +500,7 @@ export const insertApologeticsQuestionSchema = createInsertSchema(apologeticsQue
   authorId: true,
   topicId: true,
   status: true,
+  requiresVerifiedAnswerer: true,
 } as any);
 
 export const apologeticsAnswers = pgTable("apologetics_answers", {
@@ -537,6 +551,9 @@ export type ApologeticsQuestion = typeof apologeticsQuestions.$inferSelect;
 
 export type InsertApologeticsAnswer = typeof apologeticsAnswers.$inferInsert;
 export type ApologeticsAnswer = typeof apologeticsAnswers.$inferSelect;
+
+export type InsertApologeticsAnswererPermission = typeof apologeticsAnswererPermissions.$inferInsert;
+export type ApologeticsAnswererPermission = typeof apologeticsAnswererPermissions.$inferSelect;
 
 // Livestreams table schema
 export const livestreams = pgTable("livestreams", {

@@ -517,9 +517,9 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
     });
 
-    app.get('/api/users/verified-apologetics-answerers', isAuthenticated, async (req, res) => {
+    app.get('/api/users/verified-apologetics-answerers', async (req, res) => {
       try {
-        const viewerId = getSessionUserId(req)!;
+        const viewerId = getSessionUserId(req);
         const viewerIsAdmin = req.session?.isAdmin === true;
         const users = await storage.getAllUsers();
         const verifiedAnswerers = users.filter(user => user.isVerifiedApologeticsAnswerer);
@@ -1565,13 +1565,18 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/apologetics/questions', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
   const userId = getSessionUserId(req)!;
-      const { topicId, title, content } = req.body;
+      const { topicId, title, content, requiresVerifiedAnswerer } = req.body;
+
+      const user = await storage.getUser(userId);
+      const expertOnly = !!requiresVerifiedAnswerer && (user?.isAdmin || user?.isVerifiedApologeticsAnswerer);
 
       const question = await storage.createApologeticsQuestion({
         topicId: topicId,
         title: title,
         content: content,
-        askedBy: userId
+        askedBy: userId,
+        authorId: userId,
+        requiresVerifiedAnswerer: expertOnly
       });
 
       res.status(201).json(question);
@@ -1583,19 +1588,35 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/apologetics/answers', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+      const userId = getSessionUserId(req)!;
       const { questionId, content } = req.body;
 
-      // Check if user is verified to answer apologetics questions
+      const question = await storage.getApologeticsQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ message: 'Question not found' });
+      }
+
       const user = await storage.getUser(userId);
-      if (!user?.isVerifiedApologeticsAnswerer && !user?.isAdmin) {
-        return res.status(403).json({ message: 'Only verified apologetics answerers can submit answers' });
+      const requiresVerified = Boolean((question as any).requiresVerifiedAnswerer);
+      const allowedTopicIds = await storage.getApologeticsAnswererPermissions(userId);
+
+      if (requiresVerified && !user?.isVerifiedApologeticsAnswerer && !user?.isAdmin) {
+        return res.status(403).json({ message: 'This question requires a verified apologist to answer' });
+      }
+
+      if (user?.isVerifiedApologeticsAnswerer && !user?.isAdmin) {
+        const topicId = (question as any).topicId as number | undefined;
+        if (allowedTopicIds.length > 0 && topicId && !allowedTopicIds.includes(topicId)) {
+          return res.status(403).json({ message: 'You are not permitted to answer questions for this topic' });
+        }
       }
 
       const answer = await storage.createApologeticsAnswer({
         questionId: questionId,
         content: content,
-        answeredBy: userId
+        answeredBy: userId,
+        authorId: userId,
+        isVerifiedAnswer: user?.isVerifiedApologeticsAnswerer || user?.isAdmin || false
       });
 
       res.status(201).json(answer);
@@ -1786,6 +1807,69 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     } catch (error) {
       console.error('Error creating apologist scholar application:', error);
       res.status(500).json(buildErrorResponse('Error creating apologist scholar application', error));
+    }
+  });
+
+  app.get('/api/admin/apologetics/answerers/:userId', isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId, 10);
+      if (!Number.isFinite(userId)) {
+        return res.status(400).json({ message: 'Invalid user id' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const topicIds = await storage.getApologeticsAnswererPermissions(userId);
+      return res.json({ userId, isVerified: !!user.isVerifiedApologeticsAnswerer, topicIds });
+    } catch (error) {
+      console.error('Error fetching apologist permissions:', error);
+      res.status(500).json(buildErrorResponse('Error fetching apologist permissions', error));
+    }
+  });
+
+  app.post('/api/admin/apologetics/answerers/:userId', isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId, 10);
+      if (!Number.isFinite(userId)) {
+        return res.status(400).json({ message: 'Invalid user id' });
+      }
+
+      const { isVerified, topicIds } = req.body || {};
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      if (typeof isVerified === 'boolean') {
+        await storage.setVerifiedApologeticsAnswerer(userId, isVerified);
+      }
+
+      if (topicIds !== undefined && !Array.isArray(topicIds)) {
+        return res.status(400).json({ message: 'topicIds must be an array of topic ids' });
+      }
+
+      if (Array.isArray(topicIds)) {
+        const normalizedTopicIds = Array.from(new Set(topicIds.map((id: any) => Number(id)).filter(Number.isFinite)));
+        if (normalizedTopicIds.length > 0) {
+          const validTopicIds = new Set((await storage.getAllApologeticsTopics()).map(t => t.id));
+          const missingTopics = normalizedTopicIds.filter(id => !validTopicIds.has(id));
+          if (missingTopics.length > 0) {
+            return res.status(400).json({ message: `Unknown topic ids: ${missingTopics.join(', ')}` });
+          }
+        }
+
+        await storage.setApologeticsAnswererPermissions(userId, normalizedTopicIds);
+      }
+
+      const updatedUser = await storage.getUser(userId);
+      const updatedTopics = await storage.getApologeticsAnswererPermissions(userId);
+      return res.json({ userId, isVerified: !!updatedUser?.isVerifiedApologeticsAnswerer, topicIds: updatedTopics });
+    } catch (error) {
+      console.error('Error updating apologist permissions:', error);
+      res.status(500).json(buildErrorResponse('Error updating apologist permissions', error));
     }
   });
 
