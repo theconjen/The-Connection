@@ -2698,18 +2698,27 @@ export class DbStorage implements IStorage {
   async isGroupMember(groupId: number, userId: number): Promise<boolean> {
     return false;
   }
-  
+
   // Apologetics resource methods
   async getAllApologeticsResources(): Promise<ApologeticsResource[]> {
-    return [];
+    return await db
+      .select()
+      .from(apologeticsResources)
+      .orderBy(desc(apologeticsResources.createdAt));
   }
-  
+
   async getApologeticsResource(id: number): Promise<ApologeticsResource | undefined> {
-    return undefined;
+    const [resource] = await db
+      .select()
+      .from(apologeticsResources)
+      .where(eq(apologeticsResources.id, id));
+
+    return resource;
   }
-  
+
   async createApologeticsResource(resource: InsertApologeticsResource): Promise<ApologeticsResource> {
-    throw new Error('Not implemented');
+    const [created] = await db.insert(apologeticsResources).values(resource).returning();
+    return created;
   }
   
   // Prayer request methods
@@ -2799,42 +2808,79 @@ export class DbStorage implements IStorage {
   async getUserPrayedRequests(userId: number): Promise<number[]> {
     return [];
   }
-  
+
   // Apologetics Q&A methods
   async getAllApologeticsTopics(): Promise<ApologeticsTopic[]> {
-    return [];
+    return await db
+      .select()
+      .from(apologeticsTopics)
+      .orderBy(desc(apologeticsTopics.createdAt));
   }
-  
+
   async getApologeticsTopic(id: number): Promise<ApologeticsTopic | undefined> {
-    return undefined;
+    const [topic] = await db
+      .select()
+      .from(apologeticsTopics)
+      .where(eq(apologeticsTopics.id, id));
+
+    return topic;
   }
-  
+
   async getApologeticsTopicBySlug(slug: string): Promise<ApologeticsTopic | undefined> {
-    return undefined;
+    const [topic] = await db
+      .select()
+      .from(apologeticsTopics)
+      .where(eq(apologeticsTopics.slug, slug));
+
+    return topic;
   }
-  
+
   async createApologeticsTopic(topic: InsertApologeticsTopic): Promise<ApologeticsTopic> {
-    throw new Error('Not implemented');
+    const [created] = await db.insert(apologeticsTopics).values(topic).returning();
+    return created;
   }
-  
+
   async getAllApologeticsQuestions(filterByStatus?: string): Promise<ApologeticsQuestion[]> {
-    return [];
+    let query = db.select().from(apologeticsQuestions);
+
+    if (filterByStatus) {
+      query = query.where(eq(apologeticsQuestions.status, filterByStatus));
+    }
+
+    return await query.orderBy(desc(apologeticsQuestions.createdAt));
   }
-  
+
   async getApologeticsQuestion(id: number): Promise<ApologeticsQuestion | undefined> {
-    return undefined;
+    const [question] = await db
+      .select()
+      .from(apologeticsQuestions)
+      .where(eq(apologeticsQuestions.id, id));
+
+    return question;
   }
-  
+
   async getApologeticsQuestionsByTopic(topicId: number): Promise<ApologeticsQuestion[]> {
-    return [];
+    return await db
+      .select()
+      .from(apologeticsQuestions)
+      .where(eq(apologeticsQuestions.topicId, topicId))
+      .orderBy(desc(apologeticsQuestions.createdAt));
   }
-  
+
   async createApologeticsQuestion(question: InsertApologeticsQuestion): Promise<ApologeticsQuestion> {
-    throw new Error('Not implemented');
+    const [created] = await db.insert(apologeticsQuestions).values(question).returning();
+    return created;
   }
-  
+
   async updateApologeticsQuestionStatus(id: number, status: string): Promise<ApologeticsQuestion> {
-    throw new Error('Not implemented');
+    const [updated] = await db
+      .update(apologeticsQuestions)
+      .set({ status })
+      .where(eq(apologeticsQuestions.id, id))
+      .returning();
+
+    if (!updated) throw new Error('Question not found');
+    return updated;
   }
 
   async searchApologeticsQuestions(searchTerm: string): Promise<ApologeticsQuestion[]> {
@@ -2848,11 +2894,16 @@ export class DbStorage implements IStorage {
   }
 
   async getApologeticsAnswersByQuestion(questionId: number): Promise<ApologeticsAnswer[]> {
-    return [];
+    return await db
+      .select()
+      .from(apologeticsAnswers)
+      .where(eq(apologeticsAnswers.questionId, questionId))
+      .orderBy(desc(apologeticsAnswers.createdAt));
   }
 
   async createApologeticsAnswer(answer: InsertApologeticsAnswer): Promise<ApologeticsAnswer> {
-    throw new Error('Not implemented');
+    const [created] = await db.insert(apologeticsAnswers).values(answer).returning();
+    return created;
   }
 
   async upvoteApologeticsAnswer(id: number): Promise<ApologeticsAnswer> {

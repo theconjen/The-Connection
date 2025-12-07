@@ -15,13 +15,13 @@ const apologeticsLimiter = rateLimit({
 
 const router = Router();
 
-router.get('/apologetics', apologeticsLimiter, (_req, res) => {
+router.get('/apologetics', apologeticsLimiter, async (_req, res) => {
   try {
-    const resources = storage.getAllApologeticsResources();
+    const resources = await storage.getAllApologeticsResources();
     return res.json(resources);
   } catch (err) {
     console.error('Error serving apologetics:', err);
-    return res.json([]);
+    return res.status(500).json(buildErrorResponse('Error loading apologetics resources', err));
   }
 });
 
