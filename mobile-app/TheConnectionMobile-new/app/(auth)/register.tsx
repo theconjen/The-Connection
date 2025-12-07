@@ -60,7 +60,7 @@ export default function RegisterScreen() {
       });
       
       // Navigate to main app after successful registration
-      router.replace('/(tabs)/feed');
+      router.replace({ pathname: '/(auth)/verify-email', params: { email: formData.email.trim() } });
     } catch (error: any) {
       Alert.alert('Registration Failed', error.message || 'Please try again');
     } finally {
