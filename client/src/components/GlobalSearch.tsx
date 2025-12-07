@@ -262,9 +262,14 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
             </div>
 
             {/* Category Filters */}
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-              {[{ id: 'all', label: 'All' }, { id: 'apologetics', label: 'Apologetics' }, { id: 'forms', label: 'Forms' }, { id: 'accounts', label: 'Accounts' }, { id: 'communities', label: 'Communities' }] as const
-                .map((category) => (
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+                {([
+                  { id: 'all', label: 'All' },
+                  { id: 'apologetics', label: 'Apologetics' },
+                  { id: 'forms', label: 'Forms' },
+                  { id: 'accounts', label: 'Accounts' },
+                  { id: 'communities', label: 'Communities' },
+                ] as const).map((category) => (
                   <Button
                     key={category.id}
                     variant={activeCategory === category.id ? 'secondary' : 'outline'}
@@ -275,7 +280,7 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
                     {category.label}
                   </Button>
                 ))}
-            </div>
+              </div>
 
             {/* Search Results */}
             <div className="max-h-96 overflow-y-auto">
