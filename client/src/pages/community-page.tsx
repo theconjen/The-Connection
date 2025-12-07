@@ -81,13 +81,13 @@ export default function CommunityPage() {
   });
   
   // Check membership status
-  const { 
+  const {
     data: membership,
     isLoading: isLoadingMembership,
     error: membershipError
   } = useQuery({
-    queryKey: [`/api/communities/${community?.id}/members`],
-    enabled: !!community?.id && !!user,
+    queryKey: [`/api/communities/${slug}/members`],
+    enabled: !!slug && !!user,
     select: (data: CommunityMember[]) => {
       if (!user) return null;
       return data.find((member) => member.userId === user.id) || null;
@@ -105,14 +105,14 @@ export default function CommunityPage() {
       if (!community) throw new Error("Community not found");
       const res = await apiRequest(
         "POST",
-        `/api/communities/${community.id}/members`,
+        `/api/communities/${community.slug || community.id}/join`,
         {}
       );
       return await res.json();
     },
     onSuccess: () => {
       if (!community) return;
-      queryClient.invalidateQueries({ queryKey: [`/api/communities/${community.id}/members`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/communities/${slug}/members`] });
       toast({
         title: "Joined community",
         description: `You are now a member of ${community.name}`,
@@ -134,12 +134,12 @@ export default function CommunityPage() {
       if (!user || !community) return;
       await apiRequest(
         "DELETE",
-        `/api/communities/${community.id}/members/${user.id}`
+        `/api/communities/${community.slug || community.id}/leave`
       );
     },
     onSuccess: () => {
       if (!community) return;
-      queryClient.invalidateQueries({ queryKey: [`/api/communities/${community.id}/members`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/communities/${slug}/members`] });
       toast({
         title: "Left community",
         description: `You have left ${community.name}`,
