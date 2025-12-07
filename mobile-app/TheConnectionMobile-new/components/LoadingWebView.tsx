@@ -19,11 +19,29 @@ export default function LoadingWebView({ uri }: LoadingWebViewProps) {
     []
   );
 
+  const appAwareUri = useMemo(() => {
+    try {
+      const url = new URL(uri);
+      url.searchParams.set('nativeApp', '1');
+      return url.toString();
+    } catch (error) {
+      const separator = uri.includes('?') ? '&' : '?';
+      return `${uri}${separator}nativeApp=1`;
+    }
+  }, [uri]);
+
   // Keep content locked to the device viewport for a native feel.
   const injectedJavaScript = `
     (function() {
       var head = document.head || document.getElementsByTagName('head')[0];
       if (!head) { return true; }
+
+      // Flag that the app is being viewed inside the native shell
+      window.__NATIVE_APP__ = true;
+      document.documentElement.setAttribute('data-native-app', 'true');
+      try {
+        localStorage.setItem('nativeApp', 'true');
+      } catch (e) {}
 
       var existing = document.querySelector('meta[name="viewport"]');
       var content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
@@ -40,15 +58,19 @@ export default function LoadingWebView({ uri }: LoadingWebViewProps) {
       document.body.style.setProperty('overflow-x', 'hidden', 'important');
       document.body.style.setProperty('width', '100vw', 'important');
       document.body.style.setProperty('max-width', '100vw', 'important');
+
+      var style = document.createElement('style');
+      style.innerHTML = '.mobile-nav-modern{display:none !important;} .safe-area-inset-bottom{padding-bottom:0 !important;}';
+      head.appendChild(style);
     })();
     true;
   `;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <WebView 
-        source={{ 
-          uri,
+      <WebView
+        source={{
+          uri: appAwareUri,
           headers: {
             'User-Agent': mobileUserAgent,
           }

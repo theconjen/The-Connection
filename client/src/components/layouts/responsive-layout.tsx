@@ -21,6 +21,30 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
   const isTablet = useMediaQuery("(min-width: 769px) and (max-width: 1023px)");
   const [location] = useLocation();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [isNativeApp, setIsNativeApp] = useState(false);
+
+  const detectNativeApp = () => {
+    if (typeof window === "undefined") return false;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const queryFlag =
+      searchParams.get("nativeApp") === "1" || searchParams.get("nativeApp") === "true";
+
+    const globalFlag = Boolean((window as Record<string, unknown>).__NATIVE_APP__);
+
+    let storageFlag = false;
+    try {
+      storageFlag = localStorage.getItem("nativeApp") === "true";
+    } catch (error) {
+      storageFlag = false;
+    }
+
+    const dataAttributeFlag =
+      typeof document !== "undefined" &&
+      document.documentElement.getAttribute("data-native-app") === "true";
+
+    return queryFlag || globalFlag || storageFlag || dataAttributeFlag;
+  };
 
   // Detect virtual keyboard on mobile
   useEffect(() => {
@@ -45,6 +69,10 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
     }
   }, [isMobile]);
 
+  useEffect(() => {
+    setIsNativeApp(detectNativeApp());
+  }, [location]);
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* Header - adaptive for different screen sizes */}
@@ -60,12 +88,12 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
         )}
 
         {/* Main Content Area - adapts to available space */}
-        <main 
+        <main
           className={`flex-1 ${
-            isMobile 
-              ? `px-3 py-3 ${isKeyboardVisible ? 'pb-4' : 'pb-24'}` 
-              : isTablet 
-                ? 'px-4 py-4' 
+            isMobile
+              ? `px-3 py-3 ${isKeyboardVisible ? 'pb-4' : isNativeApp ? 'pb-10' : 'pb-24'}`
+              : isTablet
+                ? 'px-4 py-4'
                 : 'px-6 py-5'
           } ${!isMobile && !isTablet ? 'max-w-5xl mx-auto' : 'w-full'}
             transition-all duration-300
@@ -88,7 +116,7 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
       </div>
 
       {/* Mobile Navigation Bar - hide when keyboard is visible */}
-      {isMobile && (
+      {isMobile && !isNativeApp && (
         <MobileNavigation
           currentPath={location}
           isVisible={!isKeyboardVisible}
