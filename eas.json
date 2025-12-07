@@ -14,14 +14,13 @@
 				"EXPO_PUBLIC_API_BASE": "http://localhost:3000/api"
 			}
 		},
-		"preview": {
+                "preview": {
                         "distribution": "internal",
                         "node": "22.0.0",
                         "pnpm": "10.16.1",
                         "env": {
                                 "EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile",
-                                "EXPO_PUBLIC_API_BASE": "https://api-preview.theconnection.app",
-                                "EXPO_PUBLIC_SENTRY_DSN": "https://50195a543d2fcd9402cf365144b55262@o4510395566718976.ingest.us.sentry.io/4510395580219392"
+                                "EXPO_PUBLIC_API_BASE": "https://api-preview.theconnection.app/api"
                         }
                 },
                 "production": {
@@ -30,8 +29,7 @@
                         "pnpm": "10.16.1",
                         "env": {
                                 "EAS_PROJECT_ROOT": "mobile-app/TheConnectionMobile",
-                                "EXPO_PUBLIC_API_BASE": "https://api.theconnection.app",
-                                "EXPO_PUBLIC_SENTRY_DSN": "https://50195a543d2fcd9402cf365144b55262@o4510395566718976.ingest.us.sentry.io/4510395580219392"
+                                "EXPO_PUBLIC_API_BASE": "https://api.theconnection.app/api"
                         }
                 }
         },
