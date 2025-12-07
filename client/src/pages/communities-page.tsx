@@ -35,7 +35,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
-import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X, BookOpen, Heart, Music, Camera, Coffee, Globe, Star, Home, MessageCircle, Calendar, Map, Shield, Zap, Target, Compass, Sparkles } from "lucide-react";
+import { Loader2, Users, Plus, Lock, Briefcase, Activity, GraduationCap, Palette, Search, X, BookOpen, Heart, Music, Camera, Coffee, Globe, Star, Home, MessageCircle, Calendar, Map, Shield, Zap, Target, Compass, Sparkles, AlertTriangle } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { insertCommunityObjectSchema, type InsertCommunity } from "@connection/shared/schema";
@@ -83,15 +83,8 @@ export default function CommunitiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "popular" | "public" | "private">("all");
-  const [locationStatus, setLocationStatus] = useState<"idle" | "prompting" | "granted" | "denied">("idle");
-  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [filterState, setFilterState] = useState({
-    distance: 25,
-    gender: "any" as GenderFilter,
-    ageGroup: "all" as AgeGroupFilter,
-    familyFriendly: false,
-    prayerFocused: false,
-  });
+  const [addressConfirmationVisible, setAddressConfirmationVisible] = useState(false);
+  const [pendingSubmission, setPendingSubmission] = useState<CreateCommunityForm | null>(null);
   
   // Debounce search query for performance
   useEffect(() => {
@@ -217,13 +210,69 @@ export default function CommunitiesPage() {
   });
   
   const handleCreateCommunity = (data: CreateCommunityForm) => {
+    const combinedText = `${data.name} ${data.description}`.trim();
+    const addressPattern = /\b\d{1,5}\s+(?:[A-Za-z0-9]+\s){0,4}(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Boulevard|Blvd\.?|Lane|Ln\.?|Drive|Dr\.?|Court|Ct\.?|Circle|Cir\.?|Way|Place|Pl\.?|Trail|Trl\.?|Parkway|Pkwy)\b/i;
+    const unitPattern = /\b(?:Apt|Apartment|Unit|Suite|Ste|#)\s*\d+[A-Za-z]?\b/i;
+    const hasPotentialAddress = addressPattern.test(combinedText) || unitPattern.test(combinedText);
+
+    if (addressConfirmationVisible) {
+      if (!hasPotentialAddress) {
+        setAddressConfirmationVisible(false);
+        setPendingSubmission(null);
+        createMutation.mutate(data);
+        return;
+      }
+
+      setPendingSubmission(data);
+      return;
+    }
+
+    if (hasPotentialAddress && !addressConfirmationVisible) {
+      setPendingSubmission(data);
+      setAddressConfirmationVisible(true);
+      return;
+    }
+
     createMutation.mutate(data);
+  };
+
+  const logAddressFlagForModeration = async (data: CreateCommunityForm) => {
+    try {
+      await fetch('/api/moderation/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          contentType: 'community_creation',
+          contentId: data.name || 'pending-community',
+          reason: 'potential_personal_address',
+          description: `Possible personal address detected during community creation. Name: ${data.name}. Description: ${data.description}`
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to log potential address for moderation', error);
+    }
+  };
+
+  const handlePotentialAddressConfirm = async () => {
+    if (!pendingSubmission) return;
+    setAddressConfirmationVisible(false);
+    await logAddressFlagForModeration(pendingSubmission);
+    createMutation.mutate(pendingSubmission);
+    setPendingSubmission(null);
+  };
+
+  const handlePotentialAddressCancel = () => {
+    setAddressConfirmationVisible(false);
+    setPendingSubmission(null);
   };
   
   const handleDialogClose = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
       form.reset();
+      setAddressConfirmationVisible(false);
+      setPendingSubmission(null);
     }
   };
   
@@ -498,6 +547,12 @@ export default function CommunitiesPage() {
                     <DialogDescription>
                       Create a new community for people to join and connect.
                     </DialogDescription>
+                    <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-amber-900 ring-1 ring-amber-200">
+                      <AlertTriangle className="h-4 w-4 mt-0.5" />
+                      <p className="text-sm leading-relaxed">
+                        For safety, avoid listing personal home addresses as meeting locations. Share only public meeting points or general areas.
+                      </p>
+                    </div>
                   </DialogHeader>
 
                   <Form {...form}>
@@ -656,20 +711,41 @@ export default function CommunitiesPage() {
                   </div>
                   
                   <DialogFooter>
-                    <Button 
-                      type="submit"
-                      disabled={createMutation.isPending}
-                      data-testid="button-create-community"
-                    >
-                      {createMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        "Create Community"
+                    <div className="flex w-full flex-col gap-3">
+                      {addressConfirmationVisible && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                            <div className="space-y-1 text-sm">
+                              <p className="font-medium">Possible personal address detected.</p>
+                              <p>Please confirm you want to proceed or edit the details to remove personal location information.</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button variant="outline" type="button" onClick={handlePotentialAddressCancel}>
+                              Edit details
+                            </Button>
+                            <Button type="button" onClick={handlePotentialAddressConfirm} disabled={createMutation.isPending}>
+                              Proceed and notify moderation
+                            </Button>
+                          </div>
+                        </div>
                       )}
-                    </Button>
+                      <Button
+                        type="submit"
+                        disabled={createMutation.isPending}
+                        data-testid="button-create-community"
+                      >
+                        {createMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          "Create Community"
+                        )}
+                      </Button>
+                    </div>
                   </DialogFooter>
                 </form>
               </Form>
