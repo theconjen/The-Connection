@@ -60,6 +60,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [privacySaving, setPrivacySaving] = useState(false);
 
   const [profileData, setProfileData] = useState({
@@ -104,6 +105,29 @@ export default function SettingsPage() {
     newPassword: "",
     confirmPassword: "",
   });
+
+  const handleDeleteAccount = async () => {
+    if (!confirm('Are you sure you want to delete your account? This action will soft-delete your account and content.')) return;
+    setDeleting(true);
+    try {
+      const resp = await fetch(apiUrl('/api/me'), { method: 'DELETE', credentials: 'include' });
+      if (!resp.ok) throw new Error('Failed to delete account');
+      // Clear client auth state and cache
+      try {
+        localStorage.removeItem('currentUser');
+      } catch (e) {}
+      queryClient.setQueryData(['/api/user'], null);
+      queryClient.invalidateQueries();
+      toast({ title: 'Account deleted', description: 'Your account has been deleted.' });
+      // Navigate to login
+      logout?.();
+    } catch (err: any) {
+      console.error('Delete account error', err);
+      toast({ title: 'Error', description: err?.message || 'Failed to delete account', variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
@@ -400,30 +424,9 @@ export default function SettingsPage() {
                   <Button
                     type="button"
                     variant="destructive"
-                    onClick={async () => {
-                      if (!confirm('Are you sure you want to delete your account? This action will soft-delete your account and content.')) return;
-                      setLoading(true);
-                      try {
-                        const resp = await fetch(apiUrl('/api/me'), { method: 'DELETE', credentials: 'include' });
-                        if (!resp.ok) throw new Error('Failed to delete account');
-                        // Clear client auth state and cache
-                        try {
-                          localStorage.removeItem('currentUser');
-                        } catch (e) {}
-                        queryClient.setQueryData(['/api/user'], null);
-                        queryClient.invalidateQueries();
-                        toast({ title: 'Account deleted', description: 'Your account has been deleted.' });
-                        // Navigate to login
-                        logout?.();
-                      } catch (err: any) {
-                        console.error('Delete account error', err);
-                        toast({ title: 'Error', description: err?.message || 'Failed to delete account', variant: 'destructive' });
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
+                    onClick={logout}
                   >
-                    Delete Account
+                    Log Out
                   </Button>
                 </div>
                 <div className="mt-4 text-sm text-muted-foreground">
@@ -617,8 +620,8 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="destructive" onClick={logout}>
-                Log Out
+              <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleting}>
+                {deleting ? "Deleting..." : "Delete Account"}
               </Button>
             </CardContent>
           </Card>
