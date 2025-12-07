@@ -94,6 +94,8 @@ This document is the single source of truth for environment variables, rewrites,
 - API base is the absolute production (or env-specific) host, e.g. `https://api.theconnection.app`.
 - Ensure DNS resolves on the device/simulator.
 - CORS allowlist must include `capacitor://localhost` and any Expo origins.
+- Mobile clients send session cookies with `credentials: 'include'`/`withCredentials`, so the API must continue to return
+  `Access-Control-Allow-Credentials: true` and a compatible `SameSite=None` session cookie (see `SESSION_SAMESITE`).
 - Rebuild native bundle after adjusting `EXPO_PUBLIC_API_BASE` or shared env values.
 
 ---

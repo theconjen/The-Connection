@@ -5,7 +5,7 @@
 
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
-import { getAuthToken } from './secureStorage';
+import { getAuthToken, getSessionCookie, saveSessionCookie } from './secureStorage';
 
 // Get API base URL from environment
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBase || process.env.EXPO_PUBLIC_API_BASE || 'http://localhost:3000/api';
@@ -31,7 +31,17 @@ apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
       const token = await getAuthToken();
-      if (token && config.headers) {
+      const sessionCookie = await getSessionCookie();
+
+      // Ensure credentials/cookies are sent even when not using a bearer token
+      config.withCredentials = true;
+
+      if (sessionCookie && config.headers && !config.headers.Cookie) {
+        config.headers.Cookie = sessionCookie;
+      }
+
+      // Only attach Authorization when we have a real bearer token (JWT/magic-link)
+      if (token && token.includes('.') && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
@@ -48,7 +58,15 @@ apiClient.interceptors.request.use(
  * Response interceptor for error handling
  */
 apiClient.interceptors.response.use(
-  (response) => response,
+  async (response) => {
+    const setCookieHeader = response.headers?.['set-cookie'];
+    if (setCookieHeader) {
+      // Axios in React Native may not persist cookies automatically, so store manually
+      const serialized = Array.isArray(setCookieHeader) ? setCookieHeader.join('; ') : setCookieHeader;
+      await saveSessionCookie(serialized);
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     if (error.response) {
       // Server responded with error status
