@@ -28,3 +28,11 @@ project.xcworkspace
 
 # CocoaPods
 /Pods/
+Pods 2/
+
+# Finder-style duplicate backups
+Podfile 2
+Podfile 2*
+Podfile.lock 2*
+TheConnection 2.xcodeproj
+TheConnection 2.xcworkspace
