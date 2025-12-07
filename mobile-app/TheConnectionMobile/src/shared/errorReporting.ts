@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 
 const getSentryDsn = (): string => {
-  const extra = (Constants.expoConfig as any)?.extra ?? {};
+  const extra = (Constants.expoConfig as any)?.extra ?? (Constants.manifest as any)?.extra ?? {};
   return extra.sentryDsn || extra.SENTRY_DSN || process.env.EXPO_PUBLIC_SENTRY_DSN || '';
 };
 
