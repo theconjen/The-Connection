@@ -9,6 +9,7 @@ const fixtures = vi.hoisted(() => ({
   users: [
     { id: 1, isAdmin: false },
     { id: 2, isAdmin: false },
+    { id: 3, isAdmin: true },
   ],
   events: [
     {
@@ -81,7 +82,13 @@ describe('Event and post authorization', () => {
   let agent: request.SuperTest<request.Test>;
 
   beforeEach(() => {
-    fixtures.users.splice(0, fixtures.users.length, { id: 1, isAdmin: false }, { id: 2, isAdmin: false });
+    fixtures.users.splice(
+      0,
+      fixtures.users.length,
+      { id: 1, isAdmin: false },
+      { id: 2, isAdmin: false },
+      { id: 3, isAdmin: true }
+    );
     fixtures.events.splice(0, fixtures.events.length, {
       id: 10,
       title: 'Private Gathering',
@@ -174,6 +181,23 @@ describe('Event and post authorization', () => {
     await agent.post('/test/login').send({ userId: 2 }).expect(204);
 
     await agent.delete('/api/events/10').expect(403);
+    expect(fixtures.events).toHaveLength(1);
+  });
+
+  it('allows organizers to delete their own events', async () => {
+    await agent.post('/test/login').send({ userId: 1 }).expect(204);
+
+    const response = await agent.delete('/api/events/10').expect(200);
+    expect(response.body.message).toBe('Event deleted successfully');
+    expect(fixtures.events).toHaveLength(0);
+  });
+
+  it('allows admins to delete events they did not create', async () => {
+    await agent.post('/test/login').send({ userId: 3 }).expect(204);
+
+    const response = await agent.delete('/api/events/10').expect(200);
+    expect(response.body.message).toBe('Event deleted successfully');
+    expect(fixtures.events).toHaveLength(0);
   });
 
   it('tracks post upvotes per-user and toggles properly', async () => {
