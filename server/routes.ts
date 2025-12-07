@@ -415,7 +415,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api', authRoutes);
     app.use('/api', accountRoutes);
     app.use('/api', safetyRoutes);
-    // compatibility moderation router (client expects /api/moderation/*)
+    // compatibility moderation router (legacy clients hitting /api/moderation/* will be redirected)
     app.use('/api', moderationRoutes);
     app.use('/api/admin', adminRoutes);
   }

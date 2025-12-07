@@ -22,7 +22,7 @@ describe('rate limiting middleware', () => {
     app.post('/api/posts', contentCreationLimiter, (_req, res) => res.json({ ok: true }));
     app.post('/api/comments', messageCreationLimiter, (_req, res) => res.json({ ok: true }));
     app.post('/api/dms/send', dmSendLimiter, (_req, res) => res.json({ ok: true }));
-    app.post('/api/moderation/report', moderationReportLimiter, (_req, res) => res.json({ ok: true }));
+    app.post('/api/reports', moderationReportLimiter, (_req, res) => res.json({ ok: true }));
   });
 
   afterEach(() => {
@@ -75,11 +75,11 @@ describe('rate limiting middleware', () => {
     const limit = (moderationReportLimiter as any).options.max as number;
 
     for (let i = 0; i < limit; i++) {
-      const res = await request(app).post('/api/moderation/report').set('x-forwarded-for', TEST_IP);
+      const res = await request(app).post('/api/reports').set('x-forwarded-for', TEST_IP);
       expect(res.status).toBe(200);
     }
 
-    const blocked = await request(app).post('/api/moderation/report').set('x-forwarded-for', TEST_IP);
+    const blocked = await request(app).post('/api/reports').set('x-forwarded-for', TEST_IP);
     expect(blocked.status).toBe(429);
     expect(blocked.text).toContain('Too many reports submitted');
   });

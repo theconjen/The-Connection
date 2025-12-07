@@ -33,7 +33,7 @@ export default function BlockedUsersPage() {
 
   const fetchBlockedUsers = async () => {
     try {
-      const response = await fetch(apiUrl('/api/moderation/blocked-users'), {
+      const response = await fetch(apiUrl('/api/blocked-users'), {
         credentials: 'include'
       });
       

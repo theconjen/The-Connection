@@ -40,7 +40,7 @@ export function BlockUserModal({
 
     setIsSubmitting(true);
     try {
-      const url = isBlocked ? `/api/moderation/block/${userId}` : '/api/moderation/block';
+      const url = isBlocked ? `/api/blocks/${userId}` : '/api/blocks';
       const method = isBlocked ? 'DELETE' : 'POST';
       const body = isBlocked ? undefined : JSON.stringify({
         blockedId: userId,

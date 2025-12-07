@@ -30,7 +30,7 @@
 ## High Priority Issues (This Week)
 
 ### 6. Missing Rate Limiting
-Missing on: `/api/posts`, `/api/comments`, `/api/dms/send`, `/api/moderation/report`
+Missing on: `/api/posts`, `/api/comments`, `/api/dms/send`, `/api/reports`
 **Risk:** Spam/DOS attacks
 
 ### 7. Authorization Bypasses
@@ -39,9 +39,9 @@ Missing on: `/api/posts`, `/api/comments`, `/api/dms/send`, `/api/moderation/rep
 - Upvote methods don't track which user voted (`posts.ts:73, 107`)
 
 ### 8. Duplicate Endpoints
-- Report: `/api/moderation/report` vs `/api/reports`
-- Block: `/api/moderation/block` vs `/api/blocks`
-- Blocked users: `/api/moderation/blocked-users` vs `/api/blocked-users`
+- Report: `/api/reports` (legacy `/api/moderation/report` now redirects)
+- Block: `/api/blocks` (legacy `/api/moderation/block` now redirects)
+- Blocked users: `/api/blocked-users` (legacy `/api/moderation/blocked-users` now redirects)
 
 ### 9. Inconsistent Auth Middleware
 - 3 different auth middleware patterns used (router-level, route-level, inline)

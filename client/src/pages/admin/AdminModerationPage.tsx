@@ -59,7 +59,7 @@ export default function AdminModerationPage() {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/moderation/admin/reports?status=${filter}&limit=50`, {
+      const response = await fetch(`/api/admin/reports?status=${filter}&limit=50`, {
         credentials: 'include'
       });
       
@@ -79,7 +79,7 @@ export default function AdminModerationPage() {
   const handleResolveReport = async (reportId: number, status: 'resolved' | 'dismissed') => {
     setSubmitting(true);
     try {
-      const response = await fetch(`/api/moderation/admin/reports/${reportId}`, {
+      const response = await fetch(`/api/admin/reports/${reportId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -390,18 +390,15 @@ router.patch('/api/posts/:id', isAuthenticated, async (req, res) => {
 ## Fix 10: Consolidate Duplicate Endpoints
 
 ### Recommendation
-Remove these duplicate endpoint pairs and keep only one version:
+Use the canonical safety endpoints and redirect/deprecate the legacy moderation paths:
 
-**Keep:** `/api/moderation/report`
-**Remove:** `/api/reports`
+**Keep:** `/api/reports` (legacy `/api/moderation/report` redirects here)
 
-**Keep:** `/api/moderation/block`  
-**Remove:** `/api/blocks`
+**Keep:** `/api/blocks` (legacy `/api/moderation/block` redirects here)
 
-**Keep:** `/api/moderation/blocked-users`
-**Remove:** `/api/blocked-users`
+**Keep:** `/api/blocked-users` (legacy `/api/moderation/blocked-users` redirects here)
 
-Update frontend calls to use `/api/moderation/*` path consistently.
+Update frontend calls to use the canonical `/api/reports`, `/api/blocks`, and `/api/blocked-users` routes.
 
 ---
 

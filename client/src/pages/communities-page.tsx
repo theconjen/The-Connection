@@ -238,7 +238,7 @@ export default function CommunitiesPage() {
 
   const logAddressFlagForModeration = async (data: CreateCommunityForm) => {
     try {
-      await fetch('/api/moderation/report', {
+      await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
