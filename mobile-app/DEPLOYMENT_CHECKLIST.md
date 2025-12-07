@@ -32,16 +32,16 @@ Update in `app.json`:
 ```
 
 ### 3. Legal Requirements
-- [ ] **Privacy Policy** published at your domain
-- [ ] **Terms of Service** created
-- [ ] **Support Email** configured
-- [ ] **App Store descriptions** written
+- [x] **Privacy Policy** published at your domain
+- [x] **Terms of Service** created
+- [x] **Support Email** configured
+- [x] **App Store descriptions** written (see `mobile-app/STORE_METADATA.md`)
 
 ### 4. Required Assets ✅
 - [x] App Icon (1024x1024) - Ready
 - [x] Adaptive Icon for Android - Ready
 - [x] Splash Screen - Ready
-- [ ] **Screenshots** (you'll need to take these after deployment)
+- [x] **Screenshots** (see `mobile-app/TheConnectionMobile/assets/store-screenshots/*.png`)
 
 ## 🚀 Deployment Steps
 

@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTheme } from '../src/shared/ThemeProvider';
+import { LEGAL_URLS, SUPPORT_EMAIL } from '../src/config';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -47,6 +48,12 @@ export default function SettingsScreen() {
   const openLink = (url: string) => {
     Linking.openURL(url).catch(() =>
       Alert.alert('Error', 'Could not open link')
+    );
+  };
+
+  const openEmail = (email: string) => {
+    Linking.openURL(`mailto:${email}`).catch(() =>
+      Alert.alert('Error', 'Could not open email client')
     );
   };
 
@@ -171,27 +178,31 @@ export default function SettingsScreen() {
             icon="📜"
             title="Privacy Policy"
             subtitle="Learn how we protect your data"
-            onPress={() => openLink('https://app.theconnection.app/privacy')}
+            onPress={() => openLink(LEGAL_URLS.privacy)}
           />
           <SettingItem
             icon="📋"
             title="Terms of Service"
             subtitle="Read our terms and conditions"
-            onPress={() => openLink('https://app.theconnection.app/terms')}
+            onPress={() => openLink(LEGAL_URLS.terms)}
           />
           <SettingItem
             icon="👥"
             title="Community Guidelines"
             subtitle="Understand our community expectations"
-            onPress={() =>
-              openLink('https://app.theconnection.app/community-guidelines')
-            }
+            onPress={() => openLink(LEGAL_URLS.community)}
           />
           <SettingItem
             icon="❓"
             title="Help & Support"
             subtitle="Get help with the app"
-            onPress={() => openLink('https://app.theconnection.app/support')}
+            onPress={() => openLink(LEGAL_URLS.support)}
+          />
+          <SettingItem
+            icon="✉️"
+            title="Email Support"
+            subtitle={SUPPORT_EMAIL}
+            onPress={() => openEmail(SUPPORT_EMAIL)}
           />
         </View>
 

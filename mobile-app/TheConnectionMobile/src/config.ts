@@ -1,5 +1,14 @@
 import Constants from 'expo-constants';
 
+export const SUPPORT_EMAIL = 'support@theconnection.app';
+
+export const LEGAL_URLS = {
+  privacy: 'https://app.theconnection.app/privacy',
+  terms: 'https://app.theconnection.app/terms',
+  community: 'https://app.theconnection.app/community-guidelines',
+  support: 'https://app.theconnection.app/support',
+};
+
 export function getApiBase(): string {
   // Prefer runtime extra. Expo injects EXPO_PUBLIC_* into manifest.extra as well.
   const extra = (Constants.expoConfig as any)?.extra || {};
