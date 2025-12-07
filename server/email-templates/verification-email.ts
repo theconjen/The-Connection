@@ -26,15 +26,15 @@ export function generateVerificationEmail(verificationLink: string): { html: str
     <tr><td style="background-color:#f0f1f5">
       <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;margin:0 auto;background-color:#faf6f1">
         <tr><td style="padding:0 0 10px 0">
-          <table border="0" cellpadding="0" cellspacing="0" class="layout-0" align="center" style="display:table;width:100%;background:linear-gradient(90deg, #000000,#3533cd)">
-            <tr><td style="text-align:center;padding:16px 20px">
+          <table border="0" cellpadding="0" cellspacing="0" class="layout-0" align="center" bgcolor="#3533cd" style="display:table;width:100%;background-color:#3533cd;background:linear-gradient(90deg, #000000,#3533cd)">
+            <tr><td style="text-align:center;padding:16px 20px;background-color:#3533cd">
               <table border="0" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;margin:0 auto">
                 <tr><td style="text-align:center;color:#ffffff;font-size:20px;font-family:'Times New Roman', Times, serif">The Connection</td></tr>
               </table>
             </td></tr>
           </table>
-          <table border="0" cellpadding="0" cellspacing="0" class="layout-0-under-450" align="center" style="display:none;width:100%;background:linear-gradient(90deg, #000000,#3533cd)">
-            <tr><td style="text-align:center;padding:16px 20px">
+          <table border="0" cellpadding="0" cellspacing="0" class="layout-0-under-450" align="center" bgcolor="#3533cd" style="display:none;width:100%;background-color:#3533cd;background:linear-gradient(90deg, #000000,#3533cd)">
+            <tr><td style="text-align:center;padding:16px 20px;background-color:#3533cd">
               <table border="0" cellpadding="0" cellspacing="0" style="width:100%;max-width:450px;margin:0 auto">
                 <tr><td style="text-align:center;color:#ffffff;font-size:20px;font-family:'Times New Roman', Times, serif">The Connection</td></tr>
               </table>
@@ -64,9 +64,9 @@ export function generateVerificationEmail(verificationLink: string): { html: str
                   <table cellpadding="0" cellspacing="0" border="0" style="width:100%">
                     <tr><td align="center">
                       <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:240px">
-                        <tr><td style="width:100%;padding:20px 0">
-                          <a href="${verificationLink}" target="_blank" rel="noopener" style="display:table;width:100%;text-decoration:none;padding:12px 16px;background:linear-gradient(90deg, #000000,#3533cd);border-radius:28px;text-align:center">
-                            <span style="color:#ffffff;font-size:18px;font-weight:bold;font-family:Arial, Helvetica, sans-serif">Verify Email & Login</span>
+                        <tr><td style="width:100%;padding:20px 0" align="center">
+                          <a href="${verificationLink}" target="_blank" rel="noopener" style="display:block;width:100%;text-decoration:none !important;padding:12px 16px;background-color:#3533cd;background:linear-gradient(90deg, #000000,#3533cd);border-radius:28px;text-align:center;border:1px solid #3533cd">
+                            <span style="color:#ffffff !important;font-size:18px;font-weight:bold;font-family:Arial, Helvetica, sans-serif;line-height:1.2;display:block">Verify Email & Login</span>
                           </a>
                         </td></tr>
                       </table>
@@ -79,26 +79,26 @@ export function generateVerificationEmail(verificationLink: string): { html: str
                 </td></tr>
 
                 <tr><td style="padding:16px 20px">
-                  <table border="0" cellpadding="0" cellspacing="0" class="layout-2" align="center" style="display:table;width:100%;max-width:560px;margin:0 auto">
+                  <table border="0" cellpadding="0" cellspacing="0" class="layout-2" align="center" bgcolor="#3533cd" style="display:table;width:100%;max-width:560px;margin:0 auto;background-color:#3533cd">
                     <tr><td style="border-radius:10px">
                       <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
-                        <tr><td style="font-size:24px;font-family:'Times New Roman', Times, serif;text-align:center;color:#ffffff;padding:40px;background:linear-gradient(90deg, #000000,#3533cd);border-radius:10px 10px 0 0">
+                        <tr><td style="font-size:24px;font-family:'Times New Roman', Times, serif;text-align:center;color:#ffffff;padding:40px;background-color:#3533cd;background:linear-gradient(90deg, #000000,#3533cd);border-radius:10px 10px 0 0">
                           What’s our mission?
                         </td></tr>
-                        <tr><td style="color:#ffffff;font-size:17px;font-family:'Times New Roman', Times, serif;text-align:center;padding:0 40px 32px 40px;background:linear-gradient(90deg, #000000,#3533cd)">
+                        <tr><td style="color:#ffffff;font-size:17px;font-family:'Times New Roman', Times, serif;text-align:center;padding:0 40px 32px 40px;background-color:#3533cd;background:linear-gradient(90deg, #000000,#3533cd)">
                           A world where believers live with clarity, conviction, and courage because they are connected to the truth and connected to each other.
                         </td></tr>
                       </table>
                     </td></tr>
                   </table>
 
-                  <table border="0" cellpadding="0" cellspacing="0" class="layout-2-under-450" align="center" style="display:none;width:100%;max-width:450px;margin:0 auto">
+                  <table border="0" cellpadding="0" cellspacing="0" class="layout-2-under-450" align="center" bgcolor="#3533cd" style="display:none;width:100%;max-width:450px;margin:0 auto;background-color:#3533cd">
                     <tr><td style="border-radius:10px">
                       <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
-                        <tr><td style="font-size:24px;font-family:'Times New Roman', Times, serif;text-align:center;color:#ffffff;padding:40px;background:linear-gradient(90deg, #000000,#3533cd);border-radius:10px 10px 0 0">
+                        <tr><td style="font-size:24px;font-family:'Times New Roman', Times, serif;text-align:center;color:#ffffff;padding:40px;background-color:#3533cd;background:linear-gradient(90deg, #000000,#3533cd);border-radius:10px 10px 0 0">
                           What’s our mission?
                         </td></tr>
-                        <tr><td style="color:#ffffff;font-size:17px;font-family:'Times New Roman', Times, serif;text-align:center;padding:0 40px 32px 40px;background:linear-gradient(90deg, #000000,#3533cd)">
+                        <tr><td style="color:#ffffff;font-size:17px;font-family:'Times New Roman', Times, serif;text-align:center;padding:0 40px 32px 40px;background-color:#3533cd;background:linear-gradient(90deg, #000000,#3533cd)">
                           A world where believers live with clarity, conviction, and courage because they are connected to the truth and connected to each other.
                         </td></tr>
                       </table>
