@@ -3,6 +3,7 @@ import express from 'express';
 import session from 'express-session';
 import request from 'supertest';
 import { createServer } from 'http';
+import { storage } from '../../server/storage';
 
 const fixtures = vi.hoisted(() => ({
   users: [
@@ -41,6 +42,7 @@ vi.mock('../../server/storage', () => {
     getEvent: vi.fn(async (id: number) => fixtures.events.find(e => e.id === id) || null),
     isCommunityMember: vi.fn(async () => false),
     isGroupMember: vi.fn(async () => false),
+    isUserInvitedToEvent: vi.fn(async () => false),
     upsertEventRSVP: vi.fn(async (_eventId: number, userId: number, status: string) => ({ eventId: _eventId, userId, status })),
     deleteEvent: vi.fn(async (id: number) => {
       const idx = fixtures.events.findIndex(e => e.id === id);
@@ -113,6 +115,59 @@ describe('Event and post authorization', () => {
       .patch('/api/events/10/rsvp')
       .send({ status: 'going' })
       .expect(403);
+  });
+
+  it('requires community membership or invitation to RSVP to private events', async () => {
+    fixtures.events.splice(0, fixtures.events.length, {
+      id: 10,
+      title: 'Community Event',
+      creatorId: 1,
+      isPublic: false,
+      communityId: 25,
+      groupId: null,
+    });
+
+    await agent.post('/test/login').send({ userId: 2 }).expect(204);
+
+    await agent
+      .patch('/api/events/10/rsvp')
+      .send({ status: 'going' })
+      .expect(403);
+
+    expect(storage.isCommunityMember).toHaveBeenCalledWith(2, 25);
+    expect(storage.isUserInvitedToEvent).toHaveBeenCalledWith(2, 10);
+  });
+
+  it('returns 404 when attempting to RSVP to a missing event', async () => {
+    fixtures.events.splice(0, fixtures.events.length);
+
+    await agent.post('/test/login').send({ userId: 1 }).expect(204);
+
+    await agent
+      .patch('/api/events/10/rsvp')
+      .send({ status: 'going' })
+      .expect(404);
+  });
+
+  it('records RSVP updates with both event and user identifiers', async () => {
+    fixtures.events.push({
+      id: 11,
+      title: 'Public Meetup',
+      creatorId: 1,
+      isPublic: true,
+      communityId: null,
+      groupId: null,
+    });
+
+    await agent.post('/test/login').send({ userId: 2 }).expect(204);
+
+    const response = await agent
+      .patch('/api/events/11/rsvp')
+      .send({ status: 'going' })
+      .expect(200);
+
+    expect(response.body).toMatchObject({ eventId: 11, userId: 2, status: 'going' });
+    expect(storage.upsertEventRSVP).toHaveBeenCalledWith(11, 2, 'going');
   });
 
   it('prevents non-owners from deleting an event', async () => {
