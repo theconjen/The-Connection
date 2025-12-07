@@ -58,3 +58,31 @@ export const apiPost = <T = any>(path: string, body?: any, init?: RequestInit) =
 export const apiPut = <T = any>(path: string, body?: any, init?: RequestInit) =>
   apiFetch<T>(path, { method: 'PUT', body: body != null ? JSON.stringify(body) : undefined, ...(init || {}) });
 export const apiDelete = <T = any>(path: string, init?: RequestInit) => apiFetch<T>(path, { method: 'DELETE', ...(init || {}) });
+
+export type UploadTarget = {
+  uploadUrl: string;
+  method?: 'PUT' | 'POST';
+  headers?: Record<string, string>;
+  assetUrl?: string;
+};
+
+export async function getUploadTarget(fileName: string, fileType?: string): Promise<UploadTarget> {
+  return apiPost<UploadTarget>('/objects/upload', { fileName, fileType });
+}
+
+export async function uploadBinary(target: UploadTarget, payload: Blob | ArrayBuffer | Uint8Array): Promise<string> {
+  const res = await fetch(target.uploadUrl, {
+    method: target.method || 'PUT',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      ...(target.headers || {}),
+    },
+    body: payload as any,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Upload failed with status ${res.status}`);
+  }
+
+  return target.assetUrl || target.uploadUrl;
+}
