@@ -8,6 +8,7 @@ import { setupAuth, isAuthenticated, isAdmin } from './auth';
 import { storage as storageReal } from './storage';
 import rateLimit from 'express-rate-limit';
 import { sendPushNotification } from './services/pushService';
+import { contentCreationLimiter, messageCreationLimiter } from './rate-limiters';
 
 // NOTE: many of the shared "Insert..." Zod-derived types are being inferred
 // in a way that causes object literal properties to appear as `never` in this
@@ -379,23 +380,6 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   // Session userId normalization middleware - ensure userId is always a number
   app.use(normalizeSessionUserId);
-
-  // Rate limiters for content creation to prevent spam
-  const contentCreationLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20, // 20 requests per 15 minutes
-    message: 'Too many requests, please try again later',
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-
-  const messageCreationLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 30, // 30 messages per minute
-    message: 'Too many messages, please slow down',
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
 
   const generalApiLimiter = rateLimit({
     windowMs: 60 * 1000,

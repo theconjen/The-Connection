@@ -4,6 +4,7 @@ import { isAuthenticated } from '../auth';
 import { storage } from '../storage-optimized';
 import { getSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
+import { contentCreationLimiter, messageCreationLimiter } from '../rate-limiters';
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.get('/api/posts/:id', async (req, res) => {
 });
 
 // Accept { text, communityId? } and map to schema fields
-router.post('/api/posts', isAuthenticated, async (req, res) => {
+router.post('/api/posts', contentCreationLimiter, isAuthenticated, async (req, res) => {
   try {
     const userId = getSessionUserId(req)!;
     const { text, communityId } = req.body || {};
@@ -90,7 +91,7 @@ router.get('/api/posts/:id/comments', async (req, res) => {
   }
 });
 
-router.post('/api/comments', isAuthenticated, async (req, res) => {
+router.post('/api/comments', messageCreationLimiter, isAuthenticated, async (req, res) => {
   try {
     const userId = getSessionUserId(req)!;
     const validatedData = insertCommentSchema.parse({ ...req.body, authorId: userId });

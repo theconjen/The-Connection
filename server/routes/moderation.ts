@@ -6,6 +6,7 @@ import { contentReports } from '@shared/schema';
 import { eq, desc } from 'drizzle-orm';
 import { buildErrorResponse } from '../utils/errors';
 import { getSessionUserId } from '../utils/session';
+import { moderationReportLimiter } from '../rate-limiters';
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ const requireUserId = (req: any, res: any): number | undefined => {
 };
 
 // Public endpoints (authenticated users)
-router.post('/moderation/report', isAuthenticated, async (req: any, res) => {
+router.post('/moderation/report', moderationReportLimiter, isAuthenticated, async (req: any, res) => {
   try {
     const reporterId = requireUserId(req, res);
     const { contentType, contentId, reason, description } = req.body;
