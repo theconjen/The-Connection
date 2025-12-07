@@ -34,11 +34,17 @@ const LivestreamerApplicationPage = lazy(() => import("./pages/livestreamer-appl
 const AdminDashboard = lazy(() => import("./pages/admin"));
 const AdminApologistApplications = lazy(() => import("./pages/admin/apologist-scholar-applications"));
 const AdminLivestreamerApplications = lazy(() => import("./pages/admin/livestreamer-applications"));
+const AdminApplicationStats = lazy(() => import("./pages/admin/application-stats"));
+const AdminUserManagement = lazy(() => import("./pages/admin/user-management"));
+const AdminAdminUsers = lazy(() => import("./pages/admin/admin-users"));
+const AdminPlatformSettings = lazy(() => import("./pages/admin/platform-settings"));
+const AdminApologeticsResources = lazy(() => import("./pages/admin/apologetics-resources"));
 const OrganizationDashboardPage = lazy(() => import("./pages/organization-dashboard-page"));
 const OrganizationSettingsPage = lazy(() => import("./pages/organization-settings-page"));
 const OrganizationInvitePage = lazy(() => import("./pages/organization-invite-page"));
 const AcceptInvitationPage = lazy(() => import("./pages/accept-invitation-page"));
 const SupportPage = lazy(() => import("./pages/support-page"));
+const ApologistDashboard = lazy(() => import("./pages/apologist-dashboard"));
 
 // Analytics tracking component with event tracking
 function AnalyticsTracker() {
@@ -121,11 +127,17 @@ function App() {
           {/* Applications */}
           <Route path="/apologist-scholar-application" component={ApologistScholarApplicationPage} />
           <Route path="/livestreamer-application" component={LivestreamerApplicationPage} />
+          <Route path="/apologist-dashboard" component={ApologistDashboard} />
           
           {/* Admin Routes */}
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/apologist-scholar-applications" component={AdminApologistApplications} />
           <Route path="/admin/livestreamer-applications" component={AdminLivestreamerApplications} />
+          <Route path="/admin/application-stats" component={AdminApplicationStats} />
+          <Route path="/admin/users" component={AdminUserManagement} />
+          <Route path="/admin/admin-users" component={AdminAdminUsers} />
+          <Route path="/admin/settings" component={AdminPlatformSettings} />
+          <Route path="/admin/apologetics-resources" component={AdminApologeticsResources} />
           
           <Route component={NotFound} />
           </Switch>
