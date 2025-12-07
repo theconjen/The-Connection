@@ -5,6 +5,8 @@
 
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system';
+import { getApiBase } from '@connection/shared/api';
 import { getAuthToken, getSessionCookie, saveSessionCookie } from './secureStorage';
 
 // Get API base URL from environment
@@ -173,6 +175,47 @@ export const authAPI = {
   verifyMagicCode: async (token: string, code: string): Promise<{ token: string; user: User }> => {
     const response = await apiClient.post('/auth/verify', { token, code });
     return response.data;
+  },
+};
+
+export type UploadDescriptor = {
+  uploadUrl: string;
+  method?: 'PUT' | 'POST';
+  headers?: Record<string, string>;
+  assetUrl?: string;
+};
+
+export const uploadAPI = {
+  /**
+   * Request a signed upload target for binary data
+   */
+  requestUpload: async (fileName: string, fileType?: string): Promise<UploadDescriptor> => {
+    const response = await apiClient.post('/objects/upload', { fileName, fileType });
+    return response.data;
+  },
+
+  /**
+   * Upload a local file from its URI to the provided target
+   */
+  uploadFromUri: async (
+    uri: string,
+    target: UploadDescriptor,
+    contentType = 'application/octet-stream'
+  ): Promise<string> => {
+    const result = await FileSystem.uploadAsync(target.uploadUrl, uri, {
+      httpMethod: target.method || 'PUT',
+      headers: {
+        'Content-Type': contentType,
+        ...(target.headers || {}),
+      },
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    });
+
+    if (result.status >= 200 && result.status < 300) {
+      return target.assetUrl || target.uploadUrl;
+    }
+
+    throw new Error(`Upload failed with status ${result.status}`);
   },
 };
 
