@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/shared/ThemeProvider';
+import apiClient from '../../src/lib/apiClient';
+import { ensurePushTokenRegistered, unregisterStoredPushToken } from '../../src/lib/pushNotifications';
 
 export default function NotificationSettingsScreen() {
   const router = useRouter();
@@ -22,6 +24,7 @@ export default function NotificationSettingsScreen() {
   const [notifyCommunities, setNotifyCommunities] = useState(true);
   const [notifyForums, setNotifyForums] = useState(true);
   const [notifyFeed, setNotifyFeed] = useState(true);
+  const attemptedRegistration = useRef(false);
 
   useEffect(() => {
     loadSettings();
@@ -29,16 +32,8 @@ export default function NotificationSettingsScreen() {
 
   const loadSettings = async () => {
     try {
-      const response = await fetch('/api/user/settings', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load settings');
-      }
-
-      const data = await response.json();
+      const response = await apiClient.get('/user/settings');
+      const data = response.data;
       setNotifyDms(data.notifyDms !== false);
       setNotifyCommunities(data.notifyCommunities !== false);
       setNotifyForums(data.notifyForums !== false);
@@ -54,22 +49,21 @@ export default function NotificationSettingsScreen() {
   const saveSettings = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch('/api/user/settings', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          notifyDms,
-          notifyCommunities,
-          notifyForums,
-          notifyFeed,
-        }),
+      await apiClient.put('/user/settings', {
+        notifyDms,
+        notifyCommunities,
+        notifyForums,
+        notifyFeed,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to save settings');
+      const shouldReceivePushes = notifyDms || notifyCommunities || notifyForums || notifyFeed;
+      if (shouldReceivePushes) {
+        const token = await ensurePushTokenRegistered();
+        if (!token) {
+          Alert.alert('Permission needed', 'Enable push notifications for The Connection in your device settings.');
+        }
+      } else {
+        await unregisterStoredPushToken();
       }
 
       Alert.alert('Success', 'Notification preferences updated successfully');
@@ -184,6 +178,18 @@ export default function NotificationSettingsScreen() {
       alignItems: 'center',
     },
   });
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (attemptedRegistration.current) return;
+
+    if (notifyDms || notifyCommunities || notifyForums || notifyFeed) {
+      attemptedRegistration.current = true;
+      ensurePushTokenRegistered().catch(error => {
+        console.warn('Unable to register push token on load', error);
+      });
+    }
+  }, [isLoading, notifyDms, notifyCommunities, notifyForums, notifyFeed]);
 
   if (isLoading) {
     return (
