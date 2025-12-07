@@ -490,7 +490,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // User endpoints (gated by AUTH feature)
   if (FEATURES.AUTH) {
     app.get('/api/users', isAuthenticated, async (req, res) => {
-      const viewerId = getSessionUserId(req)!;
+      const viewerId = requireSessionUserId(req);
       const viewerIsAdmin = req.session?.isAdmin === true;
       try {
         if (req.query.search) {
@@ -514,7 +514,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
     app.get('/api/users/:id', isAuthenticated, async (req, res) => {
       try {
-        const viewerId = getSessionUserId(req)!;
+        const viewerId = requireSessionUserId(req);
         const viewerIsAdmin = req.session?.isAdmin === true;
         const userId = parseInt(req.params.id);
         const user = await storage.getUser(userId);
@@ -534,7 +534,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.get('/api/users/:id/liked-microblogs', isAuthenticated, async (req, res) => {
       try {
         const userId = parseInt(req.params.id);
-        const viewerId = getSessionUserId(req)!;
+        const viewerId = requireSessionUserId(req);
         const viewerIsAdmin = req.session?.isAdmin === true;
         if (viewerId !== userId && !viewerIsAdmin) {
           return res.status(403).json({ message: 'Not authorized to view likes' });
@@ -616,7 +616,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/communities', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const validatedData = insertCommunitySchema.parse({
         ...req.body,
         createdBy: userId
@@ -656,7 +656,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
 
       // Check if user is already a member
       const isMember = await storage.isCommunityMember(communityId, userId);
@@ -692,7 +692,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
 
       await storage.removeCommunityMember(communityId, userId);
       res.json({ message: 'Successfully left community' });
@@ -740,7 +740,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const { email } = req.body;
 
       // Check if user is a moderator or owner of the community
@@ -810,7 +810,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         communityId = community.id;
       }
       const targetUserId = parseInt(req.params.userId);
-  const currentUserId = getSessionUserId(req)!;
+  const currentUserId = requireSessionUserId(req);
 
       // Check if current user is a moderator or owner
       const isModerator = await storage.isCommunityModerator(communityId, currentUserId);
@@ -852,7 +852,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/invitations/:token/accept', isAuthenticated, async (req, res) => {
     try {
       const token = req.params.token;
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       
       const invitation = await storage.getCommunityInvitationByToken(token);
       
@@ -935,7 +935,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const { name, description, isPrivate } = req.body;
 
       // Check if user is a moderator or owner
@@ -971,7 +971,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.put('/api/chat-rooms/:roomId', isAuthenticated, async (req, res) => {
     try {
       const roomId = parseInt(req.params.roomId);
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const { name, description, isPrivate } = req.body;
 
       const room = await storage.getCommunityRoom(roomId);
@@ -1003,7 +1003,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.delete('/api/chat-rooms/:roomId', isAuthenticated, async (req, res) => {
     try {
       const roomId = parseInt(req.params.roomId);
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
 
       const room = await storage.getCommunityRoom(roomId);
       if (!room) {
@@ -1055,7 +1055,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/chat-rooms/:roomId/messages', messageCreationLimiter, isAuthenticated, async (req, res) => {
     try {
       const roomId = parseInt(req.params.roomId);
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const { content } = req.body;
 
       if (!content || content.trim().length === 0) {
@@ -1121,7 +1121,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         }
         communityId = community.id;
       }
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const { content, isPrivate } = req.body;
 
       // Check if user is a member of the community
@@ -1199,7 +1199,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/posts', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const validatedData = insertPostSchema.parse({
         ...req.body,
         authorId: userId
@@ -1243,7 +1243,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/comments', messageCreationLimiter, isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+      const userId = requireSessionUserId(req);
       const validatedData = insertCommentSchema.parse({
         ...req.body,
         authorId: userId
@@ -1421,7 +1421,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/events', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+      const userId = requireSessionUserId(req);
       const validatedData = insertEventSchema.parse({
         ...req.body,
         creatorId: userId
@@ -1446,20 +1446,8 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.patch('/api/events/:id/rsvp', isAuthenticated, async (req, res) => {
     try {
-      const validation = eventRsvpSchema.safeParse({ params: req.params, body: req.body });
-      if (!validation.success) {
-        return res.status(400).json({
-          message: 'Invalid RSVP payload',
-          errors: validation.error.flatten(),
-        });
-      }
-
-      const {
-        params: { id: eventId },
-        body: { status },
-      } = validation.data;
-
-      const userId = getSessionUserId(req)!;
+      const eventId = parseInt(req.params.id);
+      const userId = requireSessionUserId(req);
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(401).json({ message: 'User not found' });
@@ -1519,7 +1507,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.delete('/api/events/:id', isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.id);
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
 
       // Check if user is the organizer or admin
       const event = await storage.getEvent(eventId);
@@ -1562,7 +1550,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/prayer-requests', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const validatedData = insertPrayerRequestSchema.parse({
         ...req.body,
         userId: userId
@@ -1582,7 +1570,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/prayer-requests/:id/pray', isAuthenticated, async (req, res) => {
     try {
       const prayerRequestId = parseInt(req.params.id);
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
 
       const prayer = await storage.createPrayer({
         prayerRequestId: prayerRequestId,
@@ -1632,7 +1620,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/apologetics/questions', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const { topicId, title, content, requiresVerifiedAnswerer } = req.body;
 
       const user = await storage.getUser(userId);
@@ -1656,7 +1644,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/apologetics/answers', isAuthenticated, async (req, res) => {
     try {
-      const userId = getSessionUserId(req)!;
+      const userId = requireSessionUserId(req);
       const { questionId, content } = req.body;
 
       const question = await storage.getApologeticsQuestion(questionId);
@@ -1735,7 +1723,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Groups endpoints
   app.get('/api/groups', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const groups = await storage.getGroupsByUserId(userId);
       res.json(groups);
     } catch (error) {
@@ -1746,7 +1734,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/groups', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const { name, description, isPrivate } = req.body;
 
       const group = await storage.createGroup({
@@ -1783,7 +1771,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/livestreams', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const { title, description, streamUrl, scheduledFor } = req.body;
 
       const livestream = await storage.createLivestream({
@@ -1805,7 +1793,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Application endpoints
   app.post('/api/applications/livestreamer', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const validatedData = insertLivestreamerApplicationSchema.parse({
         ...req.body,
         userId: userId
@@ -1842,7 +1830,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.post('/api/applications/apologist-scholar', isAuthenticated, async (req, res) => {
     try {
-      const userId = getSessionUserId(req)!;
+      const userId = requireSessionUserId(req);
       const validatedData = insertApologistScholarApplicationSchema.parse({
         ...req.body,
         userId: userId
@@ -1952,7 +1940,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
 
       // Use the storage method that exists on both MemStorage and DbStorage
-  const reviewerId = getSessionUserId(req)!;
+  const reviewerId = requireSessionUserId(req);
       const application = await storage.updateApologistScholarApplication(
         applicationId,
         status,
@@ -2001,7 +1989,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(400).json({ message: 'Invalid status' });
       }
 
-  const reviewerId = getSessionUserId(req)!;
+  const reviewerId = requireSessionUserId(req);
       const application = await storage.updateLivestreamerApplication(
         applicationId,
         status,
@@ -2082,7 +2070,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/objects/upload', uploadLimiter, isAuthenticated, async (req, res) => {
     try {
       const { fileName, fileType } = req.body as { fileName?: string; fileType?: string };
-      const userId = getSessionUserId(req)!;
+      const userId = requireSessionUserId(req);
       ensureAllowedMimeType(fileType, 'upload request');
       const normalizedName = path.basename(fileName || `upload-${Date.now()}`);
       const safeBase = normalizedName.replace(/[^a-zA-Z0-9._-]/g, '');
@@ -2114,7 +2102,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
           return res.status(400).json({ message: 'Invalid upload payload' });
         }
 
-        const userId = getSessionUserId(req)!;
+        const userId = requireSessionUserId(req);
         const rawKey = decodeURIComponent(req.params.key);
         const relativePath = path.normalize(rawKey).replace(/^(\.\.[/\\])+/, '');
         const [ownerId] = relativePath.split(/[\\/]/);
@@ -2142,7 +2130,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Notifications endpoints
   app.get('/api/notifications', isAuthenticated, async (req, res) => {
     try {
-      const userId = getSessionUserId(req)!;
+      const userId = requireSessionUserId(req);
       const notifications = await storage.getUserNotifications(userId);
       res.json(notifications);
     } catch (error) {
@@ -2157,7 +2145,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       if (!Number.isFinite(notificationId)) {
         return res.status(400).json({ message: 'Invalid notification id' });
       }
-      const userId = getSessionUserId(req)!;
+      const userId = requireSessionUserId(req);
       if (typeof storage.markNotificationAsRead !== 'function') {
         throw new Error('storage.markNotificationAsRead is not implemented');
       }
@@ -2175,7 +2163,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // User preferences endpoints
   app.get('/api/user/preferences', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const preferences = await storage.getUserPreferences(userId);
       res.json(preferences);
     } catch (error) {
@@ -2186,7 +2174,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.put('/api/user/preferences', isAuthenticated, async (req, res) => {
     try {
-      const userId = getSessionUserId(req)!;
+      const userId = requireSessionUserId(req);
       const preferences = await storage.updateUserPreferences(userId, req.body);
       res.json(preferences);
     } catch (error) {
@@ -2198,7 +2186,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Record user interactions for recommendation engine
   app.post('/api/recommendations/interaction', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const { contentId, contentType, interactionType } = req.body;
 
       console.log(`Interaction recorded: User ${userId} -> ${interactionType} on ${contentType} ${contentId}`);
@@ -2216,7 +2204,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Get personalized feed
   app.get('/api/recommendations/feed', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       const limit = parseInt(req.query.limit as string) || 20;
       
       // This would use the recommendation engine
@@ -2233,7 +2221,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Get friends activity
   app.get('/api/recommendations/friends-activity', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+  const userId = requireSessionUserId(req);
       
       // This would get activity from user's friends/connections
       // const activity = await storage.getFriendsActivity(userId);

@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import {
   getSessionUserId,
   normalizeSessionUserId,
+  requireSessionUserId,
   setSessionUserId,
 } from '../../server/utils/session';
 
@@ -15,6 +16,30 @@ function createRequest(session: Record<string, unknown> = {}): MockRequest {
 }
 
 describe('session user id helpers', () => {
+  it('returns normalized numbers from getSessionUserId', () => {
+    const req = createRequest({ userId: 7 });
+
+    expect(getSessionUserId(req as Request)).toBe(7);
+  });
+
+  it('parses string values with getSessionUserId', () => {
+    const req = createRequest({ userId: '11' });
+
+    expect(getSessionUserId(req as Request)).toBe(11);
+  });
+
+  it('returns undefined for missing userId with getSessionUserId', () => {
+    const req = createRequest();
+
+    expect(getSessionUserId(req as Request)).toBeUndefined();
+  });
+
+  it('throws when requireSessionUserId is called without a user', () => {
+    const req = createRequest();
+
+    expect(() => requireSessionUserId(req as Request)).toThrowError();
+  });
+
   it('stores userId as a number even when provided as a string', () => {
     const req = createRequest();
 
