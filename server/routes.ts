@@ -1,4 +1,4 @@
-import { getSessionUserId, normalizeSessionUserId } from "./utils/session"
+import { getSessionUserId, normalizeSessionUserId, requireSessionUserId } from "./utils/session"
 import { buildErrorResponse } from "./utils/errors"
 import { getPaginationParams, attachPaginationHeaders } from "./utils/pagination"
 import express, { Express } from 'express';
@@ -1216,13 +1216,11 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-    app.post('/api/posts/:id/upvote', isAuthenticated, async (req, res) => {
+  app.post('/api/posts/:id/upvote', isAuthenticated, async (req, res) => {
     try {
       const postId = parseInt(req.params.id);
-      const userId = getSessionUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
+      const userId = requireSessionUserId(req);
+
       const result = await storage.togglePostVote(postId, userId);
       res.json({ ...result.post, userHasUpvoted: result.voted });
     } catch (error) {
@@ -1264,10 +1262,8 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/comments/:id/upvote', isAuthenticated, async (req, res) => {
     try {
       const commentId = parseInt(req.params.id);
-      const userId = getSessionUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
+      const userId = requireSessionUserId(req);
+
       const result = await storage.toggleCommentVote(commentId, userId);
       res.json({ ...result.comment, userHasUpvoted: result.voted });
     } catch (error) {
