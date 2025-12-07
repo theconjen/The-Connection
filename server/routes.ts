@@ -20,7 +20,7 @@ import { contentCreationLimiter, messageCreationLimiter } from './rate-limiters'
 // inference upstream for proper typings.
 const storage: any = storageReal;
 import { z } from 'zod/v4';
-import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertMicroblogSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema, InsertLivestreamerApplication, InsertApologistScholarApplication, User } from '@shared/schema';
+import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema, InsertLivestreamerApplication, InsertApologistScholarApplication, User } from '@shared/schema';
 import { APP_DOMAIN, BASE_URL, APP_URLS, EMAIL_FROM } from './config/domain';
 import { sendCommunityInvitationEmail, sendNotificationEmail } from './email';
 import { sendLivestreamerApplicationNotificationEmail, sendApplicationStatusUpdateEmail, sendApologistScholarApplicationNotificationEmail } from './email-notifications';
@@ -90,6 +90,7 @@ import { FEATURES } from './config/features';
 import authRoutes from './routes/auth';
 import createFeedRouter from './routes/createFeedRouter';
 import postsRoutes from './routes/posts';
+import microblogsRoutes from './routes/microblogs';
 import communitiesRoutes from './routes/communities';
 import eventsRoutes from './routes/events';
 import apologeticsRoutes from './routes/apologetics';
@@ -432,10 +433,11 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.use('/api/mvp', mvpRoutes);
 
   if (FEATURES.FEED) {
-  app.use('/api', createFeedRouter(storage));
+    app.use('/api', createFeedRouter(storage));
   }
   if (FEATURES.POSTS) {
     app.use('/api', postsRoutes);
+    app.use('/api', microblogsRoutes);
   }
   if (FEATURES.COMMUNITIES) {
     app.use('/api', communitiesRoutes);
@@ -1267,76 +1269,6 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
   }
-
-  // Microblogs endpoints
-  app.get('/api/microblogs', async (req, res) => {
-    try {
-      const filter = req.query.filter as string;
-      const microblogs = await storage.getAllMicroblogs();
-      res.json(microblogs);
-    } catch (error) {
-      console.error('Error fetching microblogs:', error);
-      res.status(500).json(buildErrorResponse('Error fetching microblogs', error));
-    }
-  });
-
-  app.get('/api/microblogs/:id', async (req, res) => {
-    try {
-      const microblogId = parseInt(req.params.id);
-      const microblog = await storage.getMicroblog(microblogId);
-      if (!microblog) {
-        return res.status(404).json({ message: 'Microblog not found' });
-      }
-      res.json(microblog);
-    } catch (error) {
-      console.error('Error fetching microblog:', error);
-      res.status(500).json(buildErrorResponse('Error fetching microblog', error));
-    }
-  });
-
-  app.post('/api/microblogs', contentCreationLimiter, isAuthenticated, async (req, res) => {
-    try {
-  const userId = getSessionUserId(req)!;
-      const validatedData = insertMicroblogSchema.parse({
-        ...req.body,
-        authorId: userId
-      });
-      await ensureCleanText(validatedData.content, 'Microblog content');
-
-      const microblog = await storage.createMicroblog(validatedData);
-      res.status(201).json(microblog);
-    } catch (error) {
-      if (handleModerationError(res, error)) return;
-      console.error('Error creating microblog:', error);
-      res.status(500).json(buildErrorResponse('Error creating microblog', error));
-    }
-  });
-
-  app.post('/api/microblogs/:id/like', isAuthenticated, async (req, res) => {
-    try {
-      const microblogId = parseInt(req.params.id);
-  const userId = getSessionUserId(req)!;
-
-      const like = await storage.likeMicroblog(microblogId, userId);
-      res.status(201).json(like);
-    } catch (error) {
-      console.error('Error liking microblog:', error);
-      res.status(500).json(buildErrorResponse('Error liking microblog', error));
-    }
-  });
-
-  app.delete('/api/microblogs/:id/like', isAuthenticated, async (req, res) => {
-    try {
-      const microblogId = parseInt(req.params.id);
-  const userId = getSessionUserId(req)!;
-
-      await storage.unlikeMicroblog(microblogId, userId);
-      res.json({ message: 'Microblog unliked successfully' });
-    } catch (error) {
-      console.error('Error unliking microblog:', error);
-      res.status(500).json(buildErrorResponse('Error unliking microblog', error));
-    }
-  });
 
   // Events endpoints
   app.get('/api/events', async (req, res) => {
