@@ -491,6 +491,9 @@ importers:
       '@tanstack/react-query-devtools':
         specifier: ^5.91.1
         version: 5.91.1(@tanstack/react-query@5.90.11(react@19.2.0))(react@19.2.0)
+      expo-document-picker:
+        specifier: ~14.0.7
+        version: 14.0.7(expo@54.0.27)
       expo:
         specifier: ~54.0.25
         version: 54.0.27(@babel/core@7.28.5)(@expo/metro-runtime@4.0.1(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.2.7)(react@19.2.0)))(expo-router@6.0.15)(react-native-webview@13.16.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.2.7)(react@19.2.0))(react@19.2.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.2.7)(react@19.2.0))(react@19.2.0)
@@ -5509,6 +5512,11 @@ packages:
     peerDependencies:
       expo: ~54.0.25
       react-native: 0.81.5
+
+  expo-document-picker@14.0.7:
+    resolution: {integrity: sha512-81Jh8RDD0GYBUoSTmIBq30hXXjmkDV1ZY2BNIp1+3HR5PDSh2WmdhD/Ezz5YFsv46hIXHsQc+Kh1q8vn6OLT9Q==}
+    peerDependencies:
+      expo: ~54.0.25
 
   expo-eas-client@1.0.7:
     resolution: {integrity: sha512-Q/b1X0fM+3beqqvffok14pjxMF600NxopdSr9WJY61fF4xllcVnALS0kEudffp9ihMOfcb5xWYqzKj6jMqYDIw==}
@@ -15374,6 +15382,10 @@ snapshots:
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.2.7)(react@19.2.0)
     transitivePeerDependencies:
       - supports-color
+
+  expo-document-picker@14.0.7(expo@54.0.27):
+    dependencies:
+      expo: 54.0.27(@babel/core@7.28.5)(@expo/metro-runtime@4.0.1(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.2.7)(react@19.2.0)))(expo-router@6.0.17)(react-native-webview@13.16.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.2.7)(react@19.2.0))(react@19.2.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.2.7)(react@19.2.0))(react@19.2.0)
 
   expo-eas-client@1.0.7: {}
 
