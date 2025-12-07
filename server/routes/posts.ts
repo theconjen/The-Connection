@@ -1,10 +1,63 @@
 import { Router } from 'express';
+import { z } from 'zod/v4';
 import { insertPostSchema, insertCommentSchema } from '@shared/schema';
 import { requireAuth } from '../middleware/auth';
 import { storage as defaultStorage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { contentCreationLimiter, messageCreationLimiter } from '../rate-limiters';
+
+const MAX_TITLE_LENGTH = 60;
+
+const postRequestSchema = z.object({
+  text: z.string().trim().min(1, 'text must be between 1 and 500 characters').max(500, 'text must be between 1 and 500 characters'),
+  title: z.string().trim().max(MAX_TITLE_LENGTH, `title must be at most ${MAX_TITLE_LENGTH} characters`).optional(),
+  communityId: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((value) => {
+      if (value === undefined || value === null || value === '') return null;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : value;
+    })
+    .refine((value) => value === null || (typeof value === 'number' && Number.isInteger(value) && value > 0), {
+      message: 'communityId must be a positive integer'
+    })
+});
+
+const resolvePostPayload = (input: unknown, authorId: number) => {
+  const parsed = postRequestSchema.safeParse(input);
+  if (!parsed.success) return { success: false as const, error: parsed.error };
+
+  const { text, title, communityId } = parsed.data;
+  const resolvedTitle = (title ?? text).trim();
+
+  if (resolvedTitle.length > MAX_TITLE_LENGTH) {
+    const error = new z.ZodError([
+      {
+        code: z.ZodIssueCode.too_big,
+        maximum: MAX_TITLE_LENGTH,
+        inclusive: true,
+        type: 'string',
+        message: `title must be at most ${MAX_TITLE_LENGTH} characters`,
+        path: ['title']
+      }
+    ]);
+    return { success: false as const, error };
+  }
+
+  return {
+    success: true as const,
+    payload: {
+      title: resolvedTitle,
+      content: text,
+      imageUrl: null,
+      communityId,
+      groupId: null,
+      authorId
+    }
+  };
+};
 
 export function createPostsRouter(storage = defaultStorage) {
   const router = Router();
@@ -43,21 +96,12 @@ export function createPostsRouter(storage = defaultStorage) {
   router.post('/api/posts', contentCreationLimiter, requireAuth, async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
-    const { text, communityId } = req.body || {};
-    if (!text || typeof text !== 'string') return res.status(400).json({ message: 'text required' });
-    const content = text.trim();
-    if (content.length === 0 || content.length > 500) return res.status(400).json({ message: 'text must be 1-500 chars' });
+    const result = resolvePostPayload(req.body, userId);
+    if (!result.success) {
+      return res.status(400).json({ message: result.error.errors[0]?.message ?? 'Invalid post payload' });
+    }
 
-    // Map to schema: title from first 60 chars, content is full text
-    const payload = {
-      title: content.slice(0, 60),
-      content,
-      imageUrl: null,
-      communityId: communityId ? Number(communityId) : null,
-      groupId: null,
-      authorId: userId,
-    };
-    const validatedData = insertPostSchema.parse(payload as any);
+    const validatedData = insertPostSchema.parse(result.payload as any);
     const post = await storage.createPost(validatedData);
     res.status(201).json(post);
   } catch (error) {
@@ -137,18 +181,14 @@ export function createPostsRouter(storage = defaultStorage) {
     }
 
     // Update post
-    const { text } = req.body;
-    if (!text || typeof text !== 'string') {
-      return res.status(400).json({ message: 'text required' });
-    }
-    const content = text.trim();
-    if (content.length === 0 || content.length > 500) {
-      return res.status(400).json({ message: 'text must be 1-500 chars' });
+    const result = resolvePostPayload(req.body, userId);
+    if (!result.success) {
+      return res.status(400).json({ message: result.error.errors[0]?.message ?? 'Invalid post payload' });
     }
 
     const updatedPost = await storage.updatePost(postId, {
-      title: content.slice(0, 60),
-      content,
+      title: result.payload.title,
+      content: result.payload.content,
     });
 
     res.json(updatedPost);

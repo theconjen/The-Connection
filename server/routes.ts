@@ -95,6 +95,7 @@ import communitiesRoutes from './routes/communities';
 import eventsRoutes from './routes/events';
 import apologeticsRoutes from './routes/apologetics';
 import moderationRoutes from './routes/moderation';
+import { chatMessagesQuerySchema } from './routes/chatMessages';
 
 declare module 'express-session' {
   interface SessionData {
@@ -1026,17 +1027,23 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   app.get('/api/chat-rooms/:roomId/messages', async (req, res) => {
-    try {
-      const roomId = parseInt(req.params.roomId);
-      const limit = parseInt(req.query.limit as string) || 50;
-      const after = req.query.after ? parseInt(req.query.after as string) : undefined;
+    const parsed = chatMessagesQuerySchema.safeParse({
+      roomId: req.params.roomId,
+      ...req.query
+    });
 
-      let messages;
-      if (after) {
-        messages = await storage.getChatMessagesAfter(roomId, after);
-      } else {
-        messages = await storage.getChatMessages(roomId, limit);
-      }
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0]?.message ?? 'Invalid query parameters' });
+    }
+
+    try {
+      const { roomId, limit = 50, after } = parsed.data;
+      const effectiveLimit = Math.max(0, limit);
+      const messages = after
+        ? await storage.getChatMessagesAfter(roomId, after)
+        : effectiveLimit === 0
+          ? []
+          : await storage.getChatMessages(roomId, effectiveLimit);
 
       res.json(messages);
     } catch (error) {
