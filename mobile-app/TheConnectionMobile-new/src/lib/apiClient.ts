@@ -54,9 +54,7 @@ apiClient.interceptors.response.use(
       const status = error.response.status;
 
       if (status === 401) {
-        // Unauthorized - token might be expired
-        console.log('Unauthorized request - redirecting to login');
-        // You can dispatch a logout action here or emit an event
+        // Unauthorized - likely signed out/expired. Skip noisy logging.
       } else if (status === 403) {
         console.log('Forbidden - insufficient permissions');
       } else if (status === 404) {

@@ -11,12 +11,20 @@ interface User {
   bio?: string;
 }
 
+interface RegisterPayload {
+  username: string;
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (data: RegisterPayload) => Promise<{ verificationSent: boolean }>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -33,7 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await apiClient.get('/user');
       setUser(response.data);
     } catch (error) {
-      console.error('Auth check failed:', error);
+      // 401 simply means the user is not logged in; avoid noisy error logs
+      const status = (error as any)?.response?.status;
+      if (status !== 401) {
+        console.error('Auth check failed:', error);
+      }
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -66,11 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (username: string, email: string, password: string) => {
+  const register = async (data: RegisterPayload) => {
     try {
-      await apiClient.post('/register', { username, email, password });
-      // Registration requires email verification before authentication
-      // so we do not attempt to log the user in here.
+      await apiClient.post('/register', data);
+      // Trigger a verification email right after sign-up so the user can complete registration.
+      try {
+        await apiClient.post('/auth/send-verification', { email: data.email });
+        return { verificationSent: true };
+      } catch (sendError) {
+        console.error('Verification email send failed:', sendError);
+        return { verificationSent: false };
+      }
     } catch (error: any) {
       console.error('Registration error:', error);
       throw new Error(error.response?.data?.message || 'Registration failed');

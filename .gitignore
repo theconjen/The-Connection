@@ -33,3 +33,4 @@ mobile-app/TheConnectionMobile/android/
 
 # Prevent root eas.json (should only be in mobile-app/TheConnectionMobile/)
 /eas.json
+mobile-app/TheConnectionMobile/ios-backups/
