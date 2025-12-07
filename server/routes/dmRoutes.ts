@@ -3,7 +3,6 @@ import rateLimit from "express-rate-limit";
 import { storage } from "../storage-optimized";
 import { sendPushNotification } from "../services/pushService";
 import { ensureCleanText, handleModerationError } from "../utils/moderation";
-import { buildErrorResponse } from "../utils/errors";
 import { getSessionUserId } from '../utils/session';
 
 const router = express.Router();
@@ -46,7 +45,7 @@ router.get("/conversations", async (req, res) => {
     res.json(conversations);
   } catch (error) {
     console.error('Error fetching conversations:', error);
-    res.status(500).json(buildErrorResponse('Error fetching conversations', error));
+    res.status(500).json({ message: 'Error fetching conversations' });
   }
 });
 
@@ -62,7 +61,7 @@ router.get("/unread-count", async (req, res) => {
     res.json({ count });
   } catch (error) {
     console.error('Error fetching unread count:', error);
-    res.status(500).json(buildErrorResponse('Error fetching unread count', error));
+    res.status(500).json({ message: 'Error fetching unread count' });
   }
 });
 
@@ -91,7 +90,7 @@ router.get("/:userId", async (req, res) => {
     res.json(chat);
   } catch (error) {
     console.error('Error fetching direct messages:', error);
-    res.status(500).json(buildErrorResponse('Error fetching messages', error));
+    res.status(500).json({ message: 'Error fetching messages' });
   }
 });
 
@@ -159,7 +158,7 @@ router.post("/send", dmLimiter, async (req, res) => {
   } catch (error) {
     if (handleModerationError(res, error)) return;
     console.error('Error sending direct message:', error);
-    res.status(500).json(buildErrorResponse('Error sending message', error));
+    res.status(500).json({ message: 'Error sending message' });
   }
 });
 
@@ -184,7 +183,7 @@ router.post("/mark-read/:messageId", async (req, res) => {
     }
   } catch (error) {
     console.error('Error marking message as read:', error);
-    res.status(500).json(buildErrorResponse('Error marking message as read', error));
+    res.status(500).json({ message: 'Error marking message as read' });
   }
 });
 
@@ -213,7 +212,7 @@ router.post("/mark-conversation-read/:userId", async (req, res) => {
     res.json({ success: true, markedCount: count });
   } catch (error) {
     console.error('Error marking conversation as read:', error);
-    res.status(500).json(buildErrorResponse('Error marking conversation as read', error));
+    res.status(500).json({ message: 'Error marking conversation as read' });
   }
 });
 
