@@ -19,7 +19,7 @@
     "@react-native-picker/picker": "2.9.0",
     "@tanstack/react-query": "^5.90.11",
     "@tanstack/react-query-devtools": "^5.91.1",
-    "expo-document-picker": "~13.0.4",
+    "expo-document-picker": "~14.0.7",
     "expo-file-system": "~17.0.1",
     "expo-image-picker": "~15.0.6",
     "expo-av": "~14.0.6",
