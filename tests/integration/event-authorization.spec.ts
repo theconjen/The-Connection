@@ -17,7 +17,7 @@ const fixtures = vi.hoisted(() => ({
       title: 'Private Gathering',
       creatorId: 1,
       isPublic: false,
-      communityId: null,
+      communityId: 1,
       groupId: null,
     },
   ],
@@ -45,6 +45,7 @@ vi.mock('../../server/storage', () => {
     isGroupMember: vi.fn(async () => false),
     isUserInvitedToEvent: vi.fn(async () => false),
     upsertEventRSVP: vi.fn(async (_eventId: number, userId: number, status: string) => ({ eventId: _eventId, userId, status })),
+    getAllEvents: vi.fn(async () => fixtures.events),
     deleteEvent: vi.fn(async (id: number) => {
       const idx = fixtures.events.findIndex(e => e.id === id);
       if (idx === -1) return false;
@@ -94,7 +95,7 @@ describe('Event and post authorization', () => {
       title: 'Private Gathering',
       creatorId: 1,
       isPublic: false,
-      communityId: null,
+      communityId: 1,
       groupId: null,
     });
     fixtures.posts.splice(0, fixtures.posts.length, { id: 20, content: 'Hello world', authorId: 1, upvotes: 0 });
@@ -175,6 +176,29 @@ describe('Event and post authorization', () => {
 
     expect(response.body).toMatchObject({ eventId: 11, userId: 2, status: 'going' });
     expect(storage.upsertEventRSVP).toHaveBeenCalledWith(11, 2, 'going');
+  });
+
+  it('rejects RSVP payloads with unsupported statuses', async () => {
+    await agent.post('/test/login').send({ userId: 1 }).expect(204);
+
+    await agent
+      .patch('/api/events/10/rsvp')
+      .send({ status: 'invalid_status' })
+      .expect(400);
+
+    expect(storage.upsertEventRSVP).not.toHaveBeenCalled();
+  });
+
+  it('validates event filters before querying', async () => {
+    const response = await agent.get('/api/events?filter=unknown').expect(400);
+    expect(response.body.message).toBe('Invalid event filters');
+  });
+
+  it('enforces pagination bounds for event listings', async () => {
+    await agent.get('/api/events?limit=5000').expect(400);
+
+    const valid = await agent.get('/api/events?limit=1&communityId=1&filter=all').expect(200);
+    expect(valid.body.length).toBeLessThanOrEqual(1);
   });
 
   it('prevents non-owners from deleting an event', async () => {
