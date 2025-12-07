@@ -146,6 +146,11 @@ async function bootstrap() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
+  // Legacy compatibility handler for probes that still request /api.php
+  app.get("/api.php", (_req: Request, res: Response) => {
+    res.json({ ok: true, message: "The Connection API is available under /api" });
+  });
+
   app.get("/api/health", (_req: Request, res: Response) => {
     res.json({ ok: true });
   });
