@@ -170,6 +170,209 @@ function haversineDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: 
   return earthRadiusMiles * c;
 }
 
+type SocketDependencies = {
+  storage: typeof storage;
+  sendPushNotification: typeof sendPushNotification;
+  logger?: Pick<typeof console, 'log' | 'error' | 'warn'>;
+};
+
+const defaultSocketDependencies: SocketDependencies = {
+  storage,
+  sendPushNotification,
+  logger: console,
+};
+
+function emitSocketError(
+  socket: any,
+  logger: Pick<typeof console, 'log' | 'error' | 'warn'>,
+  context: string,
+  error: unknown,
+  payload: { message: string; code?: string }
+) {
+  logger.error(`${context}:`, error);
+  socket.emit('error', payload);
+}
+
+export function registerSocketHandlers(
+  io: SocketIOServer,
+  deps: SocketDependencies = defaultSocketDependencies
+) {
+  const { storage: storageDep, sendPushNotification: pushNotification, logger = console } = deps;
+
+  // SECURITY: Add authentication middleware for Socket.IO
+  io.use((socket, next) => {
+    try {
+      // Get userId from handshake auth or query
+      const authUserId = socket.handshake.auth?.userId || socket.handshake.query?.userId;
+
+      if (!authUserId) {
+        logger.log('Socket.IO connection rejected: No userId provided');
+        return next(new Error('Authentication required: userId not provided'));
+      }
+
+      // Store authenticated userId on socket for verification
+      (socket as any).userId = parseInt(authUserId as string);
+      logger.log(`Socket.IO connection authenticated for user ${(socket as any).userId}`);
+      next();
+    } catch (error) {
+      emitSocketError(socket, logger, 'Socket authentication failed', error, {
+        message: 'Failed to authenticate socket connection',
+      });
+      next(error as Error);
+    }
+  });
+
+  // Socket.IO connection handling
+  io.on('connection', (socket) => {
+    const authenticatedUserId = (socket as any).userId;
+    logger.log('User connected:', socket.id, 'User ID:', authenticatedUserId);
+
+    // Join user to their own room for private messages
+    socket.on('join_user_room', (userId) => {
+      try {
+        // SECURITY: Verify userId matches authenticated user
+        if (parseInt(userId) !== authenticatedUserId) {
+          logger.log(`User ${authenticatedUserId} attempted to join room for user ${userId}`);
+          socket.emit('error', {
+            message: 'Unauthorized: Cannot join another user room',
+            code: 'UNAUTHORIZED_JOIN'
+          });
+          return;
+        }
+
+        socket.join(`user_${userId}`);
+        logger.log(`User ${userId} joined room user_${userId}`);
+      } catch (error) {
+        emitSocketError(socket, logger, 'Error handling join_user_room', error, {
+          message: 'Failed to join user room',
+        });
+      }
+    });
+
+    // Join community chat room
+    socket.on('join_room', (roomId) => {
+      try {
+        socket.join(`room_${roomId}`);
+        logger.log(`User joined room ${roomId}`);
+      } catch (error) {
+        emitSocketError(socket, logger, 'Error joining room', error, {
+          message: 'Failed to join room',
+        });
+      }
+    });
+
+    // Leave community chat room
+    socket.on('leave_room', (roomId) => {
+      try {
+        socket.leave(`room_${roomId}`);
+        logger.log(`User left room ${roomId}`);
+      } catch (error) {
+        emitSocketError(socket, logger, 'Error leaving room', error, {
+          message: 'Failed to leave room',
+        });
+      }
+    });
+
+    // Handle new chat message
+    socket.on('new_message', async (data) => {
+      try {
+        const { roomId, content, senderId } = data;
+
+        // SECURITY: Verify senderId matches authenticated user
+        if (parseInt(senderId) !== authenticatedUserId) {
+          logger.log(`User ${authenticatedUserId} attempted to send message as user ${senderId}`);
+          socket.emit('error', {
+            message: 'Unauthorized: Cannot send message as another user',
+            code: 'UNAUTHORIZED_SENDER'
+          });
+          return;
+        }
+
+        // Create message in database
+        const newMessage = await storageDep.createChatMessage({
+          chatRoomId: parseInt(roomId),
+          senderId: authenticatedUserId, // Use authenticated userId
+          content: content,
+        });
+
+        // Get sender info
+        const sender = await storageDep.getUser(authenticatedUserId);
+        const messageWithSender = { ...newMessage, sender };
+
+        // Broadcast to room
+        io.to(`room_${roomId}`).emit('message_received', messageWithSender);
+      } catch (error) {
+        emitSocketError(socket, logger, 'Error handling chat message', error, {
+          message: 'Failed to send message',
+          code: 'MESSAGE_ERROR'
+        });
+      }
+    });
+
+    // Handle private/direct messages
+    socket.on('send_dm', async (data) => {
+      try {
+        const { senderId, receiverId, content } = data;
+
+        // SECURITY: Verify senderId matches authenticated user
+        if (parseInt(senderId) !== authenticatedUserId) {
+          logger.log(`User ${authenticatedUserId} attempted to send DM as user ${senderId}`);
+          socket.emit('error', {
+            message: 'Unauthorized: Cannot send DM as another user',
+            code: 'UNAUTHORIZED_SENDER'
+          });
+          return;
+        }
+
+        // Create message in database
+        const messageData = {
+          senderId: authenticatedUserId, // Use authenticated userId
+          receiverId: parseInt(receiverId),
+          content: content,
+          createdAt: new Date()
+        };
+
+        // Persist message to database
+        const savedMessage = await storageDep.createDirectMessage(messageData);
+
+        // Emit to both sender and receiver with saved message (includes ID)
+        io.to(`user_${authenticatedUserId}`).emit("new_message", savedMessage);
+        io.to(`user_${receiverId}`).emit("new_message", savedMessage);
+
+        // Send push notification to receiver if they're offline
+        try {
+          const pushTokens = await storageDep.getUserPushTokens(parseInt(receiverId));
+          if (pushTokens && pushTokens.length > 0) {
+            const sender = await storageDep.getUser(authenticatedUserId);
+            const senderName = sender?.displayName || sender?.username || 'Someone';
+
+            for (const tokenData of pushTokens) {
+              await pushNotification(
+                tokenData.token,
+                `New message from ${senderName}`,
+                content,
+                { type: 'dm', senderId: authenticatedUserId, messageId: savedMessage.id }
+              );
+            }
+          }
+        } catch (pushError) {
+          logger.error('Error sending push notification:', pushError);
+          // Don't fail the message send if push fails
+        }
+      } catch (error) {
+        emitSocketError(socket, logger, 'Error handling DM', error, {
+          message: 'Failed to send direct message',
+          code: 'DM_ERROR'
+        });
+      }
+    });
+
+    socket.on('disconnect', () => {
+      logger.log('User disconnected:', socket.id);
+    });
+  });
+}
+
 export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Set up authentication
   setupAuth(app);
@@ -232,155 +435,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
-  // SECURITY: Add authentication middleware for Socket.IO
-  io.use((socket, next) => {
-    // Get userId from handshake auth or query
-    const authUserId = socket.handshake.auth?.userId || socket.handshake.query?.userId;
-
-    if (!authUserId) {
-      console.log('Socket.IO connection rejected: No userId provided');
-      return next(new Error('Authentication required: userId not provided'));
-    }
-
-    // Store authenticated userId on socket for verification
-    (socket as any).userId = parseInt(authUserId as string);
-    console.log(`Socket.IO connection authenticated for user ${(socket as any).userId}`);
-    next();
-  });
-
-  // Socket.IO connection handling
-  io.on('connection', (socket) => {
-    const authenticatedUserId = (socket as any).userId;
-    console.log('User connected:', socket.id, 'User ID:', authenticatedUserId);
-
-    // Join user to their own room for private messages
-    socket.on('join_user_room', (userId) => {
-      // SECURITY: Verify userId matches authenticated user
-      if (parseInt(userId) !== authenticatedUserId) {
-        console.log(`User ${authenticatedUserId} attempted to join room for user ${userId}`);
-        socket.emit('error', {
-          message: 'Unauthorized: Cannot join another user room',
-          code: 'UNAUTHORIZED_JOIN'
-        });
-        return;
-      }
-
-      socket.join(`user_${userId}`);
-      console.log(`User ${userId} joined room user_${userId}`);
-    });
-
-    // Join community chat room
-    socket.on('join_room', (roomId) => {
-      socket.join(`room_${roomId}`);
-      console.log(`User joined room ${roomId}`);
-    });
-
-    // Leave community chat room
-    socket.on('leave_room', (roomId) => {
-      socket.leave(`room_${roomId}`);
-      console.log(`User left room ${roomId}`);
-    });
-
-    // Handle new chat message
-    socket.on('new_message', async (data) => {
-      try {
-        const { roomId, content, senderId } = data;
-
-        // SECURITY: Verify senderId matches authenticated user
-        if (parseInt(senderId) !== authenticatedUserId) {
-          console.log(`User ${authenticatedUserId} attempted to send message as user ${senderId}`);
-          socket.emit('error', {
-            message: 'Unauthorized: Cannot send message as another user',
-            code: 'UNAUTHORIZED_SENDER'
-          });
-          return;
-        }
-
-        // Create message in database
-        const newMessage = await storage.createChatMessage({
-          chatRoomId: parseInt(roomId),
-          senderId: authenticatedUserId, // Use authenticated userId
-          content: content,
-        });
-
-        // Get sender info
-        const sender = await storage.getUser(authenticatedUserId);
-        const messageWithSender = { ...newMessage, sender };
-
-        // Broadcast to room
-        io.to(`room_${roomId}`).emit('message_received', messageWithSender);
-      } catch (error) {
-        console.error('Error handling chat message:', error);
-        socket.emit('error', {
-          message: 'Failed to send message',
-          code: 'MESSAGE_ERROR'
-        });
-      }
-    });
-
-    // Handle private/direct messages
-    socket.on('send_dm', async (data) => {
-      try {
-        const { senderId, receiverId, content } = data;
-
-        // SECURITY: Verify senderId matches authenticated user
-        if (parseInt(senderId) !== authenticatedUserId) {
-          console.log(`User ${authenticatedUserId} attempted to send DM as user ${senderId}`);
-          socket.emit('error', {
-            message: 'Unauthorized: Cannot send DM as another user',
-            code: 'UNAUTHORIZED_SENDER'
-          });
-          return;
-        }
-
-        // Create message in database
-        const messageData = {
-          senderId: authenticatedUserId, // Use authenticated userId
-          receiverId: parseInt(receiverId),
-          content: content,
-          createdAt: new Date()
-        };
-
-        // Persist message to database
-        const savedMessage = await storage.createDirectMessage(messageData);
-
-        // Emit to both sender and receiver with saved message (includes ID)
-        io.to(`user_${authenticatedUserId}`).emit("new_message", savedMessage);
-        io.to(`user_${receiverId}`).emit("new_message", savedMessage);
-
-        // Send push notification to receiver if they're offline
-        try {
-          const pushTokens = await storage.getUserPushTokens(parseInt(receiverId));
-          if (pushTokens && pushTokens.length > 0) {
-            const sender = await storage.getUser(authenticatedUserId);
-            const senderName = sender?.displayName || sender?.username || 'Someone';
-
-            for (const tokenData of pushTokens) {
-              await sendPushNotification(
-                tokenData.token,
-                `New message from ${senderName}`,
-                content,
-                { type: 'dm', senderId: authenticatedUserId, messageId: savedMessage.id }
-              );
-            }
-          }
-        } catch (pushError) {
-          console.error('Error sending push notification:', pushError);
-          // Don't fail the message send if push fails
-        }
-      } catch (error) {
-        console.error('Error handling DM:', error);
-        socket.emit('error', {
-          message: 'Failed to send direct message',
-          code: 'DM_ERROR'
-        });
-      }
-    });
-
-    socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
-    });
-  });
+  registerSocketHandlers(io);
 
   // Use modular route files - mount only if feature flags enable them
   // Register modular routes only if their feature flag is enabled
