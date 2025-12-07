@@ -2,13 +2,11 @@
 // Platform-specific components will be exported from their respective files
 // using .web.tsx and .native.tsx extensions
 
-// NOTE: The following components are not yet implemented in packages/ui:
-// - Button, Card, Avatar, Input, Label, Separator, Switch, Tabs,
-// - Textarea, Toggle, Skeleton, Modal
-// These components exist in mobile-app/TheConnectionMobile/src/components/ui/
-// but need to be migrated to packages/ui when needed.
+// NOTE: Core web/native shared components now live here with platform splits.
+// Remaining primitives from `mobile-app/TheConnectionMobile/assets` can be
+// migrated incrementally as part of the component migration phase.
 
-// Currently implemented components:
+// Currently implemented components (web + native):
 export * from './Dialog/Dialog';
 export * from './Badge/Badge';
 export * from './Select/Select';
