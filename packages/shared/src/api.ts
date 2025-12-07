@@ -1,6 +1,6 @@
 // Cross-platform API utilities
 // Resolves API base URL for Expo (EXPO_PUBLIC_API_BASE), Vite (VITE_API_BASE), Next (NEXT_PUBLIC_API_BASE),
-// and falls back to same-origin "/api" on web or http://localhost:5000/api in dev.
+// and falls back to same-origin "/api" on web or http://localhost:3000/api in dev.
 
 export function getApiBase(): string {
   // Try common env vars first
@@ -20,7 +20,7 @@ export function getApiBase(): string {
   }
 
   // Fallback for native dev or Node contexts
-  return 'http://localhost:5000/api';
+  return 'http://localhost:3000/api';
 }
 
 export const API_BASE = getApiBase();

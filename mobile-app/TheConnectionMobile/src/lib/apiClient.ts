@@ -8,7 +8,7 @@ import Constants from 'expo-constants';
 import { getAuthToken, getSessionCookie, saveSessionCookie } from './secureStorage';
 
 // Get API base URL from environment
-const API_BASE_URL = Constants.expoConfig?.extra?.apiBase || process.env.EXPO_PUBLIC_API_BASE || 'http://localhost:3000/api';
+const API_BASE_URL = getApiBase();
 
 console.log('API Base URL:', API_BASE_URL);
 
