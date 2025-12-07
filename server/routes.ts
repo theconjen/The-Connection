@@ -1,6 +1,6 @@
 import { getSessionUserId, normalizeSessionUserId, requireSessionUserId } from "./utils/session"
 import { buildErrorResponse } from "./utils/errors"
-import { getPaginationParams, attachPaginationHeaders } from "./utils/pagination"
+import { getPaginationParams, attachPaginationHeaders, parsePaginationParams } from "./utils/pagination"
 import express, { Express } from 'express';
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -1274,8 +1274,35 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   }
 
   // Events endpoints
+  const eventListQuerySchema = z.object({
+    communityId: z.preprocess(val => (val === undefined ? undefined : val), z.coerce.number().int().positive()).optional(),
+    groupId: z.preprocess(val => (val === undefined ? undefined : val), z.coerce.number().int().positive()).optional(),
+    filter: z.enum(['all', 'upcoming', 'past', 'attending', 'hosting']).optional(),
+  });
+
   app.get('/api/events', async (req, res) => {
     try {
+      const parsedFilters = eventListQuerySchema.safeParse({
+        communityId: Array.isArray(req.query.communityId) ? req.query.communityId[0] : req.query.communityId,
+        groupId: Array.isArray(req.query.groupId) ? req.query.groupId[0] : req.query.groupId,
+        filter: Array.isArray(req.query.filter) ? req.query.filter[0] : req.query.filter,
+      });
+
+      if (!parsedFilters.success) {
+        return res.status(400).json({
+          message: 'Invalid event filters',
+          errors: parsedFilters.error.flatten(),
+        });
+      }
+
+      const paginationResult = parsePaginationParams(req.query);
+      if (!paginationResult.success) {
+        return res.status(400).json({
+          message: 'Invalid pagination parameters',
+          errors: paginationResult.error.flatten(),
+        });
+      }
+
       const userId = getSessionUserId(req);
       let events = await storage.getAllEvents();
       if (userId) {
@@ -1284,7 +1311,16 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
           events = events.filter(e => !blockedIds.includes(e.creatorId));
         }
       }
-      const pagination = getPaginationParams(req.query);
+
+      const { communityId, groupId } = parsedFilters.data;
+      if (communityId) {
+        events = events.filter(event => event.communityId === communityId);
+      }
+      if (groupId) {
+        events = events.filter(event => event.groupId === groupId);
+      }
+
+      const pagination = paginationResult.data;
       const paginated = events.slice(pagination.offset, pagination.offset + pagination.limit);
       attachPaginationHeaders(res, events.length, pagination);
       res.json(paginated);
@@ -1296,9 +1332,17 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.get('/api/events/public', async (req, res) => {
     try {
+      const paginationResult = parsePaginationParams(req.query);
+      if (!paginationResult.success) {
+        return res.status(400).json({
+          message: 'Invalid pagination parameters',
+          errors: paginationResult.error.flatten(),
+        });
+      }
+
       const allEvents = await storage.getAllEvents();
       const events = allEvents.filter(event => event.isPublic);
-      const pagination = getPaginationParams(req.query);
+      const pagination = paginationResult.data;
       const paginated = events.slice(pagination.offset, pagination.offset + pagination.limit);
       attachPaginationHeaders(res, events.length, pagination);
       res.json(paginated);
@@ -1308,15 +1352,38 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
+  const nearbyEventsQuerySchema = z.object({
+    latitude: z.coerce.number().finite().gte(-90).lte(90),
+    longitude: z.coerce.number().finite().gte(-180).lte(180),
+    radius: z
+      .preprocess(val => (val === undefined ? 25 : val), z.coerce.number().finite().min(1).max(250))
+      .default(25),
+  });
+
   app.get('/api/events/nearby', async (req, res) => {
     try {
-      const latitude = parseNumericQuery(req.query.latitude);
-      const longitude = parseNumericQuery(req.query.longitude);
-      if (latitude === undefined || longitude === undefined) {
-        return res.status(400).json({ message: 'latitude and longitude query parameters are required' });
+      const query = {
+        latitude: Array.isArray(req.query.latitude) ? req.query.latitude[0] : req.query.latitude,
+        longitude: Array.isArray(req.query.longitude) ? req.query.longitude[0] : req.query.longitude,
+        radius: Array.isArray(req.query.radius) ? req.query.radius[0] : req.query.radius,
+      };
+      const parsedQuery = nearbyEventsQuerySchema.safeParse(query);
+      if (!parsedQuery.success) {
+        return res.status(400).json({
+          message: 'Invalid nearby event parameters',
+          errors: parsedQuery.error.flatten(),
+        });
       }
-      const requestedRadius = parseNumericQuery(req.query.radius) ?? 25;
-      const radius = Math.min(Math.max(requestedRadius, 1), 250);
+
+      const paginationResult = parsePaginationParams(req.query);
+      if (!paginationResult.success) {
+        return res.status(400).json({
+          message: 'Invalid pagination parameters',
+          errors: paginationResult.error.flatten(),
+        });
+      }
+
+      const { latitude, longitude, radius } = parsedQuery.data;
 
       const allEvents = await storage.getAllEvents();
       const nearby = allEvents.filter(event => {
@@ -1328,7 +1395,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return distance <= radius;
       });
 
-      const pagination = getPaginationParams(req.query);
+      const pagination = paginationResult.data;
       const paginated = nearby.slice(pagination.offset, pagination.offset + pagination.limit);
       attachPaginationHeaders(res, nearby.length, pagination);
       res.json(paginated);
@@ -1372,6 +1439,11 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
+  const eventRsvpSchema = z.object({
+    params: z.object({ id: z.coerce.number().int().positive() }),
+    body: z.object({ status: z.enum(['going', 'maybe', 'not_going']) }),
+  });
+
   app.patch('/api/events/:id/rsvp', isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.id);
@@ -1379,15 +1451,6 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(401).json({ message: 'User not found' });
-      }
-      const { status } = req.body;
-
-      // Validate RSVP status
-      const validStatuses = ['going', 'maybe', 'not_going'];
-      if (!status || !validStatuses.includes(status)) {
-        return res.status(400).json({
-          message: 'Invalid RSVP status. Must be one of: going, maybe, not_going'
-        });
       }
 
       // Verify event exists and user can access it

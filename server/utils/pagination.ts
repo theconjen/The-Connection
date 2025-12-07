@@ -1,4 +1,5 @@
 import type { ParsedQs } from 'qs';
+import { z } from 'zod/v4';
 
 export interface PaginationParams {
   page: number;
@@ -11,23 +12,58 @@ interface PaginationOptions {
   maxLimit?: number;
 }
 
-export function getPaginationParams(query: ParsedQs, options: PaginationOptions = {}): PaginationParams {
+export type PaginationParseResult =
+  | { success: true; data: PaginationParams }
+  | { success: false; error: z.ZodError<any> };
+
+function buildPaginationSchema(defaultLimit: number, maxLimit: number) {
+  return z.object({
+    page: z
+      .preprocess(val => (val === undefined ? 1 : val), z.coerce.number().int().min(1))
+      .default(1),
+    limit: z
+      .preprocess(val => (val === undefined ? defaultLimit : val), z.coerce.number().int().min(1).max(maxLimit))
+      .default(defaultLimit),
+  });
+}
+
+export function parsePaginationParams(query: ParsedQs, options: PaginationOptions = {}): PaginationParseResult {
   const defaultLimit = options.defaultLimit ?? 20;
   const maxLimit = options.maxLimit ?? 100;
 
   const rawPage = Array.isArray(query.page) ? query.page[0] : query.page;
-  const parsedPage = rawPage !== undefined ? parseInt(String(rawPage), 10) : 1;
-  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-
   const rawLimit = Array.isArray(query.limit) ? query.limit[0] : query.limit;
-  const parsedLimit = rawLimit !== undefined ? parseInt(String(rawLimit), 10) : defaultLimit;
-  const limit = Math.max(1, Math.min(maxLimit, Number.isFinite(parsedLimit) ? parsedLimit : defaultLimit));
+
+  const schema = buildPaginationSchema(defaultLimit, maxLimit);
+  const result = schema.safeParse({ page: rawPage, limit: rawLimit });
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  const { page, limit } = result.data;
 
   return {
-    page,
-    limit,
-    offset: (page - 1) * limit,
+    success: true,
+    data: {
+      page,
+      limit,
+      offset: (page - 1) * limit,
+    },
   };
+}
+
+export function getPaginationParams(query: ParsedQs, options: PaginationOptions = {}): PaginationParams {
+  const result = parsePaginationParams(query, options);
+  if (!result.success) {
+    return {
+      page: 1,
+      limit: options.defaultLimit ?? 20,
+      offset: 0,
+    };
+  }
+
+  return result.data;
 }
 
 export function attachPaginationHeaders(res: { setHeader: (name: string, value: string) => void }, total: number, params: PaginationParams) {
