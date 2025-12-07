@@ -1,29 +1,17 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import { isAuthenticated } from '../auth';
+import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
 import { buildErrorResponse } from '../utils/errors';
-import { getSessionUserId } from '../utils/session';
+import { requireSessionUserId } from '../utils/session';
 import { moderationReportLimiter } from '../rate-limiters';
 
 const router = express.Router();
 
-const requireUserId = (req: Request, res: Response): number | undefined => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ message: 'Not authenticated' });
-    return undefined;
-  }
-  return userId;
-};
-
 // POST /reports - report content
-router.post('/reports', moderationReportLimiter, isAuthenticated, async (req: Request, res) => {
+router.post('/reports', moderationReportLimiter, requireAuth, async (req: Request, res) => {
   try {
-    const reporterId = requireUserId(req, res);
-    if (!reporterId) {
-      return;
-    }
+    const reporterId = requireSessionUserId(req);
     const { subjectType, subjectId, reason, description } = req.body;
 
     if (!subjectType || !subjectId) return res.status(400).json({ message: 'Missing subjectType or subjectId' });
@@ -47,12 +35,9 @@ router.post('/reports', moderationReportLimiter, isAuthenticated, async (req: Re
 });
 
 // POST /blocks - block a user
-router.post('/blocks', isAuthenticated, async (req: Request, res) => {
+router.post('/blocks', requireAuth, async (req: Request, res) => {
   try {
-    const blockerId = requireUserId(req, res);
-    if (!blockerId) {
-      return;
-    }
+    const blockerId = requireSessionUserId(req);
     const { userId, reason } = req.body;
 
     const blockedUserId = parseInt(userId as any);
@@ -72,12 +57,9 @@ router.post('/blocks', isAuthenticated, async (req: Request, res) => {
 });
 
 // GET /blocked-users - return list of users the current user has blocked
-router.get('/blocked-users', isAuthenticated, async (req: Request, res) => {
+router.get('/blocked-users', requireAuth, async (req: Request, res) => {
   try {
-    const userId = requireUserId(req, res);
-    if (!userId) {
-      return;
-    }
+    const userId = requireSessionUserId(req);
 
     const blockedIds = await storage.getBlockedUserIdsFor(userId);
     // Optionally return minimal user info for each blocked id
@@ -98,10 +80,7 @@ router.get('/blocked-users', isAuthenticated, async (req: Request, res) => {
 // DELETE /blocks/:userId - unblock a user
 const unblockUserHandler = async (req: Request, res: Response) => {
   try {
-    const blockerId = requireUserId(req, res);
-    if (!blockerId) {
-      return;
-    }
+    const blockerId = requireSessionUserId(req);
 
     const blockedUserId = parseInt(req.params.userId);
     if (!Number.isFinite(blockedUserId) || blockedUserId <= 0) {
@@ -116,7 +95,7 @@ const unblockUserHandler = async (req: Request, res: Response) => {
   }
 };
 
-router.delete('/blocks/:userId', isAuthenticated, unblockUserHandler);
-router.delete('/safety/block/:userId', isAuthenticated, unblockUserHandler);
+router.delete('/blocks/:userId', requireAuth, unblockUserHandler);
+router.delete('/safety/block/:userId', requireAuth, unblockUserHandler);
 
 export default router;

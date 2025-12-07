@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '@shared/schema';
+import { getSessionUserId } from '../utils/session';
 
 // Custom interface to avoid Express type conflicts
 interface AuthenticatedRequest extends Request {
@@ -11,19 +12,19 @@ interface AuthenticatedRequest extends Request {
  * Adds user data to req.currentUser for compatibility with recommendation routes
  */
 export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  // Check if user is authenticated via session
-  if (!req.session || !req.session.userId) {
+  const userId = getSessionUserId(req);
+  if (!userId) {
     return res.status(401).json({ error: 'Authentication required' });
   }
   
   // Add user data to req.currentUser for compatibility
   // Note: This is a simplified user object - for full user data, query the database
   req.currentUser = {
-  id: parseInt(String(req.session.userId)),
-    username: req.session.username || '',
-    email: req.session.email || '',
+    id: userId,
+    username: req.session?.username || '',
+    email: req.session?.email || '',
     password: '', // Not stored in session for security
-    displayName: req.session.username || '',
+    displayName: req.session?.username || '',
     bio: null,
     avatarUrl: null,
     city: null,
@@ -33,7 +34,7 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     longitude: null,
     onboardingCompleted: false,
     isVerifiedApologeticsAnswerer: false,
-    isAdmin: req.session.isAdmin || false,
+    isAdmin: req.session?.isAdmin || false,
     createdAt: new Date(),
     updatedAt: new Date(),
   } as User;

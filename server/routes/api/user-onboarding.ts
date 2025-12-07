@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { storage } from "../../storage-optimized";
-import { isAuthenticated } from "../../auth";
+import { requireAuth } from "../../middleware/auth";
 import { z } from "zod/v4";
 import { buildErrorResponse } from "../../utils/errors";
-import { getSessionUserId } from "../../utils/session";
+import { requireSessionUserId } from "../../utils/session";
 
 // Schema for validating onboarding data
 const onboardingSchema = z.object({
@@ -21,10 +21,7 @@ const onboardingSchema = z.object({
  */
 export const handleOnboarding = async (req: Request, res: Response) => {
   try {
-    const userId = getSessionUserId(req);
-    if (!userId) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
+    const userId = requireSessionUserId(req);
 
     // Validate the request body
     const validation = onboardingSchema.safeParse(req.body);
@@ -76,5 +73,5 @@ export const handleOnboarding = async (req: Request, res: Response) => {
  * Register onboarding routes
  */
 export function registerOnboardingRoutes(app: any) {
-  app.post("/api/user/onboarding", isAuthenticated, handleOnboarding);
+  app.post("/api/user/onboarding", requireAuth, handleOnboarding);
 }

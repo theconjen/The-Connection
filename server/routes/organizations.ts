@@ -5,34 +5,17 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { insertOrganizationSchema, insertOrganizationUserSchema } from "@shared/schema";
 import { buildErrorResponse } from "../utils/errors";
-import { getSessionUserId } from "../utils/session";
+import { getSessionUserId, requireSessionUserId } from "../utils/session";
+import { requireAuth } from "../middleware/auth";
 
 const router = express.Router();
 
-// Middleware to check authentication (use session userId)
-const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!getSessionUserId(req)) {
-    return res.status(401).json({ message: "Authentication required" });
-  }
-  next();
-};
-
-const requireUserId = (req: express.Request, res: express.Response): number | undefined => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ message: "Authentication required" });
-    return undefined;
-  }
-  return userId;
-};
+router.use(requireAuth);
 
 // Create a new organization (church)
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const currentUserId = requireUserId(req, res);
-    if (!currentUserId) {
-      return;
-    }
+    const currentUserId = requireSessionUserId(req);
     const data = insertOrganizationSchema.parse({
       ...req.body,
       adminUserId: currentUserId
@@ -58,13 +41,10 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 // Get organization by ID
-router.get("/:id", requireAuth, async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
-    const currentUserId = requireUserId(req, res);
-    if (!currentUserId) {
-      return;
-    }
+    const currentUserId = requireSessionUserId(req);
 
     // Check if user is a member of the organization
     const membership = await db
@@ -98,12 +78,9 @@ router.get("/:id", requireAuth, async (req, res) => {
 });
 
 // Get organizations for current user
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const currentUserId = requireUserId(req, res);
-    if (!currentUserId) {
-      return;
-    }
+    const currentUserId = requireSessionUserId(req);
 
     const userOrganizations = await db
       .select({
@@ -123,11 +100,11 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 // Invite user to organization
-router.post("/:id/invite", requireAuth, async (req, res) => {
+router.post("/:id/invite", async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const { userId, role = "member" } = req.body;
-    const currentUserId = requireUserId(req, res);
+    const currentUserId = requireSessionUserId(req);
     if (!currentUserId) {
       return;
     }
@@ -177,10 +154,10 @@ router.post("/:id/invite", requireAuth, async (req, res) => {
 });
 
 // Get organization members
-router.get("/:id/members", requireAuth, async (req, res) => {
+router.get("/:id/members", async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
-    const currentUserId = requireUserId(req, res);
+    const currentUserId = requireSessionUserId(req);
     if (!currentUserId) {
       return;
     }
@@ -222,10 +199,10 @@ router.get("/:id/members", requireAuth, async (req, res) => {
 });
 
 // Update organization details
-router.patch("/:id", requireAuth, async (req, res) => {
+router.patch("/:id", async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
-    const currentUserId = requireUserId(req, res);
+    const currentUserId = requireSessionUserId(req);
     if (!currentUserId) {
       return;
     }
@@ -276,11 +253,11 @@ router.patch("/:id", requireAuth, async (req, res) => {
 });
 
 // Update organization plan
-router.patch("/:id/plan", requireAuth, async (req, res) => {
+router.patch("/:id/plan", async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const { plan } = req.body;
-    const currentUserId = requireUserId(req, res);
+    const currentUserId = requireSessionUserId(req);
     if (!currentUserId) {
       return;
     }
@@ -317,12 +294,12 @@ router.patch("/:id/plan", requireAuth, async (req, res) => {
 });
 
 // Update member role
-router.patch("/:id/members/:userId", requireAuth, async (req, res) => {
+router.patch("/:id/members/:userId", async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const memberUserId = parseInt(req.params.userId);
     const { role } = req.body;
-    const currentUserId = requireUserId(req, res);
+    const currentUserId = requireSessionUserId(req);
     if (!currentUserId) {
       return;
     }
@@ -374,11 +351,11 @@ router.patch("/:id/members/:userId", requireAuth, async (req, res) => {
 });
 
 // Remove member from organization
-router.delete("/:id/members/:userId", requireAuth, async (req, res) => {
+router.delete("/:id/members/:userId", async (req, res) => {
   try {
     const organizationId = parseInt(req.params.id);
     const memberUserId = parseInt(req.params.userId);
-    const currentUserId = requireUserId(req, res);
+    const currentUserId = requireSessionUserId(req);
     if (!currentUserId) {
       return;
     }

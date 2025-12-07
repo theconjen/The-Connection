@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { insertEventSchema } from '@shared/schema';
-import { isAuthenticated } from '../auth';
+import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
-import { getSessionUserId } from '../utils/session';
+import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
@@ -61,9 +61,9 @@ router.get('/api/events/:id', async (req, res) => {
 });
 
 // Accept minimal payload: title, description, startsAt (ISO), optional isPublic
-router.post('/api/events', isAuthenticated, async (req, res) => {
+router.post('/api/events', requireAuth, async (req, res) => {
   try {
-    const userId = getSessionUserId(req)!;
+    const userId = requireSessionUserId(req);
     const { title, description, startsAt, isPublic } = req.body || {};
     if (!title || !description || !startsAt) return res.status(400).json({ message: 'title, description, startsAt required' });
 
@@ -90,10 +90,10 @@ router.post('/api/events', isAuthenticated, async (req, res) => {
   }
 });
 
-router.delete('/api/events/:id', isAuthenticated, async (req, res) => {
+router.delete('/api/events/:id', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
-    const userId = getSessionUserId(req)!;
+    const userId = requireSessionUserId(req);
     const ev = await storage.getEvent(eventId);
     if (!ev) return res.status(404).json({ message: 'Event not found' });
     if (ev.creatorId !== userId) return res.status(403).json({ message: 'Only creator can delete event' });
