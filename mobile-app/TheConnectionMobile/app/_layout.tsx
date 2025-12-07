@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../src/contexts/AuthContext';
 import { UpdatesErrorBoundary } from '../src/shared/UpdatesErrorBoundary';
 import { RootErrorBoundary } from '../src/shared/RootErrorBoundary';
+import { NotificationProvider } from '../src/shared/NotificationProvider';
+import { OfflineNotice, OfflineProvider } from '../src/shared/OfflineProvider';
 import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 
@@ -51,11 +53,16 @@ export default function Root() {
     <RootErrorBoundary>
       <UpdatesErrorBoundary>
         <AuthProvider>
-          <ThemeProvider>
-            <QueryClientProvider client={queryClient}>
-              <Stack screenOptions={{ headerShown: false }} />
-            </QueryClientProvider>
-          </ThemeProvider>
+          <NotificationProvider>
+            <ThemeProvider>
+              <OfflineProvider>
+                <QueryClientProvider client={queryClient}>
+                  <OfflineNotice />
+                  <Stack screenOptions={{ headerShown: false }} />
+                </QueryClientProvider>
+              </OfflineProvider>
+            </ThemeProvider>
+          </NotificationProvider>
         </AuthProvider>
       </UpdatesErrorBoundary>
     </RootErrorBoundary>

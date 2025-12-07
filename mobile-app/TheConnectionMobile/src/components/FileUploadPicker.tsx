@@ -4,8 +4,11 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadAPI } from '../lib/apiClient';
 import { colors, spacing, radii } from '../theme/tokens';
+import { ensureCapturePermissions, ensureLibraryPermission } from '../lib/mediaPermissions';
 
 export type UploadVariant = 'document' | 'image' | 'any';
+
+type UploadSource = 'document' | 'library' | 'camera';
 
 export interface FileUploadPickerProps {
   variant?: UploadVariant;
@@ -23,15 +26,54 @@ async function pickDocument(): Promise<DocumentPicker.DocumentPickerAsset | null
   return result.assets?.[0] || null;
 }
 
-async function pickImage(): Promise<ImagePicker.ImagePickerAsset | null> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) {
-    Alert.alert('Permission required', 'We need access to your photos to complete this action.');
-    return null;
-  }
-  const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.9 });
+async function pickImageFromLibrary(): Promise<ImagePicker.ImagePickerAsset | null> {
+  const allowed = await ensureLibraryPermission();
+  if (!allowed) return null;
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.All,
+    quality: 0.9,
+    videoMaxDuration: 120,
+  });
+
   if (result.canceled) return null;
   return result.assets?.[0] || null;
+}
+
+async function captureMedia(): Promise<ImagePicker.ImagePickerAsset | null> {
+  const permitted = await ensureCapturePermissions();
+  if (!permitted) return null;
+
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.All,
+    quality: 0.9,
+    videoMaxDuration: 120,
+  });
+
+  if (result.canceled) return null;
+  return result.assets?.[0] || null;
+}
+
+function chooseSource(variant: UploadVariant): Promise<UploadSource> {
+  if (variant === 'document') return Promise.resolve('document');
+
+  return new Promise((resolve) => {
+    const buttons = [
+      { text: 'Photo Library', onPress: () => resolve('library') },
+      { text: 'Capture with Camera', onPress: () => resolve('camera') },
+    ];
+
+    if (variant === 'any') {
+      buttons.push({ text: 'Document', onPress: () => resolve('document') });
+    }
+
+    buttons.push({ text: 'Cancel', style: 'cancel', onPress: () => resolve('library') });
+
+    Alert.alert('Choose source', 'Select how to add your file', buttons, {
+      cancelable: true,
+      onDismiss: () => resolve('library'),
+    });
+  });
 }
 
 export function FileUploadPicker({
@@ -44,20 +86,22 @@ export function FileUploadPicker({
   const [isUploading, setIsUploading] = useState(false);
 
   const handlePick = useCallback(async () => {
+    let asset: DocumentPicker.DocumentPickerAsset | ImagePicker.ImagePickerAsset | null = null;
+
+    const source = await chooseSource(variant);
+
+    if (source === 'document') {
+      asset = await pickDocument();
+    } else if (source === 'camera') {
+      asset = await captureMedia();
+    } else {
+      asset = await pickImageFromLibrary();
+    }
+
+    if (!asset) return;
+
     setIsUploading(true);
     try {
-      const asset =
-        variant === 'image'
-          ? await pickImage()
-          : variant === 'document'
-            ? await pickDocument()
-            : (await pickImage()) || (await pickDocument());
-
-      if (!asset) {
-        setIsUploading(false);
-        return;
-      }
-
       const fileName = normalizeName(asset.fileName || (asset as any).name, 'upload');
       const mimeType = (asset as any).mimeType || asset.type || 'application/octet-stream';
 

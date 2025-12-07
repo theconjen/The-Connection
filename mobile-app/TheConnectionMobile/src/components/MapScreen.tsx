@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View, ViewStyle, Text } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { WebView } from 'react-native-webview';
 import { colors, spacing, radii, shadows } from '../theme/tokens';
+import * as Location from 'expo-location';
 
 export type MapMarker = {
   id: string | number;
@@ -48,7 +49,34 @@ export function MapScreen({
   provider = PROVIDER_GOOGLE,
   style,
   fallbackUrl,
-  }: MapScreenProps) {
+}: MapScreenProps) {
+  const [hasLocationPermission, setHasLocationPermission] = useState(!showsUserLocation);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!showsUserLocation) return;
+
+    (async () => {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === Location.PermissionStatus.GRANTED) {
+        if (isMounted) setHasLocationPermission(true);
+        return;
+      }
+
+      const request = await Location.requestForegroundPermissionsAsync();
+      if (isMounted) {
+        setHasLocationPermission(request.status === Location.PermissionStatus.GRANTED);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showsUserLocation]);
+
+  const userLocationEnabled = showsUserLocation && hasLocationPermission;
+
   if (Platform.OS === 'web') {
     return (
       <View style={[styles.webContainer, style]}>
@@ -63,24 +91,33 @@ export function MapScreen({
   }
 
   return (
-    <MapView
-      provider={provider}
-      style={[styles.map, style]}
-      initialRegion={initialRegion}
-      showsUserLocation={showsUserLocation}
-      onRegionChange={onRegionChange}
-      onRegionChangeComplete={onRegionChangeComplete}
-    >
-      {markers.map((marker) => (
-        <Marker
-          key={marker.id}
-          coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
-          title={marker.title}
-          description={marker.description}
-          onPress={() => onMarkerPress?.(marker)}
-        />
-      ))}
-    </MapView>
+    <>
+      <MapView
+        provider={provider}
+        style={[styles.map, style]}
+        initialRegion={initialRegion}
+        showsUserLocation={userLocationEnabled}
+        onRegionChange={onRegionChange}
+        onRegionChangeComplete={onRegionChangeComplete}
+      >
+        {markers.map((marker) => (
+          <Marker
+            key={marker.id}
+            coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
+            title={marker.title}
+            description={marker.description}
+            onPress={() => onMarkerPress?.(marker)}
+          />
+        ))}
+      </MapView>
+      {showsUserLocation && !hasLocationPermission && (
+        <View style={styles.permissionBanner}>
+          <Text style={styles.permissionText}>
+            Enable location to highlight where you are on the map and unlock nearby results.
+          </Text>
+        </View>
+      )}
+    </>
   );
 }
 
@@ -104,6 +141,21 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     fontSize: 12,
     color: colors.light.textSecondary,
+    textAlign: 'center',
+  },
+  permissionBanner: {
+    position: 'absolute',
+    bottom: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    backgroundColor: colors.light.surface,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    ...shadows.md,
+  },
+  permissionText: {
+    color: colors.light.text,
+    fontSize: 12,
     textAlign: 'center',
   },
 });

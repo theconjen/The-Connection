@@ -15,10 +15,12 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors } from '../../src/shared/colors';
+import { useOffline } from '../../src/shared/OfflineProvider';
+import { useOfflineAwareQuery } from '../../src/hooks/useOfflineAwareQuery';
 
 interface Post {
   id: number;
@@ -35,10 +37,11 @@ export default function FeedScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { isOffline } = useOffline();
   const [newPostContent, setNewPostContent] = useState('');
   const [isPostInputVisible, setIsPostInputVisible] = useState(false);
 
-  const { data: posts = [], isLoading, refetch } = useQuery<Post[]>({
+  const { data: posts = [], isLoading, isFetching, refetch } = useOfflineAwareQuery<Post[]>({
     queryKey: ['posts'],
     queryFn: postsAPI.getAll,
   });
@@ -62,6 +65,11 @@ export default function FeedScreen() {
   });
 
   const handleCreatePost = () => {
+    if (isOffline) {
+      Alert.alert('Offline', 'Reconnect to share a post. You can still browse cached content.');
+      return;
+    }
+
     if (!newPostContent.trim()) {
       Alert.alert('Error', 'Post cannot be empty');
       return;
@@ -100,8 +108,13 @@ export default function FeedScreen() {
 
       <ScrollView
         style={styles.content}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
+        refreshControl={<RefreshControl refreshing={isLoading || isFetching} onRefresh={refetch} />}
       >
+        {isOffline && (
+          <View style={styles.offlinePill}>
+            <Text style={styles.offlineText}>Offline mode - showing cached feed</Text>
+          </View>
+        )}
         {/* Create Post */}
         <View style={styles.createSection}>
           {!isPostInputVisible ? (
@@ -358,5 +371,17 @@ const styles = StyleSheet.create({
   emptyStateSubtext: {
     fontSize: 14,
     color: '#9ca3af',
+  },
+  offlinePill: {
+    backgroundColor: '#111827',
+    padding: 10,
+    marginBottom: 12,
+    borderRadius: 8,
+    marginHorizontal: 16,
+  },
+  offlineText: {
+    color: '#e5e7eb',
+    fontSize: 13,
+    textAlign: 'center',
   },
 });
