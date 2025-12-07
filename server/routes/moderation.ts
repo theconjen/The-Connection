@@ -5,15 +5,25 @@ import { db } from '../db';
 import { contentReports } from '@shared/schema';
 import { eq, desc } from 'drizzle-orm';
 import { buildErrorResponse } from '../utils/errors';
+import { getSessionUserId } from '../utils/session';
 
 const router = express.Router();
+
+const requireUserId = (req: any, res: any): number | undefined => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ message: 'Not authenticated' });
+    return undefined;
+  }
+  return userId;
+};
 
 // Public endpoints (authenticated users)
 router.post('/moderation/report', isAuthenticated, async (req: any, res) => {
   try {
-    const reporterId = req.session?.userId;
+    const reporterId = requireUserId(req, res);
     const { contentType, contentId, reason, description } = req.body;
-    if (!reporterId) return res.status(401).json({ message: 'Not authenticated' });
+    if (!reporterId) return;
     if (!contentType || !contentId) return res.status(400).json({ message: 'Missing contentType or contentId' });
 
     const report = await storage.createContentReport({
@@ -33,9 +43,9 @@ router.post('/moderation/report', isAuthenticated, async (req: any, res) => {
 
 router.post('/moderation/block', isAuthenticated, async (req: any, res) => {
   try {
-    const blockerId = req.session?.userId;
+    const blockerId = requireUserId(req, res);
     const { userId, reason } = req.body;
-    if (!blockerId) return res.status(401).json({ message: 'Not authenticated' });
+    if (!blockerId) return;
     const blockedUserId = parseInt(userId as any);
     if (!blockedUserId || blockedUserId === blockerId) return res.status(400).json({ message: 'Invalid userId' });
 
@@ -54,8 +64,8 @@ router.post('/moderation/block', isAuthenticated, async (req: any, res) => {
 
 router.get('/moderation/blocked-users', isAuthenticated, async (req: any, res) => {
   try {
-    const userId = req.session?.userId;
-    if (!userId) return res.status(401).json({ message: 'Not authenticated' });
+    const userId = requireUserId(req, res);
+    if (!userId) return;
 
     const blockedIds = await storage.getBlockedUserIdsFor(userId);
     const blockedUsers = await Promise.all((blockedIds || []).map(async (id: number) => {
@@ -69,6 +79,26 @@ router.get('/moderation/blocked-users', isAuthenticated, async (req: any, res) =
   } catch (error) {
     console.error('Error fetching blocked users:', error);
     res.status(500).json(buildErrorResponse('Error fetching blocked users', error));
+  }
+});
+
+router.delete('/moderation/block/:userId', isAuthenticated, async (req: any, res) => {
+  try {
+    const blockerId = requireUserId(req, res);
+    if (!blockerId) {
+      return;
+    }
+
+    const blockedUserId = parseInt(req.params.userId);
+    if (!Number.isFinite(blockedUserId) || blockedUserId <= 0) {
+      return res.status(400).json({ message: 'Invalid userId' });
+    }
+
+    await storage.removeUserBlock(blockerId, blockedUserId);
+    res.json({ ok: true, message: 'User unblocked successfully' });
+  } catch (error) {
+    console.error('Error removing block:', error);
+    res.status(500).json(buildErrorResponse('Error removing block', error));
   }
 });
 
