@@ -1436,14 +1436,14 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(404).json({ message: 'Event not found' });
       }
 
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(401).json({ message: 'User not found' });
-      }
-
-      // Check if user is organizer or admin (verify admin status from database)
+      // For non-organizers, verify admin status from the database
       if (event.creatorId !== userId) {
-        if (!user?.isAdmin) {
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(401).json({ message: 'User not found' });
+        }
+
+        if (!user.isAdmin) {
           return res.status(403).json({
             message: 'Only the organizer or admin can delete this event'
           });
