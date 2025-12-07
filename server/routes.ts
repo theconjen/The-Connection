@@ -1385,15 +1385,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
       const { latitude, longitude, radius } = parsedQuery.data;
 
-      const allEvents = await storage.getAllEvents();
-      const nearby = allEvents.filter(event => {
-        if (!event.latitude || !event.longitude) return false;
-        const eventLat = parseFloat(String(event.latitude));
-        const eventLng = parseFloat(String(event.longitude));
-        if (!Number.isFinite(eventLat) || !Number.isFinite(eventLng)) return false;
-        const distance = haversineDistanceMiles(latitude, longitude, eventLat, eventLng);
-        return distance <= radius;
-      });
+      const nearby = await storage.getNearbyEvents(latitude, longitude, radius);
 
       const pagination = paginationResult.data;
       const paginated = nearby.slice(pagination.offset, pagination.offset + pagination.limit);

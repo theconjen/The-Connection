@@ -64,6 +64,24 @@ import { whereNotDeleted, andNotDeleted } from "./db/helpers";
 import { geocodeAddress } from "./geocoding";
 import softDelete from './db/softDelete';
 
+function haversineDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRadians = (deg: number) => (deg * Math.PI) / 180;
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMiles * c;
+}
+
+function coerceCoordinate(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  const parsed = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 // Add this safety utility class at the top of the file, after imports
 class StorageSafety {
   private static implementedMethods = new Set([
@@ -100,7 +118,7 @@ class StorageSafety {
     'createApologeticsQuestion', 'updateApologeticsQuestionStatus',
     'getApologeticsAnswererPermissions', 'setApologeticsAnswererPermissions',
     'getApologeticsAnswersByQuestion', 'createApologeticsAnswer', 'getAllEvents',
-    'getEvent', 'getUserEvents', 'createEvent', 'updateEvent', 'deleteEvent',
+    'getEvent', 'getUserEvents', 'getNearbyEvents', 'createEvent', 'updateEvent', 'deleteEvent',
     'createEventRSVP', 'getEventRSVPs', 'getUserEventRSVP', 'upsertEventRSVP',
     'deleteEventRSVP', 'getAllMicroblogs', 'getMicroblog', 'getUserMicroblogs',
     'createMicroblog', 'updateMicroblog', 'deleteMicroblog', 'likeMicroblog',
@@ -276,6 +294,7 @@ export interface IStorage {
   getAllEvents(): Promise<Event[]>;
   getEvent(id: number): Promise<Event | undefined>;
   getUserEvents(userId: number): Promise<Event[]>;
+  getNearbyEvents(latitude: number, longitude: number, radius: number): Promise<Event[]>;
   createEvent(event: InsertEvent): Promise<Event>;
   updateEvent(id: number, data: Partial<Event>): Promise<Event>;
   deleteEvent(id: number): Promise<boolean>;
@@ -1523,7 +1542,18 @@ export class MemStorage implements IStorage {
   async getUserEvents(userId: number): Promise<Event[]> {
     return this.data.events.filter(e => e.creatorId === userId && !e.deletedAt);
   }
-  
+
+  async getNearbyEvents(latitude: number, longitude: number, radius: number): Promise<Event[]> {
+    return this.data.events.filter(event => {
+      if ((event as any).deletedAt) return false;
+      const eventLat = coerceCoordinate((event as any).latitude);
+      const eventLng = coerceCoordinate((event as any).longitude);
+      if (eventLat === null || eventLng === null) return false;
+      const distance = haversineDistanceMiles(latitude, longitude, eventLat, eventLng);
+      return distance <= radius;
+    }).sort((a, b) => new Date(a.eventDate as any).getTime() - new Date(b.eventDate as any).getTime());
+  }
+
   async createEvent(event: InsertEvent): Promise<Event> {
     const newEvent = {
       id: this.nextId++,
@@ -2968,17 +2998,30 @@ export class DbStorage implements IStorage {
         or(
           like(events.title, term),
           like(events.description, term),
-          like(events.location, term)
-        ),
+        like(events.location, term)
+      ),
         whereNotDeleted(events)
       ));
   }
 
   async getNearbyEvents(latitude: number, longitude: number, radius: number): Promise<Event[]> {
-    // This is a placeholder implementation.
-    // A proper implementation would involve spatial queries on the database.
-    console.warn('getNearbyEvents is not fully implemented in DbStorage. Returning empty array.');
-    return [];
+    const rows = await db.select()
+      .from(events)
+      .where(and(
+        whereNotDeleted(events),
+        sql`${events.latitude} IS NOT NULL`,
+        sql`${events.longitude} IS NOT NULL`
+      ));
+
+    const filtered = rows.filter(event => {
+      const eventLat = coerceCoordinate((event as any).latitude);
+      const eventLng = coerceCoordinate((event as any).longitude);
+      if (eventLat === null || eventLng === null) return false;
+      const distance = haversineDistanceMiles(latitude, longitude, eventLat, eventLng);
+      return distance <= radius;
+    });
+
+    return filtered.sort((a, b) => new Date(a.eventDate as any).getTime() - new Date(b.eventDate as any).getTime());
   }
   
   // Event RSVP methods
