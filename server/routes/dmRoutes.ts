@@ -1,16 +1,11 @@
 import express from "express";
-import rateLimit from "express-rate-limit";
 import { storage } from "../storage-optimized";
 import { sendPushNotification } from "../services/pushService";
 import { ensureCleanText, handleModerationError } from "../utils/moderation";
 import { getSessionUserId } from '../utils/session';
+import { dmSendLimiter } from '../rate-limiters';
 
 const router = express.Router();
-const dmLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 25,
-  message: 'You are sending messages too quickly.',
-});
 
 async function checkBlockingRelationship(currentUserId: number, otherUserId: number): Promise<
   | { status: 'ok' }
@@ -95,7 +90,7 @@ router.get("/:userId", async (req, res) => {
 });
 
 // Send a new DM
-router.post("/send", dmLimiter, async (req, res) => {
+router.post("/send", dmSendLimiter, async (req, res) => {
   const senderId = getSessionUserId(req);
   if (!senderId) {
     return res.status(401).json({ message: "Not authenticated" });
