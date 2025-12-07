@@ -11,6 +11,7 @@ import {
   Group, InsertGroup,
   GroupMember, InsertGroupMember,
   ApologeticsResource, InsertApologeticsResource,
+  ApologeticsAnswererPermission, InsertApologeticsAnswererPermission,
   Livestream, InsertLivestream,
   LivestreamerApplication, InsertLivestreamerApplication,
   ApologistScholarApplication, InsertApologistScholarApplication,
@@ -22,6 +23,7 @@ import {
   ApologeticsTopic, InsertApologeticsTopic,
   ApologeticsQuestion, InsertApologeticsQuestion,
   ApologeticsAnswer, InsertApologeticsAnswer,
+  apologeticsAnswererPermissions,
 
   // Community Events
   Event, InsertEvent,
@@ -96,6 +98,7 @@ class StorageSafety {
     'getApologeticsTopic', 'getApologeticsTopicBySlug', 'createApologeticsTopic',
     'getAllApologeticsQuestions', 'getApologeticsQuestion', 'getApologeticsQuestionsByTopic',
     'createApologeticsQuestion', 'updateApologeticsQuestionStatus',
+    'getApologeticsAnswererPermissions', 'setApologeticsAnswererPermissions',
     'getApologeticsAnswersByQuestion', 'createApologeticsAnswer', 'getAllEvents',
     'getEvent', 'getUserEvents', 'createEvent', 'updateEvent', 'deleteEvent',
     'createEventRSVP', 'getEventRSVPs', 'getUserEventRSVP', 'upsertEventRSVP',
@@ -145,6 +148,8 @@ export interface IStorage {
   updateUserPassword(userId: number, hashedPassword: string): Promise<User | undefined>;
   setVerifiedApologeticsAnswerer(userId: number, isVerified: boolean): Promise<User>;
   getVerifiedApologeticsAnswerers(): Promise<User[]>;
+  getApologeticsAnswererPermissions(userId: number): Promise<number[]>;
+  setApologeticsAnswererPermissions(userId: number, topicIds: number[]): Promise<number[]>;
   
   // Community methods
   getAllCommunities(): Promise<Community[]>;
@@ -460,6 +465,7 @@ export class MemStorage implements IStorage {
     microblogLikes: [] as MicroblogLike[],
     livestreamerApplications: [] as LivestreamerApplication[],
     apologistScholarApplications: [] as ApologistScholarApplication[],
+    apologeticsAnswererPermissions: [] as ApologeticsAnswererPermission[],
     bibleReadingPlans: [] as BibleReadingPlan[],
     bibleReadingProgress: [] as BibleReadingProgress[],
     bibleStudyNotes: [] as BibleStudyNote[],
@@ -641,7 +647,29 @@ export class MemStorage implements IStorage {
   async getVerifiedApologeticsAnswerers(): Promise<User[]> {
     return this.data.users.filter(u => u.isVerifiedApologeticsAnswerer && !u.deletedAt);
   }
-  
+
+  async getApologeticsAnswererPermissions(userId: number): Promise<number[]> {
+    return this.data.apologeticsAnswererPermissions
+      .filter(p => p.userId === userId)
+      .map(p => p.topicId);
+  }
+
+  async setApologeticsAnswererPermissions(userId: number, topicIds: number[]): Promise<number[]> {
+    const uniqueTopicIds = Array.from(new Set(topicIds.filter(id => Number.isFinite(id))));
+    this.data.apologeticsAnswererPermissions = this.data.apologeticsAnswererPermissions.filter(p => p.userId !== userId);
+
+    const now = new Date();
+    const newPermissions: ApologeticsAnswererPermission[] = uniqueTopicIds.map(topicId => ({
+      id: this.nextId++,
+      userId,
+      topicId,
+      createdAt: now,
+    }));
+
+    this.data.apologeticsAnswererPermissions.push(...newPermissions);
+    return uniqueTopicIds;
+  }
+
   // Community methods
   async getAllCommunities(): Promise<Community[]> {
     return this.data.communities.filter(c => !c.deletedAt).map(c => ({ ...c }));
@@ -1414,9 +1442,10 @@ export class MemStorage implements IStorage {
       id: this.nextId++,
       title: question.title,
       content: question.content,
-      authorId: question.authorId,
+      authorId: question.authorId ?? question.askedBy,
       topicId: question.topicId,
       status: question.status || 'pending',
+      requiresVerifiedAnswerer: Boolean(question.requiresVerifiedAnswerer),
       answerCount: 0,
       createdAt: new Date(),
       viewCount: 0
@@ -1458,7 +1487,7 @@ export class MemStorage implements IStorage {
     const newAnswer: ApologeticsAnswer = {
       id: this.nextId++,
       content: answer.content,
-      authorId: answer.authorId,
+      authorId: answer.authorId ?? answer.answeredBy,
       questionId: answer.questionId,
       isVerifiedAnswer: answer.isVerifiedAnswer || false,
       upvotes: 0,
@@ -2337,7 +2366,27 @@ export class DbStorage implements IStorage {
   async getVerifiedApologeticsAnswerers(): Promise<User[]> {
     return await db.select().from(users).where(and(eq(users.isVerifiedApologeticsAnswerer, true), whereNotDeleted(users)));
   }
-  
+
+  async getApologeticsAnswererPermissions(userId: number): Promise<number[]> {
+    const rows = await db.select().from(apologeticsAnswererPermissions).where(eq(apologeticsAnswererPermissions.userId, userId));
+    return rows.map(r => r.topicId);
+  }
+
+  async setApologeticsAnswererPermissions(userId: number, topicIds: number[]): Promise<number[]> {
+    const uniqueTopicIds = Array.from(new Set(topicIds.filter(id => Number.isFinite(id))));
+    await db.delete(apologeticsAnswererPermissions).where(eq(apologeticsAnswererPermissions.userId, userId));
+
+    if (uniqueTopicIds.length === 0) {
+      return [];
+    }
+
+    const inserted = await db.insert(apologeticsAnswererPermissions)
+      .values(uniqueTopicIds.map(topicId => ({ userId, topicId } as InsertApologeticsAnswererPermission)))
+      .returning();
+
+    return inserted.map(row => row.topicId);
+  }
+
   // Community methods - simplified for now
   async getAllCommunities(): Promise<Community[]> {
     return await db.select().from(communities).where(whereNotDeleted(communities));
