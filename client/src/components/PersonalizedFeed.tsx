@@ -166,8 +166,8 @@ export default function PersonalizedFeed({ className = "", limit = 10 }: Persona
       case 'verse': return <BookOpen className="h-4 w-4 text-green-600" />;
       case 'event': return <Calendar className="h-4 w-4 text-blue-600" />;
       case 'discussion': return <MessageCircle className="h-4 w-4 text-orange-600" />;
-      case 'community': return <Users className="h-4 w-4 text-indigo-600" />;
-      default: return <MessageCircle className="h-4 w-4 text-gray-600" />;
+      case 'community': return <Users className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />;
+      default: return <MessageCircle className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
