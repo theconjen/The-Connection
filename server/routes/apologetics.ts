@@ -15,9 +15,18 @@ const apologeticsLimiter = rateLimit({
 
 const router = Router();
 
+function ensureStorageMethod<T extends keyof typeof storage>(method: T) {
+  const impl = storage[method];
+  if (typeof impl !== 'function') {
+    throw new Error(`Storage method ${String(method)} is not implemented`);
+  }
+  return impl.bind(storage) as typeof storage[T];
+}
+
 router.get('/apologetics', apologeticsLimiter, async (_req, res) => {
   try {
-    const resources = await storage.getAllApologeticsResources();
+    const getAllApologeticsResources = ensureStorageMethod('getAllApologeticsResources');
+    const resources = await getAllApologeticsResources();
     return res.json(resources);
   } catch (err) {
     console.error('Error serving apologetics:', err);

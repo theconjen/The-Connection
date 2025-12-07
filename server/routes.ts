@@ -1508,6 +1508,9 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Apologetics endpoints
   app.get('/api/apologetics', async (req, res) => {
     try {
+      if (typeof storage.getAllApologeticsResources !== 'function') {
+        throw new Error('storage.getAllApologeticsResources is not implemented');
+      }
       const resources = await storage.getAllApologeticsResources();
       res.json(resources);
     } catch (error) {
@@ -2048,7 +2051,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Notifications endpoints
   app.get('/api/notifications', isAuthenticated, async (req, res) => {
     try {
-  const userId = getSessionUserId(req)!;
+      const userId = getSessionUserId(req)!;
       const notifications = await storage.getUserNotifications(userId);
       res.json(notifications);
     } catch (error) {
@@ -2059,8 +2062,14 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.put('/api/notifications/:id/read', isAuthenticated, async (req, res) => {
     try {
-      const notificationId = parseInt(req.params.id);
-  const userId = getSessionUserId(req)!;
+      const notificationId = parseInt(req.params.id, 10);
+      if (!Number.isFinite(notificationId)) {
+        return res.status(400).json({ message: 'Invalid notification id' });
+      }
+      const userId = getSessionUserId(req)!;
+      if (typeof storage.markNotificationAsRead !== 'function') {
+        throw new Error('storage.markNotificationAsRead is not implemented');
+      }
       const updated = await storage.markNotificationAsRead(notificationId, userId);
       if (!updated) {
         return res.status(404).json({ message: 'Notification not found' });
