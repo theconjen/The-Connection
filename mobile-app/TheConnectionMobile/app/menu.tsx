@@ -47,6 +47,18 @@ export default function MenuScreen() {
           <MenuItem icon="👤" title="Profile" onPress={() => router.push('/(tabs)/profile')} />
           <MenuItem icon="⚙️" title="Settings" onPress={() => router.push('/settings')} />
           <MenuItem icon="🚫" title="Blocked Users" onPress={() => router.push('/blocked-users')} />
+          <MenuItem icon="⛪" title="Organizations" onPress={() => router.push('/organizations')} />
+          <MenuItem
+            icon="📚"
+            title="Apologist Application"
+            onPress={() => router.push('/apologist-scholar-application')}
+          />
+          {user?.isAdmin && (
+            <MenuItem icon="🎥" title="Livestreamer Application" onPress={() => router.push('/livestreamer-application')} />
+          )}
+          {user?.isAdmin && (
+            <MenuItem icon="🛡️" title="Admin Dashboard" onPress={() => router.push('/admin')} />
+          )}
         </View>
       </ScrollView>
     </View>
