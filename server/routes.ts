@@ -1,4 +1,4 @@
-import { getSessionUserId } from "./utils/session"
+import { getSessionUserId, normalizeSessionUserId } from "./utils/session"
 import { buildErrorResponse } from "./utils/errors"
 import { getPaginationParams, attachPaginationHeaders } from "./utils/pagination"
 import express, { Express } from 'express';
@@ -96,7 +96,7 @@ import moderationRoutes from './routes/moderation';
 
 declare module 'express-session' {
   interface SessionData {
-    userId?: string | number;
+    userId?: number;
     isAdmin?: boolean;
     isVerifiedApologeticsAnswerer?: boolean;
     email?: string;
@@ -378,19 +378,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   setupAuth(app);
 
   // Session userId normalization middleware - ensure userId is always a number
-  app.use((req, _res, next) => {
-    const raw = req.session.userId;
-    if (typeof raw === 'string') {
-      const n = Number(raw);
-      if (Number.isFinite(n) && n > 0) {
-        req.session.userId = n;
-      } else {
-        // Invalid userId - clear it
-        delete req.session.userId;
-      }
-    }
-    next();
-  });
+  app.use(normalizeSessionUserId);
 
   // Rate limiters for content creation to prevent spam
   const contentCreationLimiter = rateLimit({

@@ -1,5 +1,5 @@
 import createHttpError from 'http-errors';
-import type { Request } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 
 function normalizeSessionValue(raw: string | number | undefined): number | undefined {
   if (raw === undefined || raw === null) return undefined;
@@ -36,6 +36,26 @@ export function setSessionUserId(req: Request, value: number | string): number {
 
   req.session.userId = normalized;
   return normalized;
+}
+
+export function normalizeSessionUserId(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void {
+  if (!req.session) {
+    return next();
+  }
+
+  const normalized = getSessionUserId(req);
+
+  if (normalized) {
+    req.session.userId = normalized;
+  } else if ('userId' in req.session) {
+    delete req.session.userId;
+  }
+
+  next();
 }
 
 function ensureSession(req: Request) {

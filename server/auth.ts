@@ -12,7 +12,7 @@ import { z } from "zod";
 import crypto from "crypto";
 import { verifyRecaptchaToken } from "./utils/recaptcha";
 import { buildErrorResponse } from "./utils/errors";
-import { setSessionUserId } from './utils/session';
+import { getSessionUserId, setSessionUserId } from './utils/session';
 
 /**
  * Ultra Simple Auth System
@@ -21,8 +21,7 @@ import { setSessionUserId } from './utils/session';
 // Add custom session properties
 declare module 'express-session' {
   interface SessionData {
-    // userId may be stored as a string (session stores) or number (internal use)
-    userId?: string | number;
+    userId?: number;
     username?: string;
     isAdmin?: boolean;
     email?: string;
@@ -414,8 +413,9 @@ export function setupAuth(app: Express) {
 
   // Logout endpoint
   app.post("/api/logout", async (req, res) => {
-    if (req.session && req.session.userId) {
-      const userId = parseInt(String(req.session.userId));
+    const userId = getSessionUserId(req);
+
+    if (userId && req.session) {
       const username = req.session.username || 'unknown';
 
       // SECURITY: Log logout for audit trail
@@ -442,13 +442,14 @@ export function setupAuth(app: Express) {
         sessionID: req.sessionID
       });
       
-      if (!req.session || !req.session.userId) {
+      const userId = getSessionUserId(req);
+
+      if (!req.session || !userId) {
         console.log("Authentication failed - no session or userId");
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       try {
-  const userId = parseInt(String(req.session.userId));
         const user = await storage.getUser(userId);
         
         if (!user) {
@@ -463,7 +464,7 @@ export function setupAuth(app: Express) {
         const { password, ...userWithoutPassword } = user;
         return res.json(userWithoutPassword);
       } catch (error) {
-        console.error(`Error retrieving user ID ${req.session.userId}:`, error);
+        console.error(`Error retrieving user ID ${userId ?? req.session?.userId}:`, error);
         return res.status(500).json(buildErrorResponse("Database error", error));
       }
     } catch (error) {
