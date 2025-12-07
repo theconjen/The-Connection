@@ -17,7 +17,7 @@ export function hashToken(token: string): string {
 export async function createAndSendVerification(userId: number, email: string, apiBaseUrl: string) {
   const token = generateVerificationToken();
   const tokenHash = hashToken(token);
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
   const now = new Date();
 
   await db.update(users).set({
