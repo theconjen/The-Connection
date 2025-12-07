@@ -12,6 +12,19 @@ const allowedVisibilities = ["public", "friends", "private"] as const;
 const isValidVisibility = (value: unknown): value is (typeof allowedVisibilities)[number] =>
   typeof value === "string" && (allowedVisibilities as readonly string[]).includes(value);
 
+const normalizeUserIdValue = (raw: unknown): number | undefined => {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  const parsed = parseInt(String(raw), 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const filterItemsByUserId = <T>(items: T[], userId: number): T[] =>
+  items.filter((item) => {
+    const ownerId = normalizeUserIdValue((item as any).userId ?? (item as any).authorId);
+    return ownerId === userId;
+  });
+
 const requireAuthedUserId = (req: Request, res: Response): number | undefined => {
   const userId = getSessionUserId(req);
   if (!userId) {
@@ -134,10 +147,10 @@ router.get('/communities', async (req, res, next) => {
     if (!userId) {
       return;
     }
-    
+
     // Get communities where user is a member
     const communities = await storage.getUserCommunities(userId);
-    res.json(communities);
+    res.json(filterItemsByUserId(communities, userId));
   } catch (error) {
     next(error);
   }
@@ -165,10 +178,10 @@ router.get('/posts', async (req, res, next) => {
     if (!userId) {
       return;
     }
-    
+
     // Get user's posts
     const posts = await storage.getUserPosts(userId);
-    res.json(posts);
+    res.json(filterItemsByUserId(posts, userId));
   } catch (error) {
     next(error);
   }
@@ -181,10 +194,10 @@ router.get('/events', async (req, res, next) => {
     if (!userId) {
       return;
     }
-    
+
     // Get user's event RSVPs
     const events = await storage.getUserEvents(userId);
-    res.json(events);
+    res.json(filterItemsByUserId(events, userId));
   } catch (error) {
     next(error);
   }
