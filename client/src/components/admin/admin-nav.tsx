@@ -1,13 +1,15 @@
 import { useLocation, Link } from "wouter";
 import { useState } from "react";
-import { 
-  BarChart, 
-  Users, 
-  Video, 
+import {
+  BarChart,
+  Users,
+  Video,
   Book,
   ChevronDown,
   ChevronRight,
-  Laptop
+  Laptop,
+  Settings,
+  ShieldCheck
 } from "lucide-react";
 import { 
   Collapsible,
@@ -28,6 +30,11 @@ export function AdminNav() {
       icon: <BarChart className="h-4 w-4 mr-2" />,
     },
     {
+      title: "Analytics",
+      href: "/admin/application-stats",
+      icon: <ShieldCheck className="h-4 w-4 mr-2" />,
+    },
+    {
       title: "Applications",
       icon: <Users className="h-4 w-4 mr-2" />,
       children: [
@@ -42,6 +49,38 @@ export function AdminNav() {
           icon: <Book className="h-4 w-4 mr-2" />,
         },
       ],
+    },
+    {
+      title: "Users",
+      icon: <Users className="h-4 w-4 mr-2" />,
+      children: [
+        {
+          title: "Directory",
+          href: "/admin/users",
+          icon: <Users className="h-4 w-4 mr-2" />,
+        },
+        {
+          title: "Admin Users",
+          href: "/admin/admin-users",
+          icon: <ShieldCheck className="h-4 w-4 mr-2" />,
+        },
+      ],
+    },
+    {
+      title: "Apologetics",
+      icon: <Book className="h-4 w-4 mr-2" />,
+      children: [
+        {
+          title: "Resources",
+          href: "/admin/apologetics-resources",
+          icon: <Book className="h-4 w-4 mr-2" />,
+        },
+      ],
+    },
+    {
+      title: "Platform Settings",
+      href: "/admin/settings",
+      icon: <Settings className="h-4 w-4 mr-2" />,
     },
     {
       title: "Return to Site",

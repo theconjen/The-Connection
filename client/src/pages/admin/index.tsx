@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap } from 'lucide-react';
+import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap, BookOpen } from 'lucide-react';
 import AdminLayout from '../../components/layouts/admin-layout';
 import { apiUrl } from '../../lib/env';
 
@@ -316,6 +316,27 @@ export default function AdminDashboard() {
           <CardFooter className="mt-auto">
             <Button asChild variant="outline" className="w-full">
               <Link href="/admin/settings">Platform Settings</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        {/* Apologetics Resources Card */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl">Apologetics Resources</CardTitle>
+              <BookOpen className="h-5 w-5 text-primary" />
+            </div>
+            <CardDescription>Publish new books, videos, and podcasts to the public hub.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-500">
+              Add curated materials that will immediately appear on the Apologetics page for members and seekers.
+            </p>
+          </CardContent>
+          <CardFooter className="mt-auto">
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/admin/apologetics-resources">Manage Resources</Link>
             </Button>
           </CardFooter>
         </Card>

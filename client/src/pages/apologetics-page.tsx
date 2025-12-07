@@ -448,9 +448,13 @@ export default function ApologeticsPage() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Verified Expert Answers</h2>
                 {user?.isVerifiedApologeticsAnswerer ? (
-                  <Button variant="outline">
-                    <UserCheckIcon className="mr-2 h-4 w-4" />
-                    Expert Dashboard
+                  <Button variant="outline" asChild>
+                    <Link href="/apologist-dashboard">
+                      <div className="flex items-center">
+                        <UserCheckIcon className="mr-2 h-4 w-4" />
+                        Expert Dashboard
+                      </div>
+                    </Link>
                   </Button>
                 ) : (
                   <div className="flex gap-2 items-center">
