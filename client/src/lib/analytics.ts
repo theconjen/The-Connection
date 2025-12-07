@@ -8,12 +8,17 @@ declare global {
 
 // Initialize Google Analytics
 export const initGA = () => {
+  if (typeof window === 'undefined') return;
+  if ((window as any).__tcGaInitialized) return;
+
   const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
 
   if (!measurementId) {
     console.warn('Missing required Google Analytics key: VITE_GA_MEASUREMENT_ID');
     return;
   }
+
+  (window as any).__tcGaInitialized = true;
 
   // Add Google Analytics script to the head
   const script1 = document.createElement('script');

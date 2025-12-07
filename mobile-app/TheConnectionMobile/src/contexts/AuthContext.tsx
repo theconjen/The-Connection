@@ -12,6 +12,7 @@ import {
   getUserData,
   clearAuthData
 } from '../lib/secureStorage';
+import { ensurePushTokenRegistered, unregisterStoredPushToken } from '../lib/pushNotifications';
 
 interface AuthContextType {
   user: User | null;
@@ -39,6 +40,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     initializeAuth();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    ensurePushTokenRegistered().catch(error => {
+      console.warn('Unable to register push notifications after login', error);
+    });
+  }, [user]);
 
   /**
    * Check if user has valid session on app launch
@@ -133,6 +141,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const logout = async () => {
     try {
+      try {
+        await unregisterStoredPushToken();
+      } catch (error) {
+        console.warn('Unable to unregister push token during logout', error);
+      }
+
       // Call logout endpoint
       try {
         await authAPI.logout();

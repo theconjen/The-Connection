@@ -1,13 +1,10 @@
 import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { initGA } from "./lib/analytics";
 import { ThemeProvider } from "./contexts/theme-context";
+import { CookieConsentProvider } from "./contexts/cookie-consent-context";
 import App from "./App";
 import "./index.css";
-
-// Initialize Google Analytics
-initGA();
 
 // Global error handling for unhandled promises
 window.addEventListener('unhandledrejection', event => {
@@ -32,7 +29,9 @@ window.addEventListener('error', event => {
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="system" storageKey="the-connection-ui-theme">
-      <App />
+      <CookieConsentProvider>
+        <App />
+      </CookieConsentProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
