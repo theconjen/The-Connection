@@ -14,6 +14,25 @@
  */
 
 import * as Updates from 'expo-updates';
+import { captureError, captureMessage } from './errorReporting';
+
+const logDebug = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
+const logWarn = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.warn(...args);
+  }
+};
+
+const logError = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.error(...args);
+  }
+};
 
 /**
  * Global error handler for uncaught errors
@@ -23,7 +42,7 @@ const setupGlobalErrorHandler = () => {
   try {
     // Check if ErrorUtils is available (it should be in React Native)
     if (typeof ErrorUtils === 'undefined') {
-      console.warn('[Updates] ErrorUtils not available, skipping global error handler setup');
+      logWarn('[Updates] ErrorUtils not available, skipping global error handler setup');
       return;
     }
 
@@ -42,18 +61,23 @@ const setupGlobalErrorHandler = () => {
         error?.stack?.includes('expo-updates');
 
       if (isUpdatesError) {
-        console.error('[Updates] Caught updates error:', {
+        logError('[Updates] Caught updates error:', {
           message: error.message,
           stack: error.stack,
           isFatal,
         });
 
-        // Log to a monitoring service if available
-        // TODO: Send to Sentry or other error tracking service
+        captureError(error, {
+          scope: 'expo-updates',
+          isFatal,
+        });
 
         // Don't propagate fatal errors from updates - they're not worth crashing for
         if (isFatal) {
-          console.warn('[Updates] Suppressed fatal updates error to prevent crash');
+          logWarn('[Updates] Suppressed fatal updates error to prevent crash');
+          captureMessage('Suppressed fatal expo-updates error to prevent crash', {
+            scope: 'expo-updates',
+          });
           return;
         }
       }
@@ -64,7 +88,8 @@ const setupGlobalErrorHandler = () => {
       }
     });
   } catch (error) {
-    console.error('[Updates] Error setting up global error handler:', error);
+    logError('[Updates] Error setting up global error handler:', error);
+    captureError(error, { scope: 'expo-updates' });
     // Don't throw - continue without global error handler
   }
 };
@@ -79,11 +104,11 @@ export async function setupUpdates(): Promise<void> {
 
     // Only run in production builds
     if (__DEV__) {
-      console.log('[Updates] Running in development mode, skipping updates setup');
+      logDebug('[Updates] Running in development mode, skipping updates setup');
       return;
     }
 
-    console.log('[Updates] Setting up updates module...');
+    logDebug('[Updates] Setting up updates module...');
 
     // Add event listeners for updates. The installed `expo-updates`
     // package may not expose the same TypeScript members across
@@ -93,29 +118,31 @@ export async function setupUpdates(): Promise<void> {
       const addListener = (Updates as any).addListener;
       if (typeof addListener === 'function') {
         addListener((event: any) => {
-          console.log('[Updates] Event:', event);
+          logDebug('[Updates] Event:', event);
 
           // Use string comparisons to avoid depending on exported enums
           const t = event?.type;
           if (t === 'error') {
-            console.error('[Updates] Update error:', event.message);
-            // Don't crash - just log
+            logError('[Updates] Update error:', event.message);
+            captureError(event, { scope: 'expo-updates' });
           } else if (t === 'noUpdateAvailable') {
-            console.log('[Updates] No updates available');
+            logDebug('[Updates] No updates available');
           } else if (t === 'updateAvailable') {
-            console.log('[Updates] Update available');
+            logDebug('[Updates] Update available');
           }
         });
       } else {
-        console.log('[Updates] updates.addListener not available on this runtime');
+        logWarn('[Updates] updates.addListener not available on this runtime');
       }
     } catch (err) {
-      console.warn('[Updates] Failed to attach update listener:', err);
+      logWarn('[Updates] Failed to attach update listener:', err);
+      captureError(err, { scope: 'expo-updates' });
     }
 
-    console.log('[Updates] Updates module configured successfully');
+    logDebug('[Updates] Updates module configured successfully');
   } catch (error) {
-    console.error('[Updates] Error setting up updates:', error);
+    logError('[Updates] Error setting up updates:', error);
+    captureError(error, { scope: 'expo-updates' });
     // Don't throw - just log and continue
     // Better to run without updates than to crash
   }
@@ -130,7 +157,7 @@ export async function checkForUpdatesSafely(): Promise<boolean> {
       return false;
     }
 
-    console.log('[Updates] Checking for updates...');
+    logDebug('[Updates] Checking for updates...');
 
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -142,14 +169,15 @@ export async function checkForUpdatesSafely(): Promise<boolean> {
     const result = await Promise.race([checkPromise, timeoutPromise]);
 
     if (result.isAvailable) {
-      console.log('[Updates] Update available');
+      logDebug('[Updates] Update available');
       return true;
     }
 
-    console.log('[Updates] No update available');
+    logDebug('[Updates] No update available');
     return false;
   } catch (error) {
-    console.error('[Updates] Error checking for updates:', error);
+    logError('[Updates] Error checking for updates:', error);
+    captureError(error, { scope: 'expo-updates' });
     return false;
   }
 }
@@ -163,7 +191,7 @@ export async function fetchUpdateSafely(): Promise<boolean> {
       return false;
     }
 
-    console.log('[Updates] Fetching update...');
+    logDebug('[Updates] Fetching update...');
 
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -175,14 +203,15 @@ export async function fetchUpdateSafely(): Promise<boolean> {
     const result = await Promise.race([fetchPromise, timeoutPromise]);
 
     if (result.isNew) {
-      console.log('[Updates] New update fetched successfully');
+      logDebug('[Updates] New update fetched successfully');
       return true;
     }
 
-    console.log('[Updates] No new update fetched');
+    logDebug('[Updates] No new update fetched');
     return false;
   } catch (error) {
-    console.error('[Updates] Error fetching update:', error);
+    logError('[Updates] Error fetching update:', error);
+    captureError(error, { scope: 'expo-updates' });
     return false;
   }
 }
