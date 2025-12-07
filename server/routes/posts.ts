@@ -72,6 +72,10 @@ router.post('/api/posts/:id/upvote', isAuthenticated, async (req, res) => {
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
     const result = await storage.togglePostVote(postId, userId);
     res.json({ ...result.post, userHasUpvoted: result.voted });
   } catch (error) {
