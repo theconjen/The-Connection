@@ -1397,13 +1397,33 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
 
       if (!event.isPublic) {
-        let hasAccess = false;
-        if (event.communityId) {
-          hasAccess = await storage.isCommunityMember(event.communityId, userId).catch(() => false);
-        } else if (event.groupId) {
-          hasAccess = await storage.isGroupMember(event.groupId, userId);
-        } else {
-          hasAccess = event.creatorId === userId;
+        let hasAccess = event.creatorId === userId;
+
+        if (!hasAccess && event.communityId) {
+          try {
+            hasAccess = await storage.isCommunityMember(userId, event.communityId);
+          } catch (error) {
+            console.warn('Error checking community membership for event RSVP:', error);
+            hasAccess = false;
+          }
+        }
+
+        if (!hasAccess && event.groupId) {
+          try {
+            hasAccess = await storage.isGroupMember(event.groupId, userId);
+          } catch (error) {
+            console.warn('Error checking group membership for event RSVP:', error);
+            hasAccess = false;
+          }
+        }
+
+        if (!hasAccess && typeof storage.isUserInvitedToEvent === 'function') {
+          try {
+            hasAccess = await storage.isUserInvitedToEvent(userId, eventId);
+          } catch (error) {
+            console.warn('Error checking event invitation for RSVP:', error);
+            hasAccess = false;
+          }
         }
 
         if (!hasAccess) {
