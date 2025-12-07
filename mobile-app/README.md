@@ -171,15 +171,15 @@ npx expo start
 
 ### EAS Build Profiles
 - **Shared settings**: EAS CLI >= 16.26.0, Node 22.0.0, `pnpm` 10.16.1, and `EAS_PROJECT_ROOT=mobile-app/TheConnectionMobile` as defined in `eas.json`.
-- **production**: Release build for stores with `EXPO_PUBLIC_API_BASE=https://api.theconnection.app`.
-- **preview**: Internal distribution build that mirrors production (no Metro/dev server needed) with `EXPO_PUBLIC_API_BASE=https://api-preview.theconnection.app`.
+- **production**: Release build for stores with `EXPO_PUBLIC_API_BASE=https://api.theconnection.app/api`.
+- **preview**: Internal distribution build that mirrors production (no Metro/dev server needed) with `EXPO_PUBLIC_API_BASE=https://api-preview.theconnection.app/api`.
 - **development**: Development client build for debugging with `EXPO_PUBLIC_API_BASE=http://localhost:3000/api`; requires `npx expo start` running on the same network.
 
-| Profile      | Distribution | Dev Client | API base                                | When to use                               |
-| ------------ | ------------ | ---------- | --------------------------------------- | ----------------------------------------- |
-| development  | internal     | ✅         | http://localhost:3000/api               | Local debugging with Metro running.       |
-| preview      | internal     | ❌         | https://api-preview.theconnection.app   | Testers who should not see Metro errors.  |
-| production   | store/adhoc  | ❌         | https://api.theconnection.app           | Submissions and release candidates.       |
+| Profile      | Distribution | Dev Client | API base                                   | When to use |
+| ------------ | ------------ | ---------- | ------------------------------------------ | ----------------------------------------- |
+| development  | internal     | ✅         | http://localhost:3000/api                  | Local debugging with Metro running. |
+| preview      | internal     | ❌         | https://api-preview.theconnection.app/api  | Testers who should not see Metro errors. |
+| production   | store/adhoc  | ❌         | https://api.theconnection.app/api          | Submissions and release candidates. |
 
 Use `eas build --profile preview --platform ios|android` for testers so they don’t see the "Could not connect to development server" screen. Reserve the `development` profile for local debugging only.
 
@@ -250,6 +250,11 @@ For major changes requiring new builds:
 - Track conversion rates
 
 ## 🛠 Troubleshooting
+
+### API base troubleshooting
+- Ensure `EXPO_PUBLIC_API_BASE` matches your build profile: `http://localhost:3000/api` for development, `https://api-preview.theconnection.app/api` for preview, and `https://api.theconnection.app/api` for production.
+- Export the variable in CI or before running EAS commands (e.g., `export EXPO_PUBLIC_API_BASE=...`), or rely on the defaults provided in `eas.json` and `setup-mobile.sh`.
+- For device testing, avoid `localhost` unless you are running a development client with Metro available on the same network; use your machine IP if the device cannot reach your laptop.
 
 ### Common Issues
 1. **Build Failures**: Check dependencies and versions

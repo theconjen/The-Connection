@@ -4,6 +4,8 @@ set -euo pipefail
 # The Connection Mobile App Setup Script
 # Sets up the new Expo app with dependencies required for development and builds
 
+export EXPO_PUBLIC_API_BASE=${EXPO_PUBLIC_API_BASE:-http://localhost:3000/api}
+
 APP_DIR="$(dirname "$0")/TheConnectionMobile-new"
 
 echo "🚀 Setting up The Connection Mobile App..."
