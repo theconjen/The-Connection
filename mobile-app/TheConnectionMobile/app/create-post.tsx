@@ -18,10 +18,12 @@ import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postsAPI } from '../src/lib/apiClient';
 import { Colors } from '../src/shared/colors';
+import { useOffline } from '../src/shared/OfflineProvider';
 
 export default function CreatePostScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { isOffline } = useOffline();
   const [content, setContent] = useState('');
 
   const createMutation = useMutation({
@@ -36,6 +38,11 @@ export default function CreatePostScreen() {
   });
 
   const handlePost = () => {
+    if (isOffline) {
+      Alert.alert('Offline', 'Reconnect to share a post. Your draft is still here.');
+      return;
+    }
+
     if (!content.trim()) {
       Alert.alert('Error', 'Post cannot be empty');
       return;

@@ -17,10 +17,12 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors } from '../../src/shared/colors';
+import { useOffline } from '../../src/shared/OfflineProvider';
+import { useOfflineAwareQuery } from '../../src/hooks/useOfflineAwareQuery';
 import {
   LocationPermissionState,
   defaultPermissionState,
@@ -46,6 +48,7 @@ export default function CommunitiesScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { isOffline } = useOffline();
   const [searchQuery, setSearchQuery] = useState('');
   const [permissionState, setPermissionState] = useState<LocationPermissionState>(defaultPermissionState);
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
@@ -96,7 +99,7 @@ export default function CommunitiesScreen() {
   }, []);
 
   // Fetch communities
-  const { data: communities = [], isLoading, error, refetch } = useQuery({
+  const { data: communities = [], isLoading, error, refetch, isFetching } = useOfflineAwareQuery({
     queryKey: ['communities'],
     queryFn: communitiesAPI.getAll,
   });
@@ -132,6 +135,11 @@ export default function CommunitiesScreen() {
   );
 
   const handleJoinLeave = (community: Community) => {
+    if (isOffline) {
+      Alert.alert('Offline', 'Reconnect to join or leave a community.');
+      return;
+    }
+
     if (community.isMember) {
       Alert.alert(
         'Leave Community',
@@ -236,6 +244,15 @@ export default function CommunitiesScreen() {
         )}
       </View>
 
+      {isOffline && (
+        <View style={styles.offlineCard}>
+          <Text style={styles.offlineTitle}>Offline mode</Text>
+          <Text style={styles.offlineSubtitle}>
+            Showing cached communities. Reconnect for the latest recommendations and to join or leave groups.
+          </Text>
+        </View>
+      )}
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <TextInput
@@ -260,7 +277,7 @@ export default function CommunitiesScreen() {
       <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refetch} />
+          <RefreshControl refreshing={isLoading || isFetching} onRefresh={refetch} />
         }
       >
         {filteredCommunities.length === 0 ? (
@@ -432,6 +449,24 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 12,
     color: '#6b7280',
+    lineHeight: 18,
+  },
+  offlineCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    padding: 14,
+  },
+  offlineTitle: {
+    color: '#f9fafb',
+    fontWeight: '700',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  offlineSubtitle: {
+    color: '#d1d5db',
+    fontSize: 12,
     lineHeight: 18,
   },
   searchInput: {

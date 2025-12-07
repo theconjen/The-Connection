@@ -21,6 +21,8 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow access to choose a profile image.",
         "NSCameraUsageDescription": "Allow camera use for profile or content images.",
+        "NSMicrophoneUsageDescription": "Allow microphone access when recording video for uploads.",
+        "NSUserNotificationsUsageDescription": "Enable notifications to stay updated on messages, prayers, and events.",
         "NSLocationWhenInUseUsageDescription": "Allow location access to find nearby communities and events.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow background location to refresh nearby recommendations and notifications.",
         "UIBackgroundModes": [
@@ -44,7 +46,12 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION",
+        "POST_NOTIFICATIONS",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO"
       ],
       "runtimeVersion": {
         "policy": "appVersion"
@@ -62,7 +69,8 @@
       ],
       "expo-font",
       "expo-secure-store",
-      "expo-location"
+      "expo-location",
+      "expo-notifications"
     ],
     "extra": {
       "eas": {
