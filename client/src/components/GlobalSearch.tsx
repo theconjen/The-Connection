@@ -6,22 +6,23 @@ import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Link } from "wouter";
-import { 
-  Search, 
-  X, 
-  Users, 
-  MessageCircle, 
-  BookOpen, 
+import {
+  Search,
+  X,
+  Users,
+  MessageCircle,
+  BookOpen,
   Calendar,
-  HandHeart,
   Sparkles,
   TrendingUp,
   Clock
 } from "lucide-react";
 
+type SearchCategory = 'all' | 'apologetics' | 'forms' | 'accounts' | 'communities';
+
 interface SearchResult {
   id: string;
-  type: 'user' | 'post' | 'community' | 'event' | 'verse' | 'prayer';
+  type: 'user' | 'post' | 'community' | 'event' | 'verse' | 'question';
   title: string;
   content?: string;
   author?: {
@@ -49,6 +50,7 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
   const [isTyping, setIsTyping] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<SearchCategory>('all');
 
   // Debounce search query
   useEffect(() => {
@@ -159,23 +161,11 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
         });
       });
 
-      // Transform prayer requests
-      data.prayerRequests?.forEach((prayer: any) => {
-        results.push({
-          id: prayer.id.toString(),
-          type: 'prayer',
-          title: prayer.title || 'Prayer Request',
-          content: prayer.description?.substring(0, 150),
-          path: `/prayer-requests/${prayer.id}`,
-          createdAt: prayer.createdAt
-        });
-      });
-
       // Transform apologetics questions
       data.apologeticsQuestions?.forEach((question: any) => {
         results.push({
           id: question.id.toString(),
-          type: 'post',
+          type: 'question',
           title: question.title,
           content: question.content?.substring(0, 150),
           path: `/apologetics/questions/${question.id}`,
@@ -201,7 +191,7 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
       case 'post': return <MessageCircle className="h-4 w-4 text-green-600" />;
       case 'verse': return <BookOpen className="h-4 w-4 text-orange-600" />;
       case 'event': return <Calendar className="h-4 w-4 text-indigo-600" />;
-      case 'prayer': return <HandHeart className="h-4 w-4 text-rose-600" />;
+      case 'question': return <Sparkles className="h-4 w-4 text-amber-600" />;
       default: return <Search className="h-4 w-4 text-gray-600" />;
     }
   };
@@ -213,10 +203,29 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
       case 'post': return 'Post';
       case 'verse': return 'Verse';
       case 'event': return 'Event';
-      case 'prayer': return 'Prayer';
+      case 'question': return 'Apologetics';
       default: return 'Result';
     }
   };
+
+  const getCategoryForResult = (result: SearchResult): SearchCategory => {
+    if (result.type === 'user') return 'accounts';
+    if (result.type === 'community') return 'communities';
+    if (result.type === 'question') return 'apologetics';
+
+    // Heuristic to surface form-related content even if the backend doesn't yet have a dedicated type
+    const normalizedPath = result.path.toLowerCase();
+    if (normalizedPath.includes('/forms') || normalizedPath.includes('/form') || normalizedPath.includes('application')) {
+      return 'forms';
+    }
+
+    return 'all';
+  };
+
+  const filteredResults = (searchResults || []).filter((result) => {
+    if (activeCategory === 'all') return true;
+    return getCategoryForResult(result) === activeCategory;
+  });
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -252,6 +261,22 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
               </Button>
             </div>
 
+            {/* Category Filters */}
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+              {[{ id: 'all', label: 'All' }, { id: 'apologetics', label: 'Apologetics' }, { id: 'forms', label: 'Forms' }, { id: 'accounts', label: 'Accounts' }, { id: 'communities', label: 'Communities' }] as const
+                .map((category) => (
+                  <Button
+                    key={category.id}
+                    variant={activeCategory === category.id ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => setActiveCategory(category.id)}
+                  >
+                    {category.label}
+                  </Button>
+                ))}
+            </div>
+
             {/* Search Results */}
             <div className="max-h-96 overflow-y-auto">
               {isLoading && debouncedQuery && (
@@ -265,6 +290,14 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
                   <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
                   <p>No results found for "{debouncedQuery}"</p>
                   <p className="text-sm mt-1">Try different keywords or check spelling</p>
+                </div>
+              )}
+
+              {!isLoading && debouncedQuery && searchResults && searchResults.length > 0 && filteredResults.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>No {activeCategory} results for "{debouncedQuery}"</p>
+                  <p className="text-sm mt-1">Try switching tabs to see other result types.</p>
                 </div>
               )}
 
@@ -297,15 +330,6 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
                           </div>
                         </Button>
                       </Link>
-                      <Link href="/prayer-requests" onClick={handleClose}>
-                        <Button variant="ghost" className="w-full justify-start h-auto p-3">
-                          <HandHeart className="h-4 w-4 mr-2" />
-                          <div className="text-left">
-                            <div className="font-medium">Prayers</div>
-                            <div className="text-xs text-muted-foreground">Prayer requests</div>
-                          </div>
-                        </Button>
-                      </Link>
                       <Link href="/events" onClick={handleClose}>
                         <Button variant="ghost" className="w-full justify-start h-auto p-3">
                           <Calendar className="h-4 w-4 mr-2" />
@@ -320,9 +344,9 @@ export default function GlobalSearch({ isVisible, onClose, placeholder = "Search
                 </div>
               )}
 
-              {searchResults && searchResults.length > 0 && (
+              {filteredResults.length > 0 && (
                 <div className="space-y-2">
-                  {searchResults.map((result) => (
+                  {filteredResults.map((result) => (
                     <Link key={result.id} href={result.path} onClick={handleClose}>
                       <div className="flex items-start space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
                         <div className="flex-shrink-0 mt-0.5">
