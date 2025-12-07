@@ -28,7 +28,9 @@ yarn-error.*
 
 # macOS
 .DS_Store
+# Keep private keys out of version control but allow the public code-signing certificate
 *.pem
+!certs/code-signing/code-signing-certificate.pem
 
 # local env files
 .env*.local
