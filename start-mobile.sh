@@ -3,7 +3,8 @@ set -euo pipefail
 
 # Convenience script to start the Expo dev server for the new mobile app
 APP_DIR="mobile-app/TheConnectionMobile-new"
-PORT="8082"
+# Default Metro/Expo port. Override by setting PORT in the environment if needed.
+PORT="${PORT:-8081}"
 
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "❌ pnpm is not installed. Run 'corepack enable pnpm' first." >&2
