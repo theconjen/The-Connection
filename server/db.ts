@@ -4,10 +4,11 @@ import { WebSocket } from 'ws';
 import { neon, Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from "@shared/schema";
+import { envConfig } from "./config/env";
 
 // SECURITY: DATABASE_URL must be provided via environment variable
-const databaseUrl = process.env.DATABASE_URL;
-const useDb = process.env.USE_DB === "true";
+const databaseUrl = envConfig.databaseUrl;
+const useDb = envConfig.useDb;
 
 if (!databaseUrl) {
   if (useDb) {

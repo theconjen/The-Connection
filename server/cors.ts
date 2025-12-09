@@ -1,6 +1,7 @@
 import cors from "cors";
+import { envConfig } from "./config/env";
 
-const DEV = process.env.NODE_ENV !== "production";
+const DEV = !envConfig.isProduction;
 
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://<your-vercel-app>.vercel.app",
@@ -15,10 +16,7 @@ const VERCEL_PATTERN = /^https:\/\/[a-z0-9.-]+\.vercel\.app$/i;
 
 export function makeCors() {
   const allowlist = new Set<string | undefined>([undefined, ...DEFAULT_ALLOWED_ORIGINS]);
-  const extraOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const extraOrigins = envConfig.corsAllowedOrigins;
 
   for (const origin of extraOrigins) {
     allowlist.add(origin);
