@@ -1,9 +1,8 @@
 import { Tabs } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '../../src/shared/ThemeProvider';
+import { useTheme } from '../../src/shared/ThemeProvider.js';
 import { Ionicons } from '@expo/vector-icons';
-
 export default function TabsLayout() {
   const router = useRouter();
   const { colors } = useTheme();
@@ -22,7 +21,7 @@ export default function TabsLayout() {
       },
       headerTintColor: colors.text,
       headerRight: () => (
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => router.push('/menu')}
           style={{ marginRight: 16 }}
         >

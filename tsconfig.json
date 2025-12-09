@@ -43,6 +43,7 @@
       "./types",
       "./node_modules/@types"
     ],
+    "types": ["node"],
     "paths": {
       "@/*": [
         "./client/src/*"
