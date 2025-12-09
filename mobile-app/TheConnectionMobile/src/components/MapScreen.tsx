@@ -3,7 +3,7 @@ import { Platform, StyleSheet, View, ViewStyle, Text } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { WebView } from 'react-native-webview';
 import { colors, spacing, radii, shadows } from '../theme/tokens';
-import * as Location from 'expo-location';
+import { loadLocationPermissionState, requestForegroundPermission, PermissionStatus } from '../lib/locationPermissions';
 
 export type MapMarker = {
   id: string | number;
@@ -58,15 +58,15 @@ export function MapScreen({
     if (!showsUserLocation) return;
 
     (async () => {
-      const { status } = await Location.getForegroundPermissionsAsync();
-      if (status === Location.PermissionStatus.GRANTED) {
+      const state = await loadLocationPermissionState();
+      if (state.foreground === PermissionStatus.GRANTED) {
         if (isMounted) setHasLocationPermission(true);
         return;
       }
 
-      const request = await Location.requestForegroundPermissionsAsync();
+      const requestStatus = await requestForegroundPermission();
       if (isMounted) {
-        setHasLocationPermission(request.status === Location.PermissionStatus.GRANTED);
+        setHasLocationPermission(requestStatus === PermissionStatus.GRANTED);
       }
     })();
 

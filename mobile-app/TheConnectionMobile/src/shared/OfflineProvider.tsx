@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import * as Network from 'expo-network';
+function getNetwork() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('expo-network');
+  } catch (e) {
+    return null;
+  }
+}
 
 type OfflineContextValue = {
   isOffline: boolean;
@@ -16,9 +23,17 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
   const [isMonitoring, setIsMonitoring] = useState(true);
 
   useEffect(() => {
-    let subscription: Network.NetworkStateSubscription | undefined;
+    let subscription: any | undefined;
 
     const handleNetworkState = async () => {
+      const Network = getNetwork();
+      if (!Network) {
+        // If native network module isn't available, assume online (don't block UX)
+        setIsOffline(false);
+        setIsMonitoring(false);
+        return;
+      }
+
       try {
         const state = await Network.getNetworkStateAsync();
         const offline = state.isConnected === false || state.isInternetReachable === false;
@@ -34,13 +49,16 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
     };
 
     handleNetworkState();
-    subscription = Network.addNetworkStateListener((state) => {
-      const offline = state.isConnected === false || state.isInternetReachable === false;
-      setIsOffline(offline);
-      if (!offline) {
-        setLastOnline(new Date());
-      }
-    });
+    const Network = getNetwork();
+    if (Network?.addNetworkStateListener) {
+      subscription = Network.addNetworkStateListener((state: any) => {
+        const offline = state.isConnected === false || state.isInternetReachable === false;
+        setIsOffline(offline);
+        if (!offline) {
+          setLastOnline(new Date());
+        }
+      });
+    }
 
     return () => subscription?.remove?.();
   }, []);

@@ -22,9 +22,7 @@
     "app/**/*",
     "src/**/*",
     "global.d.ts",
-    "../../packages/shared/src/mobile-web/**/*",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "../../packages/shared/src/mobile-web/**/*"
   ],
   "exclude": [
     "node_modules",

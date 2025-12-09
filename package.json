@@ -63,6 +63,7 @@
     "@aws-sdk/client-ses": "^3.936.0",
     "@capacitor/cli": "^7.4.4",
     "@capacitor/core": "^7.4.4",
+    "@expo/dev-server": "^0.5.5",
     "@google-cloud/storage": "^7.17.3",
     "@neondatabase/serverless": "^1.0.2",
     "@sendgrid/mail": "^8.1.6",
@@ -109,5 +110,6 @@
     "ws": "^8.18.3",
     "zod": "^4.1.12"
   },
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "main": "node_modules/expo/AppEntry.js"
 }

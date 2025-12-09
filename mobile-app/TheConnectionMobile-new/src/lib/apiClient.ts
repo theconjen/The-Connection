@@ -50,7 +50,6 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     if (error.response) {
-      // Server responded with error status
       const status = error.response.status;
 
       if (status === 401) {
@@ -60,7 +59,6 @@ apiClient.interceptors.response.use(
       } else if (status === 404) {
         console.log('Resource not found');
       } else if (status >= 500) {
-        // Safely stringify server error payload if present
         const payload = error.response?.data;
         try {
           console.error('Server error:', typeof payload === 'object' ? JSON.stringify(payload) : payload);
@@ -69,10 +67,8 @@ apiClient.interceptors.response.use(
         }
       }
     } else if (error.request) {
-      // Request made but no response received
       console.error('Network error - no response received');
     } else {
-      // Error in request setup
       console.error('Request error:', error.message);
     }
 
@@ -81,10 +77,6 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
-
-/**
- * API helper functions
- */
 
 export interface LoginCredentials {
   username: string;
@@ -109,61 +101,37 @@ export interface User {
   createdAt?: string;
 }
 
-/**
- * Authentication API
- */
 export const authAPI = {
-  /**
-   * Login user
-   */
   login: async (credentials: LoginCredentials): Promise<User> => {
     const response = await apiClient.post('/login', credentials);
     return response.data;
   },
 
-  /**
-   * Register new user
-   */
   register: async (data: RegisterData): Promise<User> => {
     const response = await apiClient.post('/register', data);
     return response.data;
   },
 
-  /**
-   * Logout user
-   */
   logout: async (): Promise<void> => {
     await apiClient.post('/logout');
   },
 
-  /**
-   * Get current user
-   */
   getCurrentUser: async (): Promise<User> => {
     const response = await apiClient.get('/user');
     return response.data;
   },
 
-  /**
-   * Request magic code
-   */
   requestMagicCode: async (email: string): Promise<{ token: string; message: string }> => {
     const response = await apiClient.post('/auth/magic', { email });
     return response.data;
   },
 
-  /**
-   * Verify magic code
-   */
   verifyMagicCode: async (token: string, code: string): Promise<{ token: string; user: User }> => {
     const response = await apiClient.post('/auth/verify', { token, code });
     return response.data;
   },
 };
 
-/**
- * Communities API
- */
 export const communitiesAPI = {
   getAll: async () => {
     const response = await apiClient.get('/communities');
@@ -206,9 +174,6 @@ export const communitiesAPI = {
   },
 };
 
-/**
- * Posts API
- */
 export const postsAPI = {
   getAll: async () => {
     const response = await apiClient.get('/posts');
@@ -226,9 +191,6 @@ export const postsAPI = {
   },
 };
 
-/**
- * Events API
- */
 export const eventsAPI = {
   getAll: async () => {
     const response = await apiClient.get('/events');
@@ -246,9 +208,6 @@ export const eventsAPI = {
   },
 };
 
-/**
- * Prayer Requests API
- */
 export const prayerRequestsAPI = {
   getAll: async () => {
     const response = await apiClient.get('/prayer-requests');
@@ -266,9 +225,6 @@ export const prayerRequestsAPI = {
   },
 };
 
-/**
- * Blocked Users API
- */
 export const blockedUsersAPI = {
   getAll: async () => {
     const response = await apiClient.get('/blocked-users');
@@ -286,9 +242,6 @@ export const blockedUsersAPI = {
   },
 };
 
-/**
- * Admin API
- */
 export const adminAPI = {
   getStats: async () => {
     const response = await apiClient.get('/admin/stats');
@@ -310,9 +263,6 @@ export const adminAPI = {
   },
 };
 
-/**
- * Search API
- */
 export const searchAPI = {
   global: async (query: string) => {
     const response = await apiClient.get(`/search?q=${encodeURIComponent(query)}`);

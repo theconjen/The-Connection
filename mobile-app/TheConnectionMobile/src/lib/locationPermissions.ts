@@ -1,56 +1,80 @@
 import { Linking } from 'react-native';
-import * as Location from 'expo-location';
+
+export const PermissionStatus = {
+  GRANTED: 'granted',
+  DENIED: 'denied',
+  UNDETERMINED: 'undetermined',
+} as const;
+export type PermissionStatus = typeof PermissionStatus[keyof typeof PermissionStatus];
 
 export interface LocationPermissionState {
-  foreground: Location.PermissionStatus;
-  background: Location.PermissionStatus;
+  foreground: PermissionStatus;
+  background: PermissionStatus;
 }
 
 export const defaultPermissionState: LocationPermissionState = {
-  foreground: Location.PermissionStatus.UNDETERMINED,
-  background: Location.PermissionStatus.UNDETERMINED,
+  foreground: PermissionStatus.UNDETERMINED,
+  background: PermissionStatus.UNDETERMINED,
 };
 
+function getLocationModule() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('expo-location');
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function loadLocationPermissionState(): Promise<LocationPermissionState> {
+  const Location = getLocationModule();
+  if (!Location) return defaultPermissionState;
+
   const [foreground, background] = await Promise.all([
     Location.getForegroundPermissionsAsync(),
     Location.getBackgroundPermissionsAsync(),
   ]);
 
   return {
-    foreground: foreground.status,
-    background: background.status,
+    foreground: (foreground?.status as PermissionStatus) ?? PermissionStatus.UNDETERMINED,
+    background: (background?.status as PermissionStatus) ?? PermissionStatus.UNDETERMINED,
   };
 }
 
-export async function requestForegroundPermission(): Promise<Location.PermissionStatus> {
+export async function requestForegroundPermission(): Promise<PermissionStatus> {
+  const Location = getLocationModule();
+  if (!Location) return PermissionStatus.UNDETERMINED;
+
   const { status } = await Location.requestForegroundPermissionsAsync();
-  return status;
+  return (status as PermissionStatus) ?? PermissionStatus.UNDETERMINED;
 }
 
-export async function requestBackgroundPermission(): Promise<Location.PermissionStatus> {
+export async function requestBackgroundPermission(): Promise<PermissionStatus> {
+  const Location = getLocationModule();
+  if (!Location) return PermissionStatus.UNDETERMINED;
+
   const { status } = await Location.requestBackgroundPermissionsAsync();
-  return status;
+  return (status as PermissionStatus) ?? PermissionStatus.UNDETERMINED;
 }
 
-export function formatPermissionStatus(status: Location.PermissionStatus): string {
+export function formatPermissionStatus(status: PermissionStatus): string {
   switch (status) {
-    case Location.PermissionStatus.GRANTED:
+    case PermissionStatus.GRANTED:
       return 'Granted';
-    case Location.PermissionStatus.DENIED:
+    case PermissionStatus.DENIED:
       return 'Denied';
-    case Location.PermissionStatus.UNDETERMINED:
+    case PermissionStatus.UNDETERMINED:
     default:
       return 'Not requested';
   }
 }
 
 export function hasForegroundPermission(state: LocationPermissionState): boolean {
-  return state.foreground === Location.PermissionStatus.GRANTED;
+  return state.foreground === PermissionStatus.GRANTED;
 }
 
 export function hasBackgroundPermission(state: LocationPermissionState): boolean {
-  return state.background === Location.PermissionStatus.GRANTED;
+  return state.background === PermissionStatus.GRANTED;
 }
 
 export async function openAppSettings(): Promise<void> {

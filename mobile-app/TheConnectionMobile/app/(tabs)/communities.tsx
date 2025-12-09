@@ -4,7 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import * as Location from 'expo-location';
+// Location module is loaded via `src/lib/locationPermissions` helpers so
+// we avoid crashing when native modules are not present in the runtime.
 import {
   View,
   Text,
@@ -30,6 +31,7 @@ import {
   hasBackgroundPermission,
   hasForegroundPermission,
   loadLocationPermissionState,
+  PermissionStatus,
   openAppSettings,
   requestBackgroundPermission,
   requestForegroundPermission,
@@ -77,7 +79,7 @@ export default function CommunitiesScreen() {
         const foregroundStatus = await requestForegroundPermission();
         setPermissionState((prev) => ({ ...prev, foreground: foregroundStatus }));
 
-        if (foregroundStatus !== Location.PermissionStatus.GRANTED) {
+        if (foregroundStatus !== PermissionStatus.GRANTED) {
           return;
         }
       }
@@ -235,8 +237,8 @@ export default function CommunitiesScreen() {
             Background location lets us refresh nearby recommendations even when the app is not open.
           </Text>
         )}
-        {(permissionState.background === Location.PermissionStatus.DENIED ||
-          permissionState.foreground === Location.PermissionStatus.DENIED) && (
+        {(permissionState.background === PermissionStatus.DENIED ||
+          permissionState.foreground === PermissionStatus.DENIED) && (
           <Text style={styles.permissionHint}>
             If permissions are blocked, use the settings button above to enable location access from your
             device settings.
