@@ -18,7 +18,7 @@ This document is the single source of truth for environment variables, rewrites,
 | `AWS_SES_FROM_EMAIL` | Optional | Override for transactional email sender. | `"The Connection" <noreply@theconnection.app>` |
 | `VITE_API_BASE` | ✅ (web) | Frontend API base consumed by Vite/React bundles. | `/api` in prod/preview, `https://dev.api.theconnection.app` in dev. |
 | `SHARED_ENV__API_BASE` | ✅ (server/shared) | Mirrors `API_BASE` in `shared/http.ts`. Prefer setting via build tooling. | Same value as `VITE_API_BASE`. |
-| `EXPO_PUBLIC_API_BASE` | ✅ (mobile) | Native API base (Capacitor/Expo). | `https://api.theconnection.app` (prod) or env-specific host. |
+| `EXPO_PUBLIC_API_BASE` | ✅ (mobile) | Native API base (Expo). | `https://api.theconnection.app` (prod) or env-specific host. |
 
 ---
 
@@ -45,7 +45,7 @@ This document is the single source of truth for environment variables, rewrites,
 
 - Backend: run via `pnpm --filter server dev` (Express) on localhost with relaxed CORS.
 - Frontend: `VITE_API_BASE=https://dev.api.theconnection.app` (see `.env.development`).
-- Native: `EXPO_PUBLIC_API_BASE=https://dev.api.theconnection.app` (update in Expo/Capacitor configs).
+- Native: `EXPO_PUBLIC_API_BASE=https://dev.api.theconnection.app` (update in Expo configs).
 - Optionally add preview/staging hosts to `CORS_ALLOWED_ORIGINS` in `.env.local` for quick testing.
 
 ### Vercel Preview & Production
@@ -89,11 +89,11 @@ This document is the single source of truth for environment variables, rewrites,
    ```
    Expect **HTTP 200 + JSON** on `/api/health` and either **200 JSON** or **401 JSON** on `/api/me`.
 
-### Native (iOS / Expo / Capacitor)
+### Native (iOS / Expo)
 
 - API base is the absolute production (or env-specific) host, e.g. `https://api.theconnection.app`.
 - Ensure DNS resolves on the device/simulator.
-- CORS allowlist must include `capacitor://localhost` and any Expo origins.
+- For dev builds, add your Expo dev origin (LAN IP or tunnel host) to `CORS_ALLOWED_ORIGINS`.
 - Mobile clients send session cookies with `credentials: 'include'`/`withCredentials`, so the API must continue to return
   `Access-Control-Allow-Credentials: true` and a compatible `SameSite=None` session cookie (see `SESSION_SAMESITE`).
 - Rebuild native bundle after adjusting `EXPO_PUBLIC_API_BASE` or shared env values.
@@ -200,7 +200,7 @@ Ensure both server and web bundles receive their respective DSNs so runtime exce
 | --- | --- | --- |
 | Loader hangs, `/api/health` returns HTML | Frontend bypassing rewrite, hitting wrong domain. | Ensure `VITE_API_BASE=/api`, redeploy, clear cache/service worker. |
 | `/api/me` 401/403 unexpectedly | Cookie not included or CORS blocked. | Check request headers, confirm `CORS_ALLOWED_ORIGINS`, ensure `credentials: 'include'` and cookie settings above. |
-| Native app requests fail | Missing Capacitor/Expo origin in allowlist or wrong API base. | Add origin via `CORS_ALLOWED_ORIGINS`, verify `EXPO_PUBLIC_API_BASE`, rebuild native bundle. |
+| Native app requests fail | Missing Expo origin in allowlist or wrong API base. | Add origin via `CORS_ALLOWED_ORIGINS`, verify `EXPO_PUBLIC_API_BASE`, rebuild native bundle. |
 
 ---
 
@@ -399,15 +399,11 @@ Using **host-only cookies** (no `domain`) ensures the cookie is scoped correctly
 
 ## Native App Configuration
 
-For iOS/Android (Capacitor), the app uses direct API connection:
+For iOS/Android (Expo), the app reads `EXPO_PUBLIC_API_BASE` from the Expo config/eas profile so the API host is baked into the bundle.
 
-```typescript
-// apps/web/src/lib/api.ts
-const NATIVE_API = "https://api.theconnection.app";
-export const API_BASE = Capacitor.isNativePlatform() ? NATIVE_API : WEB_API;
-```
-
-The backend must include `capacitor://localhost` in CORS allowed origins (already configured).
+- Point production builds at `https://api.theconnection.app` (default in `eas.json`).
+- For development builds, set the variable to your LAN IP or tunnel hostname so physical devices can reach your local API.
+- Add that origin to `CORS_ALLOWED_ORIGINS` when testing against non-production hosts.
 
 ## Troubleshooting
 
@@ -510,7 +506,7 @@ This document defines the required environment variables and deployment conventi
 | `APP_DOMAIN` | ✅ | Public host for canonical URLs and emails. | `app.theconnection.app` (prod), `staging.theconnection.app`, etc. |
 | `AWS_SES_FROM_EMAIL` | Optional | Override for transactional email sender. | `"The Connection" <noreply@theconnection.app>` |
 | `VITE_API_BASE` | ✅ (web) | Frontend API base consumed by Vite/React bundles. | `/api` in prod, `https://dev.api.theconnection.app` in dev. |
-| `EXPO_PUBLIC_API_BASE` | ✅ (mobile) | Native API base (Capacitor/Expo). | `https://api.theconnection.app` (prod), env-specific host in other channels. |
+| `EXPO_PUBLIC_API_BASE` | ✅ (mobile) | Native API base (Expo). | `https://api.theconnection.app` (prod), env-specific host in other channels. |
 | `SHARED_ENV__API_BASE` | ✅ (server/shared) | Mirrors `API_BASE` in `shared/http.ts`. Prefer setting via build tooling. | Same as `VITE_API_BASE`. |
 
 ---
@@ -551,7 +547,7 @@ This document defines the required environment variables and deployment conventi
 
 - API base is always the absolute host (`https://api.theconnection.app` or dev/staging counterpart).
 - Ensure the API DNS name resolves for the device/simulator.
-- CORS allowlist must include `capacitor://localhost` and any Capacitor/Expo origins.
+- Add your Expo dev origin (LAN IP or tunnel host) to `CORS_ALLOWED_ORIGINS` when testing against local APIs.
 - Rebuild native bundle after changing `EXPO_PUBLIC_API_BASE` or shared env.
 
 ---

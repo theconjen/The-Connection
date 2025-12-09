@@ -11,8 +11,8 @@
     "postinstall": "node ./scripts/ensure-assets.js",
     "test:api": "vitest run tests/api",
     "eas": "pnpm dlx eas-cli",
-    "android": "expo run:android",
-    "ios": "expo run:ios"
+    "android": "pnpm -C mobile-app/TheConnectionMobile run android",
+    "ios": "pnpm -C mobile-app/TheConnectionMobile run ios"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
@@ -63,8 +63,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",
     "@aws-sdk/client-ses": "^3.936.0",
-    "@capacitor/cli": "^7.4.4",
-    "@capacitor/core": "^7.4.4",
     "@google-cloud/storage": "^7.17.3",
     "@neondatabase/serverless": "^1.0.2",
     "@sendgrid/mail": "^8.1.6",
