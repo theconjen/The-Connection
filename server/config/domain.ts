@@ -5,7 +5,9 @@
  * for consistent references throughout the application.
  */
 
-export const APP_DOMAIN = process.env.APP_DOMAIN || 'theconnection.app';
+import { envConfig } from "./env";
+
+export const APP_DOMAIN = envConfig.appDomain;
 
 // Base URL with protocol
 export const BASE_URL = `https://${APP_DOMAIN}`;
@@ -25,7 +27,7 @@ export function getFullUrl(path: string): string {
 /**
  * Email constants
  */
-export const EMAIL_FROM = process.env.AWS_SES_FROM_EMAIL || `The Connection <noreply@${APP_DOMAIN}>`;
+export const EMAIL_FROM = envConfig.emailFrom;
 
 /**
  * Common URLs used throughout the application

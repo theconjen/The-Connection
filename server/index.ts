@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 import { createServer } from "http";
 import { registerRoutes } from "./routes";
 import { makeCors } from "./cors";
+import { envConfig } from "./config/env";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
@@ -20,7 +21,7 @@ let SentryClient: typeof import("@sentry/node") | null = null;
 
 async function bootstrap() {
   const app = express();
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = envConfig.isProduction;
 
   if (isProduction) {
     app.set("trust proxy", 1);
@@ -28,12 +29,6 @@ async function bootstrap() {
 
   const httpServer = createServer(app);
   (app as any).listen = httpServer.listen.bind(httpServer);
-
-  if (isProduction && !process.env.SESSION_SECRET) {
-    console.error("FATAL ERROR: SESSION_SECRET environment variable is required in production");
-    console.error("Please set a strong, random SESSION_SECRET in your environment variables");
-    process.exit(1);
-  }
 
   app.use(makeCors());
 
@@ -79,12 +74,12 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  const useDb = process.env.USE_DB === "true";
-  const isSecureCookie = isProduction && process.env.COOKIE_SECURE !== "false";
+  const useDb = envConfig.useDb;
+  const isSecureCookie = envConfig.isSecureCookie;
   const sameSiteMode: "lax" | "none" = isSecureCookie ? "none" : "lax";
 
   const sessionOptions: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET ?? "theconnection-session-secret-dev-only",
+    secret: envConfig.sessionSecret ?? "theconnection-session-secret-dev-only",
     resave: false,
     saveUninitialized: false,
     name: "sessionId",
@@ -209,27 +204,27 @@ async function bootstrap() {
   try {
     const { startVerificationCleanup } = await import('./lib/verificationCleanup');
     startVerificationCleanup({
-      intervalMs: Number(process.env.VERIFICATION_CLEANUP_INTERVAL_MS ?? 24 * 60 * 60 * 1000),
-      retentionDays: Number(process.env.VERIFICATION_RETENTION_DAYS ?? 30),
+      intervalMs: envConfig.verification.cleanupIntervalMs,
+      retentionDays: envConfig.verification.retentionDays,
     });
   } catch (err) {
     console.warn('Failed to start verification cleanup scheduler:', err);
   }
 
-  if (process.env.SENTRY_DSN) {
+  if (envConfig.sentry.dsn) {
     try {
       SentryClient = await import("@sentry/node");
       SentryClient.init({
-        dsn: process.env.SENTRY_DSN,
-        environment: process.env.NODE_ENV || "production",
-        tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0.0),
+        dsn: envConfig.sentry.dsn,
+        environment: envConfig.nodeEnv,
+        tracesSampleRate: envConfig.sentry.tracesSampleRate,
       });
 
       // Request handler should be the first middleware for Sentry to capture request data
       app.use(SentryClient.Handlers.requestHandler() as express.RequestHandler);
 
       // Optionally mount the tracing handler when tracesSampleRate is enabled
-      const tracesRate = Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0);
+      const tracesRate = envConfig.sentry.tracesSampleRate;
       if (tracesRate > 0) {
         app.use(SentryClient.Handlers.tracingHandler());
       }
@@ -273,7 +268,7 @@ async function bootstrap() {
     serveStatic(app);
   }
 
-  const port = Number(process.env.PORT) || 3000;
+  const port = envConfig.port;
   app.listen(port, "0.0.0.0", () => {
     console.log(`API listening on ${port}`);
   });
