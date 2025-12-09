@@ -24,7 +24,7 @@ pnpm install --frozen-lockfile
 
 # Build client first (less memory intensive)
 echo "Building client..."
-pnpm run build:web 2>&1 | head -n 200
+pnpm run build:client 2>&1 | head -n 200
 
 # Create server build directory
 mkdir -p dist-server

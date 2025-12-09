@@ -1,0 +1,10 @@
+{
+  "name": "@connection/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "NODE_ENV=development pnpm exec tsx watch index.ts",
+    "build": "node ../scripts/build-server.mjs"
+  }
+}
