@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Checkpoint: added harmless comment for commit (2025-12-09)
 # Generate iOS and Android app icons + splash images from source assets
 # Requires macOS `sips` (preinstalled). Run from project root or this script's folder.
 
