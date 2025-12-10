@@ -60,5 +60,24 @@ target 'TheConnection' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+    # Best-effort sanitization: remove Finder resource forks / extended attributes
+    # from pod resources so codesign doesn't fail due to xattrs. This runs at
+    # `pod install` time so the generated Pods are clean and reproducible.
+    begin
+      resources_root = installer.sandbox.root.to_s
+      puts "Sanitizing Pod resources under #{resources_root} to remove extended attributes (best-effort)"
+      # remove xattrs for all files under the sandbox (quietly)
+      system("find \"#{resources_root}\" -type f -exec xattr -c {} + 2>/dev/null || true")
+      # For stubborn bundles, recreate with ditto --norsrc which strips resource forks
+      Dir.glob("#{resources_root}/**/*.bundle").each do |b|
+        tmp = "#{b}.tmp_for_strip"
+        if system("ditto --norsrc \"#{b}\" \"#{tmp}\"")
+          system("rm -rf \"#{b}\"")
+          system("mv \"#{tmp}\" \"#{b}\"")
+        end
+      end
+    rescue => e
+      puts "Warning: pod resource sanitization failed: #{e}"
+    end
   end
 end
