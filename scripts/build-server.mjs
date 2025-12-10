@@ -1,7 +1,14 @@
 // scripts/build-server.mjs
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
-const entry = 'server/index.ts';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Resolve all paths from the project root so the bundle lands at /dist-server
+const projectRoot = path.resolve(__dirname, '..');
+const entry = path.join(projectRoot, 'server', 'index.ts');
 
 // keep these out of the bundle so they use native require at runtime
 const external = [
@@ -18,7 +25,7 @@ const external = [
 
 await build({
   entryPoints: [entry],
-  outfile: 'dist-server/index.cjs',
+  outfile: path.join(projectRoot, 'dist-server', 'index.cjs'),
   platform: 'node',
   target: 'node20',
   bundle: true,
