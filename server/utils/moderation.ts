@@ -72,6 +72,9 @@ export function ensureSafeBinaryUpload(
   declaredMime?: string,
   context = 'file upload'
 ) {
+  if (!Buffer.isBuffer(buffer)) {
+    throw new ModerationError(`Invalid binary upload payload type (${context}).`);
+  }
   if (!buffer || buffer.length === 0) {
     throw new ModerationError(`Empty payload rejected (${context}).`);
   }
