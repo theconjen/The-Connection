@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import { sendEmail } from '../../email';
 import rateLimit from 'express-rate-limit';
 import { buildErrorResponse } from '../../utils/errors';
-import { setSessionUserId } from '../../utils/session';
+import { getSessionUserId, setSessionUserId } from '../../utils/session';
 import { generateVerificationToken, hashToken, createAndSendVerification } from '../../lib/emailVerification';
 
 const router = Router();
@@ -152,14 +152,14 @@ router.post('/logout', (req, res) => {
 
 // Get current user endpoint
 router.get('/user', async (req, res) => {
-  if (!req.session.userId) {
+  const userId = getSessionUserId(req);
+  if (!userId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
-  
+
   try {
   // Get full user details from database. Coerce session userId to number.
-  const userIdNum = typeof req.session.userId === 'string' ? parseInt(req.session.userId, 10) : req.session.userId;
-  const user = await storage.getUser(userIdNum as number);
+  const user = await storage.getUser(userId);
     
     if (!user) {
       // Session contains a userId but user doesn't exist

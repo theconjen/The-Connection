@@ -62,7 +62,8 @@ const passwordResetLimiter = rateLimit({
 
 // Export authentication check middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  if (req.session && req.session.userId) {
+  const userId = getSessionUserId(req);
+  if (userId) {
     return next();
   }
   return res.status(401).json({ message: "Unauthorized" });
@@ -70,7 +71,8 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
 
 // Admin-only middleware
 export function isAdmin(req: Request, res: Response, next: NextFunction) {
-  if (req.session && req.session.userId && req.session.isAdmin === true) {
+  const userId = getSessionUserId(req);
+  if (userId && req.session?.isAdmin === true) {
     return next();
   }
   return res.status(403).json({ message: "Unauthorized: Admin access required" });
