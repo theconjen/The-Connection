@@ -60,5 +60,18 @@ target 'TheConnection' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Quick unblock: disable Folly coroutine compilation when headers are absent.
+    # This sets a preprocessor definition for the RCT-Folly pod so files
+    # referencing folly::coro won't require the optional coroutine headers.
+    installer.pods_project.targets.each do |target|
+      if target.name == 'RCT-Folly'
+        target.build_configurations.each do |config|
+          defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          defs << 'FOLLY_HAS_COROUTINES=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
+        end
+      end
+    end
   end
 end
