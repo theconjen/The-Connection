@@ -70,6 +70,7 @@
       "eas": {
         "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
       },
+      "sentryDsn": "${EXPO_PUBLIC_SENTRY_DSN}",
       "apiBase": "${EXPO_PUBLIC_API_BASE}",
       "apiBaseDefaults": {
         "development": "http://localhost:3000/api",
