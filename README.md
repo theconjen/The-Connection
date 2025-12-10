@@ -46,9 +46,13 @@ cp .env.example .env
 pnpm run db:push
 ```
 
-4. **Start Development Server:**
+4. **Start Development Servers:**
 ```bash
+# Full stack: starts the API with Vite middleware for the client
 pnpm run dev
+
+# Frontend only (optional)
+pnpm run dev:client
 ```
 
 ### Vercel Deployment
@@ -112,6 +116,16 @@ Uses PostgreSQL with Drizzle ORM. Run `pnpm run db:push` to apply schema changes
 ## Development
 
 The application serves both frontend and backend on the same port using Vite's development server.
+
+- `pnpm run dev` starts the Express API with Vite middleware serving the client (single process dev loop).
+- `pnpm run dev:client` runs the client-only Vite dev server if you just need the UI.
+- `pnpm run dev:server` runs the API with Vite middleware without also starting the client in another process.
+
+## Production Builds
+
+- `pnpm run build` builds both the client and server bundles.
+- `pnpm run build:client` builds only the Vite client app.
+- `pnpm run build:server` builds only the server bundle.
 
 ### Testing
 

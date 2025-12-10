@@ -246,15 +246,19 @@ node server/seed-all.ts
 ### Development Server
 
 ```bash
-# Start development server (Vite + Express)
+# Full stack dev (API + client via Vite middleware)
 pnpm run dev
+
+# Frontend-only Vite dev server
+pnpm run dev:client
+
+# API-only dev server (still wires Vite middleware)
+pnpm run dev:server
 ```
 
 **What happens:**
-- Vite dev server starts on port 5173 (frontend with HMR)
-- Express API server runs on port 5000
-- Vite proxies `/api` requests to Express
-- Hot module replacement enabled for React components
+- `pnpm run dev` and `pnpm run dev:server` start the Express API on port 5000 and attach Vite middleware to serve the client with HMR
+- `pnpm run dev:client` starts the standalone Vite dev server on port 5173
 
 ### Building for Production
 
@@ -263,7 +267,7 @@ pnpm run dev
 pnpm run build
 
 # Or build separately
-pnpm run build:web      # Build React app (Vite)
+pnpm run build:client   # Build React app (Vite)
 pnpm run build:server   # Build Express server (esbuild)
 ```
 
@@ -312,8 +316,10 @@ pnpm run eas
 
 From root `package.json`:
 
-- `pnpm run watch` - esbuild watch mode
-- `pnpm run build:web` - Build web client
+- `pnpm run dev` - Full stack dev server (API + client via Vite middleware)
+- `pnpm run dev:client` - Client-only Vite dev server
+- `pnpm run dev:server` - API dev server with Vite middleware
+- `pnpm run build:client` - Build web client
 - `pnpm run build:server` - Build server
 - `pnpm run build` - Build both
 - `pnpm test:api` - Run API tests
