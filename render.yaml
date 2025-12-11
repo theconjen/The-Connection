@@ -12,7 +12,8 @@ services:
       corepack prepare pnpm@10.24.0 --activate &&
       pnpm install --no-frozen-lockfile &&
       pnpm -w build
-    startCommand: node dist-server/index.cjs
+    startCommand: >-
+      bash -lc "if [ ! -f dist-server/index.cjs ]; then pnpm run build:server; fi; node dist-server/index.cjs"
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION

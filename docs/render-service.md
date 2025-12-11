@@ -3,7 +3,7 @@
 - **Service type:** Web Service
 - **Root directory:** Repository root (contains `server/index.ts` and build scripts)
 - **Build command:** `corepack enable && corepack prepare pnpm@10.16.1 --activate && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) && pnpm -w build`
-- **Start command:** `node dist-server/index.cjs`
+- **Start command:** `bash -lc "if [ ! -f dist-server/index.cjs ]; then pnpm run build:server; fi; node dist-server/index.cjs"` (rebuilds the server bundle on boot if Render drops the build artifact)
 - **Environment variables:**
   - `NODE_ENV=production`
   - `SESSION_SECRET=372f79df29a1113a00d5bde03125eddc` (provide via Render Secret)

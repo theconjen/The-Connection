@@ -72,6 +72,9 @@ export function ensureSafeBinaryUpload(
   declaredMime?: string,
   context = 'file upload'
 ) {
+  if (!Buffer.isBuffer(buffer)) {
+    throw new ModerationError(`Invalid binary upload payload type (${context}).`);
+  }
   if (!buffer || buffer.length === 0) {
     throw new ModerationError(`Empty payload rejected (${context}).`);
   }
@@ -83,11 +86,24 @@ export function ensureSafeBinaryUpload(
   const normalizedDeclared = declaredMime?.split(';')[0].trim().toLowerCase();
   const inferred = sniffImageMime(buffer);
 
-  const mimeToCheck = inferred || normalizedDeclared;
-  if (!mimeToCheck || !allowedUploadMimeTypes.has(mimeToCheck)) {
+  if (normalizedDeclared && inferred && normalizedDeclared !== inferred) {
+    throw new ModerationError(
+      `Declared content type does not match file signature (${context}).`,
+      [normalizedDeclared, inferred]
+    );
+  }
+
+  if (!inferred) {
     throw new ModerationError(
       `Unsupported or potentially unsafe file type (${context}).`,
-      [mimeToCheck || 'unknown']
+      [normalizedDeclared || 'unknown']
+    );
+  }
+
+  if (!allowedUploadMimeTypes.has(inferred)) {
+    throw new ModerationError(
+      `Unsupported or potentially unsafe file type (${context}).`,
+      [inferred]
     );
   }
 }
