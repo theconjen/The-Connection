@@ -21,7 +21,6 @@ importers:
       '@aws-sdk/client-ses':
         specifier: ^3.936.0
         version: 3.940.0
-<<<<<<< HEAD
       '@capacitor/cli':
         specifier: ^7.4.4
         version: 7.4.4
@@ -31,8 +30,6 @@ importers:
       '@expo/dev-server':
         specifier: ^0.5.5
         version: 0.5.5
-=======
->>>>>>> ac45fc3a6c3924d8097539d8b77e9bf9e5a9b1b8
       '@google-cloud/storage':
         specifier: ^7.17.3
         version: 7.17.3
