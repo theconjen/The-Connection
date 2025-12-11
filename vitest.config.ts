@@ -23,5 +23,6 @@ export default defineConfig({
     include: ['tests/**/*.spec.ts', 'tests/**/*.test.ts', 'mobile-app/TheConnectionMobile/src/__tests__/**/*.test.ts'],
     globals: true,
     environment: 'node',
+    setupFiles: ['tests/setup/init-memory.ts'],
   },
 });
