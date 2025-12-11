@@ -8,6 +8,12 @@ import {
   dmSendLimiter,
   moderationReportLimiter,
 } from '../../server/rate-limiters';
+import {
+  CONTENT_CREATION_MAX,
+  MESSAGE_CREATION_MAX,
+  DM_SEND_MAX,
+  MODERATION_REPORT_MAX,
+} from '../../server/rate-limiters';
 
 const TEST_IP = '203.0.113.1';
 
@@ -33,7 +39,7 @@ describe('rate limiting middleware', () => {
   });
 
   it('caps post creation requests', async () => {
-    const limit = (contentCreationLimiter as any).options.max as number;
+    const limit = CONTENT_CREATION_MAX;
 
     for (let i = 0; i < limit; i++) {
       const res = await request(app).post('/api/posts').set('x-forwarded-for', TEST_IP);
@@ -46,7 +52,7 @@ describe('rate limiting middleware', () => {
   });
 
   it('caps comment creation requests', async () => {
-    const limit = (messageCreationLimiter as any).options.max as number;
+    const limit = MESSAGE_CREATION_MAX;
 
     for (let i = 0; i < limit; i++) {
       const res = await request(app).post('/api/comments').set('x-forwarded-for', TEST_IP);
@@ -59,7 +65,7 @@ describe('rate limiting middleware', () => {
   });
 
   it('caps dm send requests', async () => {
-    const limit = (dmSendLimiter as any).options.max as number;
+    const limit = DM_SEND_MAX;
 
     for (let i = 0; i < limit; i++) {
       const res = await request(app).post('/api/dms/send').set('x-forwarded-for', TEST_IP);
@@ -72,7 +78,7 @@ describe('rate limiting middleware', () => {
   });
 
   it('caps moderation reports', async () => {
-    const limit = (moderationReportLimiter as any).options.max as number;
+    const limit = MODERATION_REPORT_MAX;
 
     for (let i = 0; i < limit; i++) {
       const res = await request(app).post('/api/reports').set('x-forwarded-for', TEST_IP);

@@ -16,7 +16,17 @@ const envSchema = z.object({
   AWS_SES_FROM_EMAIL: z.string().email().optional(),
 });
 
-const parsedEnv = envSchema.parse(process.env);
+// Normalize environment: some `.env` loaders can set keys to empty
+// strings which causes Zod to treat them as present but invalid.
+// Remove empty-string values so `optional()` and `default()` work.
+const sanitizedEnv: Record<string, string | undefined> = { ...process.env };
+for (const k of Object.keys(sanitizedEnv)) {
+  if (sanitizedEnv[k] === "") {
+    delete sanitizedEnv[k];
+  }
+}
+
+const parsedEnv = envSchema.parse(sanitizedEnv as Record<string, unknown>);
 
 if (parsedEnv.USE_DB && !parsedEnv.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required when USE_DB=true");
