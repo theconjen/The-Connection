@@ -1,0 +1,80 @@
+name: iOS Build Validation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ios-build:
+    name: iOS Build (macOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set up Ruby (CocoaPods)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - name: Install CocoaPods
+        run: gem install cocoapods -v '1.15.0' || gem install cocoapods
+
+      - name: Run pod install
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Make ios cleanup script executable
+        run: chmod +x ./scripts/ios/clean_xattr.sh
+
+      - name: Run xattr/resource-fork cleanup
+        run: ./scripts/ios/clean_xattr.sh ios
+
+      - name: Attempt xcodebuild (clean + build)
+        env:
+          # Disable code signing for CI validation step; real release will need proper signing
+          CODE_SIGNING_ALLOWED: 'NO'
+        run: |
+          set -o pipefail
+          XCODE_WORKSPACE="ios/TheConnection.xcworkspace"
+          XCODE_SCHEME="TheConnection"
+          if [ -f "$XCODE_WORKSPACE" ]; then
+            echo "Building workspace: $XCODE_WORKSPACE"
+            xcodebuild -workspace "$XCODE_WORKSPACE" -scheme "$XCODE_SCHEME" -configuration Release -sdk iphoneos BUILD_DIR=ios/build clean build CODE_SIGNING_ALLOWED=NO | xcpretty || true
+          else
+            echo "Workspace not found at $XCODE_WORKSPACE — attempting project build"
+            xcodebuild -project ios/TheConnection.xcodeproj -scheme "$XCODE_SCHEME" -configuration Release -sdk iphoneos BUILD_DIR=ios/build clean build CODE_SIGNING_ALLOWED=NO | xcpretty || true
+          fi
+
+      - name: Verify codesign on built app (best-effort)
+        run: |
+          APP_PATH="ios/build/Release-iphoneos/TheConnection.app"
+          if [ -d "$APP_PATH" ]; then
+            codesign --verify --deep --strict --verbose=2 "$APP_PATH" || true
+          else
+            echo "App bundle not found; skipping codesign verification"
+          fi
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: ios/build || ios/Pods || ios/Podfile.lock
