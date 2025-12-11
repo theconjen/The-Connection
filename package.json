@@ -63,12 +63,9 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",
     "@aws-sdk/client-ses": "^3.936.0",
-<<<<<<< HEAD
     "@capacitor/cli": "^7.4.4",
     "@capacitor/core": "^7.4.4",
     "@expo/dev-server": "^0.5.5",
-=======
->>>>>>> ac45fc3a6c3924d8097539d8b77e9bf9e5a9b1b8
     "@google-cloud/storage": "^7.17.3",
     "@neondatabase/serverless": "^1.0.2",
     "@sendgrid/mail": "^8.1.6",
