@@ -1,9 +1,13 @@
 import path from "path";
+import { fileURLToPath } from "url";
 import type { Config } from "tailwindcss";
 
 // Use absolute paths for content so Tailwind can reliably find files
 // regardless of the working directory (Render/production was missing styles
 // because relative globs weren't being resolved).
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const contentPaths = [
   path.join(__dirname, "client", "index.html"),
   path.join(__dirname, "client", "src", "**/*.{js,jsx,ts,tsx}"),
