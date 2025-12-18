@@ -1,6 +1,0 @@
-NODE_ENV=test
-APP_DOMAIN=example.com
-AWS_SES_FROM_EMAIL=noreply@example.com
-USE_DB=false
-SESSION_SECRET=test-session-secret
-RATE_LIMIT_MAX=100

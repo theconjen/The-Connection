@@ -28,9 +28,31 @@ apps/web/test-results/
 apps/web/playwright-report/
 apps/web/tsconfig.tsbuildinfo
 
-mobile-app/TheConnectionMobile/ios/
-mobile-app/TheConnectionMobile/android/
+mobile-app/TheConnectionMobile-new/ios/
+mobile-app/TheConnectionMobile-new/android/
 
-# Prevent root eas.json (should only be in mobile-app/TheConnectionMobile/)
+# Prevent root eas.json (should only be in mobile-app/TheConnectionMobile-new/)
 /eas.json
-mobile-app/TheConnectionMobile/ios-backups/
+
+# Backup files and directories
+*.backup
+*\ 2.*
+.env*.backup
+.env\ 2.*
+*-backups/
+.git-backups/
+.worktree_backups/
+assets-backup-*/
+
+# Lock file duplicates
+pnpm-lock\ *.yaml
+
+# Build artifacts
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# System files
+.codex/
+.The-Connection/
+registry.json

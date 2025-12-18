@@ -11,8 +11,8 @@
     "postinstall": "node ./scripts/ensure-assets.js",
     "test:api": "vitest run tests/api",
     "eas": "pnpm dlx eas-cli",
-    "android": "pnpm -C mobile-app/TheConnectionMobile run android",
-    "ios": "pnpm -C mobile-app/TheConnectionMobile run ios"
+    "android": "pnpm -C mobile-app/TheConnectionMobile-new run android",
+    "ios": "pnpm -C mobile-app/TheConnectionMobile-new run ios"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
@@ -22,7 +22,6 @@
     "@types/express": "^5.0.5",
     "@types/express-session": "^1.18.2",
     "@types/http-errors": "^2.0.5",
-    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.10.1",
     "@types/passport": "^1.0.17",
