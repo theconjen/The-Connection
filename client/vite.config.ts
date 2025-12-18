@@ -6,6 +6,18 @@ import autoprefixer from 'autoprefixer';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:3000',
+        ws: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
@@ -28,7 +40,6 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        // Split major vendor libraries into separate chunks to avoid very large bundles
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('lucide-react')) return 'vendor-lucide';
@@ -38,13 +49,11 @@ export default defineConfig({
             if (id.includes('date-fns')) return 'vendor-date-fns';
             if (id.includes('tiny-invariant')) return 'vendor-invariant';
             if (id.includes('clsx')) return 'vendor-clsx';
-            // fallback: group other node_modules into vendor chunk
             return 'vendor';
           }
         },
       },
     },
-    // keep default chunk size warning limit or adjust if you prefer
     chunkSizeWarningLimit: 600,
   },
 });
