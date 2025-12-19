@@ -11,6 +11,7 @@ import { registerRoutes } from "./routes";
 import { makeCors } from "./cors";
 import { envConfig } from "./config/env";
 import { setupVite, serveStatic, log } from "./vite";
+import { initSentry, Sentry as SentryLib } from './lib/sentry';
 import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
 import { pool } from "./db";
@@ -214,107 +215,13 @@ async function bootstrap() {
     console.warn('Failed to start verification cleanup scheduler:', err);
   }
 
-  if (envConfig.sentry.dsn) {
-    try {
-      // Dynamic import can return a module namespace where the actual SDK
-      // is on the `default` property (depending on ESM/CommonJS interop).
-      const imported = await import("@sentry/node");
-      const SentryModule = (imported as any).default ?? imported;
-
-      SentryClient = SentryModule as typeof import("@sentry/node");
-
-      // Build available integrations depending on the installed SDK shape.
-      const integrations: any[] = [];
-      try {
-        if (typeof (SentryModule as any).getAutoPerformanceIntegrations === "function") {
-          const auto = (SentryModule as any).getAutoPerformanceIntegrations();
-          if (Array.isArray(auto)) integrations.push(...auto);
-        }
-
-        if (typeof (SentryModule as any).getDefaultIntegrations === "function") {
-          const def = (SentryModule as any).getDefaultIntegrations?.();
-          if (Array.isArray(def)) integrations.push(...def);
-        }
-
-        if (typeof (SentryModule as any).expressIntegration === "function") {
-          try {
-            integrations.push((SentryModule as any).expressIntegration());
-          } catch (_) {
-            // ignore integration construction errors
-          }
-        }
-
-        if (typeof (SentryModule as any).httpIntegration === "function") {
-          try {
-            integrations.push((SentryModule as any).httpIntegration());
-          } catch (_) {
-            // ignore
-          }
-        }
-        // Add Anthropic AI integration if available to capture AI spans
-        if (typeof (SentryModule as any).anthropicAIIntegration === "function") {
-          try {
-            integrations.push(
-              (SentryModule as any).anthropicAIIntegration({
-                recordInputs: true,
-                recordOutputs: true,
-              })
-            );
-          } catch (_) {
-            // ignore integration construction errors
-          }
-        }
-      } catch (err) {
-        console.warn("Error building Sentry integrations:", err);
-      }
-
-      SentryClient.init({
-        dsn: envConfig.sentry.dsn,
-        environment: envConfig.nodeEnv,
-        tracesSampleRate: envConfig.sentry.tracesSampleRate,
-        debug: envConfig.sentry.debug,
-        // Respect explicit flag to send default PII (IP addresses, etc.)
-        sendDefaultPii: envConfig.sentry.sendDefaultPii,
-        integrations: integrations.length > 0 ? integrations : undefined,
-      });
-
-        console.log("Sentry integrations mounted:", integrations.map((i) => i?.name || i?.constructor?.name));
-
-        // Helpful startup log: whether Anthropic AI integration is present
-        try {
-          const hasAnthropic = integrations.some((i) => {
-            const n = (i?.name || i?.constructor?.name || '').toString().toLowerCase();
-            return n.includes('anthropic') || n.includes('ai');
-          });
-          console.log(`Anthropic integration mounted: ${hasAnthropic}`);
-        } catch (err) {
-          console.log('Anthropic integration mounted: unknown');
-        }
-      // The newer SDK build you're using exposes different exports
-      // (see startup logs). It may not provide `Handlers` but does expose
-      // an `expressErrorHandler` function we can mount later.
-      SentryExpressErrorHandler = (SentryModule as any).expressErrorHandler ?? null;
-
-      // Try to mount legacy-style handlers if present (older SDKs expose them)
-      const handlers = (SentryClient as any).Handlers ?? (SentryClient as any).default?.Handlers;
-      if (handlers && typeof handlers.requestHandler === "function") {
-        app.use(handlers.requestHandler() as express.RequestHandler);
-        const tracesRate = envConfig.sentry.tracesSampleRate;
-        if (tracesRate > 0 && typeof handlers.tracingHandler === "function") {
-          app.use(handlers.tracingHandler());
-        }
-      } else {
-        // Informative log — we won't crash; the SDK still captures exceptions
-        // via `captureException` calls below and `expressErrorHandler` may be
-        // mounted if available.
-        console.warn(
-          "Sentry SDK loaded but `Handlers` not found. Skipping legacy request/tracing handlers."
-        );
-      }
-    } catch (error) {
-      console.warn("Sentry failed to initialize:", error);
-      SentryClient = null;
-    }
+  try {
+    // Initialize Sentry using the simplified wrapper.
+    initSentry();
+    SentryClient = SentryLib as typeof import("@sentry/node");
+  } catch (error) {
+    console.warn("Sentry failed to initialize:", error);
+    SentryClient = null;
   }
 
   const server = await registerRoutes(app, httpServer);
