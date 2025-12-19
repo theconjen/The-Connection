@@ -12,6 +12,8 @@ const envSchema = z.object({
   VERIFICATION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   SENTRY_DSN: z.string().optional(),
   SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+  SENTRY_DEBUG: z.coerce.boolean().default(false),
+  SENTRY_SEND_DEFAULT_PII: z.coerce.boolean().default(false),
   APP_DOMAIN: z.string().min(1).default("theconnection.app"),
   AWS_SES_FROM_EMAIL: z.string().email().optional(),
 });

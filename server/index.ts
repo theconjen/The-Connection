@@ -18,6 +18,9 @@ import { pool } from "./db";
 // Hold a module-level reference to the Sentry SDK when initialized so
 // we can mount handlers (tracing + error handler) in other places below.
 let SentryClient: typeof import("@sentry/node") | null = null;
+// If the installed SDK exposes an express-specific error handler function
+// (e.g. `expressErrorHandler`) store it here so we can mount it later.
+let SentryExpressErrorHandler: ((...args: any[]) => any) | null = null;
 
 async function bootstrap() {
   const app = express();
@@ -213,20 +216,76 @@ async function bootstrap() {
 
   if (envConfig.sentry.dsn) {
     try {
-      SentryClient = await import("@sentry/node");
+      // Dynamic import can return a module namespace where the actual SDK
+      // is on the `default` property (depending on ESM/CommonJS interop).
+      const imported = await import("@sentry/node");
+      const SentryModule = (imported as any).default ?? imported;
+
+      SentryClient = SentryModule as typeof import("@sentry/node");
+
+      // Build available integrations depending on the installed SDK shape.
+      const integrations: any[] = [];
+      try {
+        if (typeof (SentryModule as any).getAutoPerformanceIntegrations === "function") {
+          const auto = (SentryModule as any).getAutoPerformanceIntegrations();
+          if (Array.isArray(auto)) integrations.push(...auto);
+        }
+
+        if (typeof (SentryModule as any).getDefaultIntegrations === "function") {
+          const def = (SentryModule as any).getDefaultIntegrations?.();
+          if (Array.isArray(def)) integrations.push(...def);
+        }
+
+        if (typeof (SentryModule as any).expressIntegration === "function") {
+          try {
+            integrations.push((SentryModule as any).expressIntegration());
+          } catch (_) {
+            // ignore integration construction errors
+          }
+        }
+
+        if (typeof (SentryModule as any).httpIntegration === "function") {
+          try {
+            integrations.push((SentryModule as any).httpIntegration());
+          } catch (_) {
+            // ignore
+          }
+        }
+      } catch (err) {
+        console.warn("Error building Sentry integrations:", err);
+      }
+
       SentryClient.init({
         dsn: envConfig.sentry.dsn,
         environment: envConfig.nodeEnv,
         tracesSampleRate: envConfig.sentry.tracesSampleRate,
+        debug: envConfig.sentry.debug,
+        // Respect explicit flag to send default PII (IP addresses, etc.)
+        sendDefaultPii: envConfig.sentry.sendDefaultPii,
+        integrations: integrations.length > 0 ? integrations : undefined,
       });
 
-      // Request handler should be the first middleware for Sentry to capture request data
-      app.use(SentryClient.Handlers.requestHandler() as express.RequestHandler);
+      console.log("Sentry integrations mounted:", integrations.map((i) => i?.name || i?.constructor?.name || "anonymous"));
+      // The newer SDK build you're using exposes different exports
+      // (see startup logs). It may not provide `Handlers` but does expose
+      // an `expressErrorHandler` function we can mount later.
+      SentryExpressErrorHandler = (SentryModule as any).expressErrorHandler ?? null;
 
-      // Optionally mount the tracing handler when tracesSampleRate is enabled
-      const tracesRate = envConfig.sentry.tracesSampleRate;
-      if (tracesRate > 0) {
-        app.use(SentryClient.Handlers.tracingHandler());
+      // Try to mount legacy-style handlers if present (older SDKs expose them)
+      const handlers = (SentryClient as any).Handlers ?? (SentryClient as any).default?.Handlers;
+      if (handlers && typeof handlers.requestHandler === "function") {
+        app.use(handlers.requestHandler() as express.RequestHandler);
+        const tracesRate = envConfig.sentry.tracesSampleRate;
+        if (tracesRate > 0 && typeof handlers.tracingHandler === "function") {
+          app.use(handlers.tracingHandler());
+        }
+      } else {
+        // Informative log — we won't crash; the SDK still captures exceptions
+        // via `captureException` calls below and `expressErrorHandler` may be
+        // mounted if available.
+        console.warn(
+          "Sentry SDK loaded but `Handlers` not found. Skipping legacy request/tracing handlers."
+        );
       }
     } catch (error) {
       console.warn("Sentry failed to initialize:", error);
@@ -239,7 +298,16 @@ async function bootstrap() {
   // If Sentry was initialized above, register its error handler before our
   // custom error middleware so it can capture exceptions and send them to Sentry.
   if (SentryClient) {
-    app.use(SentryClient.Handlers.errorHandler() as express.ErrorRequestHandler);
+    const errHandlers = (SentryClient as any).Handlers ?? (SentryClient as any).default?.Handlers;
+    if (errHandlers && typeof errHandlers.errorHandler === "function") {
+      app.use(errHandlers.errorHandler() as express.ErrorRequestHandler);
+    } else if (SentryExpressErrorHandler && typeof SentryExpressErrorHandler === "function") {
+      // Some SDK builds provide `expressErrorHandler` as a top-level helper
+      // — use it when the legacy `Handlers.errorHandler` API is not present.
+      app.use(SentryExpressErrorHandler() as express.ErrorRequestHandler);
+    } else {
+      console.warn("Sentry initialized but errorHandler not found; skipping Sentry error middleware.");
+    }
   }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

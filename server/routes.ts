@@ -82,6 +82,7 @@ import { recommendationRouter } from './routes/recommendation';
 import { registerOnboardingRoutes } from './routes/api/user-onboarding';
 import registerLocationSearchRoutes from './routes/api/location-search';
 import supportRoutes from './routes/api/support';
+import debugRoutes from './routes/api/debug';
 import accountRoutes from './routes/account';
 import safetyRoutes from './routes/safety';
 import { FEATURES } from './config/features';
@@ -428,6 +429,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {
     app.use('/api/support', supportRoutes);
+    app.use('/api/debug', debugRoutes);
   }
 
   // Minimal MVP routes are always available under /api/mvp

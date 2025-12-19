@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { type Server } from "http";
+import { fileURLToPath } from "url";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -86,11 +87,15 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
+  // Compute __dirname equivalent in ESM
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+
   const candidates = [
-  path.resolve(process.cwd(), "dist/public"),
-  path.resolve(process.cwd(), "../dist/public"),
-  path.resolve(__dirname, "../dist/public"),
-].filter(Boolean);
+    path.resolve(process.cwd(), "dist/public"),
+    path.resolve(process.cwd(), "../dist/public"),
+    path.resolve(__dirname, "../dist/public"),
+  ].filter(Boolean);
 
   const distPath = candidates.find((p) => fs.existsSync(p));
 

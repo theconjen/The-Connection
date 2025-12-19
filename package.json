@@ -5,6 +5,8 @@
     "dev": "pnpm -C server run dev",
     "dev:client": "pnpm -C client run dev",
     "dev:server": "pnpm -C server run dev",
+    "start:server": "pnpm --filter server exec tsx index.ts",
+    "start:server:dev": "pnpm --filter server exec tsx watch index.ts",
     "build:client": "pnpm -C client run build",
     "build:server": "pnpm -C server run build",
     "build": "pnpm run build:client && pnpm run build:server",
