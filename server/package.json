@@ -6,5 +6,8 @@
   "scripts": {
     "dev": "NODE_ENV=development pnpm exec tsx watch index.ts",
     "build": "node ../scripts/build-server.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.1"
   }
 }

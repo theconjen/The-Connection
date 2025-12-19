@@ -251,6 +251,19 @@ async function bootstrap() {
             // ignore
           }
         }
+        // Add Anthropic AI integration if available to capture AI spans
+        if (typeof (SentryModule as any).anthropicAIIntegration === "function") {
+          try {
+            integrations.push(
+              (SentryModule as any).anthropicAIIntegration({
+                recordInputs: true,
+                recordOutputs: true,
+              })
+            );
+          } catch (_) {
+            // ignore integration construction errors
+          }
+        }
       } catch (err) {
         console.warn("Error building Sentry integrations:", err);
       }
@@ -265,7 +278,18 @@ async function bootstrap() {
         integrations: integrations.length > 0 ? integrations : undefined,
       });
 
-      console.log("Sentry integrations mounted:", integrations.map((i) => i?.name || i?.constructor?.name || "anonymous"));
+        console.log("Sentry integrations mounted:", integrations.map((i) => i?.name || i?.constructor?.name));
+
+        // Helpful startup log: whether Anthropic AI integration is present
+        try {
+          const hasAnthropic = integrations.some((i) => {
+            const n = (i?.name || i?.constructor?.name || '').toString().toLowerCase();
+            return n.includes('anthropic') || n.includes('ai');
+          });
+          console.log(`Anthropic integration mounted: ${hasAnthropic}`);
+        } catch (err) {
+          console.log('Anthropic integration mounted: unknown');
+        }
       // The newer SDK build you're using exposes different exports
       // (see startup logs). It may not provide `Handlers` but does expose
       // an `expressErrorHandler` function we can mount later.
