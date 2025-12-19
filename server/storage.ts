@@ -2871,7 +2871,7 @@ export class DbStorage implements IStorage {
   }
 
   async getAllApologeticsQuestions(filterByStatus?: string): Promise<ApologeticsQuestion[]> {
-    let query = db.select().from(apologeticsQuestions);
+    let query: any = db.select().from(apologeticsQuestions);
 
     if (filterByStatus) {
       query = query.where(eq(apologeticsQuestions.status, filterByStatus));

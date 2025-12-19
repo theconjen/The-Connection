@@ -38,11 +38,10 @@ const resolvePostPayload = (input: unknown, authorId: number) => {
         code: z.ZodIssueCode.too_big,
         maximum: MAX_TITLE_LENGTH,
         inclusive: true,
-        type: 'string',
         message: `title must be at most ${MAX_TITLE_LENGTH} characters`,
         path: ['title']
       }
-    ]);
+    ] as any);
     return { success: false as const, error };
   }
 
@@ -98,7 +97,7 @@ export function createPostsRouter(storage = defaultStorage) {
     const userId = requireSessionUserId(req);
     const result = resolvePostPayload(req.body, userId);
     if (!result.success) {
-      return res.status(400).json({ message: result.error.errors[0]?.message ?? 'Invalid post payload' });
+      return res.status(400).json({ message: result.error.issues[0]?.message ?? 'Invalid post payload' });
     }
 
     const validatedData = insertPostSchema.parse(result.payload as any);
@@ -183,7 +182,7 @@ export function createPostsRouter(storage = defaultStorage) {
     // Update post
     const result = resolvePostPayload(req.body, userId);
     if (!result.success) {
-      return res.status(400).json({ message: result.error.errors[0]?.message ?? 'Invalid post payload' });
+      return res.status(400).json({ message: result.error.issues[0]?.message ?? 'Invalid post payload' });
     }
 
     const updatedPost = await storage.updatePost(postId, {

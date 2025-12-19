@@ -18,7 +18,7 @@ export function createChatMessagesRouter(storage: IStorage) {
     });
 
     if (!parsed.success) {
-      return res.status(400).json({ message: parsed.error.errors[0]?.message ?? 'Invalid query parameters' });
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid query parameters' });
     }
 
     const { roomId, limit = 50, after } = parsed.data;

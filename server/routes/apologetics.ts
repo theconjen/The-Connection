@@ -93,7 +93,7 @@ router.patch('/apologetics/admin/resources/:id', requireAdmin, async (req, res) 
       return res.status(400).json({ message: `type must be one of: ${allowedTypes.join(', ')}` });
     }
 
-    const updated = await storage.updateApologeticsResource(id, incoming);
+    const updated = await (storage as any).updateApologeticsResource(id, incoming);
     if (!updated) return res.status(404).json({ message: 'Resource not found' });
     return res.json(updated);
   } catch (err) {
@@ -106,7 +106,7 @@ router.delete('/apologetics/admin/resources/:id', requireAdmin, async (req, res)
   try {
     const id = parseInt(req.params.id, 10);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid id' });
-    const deleted = await storage.deleteApologeticsResource(id);
+    const deleted = await (storage as any).deleteApologeticsResource(id);
     if (!deleted) return res.status(404).json({ message: 'Resource not found' });
     return res.json({ ok: true });
   } catch (err) {
@@ -157,7 +157,7 @@ router.patch('/apologetics/admin/topics/:id', requireAdmin, async (req, res) => 
     } else if (incoming.name) {
       incoming.slug = slugify(incoming.name);
     }
-    const updated = await storage.updateApologeticsTopic(id, incoming);
+    const updated = await (storage as any).updateApologeticsTopic(id, incoming);
     if (!updated) return res.status(404).json({ message: 'Topic not found' });
     return res.json(updated);
   } catch (err) {
@@ -170,7 +170,7 @@ router.delete('/apologetics/admin/topics/:id', requireAdmin, async (req, res) =>
   try {
     const id = parseInt(req.params.id, 10);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid id' });
-    const deleted = await storage.deleteApologeticsTopic(id);
+    const deleted = await (storage as any).deleteApologeticsTopic(id);
     if (!deleted) return res.status(404).json({ message: 'Topic not found' });
     return res.json({ ok: true });
   } catch (err) {

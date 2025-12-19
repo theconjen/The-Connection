@@ -1035,7 +1035,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     });
 
     if (!parsed.success) {
-      return res.status(400).json({ message: parsed.error.errors[0]?.message ?? 'Invalid query parameters' });
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid query parameters' });
     }
 
     try {
@@ -1301,7 +1301,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       if (!paginationResult.success) {
         return res.status(400).json({
           message: 'Invalid pagination parameters',
-          errors: paginationResult.error.flatten(),
+          errors: (paginationResult as any).error.flatten(),
         });
       }
 
@@ -1338,7 +1338,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       if (!paginationResult.success) {
         return res.status(400).json({
           message: 'Invalid pagination parameters',
-          errors: paginationResult.error.flatten(),
+          errors: (paginationResult as any).error.flatten(),
         });
       }
 
@@ -1381,7 +1381,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       if (!paginationResult.success) {
         return res.status(400).json({
           message: 'Invalid pagination parameters',
-          errors: paginationResult.error.flatten(),
+          errors: (paginationResult as any).error.flatten(),
         });
       }
 

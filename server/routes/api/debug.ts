@@ -1,5 +1,5 @@
 import express from 'express';
-import Sentry from '../../lib/sentry';
+import { Sentry } from '../../lib/sentry';
 
 const router = express.Router();
 
@@ -13,14 +13,20 @@ router.get('/capture', (_req, res) => {
   try {
     throw new Error('Sentry manual capture from /api/debug/capture');
   } catch (err) {
-    Sentry.captureException(err, { tags: { route: '/api/debug/capture' } });
-    const eventId = Sentry.lastEventId?.() ?? null;
+    try {
+      (Sentry as any).captureException(err);
+    } catch (_) {
+      // ignore capture failures
+    }
+    const eventId = (Sentry as any).lastEventId?.() ?? null;
     res.json({ ok: true, captured: true, eventId });
   }
 });
 
 router.get('/available', (_req, res) => {
-  res.json({ sentryAvailable: Sentry.isAvailable() });
+  // Sentry is available if a client has been installed on the current hub
+  const client = (Sentry as any).getCurrentHub?.()?.getClient?.() ?? null;
+  res.json({ sentryAvailable: !!client });
 });
 
 // Run a quick Anthropic test from inside the server process so we can
@@ -110,13 +116,18 @@ router.get('/anthropic', async (_req, res) => {
     }
 
     // Return both the Anthropic response and Sentry event/trace identifiers
-    const eventId = Sentry.lastEventId?.() ?? null;
+    const eventId = (Sentry as any).lastEventId?.() ?? null;
     const traceId = transaction?.traceId ?? null;
 
     return res.json({ ok: true, captured: true, eventId, traceId, response });
   } catch (err: any) {
-    // Capture exception in Sentry wrapper and return error
-    Sentry.captureException(err, { tags: { route: '/api/debug/anthropic' } });
+    // Capture exception in Sentry and return error
+    try {
+      (Sentry as any).captureException(err);
+    } catch (_) {
+      // ignore capture failures
+    }
+
     return res.status(500).json({ ok: false, error: String(err?.message ?? err) });
   }
 });

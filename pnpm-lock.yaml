@@ -40,7 +40,7 @@ importers:
         specifier: ^8.1.6
         version: 8.1.6
       '@sentry/node':
-        specifier: ^10.32.1
+        specifier: ^10.32.0
         version: 10.32.1
       '@tanstack/react-query':
         specifier: ^5.90.10
