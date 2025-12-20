@@ -7,6 +7,7 @@ import autoprefixer from 'autoprefixer';
 export default defineConfig({
   plugins: [react()],
   server: {
+  allowedHosts: ['narthecal-doughy-nicholas.ngrok-free.dev'],
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
