@@ -124,7 +124,7 @@ export default function CommunitiesPage() {
   const { data: communities, isLoading, error } = useQuery<CommunityWithMeta[]>({
     queryKey: ['/api/communities', debouncedSearchQuery, userCoords?.latitude, userCoords?.longitude, filterState.distance],
     queryFn: async () => {
-      const searchParam = debouncedSearchQuery ? `?search=${encodeURIComponent(debouncedSearchQuery)}` : '';
+      const searchParam = debouncedSearchQuery ? '?search=${encodeURIComponent(debouncedSearchQuery)}' : '';
 
       if (debouncedSearchQuery) {
         const response = await fetch(`/api/communities${searchParam}`);
@@ -148,7 +148,7 @@ export default function CommunitiesPage() {
         return payload.results ?? payload;
       }
 
-      const response = await fetch(`/api/communities`);
+      const response = await fetch('/api/communities');
       if (!response.ok) {
         throw new Error('Failed to fetch communities');
       }
@@ -228,11 +228,11 @@ export default function CommunitiesPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
       toast({
         title: "Community created",
-        description: `"${data.name}" has been created successfully.`,
+        description: '"${data.name}" has been created successfully.',
       });
       setOpen(false);
       form.reset();
-      navigate(`/communities/${data.slug}`);
+      navigate('/communities/${data.slug}');
     },
     onError: (error: Error) => {
       toast({
@@ -244,7 +244,7 @@ export default function CommunitiesPage() {
   });
   
   const handleCreateCommunity = (data: CreateCommunityForm) => {
-    const combinedText = `${data.name} ${data.description}`.trim();
+    const combinedText = '${data.name} ${data.description}'.trim();
     const addressPattern = /\b\d{1,5}\s+(?:[A-Za-z0-9]+\s){0,4}(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Boulevard|Blvd\.?|Lane|Ln\.?|Drive|Dr\.?|Court|Ct\.?|Circle|Cir\.?|Way|Place|Pl\.?|Trail|Trl\.?|Parkway|Pkwy)\b/i;
     const unitPattern = /\b(?:Apt|Apartment|Unit|Suite|Ste|#)\s*\d+[A-Za-z]?\b/i;
     const hasPotentialAddress = addressPattern.test(combinedText) || unitPattern.test(combinedText);
@@ -280,7 +280,7 @@ export default function CommunitiesPage() {
           contentType: 'community_creation',
           contentId: data.name || 'pending-community',
           reason: 'potential_personal_address',
-          description: `Possible personal address detected during community creation. Name: ${data.name}. Description: ${data.description}`
+          description: 'Possible personal address detected during community creation. Name: ${data.name}. Description: ${data.description}'
         }),
       });
     } catch (error) {
@@ -372,7 +372,7 @@ export default function CommunitiesPage() {
     const mediumAlpha = 0.26;
 
     return {
-      backgroundImage: `linear-gradient(to bottom right, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${lightAlpha}), rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${mediumAlpha}))`,
+      backgroundImage: 'linear-gradient(to bottom right, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${lightAlpha}), rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${mediumAlpha}))',
       backgroundBlendMode: 'multiply'
     };
   };
@@ -384,7 +384,7 @@ export default function CommunitiesPage() {
   // Icon mapping for communities based on iconName
   const getIconComponent = (iconName: string, colorStyle: string | object) => {
     const iconProps = typeof colorStyle === 'string' 
-      ? { className: `h-6 w-6 ${colorStyle}` }
+      ? { className: 'h-6 w-6 ${colorStyle}' }
       : { className: 'h-6 w-6', style: colorStyle };
     
     switch (iconName.toLowerCase()) {
@@ -827,7 +827,7 @@ export default function CommunitiesPage() {
                   <Button
                     key={filter.key}
                     variant={activeFilter === filter.key ? "default" : "outline"}
-                    className={`rounded-full border ${activeFilter === filter.key ? "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900" : "bg-white/70 dark:bg-slate-800"}`}
+                    className={'rounded-full border ${activeFilter === filter.key ? "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900" : "bg-white/70 dark:bg-slate-800"}'}
                     onClick={() => setActiveFilter(filter.key as typeof activeFilter)}
                   >
                     {filter.label}
@@ -978,7 +978,7 @@ export default function CommunitiesPage() {
             {interestCategories.map((category, index) => (
               <Card
                 key={index}
-                className={`min-w-[260px] sm:min-w-[240px] cursor-pointer hover:-translate-y-0.5 transition-transform ${category.color} text-slate-900 dark:text-slate-100 backdrop-blur-sm`}
+                className={'min-w-[260px] sm:min-w-[240px] cursor-pointer hover:-translate-y-0.5 transition-transform ${category.color} text-slate-900 dark:text-slate-100 backdrop-blur-sm'}
                 onClick={() => navigate(category.link)}
               >
                 <CardHeader className="pb-2">
@@ -1077,15 +1077,15 @@ export default function CommunitiesPage() {
                   : {};
                 const cardBaseClass = "cursor-pointer hover:-translate-y-0.5 transition-transform text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800 backdrop-blur-sm";
                 const cardClassName = colorScheme.isCustom
-                  ? `${cardBaseClass} bg-white/90 dark:bg-slate-900/60`
-                  : `${cardBaseClass} ${colorScheme.bg}`;
+                  ? '${cardBaseClass} bg-white/90 dark:bg-slate-900/60'
+                  : '${cardBaseClass} ${colorScheme.bg}';
 
                 return (
                   <Card
                     key={community.id}
                     className={cardClassName}
                     {...cardProps}
-                    onClick={() => navigate(`/communities/${community.slug}`)}
+                    onClick={() => navigate('/communities/${community.slug}')}
                   >
                     <CardHeader className="pb-1">
                       <div className="flex items-start gap-3">
@@ -1117,7 +1117,7 @@ export default function CommunitiesPage() {
                           className="rounded-full bg-white/80 hover:bg-white/90 dark:bg-slate-900/60 dark:hover:bg-slate-900/50"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/communities/${community.slug}`);
+                            navigate('/communities/${community.slug}');
                           }}
                         >
                           Explore
