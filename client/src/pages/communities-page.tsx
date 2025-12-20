@@ -85,6 +85,15 @@ export default function CommunitiesPage() {
   const [activeFilter, setActiveFilter] = useState<"all" | "popular" | "public" | "private">("all");
   const [addressConfirmationVisible, setAddressConfirmationVisible] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<CreateCommunityForm | null>(null);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "prompting" | "denied">("idle");
+  const [filterState, setFilterState] = useState({
+    distance: 0,
+    gender: "any" as "any" | "women" | "men" | "coed",
+    ageGroup: "all" as "all" | "youth" | "college" | "young-adults" | "parents" | "seniors",
+    familyFriendly: false,
+    prayerFocused: false,
+  });
   
   // Debounce search query for performance
   useEffect(() => {
