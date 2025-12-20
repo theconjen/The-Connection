@@ -159,26 +159,51 @@ export default function CommunitiesPage() {
   useEffect(() => {
     if (!("geolocation" in navigator) || userCoords || locationStatus === "denied") return;
 
+    let mounted = true;
     setLocationStatus("prompting");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserCoords({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        setLocationStatus("granted");
-      },
-      (err) => {
-        console.error("Geolocation error", err);
-        setLocationStatus("denied");
-        toast({
-          title: "Location needed for nearby results",
-          description: "We couldn't access your location. You can retry or continue browsing globally.",
-          variant: "destructive",
-        });
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-    );
+
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          try {
+            if (!mounted) return;
+            setUserCoords({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+            setLocationStatus("granted");
+          } catch (innerErr) {
+            console.error('Geolocation success handler error', innerErr);
+          }
+        },
+        (err) => {
+          try {
+            console.error("Geolocation error", err);
+            if (!mounted) return;
+            setLocationStatus("denied");
+            try {
+              toast({
+                title: "Location needed for nearby results",
+                description: "We couldn't access your location. You can retry or continue browsing globally.",
+                variant: "destructive",
+              });
+            } catch (toastErr) {
+              console.error('Toast error while reporting geolocation failure', toastErr);
+            }
+          } catch (innerErr) {
+            console.error('Geolocation error handler failed', innerErr);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      );
+    } catch (err) {
+      console.error('Failed to request geolocation', err);
+      setLocationStatus('denied');
+    }
+
+    return () => {
+      mounted = false;
+    };
   }, [toast, userCoords, locationStatus]);
   
   // Create community mutation
