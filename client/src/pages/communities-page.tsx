@@ -46,9 +46,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 
 // Community form schema with frontend validation
-// Cast to any to allow extending the generated schema in the UI layer while we
-// align the shared/schema with frontend fields. This is a small compatibility
-// shim to unblock TypeScript errors; remove the cast once schemas are synced.
 const createCommunitySchema = z.object({
   name: z.string().min(1, "Community name is required").max(100, "Name must be less than 100 characters"),
   description: z.string().min(1, "Description is required").max(500, "Description must be less than 500 characters"),
@@ -59,7 +56,7 @@ const createCommunitySchema = z.object({
   hasPublicWall: z.boolean().default(true),
 }).refine((data) => data.hasPrivateWall || data.hasPublicWall, {
   message: "At least one wall (private or public) must be enabled",
-  path: ["hasPublicWall"], // Show error on public wall field
+  path: ["hasPublicWall"],
 });
 
 type CreateCommunityFormInput = z.input<typeof createCommunitySchema>;
@@ -106,8 +103,6 @@ export default function CommunitiesPage() {
   
   // Form setup with validation
   const form = useForm<CreateCommunityFormInput, undefined, CreateCommunityForm>({
-    // Cast schema to any to work around Zod version/type differences between
-    // @hookform/resolvers and the installed zod types.
     resolver: zodResolver(createCommunitySchema as any),
     defaultValues: {
       name: "",
@@ -148,7 +143,7 @@ export default function CommunitiesPage() {
         return payload.results ?? payload;
       }
 
-      const response = await fetch(`/api/communities`);
+      const response = await fetch('/api/communities');
       if (!response.ok) {
         throw new Error('Failed to fetch communities');
       }
@@ -212,7 +207,7 @@ export default function CommunitiesPage() {
       const payload: InsertCommunity = {
         ...data,
         slug: data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-        createdBy: undefined, // Will be set by backend
+        createdBy: undefined,
       };
       
       const res = await apiRequest("POST", "/api/communities", payload);
@@ -334,7 +329,7 @@ export default function CommunitiesPage() {
     );
   }
   
-  // Color rotation system for community cards (fallback for communities without stored colors)
+  // Color rotation system for community cards
   const communityColors = [
     { bg: "bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/50 dark:to-pink-800/60", iconColor: "text-pink-600 dark:text-pink-200" },
     { bg: "bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/50 dark:to-blue-800/60", iconColor: "text-blue-600 dark:text-blue-200" },
@@ -367,7 +362,6 @@ export default function CommunitiesPage() {
       };
     }
 
-    // Create lighter versions for gradient background while allowing dark mode overlays
     const lightAlpha = 0.14;
     const mediumAlpha = 0.26;
 
@@ -415,24 +409,22 @@ export default function CommunitiesPage() {
 
   // Helper function to get color scheme for a community
   const getCommunityColorScheme = (community: Community) => {
-    // Use stored colors if available and valid
     if (community.iconColor && isValidHexColor(community.iconColor)) {
       return {
-        bg: null, // Will use inline style
+        bg: null,
         bgStyle: createGradientFromHex(community.iconColor),
         iconStyle: { color: community.iconColor },
-        iconColor: undefined, // Ensure this property exists
+        iconColor: undefined,
         isCustom: true
       };
     }
     
-    // Fall back to rotation system for communities without stored colors
     const fallbackScheme = communityColors[community.id % communityColors.length];
     return {
       bg: fallbackScheme.bg,
       bgStyle: null,
       iconColor: fallbackScheme.iconColor,
-      iconStyle: undefined, // Ensure this property exists
+      iconStyle: undefined,
       isCustom: false
     };
   };
@@ -498,7 +490,7 @@ export default function CommunitiesPage() {
     if (filterState.gender !== "any") {
       results = results.filter((community) => {
         const genderTag = (community as CommunityWithMeta).genderType || community.interestTags?.find((tag) => ["women", "men", "coed"].includes(tag.toLowerCase()));
-        if (!genderTag) return filterState.gender === "coed"; // default to co-ed when no tag
+        if (!genderTag) return filterState.gender === "coed";
         return genderTag.toLowerCase() === filterState.gender;
       });
     }
@@ -627,7 +619,6 @@ export default function CommunitiesPage() {
                     )}
                   />
                   
-                  {/* Icon and Color Selection */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -664,7 +655,6 @@ export default function CommunitiesPage() {
                     />
                   </div>
                   
-                  {/* Community Privacy Setting */}
                   <FormField
                     control={form.control}
                     name="isPrivate"
@@ -689,7 +679,6 @@ export default function CommunitiesPage() {
                     )}
                   />
                   
-                  {/* Wall Settings */}
                   <div className="grid gap-3">
                     <Label className="font-semibold">Community Wall Settings</Label>
                     <div className="grid grid-cols-2 gap-4">
@@ -732,7 +721,6 @@ export default function CommunitiesPage() {
                       />
                     </div>
                     
-                    {/* Show wall validation error */}
                     {form.formState.errors.hasPublicWall && (
                       <p className="text-sm text-red-600">
                         {form.formState.errors.hasPublicWall?.message as unknown as string}
@@ -790,7 +778,6 @@ export default function CommunitiesPage() {
       </div>
 
       <div className="space-y-10">
-        {/* Search + filters */}
         <Card className="border-none shadow-sm bg-white/80 dark:bg-slate-900/70">
           <CardHeader className="pb-3">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -961,7 +948,6 @@ export default function CommunitiesPage() {
           </CardContent>
         </Card>
 
-        {/* Interest-based categories section */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1009,7 +995,6 @@ export default function CommunitiesPage() {
           </div>
         </div>
 
-        {/* All Communities section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">All communities</h2>

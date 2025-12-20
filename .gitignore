@@ -34,6 +34,21 @@ mobile-app/TheConnectionMobile-new/android/
 # Prevent root eas.json (should only be in mobile-app/TheConnectionMobile-new/)
 /eas.json
 
+# Mobile app common build/artifact ignores
+mobile-app/**/node_modules/
+mobile-app/**/ios/build/
+mobile-app/**/android/build/
+mobile-app/**/.expo/
+mobile-app/**/Pods/
+mobile-app/**/.gradle/
+mobile-app/**/build/
+mobile-app/**/dist/
+mobile-app/**/.idea/
+mobile-app/**/.vscode/
+
+# Ignore the stray quoted filename artifact (if present)
+"mobile-app/TheConnectionMobile-new/.npmrc 2"
+
 # Backup files and directories
 *.backup
 *\ 2.*
