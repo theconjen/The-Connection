@@ -305,6 +305,76 @@ export default function CommunitiesPage() {
     }
   };
   
+  const filteredCommunities = useMemo(() => {
+    if (!communities) return [];
+
+    let results = [...communities];
+
+    if (activeFilter === "popular") {
+      results = results.sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0));
+    }
+
+    if (activeFilter === "public") {
+      results = results.filter((community) => !community.isPrivate);
+    }
+
+    if (activeFilter === "private") {
+      results = results.filter((community) => community.isPrivate);
+    }
+
+    if (debouncedSearchQuery) {
+      const query = debouncedSearchQuery.toLowerCase();
+      results = results.filter((community) =>
+        community.name.toLowerCase().includes(query) ||
+        community.description?.toLowerCase().includes(query) ||
+        community.interestTags?.some((tag) => tag.toLowerCase().includes(query))
+      );
+    }
+
+    if (filterState.gender !== "any") {
+      results = results.filter((community) => {
+        const genderTag = (community as CommunityWithMeta).genderType || community.interestTags?.find((tag) => ["women", "men", "coed"].includes(tag.toLowerCase()));
+        if (!genderTag) return filterState.gender === "coed";
+        return genderTag.toLowerCase() === filterState.gender;
+      });
+    }
+
+    if (filterState.ageGroup !== "all") {
+      const ageTagMap: Record<AgeGroupFilter, string[]> = {
+        all: [],
+        youth: ["youth", "teen", "highschool"],
+        college: ["college", "campus", "university"],
+        "young-adults": ["young-adults", "young-professionals"],
+        parents: ["parents", "families", "family"],
+        seniors: ["seniors", "55+", "retirees", "empty-nesters"],
+      };
+
+      results = results.filter((community) => {
+        if (!community.interestTags || community.interestTags.length === 0) return false;
+        const normalizedTags = community.interestTags.map((tag) => tag.toLowerCase());
+        return ageTagMap[filterState.ageGroup].some((tag) => normalizedTags.includes(tag));
+      });
+    }
+
+    if (filterState.familyFriendly) {
+      results = results.filter((community) => community.interestTags?.some((tag) => ["family", "families", "parents", "kids"].includes(tag.toLowerCase())));
+    }
+
+    if (filterState.prayerFocused) {
+      results = results.filter((community) => community.interestTags?.some((tag) => ["prayer", "worship", "devotional"].includes(tag.toLowerCase())));
+    }
+
+    if (filterState.distance && filterState.distance > 0) {
+      results = results.filter((community) => {
+        const distance = (community as CommunityWithMeta).distance;
+        if (distance === undefined) return true;
+        return distance <= filterState.distance;
+      });
+    }
+
+    return results;
+  }, [communities, activeFilter, debouncedSearchQuery, filterState]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -460,76 +530,6 @@ export default function CommunitiesPage() {
       color: "bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800/60"
     }
   ];
-
-  const filteredCommunities = useMemo(() => {
-    if (!communities) return [];
-
-    let results = [...communities];
-
-    if (activeFilter === "popular") {
-      results = results.sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0));
-    }
-
-    if (activeFilter === "public") {
-      results = results.filter((community) => !community.isPrivate);
-    }
-
-    if (activeFilter === "private") {
-      results = results.filter((community) => community.isPrivate);
-    }
-
-    if (debouncedSearchQuery) {
-      const query = debouncedSearchQuery.toLowerCase();
-      results = results.filter((community) =>
-        community.name.toLowerCase().includes(query) ||
-        community.description?.toLowerCase().includes(query) ||
-        community.interestTags?.some((tag) => tag.toLowerCase().includes(query))
-      );
-    }
-
-    if (filterState.gender !== "any") {
-      results = results.filter((community) => {
-        const genderTag = (community as CommunityWithMeta).genderType || community.interestTags?.find((tag) => ["women", "men", "coed"].includes(tag.toLowerCase()));
-        if (!genderTag) return filterState.gender === "coed";
-        return genderTag.toLowerCase() === filterState.gender;
-      });
-    }
-
-    if (filterState.ageGroup !== "all") {
-      const ageTagMap: Record<AgeGroupFilter, string[]> = {
-        all: [],
-        youth: ["youth", "teen", "highschool"],
-        college: ["college", "campus", "university"],
-        "young-adults": ["young-adults", "young-professionals"],
-        parents: ["parents", "families", "family"],
-        seniors: ["seniors", "55+", "retirees", "empty-nesters"],
-      };
-
-      results = results.filter((community) => {
-        if (!community.interestTags || community.interestTags.length === 0) return false;
-        const normalizedTags = community.interestTags.map((tag) => tag.toLowerCase());
-        return ageTagMap[filterState.ageGroup].some((tag) => normalizedTags.includes(tag));
-      });
-    }
-
-    if (filterState.familyFriendly) {
-      results = results.filter((community) => community.interestTags?.some((tag) => ["family", "families", "parents", "kids"].includes(tag.toLowerCase())));
-    }
-
-    if (filterState.prayerFocused) {
-      results = results.filter((community) => community.interestTags?.some((tag) => ["prayer", "worship", "devotional"].includes(tag.toLowerCase())));
-    }
-
-    if (filterState.distance && filterState.distance > 0) {
-      results = results.filter((community) => {
-        const distance = (community as CommunityWithMeta).distance;
-        if (distance === undefined) return true;
-        return distance <= filterState.distance;
-      });
-    }
-
-    return results;
-  }, [communities, activeFilter, debouncedSearchQuery, filterState]);
 
   return (
     <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950">
