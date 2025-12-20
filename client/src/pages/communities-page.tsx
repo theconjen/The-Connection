@@ -86,7 +86,7 @@ export default function CommunitiesPage() {
   const [addressConfirmationVisible, setAddressConfirmationVisible] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<CreateCommunityForm | null>(null);
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [locationStatus, setLocationStatus] = useState<"idle" | "prompting" | "denied">("idle");
+  const [locationStatus, setLocationStatus] = useState<"idle" | "prompting" | "granted" | "denied">("idle");
   const [filterState, setFilterState] = useState({
     distance: 0,
     gender: "any" as "any" | "women" | "men" | "coed",
