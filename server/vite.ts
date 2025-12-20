@@ -79,7 +79,6 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  // Use process.cwd() for CJS compatibility (import.meta.url doesn't work in CJS)
   const candidates = [
     path.resolve(process.cwd(), "dist/public"),
     path.resolve(process.cwd(), "../dist/public"),
@@ -97,19 +96,8 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist (but not for API routes)
   app.use((req, res, next) => {
-    if (req.path.startsWith('/api')) {
-      return next();
-    }
-    res.sendFile(path.resolve(distPath, "index.html"));
-  });
-}
-  app.use(express.static(distPath));
-
-  // fall through to index.html if the file doesn't exist (but not for API routes)
-  app.use((req, res, next) => {
-    if (req.path.startsWith('/api')) {
+    if (req.path.startsWith("/api")) {
       return next();
     }
     res.sendFile(path.resolve(distPath, "index.html"));
