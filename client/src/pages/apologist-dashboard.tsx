@@ -45,7 +45,7 @@ const fallbackQuestions: AssignedQuestion[] = [
 export default function ApologistDashboardPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const cachedQuestions = (queryClient.getQueryData<AssignedQuestion[]>(["/api/apologetics/questions"]) || fallbackQuestions) as AssignedQuestion[];
+  const cachedQuestions = (queryClient.getQueryData(["/api/apologetics/questions"]) || fallbackQuestions) as AssignedQuestion[];
   const [assignedQuestions, setAssignedQuestions] = useState<AssignedQuestion[]>(cachedQuestions);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
 
@@ -71,13 +71,13 @@ export default function ApologistDashboardPage() {
       q.id === questionId ? { ...q, status: "answered", answer: draft } : q,
     );
 
-    setAssignedQuestions(updated);
+    setAssignedQuestions(updated as AssignedQuestion[]);
     setDrafts((prev) => ({ ...prev, [questionId]: "" }));
 
     // Keep the public Q&A list in sync so answers show immediately
-    queryClient.setQueryData<AssignedQuestion[]>(["/api/apologetics/questions"], (prev) => {
+    queryClient.setQueryData(["/api/apologetics/questions"], (prev: any) => {
       const existing = prev || [];
-      const withoutDuplicate = existing.filter((q) => q.id !== questionId);
+      const withoutDuplicate = existing.filter((q: any) => q.id !== questionId);
       return [
         ...withoutDuplicate,
         {

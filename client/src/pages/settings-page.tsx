@@ -142,6 +142,23 @@ export default function SettingsPage() {
     },
   });
 
+  // Delete account handler (used by Danger Zone button)
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    try {
+      setDeleting(true);
+      await apiRequest("DELETE", `/api/user/${user.id}`);
+      toast({ title: "Account deleted", description: "Your account has been removed." });
+      // Clear client state and navigate away
+      queryClient.setQueryData(["/api/user"], null);
+      logout?.();
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to delete account", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Update password mutation
   const updatePasswordMutation = useMutation({
     mutationFn: async (data: any) => {
