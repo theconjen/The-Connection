@@ -33,6 +33,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import { useState } from "react";
 import { MessageDetail } from "./MessageDetail";
+import { useConversations } from "../queries/messages";
+import { useAuth } from "../contexts/AuthContext";
 
 // ============================================================================
 // TYPES
@@ -46,165 +48,21 @@ interface User {
   isOnline?: boolean;
 }
 
-interface Conversation {
-  id: number;
-  user: User;
-  lastMessage: string;
-  time: string;
-  unread: boolean;
-  isTyping: boolean;
-  isGroup?: boolean;
-  groupMembers?: User[];
-}
-
-// ============================================================================
-// SEED DATA - Based on The Connection's promo users
-// ============================================================================
-
-// Current logged-in user (for display purposes)
-const currentUser: User = {
-  id: 0,
-  name: "Janelle",
-  username: "janelle_faith",
-  avatar: "https://ui-avatars.com/api/?name=Janelle&background=222D99&color=fff&bold=true"
-};
-
-// Real user accounts from The Connection seed data
-const appUsers: User[] = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    username: "sarah_yp",
-    avatar: "https://ui-avatars.com/api/?name=Sarah+Johnson&background=6366f1&color=fff",
-    isOnline: true
-  },
-  {
-    id: 2,
-    name: "David Chen",
-    username: "david_apologetics",
-    avatar: "https://ui-avatars.com/api/?name=David+Chen&background=8b5cf6&color=fff",
-    isOnline: true
-  },
-  {
-    id: 3,
-    name: "Maria Rodriguez",
-    username: "maria_missionary",
-    avatar: "https://ui-avatars.com/api/?name=Maria+Rodriguez&background=ec4899&color=fff",
-    isOnline: false
-  },
-  {
-    id: 4,
-    name: "Pastor James",
-    username: "pastor_james",
-    avatar: "https://ui-avatars.com/api/?name=Pastor+James&background=0B132B&color=fff",
-    isOnline: true
-  },
-  {
-    id: 5,
-    name: "Grace Kim",
-    username: "grace_worship",
-    avatar: "https://ui-avatars.com/api/?name=Grace+Kim&background=10b981&color=fff",
-    isOnline: true
-  },
-  {
-    id: 6,
-    name: "Michael Torres",
-    username: "mike_t",
-    avatar: "https://ui-avatars.com/api/?name=Michael+Torres&background=f59e0b&color=fff",
-    isOnline: false
-  }
-];
-
-// Active users (online now)
-const activeUsers = appUsers.filter(user => user.isOnline);
-
-// Conversations with real user data
-const conversations: Conversation[] = [
-  {
-    id: 1,
-    user: appUsers[0], // Sarah Johnson
-    lastMessage: "See you at Bible study tonight! 🙏",
-    time: "2m",
-    unread: true,
-    isTyping: false
-  },
-  {
-    id: 2,
-    user: {
-      id: 100,
-      name: "Youth Ministry",
-      username: "youth_ministry",
-      avatar: "https://ui-avatars.com/api/?name=Youth+Ministry&background=222D99&color=fff"
-    },
-    lastMessage: "David: Just posted the retreat photos!",
-    time: "15m",
-    unread: true,
-    isTyping: false,
-    isGroup: true,
-    groupMembers: [appUsers[0], appUsers[1], appUsers[4]]
-  },
-  {
-    id: 3,
-    user: appUsers[3], // Pastor James
-    lastMessage: "Can we chat about the sermon series?",
-    time: "1h",
-    unread: false,
-    isTyping: false
-  },
-  {
-    id: 4,
-    user: appUsers[1], // David Chen
-    lastMessage: "Have you read the new Mere Christianity study guide?",
-    time: "3h",
-    unread: false,
-    isTyping: false
-  },
-  {
-    id: 5,
-    user: appUsers[4], // Grace Kim
-    lastMessage: "Typing...",
-    time: "Now",
-    unread: false,
-    isTyping: true
-  },
-  {
-    id: 6,
-    user: {
-      id: 101,
-      name: "Worship Team",
-      username: "worship_team",
-      avatar: "https://ui-avatars.com/api/?name=Worship+Team&background=0B132B&color=fff"
-    },
-    lastMessage: "Setlist for Sunday is finalized!",
-    time: "1d",
-    unread: false,
-    isTyping: false,
-    isGroup: true,
-    groupMembers: [appUsers[4], appUsers[5]]
-  },
-  {
-    id: 7,
-    user: appUsers[2], // Maria Rodriguez
-    lastMessage: "Praying for you from Colombia 🇨🇴",
-    time: "2d",
-    unread: false,
-    isTyping: false
-  }
-];
-
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 export function Messages() {
-  const [selectedChat, setSelectedChat] = useState<number | null>(null);
+  const [selectedChat, setSelectedChat] = useState<{ conversationId: number; otherUser: User } | null>(null);
+  const { user: currentUser } = useAuth();
+  const { data: conversations = [], isLoading } = useConversations();
 
   if (selectedChat) {
-    const conversation = conversations.find(c => c.id === selectedChat);
     return (
       <MessageDetail 
         onBack={() => setSelectedChat(null)} 
-        user={conversation?.user}
+        conversationId={selectedChat.conversationId}
+        otherUser={selectedChat.otherUser}
       />
     );
   }
@@ -215,7 +73,7 @@ export function Messages() {
       <div className="px-4 py-3 flex items-center justify-between border-b border-[#D1D8DE] bg-white lg:bg-white backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-[#0B132B] flex items-center gap-1">
-            {currentUser.username}
+            {currentUser?.username || 'Messages'}
             <span className="bg-[#222D99] w-2 h-2 rounded-full inline-block ml-1" title="Online"></span>
           </h1>
         </div>
@@ -250,9 +108,9 @@ export function Messages() {
               <div className="flex flex-col items-center gap-1">
                 <div className="relative">
                   <Avatar className="w-16 h-16 border-2 border-dashed border-[#D1D8DE] p-0.5 bg-white">
-                    <AvatarImage src={currentUser.avatar} className="rounded-full" />
+                    <AvatarImage src={currentUser?.profile_image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.username || 'User')}&background=222D99&color=fff&bold=true`} className="rounded-full" />
                     <AvatarFallback className="bg-[#222D99] text-white">
-                      {currentUser.name[0]}
+                      {currentUser?.username?.[0]?.toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="absolute -top-2 left-0 right-0 bg-white rounded-xl py-0.5 px-2 shadow-sm border border-[#D1D8DE] text-[10px] text-center truncate w-[70px] mx-auto text-[#637083]">
@@ -267,24 +125,27 @@ export function Messages() {
                 <span className="text-xs text-[#637083] mt-1">Your Note</span>
               </div>
 
-              {/* Active Users */}
-              {activeUsers.map((user) => (
-                <div key={user.id} className="flex flex-col items-center gap-1 cursor-pointer group">
-                  <div className="relative">
-                    <Avatar className="w-16 h-16 ring-2 ring-transparent group-hover:ring-[#222D99]/20 transition-all">
-                      <AvatarImage src={user.avatar} />
-                      <AvatarFallback className="bg-[#0B132B] text-white">
-                        {user.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Online indicator */}
-                    <div className="absolute bottom-0.5 right-0.5 w-4 h-4 bg-[#10B981] rounded-full border-[3px] border-white"></div>
+              {/* Active Users - show conversation participants */}
+              {conversations.slice(0, 6).map((conv) => {
+                const otherParticipant = conv.participants.find(p => p.id !== currentUser?.id);
+                if (!otherParticipant) return null;
+                
+                return (
+                  <div key={conv.id} className="flex flex-col items-center gap-1 cursor-pointer group">
+                    <div className="relative">
+                      <Avatar className="w-16 h-16 ring-2 ring-transparent group-hover:ring-[#222D99]/20 transition-all">
+                        <AvatarImage src={otherParticipant.profile_image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant.username)}&background=0B132B&color=fff`} />
+                        <AvatarFallback className="bg-[#0B132B] text-white">
+                          {otherParticipant.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <span className="text-xs text-[#0B132B] mt-1 w-[64px] text-center truncate">
+                      {otherParticipant.full_name?.split(' ')[0] || otherParticipant.username}
+                    </span>
                   </div>
-                  <span className="text-xs text-[#0B132B] mt-1 w-[64px] text-center truncate">
-                    {user.name.split(' ')[0]}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <ScrollBar orientation="horizontal" className="hidden" />
           </ScrollArea>
@@ -300,64 +161,79 @@ export function Messages() {
 
         {/* Conversations List */}
         <div className="flex flex-col bg-white pb-20">
-          {conversations.map((chat) => (
-            <button 
-              key={chat.id}
-              onClick={() => setSelectedChat(chat.id)}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-[#F5F8FA] transition-colors active:bg-[#E8EDF2] w-full text-left border-b border-[#F5F8FA] last:border-b-0"
-            >
-              {/* Avatar */}
-              <div className="relative shrink-0">
-                <Avatar className="w-14 h-14">
-                  <AvatarImage src={chat.user.avatar} />
-                  <AvatarFallback className="bg-[#0B132B] text-white text-sm">
-                    {chat.user.name.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                {/* Group indicator - show additional member */}
-                {chat.isGroup && chat.groupMembers && chat.groupMembers.length > 0 && (
-                  <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow-sm">
-                    <div className="w-5 h-5 bg-[#222D99] rounded-full flex items-center justify-center">
-                      <Users className="w-3 h-3 text-white" />
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-sm text-[#637083]">Loading conversations...</div>
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4">
+              <div className="text-sm text-[#637083] mb-2">No conversations yet</div>
+              <div className="text-xs text-[#637083]">Start a new conversation to get started</div>
+            </div>
+          ) : (
+            conversations.map((chat) => {
+              const otherParticipant = chat.participants.find(p => p.id !== currentUser?.id);
+              if (!otherParticipant) return null;
+
+              return (
+                <button 
+                  key={chat.id}
+                  onClick={() => setSelectedChat({ 
+                    conversationId: chat.id, 
+                    otherUser: {
+                      id: otherParticipant.id,
+                      name: otherParticipant.full_name || otherParticipant.username,
+                      username: otherParticipant.username,
+                      avatar: otherParticipant.profile_image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant.username)}&background=0B132B&color=fff`,
+                      isOnline: false
+                    }
+                  })}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-[#F5F8FA] transition-colors active:bg-[#E8EDF2] w-full text-left border-b border-[#F5F8FA] last:border-b-0"
+                >
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    <Avatar className="w-14 h-14">
+                      <AvatarImage src={otherParticipant.profile_image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant.username)}&background=0B132B&color=fff`} />
+                      <AvatarFallback className="bg-[#0B132B] text-white text-sm">
+                        {otherParticipant.username.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+
+                  {/* Message Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-baseline mb-0.5">
+                      <span className={`text-sm text-[#0B132B] truncate pr-2 ${chat.unread_count > 0 ? 'font-bold' : 'font-medium'}`}>
+                        {otherParticipant.full_name || otherParticipant.username}
+                      </span>
+                      <span className={`text-[11px] shrink-0 ${chat.unread_count > 0 ? 'text-[#0B132B] font-semibold' : 'text-[#637083]'}`}>
+                        {chat.last_message_at ? new Date(chat.last_message_at).toLocaleDateString('en-US', { 
+                          hour: 'numeric', 
+                          minute: '2-digit' 
+                        }) : 'New'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      <p className={`text-sm truncate pr-4 ${
+                        chat.unread_count > 0 ? 'text-[#0B132B] font-medium' : 'text-[#637083]'
+                      }`}>
+                        {chat.last_message || 'Start a conversation'}
+                      </p>
+                      {chat.unread_count > 0 && (
+                        <div className="w-2.5 h-2.5 bg-[#222D99] rounded-full ml-auto shrink-0"></div>
+                      )}
                     </div>
                   </div>
-                )}
-                {/* Online indicator for non-groups */}
-                {!chat.isGroup && chat.user.isOnline && (
-                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#10B981] rounded-full border-2 border-white"></div>
-                )}
-              </div>
 
-              {/* Message Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-baseline mb-0.5">
-                  <span className={`text-sm text-[#0B132B] truncate pr-2 ${chat.unread ? 'font-bold' : 'font-medium'}`}>
-                    {chat.user.name}
-                  </span>
-                  <span className={`text-[11px] shrink-0 ${chat.unread ? 'text-[#0B132B] font-semibold' : 'text-[#637083]'}`}>
-                    {chat.time}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-1">
-                  <p className={`text-sm truncate pr-4 ${
-                    chat.unread ? 'text-[#0B132B] font-medium' : 
-                    chat.isTyping ? 'text-[#222D99] font-medium italic' : 'text-[#637083]'
-                  }`}>
-                    {chat.lastMessage}
-                  </p>
-                  {chat.unread && (
-                    <div className="w-2.5 h-2.5 bg-[#222D99] rounded-full ml-auto shrink-0"></div>
-                  )}
-                </div>
-              </div>
-
-              {/* Camera icon */}
-              <div className="shrink-0 text-[#637083] hover:text-[#0B132B] transition-colors">
-                <Camera className="w-5 h-5 stroke-[1.5]" />
-              </div>
-            </button>
-          ))}
+                  {/* Camera icon */}
+                  <div className="shrink-0 text-[#637083] hover:text-[#0B132B] transition-colors">
+                    <Camera className="w-5 h-5 stroke-[1.5]" />
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
