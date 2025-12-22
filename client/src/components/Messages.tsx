@@ -27,10 +27,10 @@ import {
   Plus,
   Users
 } from "lucide-react";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import { useState } from "react";
 import { MessageDetail } from "./MessageDetail";
 
