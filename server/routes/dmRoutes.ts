@@ -36,7 +36,7 @@ router.get("/conversations", async (req, res) => {
   }
 
   try {
-    const conversations = await storage.getUserConversations(currentUserId);
+    const conversations = await storage.getConversationsForUser(currentUserId);
     res.json(conversations);
   } catch (error) {
     console.error('Error fetching conversations:', error);
@@ -52,7 +52,7 @@ router.get("/unread-count", async (req, res) => {
   }
 
   try {
-    const count = await storage.getUnreadMessageCount(currentUserId);
+    const count = await storage.getUnreadCountForUser(currentUserId);
     res.json({ count });
   } catch (error) {
     console.error('Error fetching unread count:', error);
@@ -60,8 +60,8 @@ router.get("/unread-count", async (req, res) => {
   }
 });
 
-// Fetch DMs between two users
-router.get("/:userId", async (req, res) => {
+// Fetch messages from a conversation with another user
+router.get("/with/:userId", async (req, res) => {
   const currentUserId = getSessionUserId(req);
   if (!currentUserId) {
     return res.status(401).json({ message: "Not authenticated" });
@@ -81,8 +81,10 @@ router.get("/:userId", async (req, res) => {
       return res.status(403).json({ message: 'You cannot message this user' });
     }
 
-    const chat = await storage.getDirectMessages(currentUserId, otherUserId);
-    res.json(chat);
+    const conversation = await storage.getOrCreateDMConversation(currentUserId, otherUserId);
+    const messages = await storage.getConversationMessages(conversation.id);
+
+    res.json({ conversation, messages });
   } catch (error) {
     console.error('Error fetching direct messages:', error);
     res.status(500).json({ message: 'Error fetching messages' });
@@ -114,10 +116,13 @@ router.post("/send", dmSendLimiter, async (req, res) => {
     }
 
     ensureCleanText(content, 'Direct message');
-    const message = await storage.createDirectMessage({
+
+    const conversation = await storage.getOrCreateDMConversation(senderId, parsedReceiverId);
+
+    const message = await storage.sendDirectMessage({
+      conversationId: conversation.id,
       senderId: senderId,
-      receiverId: parsedReceiverId,
-      content: content
+      content: content,
     });
 
     // Send push notification to the receiver
@@ -136,7 +141,7 @@ router.post("/send", dmSendLimiter, async (req, res) => {
               tokenData.token,
               `New message from ${senderName}`,
               content,
-              { type: 'dm', senderId, messageId: message.id }
+              { type: 'dm', senderId, conversationId: conversation.id }
             );
           } catch (tokenError) {
             console.error('Error sending to specific token:', tokenError);
@@ -157,54 +162,22 @@ router.post("/send", dmSendLimiter, async (req, res) => {
   }
 });
 
-// Mark a message as read
-router.post("/mark-read/:messageId", async (req, res) => {
+// Mark a conversation as read
+router.post("/mark-conversation-read/:conversationId", async (req, res) => {
   const currentUserId = getSessionUserId(req);
   if (!currentUserId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
 
-  const messageId = req.params.messageId;
-  if (!messageId) {
-    return res.status(400).json({ message: 'Invalid message id' });
+  const conversationId = Number(req.params.conversationId);
+  if (!Number.isFinite(conversationId)) {
+    return res.status(400).json({ message: 'Invalid conversation id' });
   }
 
   try {
-    const success = await storage.markMessageAsRead(messageId, currentUserId);
-    if (success) {
-      res.json({ success: true });
-    } else {
-      res.status(404).json({ message: 'Message not found or not authorized' });
-    }
-  } catch (error) {
-    console.error('Error marking message as read:', error);
-    res.status(500).json({ message: 'Error marking message as read' });
-  }
-});
-
-// Mark all messages in a conversation as read
-router.post("/mark-conversation-read/:userId", async (req, res) => {
-  const currentUserId = getSessionUserId(req);
-  if (!currentUserId) {
-    return res.status(401).json({ message: "Not authenticated" });
-  }
-
-  const otherUserId = Number(req.params.userId);
-  if (!Number.isFinite(otherUserId)) {
-    return res.status(400).json({ message: 'Invalid user id' });
-  }
-
-  try {
-    const blockStatus = await checkBlockingRelationship(currentUserId, otherUserId);
-    if (blockStatus.status === 'selfBlocked') {
-      return res.status(403).json({ message: 'You have blocked this user' });
-    }
-    if (blockStatus.status === 'blockedByOther') {
-      return res.status(403).json({ message: 'You cannot modify messages in this conversation' });
-    }
-
-    const count = await storage.markConversationAsRead(currentUserId, otherUserId);
-    res.json({ success: true, markedCount: count });
+    // Optional: Check if user is a participant before marking as read
+    const success = await storage.markConversationAsReadForUser(conversationId, currentUserId);
+    res.json({ success });
   } catch (error) {
     console.error('Error marking conversation as read:', error);
     res.status(500).json({ message: 'Error marking conversation as read' });

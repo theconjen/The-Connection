@@ -1344,6 +1344,103 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof insertMessageSchema._input;
 
+// ============================================================================
+// MESSAGING: Conversations, participants, direct messages, read receipts
+// ============================================================================
+
+// Conversations table - groups messages into threads (supports both DMs and group chats)
+export const conversations = pgTable("conversations", {
+  id: serial("id").primaryKey(),
+  name: text("name"), // Only used for group chats
+  isGroup: boolean("is_group").default(false).notNull(),
+  avatarUrl: text("avatar_url"), // Group avatar
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+} as any);
+
+// Conversation participants - who is in each conversation
+export const conversationParticipants = pgTable("conversation_participants", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  lastReadAt: timestamp("last_read_at"), // For tracking unread messages
+  isAdmin: boolean("is_admin").default(false), // For group chats
+  isMuted: boolean("is_muted").default(false),
+}, (table) => [
+  uniqueIndex("conversation_participants_user_idx").on(table.conversationId, table.userId),
+]);
+
+// Direct messages within conversations
+export const directMessages = pgTable("direct_messages", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
+  senderId: integer("sender_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  content: text("content").notNull(),
+  messageType: text("message_type").default("text").notNull(), // text, image, video, audio
+  mediaUrl: text("media_url"), // For image/video/audio messages
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  editedAt: timestamp("edited_at"),
+  isDeleted: boolean("is_deleted").default(false),
+} as any);
+
+// Message read receipts - track who has read each message
+export const messageReadReceipts = pgTable("message_read_receipts", {
+  id: serial("id").primaryKey(),
+  messageId: integer("message_id").references(() => directMessages.id, { onDelete: "cascade" }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  readAt: timestamp("read_at").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("message_read_receipts_message_user_idx").on(table.messageId, table.userId),
+]);
+
+// User online status - for "Active Now" feature
+export const userOnlineStatus = pgTable("user_online_status", {
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).primaryKey(),
+  isOnline: boolean("is_online").default(false).notNull(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  socketId: text("socket_id"), // Current socket connection ID
+} as any);
+
+// ============================================================================
+// INSERT SCHEMAS
+// ============================================================================
+
+export const insertConversationSchema = createInsertSchema(conversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+} as any);
+
+export const insertConversationParticipantSchema = createInsertSchema(conversationParticipants).omit({
+  id: true,
+  joinedAt: true,
+} as any);
+
+export const insertDirectMessageSchema = createInsertSchema(directMessages).omit({
+  id: true,
+  createdAt: true,
+  editedAt: true,
+  isDeleted: true,
+} as any);
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = typeof insertConversationSchema._input;
+
+export type ConversationParticipant = typeof conversationParticipants.$inferSelect;
+export type InsertConversationParticipant = typeof insertConversationParticipantSchema._input;
+
+export type DirectMessage = typeof directMessages.$inferSelect;
+export type InsertDirectMessage = typeof insertDirectMessageSchema._input;
+
+export type UserOnlineStatus = typeof userOnlineStatus.$inferSelect;
+
+
 export type ContentRecommendation = typeof contentRecommendations.$inferSelect;
 export type InsertContentRecommendation = typeof contentRecommendations.$inferInsert;
 

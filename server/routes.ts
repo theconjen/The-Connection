@@ -20,7 +20,7 @@ import { contentCreationLimiter, messageCreationLimiter } from './rate-limiters'
 // inference upstream for proper typings.
 const storage: any = storageReal;
 import { z } from 'zod/v4';
-import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema, InsertLivestreamerApplication, InsertApologistScholarApplication, User } from '@shared/schema';
+import { insertUserSchema, insertCommunitySchema, insertPostSchema, insertCommentSchema, insertPrayerRequestSchema, insertEventSchema, insertLivestreamerApplicationSchema, insertApologistScholarApplicationSchema, InsertLivestreamerApplication, InsertApologistScholarApplication, User, conversations, conversationParticipants, directMessages, userOnlineStatus } from '@shared/schema';
 import { APP_DOMAIN, BASE_URL, APP_URLS, EMAIL_FROM } from './config/domain';
 import { sendCommunityInvitationEmail, sendNotificationEmail } from './email';
 import { sendLivestreamerApplicationNotificationEmail, sendApplicationStatusUpdateEmail, sendApologistScholarApplicationNotificationEmail } from './email-notifications';
@@ -231,6 +231,45 @@ export function registerSocketHandlers(
     const authenticatedUserId = (socket as any).userId;
     logger.log('User connected:', socket.id, 'User ID:', authenticatedUserId);
 
+    if (authenticatedUserId) {
+      socket.join(`user:${authenticatedUserId}`);
+      storage.setUserOnlineStatus(parseInt(authenticatedUserId), true, socket.id);
+      io.emit('user_online', { userId: parseInt(authenticatedUserId) });
+    }
+
+    // Handle disconnection
+    socket.on('disconnect', async () => {
+      if (authenticatedUserId) {
+        await storage.setUserOnlineStatus(parseInt(authenticatedUserId), false, undefined);
+        io.emit('user_offline', { userId: parseInt(authenticatedUserId) });
+      }
+      logger.log('User disconnected:', socket.id);
+    });
+
+    // Handle typing indicator
+    socket.on('typing_start', ({ conversationId }) => {
+      socket.to(`conversation:${conversationId}`).emit('user_typing', {
+        conversationId,
+        userId: parseInt(authenticatedUserId),
+      });
+    });
+
+    socket.on('typing_stop', ({ conversationId }) => {
+      socket.to(`conversation:${conversationId}`).emit('user_stopped_typing', {
+        conversationId,
+        userId: parseInt(authenticatedUserId),
+      });
+    });
+
+    // Join conversation room when opening a chat
+    socket.on('join_conversation', ({ conversationId }) => {
+      socket.join(`conversation:${conversationId}`);
+    });
+
+    socket.on('leave_conversation', ({ conversationId }) => {
+      socket.leave(`conversation:${conversationId}`);
+    });
+
     // Join user to their own room for private messages
     socket.on('join_user_room', (userId) => {
       try {
@@ -411,6 +450,193 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   registerSocketHandlers(io);
+
+  // ============================================================================
+  // MESSAGING ROUTES
+  // ============================================================================
+
+  // Get all conversations for the current user
+  app.get('/api/messages/conversations', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getSessionUserId(req);
+      if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+      
+      const conversations = await storage.getConversationsForUser(userId);
+      res.json(conversations);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      res.status(500).json({ message: 'Failed to fetch conversations' });
+    }
+  });
+
+  // Get or create a DM conversation with another user
+  app.post('/api/messages/conversations/dm', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getSessionUserId(req);
+      if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+      const { recipientId } = req.body;
+
+      if (!recipientId) {
+        return res.status(400).json({ message: 'recipientId is required' });
+      }
+
+      if (recipientId === userId) {
+        return res.status(400).json({ message: 'Cannot create conversation with yourself' });
+      }
+
+      const recipient = await storage.getUser(recipientId);
+      if (!recipient) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const blockedIds = await storage.getBlockedUserIdsFor(userId);
+      if (blockedIds.includes(recipientId)) {
+        return res.status(403).json({ message: 'Cannot message blocked user' });
+      }
+
+      const conversation = await storage.getOrCreateDMConversation(userId, recipientId);
+      
+      const conversations = await storage.getConversationsForUser(userId);
+      const fullConversation = conversations.find((c: any) => c.id === conversation.id);
+      
+      res.json(fullConversation);
+    } catch (error) {
+      console.error('Error creating DM conversation:', error);
+      res.status(500).json({ message: 'Failed to create conversation' });
+    }
+  });
+
+  // Get messages for a conversation
+  app.get('/api/messages/conversations/:conversationId/messages', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getSessionUserId(req);
+      if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+      const conversationId = parseInt(req.params.conversationId);
+      const limit = parseInt(req.query.limit as string) || 50;
+      const before = req.query.before ? parseInt(req.query.before as string) : undefined;
+
+      const participants = await storage.getConversationParticipants(conversationId);
+      if (!participants.some((p: any) => p.id === userId)) {
+        return res.status(403).json({ message: 'Not a participant in this conversation' });
+      }
+
+      const messages = await storage.getConversationMessages(conversationId, limit, before);
+      res.json(messages);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      res.status(500).json({ message: 'Failed to fetch messages' });
+    }
+  });
+
+  // Send a message
+  app.post('/api/messages/conversations/:conversationId/messages', 
+    messageCreationLimiter, 
+    isAuthenticated, 
+    async (req, res) => {
+      try {
+        const userId = getSessionUserId(req);
+        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const conversationId = parseInt(req.params.conversationId);
+        const { content, messageType = 'text', mediaUrl } = req.body;
+
+        if (!content && !mediaUrl) {
+          return res.status(400).json({ message: 'content or mediaUrl is required' });
+        }
+
+        const participants = await storage.getConversationParticipants(conversationId);
+        if (!participants.some((p: any) => p.id === userId)) {
+          return res.status(403).json({ message: 'Not a participant in this conversation' });
+        }
+
+        const message = await storage.sendDirectMessage({
+          conversationId,
+          senderId: userId,
+          content: content || '',
+          messageType,
+          mediaUrl
+        });
+
+        const messages = await storage.getConversationMessages(conversationId, 1);
+        const fullMessage = messages.find((m: any) => m.id === message.id) || message;
+
+        participants.forEach((participant: any) => {
+          if (participant.id !== userId) {
+            io.to(`user:${participant.id}`).emit('new_message', {
+              conversationId,
+              message: fullMessage,
+            });
+          }
+        });
+
+        res.json(fullMessage);
+      } catch (error) {
+        console.error('Error sending message:', error);
+        res.status(500).json({ message: 'Failed to send message' });
+      }
+    }
+  );
+
+  // Mark conversation as read
+  app.post('/api/messages/conversations/:conversationId/read', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getSessionUserId(req);
+      if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+      const conversationId = parseInt(req.params.conversationId);
+
+      const participants = await storage.getConversationParticipants(conversationId);
+      if (!participants.some((p: any) => p.id === userId)) {
+        return res.status(403).json({ message: 'Not a participant in this conversation' });
+      }
+
+      await storage.markConversationAsReadForUser(conversationId, userId);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error marking as read:', error);
+      res.status(500).json({ message: 'Failed to mark as read' });
+    }
+  });
+
+  // Get unread count for current user
+  app.get('/api/messages/unread-count', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getSessionUserId(req);
+      if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+      const count = await storage.getUnreadCountForUser(userId);
+      
+      res.json({ count });
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+      res.status(500).json({ message: 'Failed to fetch unread count' });
+    }
+  });
+
+  // Get online users (for "Active Now" section)
+  app.get('/api/users/online', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getSessionUserId(req);
+      if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+      
+      const onlineUsers = await storage.getOnlineUsers();
+      
+      const blockedIds = await storage.getBlockedUserIdsFor(userId);
+      const filteredUsers = onlineUsers.filter((u: any) => u.userId !== userId && !blockedIds.includes(u.userId));
+      
+      const userIds = filteredUsers.map((u: any) => u.userId);
+      if (userIds.length === 0) {
+        return res.json([]);
+      }
+      const users = await storage.db.select().from(storage.users).where(storage.inArray(storage.users.id, userIds));
+
+      res.json(users);
+    } catch (error) {
+      console.error('Error fetching online users:', error);
+      res.status(500).json({ message: 'Failed to fetch online users' });
+    }
+  });
+
 
   // Use modular route files - mount only if feature flags enable them
   // Register modular routes only if their feature flag is enabled

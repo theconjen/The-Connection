@@ -45,6 +45,7 @@ declare module "lucide-react" {
   export const Circle: LucideIcon;
   export const Clock: LucideIcon;
   export const ClockIcon: LucideIcon;
+  export const Clock3: LucideIcon;
   export const Coffee: LucideIcon;
   export const Dot: LucideIcon;
   export const Edit: LucideIcon;
@@ -57,6 +58,7 @@ declare module "lucide-react" {
   export const Flag: LucideIcon;
   export const FlameIcon: LucideIcon;
   export const Globe: LucideIcon;
+  export const Globe2: LucideIcon;
   export const GraduationCap: LucideIcon;
   export const GripVertical: LucideIcon;
   export const HandHelping: LucideIcon;
@@ -73,6 +75,7 @@ declare module "lucide-react" {
   export const Image: LucideIcon;
   export const Info: LucideIcon;
   export const Key: LucideIcon;
+  export const KeyRound: LucideIcon;
   export const Layout: LucideIcon;
   export const LayoutList: LucideIcon;
   export const List: LucideIcon;
@@ -124,6 +127,7 @@ declare module "lucide-react" {
   export const ShieldAlert: LucideIcon;
   export const ShieldCheck: LucideIcon;
   export const ShieldQuestionIcon: LucideIcon;
+  export const ShieldQuestion: LucideIcon;
   export const AtomIcon: LucideIcon;
   export const SlidersHorizontalIcon: LucideIcon;
   export const Smile: LucideIcon;
@@ -149,6 +153,7 @@ declare module "lucide-react" {
   export const UserPlus: LucideIcon;
   export const UserX: LucideIcon;
   export const Users: LucideIcon;
+  export const Ban: LucideIcon;
   export const Video: LucideIcon;
   export const VideoIcon: LucideIcon;
   export const X: LucideIcon;

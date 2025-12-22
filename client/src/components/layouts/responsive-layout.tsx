@@ -30,7 +30,7 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
     const queryFlag =
       searchParams.get("nativeApp") === "1" || searchParams.get("nativeApp") === "true";
 
-    const globalFlag = Boolean((window as Record<string, unknown>).__NATIVE_APP__);
+    const globalFlag = Boolean((window as unknown as Record<string, unknown>).__NATIVE_APP__);
 
     let storageFlag = false;
     try {
