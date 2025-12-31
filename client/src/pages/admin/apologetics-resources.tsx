@@ -45,7 +45,7 @@ const fallbackResources: ResourceRecord[] = [
 
 export default function ApologeticsResourcesPage() {
   const queryClient = useQueryClient();
-  const existingResources = (queryClient.getQueryData<ResourceRecord[]>(["/api/apologetics"]) || fallbackResources) as ResourceRecord[];
+  const existingResources = (queryClient.getQueryData(["/api/apologetics"]) || fallbackResources) as ResourceRecord[];
   const [resources, setResources] = useState<ResourceRecord[]>(existingResources);
   const [form, setForm] = useState({
     title: "",
@@ -71,7 +71,7 @@ export default function ApologeticsResourcesPage() {
     };
 
     setResources((prev) => [...prev, next]);
-    queryClient.setQueryData<ResourceRecord[]>(["/api/apologetics"], (prev) => [
+    queryClient.setQueryData(["/api/apologetics"], (prev: any) => [
       ...(prev || []),
       next,
     ]);

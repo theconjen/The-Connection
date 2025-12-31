@@ -10,7 +10,7 @@ if (!databaseUrl) {
 export default defineConfig({
   out: "./migrations",
   schema: "./packages/shared/src/schema.ts",
-  dialect: "postgresql",
+  driver: "pg",
   dbCredentials: {
     url: databaseUrl,
   },
