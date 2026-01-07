@@ -2626,8 +2626,11 @@ export class DbStorage implements IStorage {
   
   // Post methods
   async getAllPosts(filter?: string): Promise<Post[]> {
-    return [];
+    let query = db.select().from(posts).where(whereNotDeleted(posts));
+    const results = await query.orderBy(desc(posts.createdAt));
+    return results;
   }
+
   
   async getPost(id: number): Promise<Post | undefined> {
     return undefined;
