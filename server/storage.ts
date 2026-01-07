@@ -2625,10 +2625,34 @@ export class DbStorage implements IStorage {
   }
   
   // Post methods
-  async getAllPosts(filter?: string): Promise<Post[]> {
-    let query = db.select().from(posts).where(whereNotDeleted(posts));
-    const results = await query.orderBy(desc(posts.createdAt));
-    return results;
+  async getAllPosts(filter?: string): Promise<(Post & { author: User })[]> {
+    const results = await db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        content: posts.content,
+        authorId: posts.authorId,
+        communityId: posts.communityId,
+        groupId: posts.groupId,
+        imageUrl: posts.imageUrl,
+        upvotes: posts.upvotes,
+        commentCount: posts.commentCount,
+        createdAt: posts.createdAt,
+        updatedAt: posts.updatedAt,
+        deletedAt: posts.deletedAt,
+        author: {
+          id: users.id,
+          username: users.username,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+          email: users.email,
+        },
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.authorId, users.id))
+      .where(whereNotDeleted(posts))
+      .orderBy(desc(posts.createdAt));
+    return results as (Post & { author: User })[];
   }
 
   
