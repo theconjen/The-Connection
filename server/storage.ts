@@ -2646,8 +2646,15 @@ export class DbStorage implements IStorage {
   }
   
   async createPost(post: InsertPost): Promise<Post> {
-    throw new Error('Not implemented');
+    const [created] = await db.insert(posts).values({
+      ...post,
+      upvotes: 0,
+      commentCount: 0,
+      createdAt: new Date(),
+    }).returning();
+    return created;
   }
+
 
   async updatePost(id: number, data: Partial<Post>): Promise<Post> {
     const [updated] = await db.update(posts)
