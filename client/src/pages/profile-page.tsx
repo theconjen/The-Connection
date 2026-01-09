@@ -28,13 +28,13 @@ export default function ProfilePage() {
 
   // Get user's communities
   const { data: userCommunities, isLoading: communitiesLoading } = useQuery({
-    queryKey: ["/api/users", user?.id, "communities"],
+    queryKey: ["/api/user/communities"],
     enabled: !!user?.id,
   });
 
   // Get user's posts
   const { data: userPosts, isLoading: postsLoading } = useQuery({
-    queryKey: ["/api/users", user?.id, "posts"],
+    queryKey: ["/api/user/posts"],
     enabled: !!user?.id,
   });
 
