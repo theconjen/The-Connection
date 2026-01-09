@@ -59,9 +59,9 @@ import {
   livestreamerApplications, apologistScholarApplications,
   userPreferences, messages, userFollows,
   // moderation tables
-    contentReports, userBlocks, userReports, pushTokens, notifications
+    contentReports, userBlocks, pushTokens, notifications
 } from "@shared/schema";
-import { postVotes, commentVotes } from "@shared/schema";
+import { postVotes, commentVotes, userReports } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql, inArray, like } from "drizzle-orm";
 import { whereNotDeleted, andNotDeleted } from "./db/helpers";
@@ -3460,12 +3460,7 @@ export class DbStorage implements IStorage {
     return false;
   }
 
-  async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
-    const term = `%${searchTerm}%`;
-    return await db.select()
-      .from(microblogs)
-      .where(like(microblogs.content, term));
-  }
+  // Duplicate searchMicroblogs removed - implementation is above at line 2733
 
   // Microblog like methods
   async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
