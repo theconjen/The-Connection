@@ -2728,24 +2728,12 @@ export class DbStorage implements IStorage {
     ));
   }
 
-  async searchPosts(searchTerm: string): Promise<Post[]> {
-    const term = `%${searchTerm}%`;
-    return await db.select().from(posts).where(
-      or(
-        like(posts.title, term),
-        like(posts.content, term)
-      )
-    ).limit(50);
-  }
+  // Removed duplicate searchPosts and searchEvents methods - implementations are below
 
-  async searchEvents(searchTerm: string): Promise<Event[]> {
+  async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
     const term = `%${searchTerm}%`;
-    return await db.select().from(events).where(
-      or(
-        like(events.title, term),
-        like(events.description, term),
-        like(events.location, term)
-      )
+    return await db.select().from(microblogs).where(
+      like(microblogs.content, term)
     ).limit(50);
   }
 
