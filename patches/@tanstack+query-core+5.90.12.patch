@@ -1,0 +1,4 @@
+*** Begin Patch
+*** Add File: node_modules/@tanstack/query-core/build/modern/onlineManager.js
++export * from '../cjs/onlineManager.cjs';
+*** End Patch
