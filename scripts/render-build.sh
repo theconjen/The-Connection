@@ -19,10 +19,6 @@ else
   echo "render-build: pnpm not found; installing pnpm@${DESIRED_PNPM}"
   npm i -g pnpm@"${DESIRED_PNPM}"
 fi
-else
-  echo "render-build: pnpm not found; installing pnpm@${DESIRED_PNPM}"
-  npm i -g pnpm@"${DESIRED_PNPM}"
-fi
 
 echo "render-build: running pnpm install --no-frozen-lockfile"
 pnpm install --no-frozen-lockfile
