@@ -26,8 +26,14 @@ echo "render-build: running pnpm install --no-frozen-lockfile"
   pnpm install --no-frozen-lockfile 2>&1 | tee /tmp/pnpm-install.log
   INSTALL_EXIT=${PIPESTATUS[0]:-0}
   if [ "$INSTALL_EXIT" -ne 0 ]; then
-    echo "render-build: pnpm install failed with exit $INSTALL_EXIT; showing last 200 lines of log:"
+    echo "render-build: pnpm install failed with exit $INSTALL_EXIT"
+    echo "render-build: ---- BEGIN /tmp/pnpm-install.log (first 200 lines) ----"
+    head -n 200 /tmp/pnpm-install.log || true
+    echo "render-build: ---- END head ----"
+    echo "render-build: ---- BEGIN /tmp/pnpm-install.log (last 200 lines) ----"
     tail -n 200 /tmp/pnpm-install.log || true
+    echo "render-build: ---- END tail ----"
+    echo "render-build: full log saved at /tmp/pnpm-install.log"
     exit $INSTALL_EXIT
   fi
 }
