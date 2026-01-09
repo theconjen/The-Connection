@@ -10,7 +10,7 @@ import { contentCreationLimiter, messageCreationLimiter } from '../rate-limiters
 const MAX_TITLE_LENGTH = 60;
 
 const postRequestSchema = z.object({
-  text: z.string().trim().min(1, 'text must be between 1 and 500 characters').max(500, 'text must be between 1 and 500 characters'),
+  text: z.string().trim().min(1, 'text must be between 1 and 10,000 characters').max(10000, 'text must be between 1 and 10,000 characters'),
   title: z.string().trim().max(MAX_TITLE_LENGTH, `title must be at most ${MAX_TITLE_LENGTH} characters`).optional(),
   communityId: z
     .union([z.string(), z.number()])
@@ -22,14 +22,15 @@ const postRequestSchema = z.object({
     })
     .refine((value) => value === null || (typeof value === 'number' && Number.isInteger(value) && value > 0), {
       message: 'communityId must be a positive integer'
-    })
+    }),
+  isAnonymous: z.boolean().optional().default(false),
 });
 
 const resolvePostPayload = (input: unknown, authorId: number) => {
   const parsed = postRequestSchema.safeParse(input);
   if (!parsed.success) return { success: false as const, error: parsed.error };
 
-  const { text, title, communityId } = parsed.data;
+  const { text, title, communityId, isAnonymous } = parsed.data;
   const resolvedTitle = (title ?? text).trim();
 
   if (resolvedTitle.length > MAX_TITLE_LENGTH) {
@@ -53,9 +54,28 @@ const resolvePostPayload = (input: unknown, authorId: number) => {
       imageUrl: null,
       communityId,
       groupId: null,
-      authorId
+      authorId,
+      isAnonymous: isAnonymous || false,
     }
   };
+};
+
+// Helper function to mask author info for anonymous posts
+const sanitizePostForAnonymity = (post: any) => {
+  if (post.isAnonymous) {
+    return {
+      ...post,
+      author: {
+        id: null,
+        username: 'Anonymous',
+        displayName: 'Anonymous',
+        avatarUrl: null,
+        profileImageUrl: null,
+      },
+      authorId: null,
+    };
+  }
+  return post;
 };
 
 export function createPostsRouter(storage = defaultStorage) {
@@ -72,6 +92,19 @@ export function createPostsRouter(storage = defaultStorage) {
           posts = posts.filter((p: any) => !blockedIds.includes(p.authorId));
         }
       }
+
+      // Filter out posts from private accounts (unless it's the user's own post)
+      posts = posts.filter((p: any) => {
+        // User can see their own posts
+        if (userId && p.authorId === userId) return true;
+        // Hide posts from private accounts
+        if (p.author?.profileVisibility === 'private') return false;
+        return true;
+      });
+
+      // Sanitize anonymous posts to hide author information
+      posts = posts.map((p: any) => sanitizePostForAnonymity(p));
+
       res.json(posts);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -82,8 +115,19 @@ export function createPostsRouter(storage = defaultStorage) {
   router.get('/api/posts/:id', async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
-    const post = await storage.getPost(postId);
+    const userId = getSessionUserId(req);
+    let post = await storage.getPost(postId);
+
     if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    // Check privacy: private account posts are only visible to the author
+    if (post.author?.profileVisibility === 'private' && (!userId || post.authorId !== userId)) {
+      return res.status(403).json({ message: 'This post is not available' });
+    }
+
+    // Sanitize anonymous posts to hide author information
+    post = sanitizePostForAnonymity(post);
+
     res.json(post);
   } catch (error) {
     console.error('Error fetching post:', error);
