@@ -10,16 +10,15 @@ DESIRED_PNPM="10.19.0"
 echo "render-build: checking pnpm..."
 if command -v pnpm >/dev/null 2>&1; then
   CUR=$(pnpm -v || true)
-  if [ "${CUR}" != "${DESIRED_PNPM}" ]; then
-    echo "render-build: pnpm ${CUR} found, attempting to install ${DESIRED_PNPM} (will continue with existing pnpm on failure)"
-    if npm i -g pnpm@"${DESIRED_PNPM}"; then
-      echo "render-build: installed pnpm@${DESIRED_PNPM}"
-    else
-      echo "render-build: npm install pnpm failed; continuing with pnpm ${CUR}"
-    fi
-  else
-    echo "render-build: pnpm ${DESIRED_PNPM} already installed"
-  fi
+  echo "render-build: pnpm ${CUR} found; using existing pnpm (will not attempt global install on Render)"
+  # On Render the global npm install frequently fails with EEXIST when a pnpm
+  # binary is already present. To avoid noisy failures and permission issues,
+  # prefer the existing pnpm binary. If you need a different pnpm version,
+  # update the environment image or change the build image used by Render.
+else
+  echo "render-build: pnpm not found; installing pnpm@${DESIRED_PNPM}"
+  npm i -g pnpm@"${DESIRED_PNPM}"
+fi
 else
   echo "render-build: pnpm not found; installing pnpm@${DESIRED_PNPM}"
   npm i -g pnpm@"${DESIRED_PNPM}"
