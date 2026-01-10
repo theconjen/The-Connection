@@ -44,10 +44,6 @@ import {
   // Moderation types
   ContentReport, InsertContentReport,
   UserBlock, InsertUserBlock,
-  UserReport, InsertUserReport,
-
-  // User follows (social graph)
-  UserFollow, InsertUserFollow,
 
   // Database tables
   users, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
@@ -61,9 +57,9 @@ import {
   // moderation tables
     contentReports, userBlocks, pushTokens, notifications
 } from "@shared/schema";
-import { postVotes, commentVotes, userReports } from "@shared/schema";
+import { postVotes, commentVotes } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, sql, inArray, like } from "drizzle-orm";
+import { eq, and, or, desc, sql, inArray, like, isNull } from "drizzle-orm";
 import { whereNotDeleted, andNotDeleted } from "./db/helpers";
 import { geocodeAddress } from "./geocoding";
 import softDelete from './db/softDelete';
@@ -89,13 +85,10 @@ function coerceCoordinate(value: unknown): number | null {
 // Add this safety utility class at the top of the file, after imports
 class StorageSafety {
   private static implementedMethods = new Set([
-    'getUser', 'getUserById', 'getUserByUsername', 'getUserByEmail',
-    'searchUsers', 'getAllUsers', 'updateUser', 'createUser',
-    'updateUserPassword', 'setVerifiedApologeticsAnswerer',
-    'getVerifiedApologeticsAnswerers',
-    'createUserFollow', 'deleteUserFollow', 'getUserFollow',
-    'getUserFollowers', 'getUserFollowing', 'isUserFollowing',
-    'getAllCommunities', 
+    'getUser', 'getUserById', 'getUserByUsername', 'getUserByEmail', 
+    'searchUsers', 'getAllUsers', 'updateUser', 'createUser', 
+    'updateUserPassword', 'setVerifiedApologeticsAnswerer', 
+    'getVerifiedApologeticsAnswerers', 'getAllCommunities', 
     'searchCommunities', 'getPublicCommunitiesAndUserCommunities', 
     'getCommunity', 'getCommunityBySlug', 'createCommunity', 
     'updateCommunity', 'deleteCommunity', 'getCommunityMembers',
@@ -176,12 +169,12 @@ export interface IStorage {
   getApologeticsAnswererPermissions(userId: number): Promise<number[]>;
   setApologeticsAnswererPermissions(userId: number, topicIds: number[]): Promise<number[]>;
 
-  // User Follow methods (social graph)
-  createUserFollow(follow: InsertUserFollow): Promise<UserFollow>;
+  // User Follow methods
+  getUserFollowers(userId: number): Promise<any[]>;
+  getUserFollowing(userId: number): Promise<any[]>;
+  getUserFollow(followerId: number, followingId: number): Promise<any | undefined>;
+  createUserFollow(follow: { followerId: number; followingId: number }): Promise<any>;
   deleteUserFollow(followerId: number, followingId: number): Promise<boolean>;
-  getUserFollow(followerId: number, followingId: number): Promise<UserFollow | undefined>;
-  getUserFollowers(userId: number): Promise<(User & { followedAt: Date })[]>;
-  getUserFollowing(userId: number): Promise<(User & { followedAt: Date })[]>;
   isUserFollowing(followerId: number, followingId: number): Promise<boolean>;
 
   // Community methods
@@ -236,8 +229,8 @@ export interface IStorage {
   deleteCommunityWallPost(id: number): Promise<boolean>;
   
   // Post methods
-  getAllPosts(filter?: string): Promise<(Post & { author: User })[]>;
-  getPost(id: number): Promise<(Post & { author: User }) | undefined>;
+  getAllPosts(filter?: string): Promise<Post[]>;
+  getPost(id: number): Promise<Post | undefined>;
   getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]>;
   getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]>;
   getUserPosts(userId: number): Promise<any[]>;
@@ -397,18 +390,6 @@ export interface IStorage {
   getBlockedUserIdsFor(blockerId: number): Promise<number[]>;
   // Remove a user block (unblock)
   removeUserBlock(blockerId: number, blockedId: number): Promise<boolean>;
-  // User reporting methods
-  createUserReport(report: any): Promise<any>;
-  getUserReportByReporterAndReported(reporterId: number, reportedUserId: number): Promise<any>;
-  incrementUserReportCount(userId: number): Promise<void>;
-  getUserReportCount(userId: number): Promise<number>;
-  suspendUser(userId: number, reason: string): Promise<void>;
-  unsuspendUser(userId: number): Promise<void>;
-  getSuspendedUsers(): Promise<any[]>;
-  getUserReports(userId: number): Promise<any[]>;
-  // Search methods
-  searchPosts?(searchTerm: string): Promise<Post[]>;
-  searchEvents?(searchTerm: string): Promise<Event[]>;
   // Voting helpers
   togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }>;
   toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }>;
@@ -517,11 +498,9 @@ export class MemStorage implements IStorage {
     bibleStudyNotes: [] as BibleStudyNote[],
     userPreferences: [] as UserPreferences[],
     messages: [] as Message[],
-    userFollows: [] as UserFollow[],
     // Moderation in-memory stores
     contentReports: [] as any[],
     userBlocks: [] as any[],
-    userReports: [] as any[],
   };
   
   private nextId = 1;
@@ -716,73 +695,6 @@ export class MemStorage implements IStorage {
 
     this.data.apologeticsAnswererPermissions.push(...newPermissions);
     return uniqueTopicIds;
-  }
-
-  // User Follow methods (social graph)
-  async createUserFollow(follow: InsertUserFollow): Promise<UserFollow> {
-    const newFollow: UserFollow = {
-      id: this.nextId++,
-      followerId: follow.followerId,
-      followingId: follow.followingId,
-      createdAt: new Date(),
-    };
-    this.data.userFollows.push(newFollow);
-    return newFollow;
-  }
-
-  async deleteUserFollow(followerId: number, followingId: number): Promise<boolean> {
-    const index = this.data.userFollows.findIndex(
-      f => f.followerId === followerId && f.followingId === followingId
-    );
-    if (index !== -1) {
-      this.data.userFollows.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-
-  async getUserFollow(followerId: number, followingId: number): Promise<UserFollow | undefined> {
-    return this.data.userFollows.find(
-      f => f.followerId === followerId && f.followingId === followingId
-    );
-  }
-
-  async getUserFollowers(userId: number): Promise<(User & { followedAt: Date })[]> {
-    const followers = this.data.userFollows
-      .filter(f => f.followingId === userId)
-      .map(f => {
-        const user = this.data.users.find(u => u.id === f.followerId);
-        if (!user) return null;
-        return {
-          ...user,
-          followedAt: f.createdAt || new Date(),
-        };
-      })
-      .filter(Boolean) as (User & { followedAt: Date })[];
-
-    return followers;
-  }
-
-  async getUserFollowing(userId: number): Promise<(User & { followedAt: Date })[]> {
-    const following = this.data.userFollows
-      .filter(f => f.followerId === userId)
-      .map(f => {
-        const user = this.data.users.find(u => u.id === f.followingId);
-        if (!user) return null;
-        return {
-          ...user,
-          followedAt: f.createdAt || new Date(),
-        };
-      })
-      .filter(Boolean) as (User & { followedAt: Date })[];
-
-    return following;
-  }
-
-  async isUserFollowing(followerId: number, followingId: number): Promise<boolean> {
-    return this.data.userFollows.some(
-      f => f.followerId === followerId && f.followingId === followingId
-    );
   }
 
   // Community methods
@@ -1148,9 +1060,9 @@ export class MemStorage implements IStorage {
   }
   
   // Post methods
-  async getAllPosts(filter?: string): Promise<(Post & { author: User })[]> {
+  async getAllPosts(filter?: string): Promise<Post[]> {
     let posts = this.data.posts.filter(p => !p.deletedAt);
-
+    
     if (filter === 'top') {
       posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
     } else if (filter === 'hot') {
@@ -1162,21 +1074,12 @@ export class MemStorage implements IStorage {
     } else {
       posts.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
     }
-
-    return posts.map(p => ({
-      ...p,
-      author: this.data.users.find(u => u.id === p.authorId) || { id: 0, username: "Unknown", displayName: "Unknown User", email: "" } as User
-    }));
+    
+    return posts;
   }
-
-  async getPost(id: number): Promise<(Post & { author: User }) | undefined> {
-    const post = this.data.posts.find(p => p.id === id && !p.deletedAt);
-    if (!post) return undefined;
-
-    return {
-      ...post,
-      author: this.data.users.find(u => u.id === post.authorId) || { id: 0, username: "Unknown", displayName: "Unknown User", email: "" } as User
-    };
+  
+  async getPost(id: number): Promise<Post | undefined> {
+    return this.data.posts.find(p => p.id === id && !p.deletedAt);
   }
   
   async getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]> {
@@ -2242,67 +2145,6 @@ export class MemStorage implements IStorage {
     return true;
   }
 
-  // User reporting methods (in-memory)
-  async createUserReport(report: any): Promise<any> {
-    const newReport: any = {
-      id: this.nextId++,
-      reporterId: report.reporterId,
-      reportedUserId: report.reportedUserId,
-      reason: report.reason || 'other',
-      description: report.description || null,
-      status: report.status || 'pending',
-      moderatorId: null,
-      moderatorNotes: null,
-      resolvedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.data.userReports.push(newReport);
-    return newReport;
-  }
-
-  async getUserReportByReporterAndReported(reporterId: number, reportedUserId: number): Promise<any> {
-    return this.data.userReports.find(r => r.reporterId === reporterId && r.reportedUserId === reportedUserId);
-  }
-
-  async incrementUserReportCount(userId: number): Promise<void> {
-    const user = this.data.users.find(u => u.id === userId);
-    if (user) {
-      (user as any).reportCount = ((user as any).reportCount || 0) + 1;
-    }
-  }
-
-  async getUserReportCount(userId: number): Promise<number> {
-    const user = this.data.users.find(u => u.id === userId);
-    return (user as any)?.reportCount || 0;
-  }
-
-  async suspendUser(userId: number, reason: string): Promise<void> {
-    const user = this.data.users.find(u => u.id === userId);
-    if (user) {
-      (user as any).isSuspended = true;
-      (user as any).suspendedAt = new Date();
-      (user as any).suspensionReason = reason;
-    }
-  }
-
-  async unsuspendUser(userId: number): Promise<void> {
-    const user = this.data.users.find(u => u.id === userId);
-    if (user) {
-      (user as any).isSuspended = false;
-      (user as any).suspendedAt = null;
-      (user as any).suspensionReason = null;
-    }
-  }
-
-  async getSuspendedUsers(): Promise<any[]> {
-    return this.data.users.filter(u => (u as any).isSuspended);
-  }
-
-  async getUserReports(userId: number): Promise<any[]> {
-    return this.data.userReports.filter(r => r.reportedUserId === userId);
-  }
-
   // Toggle post vote (in-memory)
   async togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }> {
     // Simple in-memory vote tracking store
@@ -2448,61 +2290,6 @@ export class DbStorage implements IStorage {
     return remaining.length === 0;
   }
 
-  // User reporting methods (DB)
-  async createUserReport(report: any): Promise<any> {
-    const [row] = await db.insert(userReports).values(report as any).returning();
-    return row;
-  }
-
-  async getUserReportByReporterAndReported(reporterId: number, reportedUserId: number): Promise<any> {
-    const rows = await db.select().from(userReports).where(
-      and(
-        eq(userReports.reporterId, reporterId),
-        eq(userReports.reportedUserId, reportedUserId)
-      )
-    );
-    return rows[0];
-  }
-
-  async incrementUserReportCount(userId: number): Promise<void> {
-    await db.update(users)
-      .set({ reportCount: sql`COALESCE(${users.reportCount}, 0) + 1` as any })
-      .where(eq(users.id, userId));
-  }
-
-  async getUserReportCount(userId: number): Promise<number> {
-    const rows = await db.select({ reportCount: users.reportCount }).from(users).where(eq(users.id, userId));
-    return rows[0]?.reportCount || 0;
-  }
-
-  async suspendUser(userId: number, reason: string): Promise<void> {
-    await db.update(users)
-      .set({
-        isSuspended: true,
-        suspendedAt: new Date(),
-        suspensionReason: reason
-      } as any)
-      .where(eq(users.id, userId));
-  }
-
-  async unsuspendUser(userId: number): Promise<void> {
-    await db.update(users)
-      .set({
-        isSuspended: false,
-        suspendedAt: null,
-        suspensionReason: null
-      } as any)
-      .where(eq(users.id, userId));
-  }
-
-  async getSuspendedUsers(): Promise<any[]> {
-    return await db.select().from(users).where(eq(users.isSuspended, true));
-  }
-
-  async getUserReports(userId: number): Promise<any[]> {
-    return await db.select().from(userReports).where(eq(userReports.reportedUserId, userId));
-  }
-
   // Toggle post vote (DB)
   async togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }> {
     // Check existing vote
@@ -2638,10 +2425,71 @@ export class DbStorage implements IStorage {
     return inserted.map(row => row.topicId);
   }
 
-  // User Follow methods (social graph)
-  async createUserFollow(follow: InsertUserFollow): Promise<UserFollow> {
-    const [row] = await db.insert(userFollows).values(follow as any).returning();
-    return row as UserFollow;
+  // User Follow methods
+  async getUserFollowers(userId: number): Promise<any[]> {
+    const follows = await db.select()
+      .from(userFollows)
+      .where(eq(userFollows.followingId, userId));
+
+    const followerIds = follows.map(f => f.followerId);
+    if (followerIds.length === 0) return [];
+
+    const followers = await db.select()
+      .from(users)
+      .where(inArray(users.id, followerIds));
+
+    return follows.map(follow => {
+      const user = followers.find(u => u.id === follow.followerId);
+      return {
+        id: user?.id,
+        username: user?.username,
+        displayName: user?.displayName,
+        profileImageUrl: user?.avatarUrl,
+        followedAt: follow.createdAt,
+      };
+    });
+  }
+
+  async getUserFollowing(userId: number): Promise<any[]> {
+    const follows = await db.select()
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+
+    const followingIds = follows.map(f => f.followingId);
+    if (followingIds.length === 0) return [];
+
+    const following = await db.select()
+      .from(users)
+      .where(inArray(users.id, followingIds));
+
+    return follows.map(follow => {
+      const user = following.find(u => u.id === follow.followingId);
+      return {
+        id: user?.id,
+        username: user?.username,
+        displayName: user?.displayName,
+        profileImageUrl: user?.avatarUrl,
+        followedAt: follow.createdAt,
+      };
+    });
+  }
+
+  async getUserFollow(followerId: number, followingId: number): Promise<any | undefined> {
+    const [follow] = await db.select()
+      .from(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.followingId, followingId)
+      ))
+      .limit(1);
+    return follow;
+  }
+
+  async createUserFollow(follow: { followerId: number; followingId: number }): Promise<any> {
+    const [created] = await db.insert(userFollows)
+      .values(follow)
+      .returning();
+    return created;
   }
 
   async deleteUserFollow(followerId: number, followingId: number): Promise<boolean> {
@@ -2649,67 +2497,14 @@ export class DbStorage implements IStorage {
       .where(and(
         eq(userFollows.followerId, followerId),
         eq(userFollows.followingId, followingId)
-      ));
-    return true;
-  }
-
-  async getUserFollow(followerId: number, followingId: number): Promise<UserFollow | undefined> {
-    const result = await db.select()
-      .from(userFollows)
-      .where(and(
-        eq(userFollows.followerId, followerId),
-        eq(userFollows.followingId, followingId)
-      ));
-    return result[0];
-  }
-
-  async getUserFollowers(userId: number): Promise<(User & { followedAt: Date })[]> {
-    const result = await db.select({
-      user: users,
-      followedAt: userFollows.createdAt
-    })
-      .from(userFollows)
-      .innerJoin(users, eq(userFollows.followerId, users.id))
-      .where(and(
-        eq(userFollows.followingId, userId),
-        whereNotDeleted(users)
       ))
-      .orderBy(desc(userFollows.createdAt));
-
-    return result.map(r => ({
-      ...r.user,
-      followedAt: r.followedAt || new Date()
-    }));
-  }
-
-  async getUserFollowing(userId: number): Promise<(User & { followedAt: Date })[]> {
-    const result = await db.select({
-      user: users,
-      followedAt: userFollows.createdAt
-    })
-      .from(userFollows)
-      .innerJoin(users, eq(userFollows.followingId, users.id))
-      .where(and(
-        eq(userFollows.followerId, userId),
-        whereNotDeleted(users)
-      ))
-      .orderBy(desc(userFollows.createdAt));
-
-    return result.map(r => ({
-      ...r.user,
-      followedAt: r.followedAt || new Date()
-    }));
+      .returning();
+    return result.length > 0;
   }
 
   async isUserFollowing(followerId: number, followingId: number): Promise<boolean> {
-    const result = await db.select()
-      .from(userFollows)
-      .where(and(
-        eq(userFollows.followerId, followerId),
-        eq(userFollows.followingId, followingId)
-      ))
-      .limit(1);
-    return result.length > 0;
+    const follow = await this.getUserFollow(followerId, followingId);
+    return !!follow;
   }
 
   // Community methods - simplified for now
@@ -2727,16 +2522,7 @@ export class DbStorage implements IStorage {
       whereNotDeleted(communities)
     ));
   }
-
-  // Removed duplicate searchPosts and searchEvents methods - implementations are below
-
-  async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
-    const term = `%${searchTerm}%`;
-    return await db.select().from(microblogs).where(
-      like(microblogs.content, term)
-    ).limit(50);
-  }
-
+  
   async getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]> {
     let whereCondition = eq(communities.isPrivate, false);
 
@@ -2808,12 +2594,10 @@ export class DbStorage implements IStorage {
   }
   
   async getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]> {
-    // Get all community memberships for this user
     const memberships = await db.select()
       .from(communityMembers)
       .where(eq(communityMembers.userId, userId));
 
-    // Get communities for those memberships
     const communityIds = memberships.map(m => m.communityId);
     if (communityIds.length === 0) return [];
 
@@ -2821,13 +2605,11 @@ export class DbStorage implements IStorage {
       .from(communities)
       .where(inArray(communities.id, communityIds));
 
-    // Add member count to each community
     const communitiesWithCount = await Promise.all(
       userCommunities.map(async (community) => {
         const members = await db.select({ count: sql<number>`count(*)` })
           .from(communityMembers)
           .where(eq(communityMembers.communityId, community.id));
-
         return {
           ...community,
           memberCount: Number(members[0]?.count || 0)
@@ -2956,36 +2738,12 @@ export class DbStorage implements IStorage {
   }
   
   // Post methods
-  async getAllPosts(filter?: string): Promise<(Post & { author: User })[]> {
-    const results = await db
-      .select()
-      .from(posts)
-      .leftJoin(users, eq(posts.authorId, users.id))
-      .where(whereNotDeleted(posts))
-      .orderBy(desc(posts.createdAt));
-    
-    return results.map((row: any) => ({
-      ...row.posts,
-      author: row.users || { id: 0, username: "Unknown", displayName: "Unknown User", email: "" },
-    }));
+  async getAllPosts(filter?: string): Promise<Post[]> {
+    return [];
   }
-
   
-  async getPost(id: number): Promise<(Post & { author: User }) | undefined> {
-    const results = await db
-      .select()
-      .from(posts)
-      .leftJoin(users, eq(posts.authorId, users.id))
-      .where(and(eq(posts.id, id), whereNotDeleted(posts)))
-      .limit(1);
-
-    if (results.length === 0) return undefined;
-
-    const row = results[0];
-    return {
-      ...row.posts,
-      author: row.users || { id: 0, username: "Unknown", displayName: "Unknown User", email: "" },
-    };
+  async getPost(id: number): Promise<Post | undefined> {
+    return undefined;
   }
   
   async getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]> {
@@ -3004,20 +2762,12 @@ export class DbStorage implements IStorage {
         isNull(posts.deletedAt)
       ))
       .orderBy(desc(posts.createdAt));
-
     return userPosts;
   }
   
   async createPost(post: InsertPost): Promise<Post> {
-    const [created] = await db.insert(posts).values({
-      ...post,
-      upvotes: 0,
-      commentCount: 0,
-      createdAt: new Date(),
-    }).returning();
-    return created;
+    throw new Error('Not implemented');
   }
-
 
   async updatePost(id: number, data: Partial<Post>): Promise<Post> {
     const [updated] = await db.update(posts)
@@ -3444,7 +3194,6 @@ export class DbStorage implements IStorage {
       .from(microblogs)
       .where(eq(microblogs.authorId, userId))
       .orderBy(desc(microblogs.createdAt));
-
     return userMicroblogs;
   }
   
@@ -3460,7 +3209,12 @@ export class DbStorage implements IStorage {
     return false;
   }
 
-  // Duplicate searchMicroblogs removed - implementation is above at line 2733
+  async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
+    const term = `%${searchTerm}%`;
+    return await db.select()
+      .from(microblogs)
+      .where(like(microblogs.content, term));
+  }
 
   // Microblog like methods
   async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
