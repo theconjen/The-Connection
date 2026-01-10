@@ -144,21 +144,42 @@ router.get('/users/:userId/profile', async (req, res) => {
     console.log('[PROFILE] User found:', user.username);
 
     // Get user's communities
-    const communities = await storage.getUserCommunities(userId);
-    console.log('[PROFILE] Communities count:', communities.length);
+    let communities = [];
+    try {
+      communities = await storage.getUserCommunities(userId);
+      console.log('[PROFILE] Communities count:', communities.length);
+    } catch (error) {
+      console.error('[PROFILE] Error fetching communities:', error);
+    }
 
     // Get user's posts (forum posts)
-    const posts = await storage.getUserPosts(userId);
-    console.log('[PROFILE] Posts count:', posts.length);
+    let posts = [];
+    try {
+      posts = await storage.getUserPosts(userId);
+      console.log('[PROFILE] Posts count:', posts.length);
+    } catch (error) {
+      console.error('[PROFILE] Error fetching posts:', error);
+    }
 
     // Get user's microblogs
-    const microblogs = await storage.getUserMicroblogs(userId);
-    console.log('[PROFILE] Microblogs count:', microblogs.length);
+    let microblogs = [];
+    try {
+      microblogs = await storage.getUserMicroblogs(userId);
+      console.log('[PROFILE] Microblogs count:', microblogs.length);
+    } catch (error) {
+      console.error('[PROFILE] Error fetching microblogs:', error);
+    }
 
     // Get follower/following counts
-    const followers = await storage.getUserFollowers(userId);
-    const following = await storage.getUserFollowing(userId);
-    console.log('[PROFILE] Followers:', followers.length, 'Following:', following.length);
+    let followers = [];
+    let following = [];
+    try {
+      followers = await storage.getUserFollowers(userId);
+      following = await storage.getUserFollowing(userId);
+      console.log('[PROFILE] Followers:', followers.length, 'Following:', following.length);
+    } catch (error) {
+      console.error('[PROFILE] Error fetching followers/following:', error);
+    }
 
     res.json({
       user: {
