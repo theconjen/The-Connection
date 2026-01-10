@@ -31,7 +31,7 @@ await build({
   bundle: true,
   external,
   format: 'cjs',
-  sourcemap: false,
+  sourcemap: true, // Enable source maps for error tracking
   logLevel: 'info',
 });
 
