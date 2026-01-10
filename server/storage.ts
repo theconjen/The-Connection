@@ -201,7 +201,7 @@ export interface IStorage {
   getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined>;
   getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]>;
   addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember>;
-  updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember>;
+  updateCommunityMemberRole(communityId: number, userId: number, role: string): Promise<CommunityMember>;
   removeCommunityMember(communityId: number, userId: number): Promise<boolean>;
   isCommunityMember(communityId: number, userId: number): Promise<boolean>;
   isCommunityOwner(communityId: number, userId: number): Promise<boolean>;
@@ -881,10 +881,10 @@ export class MemStorage implements IStorage {
     return newMember;
   }
   
-  async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
-    const member = this.data.communityMembers.find(m => m.id === id);
+  async updateCommunityMemberRole(communityId: number, userId: number, role: string): Promise<CommunityMember> {
+    const member = this.data.communityMembers.find(m => m.communityId === communityId && m.userId === userId);
     if (!member) throw new Error('Member not found');
-    
+
     member.role = role;
     return member;
   }
@@ -2621,32 +2621,116 @@ export class DbStorage implements IStorage {
   }
   
   async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
-    throw new Error('Not implemented');
+    const [newMember] = await db.insert(communityMembers)
+      .values({
+        communityId: member.communityId,
+        userId: member.userId,
+        role: member.role || 'member',
+      })
+      .returning();
+
+    // Update member count
+    await db.execute(sql`
+      UPDATE communities
+      SET member_count = (
+        SELECT COUNT(*)
+        FROM community_members
+        WHERE community_id = ${member.communityId}
+      )
+      WHERE id = ${member.communityId}
+    `);
+
+    return newMember;
   }
-  
-  async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
-    throw new Error('Not implemented');
+
+  async updateCommunityMemberRole(communityId: number, userId: number, role: string): Promise<CommunityMember> {
+    const [updated] = await db.update(communityMembers)
+      .set({ role })
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId)
+      ))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Community member not found');
+    }
+
+    return updated;
   }
-  
+
   async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId)
+      ))
+      .returning();
+
+    if (result.length > 0) {
+      // Update member count
+      await db.execute(sql`
+        UPDATE communities
+        SET member_count = (
+          SELECT COUNT(*)
+          FROM community_members
+          WHERE community_id = ${communityId}
+        )
+        WHERE id = ${communityId}
+      `);
+    }
+
+    return result.length > 0;
   }
-  
+
   async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId)
+      ))
+      .limit(1);
+
+    return !!member;
   }
   
   async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId),
+        eq(communityMembers.role, 'owner')
+      ))
+      .limit(1);
+
+    return !!member;
   }
-  
+
   async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId),
+        or(
+          eq(communityMembers.role, 'owner'),
+          eq(communityMembers.role, 'moderator')
+        )
+      ))
+      .limit(1);
+
+    return !!member;
   }
   
   // Community invitation methods
   async createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation> {
-    throw new Error('Not implemented');
+    const [newInvitation] = await db.insert(communityInvitations)
+      .values(invitation)
+      .returning();
+
+    return newInvitation;
   }
   
   async getCommunityInvitations(communityId: number): Promise<(CommunityInvitation & { inviter: User })[]> {
@@ -2670,7 +2754,15 @@ export class DbStorage implements IStorage {
   }
   
   async getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined> {
-    return undefined;
+    const [invitation] = await db.select()
+      .from(communityInvitations)
+      .where(and(
+        eq(communityInvitations.inviteeEmail, email),
+        eq(communityInvitations.communityId, communityId)
+      ))
+      .limit(1);
+
+    return invitation;
   }
   
   // Community chat room methods
