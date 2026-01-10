@@ -92,6 +92,46 @@ echo "render-build: running pnpm install --no-frozen-lockfile (with extra loggin
     tail -n 2000 /tmp/pnpm-install.log || true
     echo "render-build: ---- END FULL LOG (tail) ----"
 
+    # If pnpm produced an ndjson report, print parsed error events to help
+    # surface lifecycle or script stderr which may not appear in the plain log.
+    if [ -s /tmp/pnpm-install.ndjson ]; then
+      echo "render-build: /tmp/pnpm-install.ndjson -> present; parsing for errors"
+      # Use Node (available on Render) to parse ndjson safely and print
+      # events that look like errors or lifecycle failures.
+      node - <<'NODECODE' || true
+const fs = require('fs');
+try {
+  const data = fs.readFileSync('/tmp/pnpm-install.ndjson', 'utf8').trim();
+  if (!data) { process.exit(0); }
+  const lines = data.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    try {
+      const o = JSON.parse(lines[i]);
+      // Print objects that look like errors, lifecycle events, or contain stderr
+      const isError = o.level === 'error' || o.event === 'error' || (o.error && o.error.message) || (o.data && /ELIFECYCLE|ERR!|error|Failed/i.test(String(o.data)));
+      const isLifecycle = (o.command && /install|postinstall|prepare|build|prepublish/.test(o.command)) || (o.name && /lifecycle/.test(String(o.name)));
+      if (isError || isLifecycle) {
+        console.log('render-build: NDJSON EVENT --------------------');
+        console.log(JSON.stringify(o, null, 2));
+      }
+    } catch (e) {
+      // ignore parse errors for individual lines
+    }
+  }
+  // also print the last 200 ndjson lines for manual inspection
+  console.log('render-build: ---- TAIL /tmp/pnpm-install.ndjson (200 lines) ----');
+  const tail = lines.slice(-200).join('\n');
+  console.log(tail);
+  console.log('render-build: ---- END TAIL ndjson ----');
+} catch (err) {
+  // if reading fails, print a notice
+  console.error('render-build: failed to read /tmp/pnpm-install.ndjson:', err && err.message);
+}
+NODECODE
+    else
+      echo "render-build: /tmp/pnpm-install.ndjson -> MISSING or empty"
+    fi
+
     exit $INSTALL_EXIT
   fi
 }
