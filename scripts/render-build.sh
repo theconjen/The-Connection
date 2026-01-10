@@ -32,10 +32,16 @@ echo "render-build: running pnpm install --no-frozen-lockfile"
   # CI flakes (rate limits, memory pressure, network timeouts)
   pnpm install --no-frozen-lockfile --network-concurrency=1 --fetch-timeout=60000 > /tmp/pnpm-install.log 2>&1 || INSTALL_EXIT=$?
 
+  # Persist the exit code to a file so external shells (Render) can inspect it
+  echo "${INSTALL_EXIT}" > /tmp/pnpm-install.exitcode || true
+
   echo "render-build: pnpm install exit code: ${INSTALL_EXIT}"
-  echo "render-build: ---- BEGIN /tmp/pnpm-install.log (last 300 lines) ----"
+  echo "render-build: ---- BEGIN /tmp/pnpm-install.log (head) ----"
+  head -n 200 /tmp/pnpm-install.log || true
+  echo "render-build: ---- END /tmp/pnpm-install.log (head) ----"
+  echo "render-build: ---- BEGIN /tmp/pnpm-install.log (tail) ----"
   tail -n 300 /tmp/pnpm-install.log || true
-  echo "render-build: ---- END /tmp/pnpm-install.log ----"
+  echo "render-build: ---- END /tmp/pnpm-install.log (tail) ----"
 
   if [ "$INSTALL_EXIT" -ne 0 ]; then
     echo "render-build: pnpm install failed; full log saved at /tmp/pnpm-install.log"
