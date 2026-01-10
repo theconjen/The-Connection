@@ -3239,17 +3239,29 @@ export class DbStorage implements IStorage {
   
   // Event RSVP methods
   async createEventRSVP(rsvp: InsertEventRsvp): Promise<EventRsvp> {
-    throw new Error('Not implemented');
+    const [newRsvp] = await db.insert(eventRsvps).values(rsvp as any).returning();
+    return newRsvp as EventRsvp;
   }
-  
+
   async getEventRSVPs(eventId: number): Promise<EventRsvp[]> {
-    return [];
+    const rsvps = await db
+      .select()
+      .from(eventRsvps)
+      .where(eq(eventRsvps.eventId, eventId));
+    return rsvps as EventRsvp[];
   }
-  
+
   async getUserEventRSVP(eventId: number, userId: number): Promise<EventRsvp | undefined> {
-    return undefined;
+    const [rsvp] = await db
+      .select()
+      .from(eventRsvps)
+      .where(and(
+        eq(eventRsvps.eventId, eventId),
+        eq(eventRsvps.userId, userId)
+      ));
+    return rsvp as EventRsvp | undefined;
   }
-  
+
   async upsertEventRSVP(eventId: number, userId: number, status: string): Promise<EventRsvp> {
     const values = { eventId, userId, status } as InsertEventRsvp;
     const [row] = await db.insert(eventRsvps).values(values as any).onConflictDoUpdate({
@@ -3258,9 +3270,10 @@ export class DbStorage implements IStorage {
     }).returning();
     return row as EventRsvp;
   }
-  
+
   async deleteEventRSVP(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(eventRsvps).where(eq(eventRsvps.id, id));
+    return true;
   }
   
   // Livestream methods
