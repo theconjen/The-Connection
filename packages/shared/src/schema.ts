@@ -1393,6 +1393,28 @@ export const contentReports = pgTable("content_reports", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Backwards-compatible alias: some parts of the codebase import `userReports`.
+// Backwards-compatible table for user reports (legacy consumers)
+export const userReports = pgTable("user_reports", {
+  id: serial("id").primaryKey(),
+  reporterId: integer("reporter_id").references(() => users.id),
+  reportedUserId: integer("reported_user_id").references(() => users.id),
+  reason: text("reason").notNull(),
+  status: text("status").default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
+} as any);
+
+export const insertUserReportSchema = createInsertSchema(userReports).omit({
+  id: true,
+  createdAt: true,
+  deletedAt: true,
+} as any);
+
+export type UserReport = typeof userReports.$inferSelect;
+export type InsertUserReport = typeof userReports.$inferInsert;
+
+
 // Push tokens table (used for push notification delivery)
 export const pushTokens = pgTable("push_tokens", {
   id: serial("id").primaryKey(),
