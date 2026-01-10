@@ -10,7 +10,7 @@
     "build:client": "pnpm -C client run build",
     "build:server": "pnpm -C server run build",
     "build": "pnpm run build:client && pnpm run build:server",
-    "postinstall": "node ./scripts/ensure-assets.js && node ./scripts/apply-patches.js",
+    "postinstall": "node -e \"import('./scripts/ensure-assets.js')\" && node -e \"import('./scripts/apply-patches.js')\"",
     "test:api": "vitest run tests/api",
     "eas": "pnpm dlx eas-cli",
     "android": "pnpm -C mobile-app/TheConnectionMobile-new run android",
