@@ -1,26 +1,84 @@
-/**
- * Settings Screen
- */
-
 import React from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  Switch,
   Alert,
   Linking,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
-import { useTheme } from '../src/shared/ThemeProvider';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import apiClient from '../src/lib/apiClient';
+import { useTheme } from '../src/contexts/ThemeContext';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { colors, preference, setThemePreference } = useTheme();
-  const styles = createStyles(colors);
+  const queryClient = useQueryClient();
+  const { theme, setTheme, colorScheme } = useTheme();
+  const [emailNotifications, setEmailNotifications] = React.useState(true);
+  const [isPrivateAccount, setIsPrivateAccount] = React.useState(
+    user?.profileVisibility === 'private'
+  );
+
+  const updatePrivacyMutation = useMutation({
+    mutationFn: async (isPrivate: boolean) => {
+      const response = await apiClient.patch('/api/user/profile-visibility', {
+        visibility: isPrivate ? 'private' : 'public',
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to update privacy setting';
+      Alert.alert('Error', message);
+      // Revert the toggle
+      setIsPrivateAccount(!isPrivateAccount);
+    },
+  });
+
+  const handlePrivacyToggle = (value: boolean) => {
+    setIsPrivateAccount(value);
+    updatePrivacyMutation.mutate(value);
+  };
+
+  const handleThemePress = () => {
+    Alert.alert(
+      'Appearance',
+      'Choose your app theme',
+      [
+        {
+          text: 'Light',
+          onPress: () => setTheme('light'),
+        },
+        {
+          text: 'Dark',
+          onPress: () => setTheme('dark'),
+        },
+        {
+          text: 'System Default',
+          onPress: () => setTheme('system'),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const getThemeLabel = () => {
+    if (theme === 'system') return `System (${colorScheme === 'dark' ? 'Dark' : 'Light'})`;
+    return theme === 'dark' ? 'Dark' : 'Light';
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -28,54 +86,42 @@ export default function SettingsScreen() {
       'Are you sure you want to log out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              router.replace('/(auth)/login');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to log out');
-            }
-          },
-        },
+        { text: 'Log Out', style: 'destructive', onPress: logout },
       ]
     );
   };
 
-  const openLink = (url: string) => {
-    Linking.openURL(url).catch(() =>
-      Alert.alert('Error', 'Could not open link')
-    );
-  };
-
-  const SettingItem = ({
-    icon,
-    title,
-    subtitle,
-    onPress,
+  const SettingsItem = ({ 
+    icon, 
+    label, 
+    onPress, 
     showArrow = true,
+    rightElement,
+    danger = false,
   }: {
     icon: string;
-    title: string;
-    subtitle?: string;
+    label: string;
     onPress?: () => void;
     showArrow?: boolean;
+    rightElement?: React.ReactNode;
+    danger?: boolean;
   }) => (
-    <TouchableOpacity
-      style={styles.settingItem}
+    <TouchableOpacity 
+      style={styles.settingsItem}
       onPress={onPress}
-      disabled={!onPress}
+      disabled={!onPress && !rightElement}
     >
-      <View style={styles.settingIcon}>
-        <Text style={styles.settingIconText}>{icon}</Text>
-      </View>
-      <View style={styles.settingContent}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
-      </View>
-      {showArrow && <Text style={styles.settingArrow}>›</Text>}
+      <Ionicons 
+        name={icon as any} 
+        size={22} 
+        color={danger ? '#DC2626' : '#0B132B'} 
+      />
+      <Text style={[styles.settingsLabel, danger && styles.dangerText]}>
+        {label}
+      </Text>
+      {rightElement ? rightElement : (
+        showArrow && <Ionicons name="chevron-forward" size={20} color="#637083" />
+      )}
     </TouchableOpacity>
   );
 
@@ -84,237 +130,224 @@ export default function SettingsScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backIcon}>←</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#0B132B" />
         </TouchableOpacity>
-        <Text style={styles.title}>Settings</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>Settings</Text>
+        <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Account Section */}
         <SectionHeader title="ACCOUNT" />
         <View style={styles.section}>
-          <SettingItem
-            icon="👤"
-            title="Edit Profile"
-            subtitle="Update your personal information"
-            onPress={() => router.push('/profile/edit')}
+          <SettingsItem
+            icon="person-outline"
+            label="Edit Profile"
+            onPress={() => router.push('/edit-profile')}
           />
-          <SettingItem
-            icon="🔒"
-            title="Change Password"
-            subtitle="Update your account password"
-            onPress={() => router.push('/settings/change-password')}
+          <SettingsItem
+            icon="mail-outline"
+            label="Email"
+            onPress={() => Alert.alert('Email', user?.email || 'Not logged in')}
           />
-          <SettingItem
-            icon="🚫"
-            title="Blocked Users"
-            subtitle="Manage blocked users"
+          <SettingsItem
+            icon="lock-closed-outline"
+            label="Change Password"
+            onPress={() => Alert.alert('Coming Soon', 'Password change will be available soon.')}
+          />
+        </View>
+
+        {/* Appearance Section */}
+        <SectionHeader title="APPEARANCE" />
+        <View style={styles.section}>
+          <SettingsItem
+            icon="moon-outline"
+            label="Dark Mode"
+            onPress={handleThemePress}
+            rightElement={
+              <View style={styles.themeValue}>
+                <Text style={styles.themeValueText}>{getThemeLabel()}</Text>
+                <Ionicons name="chevron-forward" size={20} color="#637083" />
+              </View>
+            }
+          />
+        </View>
+
+        {/* Notifications Section */}
+        <SectionHeader title="NOTIFICATIONS" />
+        <View style={styles.section}>
+          <SettingsItem
+            icon="notifications-outline"
+            label="Notification Preferences"
+            onPress={() => router.push('/notification-settings')}
+          />
+          <SettingsItem
+            icon="mail-outline"
+            label="Email Notifications"
+            showArrow={false}
+            rightElement={
+              <Switch
+                value={emailNotifications}
+                onValueChange={setEmailNotifications}
+                trackColor={{ false: '#D1D8DE', true: '#222D99' }}
+              />
+            }
+          />
+        </View>
+
+        {/* Privacy Section */}
+        <SectionHeader title="PRIVACY" />
+        <View style={styles.section}>
+          <SettingsItem
+            icon="eye-off-outline"
+            label="Private Account"
+            showArrow={false}
+            rightElement={
+              <Switch
+                value={isPrivateAccount}
+                onValueChange={handlePrivacyToggle}
+                trackColor={{ false: '#D1D8DE', true: '#222D99' }}
+                disabled={updatePrivacyMutation.isPending}
+              />
+            }
+          />
+          <SettingsItem
+            icon="ban-outline"
+            label="Blocked Users"
             onPress={() => router.push('/blocked-users')}
           />
         </View>
 
-        {/* Preferences Section */}
-        <SectionHeader title="PREFERENCES" />
+        {/* Support Section */}
+        <SectionHeader title="SUPPORT" />
         <View style={styles.section}>
-          <SettingItem
-            icon="🔔"
-            title="Notifications"
-            subtitle="Manage notification preferences"
-            onPress={() => router.push('/settings/notifications')}
+          <SettingsItem
+            icon="help-circle-outline"
+            label="Help Center"
+            onPress={() => Alert.alert('Help', 'Contact support@theconnection.app for help.')}
           />
-          <SettingItem
-            icon="🔒"
-            title="Privacy"
-            subtitle="Control who sees your information"
-            onPress={() => router.push('/settings/privacy')}
+          <SettingsItem
+            icon="document-text-outline"
+            label="Terms of Service"
+            onPress={() => Linking.openURL('https://theconnection.app/terms')}
           />
-          <SettingItem
-            icon="🌙"
-            title="Theme"
-            subtitle={
-              preference === 'system' ? 'System (Auto)' :
-              preference === 'dark' ? 'Dark Mode' : 'Light Mode'
-            }
-            onPress={() => {
-              Alert.alert(
-                'Choose Theme',
-                'Select your preferred theme',
-                [
-                  {
-                    text: 'Light',
-                    onPress: () => setThemePreference('light'),
-                  },
-                  {
-                    text: 'Dark',
-                    onPress: () => setThemePreference('dark'),
-                  },
-                  {
-                    text: 'System (Auto)',
-                    onPress: () => setThemePreference('system'),
-                  },
-                  { text: 'Cancel', style: 'cancel' },
-                ]
-              );
-            }}
+          <SettingsItem
+            icon="shield-outline"
+            label="Privacy Policy"
+            onPress={() => Linking.openURL('https://theconnection.app/privacy')}
           />
         </View>
 
-        {/* Legal & Support */}
-        <SectionHeader title="LEGAL & SUPPORT" />
-        <View style={styles.section}>
-          <SettingItem
-            icon="📜"
-            title="Privacy Policy"
-            subtitle="Learn how we protect your data"
-            onPress={() => openLink('https://app.theconnection.app/privacy')}
-          />
-          <SettingItem
-            icon="📋"
-            title="Terms of Service"
-            subtitle="Read our terms and conditions"
-            onPress={() => openLink('https://app.theconnection.app/terms')}
-          />
-          <SettingItem
-            icon="👥"
-            title="Community Guidelines"
-            subtitle="Understand our community expectations"
-            onPress={() =>
-              openLink('https://app.theconnection.app/community-guidelines')
-            }
-          />
-          <SettingItem
-            icon="❓"
-            title="Help & Support"
-            subtitle="Get help with the app"
-            onPress={() => openLink('https://app.theconnection.app/support')}
-          />
-        </View>
-
-        {/* About */}
+        {/* About Section */}
         <SectionHeader title="ABOUT" />
         <View style={styles.section}>
-          <SettingItem
-            icon="ℹ️"
-            title="About The Connection"
-            subtitle="Version 1.0.0"
+          <SettingsItem
+            icon="information-circle-outline"
+            label="App Version"
             showArrow={false}
+            rightElement={<Text style={styles.versionText}>1.0.0</Text>}
           />
         </View>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutIcon}>🚪</Text>
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
+        {/* Logout */}
+        <View style={[styles.section, styles.logoutSection]}>
+          <SettingsItem
+            icon="log-out-outline"
+            label="Log Out"
+            onPress={handleLogout}
+            showArrow={false}
+            danger
+          />
+        </View>
 
-        <View style={{ height: 40 }} />
+        <View style={styles.bottomPadding} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
-function createStyles(colors: any) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: 16,
-      paddingTop: 60,
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    backIcon: {
-      fontSize: 24,
-      color: colors.text,
-    },
-    title: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: colors.text,
-    },
-    content: {
-      flex: 1,
-    },
-    sectionHeader: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textSecondary,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      paddingTop: 24,
-      backgroundColor: colors.surfaceSecondary,
-    },
-    section: {
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    settingItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderLight,
-    },
-    settingIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceSecondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-    },
-    settingIconText: {
-      fontSize: 20,
-    },
-    settingContent: {
-      flex: 1,
-    },
-    settingTitle: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: colors.text,
-      marginBottom: 2,
-    },
-    settingSubtitle: {
-      fontSize: 13,
-      color: colors.textSecondary,
-    },
-    settingArrow: {
-      fontSize: 24,
-      color: colors.mutedForeground,
-    },
-    logoutButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.surface,
-      margin: 16,
-      padding: 16,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.destructive,
-    },
-    logoutIcon: {
-      fontSize: 20,
-      marginRight: 8,
-    },
-    logoutText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.destructive,
-    },
-  });
-}
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F8FA',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#D1D8DE',
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0B132B',
+  },
+  placeholder: {
+    width: 32,
+  },
+  content: {
+    flex: 1,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#637083',
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 8,
+    letterSpacing: 0.5,
+  },
+  section: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#D1D8DE',
+  },
+  settingsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  settingsLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#0B132B',
+    marginLeft: 12,
+  },
+  dangerText: {
+    color: '#DC2626',
+  },
+  versionText: {
+    fontSize: 16,
+    color: '#637083',
+  },
+  themeValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  themeValueText: {
+    fontSize: 16,
+    color: '#637083',
+  },
+  logoutSection: {
+    marginTop: 24,
+  },
+  bottomPadding: {
+    height: 40,
+  },
+});
