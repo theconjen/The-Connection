@@ -301,7 +301,7 @@ export default function CommunityPage() {
                       {isOwner && (
                         <div className="mt-2 text-destructive">
                           <ShieldAlert className="inline h-4 w-4 mr-1" />
-                          Warning: You are the owner of this community. If you leave, ownership must be transferred first.
+                          Warning: You are the creator of this community. If you leave, the creator role must be transferred first.
                         </div>
                       )}
                     </DialogDescription>

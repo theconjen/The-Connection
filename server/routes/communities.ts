@@ -206,7 +206,7 @@ router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
         expiresAt
       });
 
-      // Notify community owner about join request
+      // Notify community creator about join request
       const owner = await storage.getCommunityMembers(communityId);
       const ownerMember = owner.find(m => m.role === 'owner');
       if (ownerMember) {
@@ -221,7 +221,7 @@ router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
 
       return res.json({
         success: true,
-        message: 'Join request sent. Waiting for approval from community owner.',
+        message: 'Join request sent. Waiting for approval from community creator.',
         isPending: true,
         isMember: false
       });
