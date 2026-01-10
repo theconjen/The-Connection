@@ -30,17 +30,27 @@ else
   npm i -g pnpm@"${DESIRED_PNPM}"
 fi
 
-echo "render-build: running pnpm install --no-frozen-lockfile"
+echo "render-build: running pnpm install --no-frozen-lockfile (with extra logging)"
 {
-  echo "render-build: starting pnpm install (logging to /tmp/pnpm-install.log)"
-  # Run pnpm install and capture full output into a file without using a pipe
-  # (so `set -e` doesn't cause an early exit). Save exit code and always
-  # print a portion of the log for Render to show.
-  /bin/echo "render-build: running pnpm install and writing log to /tmp/pnpm-install.log"
+  echo "render-build: starting pnpm install (logging to /tmp/pnpm-install.log and /tmp/pnpm-install.ndjson)"
+  # Run pnpm install and capture full output into files. We attempt both
+  # a human-readable log and the ndjson reporter which contains structured
+  # event details that often include lifecycle/script stderr not shown in
+  # the default install output on some hosts.
+  /bin/echo "render-build: running pnpm install and writing logs to /tmp/pnpm-install.log and /tmp/pnpm-install.ndjson"
   INSTALL_EXIT=0
   # Use conservative network concurrency and longer fetch timeout to reduce
   # CI flakes (rate limits, memory pressure, network timeouts)
-  pnpm install --no-frozen-lockfile --network-concurrency=1 --fetch-timeout=60000 > /tmp/pnpm-install.log 2>&1 || INSTALL_EXIT=$?
+  # First try the ndjson reporter (structured). Keep PNPM_LOG_LEVEL=debug to surface more info.
+  PNPM_LOG_LEVEL=debug pnpm install --no-frozen-lockfile --network-concurrency=1 --fetch-timeout=60000 --reporter=ndjson > /tmp/pnpm-install.ndjson 2>&1 || INSTALL_EXIT=$?
+  # Also create a conventional verbose log to capture anything the ndjson reporter misses.
+  if [ ${INSTALL_EXIT} -eq 0 ]; then
+    # ndjson run succeeded; still save a plain log for convenience
+    pnpm install --no-frozen-lockfile --network-concurrency=1 --fetch-timeout=60000 --reporter=ndjson > /tmp/pnpm-install.log 2>&1 || true
+  else
+    # ndjson run failed; run again with verbose/plain reporter to capture fallback output
+    pnpm install --no-frozen-lockfile --network-concurrency=1 --fetch-timeout=60000 --reporter=append-only > /tmp/pnpm-install.log 2>&1 || true
+  fi
 
   # Persist the exit code to a file so external shells (Render) can inspect it
   echo "${INSTALL_EXIT}" > /tmp/pnpm-install.exitcode || true
