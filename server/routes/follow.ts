@@ -187,7 +187,7 @@ router.get('/users/:userId/profile', async (req, res) => {
         username: user.username,
         displayName: user.displayName,
         bio: user.bio,
-        profileImageUrl: user.profileImageUrl,
+        profileImageUrl: user.avatarUrl,
         createdAt: user.createdAt,
       },
       stats: {
