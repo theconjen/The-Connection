@@ -28,7 +28,9 @@ echo "render-build: running pnpm install --no-frozen-lockfile"
   # print a portion of the log for Render to show.
   /bin/echo "render-build: running pnpm install and writing log to /tmp/pnpm-install.log"
   INSTALL_EXIT=0
-  pnpm install --no-frozen-lockfile > /tmp/pnpm-install.log 2>&1 || INSTALL_EXIT=$?
+  # Use conservative network concurrency and longer fetch timeout to reduce
+  # CI flakes (rate limits, memory pressure, network timeouts)
+  pnpm install --no-frozen-lockfile --network-concurrency=1 --fetch-timeout=60000 > /tmp/pnpm-install.log 2>&1 || INSTALL_EXIT=$?
 
   echo "render-build: pnpm install exit code: ${INSTALL_EXIT}"
   echo "render-build: ---- BEGIN /tmp/pnpm-install.log (last 300 lines) ----"
