@@ -8,6 +8,16 @@ set -euo pipefail
 DESIRED_PNPM="10.19.0"
 
 echo "render-build: checking pnpm..."
+# Print Node/pnpm environment information to aid diagnosis when CI fails
+echo "render-build: node -> $(node -v 2>/dev/null || echo 'node_missing')"
+echo "render-build: pnpm -> $(pnpm -v 2>/dev/null || echo 'pnpm_missing')"
+echo "render-build: npm  -> $(npm -v 2>/dev/null || echo 'npm_missing')"
+echo "render-build: COREPACK -> $(corepack -v 2>/dev/null || echo 'corepack_missing')"
+# Print package.json engine requirement if available
+if [ -f package.json ]; then
+  REQ_NODE=$(node -e "try{console.log(require('./package.json').engines && require('./package.json').engines.node||'') }catch(e){process.exit(0)}" 2>/dev/null || true)
+  echo "render-build: package.json engines.node -> ${REQ_NODE:-MISSING}"
+fi
 if command -v pnpm >/dev/null 2>&1; then
   CUR=$(pnpm -v || true)
   echo "render-build: pnpm ${CUR} found; using existing pnpm (will not attempt global install on Render)"
