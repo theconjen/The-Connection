@@ -6,6 +6,7 @@ import { storage as defaultStorage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { contentCreationLimiter, messageCreationLimiter } from '../rate-limiters';
+import { notifyCommunityMembers, notifyUserWithPreferences, truncateText, getUserDisplayName } from '../services/notificationHelper';
 
 const MAX_TITLE_LENGTH = 60;
 
@@ -146,6 +147,35 @@ export function createPostsRouter(storage = defaultStorage) {
 
     const validatedData = insertPostSchema.parse(result.payload as any);
     const post = await storage.createPost(validatedData);
+
+    // Notify community members about new post (if posted in a community)
+    if (post.communityId && !post.isAnonymous) {
+      try {
+        const community = await storage.getCommunity(post.communityId);
+        const authorName = await getUserDisplayName(userId);
+
+        await notifyCommunityMembers(
+          post.communityId,
+          {
+            title: `New post in ${community?.name || 'community'}`,
+            body: `${authorName}: ${truncateText(post.title || post.content, 80)}`,
+            data: {
+              type: 'community_post',
+              postId: post.id,
+              communityId: post.communityId,
+              authorId: userId,
+            },
+            category: 'community',
+          },
+          [userId] // Exclude post author from notifications
+        );
+        console.info(`[Posts] Notified community ${post.communityId} about new post ${post.id}`);
+      } catch (notifError) {
+        // Don't fail post creation if notifications fail
+        console.error('[Posts] Error sending community post notification:', notifError);
+      }
+    }
+
     res.status(201).json(post);
   } catch (error) {
     console.error('Error creating post:', error);
@@ -161,11 +191,47 @@ export function createPostsRouter(storage = defaultStorage) {
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
-    const result = await storage.togglePostVote(postId, userId);
+    const result = await storage.togglePostVote(postId, userId, 'upvote');
+
+    // Notify post author about like (only if liked, not unliked)
+    if (result.voted && result.post && result.post.authorId !== userId) {
+      try {
+        const likerName = await getUserDisplayName(userId);
+        await notifyUserWithPreferences(result.post.authorId, {
+          title: `${likerName} liked your post`,
+          body: truncateText(result.post.title || result.post.content, 80),
+          data: {
+            type: 'post_liked',
+            postId: result.post.id,
+            likerId: userId,
+          },
+          category: 'feed',
+        });
+      } catch (notifError) {
+        console.error('[Posts] Error sending like notification:', notifError);
+      }
+    }
+
     res.json({ ...result.post, userHasUpvoted: result.voted });
   } catch (error) {
     console.error('Error toggling post upvote:', error);
     res.status(500).json(buildErrorResponse('Error toggling post upvote', error));
+  }
+  });
+
+  router.post('/api/posts/:id/downvote', requireAuth, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    const result = await storage.togglePostVote(postId, userId, 'downvote');
+    res.json({ ...result.post, userHasDownvoted: result.voted });
+  } catch (error) {
+    console.error('Error toggling post downvote:', error);
+    res.status(500).json(buildErrorResponse('Error toggling post downvote', error));
   }
   });
 
@@ -185,6 +251,48 @@ export function createPostsRouter(storage = defaultStorage) {
     const userId = requireSessionUserId(req);
     const validatedData = insertCommentSchema.parse({ ...req.body, authorId: userId });
     const comment = await storage.createComment(validatedData);
+
+    // Notify post author or parent comment author
+    try {
+      const commenterName = await getUserDisplayName(userId);
+
+      if (comment.parentCommentId) {
+        // Reply to a comment - notify parent comment author
+        const parentComment = await storage.getComment(comment.parentCommentId);
+        if (parentComment && parentComment.authorId !== userId) {
+          await notifyUserWithPreferences(parentComment.authorId, {
+            title: `${commenterName} replied to your comment`,
+            body: truncateText(comment.content, 80),
+            data: {
+              type: 'comment_reply',
+              postId: comment.postId,
+              commentId: comment.parentCommentId,
+              replyId: comment.id,
+            },
+            category: 'forum',
+          });
+        }
+      } else {
+        // Top-level comment - notify post author
+        const post = await storage.getPost(comment.postId);
+        if (post && post.authorId !== userId) {
+          await notifyUserWithPreferences(post.authorId, {
+            title: `${commenterName} commented on your post`,
+            body: truncateText(comment.content, 80),
+            data: {
+              type: 'post_comment',
+              postId: comment.postId,
+              commentId: comment.id,
+              authorId: userId,
+            },
+            category: 'forum',
+          });
+        }
+      }
+    } catch (notifError) {
+      console.error('[Posts] Error sending comment notification:', notifError);
+    }
+
     res.status(201).json(comment);
   } catch (error) {
     console.error('Error creating comment:', error);
@@ -196,11 +304,23 @@ export function createPostsRouter(storage = defaultStorage) {
   try {
     const commentId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
-    const result = await storage.toggleCommentVote(commentId, userId);
+    const result = await storage.toggleCommentVote(commentId, userId, 'upvote');
     res.json({ ...result.comment, userHasUpvoted: result.voted });
   } catch (error) {
     console.error('Error toggling comment upvote:', error);
     res.status(500).json(buildErrorResponse('Error toggling comment upvote', error));
+  }
+  });
+
+  router.post('/api/comments/:id/downvote', requireAuth, async (req, res) => {
+  try {
+    const commentId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const result = await storage.toggleCommentVote(commentId, userId, 'downvote');
+    res.json({ ...result.comment, userHasDownvoted: result.voted });
+  } catch (error) {
+    console.error('Error toggling comment downvote:', error);
+    res.status(500).json(buildErrorResponse('Error toggling comment downvote', error));
   }
   });
 

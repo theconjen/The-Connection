@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
+import { notifyCommunityMembers, notifyEventAttendees, truncateText } from '../services/notificationHelper';
 
 const router = Router();
 
@@ -151,10 +152,111 @@ router.post('/api/events', requireAuth, async (req, res) => {
 
     const validated = insertEventSchema.parse(payload as any);
     const event = await storage.createEvent(validated);
+
+    // Notify community members about new event
+    if (event.communityId) {
+      try {
+        const community = await storage.getCommunity(event.communityId);
+        const eventLocation = event.isVirtual ? 'Virtual Event' : (event.location || event.city || 'TBD');
+        const eventTime = `${event.eventDate} at ${event.startTime}`;
+
+        await notifyCommunityMembers(
+          event.communityId,
+          {
+            title: `New event: ${truncateText(event.title, 40)}`,
+            body: `${eventTime} - ${eventLocation}`,
+            data: {
+              type: 'event_created',
+              eventId: event.id,
+              communityId: event.communityId,
+            },
+            category: 'event',
+          },
+          [userId] // Exclude event creator
+        );
+        console.info(`[Events] Notified community ${event.communityId} about new event ${event.id}`);
+      } catch (notifError) {
+        console.error('[Events] Error sending event creation notification:', notifError);
+      }
+    }
+
     res.status(201).json(event);
   } catch (error) {
     console.error('Error creating event:', error);
     res.status(500).json(buildErrorResponse('Error creating event', error));
+  }
+});
+
+// Update event - requires event creator or community admin
+router.patch('/api/events/:id', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    // Check if event exists
+    const existingEvent = await storage.getEvent(eventId);
+    if (!existingEvent) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Authorization: must be event creator or community admin
+    const user = await storage.getUser(userId);
+    const isEventCreator = existingEvent.creatorId === userId;
+    const isAppAdmin = user?.isAdmin === true;
+    const isCommunityAdmin = existingEvent.communityId
+      ? await storage.isCommunityModerator(existingEvent.communityId, userId)
+      : false;
+
+    if (!isEventCreator && !isAppAdmin && !isCommunityAdmin) {
+      return res.status(403).json({ error: 'Only event creator or community admins can update this event' });
+    }
+
+    // Build update payload (only include fields that are provided)
+    const updatePayload: any = {};
+    const allowedFields = ['title', 'description', 'eventDate', 'startTime', 'endTime', 'isVirtual',
+                           'location', 'address', 'city', 'state', 'zipCode', 'virtualMeetingUrl', 'isPublic'];
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updatePayload[field] = req.body[field];
+      }
+    }
+
+    // Update event
+    const updatedEvent = await storage.updateEvent(eventId, updatePayload);
+
+    // Notify RSVPed users about event update
+    if (existingEvent.communityId) {
+      try {
+        const changes = Object.keys(updatePayload)
+          .filter(key => ['title', 'eventDate', 'startTime', 'location', 'isVirtual'].includes(key))
+          .join(', ');
+
+        if (changes) {
+          await notifyEventAttendees(
+            eventId,
+            {
+              title: `Event updated: ${truncateText(updatedEvent.title, 40)}`,
+              body: `Changes: ${changes}`,
+              data: {
+                type: 'event_updated',
+                eventId: updatedEvent.id,
+              },
+              category: 'event',
+            },
+            [userId] // Exclude the person making the update
+          );
+          console.info(`[Events] Notified attendees about event ${eventId} update`);
+        }
+      } catch (notifError) {
+        console.error('[Events] Error sending event update notification:', notifError);
+      }
+    }
+
+    res.json(updatedEvent);
+  } catch (error) {
+    console.error('Error updating event:', error);
+    res.status(500).json(buildErrorResponse('Error updating event', error));
   }
 });
 
