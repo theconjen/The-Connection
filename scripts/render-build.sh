@@ -45,6 +45,33 @@ echo "render-build: running pnpm install --no-frozen-lockfile"
 
   if [ "$INSTALL_EXIT" -ne 0 ]; then
     echo "render-build: pnpm install failed; full log saved at /tmp/pnpm-install.log"
+    echo "render-build: /tmp/pnpm-install.exitcode -> $(cat /tmp/pnpm-install.exitcode 2>/dev/null || echo 'MISSING')"
+    echo "render-build: /tmp/pnpm-install.log lines -> $(wc -l < /tmp/pnpm-install.log 2>/dev/null || echo '0')"
+
+    echo "render-build: Searching for error markers in /tmp/pnpm-install.log"
+    # Print grep results with line numbers (first 200 matches shown)
+    grep -n -E "ELIFECYCLE|ERR!|\berror\b|Failed" /tmp/pnpm-install.log | sed -n '1,200p' || true
+
+    # For each matching line, print a window of context (30 lines before/after)
+    # This avoids relying on non-portable sed arithmetic on some hosts.
+    grep -n -E "ELIFECYCLE|ERR!|\berror\b|Failed" /tmp/pnpm-install.log | cut -d: -f1 | uniq | while read -r LN; do
+      if [ -z "${LN}" ]; then
+        continue
+      fi
+      START=$((LN - 30))
+      if [ ${START} -lt 1 ]; then
+        START=1
+      fi
+      END=$((LN + 30))
+      echo "render-build: ---- CONTEXT around line ${LN} (lines ${START}-${END}) ----"
+      sed -n "${START},${END}p" /tmp/pnpm-install.log || true
+      echo "render-build: ---- END CONTEXT ${LN} ----"
+    done
+
+    echo "render-build: ---- FULL /tmp/pnpm-install.log (tail 2000 lines) ----"
+    tail -n 2000 /tmp/pnpm-install.log || true
+    echo "render-build: ---- END FULL LOG (tail) ----"
+
     exit $INSTALL_EXIT
   fi
 }
