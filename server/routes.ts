@@ -8,6 +8,7 @@ import { setupAuth, isAuthenticated, isAdmin } from './auth';
 import { storage as storageReal } from './storage';
 import rateLimit from 'express-rate-limit';
 import { sendPushNotification } from './services/pushService';
+import { notifyUserWithPreferences, truncateText } from './services/notificationHelper';
 import { contentCreationLimiter, messageCreationLimiter } from './rate-limiters';
 
 // NOTE: many of the shared "Insert..." Zod-derived types are being inferred
@@ -344,25 +345,24 @@ export function registerSocketHandlers(
         io.to(`user_${authenticatedUserId}`).emit("new_message", savedMessage);
         io.to(`user_${receiverId}`).emit("new_message", savedMessage);
 
-        // Send push notification to receiver if they're offline
+        // Send notification using dual system (in-app + push)
         try {
-          const pushTokens = await storageDep.getUserPushTokens(parseInt(receiverId));
-          if (pushTokens && pushTokens.length > 0) {
-            const sender = await storageDep.getUser(authenticatedUserId);
-            const senderName = sender?.displayName || sender?.username || 'Someone';
+          const sender = await storageDep.getUser(authenticatedUserId);
+          const senderName = sender?.displayName || sender?.username || 'Someone';
 
-            for (const tokenData of pushTokens) {
-              await pushNotification(
-                tokenData.token,
-                `New message from ${senderName}`,
-                content,
-                { type: 'dm', senderId: authenticatedUserId, messageId: savedMessage.id }
-              );
-            }
-          }
-        } catch (pushError) {
-          logger.error('Error sending push notification:', pushError);
-          // Don't fail the message send if push fails
+          await notifyUserWithPreferences(parseInt(receiverId), {
+            title: `New message from ${senderName}`,
+            body: truncateText(content, 80),
+            data: {
+              type: 'dm',
+              senderId: authenticatedUserId,
+              messageId: savedMessage.id,
+            },
+            category: 'dm',
+          });
+        } catch (notifError) {
+          logger.error('Error sending DM notification:', notifError);
+          // Don't fail the message send if notification fails
         }
       } catch (error) {
         emitSocketError(socket, logger, 'Error handling DM', error, {
@@ -785,7 +785,6 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
           inviter!.displayName || inviter!.username,
           token
         );
-        console.log(`Community invitation email sent to ${email}`);
       } catch (emailError) {
         console.error('Failed to send invitation email:', emailError);
         // Don't fail the request if email fails
@@ -2185,7 +2184,6 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   const userId = requireSessionUserId(req);
       const { contentId, contentType, interactionType } = req.body;
 
-      console.log(`Interaction recorded: User ${userId} -> ${interactionType} on ${contentType} ${contentId}`);
 
       // Store in recommendation system (this would be implemented in storage)
       // await storage.recordUserInteraction(userId, contentId, contentType, interactionType);
