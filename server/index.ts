@@ -1,3 +1,6 @@
+// IMPORTANT: Load dotenv FIRST before any other imports
+import "dotenv/config";
+
 import express, { type NextFunction, type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
 import session from "express-session";
@@ -15,6 +18,7 @@ import { initSentry, Sentry as SentryLib } from './lib/sentry';
 import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
 import { pool } from "./db";
+import { startEventReminderScheduler } from "./services/eventReminderService";
 
 // Hold a module-level reference to the Sentry SDK when initialized so
 // we can mount handlers (tracing + error handler) in other places below.
@@ -190,9 +194,7 @@ async function bootstrap() {
       await runAllMigrations();
       const { runOrganizationMigrations } = await import("./run-migrations-organizations");
       await runOrganizationMigrations();
-      console.log("✅ Database migrations completed");
     } else {
-      console.log("⚠️ Skipping database migrations because USE_DB != 'true'");
     }
   } catch (error) {
     console.error("❌ Error running database migrations:", error);
@@ -269,7 +271,11 @@ async function bootstrap() {
 
   const port = envConfig.port;
   app.listen(port, "0.0.0.0", () => {
-    console.log(`API listening on ${port}`);
+    console.info(`✅ Server listening on http://0.0.0.0:${port}`);
+
+    // Start event reminder scheduler (checks every hour for events in next 24 hours)
+    startEventReminderScheduler();
+    console.info('✅ Event reminder scheduler started');
   });
 }
 
