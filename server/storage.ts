@@ -384,6 +384,7 @@ export interface IStorage {
   // Notifications
   getUserNotifications(userId: number): Promise<any[]>;
   markNotificationAsRead(id: number, userId: number): Promise<boolean>;
+  createNotification(notification: { userId: number; title: string; body: string; data?: any; category?: string }): Promise<any>;
   // Moderation methods
   createContentReport(report: InsertContentReport): Promise<ContentReport>;
   createUserBlock(block: InsertUserBlock): Promise<UserBlock>;
@@ -3605,6 +3606,21 @@ export class DbStorage implements IStorage {
     if (n.userId !== userId) return false;
     await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
     return true;
+  }
+
+  async createNotification(notification: { userId: number; title: string; body: string; data?: any; category?: string }): Promise<any> {
+    const [newNotification] = await db.insert(notifications)
+      .values({
+        userId: notification.userId,
+        title: notification.title,
+        body: notification.body,
+        data: notification.data || null,
+        category: notification.category || 'general',
+        isRead: false
+      })
+      .returning();
+
+    return newNotification;
   }
 }
 

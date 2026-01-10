@@ -206,6 +206,19 @@ router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
         expiresAt
       });
 
+      // Notify community owner about join request
+      const owner = await storage.getCommunityMembers(communityId);
+      const ownerMember = owner.find(m => m.role === 'owner');
+      if (ownerMember) {
+        await storage.createNotification({
+          userId: ownerMember.userId,
+          title: 'New Join Request',
+          body: `${user.displayName || user.username} wants to join ${community.name}`,
+          data: { communityId, userId, type: 'join_request' },
+          category: 'community'
+        });
+      }
+
       return res.json({
         success: true,
         message: 'Join request sent. Waiting for approval from community owner.',
@@ -498,6 +511,224 @@ router.delete('/api/communities/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error deleting community:', error);
     res.status(500).json(buildErrorResponse('Error deleting community', error));
+  }
+});
+
+// Get pending join requests (owner/moderator only)
+router.get('/api/communities/:id/join-requests', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner or moderator
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can view join requests' });
+    }
+
+    // Get pending join requests
+    const allInvitations = await storage.getCommunityInvitations(communityId);
+    const joinRequests = allInvitations.filter((inv: any) =>
+      inv.status === 'pending' && inv.inviterUserId === inv.inviteeUserId
+    );
+
+    res.json(joinRequests);
+  } catch (error) {
+    console.error('Error fetching join requests:', error);
+    res.status(500).json(buildErrorResponse('Error fetching join requests', error));
+  }
+});
+
+// Approve join request (owner/moderator only)
+router.post('/api/communities/:id/join-requests/:requestId/approve', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const requestId = parseInt(req.params.requestId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(requestId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner or moderator
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can approve join requests' });
+    }
+
+    // Get the invitation
+    const invitation = await storage.getCommunityInvitationById(requestId);
+    if (!invitation || invitation.communityId !== communityId) {
+      return res.status(404).json({ message: 'Join request not found' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.status(400).json({ message: 'Join request already processed' });
+    }
+
+    // Add user to community
+    if (invitation.inviteeUserId) {
+      await storage.addCommunityMember({
+        communityId,
+        userId: invitation.inviteeUserId,
+        role: 'member'
+      });
+
+      // Update invitation status
+      await storage.updateCommunityInvitationStatus(requestId, 'accepted');
+
+      // Notify the user
+      await storage.createNotification({
+        userId: invitation.inviteeUserId,
+        title: 'Join Request Approved',
+        body: `Your request to join ${community.name} has been approved!`,
+        data: { communityId, type: 'join_approved' },
+        category: 'community'
+      });
+
+      res.json({
+        success: true,
+        message: 'Join request approved'
+      });
+    } else {
+      return res.status(400).json({ message: 'Invalid join request' });
+    }
+  } catch (error) {
+    console.error('Error approving join request:', error);
+    res.status(500).json(buildErrorResponse('Error approving join request', error));
+  }
+});
+
+// Deny join request (owner/moderator only)
+router.post('/api/communities/:id/join-requests/:requestId/deny', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const requestId = parseInt(req.params.requestId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(requestId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner or moderator
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can deny join requests' });
+    }
+
+    // Get the invitation
+    const invitation = await storage.getCommunityInvitationById(requestId);
+    if (!invitation || invitation.communityId !== communityId) {
+      return res.status(404).json({ message: 'Join request not found' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.status(400).json({ message: 'Join request already processed' });
+    }
+
+    // Update invitation status
+    await storage.updateCommunityInvitationStatus(requestId, 'declined');
+
+    // Notify the user
+    if (invitation.inviteeUserId) {
+      await storage.createNotification({
+        userId: invitation.inviteeUserId,
+        title: 'Join Request Declined',
+        body: `Your request to join ${community.name} was not approved.`,
+        data: { communityId, type: 'join_denied' },
+        category: 'community'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Join request denied'
+    });
+  } catch (error) {
+    console.error('Error denying join request:', error);
+    res.status(500).json(buildErrorResponse('Error denying join request', error));
+  }
+});
+
+// Invite user to community by email (owner/moderator only)
+router.post('/api/communities/:id/invite', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const { email } = req.body;
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ message: 'Valid email is required' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner or moderator
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can send invitations' });
+    }
+
+    // Check if invitation already exists
+    const existingInvitation = await storage.getCommunityInvitationByEmailAndCommunity(email, communityId);
+    if (existingInvitation && existingInvitation.status === 'pending') {
+      return res.status(400).json({ message: 'Invitation already sent to this email' });
+    }
+
+    // Check if user with this email exists
+    const invitedUser = await storage.getUserByEmail(email);
+
+    // Create invitation with 30-day expiration
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const invitation = await storage.createCommunityInvitation({
+      communityId,
+      inviterUserId: userId,
+      inviteeEmail: email,
+      inviteeUserId: invitedUser?.id,
+      status: 'pending',
+      token: `invite-${communityId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      expiresAt
+    });
+
+    // Notify the user if they exist
+    if (invitedUser) {
+      await storage.createNotification({
+        userId: invitedUser.id,
+        title: 'Community Invitation',
+        body: `You've been invited to join ${community.name}`,
+        data: { communityId, invitationId: invitation.id, type: 'community_invite' },
+        category: 'community'
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Invitation sent successfully',
+      invitation
+    });
+  } catch (error) {
+    console.error('Error sending invitation:', error);
+    res.status(500).json(buildErrorResponse('Error sending invitation', error));
   }
 });
 
