@@ -17,6 +17,8 @@ import {
   ApologistScholarApplication, InsertApologistScholarApplication,
   Microblog, InsertMicroblog,
   MicroblogLike, InsertMicroblogLike,
+  MicroblogRepost, InsertMicroblogRepost,
+  MicroblogBookmark, InsertMicroblogBookmark,
   UserPreferences, InsertUserPreferences,
 
   // Apologetics system
@@ -48,7 +50,7 @@ import {
   // Database tables
   users, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
   posts, comments, groups, groupMembers, apologeticsResources,
-  livestreams, microblogs, microblogLikes,
+  livestreams, microblogs, microblogLikes, microblogReposts, microblogBookmarks,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
   events, eventRsvps, prayerRequests, prayers,
   bibleReadingPlans, bibleReadingProgress, bibleStudyNotes,
@@ -328,7 +330,16 @@ export interface IStorage {
   likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike>;
   unlikeMicroblog(microblogId: number, userId: number): Promise<boolean>;
   getUserLikedMicroblogs(userId: number): Promise<Microblog[]>;
-  
+
+  // Microblog repost methods
+  repostMicroblog(microblogId: number, userId: number): Promise<MicroblogRepost>;
+  unrepostMicroblog(microblogId: number, userId: number): Promise<boolean>;
+
+  // Microblog bookmark methods
+  bookmarkMicroblog(microblogId: number, userId: number): Promise<MicroblogBookmark>;
+  unbookmarkMicroblog(microblogId: number, userId: number): Promise<boolean>;
+  getUserBookmarkedMicroblogs(userId: number): Promise<Microblog[]>;
+
   // Livestream methods
   getAllLivestreams(): Promise<Livestream[]>;
   createLivestream(livestream: InsertLivestream): Promise<Livestream>;
@@ -392,8 +403,8 @@ export interface IStorage {
   // Remove a user block (unblock)
   removeUserBlock(blockerId: number, blockedId: number): Promise<boolean>;
   // Voting helpers
-  togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }>;
-  toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }>;
+  togglePostVote(postId: number, userId: number, voteType?: 'upvote' | 'downvote'): Promise<{ voted: boolean; post?: Post }>;
+  toggleCommentVote(commentId: number, userId: number, voteType?: 'upvote' | 'downvote'): Promise<{ voted: boolean; comment?: Comment }>;
   // Email verification helper
   getUserByEmailVerificationToken(token: string): Promise<User | undefined>;
   // Admin moderation helpers
@@ -491,6 +502,8 @@ export class MemStorage implements IStorage {
     eventRsvps: [] as EventRsvp[],
     microblogs: [] as Microblog[],
     microblogLikes: [] as MicroblogLike[],
+    microblogReposts: [] as MicroblogRepost[],
+    microblogBookmarks: [] as MicroblogBookmark[],
     livestreamerApplications: [] as LivestreamerApplication[],
     apologistScholarApplications: [] as ApologistScholarApplication[],
     apologeticsAnswererPermissions: [] as ApologeticsAnswererPermission[],
@@ -1788,7 +1801,77 @@ export class MemStorage implements IStorage {
     const userLikes = this.data.microblogLikes.filter(l => l.userId === userId);
     return userLikes.map(l => this.data.microblogs.find(m => m.id === l.microblogId)!);
   }
-  
+
+  async repostMicroblog(microblogId: number, userId: number): Promise<MicroblogRepost> {
+    // Check if already reposted
+    const existingRepost = this.data.microblogReposts.find(r => r.microblogId === microblogId && r.userId === userId);
+    if (existingRepost) {
+      throw new Error('Already reposted');
+    }
+
+    const newRepost: MicroblogRepost = {
+      id: this.nextId++,
+      microblogId,
+      userId,
+      createdAt: new Date()
+    };
+    this.data.microblogReposts.push(newRepost);
+
+    // Update microblog repost count
+    const microblog = this.data.microblogs.find(m => m.id === microblogId);
+    if (microblog) {
+      microblog.repostCount = (microblog.repostCount || 0) + 1;
+    }
+
+    return newRepost;
+  }
+
+  async unrepostMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    const index = this.data.microblogReposts.findIndex(r => r.microblogId === microblogId && r.userId === userId);
+    if (index === -1) return false;
+
+    this.data.microblogReposts.splice(index, 1);
+
+    // Update microblog repost count
+    const microblog = this.data.microblogs.find(m => m.id === microblogId);
+    if (microblog && microblog.repostCount > 0) {
+      microblog.repostCount--;
+    }
+
+    return true;
+  }
+
+  async bookmarkMicroblog(microblogId: number, userId: number): Promise<MicroblogBookmark> {
+    // Check if already bookmarked
+    const existingBookmark = this.data.microblogBookmarks.find(b => b.microblogId === microblogId && b.userId === userId);
+    if (existingBookmark) {
+      throw new Error('Already bookmarked');
+    }
+
+    const newBookmark: MicroblogBookmark = {
+      id: this.nextId++,
+      microblogId,
+      userId,
+      createdAt: new Date()
+    };
+    this.data.microblogBookmarks.push(newBookmark);
+
+    return newBookmark;
+  }
+
+  async unbookmarkMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    const index = this.data.microblogBookmarks.findIndex(b => b.microblogId === microblogId && b.userId === userId);
+    if (index === -1) return false;
+
+    this.data.microblogBookmarks.splice(index, 1);
+    return true;
+  }
+
+  async getUserBookmarkedMicroblogs(userId: number): Promise<Microblog[]> {
+    const bookmarks = this.data.microblogBookmarks.filter(b => b.userId === userId);
+    return bookmarks.map(b => this.data.microblogs.find(m => m.id === b.microblogId)!).filter(Boolean);
+  }
+
   // Livestreamer application methods
   async getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined> {
     return this.data.livestreamerApplications.find(a => a.userId === userId);
@@ -2147,37 +2230,69 @@ export class MemStorage implements IStorage {
   }
 
   // Toggle post vote (in-memory)
-  async togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }> {
+  async togglePostVote(postId: number, userId: number, voteType: 'upvote' | 'downvote' = 'upvote'): Promise<{ voted: boolean; post?: Post }> {
     // Simple in-memory vote tracking store
     if (!(this.data as any).postVotes) (this.data as any).postVotes = [] as any[];
     const pv = (this.data as any).postVotes as any[];
     const idx = pv.findIndex(v => v.postId === postId && v.userId === userId);
     const post = this.data.posts.find((p: any) => p.id === postId);
     if (!post) throw new Error('Post not found');
+
     if (idx !== -1) {
-      pv.splice(idx, 1);
-      post.upvotes = Math.max(0, (post.upvotes || 0) - 1);
-      return { voted: false, post };
+      const existingVote = pv[idx];
+      // If clicking same vote type, remove it
+      if (existingVote.voteType === voteType) {
+        pv.splice(idx, 1);
+        const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        post[field] = Math.max(0, (post[field] || 0) - 1);
+        return { voted: false, post };
+      } else {
+        // Switch vote type
+        existingVote.voteType = voteType;
+        const oldField = voteType === 'upvote' ? 'downvotes' : 'upvotes';
+        const newField = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        post[oldField] = Math.max(0, (post[oldField] || 0) - 1);
+        post[newField] = (post[newField] || 0) + 1;
+        return { voted: true, post };
+      }
     }
-    pv.push({ id: this.nextId++, postId, userId, createdAt: new Date() });
-    post.upvotes = (post.upvotes || 0) + 1;
+
+    pv.push({ id: this.nextId++, postId, userId, voteType, createdAt: new Date() });
+    const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+    post[field] = (post[field] || 0) + 1;
     return { voted: true, post };
   }
 
   // Toggle comment vote (in-memory)
-  async toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }> {
+  async toggleCommentVote(commentId: number, userId: number, voteType: 'upvote' | 'downvote' = 'upvote'): Promise<{ voted: boolean; comment?: Comment }> {
     if (!(this.data as any).commentVotes) (this.data as any).commentVotes = [] as any[];
     const cv = (this.data as any).commentVotes as any[];
     const idx = cv.findIndex(v => v.commentId === commentId && v.userId === userId);
     const comment = this.data.comments.find((c: any) => c.id === commentId);
     if (!comment) throw new Error('Comment not found');
+
     if (idx !== -1) {
-      cv.splice(idx, 1);
-      comment.upvotes = Math.max(0, (comment.upvotes || 0) - 1);
-      return { voted: false, comment };
+      const existingVote = cv[idx];
+      // If clicking same vote type, remove it
+      if (existingVote.voteType === voteType) {
+        cv.splice(idx, 1);
+        const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        comment[field] = Math.max(0, (comment[field] || 0) - 1);
+        return { voted: false, comment };
+      } else {
+        // Switch vote type
+        existingVote.voteType = voteType;
+        const oldField = voteType === 'upvote' ? 'downvotes' : 'upvotes';
+        const newField = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        comment[oldField] = Math.max(0, (comment[oldField] || 0) - 1);
+        comment[newField] = (comment[newField] || 0) + 1;
+        return { voted: true, comment };
+      }
     }
-    cv.push({ id: this.nextId++, commentId, userId, createdAt: new Date() });
-    comment.upvotes = (comment.upvotes || 0) + 1;
+
+    cv.push({ id: this.nextId++, commentId, userId, voteType, createdAt: new Date() });
+    const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+    comment[field] = (comment[field] || 0) + 1;
     return { voted: true, comment };
   }
 
@@ -2291,31 +2406,97 @@ export class DbStorage implements IStorage {
     return remaining.length === 0;
   }
 
-  // Toggle post vote (DB)
-  async togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }> {
+  // Toggle post vote (DB) - supports upvote and downvote
+  async togglePostVote(postId: number, userId: number, voteType: 'upvote' | 'downvote' = 'upvote'): Promise<{ voted: boolean; post?: Post }> {
     // Check existing vote
     const existing = await db.select().from(postVotes).where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
+
     if (existing && existing.length > 0) {
-      await db.delete(postVotes).where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
-      // decrement post count
-      const updated = await db.update(posts).set({ upvotes: sql`GREATEST(${posts.upvotes} - 1, 0)` as any }).where(eq(posts.id, postId)).returning();
-      return { voted: false, post: updated[0] } as any;
+      const existingVote = existing[0];
+      // If clicking the same vote type, remove the vote
+      if ((existingVote as any).voteType === voteType) {
+        await db.delete(postVotes).where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
+        // Decrement the appropriate count
+        const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        const updated = await db.update(posts)
+          .set({ [field]: sql`GREATEST(${posts[field]} - 1, 0)` as any })
+          .where(eq(posts.id, postId))
+          .returning();
+        return { voted: false, post: updated[0] } as any;
+      } else {
+        // If clicking opposite vote type, switch the vote
+        await db.update(postVotes)
+          .set({ voteType: voteType as any })
+          .where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
+
+        // Decrement old vote type, increment new vote type
+        const oldField = voteType === 'upvote' ? 'downvotes' : 'upvotes';
+        const newField = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        const updated = await db.update(posts)
+          .set({
+            [oldField]: sql`GREATEST(${posts[oldField]} - 1, 0)` as any,
+            [newField]: sql`${posts[newField]} + 1` as any
+          })
+          .where(eq(posts.id, postId))
+          .returning();
+        return { voted: true, post: updated[0] } as any;
+      }
     }
-    await db.insert(postVotes).values({ postId, userId } as any);
-    const updated = await db.update(posts).set({ upvotes: sql`${posts.upvotes} + 1` as any }).where(eq(posts.id, postId)).returning();
+
+    // No existing vote, add new vote
+    await db.insert(postVotes).values({ postId, userId, voteType: voteType as any } as any);
+    const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+    const updated = await db.update(posts)
+      .set({ [field]: sql`${posts[field]} + 1` as any })
+      .where(eq(posts.id, postId))
+      .returning();
     return { voted: true, post: updated[0] } as any;
   }
 
-  // Toggle comment vote (DB)
-  async toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }> {
+  // Toggle comment vote (DB) - supports upvote and downvote
+  async toggleCommentVote(commentId: number, userId: number, voteType: 'upvote' | 'downvote' = 'upvote'): Promise<{ voted: boolean; comment?: Comment }> {
+    // Check existing vote
     const existing = await db.select().from(commentVotes).where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
+
     if (existing && existing.length > 0) {
-      await db.delete(commentVotes).where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
-      const updated = await db.update(comments).set({ upvotes: sql`GREATEST(${comments.upvotes} - 1, 0)` as any }).where(eq(comments.id, commentId)).returning();
-      return { voted: false, comment: updated[0] } as any;
+      const existingVote = existing[0];
+      // If clicking the same vote type, remove the vote
+      if ((existingVote as any).voteType === voteType) {
+        await db.delete(commentVotes).where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
+        // Decrement the appropriate count
+        const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        const updated = await db.update(comments)
+          .set({ [field]: sql`GREATEST(${comments[field]} - 1, 0)` as any })
+          .where(eq(comments.id, commentId))
+          .returning();
+        return { voted: false, comment: updated[0] } as any;
+      } else {
+        // If clicking opposite vote type, switch the vote
+        await db.update(commentVotes)
+          .set({ voteType: voteType as any })
+          .where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
+
+        // Decrement old vote type, increment new vote type
+        const oldField = voteType === 'upvote' ? 'downvotes' : 'upvotes';
+        const newField = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        const updated = await db.update(comments)
+          .set({
+            [oldField]: sql`GREATEST(${comments[oldField]} - 1, 0)` as any,
+            [newField]: sql`${comments[newField]} + 1` as any
+          })
+          .where(eq(comments.id, commentId))
+          .returning();
+        return { voted: true, comment: updated[0] } as any;
+      }
     }
-    await db.insert(commentVotes).values({ commentId, userId } as any);
-    const updated = await db.update(comments).set({ upvotes: sql`${comments.upvotes} + 1` as any }).where(eq(comments.id, commentId)).returning();
+
+    // No existing vote, add new vote
+    await db.insert(commentVotes).values({ commentId, userId, voteType: voteType as any } as any);
+    const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+    const updated = await db.update(comments)
+      .set({ [field]: sql`${comments[field]} + 1` as any })
+      .where(eq(comments.id, commentId))
+      .returning();
     return { voted: true, comment: updated[0] } as any;
   }
 
@@ -2362,8 +2543,18 @@ export class DbStorage implements IStorage {
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    console.log('[DbStorage.updateUser] Updating user', id, 'with data:', userData);
     const result = await db.update(users).set(userData).where(eq(users.id, id)).returning();
     if (!result[0]) throw new Error('User not found');
+    console.log('[DbStorage.updateUser] Update successful, returning:', {
+      id: result[0].id,
+      location: result[0].location,
+      denomination: result[0].denomination,
+      homeChurch: result[0].homeChurch,
+      favoriteBibleVerse: result[0].favoriteBibleVerse,
+      testimony: result[0].testimony,
+      interests: result[0].interests
+    });
     return result[0];
   }
   
@@ -3324,17 +3515,173 @@ export class DbStorage implements IStorage {
 
   // Microblog like methods
   async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
-    throw new Error('Not implemented');
+    // Check if already liked
+    const existing = await db
+      .select()
+      .from(microblogLikes)
+      .where(and(
+        eq(microblogLikes.microblogId, microblogId),
+        eq(microblogLikes.userId, userId)
+      ));
+
+    if (existing.length > 0) {
+      throw new Error('Already liked');
+    }
+
+    // Insert like
+    const [newLike] = await db
+      .insert(microblogLikes)
+      .values({ microblogId, userId } as any)
+      .returning();
+
+    // Increment like count
+    await db
+      .update(microblogs)
+      .set({ likeCount: sql`COALESCE(${microblogs.likeCount}, 0) + 1` as any })
+      .where(eq(microblogs.id, microblogId));
+
+    return newLike;
   }
-  
+
   async unlikeMicroblog(microblogId: number, userId: number): Promise<boolean> {
-    return false;
+    // Delete like
+    const deleted = await db
+      .delete(microblogLikes)
+      .where(and(
+        eq(microblogLikes.microblogId, microblogId),
+        eq(microblogLikes.userId, userId)
+      ))
+      .returning();
+
+    if (deleted.length === 0) return false;
+
+    // Decrement like count
+    await db
+      .update(microblogs)
+      .set({ likeCount: sql`GREATEST(COALESCE(${microblogs.likeCount}, 0) - 1, 0)` as any })
+      .where(eq(microblogs.id, microblogId));
+
+    return true;
   }
-  
+
   async getUserLikedMicroblogs(userId: number): Promise<Microblog[]> {
-    return [];
+    const likes = await db
+      .select()
+      .from(microblogLikes)
+      .where(eq(microblogLikes.userId, userId));
+
+    const microblogIds = likes.map(l => l.microblogId);
+    if (microblogIds.length === 0) return [];
+
+    return await db
+      .select()
+      .from(microblogs)
+      .where(inArray(microblogs.id, microblogIds));
   }
-  
+
+  // Microblog repost methods
+  async repostMicroblog(microblogId: number, userId: number): Promise<MicroblogRepost> {
+    // Check if already reposted
+    const existing = await db
+      .select()
+      .from(microblogReposts)
+      .where(and(
+        eq(microblogReposts.microblogId, microblogId),
+        eq(microblogReposts.userId, userId)
+      ));
+
+    if (existing.length > 0) {
+      throw new Error('Already reposted');
+    }
+
+    // Insert repost
+    const [newRepost] = await db
+      .insert(microblogReposts)
+      .values({ microblogId, userId } as any)
+      .returning();
+
+    // Increment repost count
+    await db
+      .update(microblogs)
+      .set({ repostCount: sql`COALESCE(${microblogs.repostCount}, 0) + 1` as any })
+      .where(eq(microblogs.id, microblogId));
+
+    return newRepost;
+  }
+
+  async unrepostMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    // Delete repost
+    const deleted = await db
+      .delete(microblogReposts)
+      .where(and(
+        eq(microblogReposts.microblogId, microblogId),
+        eq(microblogReposts.userId, userId)
+      ))
+      .returning();
+
+    if (deleted.length === 0) return false;
+
+    // Decrement repost count
+    await db
+      .update(microblogs)
+      .set({ repostCount: sql`GREATEST(COALESCE(${microblogs.repostCount}, 0) - 1, 0)` as any })
+      .where(eq(microblogs.id, microblogId));
+
+    return true;
+  }
+
+  // Microblog bookmark methods
+  async bookmarkMicroblog(microblogId: number, userId: number): Promise<MicroblogBookmark> {
+    // Check if already bookmarked
+    const existing = await db
+      .select()
+      .from(microblogBookmarks)
+      .where(and(
+        eq(microblogBookmarks.microblogId, microblogId),
+        eq(microblogBookmarks.userId, userId)
+      ));
+
+    if (existing.length > 0) {
+      throw new Error('Already bookmarked');
+    }
+
+    // Insert bookmark
+    const [newBookmark] = await db
+      .insert(microblogBookmarks)
+      .values({ microblogId, userId } as any)
+      .returning();
+
+    return newBookmark;
+  }
+
+  async unbookmarkMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    // Delete bookmark
+    const deleted = await db
+      .delete(microblogBookmarks)
+      .where(and(
+        eq(microblogBookmarks.microblogId, microblogId),
+        eq(microblogBookmarks.userId, userId)
+      ))
+      .returning();
+
+    return deleted.length > 0;
+  }
+
+  async getUserBookmarkedMicroblogs(userId: number): Promise<Microblog[]> {
+    const bookmarks = await db
+      .select()
+      .from(microblogBookmarks)
+      .where(eq(microblogBookmarks.userId, userId));
+
+    const microblogIds = bookmarks.map(b => b.microblogId);
+    if (microblogIds.length === 0) return [];
+
+    return await db
+      .select()
+      .from(microblogs)
+      .where(inArray(microblogs.id, microblogIds));
+  }
+
   // Livestreamer application methods
   async getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined> {
     return undefined;
