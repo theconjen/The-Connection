@@ -42,12 +42,11 @@ CREATE INDEX IF NOT EXISTS idx_posts_upvotes ON posts(upvotes DESC);
 
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_author_id ON comments(author_id);
-CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_comment_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_id);
 CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_comments_deleted_at ON comments(deleted_at);
 
 -- Composite for fetching post comments in order
-CREATE INDEX IF NOT EXISTS idx_comments_post_created ON comments(post_id, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_comments_post_created ON comments(post_id, created_at DESC);
 
 
 -- ============================================================================
@@ -87,7 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_community_members_user_community ON community_mem
 
 CREATE INDEX IF NOT EXISTS idx_microblogs_author_id ON microblogs(author_id);
 CREATE INDEX IF NOT EXISTS idx_microblogs_created_at ON microblogs(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_microblogs_parent_id ON microblogs(parent_microblog_id);
+CREATE INDEX IF NOT EXISTS idx_microblogs_parent_id ON microblogs(parent_id);
 
 -- Composite for user's microblog timeline
 CREATE INDEX IF NOT EXISTS idx_microblogs_author_created ON microblogs(author_id, created_at DESC);
@@ -120,10 +119,9 @@ CREATE INDEX IF NOT EXISTS idx_events_creator_id ON events(creator_id);
 CREATE INDEX IF NOT EXISTS idx_events_event_date ON events(event_date);
 CREATE INDEX IF NOT EXISTS idx_events_start_time ON events(start_time);
 CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_events_deleted_at ON events(deleted_at);
 
 -- Composite for community event calendar
-CREATE INDEX IF NOT EXISTS idx_events_community_date ON events(community_id, event_date) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_events_community_date ON events(community_id, event_date);
 
 -- For nearby events (geospatial queries)
 CREATE INDEX IF NOT EXISTS idx_events_latitude ON events(latitude) WHERE latitude IS NOT NULL;
@@ -148,7 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_prayer_requests_answered_created ON prayer_reques
 -- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_prayers_request_id ON prayers(prayer_request_id);
 CREATE INDEX IF NOT EXISTS idx_prayers_user_id ON prayers(user_id);
-CREATE INDEX IF NOT EXISTS idx_prayers_prayed_at ON prayers(prayed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_prayers_created_at ON prayers(created_at DESC);
 
 
 -- ============================================================================
@@ -188,10 +186,9 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_room_created ON chat_messages(chat_
 CREATE INDEX IF NOT EXISTS idx_community_wall_posts_community_id ON community_wall_posts(community_id);
 CREATE INDEX IF NOT EXISTS idx_community_wall_posts_author_id ON community_wall_posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_community_wall_posts_created_at ON community_wall_posts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_community_wall_posts_deleted_at ON community_wall_posts(deleted_at);
 
 -- Composite for community wall feed
-CREATE INDEX IF NOT EXISTS idx_community_wall_community_created ON community_wall_posts(community_id, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_community_wall_community_created ON community_wall_posts(community_id, created_at DESC);
 
 
 -- ============================================================================
@@ -227,7 +224,7 @@ CREATE INDEX IF NOT EXISTS idx_group_members_user_group ON group_members(user_id
 -- Audit logs are queried by user and timestamp for security investigations
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
 
 
 -- ============================================================================
@@ -237,7 +234,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC
 CREATE INDEX IF NOT EXISTS idx_communities_created_by ON communities(created_by);
 CREATE INDEX IF NOT EXISTS idx_communities_created_at ON communities(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_communities_deleted_at ON communities(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_communities_privacy_setting ON communities(privacy_setting);
+CREATE INDEX IF NOT EXISTS idx_communities_is_private ON communities(is_private);
 
 
 -- ============================================================================
