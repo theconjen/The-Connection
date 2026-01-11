@@ -99,6 +99,7 @@ import apologeticsRoutes from './routes/apologetics';
 import moderationRoutes from './routes/moderation';
 import followRoutes from './routes/follow';
 import passwordResetRoutes from './routes/passwordReset';
+import uploadRoutes from './routes/upload';
 import { chatMessagesQuerySchema } from './routes/chatMessages';
 
 declare module 'express-session' {
@@ -425,6 +426,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api', moderationRoutes);
     app.use('/api/admin', adminRoutes);
     app.use('/api', followRoutes);
+    app.use('/api', uploadRoutes); // File upload routes (GCS)
   }
 
   if (FEATURES.ORGS) {

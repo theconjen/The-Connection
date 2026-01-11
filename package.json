@@ -14,7 +14,12 @@
     "test:api": "vitest run tests/api",
     "eas": "pnpm dlx eas-cli",
     "android": "pnpm -C mobile-app/TheConnectionMobile-new run android",
-    "ios": "pnpm -C mobile-app/TheConnectionMobile-new run ios"
+    "ios": "pnpm -C mobile-app/TheConnectionMobile-new run ios",
+    "clean:logs": "node scripts/remove-console-logs.cjs",
+    "clean:logs:check": "node scripts/remove-console-logs.cjs --dry-run",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
+    "prepare": "node -e \"try { require('husky').default.install() } catch (e) {}\""
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
