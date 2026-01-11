@@ -2543,10 +2543,10 @@ export class DbStorage implements IStorage {
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User> {
-    console.log('[DbStorage.updateUser] Updating user', id, 'with data:', userData);
+    console.info('[DbStorage.updateUser] Updating user', id, 'with data:', userData);
     const result = await db.update(users).set(userData).where(eq(users.id, id)).returning();
     if (!result[0]) throw new Error('User not found');
-    console.log('[DbStorage.updateUser] Update successful, returning:', {
+    console.info('[DbStorage.updateUser] Update successful, returning:', {
       id: result[0].id,
       location: result[0].location,
       denomination: result[0].denomination,
@@ -2981,40 +2981,111 @@ export class DbStorage implements IStorage {
   
   // Community chat room methods
   async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
-    return [];
+    return await db.select()
+      .from(communityChatRooms)
+      .where(eq(communityChatRooms.communityId, communityId))
+      .orderBy(communityChatRooms.name);
   }
-  
+
   async getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
-    return [];
+    return await db.select()
+      .from(communityChatRooms)
+      .where(and(
+        eq(communityChatRooms.communityId, communityId),
+        eq(communityChatRooms.isPrivate, false)
+      ))
+      .orderBy(communityChatRooms.name);
   }
-  
+
   async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
-    return undefined;
+    const [room] = await db.select()
+      .from(communityChatRooms)
+      .where(eq(communityChatRooms.id, id))
+      .limit(1);
+    return room;
   }
-  
+
   async createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom> {
-    throw new Error('Not implemented');
+    const [newRoom] = await db.insert(communityChatRooms)
+      .values(room as any)
+      .returning();
+    return newRoom;
   }
-  
+
   async updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(communityChatRooms)
+      .set(data)
+      .where(eq(communityChatRooms.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Community room not found');
+    }
+
+    return updated;
   }
-  
+
   async deleteCommunityRoom(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(communityChatRooms)
+      .where(eq(communityChatRooms.id, id));
+    return true;
   }
   
   // Chat message methods
   async getChatMessages(roomId: number, limit?: number): Promise<(ChatMessage & { sender: User })[]> {
-    return [];
+    const query = db.select()
+      .from(chatMessages)
+      .leftJoin(users, eq(chatMessages.senderId, users.id))
+      .where(eq(chatMessages.chatRoomId, roomId))
+      .orderBy(chatMessages.createdAt);
+
+    const messages = await (limit ? query.limit(limit) : query);
+
+    return messages.map(m => ({
+      id: m.chat_messages.id,
+      content: m.chat_messages.content,
+      chatRoomId: m.chat_messages.chatRoomId,
+      senderId: m.chat_messages.senderId,
+      isSystemMessage: m.chat_messages.isSystemMessage,
+      createdAt: m.chat_messages.createdAt,
+      sender: m.users as User
+    }));
   }
-  
+
   async getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]> {
-    return [];
+    // First get the timestamp of the afterId message
+    const [afterMessage] = await db.select()
+      .from(chatMessages)
+      .where(eq(chatMessages.id, afterId))
+      .limit(1);
+
+    if (!afterMessage) return [];
+
+    const messages = await db.select()
+      .from(chatMessages)
+      .leftJoin(users, eq(chatMessages.senderId, users.id))
+      .where(and(
+        eq(chatMessages.chatRoomId, roomId),
+        sql`${chatMessages.createdAt} > ${afterMessage.createdAt}`
+      ))
+      .orderBy(chatMessages.createdAt);
+
+    return messages.map(m => ({
+      id: m.chat_messages.id,
+      content: m.chat_messages.content,
+      chatRoomId: m.chat_messages.chatRoomId,
+      senderId: m.chat_messages.senderId,
+      isSystemMessage: m.chat_messages.isSystemMessage,
+      createdAt: m.chat_messages.createdAt,
+      sender: m.users as User
+    }));
   }
-  
+
   async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
-    throw new Error('Not implemented');
+    const [newMessage] = await db.insert(chatMessages)
+      .values(message as any)
+      .returning();
+    return newMessage;
   }
   
   async deleteChatMessage(id: number): Promise<boolean> {
@@ -3023,19 +3094,78 @@ export class DbStorage implements IStorage {
   
   // Community wall post methods
   async getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
-    return [];
+    const query = db.select()
+      .from(communityWallPosts)
+      .leftJoin(users, eq(communityWallPosts.authorId, users.id))
+      .where(and(
+        eq(communityWallPosts.communityId, communityId),
+        whereNotDeleted(communityWallPosts),
+        isPrivate !== undefined ? eq(communityWallPosts.isPrivate, isPrivate) : sql`1=1`
+      ))
+      .orderBy(desc(communityWallPosts.createdAt));
+
+    const results = await query;
+    return results.map(r => ({
+      id: r.community_wall_posts.id,
+      communityId: r.community_wall_posts.communityId,
+      authorId: r.community_wall_posts.authorId,
+      content: r.community_wall_posts.content,
+      imageUrl: r.community_wall_posts.imageUrl,
+      isPrivate: r.community_wall_posts.isPrivate,
+      likeCount: r.community_wall_posts.likeCount,
+      commentCount: r.community_wall_posts.commentCount,
+      createdAt: r.community_wall_posts.createdAt,
+      deletedAt: r.community_wall_posts.deletedAt,
+      author: r.users as User
+    }));
   }
-  
+
   async getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined> {
-    return undefined;
+    const [result] = await db.select()
+      .from(communityWallPosts)
+      .leftJoin(users, eq(communityWallPosts.authorId, users.id))
+      .where(and(eq(communityWallPosts.id, id), whereNotDeleted(communityWallPosts)))
+      .limit(1);
+
+    if (!result) return undefined;
+
+    return {
+      id: result.community_wall_posts.id,
+      communityId: result.community_wall_posts.communityId,
+      authorId: result.community_wall_posts.authorId,
+      content: result.community_wall_posts.content,
+      imageUrl: result.community_wall_posts.imageUrl,
+      isPrivate: result.community_wall_posts.isPrivate,
+      likeCount: result.community_wall_posts.likeCount,
+      commentCount: result.community_wall_posts.commentCount,
+      createdAt: result.community_wall_posts.createdAt,
+      deletedAt: result.community_wall_posts.deletedAt,
+      author: result.users as User
+    };
   }
-  
+
   async createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost> {
-    throw new Error('Not implemented');
+    const [newPost] = await db.insert(communityWallPosts)
+      .values({
+        ...post,
+        likeCount: 0,
+        commentCount: 0,
+      } as any)
+      .returning();
+    return newPost;
   }
-  
+
   async updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(communityWallPosts)
+      .set(data)
+      .where(and(eq(communityWallPosts.id, id), whereNotDeleted(communityWallPosts)))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Community wall post not found');
+    }
+
+    return updated;
   }
   
   async deleteCommunityWallPost(id: number): Promise<boolean> {
@@ -3070,11 +3200,48 @@ export class DbStorage implements IStorage {
   }
   
   async getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]> {
-    return [];
+    // First find the community by slug
+    const [community] = await db.select()
+      .from(communities)
+      .where(eq(communities.slug, communitySlug))
+      .limit(1);
+
+    if (!community) return [];
+
+    // Get posts for this community
+    let query = db.select()
+      .from(posts)
+      .where(and(
+        eq(posts.communityId, community.id),
+        whereNotDeleted(posts)
+      ));
+
+    // Apply sorting based on filter
+    if (filter === 'top') {
+      return await query.orderBy(desc(posts.upvotes));
+    } else if (filter === 'hot') {
+      return await query.orderBy(desc(posts.upvotes), desc(posts.createdAt));
+    } else {
+      return await query.orderBy(desc(posts.createdAt));
+    }
   }
-  
+
   async getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]> {
-    return [];
+    let query = db.select()
+      .from(posts)
+      .where(and(
+        eq(posts.groupId, groupId),
+        whereNotDeleted(posts)
+      ));
+
+    // Apply sorting based on filter
+    if (filter === 'top') {
+      return await query.orderBy(desc(posts.upvotes));
+    } else if (filter === 'hot') {
+      return await query.orderBy(desc(posts.upvotes), desc(posts.createdAt));
+    } else {
+      return await query.orderBy(desc(posts.createdAt));
+    }
   }
   
   async getUserPosts(userId: number): Promise<any[]> {
@@ -3089,7 +3256,15 @@ export class DbStorage implements IStorage {
   }
   
   async createPost(post: InsertPost): Promise<Post> {
-    throw new Error('Not implemented');
+    const [newPost] = await db.insert(posts)
+      .values({
+        ...post,
+        upvotes: 0,
+        downvotes: 0,
+        commentCount: 0,
+      } as any)
+      .returning();
+    return newPost;
   }
 
   async updatePost(id: number, data: Partial<Post>): Promise<Post> {
@@ -3109,7 +3284,16 @@ export class DbStorage implements IStorage {
   }
   
   async upvotePost(id: number): Promise<Post> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(posts)
+      .set({ upvotes: sql`${posts.upvotes} + 1` })
+      .where(and(eq(posts.id, id), whereNotDeleted(posts)))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Post not found');
+    }
+
+    return updated;
   }
 
   async searchPosts(searchTerm: string): Promise<Post[]> {
@@ -3146,41 +3330,99 @@ export class DbStorage implements IStorage {
   }
   
   async createComment(comment: InsertComment): Promise<Comment> {
-    throw new Error('Not implemented');
+    const [newComment] = await db.insert(comments)
+      .values({
+        ...comment,
+        upvotes: 0,
+        downvotes: 0,
+      } as any)
+      .returning();
+
+    // Update post comment count
+    if (newComment.postId) {
+      await db.update(posts)
+        .set({ commentCount: sql`${posts.commentCount} + 1` })
+        .where(eq(posts.id, newComment.postId));
+    }
+
+    return newComment;
   }
   
   async upvoteComment(id: number): Promise<Comment> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(comments)
+      .set({ upvotes: sql`${comments.upvotes} + 1` })
+      .where(and(eq(comments.id, id), whereNotDeleted(comments)))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Comment not found');
+    }
+
+    return updated;
   }
   
   // Group methods
   async getGroup(id: number): Promise<Group | undefined> {
-    return undefined;
+    const [group] = await db.select()
+      .from(groups)
+      .where(eq(groups.id, id))
+      .limit(1);
+    return group;
   }
-  
+
   async getGroupsByUserId(userId: number): Promise<Group[]> {
-    return [];
+    const userGroups = await db.select()
+      .from(groupMembers)
+      .leftJoin(groups, eq(groupMembers.groupId, groups.id))
+      .where(eq(groupMembers.userId, userId));
+
+    return userGroups.map(ug => ug.groups as Group).filter(Boolean);
   }
-  
+
   async createGroup(group: InsertGroup): Promise<Group> {
-    throw new Error('Not implemented');
+    const [newGroup] = await db.insert(groups)
+      .values(group as any)
+      .returning();
+    return newGroup;
   }
-  
+
   // Group member methods
   async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
-    throw new Error('Not implemented');
+    const [newMember] = await db.insert(groupMembers)
+      .values(member as any)
+      .returning();
+    return newMember;
   }
-  
+
   async getGroupMembers(groupId: number): Promise<GroupMember[]> {
-    return [];
+    return await db.select()
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
   }
-  
+
   async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(groupMembers)
+      .where(and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.role, 'admin')
+      ))
+      .limit(1);
+
+    return !!member;
   }
-  
+
   async isGroupMember(groupId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(groupMembers)
+      .where(and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId)
+      ))
+      .limit(1);
+
+    return !!member;
   }
 
   // Apologetics resource methods
@@ -3207,23 +3449,44 @@ export class DbStorage implements IStorage {
   
   // Prayer request methods
   async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
-    return [];
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.privacyLevel, 'public'))
+      .orderBy(desc(prayerRequests.createdAt));
   }
-  
+
   async getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]> {
-    return [];
+    let query = db.select().from(prayerRequests);
+
+    if (filter === 'answered') {
+      query = query.where(eq(prayerRequests.isAnswered, true));
+    } else if (filter === 'active') {
+      query = query.where(eq(prayerRequests.isAnswered, false));
+    }
+
+    return await query.orderBy(desc(prayerRequests.createdAt));
   }
-  
+
   async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
-    return undefined;
+    const [prayer] = await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.id, id))
+      .limit(1);
+    return prayer;
   }
-  
+
   async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
-    return [];
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.authorId, userId))
+      .orderBy(desc(prayerRequests.createdAt));
   }
-  
+
   async getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]> {
-    return [];
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.groupId, groupId))
+      .orderBy(desc(prayerRequests.createdAt));
   }
   
   async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
@@ -3255,19 +3518,51 @@ export class DbStorage implements IStorage {
   }
   
   async createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest> {
-    throw new Error('Not implemented');
+    const [newPrayer] = await db.insert(prayerRequests)
+      .values({
+        ...prayer,
+        prayerCount: 0,
+        isAnswered: false,
+        answeredDescription: null,
+      } as any)
+      .returning();
+    return newPrayer;
   }
-  
+
   async updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(prayerRequests)
+      .set({ ...prayer, updatedAt: new Date() })
+      .where(eq(prayerRequests.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Prayer request not found');
+    }
+
+    return updated;
   }
-  
+
   async markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(prayerRequests)
+      .set({
+        isAnswered: true,
+        answeredDescription: description,
+        updatedAt: new Date()
+      })
+      .where(eq(prayerRequests.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Prayer request not found');
+    }
+
+    return updated;
   }
-  
+
   async deletePrayerRequest(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(prayerRequests)
+      .where(eq(prayerRequests.id, id));
+    return true;
   }
 
   async searchPrayerRequests(searchTerm: string): Promise<PrayerRequest[]> {
@@ -3282,15 +3577,31 @@ export class DbStorage implements IStorage {
 
   // Prayer methods
   async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
-    throw new Error('Not implemented');
+    const [newPrayer] = await db.insert(prayers)
+      .values(prayer as any)
+      .returning();
+
+    // Increment prayer count on the prayer request
+    await db.update(prayerRequests)
+      .set({ prayerCount: sql`${prayerRequests.prayerCount} + 1` })
+      .where(eq(prayerRequests.id, prayer.prayerRequestId));
+
+    return newPrayer;
   }
-  
+
   async getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]> {
-    return [];
+    return await db.select()
+      .from(prayers)
+      .where(eq(prayers.prayerRequestId, prayerRequestId))
+      .orderBy(desc(prayers.prayedAt));
   }
-  
+
   async getUserPrayedRequests(userId: number): Promise<number[]> {
-    return [];
+    const prayers = await db.select({ prayerRequestId: prayers.prayerRequestId })
+      .from(prayers)
+      .where(eq(prayers.userId, userId));
+
+    return prayers.map(p => p.prayerRequestId);
   }
 
   // Apologetics Q&A methods
@@ -3447,11 +3758,23 @@ export class DbStorage implements IStorage {
   }
   
   async createEvent(event: InsertEvent): Promise<Event> {
-    throw new Error('Not implemented');
+    const [newEvent] = await db.insert(events)
+      .values(event as any)
+      .returning();
+    return newEvent;
   }
-  
+
   async updateEvent(id: number, data: Partial<Event>): Promise<Event> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(events)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(events.id, id), whereNotDeleted(events)))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Event not found');
+    }
+
+    return updated;
   }
   
   async deleteEvent(id: number): Promise<boolean> {
@@ -3534,7 +3857,9 @@ export class DbStorage implements IStorage {
   
   // Livestream methods
   async getAllLivestreams(): Promise<Livestream[]> {
-    return [];
+    return await db.select()
+      .from(livestreams)
+      .orderBy(desc(livestreams.createdAt));
   }
   
   async createLivestream(livestream: InsertLivestream): Promise<Livestream> {
@@ -3567,15 +3892,34 @@ export class DbStorage implements IStorage {
   }
   
   async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
-    throw new Error('Not implemented');
+    const [newMicroblog] = await db.insert(microblogs)
+      .values({
+        ...microblog,
+        likeCount: 0,
+        repostCount: 0,
+        replyCount: 0,
+      } as any)
+      .returning();
+    return newMicroblog;
   }
-  
+
   async updateMicroblog(id: number, data: Partial<Microblog>): Promise<Microblog> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(microblogs)
+      .set(data)
+      .where(eq(microblogs.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Microblog not found');
+    }
+
+    return updated;
   }
-  
+
   async deleteMicroblog(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(microblogs)
+      .where(eq(microblogs.id, id));
+    return true;
   }
 
   async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
