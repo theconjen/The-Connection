@@ -2776,13 +2776,35 @@ export class DbStorage implements IStorage {
     return !!result;
   }
   
-  // Placeholder implementations for other methods - can be expanded as needed
+  // Get all members of a community with their user data
   async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
-    return [];
+    const members = await db.select()
+      .from(communityMembers)
+      .leftJoin(users, eq(communityMembers.userId, users.id))
+      .where(eq(communityMembers.communityId, communityId));
+
+    return members.map(m => ({
+      id: m.community_members.id,
+      communityId: m.community_members.communityId,
+      userId: m.community_members.userId,
+      role: m.community_members.role,
+      joinedAt: m.community_members.joinedAt,
+      user: m.users as User
+    }));
   }
-  
+
   async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
-    return undefined;
+    const [member] = await db.select()
+      .from(communityMembers)
+      .where(
+        and(
+          eq(communityMembers.communityId, communityId),
+          eq(communityMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    return member;
   }
   
   async getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]> {
@@ -3023,11 +3045,28 @@ export class DbStorage implements IStorage {
   
   // Post methods
   async getAllPosts(filter?: string): Promise<Post[]> {
-    return [];
+    let query = db.select()
+      .from(posts)
+      .where(whereNotDeleted(posts));
+
+    // Apply sorting based on filter
+    if (filter === 'top') {
+      return await query.orderBy(desc(posts.upvotes));
+    } else if (filter === 'hot') {
+      // For hot, we'll use a combination of upvotes and recency
+      return await query.orderBy(desc(posts.upvotes), desc(posts.createdAt));
+    } else {
+      // Default: newest first
+      return await query.orderBy(desc(posts.createdAt));
+    }
   }
-  
+
   async getPost(id: number): Promise<Post | undefined> {
-    return undefined;
+    const [post] = await db.select()
+      .from(posts)
+      .where(and(eq(posts.id, id), whereNotDeleted(posts)))
+      .limit(1);
+    return post;
   }
   
   async getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]> {
@@ -3088,11 +3127,22 @@ export class DbStorage implements IStorage {
 
   // Comment methods
   async getComment(id: number): Promise<Comment | undefined> {
-    return undefined;
+    const [comment] = await db.select()
+      .from(comments)
+      .where(and(eq(comments.id, id), whereNotDeleted(comments)))
+      .limit(1);
+    return comment;
   }
   
   async getCommentsByPostId(postId: number): Promise<Comment[]> {
-    return [];
+    const postComments = await db.select()
+      .from(comments)
+      .where(and(
+        eq(comments.postId, postId),
+        whereNotDeleted(comments)
+      ))
+      .orderBy(desc(comments.createdAt));
+    return postComments;
   }
   
   async createComment(comment: InsertComment): Promise<Comment> {
@@ -3370,15 +3420,30 @@ export class DbStorage implements IStorage {
 
   // Event methods
   async getAllEvents(): Promise<Event[]> {
-    return [];
+    const allEvents = await db.select()
+      .from(events)
+      .where(whereNotDeleted(events))
+      .orderBy(events.eventDate, events.startTime);
+    return allEvents;
   }
-  
+
   async getEvent(id: number): Promise<Event | undefined> {
-    return undefined;
+    const [event] = await db.select()
+      .from(events)
+      .where(and(eq(events.id, id), whereNotDeleted(events)))
+      .limit(1);
+    return event;
   }
   
   async getUserEvents(userId: number): Promise<Event[]> {
-    return [];
+    const userEvents = await db.select()
+      .from(events)
+      .where(and(
+        eq(events.creatorId, userId),
+        whereNotDeleted(events)
+      ))
+      .orderBy(events.eventDate, events.startTime);
+    return userEvents;
   }
   
   async createEvent(event: InsertEvent): Promise<Event> {
@@ -3479,11 +3544,18 @@ export class DbStorage implements IStorage {
   
   // Microblog methods
   async getAllMicroblogs(): Promise<Microblog[]> {
-    return [];
+    const allMicroblogs = await db.select()
+      .from(microblogs)
+      .orderBy(desc(microblogs.createdAt));
+    return allMicroblogs;
   }
   
   async getMicroblog(id: number): Promise<Microblog | undefined> {
-    return undefined;
+    const [microblog] = await db.select()
+      .from(microblogs)
+      .where(eq(microblogs.id, id))
+      .limit(1);
+    return microblog;
   }
   
   async getUserMicroblogs(userId: number): Promise<Microblog[]> {
