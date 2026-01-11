@@ -98,6 +98,7 @@ import eventsRoutes from './routes/events';
 import apologeticsRoutes from './routes/apologetics';
 import moderationRoutes from './routes/moderation';
 import followRoutes from './routes/follow';
+import passwordResetRoutes from './routes/passwordReset';
 import { chatMessagesQuerySchema } from './routes/chatMessages';
 
 declare module 'express-session' {
@@ -417,6 +418,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Register modular routes only if their feature flag is enabled
   if (FEATURES.AUTH) {
     app.use('/api', authRoutes);
+    app.use('/api/password-reset', passwordResetRoutes);
     app.use('/api', accountRoutes);
     app.use('/api', safetyRoutes);
     // compatibility moderation router (legacy clients hitting /api/moderation/* will be redirected)
