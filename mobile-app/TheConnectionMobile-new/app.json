@@ -26,7 +26,11 @@
         "NSPhotoLibraryUsageDescription": "The Connection needs access to your photo library to upload photos for your profile and posts.",
         "NSPhotoLibraryAddUsageDescription": "The Connection needs access to save photos to your library.",
         "NSCalendarsUsageDescription": "The Connection needs access to your calendar to add events you're attending.",
-        "NSUserNotificationsUsageDescription": "The Connection needs to send you notifications about community posts, events, and messages."
+        "NSUserNotificationsUsageDescription": "The Connection needs to send you notifications about community posts, events, and messages.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {

@@ -1,11 +1,11 @@
-import { BlockedUsersScreen } from "../src/screens/BlockedUsersScreen";
+import { NotificationsScreen } from "../src/screens/NotificationsScreen";
 import { useRouter } from "expo-router";
 
-export default function BlockedUsersPage() {
+export default function NotificationsPage() {
   const router = useRouter();
 
   return (
-    <BlockedUsersScreen
+    <NotificationsScreen
       onBackPress={() => {
         router.back();
       }}

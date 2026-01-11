@@ -10,7 +10,7 @@ import { getAuthToken } from './secureStorage';
 // Get API base URL from environment
 const API_BASE_URL = getApiBase();
 
-console.log('API Base URL:', API_BASE_URL);
+console.info('API Base URL:', API_BASE_URL);
 
 /**
  * Create axios instance with default configuration
@@ -55,9 +55,9 @@ apiClient.interceptors.response.use(
       if (status === 401) {
         // Unauthorized - likely signed out/expired. Skip noisy logging.
       } else if (status === 403) {
-        console.log('Forbidden - insufficient permissions');
+        console.info('Forbidden - insufficient permissions');
       } else if (status === 404) {
-        console.log('Resource not found');
+        console.info('Resource not found');
       } else if (status >= 500) {
         const payload = error.response?.data;
         try {
@@ -96,6 +96,7 @@ export interface User {
   email: string;
   displayName?: string;
   avatarUrl?: string;
+  profileImageUrl?: string;
   bio?: string;
   isAdmin?: boolean;
   createdAt?: string;
