@@ -129,7 +129,6 @@ router.get('/users/:userId/follow-status', requireAuth, async (req, res) => {
 router.get('/users/:userId/profile', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
-    console.log('[PROFILE] Fetching profile for user ID:', userId);
 
     if (!Number.isFinite(userId)) {
       console.error('[PROFILE] Invalid user ID:', req.params.userId);
@@ -141,13 +140,11 @@ router.get('/users/:userId/profile', async (req, res) => {
       console.error('[PROFILE] User not found:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
-    console.log('[PROFILE] User found:', user.username);
 
     // Get user's communities
     let communities = [];
     try {
       communities = await storage.getUserCommunities(userId);
-      console.log('[PROFILE] Communities count:', communities.length);
     } catch (error) {
       console.error('[PROFILE] Error fetching communities:', error);
     }
@@ -156,7 +153,6 @@ router.get('/users/:userId/profile', async (req, res) => {
     let posts = [];
     try {
       posts = await storage.getUserPosts(userId);
-      console.log('[PROFILE] Posts count:', posts.length);
     } catch (error) {
       console.error('[PROFILE] Error fetching posts:', error);
     }
@@ -165,7 +161,6 @@ router.get('/users/:userId/profile', async (req, res) => {
     let microblogs = [];
     try {
       microblogs = await storage.getUserMicroblogs(userId);
-      console.log('[PROFILE] Microblogs count:', microblogs.length);
     } catch (error) {
       console.error('[PROFILE] Error fetching microblogs:', error);
     }
@@ -176,7 +171,6 @@ router.get('/users/:userId/profile', async (req, res) => {
     try {
       followers = await storage.getUserFollowers(userId);
       following = await storage.getUserFollowing(userId);
-      console.log('[PROFILE] Followers:', followers.length, 'Following:', following.length);
     } catch (error) {
       console.error('[PROFILE] Error fetching followers/following:', error);
     }
@@ -188,6 +182,12 @@ router.get('/users/:userId/profile', async (req, res) => {
         displayName: user.displayName,
         bio: user.bio,
         profileImageUrl: user.avatarUrl,
+        location: user.location,
+        denomination: user.denomination,
+        homeChurch: user.homeChurch,
+        favoriteBibleVerse: user.favoriteBibleVerse,
+        testimony: user.testimony,
+        interests: user.interests,
         createdAt: user.createdAt,
       },
       stats: {
