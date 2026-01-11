@@ -1,0 +1,635 @@
+/**
+ * CommunitiesScreen - Native React Native screen
+ * Discover communities with filters, categories, and suggested groups
+ */
+
+import React, { useState } from 'react';
+import {
+  View,
+  ScrollView,
+  Pressable,
+  SafeAreaView,
+  StatusBar,
+  FlatList,
+} from 'react-native';
+import { Text, Badge, useTheme } from '../theme';
+import { AppHeader } from './AppHeader';
+
+// Icons - Replace with lucide-react-native or @expo/vector-icons
+const PlusIcon = ({ color, size = 16 }: { color: string; size?: number }) => (
+  <Text style={{ fontSize: size, color }}>+</Text>
+);
+const SlidersIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 12, color }}>⚙</Text>
+);
+const CheckIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 10, color }}>✓</Text>
+);
+const SparklesIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 14, color }}>✨</Text>
+);
+const UsersIcon = ({ color, size = 10 }: { color: string; size?: number }) => (
+  <Text style={{ fontSize: size, color }}>👥</Text>
+);
+const MapPinIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 10, color }}>📍</Text>
+);
+const ArrowRightIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 16, color }}>→</Text>
+);
+const PaletteIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 16, color }}>🎨</Text>
+);
+const BriefcaseIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 16, color }}>💼</Text>
+);
+const DumbbellIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 16, color }}>💪</Text>
+);
+const GraduationCapIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 16, color }}>🎓</Text>
+);
+const BookOpenIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 20, color }}>📖</Text>
+);
+
+// Category type
+interface Category {
+  id: string;
+  title: string;
+  count: string;
+  icon: React.FC<{ color: string }>;
+  bgColor: string;
+  accentColor: string;
+  borderColor: string;
+}
+
+// Community type
+interface Community {
+  id: number;
+  title: string;
+  subtitle: string;
+  members: string;
+  icon: React.FC<{ color: string }>;
+  tag: string;
+  bgColor: string;
+  iconColor: string;
+  isNew: boolean;
+}
+
+// Filter pill component
+function FilterPill({
+  label,
+  isActive,
+  onPress,
+}: {
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+}) {
+  const { colors, spacing, radii } = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        height: 28,
+        paddingHorizontal: spacing.md,
+        borderRadius: radii.full,
+        backgroundColor: isActive ? colors.primary : colors.card,
+        borderWidth: isActive ? 0 : 1,
+        borderColor: colors.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs,
+        opacity: pressed ? 0.8 : 1,
+      })}
+    >
+      {isActive && <CheckIcon color={colors.primaryForeground} />}
+      <Text
+        variant="caption"
+        style={{
+          color: isActive ? colors.primaryForeground : colors.mutedForeground,
+          fontWeight: '500',
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// Category card component
+function CategoryCard({ category }: { category: Category }) {
+  const { spacing, radii } = useTheme();
+
+  return (
+    <Pressable
+      style={({ pressed }) => ({
+        flex: 1,
+        backgroundColor: category.bgColor,
+        borderWidth: 1,
+        borderColor: category.borderColor,
+        borderRadius: radii.xl,
+        padding: spacing.sm + 2,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        opacity: pressed ? 0.9 : 1,
+      })}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          backgroundColor: '#FFFFFF',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOpacity: 0.05,
+          shadowRadius: 2,
+          shadowOffset: { width: 0, height: 1 },
+          elevation: 1,
+        }}
+      >
+        <category.icon color={category.accentColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text
+          variant="caption"
+          style={{ fontWeight: '700', color: '#0B132B', lineHeight: 16 }}
+        >
+          {category.title}
+        </Text>
+        <Text style={{ fontSize: 10, color: category.accentColor, fontWeight: '500' }}>
+          {category.count} groups
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+// Community row component
+function CommunityRow({
+  community,
+  onPress,
+}: {
+  community: Community;
+  onPress?: () => void;
+}) {
+  const { colors, spacing, radii } = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        backgroundColor: colors.card,
+        padding: spacing.md,
+        borderRadius: radii.xl,
+        borderWidth: 1,
+        borderColor: colors.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        shadowColor: '#000',
+        shadowOpacity: 0.03,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
+        opacity: pressed ? 0.95 : 1,
+      })}
+    >
+      {/* Icon */}
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: radii.lg,
+          backgroundColor: community.bgColor,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <community.icon color={community.iconColor} />
+      </View>
+
+      {/* Content */}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+            marginBottom: 2,
+          }}
+        >
+          <Text
+            variant="bodySmall"
+            style={{ fontWeight: '700', color: colors.foreground }}
+            numberOfLines={1}
+          >
+            {community.title}
+          </Text>
+          {community.isNew && (
+            <View
+              style={{
+                backgroundColor: colors.secondary,
+                paddingHorizontal: 4,
+                paddingVertical: 1,
+                borderRadius: radii.sm,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 8,
+                  fontWeight: '700',
+                  color: colors.secondaryForeground,
+                }}
+              >
+                NEW
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <Text
+          variant="caption"
+          color="mutedForeground"
+          numberOfLines={1}
+          style={{ marginBottom: spacing.xs }}
+        >
+          {community.subtitle}
+        </Text>
+
+        {/* Tags */}
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              backgroundColor: colors.background,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: radii.sm,
+            }}
+          >
+            <UsersIcon color={colors.mutedForeground} size={10} />
+            <Text style={{ fontSize: 10, color: colors.mutedForeground }}>
+              {community.members}
+            </Text>
+          </View>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              backgroundColor: colors.background,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: radii.sm,
+            }}
+          >
+            <MapPinIcon color={colors.mutedForeground} />
+            <Text style={{ fontSize: 10, color: colors.mutedForeground }}>
+              {community.tag}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Arrow */}
+      <Pressable
+        style={{
+          width: 32,
+          height: 32,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: -spacing.xs,
+        }}
+      >
+        <ArrowRightIcon color={colors.mutedForeground} />
+      </Pressable>
+    </Pressable>
+  );
+}
+
+// Main screen props
+interface CommunitiesScreenProps {
+  showCenteredLogo?: boolean;
+  userName?: string;
+  userAvatar?: string | null;
+  onProfilePress?: () => void;
+  onMessagesPress?: () => void;
+  onMenuPress?: () => void;
+  onSearchPress?: () => void;
+  onCreatePress?: () => void;
+  onCommunityPress?: (community: Community) => void;
+  onCategoryPress?: (category: Category) => void;
+}
+
+export function CommunitiesScreen({
+  showCenteredLogo = false,
+  userName,
+  userAvatar,
+  onProfilePress,
+  onMessagesPress,
+  onMenuPress,
+  onSearchPress,
+  onCreatePress,
+  onCommunityPress,
+  onCategoryPress,
+}: CommunitiesScreenProps) {
+  const { colors, spacing, radii } = useTheme();
+  const [activeFilters, setActiveFilters] = useState<string[]>(['Nearby']);
+
+  const toggleFilter = (filter: string) => {
+    setActiveFilters((prev) =>
+      prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]
+    );
+  };
+
+  const filterOptions = [
+    'Nearby',
+    "Men's",
+    "Women's",
+    'Youth',
+    'Bible Study',
+    'Prayer',
+    'Social',
+    'Online',
+  ];
+
+  const categories: Category[] = [
+    {
+      id: 'creatives',
+      title: 'Creatives',
+      count: '12',
+      icon: PaletteIcon,
+      bgColor: '#FDF2F8',
+      accentColor: '#DB2777',
+      borderColor: '#FCE7F3',
+    },
+    {
+      id: 'entrepreneurs',
+      title: 'Business',
+      count: '8',
+      icon: BriefcaseIcon,
+      bgColor: '#EFF6FF',
+      accentColor: '#2563EB',
+      borderColor: '#DBEAFE',
+    },
+    {
+      id: 'fitness',
+      title: 'Wellness',
+      count: '15',
+      icon: DumbbellIcon,
+      bgColor: '#ECFDF5',
+      accentColor: '#059669',
+      borderColor: '#D1FAE5',
+    },
+    {
+      id: 'students',
+      title: 'Campus',
+      count: '24',
+      icon: GraduationCapIcon,
+      bgColor: '#F5F3FF',
+      accentColor: '#7C3AED',
+      borderColor: '#EDE9FE',
+    },
+  ];
+
+  const communities: Community[] = [
+    {
+      id: 1,
+      title: 'Morning Prayer',
+      subtitle: 'Daily 6AM zoom prayer',
+      members: '1.2k',
+      icon: UsersIcon,
+      tag: 'Private',
+      bgColor: '#E0E7FF',
+      iconColor: '#4F46E5',
+      isNew: true,
+    },
+    {
+      id: 2,
+      title: 'Bible Study: Romans',
+      subtitle: 'Weekly deep dive • Downtown',
+      members: '850',
+      icon: BookOpenIcon,
+      tag: 'In-person',
+      bgColor: '#FEF3C7',
+      iconColor: '#D97706',
+      isNew: false,
+    },
+    {
+      id: 3,
+      title: 'Young Professionals',
+      subtitle: 'Networking & Faith • Monthly',
+      members: '3.4k',
+      icon: BriefcaseIcon,
+      tag: 'Social',
+      bgColor: '#E0F2FE',
+      iconColor: '#0284C7',
+      isNew: false,
+    },
+    {
+      id: 4,
+      title: 'Worship Creative',
+      subtitle: 'For musicians and artists',
+      members: '5.1k',
+      icon: PaletteIcon,
+      tag: 'Public',
+      bgColor: '#FFE4E6',
+      iconColor: '#E11D48',
+      isNew: true,
+    },
+    {
+      id: 5,
+      title: 'Mens Basketball',
+      subtitle: 'Saturday mornings @ YMCA',
+      members: '42',
+      icon: DumbbellIcon,
+      tag: 'Social',
+      bgColor: '#FFEDD5',
+      iconColor: '#EA580C',
+      isNew: false,
+    },
+  ];
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar
+        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
+      />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 80 }}
+        stickyHeaderIndices={[1]}
+      >
+        {/* App Header with Logo */}
+        <AppHeader
+          showCenteredLogo={showCenteredLogo}
+          userName={userName}
+          userAvatar={userAvatar}
+          onProfilePress={onProfilePress}
+          showMessages={showCenteredLogo}
+          onMessagesPress={onMessagesPress}
+          showMenu={showCenteredLogo}
+          onMenuPress={onMenuPress}
+          showLogo={!showCenteredLogo}
+          showBrandText={!showCenteredLogo}
+          showSearch={!showCenteredLogo}
+          onSearchPress={onSearchPress}
+          rightElement={!showCenteredLogo ? (
+            <Pressable
+              onPress={onCreatePress}
+              style={({ pressed }) => ({
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: colors.secondary,
+                opacity: pressed ? 0.8 : 1,
+                shadowColor: colors.secondary,
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 3,
+              })}
+            >
+              <PlusIcon color={colors.secondaryForeground} />
+            </Pressable>
+          ) : undefined}
+        />
+
+        {/* Filter Bar - Sticky */}
+        <View
+          style={{
+            backgroundColor: colors.background,
+            paddingVertical: spacing.sm,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: spacing.lg,
+              gap: spacing.sm,
+              alignItems: 'center',
+            }}
+          >
+            {/* Filters Button */}
+            <Pressable
+              style={({ pressed }) => ({
+                height: 28,
+                paddingHorizontal: spacing.md,
+                borderRadius: radii.full,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.xs,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <SlidersIcon color={colors.foreground} />
+              <Text variant="caption" style={{ fontWeight: '500' }}>
+                Filters
+              </Text>
+            </Pressable>
+
+            {/* Divider */}
+            <View
+              style={{
+                width: 1,
+                height: 16,
+                backgroundColor: colors.border,
+              }}
+            />
+
+            {/* Filter Pills */}
+            {filterOptions.map((filter) => (
+              <FilterPill
+                key={filter}
+                label={filter}
+                isActive={activeFilters.includes(filter)}
+                onPress={() => toggleFilter(filter)}
+              />
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Categories Section */}
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.xs,
+              marginBottom: spacing.sm,
+            }}
+          >
+            <SparklesIcon color="#F59E0B" />
+            <Text variant="bodySmall" style={{ fontWeight: '700' }}>
+              Categories
+            </Text>
+          </View>
+
+          {/* 2x2 Grid */}
+          <View style={{ gap: spacing.sm }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <CategoryCard category={categories[0]} />
+              <CategoryCard category={categories[1]} />
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <CategoryCard category={categories[2]} />
+              <CategoryCard category={categories[3]} />
+            </View>
+          </View>
+        </View>
+
+        {/* Suggested Section */}
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: spacing.sm,
+            }}
+          >
+            <Text variant="bodySmall" style={{ fontWeight: '700' }}>
+              Suggested
+            </Text>
+            <Pressable>
+              <Text
+                variant="caption"
+                style={{ color: colors.secondary, fontWeight: '500' }}
+              >
+                View all
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Community List */}
+          <View style={{ gap: spacing.sm }}>
+            {communities.map((community) => (
+              <CommunityRow
+                key={community.id}
+                community={community}
+                onPress={() => onCommunityPress?.(community)}
+              />
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
