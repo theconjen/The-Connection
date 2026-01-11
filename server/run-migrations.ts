@@ -2,6 +2,7 @@ import { log } from "./vite-shim";
 import { runMigration as addLocalityInterests } from "./migrations/add-locality-interests";
 import { runMigration as createMvpTables } from "./migrations/0002_create_mvp_tables";
 import { runMigration as addMessageReadStatus } from "./migrations/add-message-read-status";
+import { runMigration as addDeletedAtColumns } from "./migrations/add-deleted-at-columns";
 import { isConnected } from "./db";
 
 /**
@@ -34,6 +35,13 @@ export async function runAllMigrations() {
     const messageReadStatusResult = await addMessageReadStatus();
     if (!messageReadStatusResult) {
       log("❌ Message read status migration failed");
+      return false;
+    }
+
+    // Add deleted_at columns to posts and comments
+    const deletedAtResult = await addDeletedAtColumns();
+    if (!deletedAtResult) {
+      log("❌ Add deleted_at columns migration failed");
       return false;
     }
 

@@ -136,6 +136,20 @@ NODECODE
   fi
 }
 
+echo "render-build: running database migrations"
+# Run migrations before building to ensure database schema is up to date
+# This ensures that the deployed application has the correct database structure
+if [ -f "server/run-migrations-runner.ts" ]; then
+  tsx server/run-migrations-runner.ts || {
+    echo "render-build: WARNING - migrations failed but continuing with build"
+    echo "render-build: Check migration logs above for details"
+    # Don't exit here - allow build to continue even if migrations fail
+    # This prevents deployment failures due to idempotent migrations or connection issues
+  }
+else
+  echo "render-build: WARNING - migration runner not found at server/run-migrations-runner.ts"
+fi
+
 echo "render-build: running pnpm run build"
 pnpm run build
 
