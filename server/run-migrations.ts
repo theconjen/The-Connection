@@ -3,6 +3,7 @@ import { runMigration as addLocalityInterests } from "./migrations/add-locality-
 import { runMigration as createMvpTables } from "./migrations/0002_create_mvp_tables";
 import { runMigration as addMessageReadStatus } from "./migrations/add-message-read-status";
 import { runMigration as addDeletedAtColumns } from "./migrations/add-deleted-at-columns";
+import { runMigration as addFeedFeatures } from "./migrations/add-feed-features";
 import { isConnected } from "./db";
 
 /**
@@ -42,6 +43,13 @@ export async function runAllMigrations() {
     const deletedAtResult = await addDeletedAtColumns();
     if (!deletedAtResult) {
       log("❌ Add deleted_at columns migration failed");
+      return false;
+    }
+
+    // Add feed and forum features (downvotes, reposts, bookmarks)
+    const feedFeaturesResult = await addFeedFeatures();
+    if (!feedFeaturesResult) {
+      log("❌ Add feed features migration failed");
       return false;
     }
 
