@@ -732,4 +732,193 @@ router.post('/api/communities/:id/invite', requireAuth, async (req, res) => {
   }
 });
 
+// ============================================================================
+// COMMUNITY UPDATE
+// ============================================================================
+
+// Update community details (owner only)
+router.patch('/api/communities/:id', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'Invalid community ID' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if user is owner
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member || member.role !== 'owner') {
+      return res.status(403).json({ message: 'Only community owners can update community details' });
+    }
+
+    // Update allowed fields
+    const {
+      name,
+      description,
+      iconName,
+      iconColor,
+      interestTags,
+      city,
+      state,
+      isPrivate,
+      hasPrivateWall,
+      hasPublicWall,
+      bannerUrl,
+      avatarUrl
+    } = req.body;
+
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (iconName !== undefined) updateData.iconName = iconName;
+    if (iconColor !== undefined) updateData.iconColor = iconColor;
+    if (interestTags !== undefined) updateData.interestTags = interestTags;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (isPrivate !== undefined) updateData.isPrivate = isPrivate;
+    if (hasPrivateWall !== undefined) updateData.hasPrivateWall = hasPrivateWall;
+    if (hasPublicWall !== undefined) updateData.hasPublicWall = hasPublicWall;
+    if (bannerUrl !== undefined) updateData.bannerUrl = bannerUrl;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+
+    const updatedCommunity = await storage.updateCommunity(communityId, updateData);
+
+    res.json({
+      success: true,
+      community: updatedCommunity
+    });
+  } catch (error) {
+    console.error('Error updating community:', error);
+    res.status(500).json(buildErrorResponse('Error updating community', error));
+  }
+});
+
+// ============================================================================
+// WALL POST LIKES
+// ============================================================================
+
+// Like a wall post
+router.post('/api/communities/:id/wall/:postId/like', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    // Check if user is member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ message: 'Must be a community member to like posts' });
+    }
+
+    // Check if post exists
+    const wallPosts = await storage.getCommunityWallPosts(communityId);
+    const post = wallPosts.find((p: any) => p.id === postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Wall post not found' });
+    }
+
+    // Toggle like (create or delete)
+    const result = await storage.toggleCommunityWallPostLike(postId, userId);
+
+    res.json({
+      success: true,
+      liked: result.liked,
+      likeCount: result.likeCount
+    });
+  } catch (error) {
+    console.error('Error liking wall post:', error);
+    res.status(500).json(buildErrorResponse('Error liking wall post', error));
+  }
+});
+
+// Unlike a wall post (same as POST for toggle)
+router.delete('/api/communities/:id/wall/:postId/like', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    const result = await storage.toggleCommunityWallPostLike(postId, userId);
+
+    res.json({
+      success: true,
+      liked: result.liked,
+      likeCount: result.likeCount
+    });
+  } catch (error) {
+    console.error('Error unliking wall post:', error);
+    res.status(500).json(buildErrorResponse('Error unliking wall post', error));
+  }
+});
+
+// ============================================================================
+// WALL POST COMMENTS
+// ============================================================================
+
+// Get comments for a wall post
+router.get('/api/communities/:id/wall/:postId/comments', async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    const comments = await storage.getCommunityWallPostComments(postId);
+    res.json(comments);
+  } catch (error) {
+    console.error('Error fetching wall post comments:', error);
+    res.status(500).json(buildErrorResponse('Error fetching wall post comments', error));
+  }
+});
+
+// Create a comment on a wall post
+router.post('/api/communities/:id/wall/:postId/comments', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId);
+    const userId = requireSessionUserId(req);
+    const { content, parentId } = req.body;
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Comment content is required' });
+    }
+
+    // Check if user is member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ message: 'Must be a community member to comment' });
+    }
+
+    const comment = await storage.createCommunityWallPostComment({
+      postId,
+      authorId: userId,
+      content: content.trim(),
+      parentId: parentId || null
+    });
+
+    res.status(201).json(comment);
+  } catch (error) {
+    console.error('Error creating wall post comment:', error);
+    res.status(500).json(buildErrorResponse('Error creating wall post comment', error));
+  }
+});
+
 export default router;

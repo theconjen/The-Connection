@@ -4,6 +4,7 @@ import { runMigration as createMvpTables } from "./migrations/0002_create_mvp_ta
 import { runMigration as addMessageReadStatus } from "./migrations/add-message-read-status";
 import { runMigration as addDeletedAtColumns } from "./migrations/add-deleted-at-columns";
 import { runMigration as addFeedFeatures } from "./migrations/add-feed-features";
+import { runMigration as addCommunityFeatures } from "./migrations/add-community-features";
 import { isConnected } from "./db";
 
 /**
@@ -50,6 +51,13 @@ export async function runAllMigrations() {
     const feedFeaturesResult = await addFeedFeatures();
     if (!feedFeaturesResult) {
       log("❌ Add feed features migration failed");
+      return false;
+    }
+
+    // Add community features (wall likes, comments, join requests, images)
+    const communityFeaturesResult = await addCommunityFeatures();
+    if (!communityFeaturesResult) {
+      log("❌ Add community features migration failed");
       return false;
     }
 
