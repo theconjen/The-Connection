@@ -130,6 +130,8 @@ router.get('/users/:userId/profile', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
 
+    console.log('[GET /users/:userId/profile] Fetching profile for userId:', userId);
+
     if (!Number.isFinite(userId)) {
       console.error('[PROFILE] Invalid user ID:', req.params.userId);
       return res.status(400).json({ message: 'Invalid user ID' });
@@ -140,6 +142,19 @@ router.get('/users/:userId/profile', async (req, res) => {
       console.error('[PROFILE] User not found:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
+
+    console.log('[GET /users/:userId/profile] User from DB:', {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      bio: user.bio,
+      location: user.location,
+      denomination: user.denomination,
+      homeChurch: user.homeChurch,
+      favoriteBibleVerse: user.favoriteBibleVerse,
+      testimony: user.testimony,
+      interests: user.interests,
+    });
 
     // Get user's communities
     let communities = [];

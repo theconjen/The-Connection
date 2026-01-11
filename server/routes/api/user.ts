@@ -57,7 +57,10 @@ router.patch('/profile', async (req, res, next) => {
     if (!userId) {
       return;
     }
-    
+
+    console.log('[PATCH /user/profile] userId:', userId);
+    console.log('[PATCH /user/profile] Request body:', req.body);
+
     const {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
@@ -87,9 +90,22 @@ router.patch('/profile', async (req, res, next) => {
     }
     if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
-    
+
+    console.log('[PATCH /user/profile] Update data being sent to storage:', updateData);
+
     const updatedUser = await storage.updateUser(userId, updateData);
-    
+
+    console.log('[PATCH /user/profile] Updated user from DB:', {
+      id: updatedUser.id,
+      displayName: updatedUser.displayName,
+      location: updatedUser.location,
+      denomination: updatedUser.denomination,
+      homeChurch: updatedUser.homeChurch,
+      favoriteBibleVerse: updatedUser.favoriteBibleVerse,
+      testimony: updatedUser.testimony,
+      interests: updatedUser.interests,
+    });
+
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;
     res.json(userData);
