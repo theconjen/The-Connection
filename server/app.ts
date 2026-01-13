@@ -145,9 +145,18 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // CSRF protection for non-API routes
+// Skip CSRF for: /api routes, JWT-authenticated requests (mobile apps), and safe methods
 const csrfProtection = lusca.csrf();
 app.use((req, res, next) => {
+  // Skip CSRF for /api routes
   if (req.path.startsWith('/api') || req.url.startsWith('/api')) return next();
+
+  // Skip CSRF for JWT-authenticated requests (mobile apps)
+  if (req.headers.authorization?.startsWith('Bearer ')) return next();
+
+  // Skip CSRF for safe methods
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+
   return csrfProtection(req, res, next);
 });
 
@@ -200,7 +209,6 @@ app.use((req, res, next) => {
     await runAllMigrations();
     const { runOrganizationMigrations } = await import("./run-migrations-organizations");
     await runOrganizationMigrations();
-    console.log("✅ Database migrations completed");
   } catch (error) {
     console.error("❌ Error running database migrations:", error);
   }
