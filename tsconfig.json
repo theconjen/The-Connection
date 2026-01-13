@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "lib": [
+      "esnext"
+    ],
+    "jsx": "react-native",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "types": [
+      "react-native"
+    ]
+  },
+  "include": [
+    "app/**/*",
+    "src/**/*",
+    "global.d.ts",
+    "../../packages/shared/src/mobile-web/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "../../packages/ui/src/**/*"
+  ],
+  "extends": "expo/tsconfig.base"
+}

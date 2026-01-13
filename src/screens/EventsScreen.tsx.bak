@@ -1,0 +1,854 @@
+/**
+ * EventsScreen - Native React Native screen
+ * Discover events with filters, categories, and featured events
+ */
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  ScrollView,
+  Pressable,
+  SafeAreaView,
+  StatusBar,
+  FlatList,
+  TextInput,
+  ActivityIndicator,
+} from 'react-native';
+import { Text, Badge, useTheme } from '../theme';
+import { AppHeader } from './AppHeader';
+import { Ionicons } from '@expo/vector-icons';
+import { getCurrentLocationWithAddress, type UserLocation } from '../services/locationService';
+
+// Icons - Replace with @expo/vector-icons
+const PlusIcon = ({ color, size = 16 }: { color: string; size?: number }) => (
+  <Text style={{ fontSize: size, color }}>+</Text>
+);
+const SlidersIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 12, color }}>⚙</Text>
+);
+const CheckIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 10, color }}>✓</Text>
+);
+const CalendarIcon = ({ color, size = 16 }: { color: string; size?: number }) => (
+  <Text style={{ fontSize: size, color }}>📅</Text>
+);
+const MapPinIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 10, color }}>📍</Text>
+);
+const ClockIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 10, color }}>⏰</Text>
+);
+const UsersIcon = ({ color, size = 10 }: { color: string; size?: number }) => (
+  <Text style={{ fontSize: size, color }}>👥</Text>
+);
+const HeartIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 16, color }}>❤️</Text>
+);
+const BookIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 16, color }}>📖</Text>
+);
+const MusicIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 16, color }}>🎵</Text>
+);
+const CoffeeIcon = ({ color }: { color: string }) => (
+  <Text style={{ fontSize: 16, color }}>☕</Text>
+);
+
+// Event Category type
+interface EventCategory {
+  id: string;
+  title: string;
+  count: string;
+  icon: React.FC<{ color: string }>;
+  bgColor: string;
+  accentColor: string;
+  borderColor: string;
+}
+
+// Event type
+export interface Event {
+  id: number;
+  title: string;
+  subtitle: string;
+  date: string;
+  time: string;
+  location: string;
+  attendees: string;
+  icon: React.FC<{ color: string }>;
+  category: string;
+  bgColor: string;
+  iconColor: string;
+  isFeatured: boolean;
+}
+
+// Filter pill component
+function FilterPill({
+  label,
+  isActive,
+  onPress,
+}: {
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+}) {
+  const { colors, spacing, radii } = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        height: 28,
+        paddingHorizontal: spacing.md,
+        borderRadius: radii.full,
+        backgroundColor: isActive ? colors.primary : colors.card,
+        borderWidth: isActive ? 0 : 1,
+        borderColor: colors.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs,
+        opacity: pressed ? 0.8 : 1,
+      })}
+    >
+      {isActive && <CheckIcon color={colors.primaryForeground} />}
+      <Text
+        variant="caption"
+        style={{
+          color: isActive ? colors.primaryForeground : colors.mutedForeground,
+          fontWeight: '500',
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// Category card component
+function EventCategoryCard({ category, onPress }: { category: EventCategory; onPress?: () => void }) {
+  const { spacing, radii } = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        backgroundColor: category.bgColor,
+        borderWidth: 1,
+        borderColor: category.borderColor,
+        borderRadius: radii.xl,
+        padding: spacing.sm + 2,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        opacity: pressed ? 0.9 : 1,
+      })}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          backgroundColor: '#FFFFFF',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOpacity: 0.05,
+          shadowRadius: 2,
+          shadowOffset: { width: 0, height: 1 },
+          elevation: 1,
+        }}
+      >
+        <category.icon color={category.accentColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text
+          variant="caption"
+          style={{ fontWeight: '700', color: '#0B132B', lineHeight: 16 }}
+        >
+          {category.title}
+        </Text>
+        <Text style={{ fontSize: 10, color: category.accentColor, fontWeight: '500' }}>
+          {category.count} events
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+// Event card component
+function EventCard({
+  event,
+  onPress,
+}: {
+  event: Event;
+  onPress?: () => void;
+}) {
+  const { colors, spacing, radii } = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        backgroundColor: colors.card,
+        padding: spacing.md,
+        borderRadius: radii.xl,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginBottom: spacing.sm,
+        shadowColor: '#000',
+        shadowOpacity: 0.03,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
+        opacity: pressed ? 0.95 : 1,
+      })}
+    >
+      <View style={{ flexDirection: 'row', gap: spacing.md }}>
+        {/* Date Box */}
+        <View
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: radii.lg,
+            backgroundColor: event.bgColor,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <event.icon color={event.iconColor} />
+        </View>
+
+        {/* Content */}
+        <View style={{ flex: 1 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.xs,
+              marginBottom: 2,
+            }}
+          >
+            <Text
+              variant="bodySmall"
+              style={{ fontWeight: '700', color: colors.foreground, flex: 1 }}
+              numberOfLines={1}
+            >
+              {event.title}
+            </Text>
+            {event.isFeatured && (
+              <View
+                style={{
+                  backgroundColor: '#FEF3C7',
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: radii.sm,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 8,
+                    fontWeight: '700',
+                    color: '#D97706',
+                  }}
+                >
+                  FEATURED
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <Text
+            variant="caption"
+            color="mutedForeground"
+            numberOfLines={1}
+            style={{ marginBottom: spacing.xs }}
+          >
+            {event.subtitle}
+          </Text>
+
+          {/* Event Details */}
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <CalendarIcon color={colors.mutedForeground} size={10} />
+              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+                {event.date}
+              </Text>
+              <ClockIcon color={colors.mutedForeground} />
+              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+                {event.time}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <MapPinIcon color={colors.mutedForeground} />
+              <Text style={{ fontSize: 11, color: colors.mutedForeground }} numberOfLines={1}>
+                {event.location}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <UsersIcon color={colors.mutedForeground} size={10} />
+              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+                {event.attendees} attending
+              </Text>
+              <View
+                style={{
+                  backgroundColor: colors.background,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: radii.sm,
+                  marginLeft: 4,
+                }}
+              >
+                <Text style={{ fontSize: 9, color: colors.mutedForeground, fontWeight: '600' }}>
+                  {event.category}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+// Main screen props
+interface EventsScreenProps {
+  onProfilePress?: () => void;
+  onSearchPress?: () => void;
+  onCreatePress?: () => void;
+  onEventPress?: (event: Event) => void;
+  onCategoryPress?: (category: EventCategory) => void;
+  onSettingsPress?: () => void;
+  onMessagesPress?: () => void;
+  onPrayersPress?: () => void;
+  onApologeticsPress?: () => void;
+  userName?: string;
+  userAvatar?: string;
+}
+
+export function EventsScreen({
+  onProfilePress,
+  onSearchPress,
+  onCreatePress,
+  onEventPress,
+  onCategoryPress,
+  onSettingsPress,
+  onMessagesPress,
+  onPrayersPress,
+  onApologeticsPress,
+  userName = 'User',
+  userAvatar,
+}: EventsScreenProps) {
+  const { colors, spacing, radii } = useTheme();
+  const [activeFilters, setActiveFilters] = useState<string[]>(['This Week']);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  // Don't auto-load location on mount to avoid errors
+  // User can tap location icon to request location
+
+  const getUserLocation = async () => {
+    setLoadingLocation(true);
+    try {
+      const location = await getCurrentLocationWithAddress();
+      if (location) {
+        setUserLocation(location);
+        // Auto-fill location filter with user's city
+        if (location.city) {
+          setLocationFilter(location.city);
+        }
+      } else {
+        console.log('Location service not available or permission denied');
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+      // Silently fail - location is optional
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  const toggleFilter = (filter: string) => {
+    setActiveFilters((prev) =>
+      prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]
+    );
+  };
+
+  const filterOptions = [
+    'This Week',
+    'This Month',
+    'All Events',
+    'In-Person',
+    'Online',
+    'Free',
+    'Paid',
+  ];
+
+  const categories: EventCategory[] = [
+    {
+      id: 'worship',
+      title: 'Worship',
+      count: '18',
+      icon: MusicIcon,
+      bgColor: '#F0F9FF',
+      accentColor: '#0284C7',
+      borderColor: '#E0F2FE',
+    },
+    {
+      id: 'bible-study',
+      title: 'Bible Study',
+      count: '24',
+      icon: BookIcon,
+      bgColor: '#FEF3C7',
+      accentColor: '#D97706',
+      borderColor: '#FDE68A',
+    },
+    {
+      id: 'social',
+      title: 'Social',
+      count: '32',
+      icon: CoffeeIcon,
+      bgColor: '#ECFDF5',
+      accentColor: '#059669',
+      borderColor: '#D1FAE5',
+    },
+    {
+      id: 'outreach',
+      title: 'Outreach',
+      count: '12',
+      icon: HeartIcon,
+      bgColor: '#FDF2F8',
+      accentColor: '#DB2777',
+      borderColor: '#FCE7F3',
+    },
+  ];
+
+  const events: Event[] = [
+    {
+      id: 1,
+      title: 'Sunday Morning Worship',
+      subtitle: 'Join us for praise and worship',
+      date: 'Jan 12, 2025',
+      time: '10:00 AM',
+      location: 'Main Sanctuary',
+      attendees: '342',
+      icon: MusicIcon,
+      category: 'Worship',
+      bgColor: '#E0E7FF',
+      iconColor: '#4F46E5',
+      isFeatured: true,
+    },
+    {
+      id: 2,
+      title: 'Youth Bible Study',
+      subtitle: 'Book of John deep dive',
+      date: 'Jan 14, 2025',
+      time: '7:00 PM',
+      location: 'Youth Center Room 3',
+      attendees: '28',
+      icon: BookIcon,
+      category: 'Bible Study',
+      bgColor: '#FEF3C7',
+      iconColor: '#D97706',
+      isFeatured: false,
+    },
+    {
+      id: 3,
+      title: 'Community Coffee & Connect',
+      subtitle: 'Meet new friends over coffee',
+      date: 'Jan 15, 2025',
+      time: '9:00 AM',
+      location: 'Fellowship Hall',
+      attendees: '65',
+      icon: CoffeeIcon,
+      category: 'Social',
+      bgColor: '#D1FAE5',
+      iconColor: '#059669',
+      isFeatured: false,
+    },
+    {
+      id: 4,
+      title: 'Homeless Outreach',
+      subtitle: 'Serving downtown community',
+      date: 'Jan 18, 2025',
+      time: '6:00 PM',
+      location: 'Downtown Mission',
+      attendees: '42',
+      icon: HeartIcon,
+      category: 'Outreach',
+      bgColor: '#FFE4E6',
+      iconColor: '#E11D48',
+      isFeatured: true,
+    },
+    {
+      id: 5,
+      title: 'Wednesday Night Worship',
+      subtitle: 'Midweek praise service',
+      date: 'Jan 15, 2025',
+      time: '7:30 PM',
+      location: 'Worship Center',
+      attendees: '156',
+      icon: MusicIcon,
+      category: 'Worship',
+      bgColor: '#E0F2FE',
+      iconColor: '#0284C7',
+      isFeatured: false,
+    },
+  ];
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar
+        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
+      />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 80 }}
+        stickyHeaderIndices={[1]}
+      >
+        {/* App Header */}
+        <AppHeader
+          onProfilePress={onProfilePress}
+          onSearchPress={onSearchPress}
+          onSettingsPress={onSettingsPress}
+          onMessagesPress={onMessagesPress}
+          onPrayersPress={onPrayersPress}
+          onApologeticsPress={onApologeticsPress}
+          userName={userName}
+          userAvatar={userAvatar}
+          searchPlaceholder="Search..."
+        />
+
+        {/* Search and Filters Section */}
+        <View
+          style={{
+            backgroundColor: colors.card,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.md,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+            gap: spacing.md,
+          }}
+        >
+          {/* Search and Location Inputs */}
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            {/* Search Input */}
+            <View style={{ flex: 1 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: colors.muted,
+                  borderRadius: radii.lg,
+                  paddingHorizontal: spacing.md,
+                  height: 40,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Ionicons name="search" size={18} color={colors.mutedForeground} />
+                <TextInput
+                  style={{
+                    flex: 1,
+                    marginLeft: spacing.sm,
+                    fontSize: 14,
+                    color: colors.foreground,
+                  }}
+                  placeholder="Search events..."
+                  placeholderTextColor={colors.mutedForeground}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+            </View>
+
+            {/* Location Filter */}
+            <View style={{ flex: 1 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: colors.muted,
+                  borderRadius: radii.lg,
+                  paddingHorizontal: spacing.md,
+                  height: 40,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                {loadingLocation ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Pressable onPress={getUserLocation}>
+                    <Ionicons name="location-outline" size={18} color={colors.primary} />
+                  </Pressable>
+                )}
+                <TextInput
+                  style={{
+                    flex: 1,
+                    marginLeft: spacing.sm,
+                    fontSize: 14,
+                    color: colors.foreground,
+                  }}
+                  placeholder="Filter by city..."
+                  placeholderTextColor={colors.mutedForeground}
+                  value={locationFilter}
+                  onChangeText={setLocationFilter}
+                />
+                {locationFilter.length > 0 && (
+                  <Pressable onPress={() => setLocationFilter('')}>
+                    <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {/* List/Map Toggle */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+              gap: spacing.xs,
+            }}
+          >
+            <Pressable
+              onPress={() => setViewMode('list')}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.xs,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.xs,
+                borderRadius: radii.md,
+                backgroundColor: viewMode === 'list' ? colors.primary : colors.card,
+                borderWidth: 1,
+                borderColor: viewMode === 'list' ? colors.primary : colors.border,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Ionicons
+                name="list"
+                size={16}
+                color={viewMode === 'list' ? colors.primaryForeground : colors.foreground}
+              />
+              <Text
+                variant="caption"
+                style={{
+                  fontWeight: '600',
+                  color: viewMode === 'list' ? colors.primaryForeground : colors.foreground,
+                }}
+              >
+                List
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setViewMode('map')}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.xs,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.xs,
+                borderRadius: radii.md,
+                backgroundColor: viewMode === 'map' ? colors.primary : colors.card,
+                borderWidth: 1,
+                borderColor: viewMode === 'map' ? colors.primary : colors.border,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Ionicons
+                name="map"
+                size={16}
+                color={viewMode === 'map' ? colors.primaryForeground : colors.foreground}
+              />
+              <Text
+                variant="caption"
+                style={{
+                  fontWeight: '600',
+                  color: viewMode === 'map' ? colors.primaryForeground : colors.foreground,
+                }}
+              >
+                Map
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Filter Bar - Sticky */}
+        <View
+          style={{
+            backgroundColor: colors.background,
+            paddingVertical: spacing.sm,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: spacing.lg,
+              gap: spacing.sm,
+              alignItems: 'center',
+            }}
+          >
+            {/* Filters Button */}
+            <Pressable
+              style={({ pressed }) => ({
+                height: 28,
+                paddingHorizontal: spacing.md,
+                borderRadius: radii.full,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.xs,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <SlidersIcon color={colors.foreground} />
+              <Text variant="caption" style={{ fontWeight: '500' }}>
+                Filters
+              </Text>
+            </Pressable>
+
+            {/* Divider */}
+            <View
+              style={{
+                width: 1,
+                height: 16,
+                backgroundColor: colors.border,
+              }}
+            />
+
+            {/* Filter Pills */}
+            {filterOptions.map((filter) => (
+              <FilterPill
+                key={filter}
+                label={filter}
+                isActive={activeFilters.includes(filter)}
+                onPress={() => toggleFilter(filter)}
+              />
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Conditional Content: List or Map */}
+        {viewMode === 'map' ? (
+          /* Map View */
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: colors.muted,
+              marginHorizontal: spacing.lg,
+              marginTop: spacing.lg,
+              borderRadius: radii.xl,
+              borderWidth: 1,
+              borderColor: colors.border,
+              minHeight: 400,
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: spacing.xl,
+            }}
+          >
+            <Ionicons name="map-outline" size={48} color={colors.mutedForeground} />
+            <Text
+              variant="body"
+              style={{
+                fontWeight: '600',
+                color: colors.foreground,
+                marginTop: spacing.md,
+                textAlign: 'center',
+              }}
+            >
+              Event Map
+            </Text>
+            <Text
+              variant="bodySmall"
+              style={{
+                color: colors.mutedForeground,
+                marginTop: spacing.sm,
+                textAlign: 'center',
+              }}
+            >
+              Events with location coordinates will appear here. Add an event with a specific address to see it on the map.
+            </Text>
+          </View>
+        ) : (
+          /* List View */
+          <>
+            {/* Categories Section */}
+            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                  marginBottom: spacing.sm,
+                }}
+              >
+                <CalendarIcon color="#4A90E2" size={14} />
+                <Text variant="bodySmall" style={{ fontWeight: '700' }}>
+                  Event Categories
+                </Text>
+              </View>
+
+          {/* 2x2 Grid */}
+          <View style={{ gap: spacing.sm }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <EventCategoryCard category={categories[0]} onPress={() => onCategoryPress?.(categories[0])} />
+              <EventCategoryCard category={categories[1]} onPress={() => onCategoryPress?.(categories[1])} />
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <EventCategoryCard category={categories[2]} onPress={() => onCategoryPress?.(categories[2])} />
+              <EventCategoryCard category={categories[3]} onPress={() => onCategoryPress?.(categories[3])} />
+            </View>
+          </View>
+        </View>
+
+        {/* Upcoming Events Section */}
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: spacing.sm,
+            }}
+          >
+            <Text variant="bodySmall" style={{ fontWeight: '700' }}>
+              Upcoming Events
+            </Text>
+            <Pressable>
+              <Text
+                variant="caption"
+                style={{ color: colors.secondary, fontWeight: '500' }}
+              >
+                View all
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Event List */}
+          <View>
+            {events.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                onPress={() => onEventPress?.(event)}
+              />
+            ))}
+          </View>
+        </View>
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
