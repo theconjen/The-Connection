@@ -102,6 +102,7 @@ import searchRoutes from './routes/search';
 import passwordResetRoutes from './routes/passwordReset';
 import uploadRoutes from './routes/upload';
 import { chatMessagesQuerySchema } from './routes/chatMessages';
+import messagesRoutes from './routes/messages';
 
 declare module 'express-session' {
   interface SessionData {
@@ -492,6 +493,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api/user', userSettingsRoutes);
     app.use('/api/dms', dmRoutes);
     app.use('/api/messages', dmRoutes); // Alias for mobile app compatibility
+    app.use('/api', messagesRoutes); // Community chat routes (has /communities/:id/chat/* endpoints)
     app.use('/api/push-tokens', pushTokenRoutes);
   }
 

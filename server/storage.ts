@@ -3126,7 +3126,12 @@ export class DbStorage implements IStorage {
       commentCount: r.community_wall_posts.commentCount,
       createdAt: r.community_wall_posts.createdAt,
       deletedAt: r.community_wall_posts.deletedAt,
-      author: r.users as User
+      author: r.users || {
+        id: r.community_wall_posts.authorId,
+        username: 'deleted',
+        email: '',
+        displayName: 'Deleted User'
+      } as User
     }));
   }
 
