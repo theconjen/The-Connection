@@ -275,6 +275,58 @@ export default function SettingsPage() {
     });
   };
 
+  const handleDeleteAccount = async () => {
+    if (deleting) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "This will permanently delete your account and all associated data. This action cannot be undone.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const password = window.prompt("Please enter your password to confirm account deletion.");
+
+    if (!password) {
+      toast({
+        title: "Password required",
+        description: "Please enter your password to delete your account.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDeleting(true);
+
+    try {
+      await apiRequest("/api/user/account", {
+        method: "DELETE",
+        body: JSON.stringify({ password }),
+      });
+
+      toast({
+        title: "Account deleted",
+        description: "Your account has been permanently deleted.",
+      });
+
+      logout();
+      window.location.assign("/");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error
+          ? error.message
+          : "Failed to delete account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (!user) {
     return (
       <div className="container mx-auto py-8">
