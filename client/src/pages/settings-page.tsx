@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiUrl } from "../lib/env";
 import { apiRequest } from "../lib/queryClient";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
 import { Organization } from "@connection/shared/schema";
@@ -110,8 +109,17 @@ export default function SettingsPage() {
   const { data: userOrganizations } = useQuery<{ organization: Organization; role: string; joinedAt: string; }[]>({
     queryKey: ["/api/organizations"],
     queryFn: async () => {
-      const response = await apiRequest("/api/organizations");
-      return response.json();
+      try {
+        const response = await apiRequest("/api/organizations");
+        return response.json();
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.startsWith("401") || error.message.startsWith("403")) {
+            return [];
+          }
+        }
+        throw error;
+      }
     },
     enabled: !!user,
   });
@@ -183,21 +191,20 @@ export default function SettingsPage() {
   async function handleSave() {
     setLoading(true);
     try {
-          const response = await fetch(apiUrl("/api/user/settings"), {
+      const response = await apiRequest("/api/user/settings", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileData),
       });
-      
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Settings updated successfully!",
-        });
-        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      } else {
+
+      if (!response.ok) {
         throw new Error("Failed to update settings");
       }
+
+      toast({
+        title: "Success",
+        description: "Settings updated successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     } catch (error) {
       toast({
         title: "Error",
@@ -212,9 +219,8 @@ export default function SettingsPage() {
   const handlePrivacySave = async () => {
     setPrivacySaving(true);
     try {
-      const response = await fetch(apiUrl("/api/user/settings"), {
+      const response = await apiRequest("/api/user/settings", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           profileVisibility: preferences.profileVisibility,
           showLocation: preferences.showLocation,

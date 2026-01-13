@@ -1446,9 +1446,118 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     body: z.object({ status: z.enum(['going', 'maybe', 'not_going']) }),
   });
 
-  app.patch('/api/events/:id/rsvp', isAuthenticated, async (req, res) => {
+  const hasEventAccess = async (event: any, userId: number) => {
+    if (event.isPublic) {
+      return true;
+    }
+
+    if (event.creatorId === userId) {
+      return true;
+    }
+
+    if (event.communityId) {
+      try {
+        if (await storage.isCommunityMember(userId, event.communityId)) {
+          return true;
+        }
+      } catch (error) {
+        console.warn('Error checking community membership for event RSVP:', error);
+      }
+    }
+
+    if (event.groupId) {
+      try {
+        if (await storage.isGroupMember(event.groupId, userId)) {
+          return true;
+        }
+      } catch (error) {
+        console.warn('Error checking group membership for event RSVP:', error);
+      }
+    }
+
+    if (typeof storage.isUserInvitedToEvent === 'function') {
+      try {
+        if (await storage.isUserInvitedToEvent(userId, event.id)) {
+          return true;
+        }
+      } catch (error) {
+        console.warn('Error checking event invitation for RSVP:', error);
+      }
+    }
+
+    return false;
+  };
+
+  app.get('/api/events/:id/rsvps', async (req, res) => {
     try {
       const eventId = parseInt(req.params.id);
+      if (!Number.isFinite(eventId)) {
+        return res.status(400).json({ message: 'Invalid event ID' });
+      }
+
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      if (!event.isPublic) {
+        const userId = getSessionUserId(req);
+        if (!userId) {
+          return res.status(401).json({ message: 'Authentication required' });
+        }
+        const canAccess = await hasEventAccess(event, userId);
+        if (!canAccess) {
+          return res.status(403).json({ message: 'You do not have access to this private event' });
+        }
+      }
+
+      const rsvps = await storage.getEventRSVPs(eventId);
+      res.json(rsvps);
+    } catch (error) {
+      console.error('Error fetching event RSVPs:', error);
+      res.status(500).json(buildErrorResponse('Error fetching event RSVPs', error));
+    }
+  });
+
+  app.get('/api/events/:id/rsvp', isAuthenticated, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      const userId = requireSessionUserId(req);
+
+      if (!Number.isFinite(eventId)) {
+        return res.status(400).json({ message: 'Invalid event ID' });
+      }
+
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      const canAccess = await hasEventAccess(event, userId);
+      if (!canAccess) {
+        return res.status(403).json({ message: 'You do not have access to this private event' });
+      }
+
+      const rsvp = await storage.getUserEventRSVP(eventId, userId);
+      if (!rsvp) {
+        return res.status(404).json({ message: 'RSVP not found' });
+      }
+      res.json(rsvp);
+    } catch (error) {
+      console.error('Error fetching RSVP:', error);
+      res.status(500).json(buildErrorResponse('Error fetching RSVP', error));
+    }
+  });
+
+  const upsertEventRsvp = async (req: any, res: any) => {
+    try {
+      const parsed = eventRsvpSchema.safeParse({ params: req.params, body: req.body });
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid RSVP payload' });
+      }
+
+      const eventId = parsed.data.params.id;
+      const { status } = parsed.data.body;
       const userId = requireSessionUserId(req);
       const user = await storage.getUser(userId);
       if (!user) {
@@ -1461,41 +1570,11 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(404).json({ message: 'Event not found' });
       }
 
-      if (!event.isPublic) {
-        let hasAccess = event.creatorId === userId;
-
-        if (!hasAccess && event.communityId) {
-          try {
-            hasAccess = await storage.isCommunityMember(userId, event.communityId);
-          } catch (error) {
-            console.warn('Error checking community membership for event RSVP:', error);
-            hasAccess = false;
-          }
-        }
-
-        if (!hasAccess && event.groupId) {
-          try {
-            hasAccess = await storage.isGroupMember(event.groupId, userId);
-          } catch (error) {
-            console.warn('Error checking group membership for event RSVP:', error);
-            hasAccess = false;
-          }
-        }
-
-        if (!hasAccess && typeof storage.isUserInvitedToEvent === 'function') {
-          try {
-            hasAccess = await storage.isUserInvitedToEvent(userId, eventId);
-          } catch (error) {
-            console.warn('Error checking event invitation for RSVP:', error);
-            hasAccess = false;
-          }
-        }
-
-        if (!hasAccess) {
-          return res.status(403).json({
-            message: 'You do not have access to this private event'
-          });
-        }
+      const canAccess = await hasEventAccess(event, userId);
+      if (!canAccess) {
+        return res.status(403).json({
+          message: 'You do not have access to this private event'
+        });
       }
 
       const rsvp = await storage.upsertEventRSVP(eventId, userId, status);
@@ -1504,7 +1583,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       console.error('Error updating RSVP:', error);
       res.status(500).json(buildErrorResponse('Error updating RSVP', error));
     }
-  });
+  };
+
+  app.post('/api/events/:id/rsvp', isAuthenticated, upsertEventRsvp);
+  app.patch('/api/events/:id/rsvp', isAuthenticated, upsertEventRsvp);
 
   app.delete('/api/events/:id', isAuthenticated, async (req, res) => {
     try {
