@@ -91,7 +91,7 @@ router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
 });
 
 // Regular login endpoint
-router.post('/login', async (req, res) => {
+router.post('/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
@@ -158,7 +158,7 @@ router.post('/login', async (req, res) => {
 // Admins should use the regular login endpoint with their credentials
 
 // Logout endpoint
-router.post('/logout', (req, res) => {
+router.post('/auth/logout', (req, res) => {
   try {
     // For JWT-based auth (mobile apps), just return success
     // The client will discard the token
