@@ -70,7 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string) => {
     try {
       const response = await apiClient.post('/login', { username, password });
-      
+
+      // Save JWT token if present (for mobile app API auth)
+      if (response.data.token) {
+        const { saveAuthToken } = await import('../lib/secureStorage');
+        await saveAuthToken(response.data.token);
+        console.info('JWT token saved successfully');
+      }
+
       // Extract and save the session cookie directly
       const setCookieHeader = response.headers['set-cookie'];
       if (setCookieHeader) {
@@ -80,12 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const cookieValue = sessionCookie.split(';')[0];
           // Save directly to SecureStore
           await SecureStore.setItemAsync('sessionCookie', cookieValue);
-          
+
           // Small delay to ensure cookie is persisted
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
-      
+
       // If login response contains user data, use it directly
       if (response.data && response.data.id) {
         setUser(response.data);
