@@ -47,11 +47,21 @@ export default function NewMessageScreen() {
   const users = searchResults?.filter((result: any) => result.type === 'user') || [];
 
   const handleUserSelect = (user: any) => {
-    // Navigate to message detail with the selected user (using userId param like existing screen)
-    router.push({
-      pathname: '/messages/[userId]',
-      params: { userId: user.id.toString() }
-    });
+    // Validate user ID before navigation
+    if (!user || !user.id) {
+      console.error('Cannot navigate: Invalid user', user);
+      return;
+    }
+
+    const userId = String(user.id);
+    console.info('Navigating to message screen with userId:', userId);
+
+    // Navigate to message detail with the selected user
+    try {
+      router.push(`/messages/${userId}`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
   };
 
   const renderUser = ({ item }: { item: any }) => {
