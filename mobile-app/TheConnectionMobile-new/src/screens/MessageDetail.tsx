@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
   Keyboard
 } from 'react-native';
-import { Text, useTheme, Screen, Input, Button, Avatar } from '../theme';
+import { Text, Screen, Input, Button, Avatar } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { AppHeader } from './AppHeader';
 import { useConversationMessages, useSendMessage, useMarkAsRead } from '../queries/messages';
 import { useAuth } from '../contexts/AuthContext';
@@ -43,7 +44,7 @@ export function MessageDetail({ onBack, conversationId, otherUser }: MessageDeta
     if (!messageText.trim()) return;
 
     sendMessageMutation.mutate({
-      conversationId,
+      receiverId: conversationId, // conversationId is the other user's ID
       content: messageText.trim(),
     });
     setMessageText('');

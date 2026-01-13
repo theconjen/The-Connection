@@ -2143,14 +2143,24 @@ export class MemStorage implements IStorage {
     for (const [otherUserId, conv] of conversationMap) {
       const otherUser = this.data.users.find(u => u.id === otherUserId);
       conversations.push({
-        ...conv,
-        otherUserName: otherUser?.username || 'Unknown',
-        otherUserDisplayName: otherUser?.displayName
+        id: otherUserId, // Add ID for mobile app
+        otherUser: { // Nest user info
+          id: otherUserId,
+          username: otherUser?.username || 'Unknown',
+          displayName: otherUser?.displayName,
+          profileImageUrl: otherUser?.profileImageUrl
+        },
+        lastMessage: { // Nest last message info
+          content: conv.lastMessage,
+          createdAt: conv.lastMessageTime,
+          senderId: otherUserId // Approximate - in-memory doesn't track sender easily
+        },
+        unreadCount: conv.unreadCount
       });
     }
 
     return conversations.sort((a, b) =>
-      new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+      new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
     );
   }
 
@@ -4290,9 +4300,19 @@ export class DbStorage implements IStorage {
     for (const [otherUserId, conv] of conversationMap) {
       const otherUser = await this.getUser(otherUserId);
       conversations.push({
-        ...conv,
-        otherUserName: otherUser?.username || 'Unknown',
-        otherUserDisplayName: otherUser?.displayName
+        id: otherUserId, // Add ID for mobile app
+        otherUser: { // Nest user info
+          id: otherUserId,
+          username: otherUser?.username || 'Unknown',
+          displayName: otherUser?.displayName,
+          profileImageUrl: otherUser?.profileImageUrl
+        },
+        lastMessage: { // Nest last message info
+          content: conv.lastMessage,
+          createdAt: conv.lastMessageTime,
+          senderId: conv.lastMessage?.senderId || otherUserId // Include sender for better context
+        },
+        unreadCount: conv.unreadCount
       });
     }
 
