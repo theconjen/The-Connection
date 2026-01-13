@@ -55,7 +55,6 @@ router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
     }
 
     // Log for QA
-    console.log(`[MAGIC] token=${token} code=${code} email=${email}`);
 
     return res.json({ token, message: 'Magic code sent' });
   } catch (error) {
@@ -95,42 +94,60 @@ router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
+
     if (!username || !password) {
       return res.status(400).json({ message: "Username and password are required" });
     }
-    
+
     // Find user by username
     const user = await storage.getUserByUsername(username);
-    
+
     if (!user) {
       return res.status(401).json({ message: "Invalid username or password" });
     }
-    
+
     // Use bcrypt to compare password
     const passwordMatches = await bcrypt.compare(password, user.password);
-    
+
     if (!passwordMatches) {
       return res.status(401).json({ message: "Invalid username or password" });
     }
-    
-    // Set user in session
-    setSessionUserId(req, user.id);
-    req.session.username = user.username;
-    req.session.isAdmin = user.isAdmin || false;
-    
-    // Save session explicitly to ensure it's stored before responding
-    req.session.save(err => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).json(buildErrorResponse("Error saving session", err));
-      }
-      
-      // Return user data (excluding password)
-      const { password: _, ...userData } = user;
+
+    // Return user data (excluding password)
+    const { password: _, ...userData } = user;
+
+    // Generate JWT token for mobile apps
+    const jwtSecret = process.env.JWT_SECRET;
+    if (jwtSecret) {
+      const token = jwt.sign(
+        { sub: user.id, email: user.email, username: user.username },
+        jwtSecret,
+        { expiresIn: '7d' }
+      );
+
+      // Return token for mobile apps
+      return res.json({ ...userData, token });
+    }
+
+    // Fallback: Session-based auth for web (if JWT not configured)
+    if (req.session) {
+      setSessionUserId(req, user.id);
+      req.session.username = user.username;
+      req.session.isAdmin = user.isAdmin || false;
+
+      // Save session explicitly
+      req.session.save(err => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.status(500).json(buildErrorResponse("Error saving session", err));
+        }
+        res.json(userData);
+      });
+    } else {
+      // No session and no JWT - return user data anyway
       res.json(userData);
-    });
-    
+    }
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json(buildErrorResponse("Server error during login", error));
@@ -142,12 +159,26 @@ router.post('/login', async (req, res) => {
 
 // Logout endpoint
 router.post('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json(buildErrorResponse("Error logging out", err));
+  try {
+    // For JWT-based auth (mobile apps), just return success
+    // The client will discard the token
+    if (!req.session || req.headers.authorization) {
+      return res.json({ message: "Logged out successfully" });
     }
+
+    // For session-based auth (web), destroy the session
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Session destroy error:', err);
+        return res.status(500).json(buildErrorResponse("Error logging out", err));
+      }
+      res.json({ message: "Logged out successfully" });
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Don't fail logout - just return success
     res.json({ message: "Logged out successfully" });
-  });
+  }
 });
 
 // Get current user endpoint

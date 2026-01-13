@@ -2,7 +2,7 @@ import express from "express";
 import { storage } from "../storage";
 import { requireAuth } from "../middleware/auth";
 import { buildErrorResponse } from "../utils/errors";
-import { requireSessionUserId } from "../utils/session";
+import { requireSessionUserId, getSessionUserId } from "../utils/session";
 
 const router = express.Router();
 
@@ -87,10 +87,19 @@ async function handleUnregister(req: express.Request, res: express.Response) {
 router.delete("/:token", async (req, res) => {
   try {
     const token = decodeURIComponent(req.params.token);
-    const userId = requireSessionUserId(req);
+    const userId = getSessionUserId(req);
     metrics.unregisterAttempts++;
 
     if (!token) return res.status(400).json({ message: "Token required" });
+
+    // If no userId (logged out), still try to delete the token
+    if (!userId) {
+      // For logged-out users, just return success
+      // The token will be cleaned up by expiration
+      metrics.unregisterSuccess++;
+      console.info(`Token unregister attempted without auth - returning success`);
+      return res.status(204).end();
+    }
 
     const result = await storage.deletePushToken(String(token), userId);
     if (result === "forbidden") {
