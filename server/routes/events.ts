@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
+import { notifyCommunityMembers, notifyEventAttendees, truncateText } from '../services/notificationHelper';
 
 const router = Router();
 
@@ -60,33 +61,202 @@ router.get('/api/events/:id', async (req, res) => {
   }
 });
 
-// Accept minimal payload: title, description, startsAt (ISO), optional isPublic
+// Create event - requires community admin or app admin
 router.post('/api/events', requireAuth, async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
-    const { title, description, startsAt, isPublic } = req.body || {};
-    if (!title || !description || !startsAt) return res.status(400).json({ message: 'title, description, startsAt required' });
+    const {
+      title,
+      description,
+      eventDate,
+      startTime,
+      endTime,
+      isVirtual,
+      location,
+      address,
+      city,
+      state,
+      zipCode,
+      virtualMeetingUrl,
+      isPublic,
+      communityId,
+      startsAt // Support legacy format
+    } = req.body || {};
 
-    const start = new Date(startsAt);
-    if (isNaN(start.getTime()) || start.getTime() <= Date.now()) return res.status(400).json({ message: 'startsAt must be in the future' });
+    // Support both new format (eventDate, startTime, endTime) and legacy format (startsAt)
+    let finalEventDate: string;
+    let finalStartTime: string;
+    let finalEndTime: string;
 
-    // Map minimal to schema fields
+    if (startsAt) {
+      // Legacy format
+      const start = new Date(startsAt);
+      if (isNaN(start.getTime()) || start.getTime() <= Date.now()) {
+        return res.status(400).json({ error: 'startsAt must be in the future' });
+      }
+      finalEventDate = start.toISOString().slice(0, 10);
+      finalStartTime = start.toISOString().slice(11, 19);
+      finalEndTime = start.toISOString().slice(11, 19);
+    } else {
+      // New format
+      if (!title || !description || !eventDate || !startTime) {
+        return res.status(400).json({ error: 'title, description, eventDate, and startTime are required' });
+      }
+      finalEventDate = eventDate;
+      finalStartTime = startTime;
+      finalEndTime = endTime || startTime;
+    }
+
+    // Require communityId for all events
+    if (!communityId) {
+      return res.status(400).json({ error: 'communityId is required - events must belong to a community' });
+    }
+
+    // Verify community exists
+    const community = await storage.getCommunity(communityId);
+    if (!community) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    // Authorization check:
+    // 1. User is app admin (can create events for any community)
+    // 2. OR user is community owner/moderator (can create events for their communities)
+    const user = await storage.getUser(userId);
+    const isAppAdmin = user?.isAdmin === true;
+    const isCommunityAdmin = await storage.isCommunityModerator(communityId, userId);
+
+    if (!isAppAdmin && !isCommunityAdmin) {
+      return res.status(403).json({
+        error: 'Only community admins can create events for this community'
+      });
+    }
+
+    // Build event payload
     const payload = {
       title,
       description,
-      isPublic: !!isPublic,
-      eventDate: start.toISOString().slice(0, 10), // YYYY-MM-DD
-      startTime: start.toISOString().slice(11, 19), // HH:MM:SS
-      endTime: start.toISOString().slice(11, 19),
+      eventDate: finalEventDate,
+      startTime: finalStartTime,
+      endTime: finalEndTime,
+      isVirtual: isVirtual ?? false,
+      location: location || null,
+      address: address || null,
+      city: city || null,
+      state: state || null,
+      zipCode: zipCode || null,
+      virtualMeetingUrl: virtualMeetingUrl || null,
+      isPublic: isPublic ?? true,
+      communityId,
       creatorId: userId,
     };
 
     const validated = insertEventSchema.parse(payload as any);
     const event = await storage.createEvent(validated);
+
+    // Notify community members about new event
+    if (event.communityId) {
+      try {
+        const community = await storage.getCommunity(event.communityId);
+        const eventLocation = event.isVirtual ? 'Virtual Event' : (event.location || event.city || 'TBD');
+        const eventTime = `${event.eventDate} at ${event.startTime}`;
+
+        await notifyCommunityMembers(
+          event.communityId,
+          {
+            title: `New event: ${truncateText(event.title, 40)}`,
+            body: `${eventTime} - ${eventLocation}`,
+            data: {
+              type: 'event_created',
+              eventId: event.id,
+              communityId: event.communityId,
+            },
+            category: 'event',
+          },
+          [userId] // Exclude event creator
+        );
+        console.info(`[Events] Notified community ${event.communityId} about new event ${event.id}`);
+      } catch (notifError) {
+        console.error('[Events] Error sending event creation notification:', notifError);
+      }
+    }
+
     res.status(201).json(event);
   } catch (error) {
     console.error('Error creating event:', error);
     res.status(500).json(buildErrorResponse('Error creating event', error));
+  }
+});
+
+// Update event - requires event creator or community admin
+router.patch('/api/events/:id', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    // Check if event exists
+    const existingEvent = await storage.getEvent(eventId);
+    if (!existingEvent) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Authorization: must be event creator or community admin
+    const user = await storage.getUser(userId);
+    const isEventCreator = existingEvent.creatorId === userId;
+    const isAppAdmin = user?.isAdmin === true;
+    const isCommunityAdmin = existingEvent.communityId
+      ? await storage.isCommunityModerator(existingEvent.communityId, userId)
+      : false;
+
+    if (!isEventCreator && !isAppAdmin && !isCommunityAdmin) {
+      return res.status(403).json({ error: 'Only event creator or community admins can update this event' });
+    }
+
+    // Build update payload (only include fields that are provided)
+    const updatePayload: any = {};
+    const allowedFields = ['title', 'description', 'eventDate', 'startTime', 'endTime', 'isVirtual',
+                           'location', 'address', 'city', 'state', 'zipCode', 'virtualMeetingUrl', 'isPublic'];
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updatePayload[field] = req.body[field];
+      }
+    }
+
+    // Update event
+    const updatedEvent = await storage.updateEvent(eventId, updatePayload);
+
+    // Notify RSVPed users about event update
+    if (existingEvent.communityId) {
+      try {
+        const changes = Object.keys(updatePayload)
+          .filter(key => ['title', 'eventDate', 'startTime', 'location', 'isVirtual'].includes(key))
+          .join(', ');
+
+        if (changes) {
+          await notifyEventAttendees(
+            eventId,
+            {
+              title: `Event updated: ${truncateText(updatedEvent.title, 40)}`,
+              body: `Changes: ${changes}`,
+              data: {
+                type: 'event_updated',
+                eventId: updatedEvent.id,
+              },
+              category: 'event',
+            },
+            [userId] // Exclude the person making the update
+          );
+          console.info(`[Events] Notified attendees about event ${eventId} update`);
+        }
+      } catch (notifError) {
+        console.error('[Events] Error sending event update notification:', notifError);
+      }
+    }
+
+    res.json(updatedEvent);
+  } catch (error) {
+    console.error('Error updating event:', error);
+    res.status(500).json(buildErrorResponse('Error updating event', error));
   }
 });
 
@@ -104,6 +274,85 @@ router.delete('/api/events/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error deleting event:', error);
     res.status(500).json(buildErrorResponse('Error deleting event', error));
+  }
+});
+
+// RSVP to an event
+router.post('/api/events/:id/rsvp', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const { status } = req.body; // 'attending', 'maybe', 'declined'
+
+    if (!['attending', 'maybe', 'declined'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be attending, maybe, or declined' });
+    }
+
+    // Check if event exists
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Upsert RSVP (creates or updates)
+    const rsvp = await storage.upsertEventRSVP(eventId, userId, status);
+
+    res.json(rsvp);
+  } catch (error) {
+    console.error('Error creating RSVP:', error);
+    res.status(500).json(buildErrorResponse('Error creating RSVP', error));
+  }
+});
+
+// Get RSVPs for an event
+router.get('/api/events/:id/rsvps', async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+
+    // Check if event exists
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const rsvps = await storage.getEventRSVPs(eventId);
+    res.json(rsvps);
+  } catch (error) {
+    console.error('Error fetching RSVPs:', error);
+    res.status(500).json(buildErrorResponse('Error fetching RSVPs', error));
+  }
+});
+
+// Get current user's RSVP for an event
+router.get('/api/events/:id/my-rsvp', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    const rsvp = await storage.getUserEventRSVP(eventId, userId);
+    res.json(rsvp || null);
+  } catch (error) {
+    console.error('Error fetching user RSVP:', error);
+    res.status(500).json(buildErrorResponse('Error fetching user RSVP', error));
+  }
+});
+
+// Delete/cancel RSVP
+router.delete('/api/events/:id/rsvp', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    const rsvp = await storage.getUserEventRSVP(eventId, userId);
+    if (!rsvp) {
+      return res.status(404).json({ error: 'RSVP not found' });
+    }
+
+    await storage.deleteEventRSVP(rsvp.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting RSVP:', error);
+    res.status(500).json(buildErrorResponse('Error deleting RSVP', error));
   }
 });
 

@@ -57,9 +57,16 @@ router.patch('/profile', async (req, res, next) => {
     if (!userId) {
       return;
     }
-    
-    const { displayName, bio, avatarUrl, email, city, state, zipCode, profileVisibility, showLocation, showInterests } = req.body;
-    
+
+    console.log('[PATCH /user/profile] userId:', userId);
+    console.log('[PATCH /user/profile] Request body:', req.body);
+
+    const {
+      displayName, bio, avatarUrl, email, city, state, zipCode,
+      profileVisibility, showLocation, showInterests,
+      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests
+    } = req.body;
+
     // Only allow updating specific fields
     const updateData: any = {};
     if (displayName !== undefined) updateData.displayName = displayName;
@@ -69,6 +76,12 @@ router.patch('/profile', async (req, res, next) => {
     if (city !== undefined) updateData.city = city;
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
+    if (location !== undefined) updateData.location = location;
+    if (denomination !== undefined) updateData.denomination = denomination;
+    if (homeChurch !== undefined) updateData.homeChurch = homeChurch;
+    if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
+    if (testimony !== undefined) updateData.testimony = testimony;
+    if (interests !== undefined) updateData.interests = interests;
     if (profileVisibility !== undefined) {
       if (!isValidVisibility(profileVisibility)) {
         return res.status(400).json({ message: "Invalid profile visibility option" });
@@ -77,9 +90,22 @@ router.patch('/profile', async (req, res, next) => {
     }
     if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
-    
+
+    console.log('[PATCH /user/profile] Update data being sent to storage:', updateData);
+
     const updatedUser = await storage.updateUser(userId, updateData);
-    
+
+    console.log('[PATCH /user/profile] Updated user from DB:', {
+      id: updatedUser.id,
+      displayName: updatedUser.displayName,
+      location: updatedUser.location,
+      denomination: updatedUser.denomination,
+      homeChurch: updatedUser.homeChurch,
+      favoriteBibleVerse: updatedUser.favoriteBibleVerse,
+      testimony: updatedUser.testimony,
+      interests: updatedUser.interests,
+    });
+
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;
     res.json(userData);
@@ -101,8 +127,12 @@ router.patch('/:id', async (req, res, next) => {
       return res.status(401).json({ message: 'Not authorized to update this profile' });
     }
     
-    const { displayName, bio, avatarUrl, email, city, state, zipCode, profileVisibility, showLocation, showInterests } = req.body;
-    
+    const {
+      displayName, bio, avatarUrl, email, city, state, zipCode,
+      profileVisibility, showLocation, showInterests,
+      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests
+    } = req.body;
+
     // Only allow updating specific fields
     const updateData: any = {};
     if (displayName !== undefined) updateData.displayName = displayName;
@@ -112,6 +142,12 @@ router.patch('/:id', async (req, res, next) => {
     if (city !== undefined) updateData.city = city;
     if (state !== undefined) updateData.state = state;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
+    if (location !== undefined) updateData.location = location;
+    if (denomination !== undefined) updateData.denomination = denomination;
+    if (homeChurch !== undefined) updateData.homeChurch = homeChurch;
+    if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
+    if (testimony !== undefined) updateData.testimony = testimony;
+    if (interests !== undefined) updateData.interests = interests;
     if (profileVisibility !== undefined) {
       if (!isValidVisibility(profileVisibility)) {
         return res.status(400).json({ message: "Invalid profile visibility option" });
@@ -311,6 +347,54 @@ router.post("/change-password", async (req, res) => {
   } catch (error) {
     console.error('Error changing password:', error);
     res.status(500).json(buildErrorResponse('Error changing password', error));
+  }
+});
+
+// Delete account endpoint (required by Apple App Store)
+router.delete("/account", async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const { password } = req.body;
+
+    // Validate input
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required to delete your account' });
+    }
+
+    // Get user (includes password when available)
+    const user = await storage.getUser(userId);
+    if (!user || !user.password) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Incorrect password' });
+    }
+
+    // Delete user and all related data
+    const deleted = await storage.deleteUser(userId);
+
+    if (!deleted) {
+      return res.status(500).json({ message: 'Failed to delete account' });
+    }
+
+    // Clear session
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Error destroying session after account deletion:', err);
+      }
+    });
+
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).json(buildErrorResponse('Error deleting account', error));
   }
 });
 

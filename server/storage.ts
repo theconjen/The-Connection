@@ -17,6 +17,8 @@ import {
   ApologistScholarApplication, InsertApologistScholarApplication,
   Microblog, InsertMicroblog,
   MicroblogLike, InsertMicroblogLike,
+  MicroblogRepost, InsertMicroblogRepost,
+  MicroblogBookmark, InsertMicroblogBookmark,
   UserPreferences, InsertUserPreferences,
 
   // Apologetics system
@@ -48,18 +50,18 @@ import {
   // Database tables
   users, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
   posts, comments, groups, groupMembers, apologeticsResources,
-  livestreams, microblogs, microblogLikes,
+  livestreams, microblogs, microblogLikes, microblogReposts, microblogBookmarks,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
   events, eventRsvps, prayerRequests, prayers,
   bibleReadingPlans, bibleReadingProgress, bibleStudyNotes,
   livestreamerApplications, apologistScholarApplications,
-  userPreferences, messages,
+  userPreferences, messages, userFollows,
   // moderation tables
     contentReports, userBlocks, pushTokens, notifications
 } from "@shared/schema";
 import { postVotes, commentVotes } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, sql, inArray, like } from "drizzle-orm";
+import { eq, and, or, desc, sql, inArray, like, isNull } from "drizzle-orm";
 import { whereNotDeleted, andNotDeleted } from "./db/helpers";
 import { geocodeAddress } from "./geocoding";
 import softDelete from './db/softDelete';
@@ -168,7 +170,15 @@ export interface IStorage {
   getVerifiedApologeticsAnswerers(): Promise<User[]>;
   getApologeticsAnswererPermissions(userId: number): Promise<number[]>;
   setApologeticsAnswererPermissions(userId: number, topicIds: number[]): Promise<number[]>;
-  
+
+  // User Follow methods
+  getUserFollowers(userId: number): Promise<any[]>;
+  getUserFollowing(userId: number): Promise<any[]>;
+  getUserFollow(followerId: number, followingId: number): Promise<any | undefined>;
+  createUserFollow(follow: { followerId: number; followingId: number }): Promise<any>;
+  deleteUserFollow(followerId: number, followingId: number): Promise<boolean>;
+  isUserFollowing(followerId: number, followingId: number): Promise<boolean>;
+
   // Community methods
   getAllCommunities(): Promise<Community[]>;
   searchCommunities(searchTerm: string): Promise<Community[]>;
@@ -193,7 +203,7 @@ export interface IStorage {
   getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined>;
   getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]>;
   addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember>;
-  updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember>;
+  updateCommunityMemberRole(communityId: number, userId: number, role: string): Promise<CommunityMember>;
   removeCommunityMember(communityId: number, userId: number): Promise<boolean>;
   isCommunityMember(communityId: number, userId: number): Promise<boolean>;
   isCommunityOwner(communityId: number, userId: number): Promise<boolean>;
@@ -320,7 +330,16 @@ export interface IStorage {
   likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike>;
   unlikeMicroblog(microblogId: number, userId: number): Promise<boolean>;
   getUserLikedMicroblogs(userId: number): Promise<Microblog[]>;
-  
+
+  // Microblog repost methods
+  repostMicroblog(microblogId: number, userId: number): Promise<MicroblogRepost>;
+  unrepostMicroblog(microblogId: number, userId: number): Promise<boolean>;
+
+  // Microblog bookmark methods
+  bookmarkMicroblog(microblogId: number, userId: number): Promise<MicroblogBookmark>;
+  unbookmarkMicroblog(microblogId: number, userId: number): Promise<boolean>;
+  getUserBookmarkedMicroblogs(userId: number): Promise<Microblog[]>;
+
   // Livestream methods
   getAllLivestreams(): Promise<Livestream[]>;
   createLivestream(livestream: InsertLivestream): Promise<Livestream>;
@@ -376,6 +395,7 @@ export interface IStorage {
   // Notifications
   getUserNotifications(userId: number): Promise<any[]>;
   markNotificationAsRead(id: number, userId: number): Promise<boolean>;
+  createNotification(notification: { userId: number; title: string; body: string; data?: any; category?: string }): Promise<any>;
   // Moderation methods
   createContentReport(report: InsertContentReport): Promise<ContentReport>;
   createUserBlock(block: InsertUserBlock): Promise<UserBlock>;
@@ -383,8 +403,8 @@ export interface IStorage {
   // Remove a user block (unblock)
   removeUserBlock(blockerId: number, blockedId: number): Promise<boolean>;
   // Voting helpers
-  togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }>;
-  toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }>;
+  togglePostVote(postId: number, userId: number, voteType?: 'upvote' | 'downvote'): Promise<{ voted: boolean; post?: Post }>;
+  toggleCommentVote(commentId: number, userId: number, voteType?: 'upvote' | 'downvote'): Promise<{ voted: boolean; comment?: Comment }>;
   // Email verification helper
   getUserByEmailVerificationToken(token: string): Promise<User | undefined>;
   // Admin moderation helpers
@@ -482,6 +502,8 @@ export class MemStorage implements IStorage {
     eventRsvps: [] as EventRsvp[],
     microblogs: [] as Microblog[],
     microblogLikes: [] as MicroblogLike[],
+    microblogReposts: [] as MicroblogRepost[],
+    microblogBookmarks: [] as MicroblogBookmark[],
     livestreamerApplications: [] as LivestreamerApplication[],
     apologistScholarApplications: [] as ApologistScholarApplication[],
     apologeticsAnswererPermissions: [] as ApologeticsAnswererPermission[],
@@ -873,10 +895,10 @@ export class MemStorage implements IStorage {
     return newMember;
   }
   
-  async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
-    const member = this.data.communityMembers.find(m => m.id === id);
+  async updateCommunityMemberRole(communityId: number, userId: number, role: string): Promise<CommunityMember> {
+    const member = this.data.communityMembers.find(m => m.communityId === communityId && m.userId === userId);
     if (!member) throw new Error('Member not found');
-    
+
     member.role = role;
     return member;
   }
@@ -1779,7 +1801,77 @@ export class MemStorage implements IStorage {
     const userLikes = this.data.microblogLikes.filter(l => l.userId === userId);
     return userLikes.map(l => this.data.microblogs.find(m => m.id === l.microblogId)!);
   }
-  
+
+  async repostMicroblog(microblogId: number, userId: number): Promise<MicroblogRepost> {
+    // Check if already reposted
+    const existingRepost = this.data.microblogReposts.find(r => r.microblogId === microblogId && r.userId === userId);
+    if (existingRepost) {
+      throw new Error('Already reposted');
+    }
+
+    const newRepost: MicroblogRepost = {
+      id: this.nextId++,
+      microblogId,
+      userId,
+      createdAt: new Date()
+    };
+    this.data.microblogReposts.push(newRepost);
+
+    // Update microblog repost count
+    const microblog = this.data.microblogs.find(m => m.id === microblogId);
+    if (microblog) {
+      microblog.repostCount = (microblog.repostCount || 0) + 1;
+    }
+
+    return newRepost;
+  }
+
+  async unrepostMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    const index = this.data.microblogReposts.findIndex(r => r.microblogId === microblogId && r.userId === userId);
+    if (index === -1) return false;
+
+    this.data.microblogReposts.splice(index, 1);
+
+    // Update microblog repost count
+    const microblog = this.data.microblogs.find(m => m.id === microblogId);
+    if (microblog && microblog.repostCount > 0) {
+      microblog.repostCount--;
+    }
+
+    return true;
+  }
+
+  async bookmarkMicroblog(microblogId: number, userId: number): Promise<MicroblogBookmark> {
+    // Check if already bookmarked
+    const existingBookmark = this.data.microblogBookmarks.find(b => b.microblogId === microblogId && b.userId === userId);
+    if (existingBookmark) {
+      throw new Error('Already bookmarked');
+    }
+
+    const newBookmark: MicroblogBookmark = {
+      id: this.nextId++,
+      microblogId,
+      userId,
+      createdAt: new Date()
+    };
+    this.data.microblogBookmarks.push(newBookmark);
+
+    return newBookmark;
+  }
+
+  async unbookmarkMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    const index = this.data.microblogBookmarks.findIndex(b => b.microblogId === microblogId && b.userId === userId);
+    if (index === -1) return false;
+
+    this.data.microblogBookmarks.splice(index, 1);
+    return true;
+  }
+
+  async getUserBookmarkedMicroblogs(userId: number): Promise<Microblog[]> {
+    const bookmarks = this.data.microblogBookmarks.filter(b => b.userId === userId);
+    return bookmarks.map(b => this.data.microblogs.find(m => m.id === b.microblogId)!).filter(Boolean);
+  }
+
   // Livestreamer application methods
   async getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined> {
     return this.data.livestreamerApplications.find(a => a.userId === userId);
@@ -2051,14 +2143,24 @@ export class MemStorage implements IStorage {
     for (const [otherUserId, conv] of conversationMap) {
       const otherUser = this.data.users.find(u => u.id === otherUserId);
       conversations.push({
-        ...conv,
-        otherUserName: otherUser?.username || 'Unknown',
-        otherUserDisplayName: otherUser?.displayName
+        id: otherUserId, // Add ID for mobile app
+        otherUser: { // Nest user info
+          id: otherUserId,
+          username: otherUser?.username || 'Unknown',
+          displayName: otherUser?.displayName,
+          profileImageUrl: otherUser?.profileImageUrl
+        },
+        lastMessage: { // Nest last message info
+          content: conv.lastMessage,
+          createdAt: conv.lastMessageTime,
+          senderId: otherUserId // Approximate - in-memory doesn't track sender easily
+        },
+        unreadCount: conv.unreadCount
       });
     }
 
     return conversations.sort((a, b) =>
-      new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+      new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
     );
   }
 
@@ -2138,37 +2240,69 @@ export class MemStorage implements IStorage {
   }
 
   // Toggle post vote (in-memory)
-  async togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }> {
+  async togglePostVote(postId: number, userId: number, voteType: 'upvote' | 'downvote' = 'upvote'): Promise<{ voted: boolean; post?: Post }> {
     // Simple in-memory vote tracking store
     if (!(this.data as any).postVotes) (this.data as any).postVotes = [] as any[];
     const pv = (this.data as any).postVotes as any[];
     const idx = pv.findIndex(v => v.postId === postId && v.userId === userId);
     const post = this.data.posts.find((p: any) => p.id === postId);
     if (!post) throw new Error('Post not found');
+
     if (idx !== -1) {
-      pv.splice(idx, 1);
-      post.upvotes = Math.max(0, (post.upvotes || 0) - 1);
-      return { voted: false, post };
+      const existingVote = pv[idx];
+      // If clicking same vote type, remove it
+      if (existingVote.voteType === voteType) {
+        pv.splice(idx, 1);
+        const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        post[field] = Math.max(0, (post[field] || 0) - 1);
+        return { voted: false, post };
+      } else {
+        // Switch vote type
+        existingVote.voteType = voteType;
+        const oldField = voteType === 'upvote' ? 'downvotes' : 'upvotes';
+        const newField = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        post[oldField] = Math.max(0, (post[oldField] || 0) - 1);
+        post[newField] = (post[newField] || 0) + 1;
+        return { voted: true, post };
+      }
     }
-    pv.push({ id: this.nextId++, postId, userId, createdAt: new Date() });
-    post.upvotes = (post.upvotes || 0) + 1;
+
+    pv.push({ id: this.nextId++, postId, userId, voteType, createdAt: new Date() });
+    const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+    post[field] = (post[field] || 0) + 1;
     return { voted: true, post };
   }
 
   // Toggle comment vote (in-memory)
-  async toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }> {
+  async toggleCommentVote(commentId: number, userId: number, voteType: 'upvote' | 'downvote' = 'upvote'): Promise<{ voted: boolean; comment?: Comment }> {
     if (!(this.data as any).commentVotes) (this.data as any).commentVotes = [] as any[];
     const cv = (this.data as any).commentVotes as any[];
     const idx = cv.findIndex(v => v.commentId === commentId && v.userId === userId);
     const comment = this.data.comments.find((c: any) => c.id === commentId);
     if (!comment) throw new Error('Comment not found');
+
     if (idx !== -1) {
-      cv.splice(idx, 1);
-      comment.upvotes = Math.max(0, (comment.upvotes || 0) - 1);
-      return { voted: false, comment };
+      const existingVote = cv[idx];
+      // If clicking same vote type, remove it
+      if (existingVote.voteType === voteType) {
+        cv.splice(idx, 1);
+        const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        comment[field] = Math.max(0, (comment[field] || 0) - 1);
+        return { voted: false, comment };
+      } else {
+        // Switch vote type
+        existingVote.voteType = voteType;
+        const oldField = voteType === 'upvote' ? 'downvotes' : 'upvotes';
+        const newField = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        comment[oldField] = Math.max(0, (comment[oldField] || 0) - 1);
+        comment[newField] = (comment[newField] || 0) + 1;
+        return { voted: true, comment };
+      }
     }
-    cv.push({ id: this.nextId++, commentId, userId, createdAt: new Date() });
-    comment.upvotes = (comment.upvotes || 0) + 1;
+
+    cv.push({ id: this.nextId++, commentId, userId, voteType, createdAt: new Date() });
+    const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+    comment[field] = (comment[field] || 0) + 1;
     return { voted: true, comment };
   }
 
@@ -2282,31 +2416,97 @@ export class DbStorage implements IStorage {
     return remaining.length === 0;
   }
 
-  // Toggle post vote (DB)
-  async togglePostVote(postId: number, userId: number): Promise<{ voted: boolean; post?: Post }> {
+  // Toggle post vote (DB) - supports upvote and downvote
+  async togglePostVote(postId: number, userId: number, voteType: 'upvote' | 'downvote' = 'upvote'): Promise<{ voted: boolean; post?: Post }> {
     // Check existing vote
     const existing = await db.select().from(postVotes).where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
+
     if (existing && existing.length > 0) {
-      await db.delete(postVotes).where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
-      // decrement post count
-      const updated = await db.update(posts).set({ upvotes: sql`GREATEST(${posts.upvotes} - 1, 0)` as any }).where(eq(posts.id, postId)).returning();
-      return { voted: false, post: updated[0] } as any;
+      const existingVote = existing[0];
+      // If clicking the same vote type, remove the vote
+      if ((existingVote as any).voteType === voteType) {
+        await db.delete(postVotes).where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
+        // Decrement the appropriate count
+        const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        const updated = await db.update(posts)
+          .set({ [field]: sql`GREATEST(${posts[field]} - 1, 0)` as any })
+          .where(eq(posts.id, postId))
+          .returning();
+        return { voted: false, post: updated[0] } as any;
+      } else {
+        // If clicking opposite vote type, switch the vote
+        await db.update(postVotes)
+          .set({ voteType: voteType as any })
+          .where(and(eq(postVotes.postId, postId), eq(postVotes.userId, userId)));
+
+        // Decrement old vote type, increment new vote type
+        const oldField = voteType === 'upvote' ? 'downvotes' : 'upvotes';
+        const newField = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        const updated = await db.update(posts)
+          .set({
+            [oldField]: sql`GREATEST(${posts[oldField]} - 1, 0)` as any,
+            [newField]: sql`${posts[newField]} + 1` as any
+          })
+          .where(eq(posts.id, postId))
+          .returning();
+        return { voted: true, post: updated[0] } as any;
+      }
     }
-    await db.insert(postVotes).values({ postId, userId } as any);
-    const updated = await db.update(posts).set({ upvotes: sql`${posts.upvotes} + 1` as any }).where(eq(posts.id, postId)).returning();
+
+    // No existing vote, add new vote
+    await db.insert(postVotes).values({ postId, userId, voteType: voteType as any } as any);
+    const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+    const updated = await db.update(posts)
+      .set({ [field]: sql`${posts[field]} + 1` as any })
+      .where(eq(posts.id, postId))
+      .returning();
     return { voted: true, post: updated[0] } as any;
   }
 
-  // Toggle comment vote (DB)
-  async toggleCommentVote(commentId: number, userId: number): Promise<{ voted: boolean; comment?: Comment }> {
+  // Toggle comment vote (DB) - supports upvote and downvote
+  async toggleCommentVote(commentId: number, userId: number, voteType: 'upvote' | 'downvote' = 'upvote'): Promise<{ voted: boolean; comment?: Comment }> {
+    // Check existing vote
     const existing = await db.select().from(commentVotes).where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
+
     if (existing && existing.length > 0) {
-      await db.delete(commentVotes).where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
-      const updated = await db.update(comments).set({ upvotes: sql`GREATEST(${comments.upvotes} - 1, 0)` as any }).where(eq(comments.id, commentId)).returning();
-      return { voted: false, comment: updated[0] } as any;
+      const existingVote = existing[0];
+      // If clicking the same vote type, remove the vote
+      if ((existingVote as any).voteType === voteType) {
+        await db.delete(commentVotes).where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
+        // Decrement the appropriate count
+        const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        const updated = await db.update(comments)
+          .set({ [field]: sql`GREATEST(${comments[field]} - 1, 0)` as any })
+          .where(eq(comments.id, commentId))
+          .returning();
+        return { voted: false, comment: updated[0] } as any;
+      } else {
+        // If clicking opposite vote type, switch the vote
+        await db.update(commentVotes)
+          .set({ voteType: voteType as any })
+          .where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)));
+
+        // Decrement old vote type, increment new vote type
+        const oldField = voteType === 'upvote' ? 'downvotes' : 'upvotes';
+        const newField = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+        const updated = await db.update(comments)
+          .set({
+            [oldField]: sql`GREATEST(${comments[oldField]} - 1, 0)` as any,
+            [newField]: sql`${comments[newField]} + 1` as any
+          })
+          .where(eq(comments.id, commentId))
+          .returning();
+        return { voted: true, comment: updated[0] } as any;
+      }
     }
-    await db.insert(commentVotes).values({ commentId, userId } as any);
-    const updated = await db.update(comments).set({ upvotes: sql`${comments.upvotes} + 1` as any }).where(eq(comments.id, commentId)).returning();
+
+    // No existing vote, add new vote
+    await db.insert(commentVotes).values({ commentId, userId, voteType: voteType as any } as any);
+    const field = voteType === 'upvote' ? 'upvotes' : 'downvotes';
+    const updated = await db.update(comments)
+      .set({ [field]: sql`${comments[field]} + 1` as any })
+      .where(eq(comments.id, commentId))
+      .returning();
     return { voted: true, comment: updated[0] } as any;
   }
 
@@ -2353,8 +2553,18 @@ export class DbStorage implements IStorage {
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    console.info('[DbStorage.updateUser] Updating user', id, 'with data:', userData);
     const result = await db.update(users).set(userData).where(eq(users.id, id)).returning();
     if (!result[0]) throw new Error('User not found');
+    console.info('[DbStorage.updateUser] Update successful, returning:', {
+      id: result[0].id,
+      location: result[0].location,
+      denomination: result[0].denomination,
+      homeChurch: result[0].homeChurch,
+      favoriteBibleVerse: result[0].favoriteBibleVerse,
+      testimony: result[0].testimony,
+      interests: result[0].interests
+    });
     return result[0];
   }
   
@@ -2415,6 +2625,88 @@ export class DbStorage implements IStorage {
       .returning();
 
     return inserted.map(row => row.topicId);
+  }
+
+  // User Follow methods
+  async getUserFollowers(userId: number): Promise<any[]> {
+    const follows = await db.select()
+      .from(userFollows)
+      .where(eq(userFollows.followingId, userId));
+
+    const followerIds = follows.map(f => f.followerId);
+    if (followerIds.length === 0) return [];
+
+    const followers = await db.select()
+      .from(users)
+      .where(inArray(users.id, followerIds));
+
+    return follows.map(follow => {
+      const user = followers.find(u => u.id === follow.followerId);
+      return {
+        id: user?.id,
+        username: user?.username,
+        displayName: user?.displayName,
+        profileImageUrl: user?.avatarUrl,
+        followedAt: follow.createdAt,
+      };
+    });
+  }
+
+  async getUserFollowing(userId: number): Promise<any[]> {
+    const follows = await db.select()
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+
+    const followingIds = follows.map(f => f.followingId);
+    if (followingIds.length === 0) return [];
+
+    const following = await db.select()
+      .from(users)
+      .where(inArray(users.id, followingIds));
+
+    return follows.map(follow => {
+      const user = following.find(u => u.id === follow.followingId);
+      return {
+        id: user?.id,
+        username: user?.username,
+        displayName: user?.displayName,
+        profileImageUrl: user?.avatarUrl,
+        followedAt: follow.createdAt,
+      };
+    });
+  }
+
+  async getUserFollow(followerId: number, followingId: number): Promise<any | undefined> {
+    const [follow] = await db.select()
+      .from(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.followingId, followingId)
+      ))
+      .limit(1);
+    return follow;
+  }
+
+  async createUserFollow(follow: { followerId: number; followingId: number }): Promise<any> {
+    const [created] = await db.insert(userFollows)
+      .values(follow)
+      .returning();
+    return created;
+  }
+
+  async deleteUserFollow(followerId: number, followingId: number): Promise<boolean> {
+    const result = await db.delete(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.followingId, followingId)
+      ))
+      .returning();
+    return result.length > 0;
+  }
+
+  async isUserFollowing(followerId: number, followingId: number): Promise<boolean> {
+    const follow = await this.getUserFollow(followerId, followingId);
+    return !!follow;
   }
 
   // Community methods - simplified for now
@@ -2494,46 +2786,175 @@ export class DbStorage implements IStorage {
     return !!result;
   }
   
-  // Placeholder implementations for other methods - can be expanded as needed
+  // Get all members of a community with their user data
   async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
-    return [];
+    const members = await db.select()
+      .from(communityMembers)
+      .leftJoin(users, eq(communityMembers.userId, users.id))
+      .where(eq(communityMembers.communityId, communityId));
+
+    return members.map(m => ({
+      id: m.community_members.id,
+      communityId: m.community_members.communityId,
+      userId: m.community_members.userId,
+      role: m.community_members.role,
+      joinedAt: m.community_members.joinedAt,
+      user: m.users as User
+    }));
   }
-  
+
   async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
-    return undefined;
+    const [member] = await db.select()
+      .from(communityMembers)
+      .where(
+        and(
+          eq(communityMembers.communityId, communityId),
+          eq(communityMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    return member;
   }
   
   async getUserCommunities(userId: number): Promise<(Community & { memberCount: number })[]> {
-    return [];
+    const memberships = await db.select()
+      .from(communityMembers)
+      .where(eq(communityMembers.userId, userId));
+
+    const communityIds = memberships.map(m => m.communityId);
+    if (communityIds.length === 0) return [];
+
+    const userCommunities = await db.select()
+      .from(communities)
+      .where(inArray(communities.id, communityIds));
+
+    const communitiesWithCount = await Promise.all(
+      userCommunities.map(async (community) => {
+        const members = await db.select({ count: sql<number>`count(*)` })
+          .from(communityMembers)
+          .where(eq(communityMembers.communityId, community.id));
+        return {
+          ...community,
+          memberCount: Number(members[0]?.count || 0)
+        };
+      })
+    );
+
+    return communitiesWithCount;
   }
   
   async addCommunityMember(member: InsertCommunityMember): Promise<CommunityMember> {
-    throw new Error('Not implemented');
+    const [newMember] = await db.insert(communityMembers)
+      .values({
+        communityId: member.communityId,
+        userId: member.userId,
+        role: member.role || 'member',
+      })
+      .returning();
+
+    // Update member count
+    await db.execute(sql`
+      UPDATE communities
+      SET member_count = (
+        SELECT COUNT(*)
+        FROM community_members
+        WHERE community_id = ${member.communityId}
+      )
+      WHERE id = ${member.communityId}
+    `);
+
+    return newMember;
   }
-  
-  async updateCommunityMemberRole(id: number, role: string): Promise<CommunityMember> {
-    throw new Error('Not implemented');
+
+  async updateCommunityMemberRole(communityId: number, userId: number, role: string): Promise<CommunityMember> {
+    const [updated] = await db.update(communityMembers)
+      .set({ role })
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId)
+      ))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Community member not found');
+    }
+
+    return updated;
   }
-  
+
   async removeCommunityMember(communityId: number, userId: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId)
+      ))
+      .returning();
+
+    if (result.length > 0) {
+      // Update member count
+      await db.execute(sql`
+        UPDATE communities
+        SET member_count = (
+          SELECT COUNT(*)
+          FROM community_members
+          WHERE community_id = ${communityId}
+        )
+        WHERE id = ${communityId}
+      `);
+    }
+
+    return result.length > 0;
   }
-  
+
   async isCommunityMember(communityId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId)
+      ))
+      .limit(1);
+
+    return !!member;
   }
   
   async isCommunityOwner(communityId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId),
+        eq(communityMembers.role, 'owner')
+      ))
+      .limit(1);
+
+    return !!member;
   }
-  
+
   async isCommunityModerator(communityId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(communityMembers)
+      .where(and(
+        eq(communityMembers.communityId, communityId),
+        eq(communityMembers.userId, userId),
+        or(
+          eq(communityMembers.role, 'owner'),
+          eq(communityMembers.role, 'moderator')
+        )
+      ))
+      .limit(1);
+
+    return !!member;
   }
   
   // Community invitation methods
   async createCommunityInvitation(invitation: InsertCommunityInvitation): Promise<CommunityInvitation> {
-    throw new Error('Not implemented');
+    const [newInvitation] = await db.insert(communityInvitations)
+      .values(invitation)
+      .returning();
+
+    return newInvitation;
   }
   
   async getCommunityInvitations(communityId: number): Promise<(CommunityInvitation & { inviter: User })[]> {
@@ -2557,45 +2978,124 @@ export class DbStorage implements IStorage {
   }
   
   async getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined> {
-    return undefined;
+    const [invitation] = await db.select()
+      .from(communityInvitations)
+      .where(and(
+        eq(communityInvitations.inviteeEmail, email),
+        eq(communityInvitations.communityId, communityId)
+      ))
+      .limit(1);
+
+    return invitation;
   }
   
   // Community chat room methods
   async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
-    return [];
+    return await db.select()
+      .from(communityChatRooms)
+      .where(eq(communityChatRooms.communityId, communityId))
+      .orderBy(communityChatRooms.name);
   }
-  
+
   async getPublicCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
-    return [];
+    return await db.select()
+      .from(communityChatRooms)
+      .where(and(
+        eq(communityChatRooms.communityId, communityId),
+        eq(communityChatRooms.isPrivate, false)
+      ))
+      .orderBy(communityChatRooms.name);
   }
-  
+
   async getCommunityRoom(id: number): Promise<CommunityChatRoom | undefined> {
-    return undefined;
+    const [room] = await db.select()
+      .from(communityChatRooms)
+      .where(eq(communityChatRooms.id, id))
+      .limit(1);
+    return room;
   }
-  
+
   async createCommunityRoom(room: InsertCommunityChatRoom): Promise<CommunityChatRoom> {
-    throw new Error('Not implemented');
+    const [newRoom] = await db.insert(communityChatRooms)
+      .values(room as any)
+      .returning();
+    return newRoom;
   }
-  
+
   async updateCommunityRoom(id: number, data: Partial<CommunityChatRoom>): Promise<CommunityChatRoom> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(communityChatRooms)
+      .set(data)
+      .where(eq(communityChatRooms.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Community room not found');
+    }
+
+    return updated;
   }
-  
+
   async deleteCommunityRoom(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(communityChatRooms)
+      .where(eq(communityChatRooms.id, id));
+    return true;
   }
   
   // Chat message methods
   async getChatMessages(roomId: number, limit?: number): Promise<(ChatMessage & { sender: User })[]> {
-    return [];
+    const query = db.select()
+      .from(chatMessages)
+      .leftJoin(users, eq(chatMessages.senderId, users.id))
+      .where(eq(chatMessages.chatRoomId, roomId))
+      .orderBy(chatMessages.createdAt);
+
+    const messages = await (limit ? query.limit(limit) : query);
+
+    return messages.map(m => ({
+      id: m.chat_messages.id,
+      content: m.chat_messages.content,
+      chatRoomId: m.chat_messages.chatRoomId,
+      senderId: m.chat_messages.senderId,
+      isSystemMessage: m.chat_messages.isSystemMessage,
+      createdAt: m.chat_messages.createdAt,
+      sender: m.users as User
+    }));
   }
-  
+
   async getChatMessagesAfter(roomId: number, afterId: number): Promise<(ChatMessage & { sender: User })[]> {
-    return [];
+    // First get the timestamp of the afterId message
+    const [afterMessage] = await db.select()
+      .from(chatMessages)
+      .where(eq(chatMessages.id, afterId))
+      .limit(1);
+
+    if (!afterMessage) return [];
+
+    const messages = await db.select()
+      .from(chatMessages)
+      .leftJoin(users, eq(chatMessages.senderId, users.id))
+      .where(and(
+        eq(chatMessages.chatRoomId, roomId),
+        sql`${chatMessages.createdAt} > ${afterMessage.createdAt}`
+      ))
+      .orderBy(chatMessages.createdAt);
+
+    return messages.map(m => ({
+      id: m.chat_messages.id,
+      content: m.chat_messages.content,
+      chatRoomId: m.chat_messages.chatRoomId,
+      senderId: m.chat_messages.senderId,
+      isSystemMessage: m.chat_messages.isSystemMessage,
+      createdAt: m.chat_messages.createdAt,
+      sender: m.users as User
+    }));
   }
-  
+
   async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
-    throw new Error('Not implemented');
+    const [newMessage] = await db.insert(chatMessages)
+      .values(message as any)
+      .returning();
+    return newMessage;
   }
   
   async deleteChatMessage(id: number): Promise<boolean> {
@@ -2604,19 +3104,83 @@ export class DbStorage implements IStorage {
   
   // Community wall post methods
   async getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
-    return [];
+    const query = db.select()
+      .from(communityWallPosts)
+      .leftJoin(users, eq(communityWallPosts.authorId, users.id))
+      .where(and(
+        eq(communityWallPosts.communityId, communityId),
+        whereNotDeleted(communityWallPosts),
+        isPrivate !== undefined ? eq(communityWallPosts.isPrivate, isPrivate) : sql`1=1`
+      ))
+      .orderBy(desc(communityWallPosts.createdAt));
+
+    const results = await query;
+    return results.map(r => ({
+      id: r.community_wall_posts.id,
+      communityId: r.community_wall_posts.communityId,
+      authorId: r.community_wall_posts.authorId,
+      content: r.community_wall_posts.content,
+      imageUrl: r.community_wall_posts.imageUrl,
+      isPrivate: r.community_wall_posts.isPrivate,
+      likeCount: r.community_wall_posts.likeCount,
+      commentCount: r.community_wall_posts.commentCount,
+      createdAt: r.community_wall_posts.createdAt,
+      deletedAt: r.community_wall_posts.deletedAt,
+      author: r.users || {
+        id: r.community_wall_posts.authorId,
+        username: 'deleted',
+        email: '',
+        displayName: 'Deleted User'
+      } as User
+    }));
   }
-  
+
   async getCommunityWallPost(id: number): Promise<(CommunityWallPost & { author: User }) | undefined> {
-    return undefined;
+    const [result] = await db.select()
+      .from(communityWallPosts)
+      .leftJoin(users, eq(communityWallPosts.authorId, users.id))
+      .where(and(eq(communityWallPosts.id, id), whereNotDeleted(communityWallPosts)))
+      .limit(1);
+
+    if (!result) return undefined;
+
+    return {
+      id: result.community_wall_posts.id,
+      communityId: result.community_wall_posts.communityId,
+      authorId: result.community_wall_posts.authorId,
+      content: result.community_wall_posts.content,
+      imageUrl: result.community_wall_posts.imageUrl,
+      isPrivate: result.community_wall_posts.isPrivate,
+      likeCount: result.community_wall_posts.likeCount,
+      commentCount: result.community_wall_posts.commentCount,
+      createdAt: result.community_wall_posts.createdAt,
+      deletedAt: result.community_wall_posts.deletedAt,
+      author: result.users as User
+    };
   }
-  
+
   async createCommunityWallPost(post: InsertCommunityWallPost): Promise<CommunityWallPost> {
-    throw new Error('Not implemented');
+    const [newPost] = await db.insert(communityWallPosts)
+      .values({
+        ...post,
+        likeCount: 0,
+        commentCount: 0,
+      } as any)
+      .returning();
+    return newPost;
   }
-  
+
   async updateCommunityWallPost(id: number, data: Partial<CommunityWallPost>): Promise<CommunityWallPost> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(communityWallPosts)
+      .set(data)
+      .where(and(eq(communityWallPosts.id, id), whereNotDeleted(communityWallPosts)))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Community wall post not found');
+    }
+
+    return updated;
   }
   
   async deleteCommunityWallPost(id: number): Promise<boolean> {
@@ -2625,47 +3189,98 @@ export class DbStorage implements IStorage {
   }
   
   // Post methods
-  async getAllPosts(filter?: string): Promise<(Post & { author: User })[]> {
-    const results = await db
-      .select()
+  async getAllPosts(filter?: string): Promise<Post[]> {
+    let query = db.select()
       .from(posts)
-      .leftJoin(users, eq(posts.authorId, users.id))
-      .where(whereNotDeleted(posts))
-      .orderBy(desc(posts.createdAt));
-    
-    return results.map((row: any) => ({
-      ...row.posts,
-      author: row.users || { id: 0, username: "Unknown", displayName: "Unknown User", email: "" },
-    }));
+      .where(whereNotDeleted(posts));
+
+    // Apply sorting based on filter
+    if (filter === 'top') {
+      return await query.orderBy(desc(posts.upvotes));
+    } else if (filter === 'hot') {
+      // For hot, we'll use a combination of upvotes and recency
+      return await query.orderBy(desc(posts.upvotes), desc(posts.createdAt));
+    } else {
+      // Default: newest first
+      return await query.orderBy(desc(posts.createdAt));
+    }
   }
 
-  
   async getPost(id: number): Promise<Post | undefined> {
-    return undefined;
+    const [post] = await db.select()
+      .from(posts)
+      .where(and(eq(posts.id, id), whereNotDeleted(posts)))
+      .limit(1);
+    return post;
   }
   
   async getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]> {
-    return [];
+    // First find the community by slug
+    const [community] = await db.select()
+      .from(communities)
+      .where(eq(communities.slug, communitySlug))
+      .limit(1);
+
+    if (!community) return [];
+
+    // Get posts for this community
+    let query = db.select()
+      .from(posts)
+      .where(and(
+        eq(posts.communityId, community.id),
+        whereNotDeleted(posts)
+      ));
+
+    // Apply sorting based on filter
+    if (filter === 'top') {
+      return await query.orderBy(desc(posts.upvotes));
+    } else if (filter === 'hot') {
+      return await query.orderBy(desc(posts.upvotes), desc(posts.createdAt));
+    } else {
+      return await query.orderBy(desc(posts.createdAt));
+    }
   }
-  
+
   async getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]> {
-    return [];
+    let query = db.select()
+      .from(posts)
+      .where(and(
+        eq(posts.groupId, groupId),
+        whereNotDeleted(posts)
+      ));
+
+    // Apply sorting based on filter
+    if (filter === 'top') {
+      return await query.orderBy(desc(posts.upvotes));
+    } else if (filter === 'hot') {
+      return await query.orderBy(desc(posts.upvotes), desc(posts.createdAt));
+    } else {
+      return await query.orderBy(desc(posts.createdAt));
+    }
   }
   
   async getUserPosts(userId: number): Promise<any[]> {
-    return [];
+    const userPosts = await db.select()
+      .from(posts)
+      .where(and(
+        eq(posts.authorId, userId),
+        isNull(posts.deletedAt)
+      ))
+      .orderBy(desc(posts.createdAt));
+    return userPosts;
   }
   
   async createPost(post: InsertPost): Promise<Post> {
-    const [created] = await db.insert(posts).values({
-      ...post,
-      upvotes: 0,
-      commentCount: 0,
-      createdAt: new Date(),
-    }).returning();
-    return created;
+    const [newPost] = await db.insert(posts)
+      .values({
+        ...post,
+        upvotes: 0,
+        downvotes: 0,
+        commentCount: 0,
+      } as any)
+      .returning();
+    return newPost;
   }
-
 
   async updatePost(id: number, data: Partial<Post>): Promise<Post> {
     const [updated] = await db.update(posts)
@@ -2684,7 +3299,16 @@ export class DbStorage implements IStorage {
   }
   
   async upvotePost(id: number): Promise<Post> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(posts)
+      .set({ upvotes: sql`${posts.upvotes} + 1` })
+      .where(and(eq(posts.id, id), whereNotDeleted(posts)))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Post not found');
+    }
+
+    return updated;
   }
 
   async searchPosts(searchTerm: string): Promise<Post[]> {
@@ -2702,49 +3326,118 @@ export class DbStorage implements IStorage {
 
   // Comment methods
   async getComment(id: number): Promise<Comment | undefined> {
-    return undefined;
+    const [comment] = await db.select()
+      .from(comments)
+      .where(and(eq(comments.id, id), whereNotDeleted(comments)))
+      .limit(1);
+    return comment;
   }
   
   async getCommentsByPostId(postId: number): Promise<Comment[]> {
-    return [];
+    const postComments = await db.select()
+      .from(comments)
+      .where(and(
+        eq(comments.postId, postId),
+        whereNotDeleted(comments)
+      ))
+      .orderBy(desc(comments.createdAt));
+    return postComments;
   }
   
   async createComment(comment: InsertComment): Promise<Comment> {
-    throw new Error('Not implemented');
+    const [newComment] = await db.insert(comments)
+      .values({
+        ...comment,
+        upvotes: 0,
+        downvotes: 0,
+      } as any)
+      .returning();
+
+    // Update post comment count
+    if (newComment.postId) {
+      await db.update(posts)
+        .set({ commentCount: sql`${posts.commentCount} + 1` })
+        .where(eq(posts.id, newComment.postId));
+    }
+
+    return newComment;
   }
   
   async upvoteComment(id: number): Promise<Comment> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(comments)
+      .set({ upvotes: sql`${comments.upvotes} + 1` })
+      .where(and(eq(comments.id, id), whereNotDeleted(comments)))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Comment not found');
+    }
+
+    return updated;
   }
   
   // Group methods
   async getGroup(id: number): Promise<Group | undefined> {
-    return undefined;
+    const [group] = await db.select()
+      .from(groups)
+      .where(eq(groups.id, id))
+      .limit(1);
+    return group;
   }
-  
+
   async getGroupsByUserId(userId: number): Promise<Group[]> {
-    return [];
+    const userGroups = await db.select()
+      .from(groupMembers)
+      .leftJoin(groups, eq(groupMembers.groupId, groups.id))
+      .where(eq(groupMembers.userId, userId));
+
+    return userGroups.map(ug => ug.groups as Group).filter(Boolean);
   }
-  
+
   async createGroup(group: InsertGroup): Promise<Group> {
-    throw new Error('Not implemented');
+    const [newGroup] = await db.insert(groups)
+      .values(group as any)
+      .returning();
+    return newGroup;
   }
-  
+
   // Group member methods
   async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
-    throw new Error('Not implemented');
+    const [newMember] = await db.insert(groupMembers)
+      .values(member as any)
+      .returning();
+    return newMember;
   }
-  
+
   async getGroupMembers(groupId: number): Promise<GroupMember[]> {
-    return [];
+    return await db.select()
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
   }
-  
+
   async isGroupAdmin(groupId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(groupMembers)
+      .where(and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.role, 'admin')
+      ))
+      .limit(1);
+
+    return !!member;
   }
-  
+
   async isGroupMember(groupId: number, userId: number): Promise<boolean> {
-    return false;
+    const [member] = await db.select()
+      .from(groupMembers)
+      .where(and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId)
+      ))
+      .limit(1);
+
+    return !!member;
   }
 
   // Apologetics resource methods
@@ -2771,23 +3464,44 @@ export class DbStorage implements IStorage {
   
   // Prayer request methods
   async getPublicPrayerRequests(): Promise<PrayerRequest[]> {
-    return [];
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.privacyLevel, 'public'))
+      .orderBy(desc(prayerRequests.createdAt));
   }
-  
+
   async getAllPrayerRequests(filter?: string): Promise<PrayerRequest[]> {
-    return [];
+    let query = db.select().from(prayerRequests);
+
+    if (filter === 'answered') {
+      query = query.where(eq(prayerRequests.isAnswered, true));
+    } else if (filter === 'active') {
+      query = query.where(eq(prayerRequests.isAnswered, false));
+    }
+
+    return await query.orderBy(desc(prayerRequests.createdAt));
   }
-  
+
   async getPrayerRequest(id: number): Promise<PrayerRequest | undefined> {
-    return undefined;
+    const [prayer] = await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.id, id))
+      .limit(1);
+    return prayer;
   }
-  
+
   async getUserPrayerRequests(userId: number): Promise<PrayerRequest[]> {
-    return [];
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.authorId, userId))
+      .orderBy(desc(prayerRequests.createdAt));
   }
-  
+
   async getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]> {
-    return [];
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.groupId, groupId))
+      .orderBy(desc(prayerRequests.createdAt));
   }
   
   async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
@@ -2819,19 +3533,51 @@ export class DbStorage implements IStorage {
   }
   
   async createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest> {
-    throw new Error('Not implemented');
+    const [newPrayer] = await db.insert(prayerRequests)
+      .values({
+        ...prayer,
+        prayerCount: 0,
+        isAnswered: false,
+        answeredDescription: null,
+      } as any)
+      .returning();
+    return newPrayer;
   }
-  
+
   async updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(prayerRequests)
+      .set({ ...prayer, updatedAt: new Date() })
+      .where(eq(prayerRequests.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Prayer request not found');
+    }
+
+    return updated;
   }
-  
+
   async markPrayerRequestAsAnswered(id: number, description: string): Promise<PrayerRequest> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(prayerRequests)
+      .set({
+        isAnswered: true,
+        answeredDescription: description,
+        updatedAt: new Date()
+      })
+      .where(eq(prayerRequests.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Prayer request not found');
+    }
+
+    return updated;
   }
-  
+
   async deletePrayerRequest(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(prayerRequests)
+      .where(eq(prayerRequests.id, id));
+    return true;
   }
 
   async searchPrayerRequests(searchTerm: string): Promise<PrayerRequest[]> {
@@ -2846,15 +3592,31 @@ export class DbStorage implements IStorage {
 
   // Prayer methods
   async createPrayer(prayer: InsertPrayer): Promise<Prayer> {
-    throw new Error('Not implemented');
+    const [newPrayer] = await db.insert(prayers)
+      .values(prayer as any)
+      .returning();
+
+    // Increment prayer count on the prayer request
+    await db.update(prayerRequests)
+      .set({ prayerCount: sql`${prayerRequests.prayerCount} + 1` })
+      .where(eq(prayerRequests.id, prayer.prayerRequestId));
+
+    return newPrayer;
   }
-  
+
   async getPrayersForRequest(prayerRequestId: number): Promise<Prayer[]> {
-    return [];
+    return await db.select()
+      .from(prayers)
+      .where(eq(prayers.prayerRequestId, prayerRequestId))
+      .orderBy(desc(prayers.prayedAt));
   }
-  
+
   async getUserPrayedRequests(userId: number): Promise<number[]> {
-    return [];
+    const prayers = await db.select({ prayerRequestId: prayers.prayerRequestId })
+      .from(prayers)
+      .where(eq(prayers.userId, userId));
+
+    return prayers.map(p => p.prayerRequestId);
   }
 
   // Apologetics Q&A methods
@@ -2984,23 +3746,50 @@ export class DbStorage implements IStorage {
 
   // Event methods
   async getAllEvents(): Promise<Event[]> {
-    return [];
+    const allEvents = await db.select()
+      .from(events)
+      .where(whereNotDeleted(events))
+      .orderBy(events.eventDate, events.startTime);
+    return allEvents;
   }
-  
+
   async getEvent(id: number): Promise<Event | undefined> {
-    return undefined;
+    const [event] = await db.select()
+      .from(events)
+      .where(and(eq(events.id, id), whereNotDeleted(events)))
+      .limit(1);
+    return event;
   }
   
   async getUserEvents(userId: number): Promise<Event[]> {
-    return [];
+    const userEvents = await db.select()
+      .from(events)
+      .where(and(
+        eq(events.creatorId, userId),
+        whereNotDeleted(events)
+      ))
+      .orderBy(events.eventDate, events.startTime);
+    return userEvents;
   }
   
   async createEvent(event: InsertEvent): Promise<Event> {
-    throw new Error('Not implemented');
+    const [newEvent] = await db.insert(events)
+      .values(event as any)
+      .returning();
+    return newEvent;
   }
-  
+
   async updateEvent(id: number, data: Partial<Event>): Promise<Event> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(events)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(events.id, id), whereNotDeleted(events)))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Event not found');
+    }
+
+    return updated;
   }
   
   async deleteEvent(id: number): Promise<boolean> {
@@ -3044,17 +3833,29 @@ export class DbStorage implements IStorage {
   
   // Event RSVP methods
   async createEventRSVP(rsvp: InsertEventRsvp): Promise<EventRsvp> {
-    throw new Error('Not implemented');
+    const [newRsvp] = await db.insert(eventRsvps).values(rsvp as any).returning();
+    return newRsvp as EventRsvp;
   }
-  
+
   async getEventRSVPs(eventId: number): Promise<EventRsvp[]> {
-    return [];
+    const rsvps = await db
+      .select()
+      .from(eventRsvps)
+      .where(eq(eventRsvps.eventId, eventId));
+    return rsvps as EventRsvp[];
   }
-  
+
   async getUserEventRSVP(eventId: number, userId: number): Promise<EventRsvp | undefined> {
-    return undefined;
+    const [rsvp] = await db
+      .select()
+      .from(eventRsvps)
+      .where(and(
+        eq(eventRsvps.eventId, eventId),
+        eq(eventRsvps.userId, userId)
+      ));
+    return rsvp as EventRsvp | undefined;
   }
-  
+
   async upsertEventRSVP(eventId: number, userId: number, status: string): Promise<EventRsvp> {
     const values = { eventId, userId, status } as InsertEventRsvp;
     const [row] = await db.insert(eventRsvps).values(values as any).onConflictDoUpdate({
@@ -3063,14 +3864,17 @@ export class DbStorage implements IStorage {
     }).returning();
     return row as EventRsvp;
   }
-  
+
   async deleteEventRSVP(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(eventRsvps).where(eq(eventRsvps.id, id));
+    return true;
   }
   
   // Livestream methods
   async getAllLivestreams(): Promise<Livestream[]> {
-    return [];
+    return await db.select()
+      .from(livestreams)
+      .orderBy(desc(livestreams.createdAt));
   }
   
   async createLivestream(livestream: InsertLivestream): Promise<Livestream> {
@@ -3080,27 +3884,57 @@ export class DbStorage implements IStorage {
   
   // Microblog methods
   async getAllMicroblogs(): Promise<Microblog[]> {
-    return [];
+    const allMicroblogs = await db.select()
+      .from(microblogs)
+      .orderBy(desc(microblogs.createdAt));
+    return allMicroblogs;
   }
   
   async getMicroblog(id: number): Promise<Microblog | undefined> {
-    return undefined;
+    const [microblog] = await db.select()
+      .from(microblogs)
+      .where(eq(microblogs.id, id))
+      .limit(1);
+    return microblog;
   }
   
   async getUserMicroblogs(userId: number): Promise<Microblog[]> {
-    return [];
+    const userMicroblogs = await db.select()
+      .from(microblogs)
+      .where(eq(microblogs.authorId, userId))
+      .orderBy(desc(microblogs.createdAt));
+    return userMicroblogs;
   }
   
   async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
-    throw new Error('Not implemented');
+    const [newMicroblog] = await db.insert(microblogs)
+      .values({
+        ...microblog,
+        likeCount: 0,
+        repostCount: 0,
+        replyCount: 0,
+      } as any)
+      .returning();
+    return newMicroblog;
   }
-  
+
   async updateMicroblog(id: number, data: Partial<Microblog>): Promise<Microblog> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(microblogs)
+      .set(data)
+      .where(eq(microblogs.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Microblog not found');
+    }
+
+    return updated;
   }
-  
+
   async deleteMicroblog(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(microblogs)
+      .where(eq(microblogs.id, id));
+    return true;
   }
 
   async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
@@ -3112,17 +3946,173 @@ export class DbStorage implements IStorage {
 
   // Microblog like methods
   async likeMicroblog(microblogId: number, userId: number): Promise<MicroblogLike> {
-    throw new Error('Not implemented');
+    // Check if already liked
+    const existing = await db
+      .select()
+      .from(microblogLikes)
+      .where(and(
+        eq(microblogLikes.microblogId, microblogId),
+        eq(microblogLikes.userId, userId)
+      ));
+
+    if (existing.length > 0) {
+      throw new Error('Already liked');
+    }
+
+    // Insert like
+    const [newLike] = await db
+      .insert(microblogLikes)
+      .values({ microblogId, userId } as any)
+      .returning();
+
+    // Increment like count
+    await db
+      .update(microblogs)
+      .set({ likeCount: sql`COALESCE(${microblogs.likeCount}, 0) + 1` as any })
+      .where(eq(microblogs.id, microblogId));
+
+    return newLike;
   }
-  
+
   async unlikeMicroblog(microblogId: number, userId: number): Promise<boolean> {
-    return false;
+    // Delete like
+    const deleted = await db
+      .delete(microblogLikes)
+      .where(and(
+        eq(microblogLikes.microblogId, microblogId),
+        eq(microblogLikes.userId, userId)
+      ))
+      .returning();
+
+    if (deleted.length === 0) return false;
+
+    // Decrement like count
+    await db
+      .update(microblogs)
+      .set({ likeCount: sql`GREATEST(COALESCE(${microblogs.likeCount}, 0) - 1, 0)` as any })
+      .where(eq(microblogs.id, microblogId));
+
+    return true;
   }
-  
+
   async getUserLikedMicroblogs(userId: number): Promise<Microblog[]> {
-    return [];
+    const likes = await db
+      .select()
+      .from(microblogLikes)
+      .where(eq(microblogLikes.userId, userId));
+
+    const microblogIds = likes.map(l => l.microblogId);
+    if (microblogIds.length === 0) return [];
+
+    return await db
+      .select()
+      .from(microblogs)
+      .where(inArray(microblogs.id, microblogIds));
   }
-  
+
+  // Microblog repost methods
+  async repostMicroblog(microblogId: number, userId: number): Promise<MicroblogRepost> {
+    // Check if already reposted
+    const existing = await db
+      .select()
+      .from(microblogReposts)
+      .where(and(
+        eq(microblogReposts.microblogId, microblogId),
+        eq(microblogReposts.userId, userId)
+      ));
+
+    if (existing.length > 0) {
+      throw new Error('Already reposted');
+    }
+
+    // Insert repost
+    const [newRepost] = await db
+      .insert(microblogReposts)
+      .values({ microblogId, userId } as any)
+      .returning();
+
+    // Increment repost count
+    await db
+      .update(microblogs)
+      .set({ repostCount: sql`COALESCE(${microblogs.repostCount}, 0) + 1` as any })
+      .where(eq(microblogs.id, microblogId));
+
+    return newRepost;
+  }
+
+  async unrepostMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    // Delete repost
+    const deleted = await db
+      .delete(microblogReposts)
+      .where(and(
+        eq(microblogReposts.microblogId, microblogId),
+        eq(microblogReposts.userId, userId)
+      ))
+      .returning();
+
+    if (deleted.length === 0) return false;
+
+    // Decrement repost count
+    await db
+      .update(microblogs)
+      .set({ repostCount: sql`GREATEST(COALESCE(${microblogs.repostCount}, 0) - 1, 0)` as any })
+      .where(eq(microblogs.id, microblogId));
+
+    return true;
+  }
+
+  // Microblog bookmark methods
+  async bookmarkMicroblog(microblogId: number, userId: number): Promise<MicroblogBookmark> {
+    // Check if already bookmarked
+    const existing = await db
+      .select()
+      .from(microblogBookmarks)
+      .where(and(
+        eq(microblogBookmarks.microblogId, microblogId),
+        eq(microblogBookmarks.userId, userId)
+      ));
+
+    if (existing.length > 0) {
+      throw new Error('Already bookmarked');
+    }
+
+    // Insert bookmark
+    const [newBookmark] = await db
+      .insert(microblogBookmarks)
+      .values({ microblogId, userId } as any)
+      .returning();
+
+    return newBookmark;
+  }
+
+  async unbookmarkMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    // Delete bookmark
+    const deleted = await db
+      .delete(microblogBookmarks)
+      .where(and(
+        eq(microblogBookmarks.microblogId, microblogId),
+        eq(microblogBookmarks.userId, userId)
+      ))
+      .returning();
+
+    return deleted.length > 0;
+  }
+
+  async getUserBookmarkedMicroblogs(userId: number): Promise<Microblog[]> {
+    const bookmarks = await db
+      .select()
+      .from(microblogBookmarks)
+      .where(eq(microblogBookmarks.userId, userId));
+
+    const microblogIds = bookmarks.map(b => b.microblogId);
+    if (microblogIds.length === 0) return [];
+
+    return await db
+      .select()
+      .from(microblogs)
+      .where(inArray(microblogs.id, microblogIds));
+  }
+
   // Livestreamer application methods
   async getLivestreamerApplicationByUserId(userId: number): Promise<LivestreamerApplication | undefined> {
     return undefined;
@@ -3315,9 +4305,19 @@ export class DbStorage implements IStorage {
     for (const [otherUserId, conv] of conversationMap) {
       const otherUser = await this.getUser(otherUserId);
       conversations.push({
-        ...conv,
-        otherUserName: otherUser?.username || 'Unknown',
-        otherUserDisplayName: otherUser?.displayName
+        id: otherUserId, // Add ID for mobile app
+        otherUser: { // Nest user info
+          id: otherUserId,
+          username: otherUser?.username || 'Unknown',
+          displayName: otherUser?.displayName,
+          profileImageUrl: otherUser?.profileImageUrl
+        },
+        lastMessage: { // Nest last message info
+          content: conv.lastMessage,
+          createdAt: conv.lastMessageTime,
+          senderId: conv.lastMessage?.senderId || otherUserId // Include sender for better context
+        },
+        unreadCount: conv.unreadCount
       });
     }
 
@@ -3407,6 +4407,21 @@ export class DbStorage implements IStorage {
     if (n.userId !== userId) return false;
     await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
     return true;
+  }
+
+  async createNotification(notification: { userId: number; title: string; body: string; data?: any; category?: string }): Promise<any> {
+    const [newNotification] = await db.insert(notifications)
+      .values({
+        userId: notification.userId,
+        title: notification.title,
+        body: notification.body,
+        data: notification.data || null,
+        category: notification.category || 'general',
+        isRead: false
+      })
+      .returning();
+
+    return newNotification;
   }
 }
 

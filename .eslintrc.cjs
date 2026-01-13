@@ -2,6 +2,13 @@ module.exports = {
   root: true,
   extends: [],
   rules: {
+    // Prevent console.log in production code
+    "no-console": [
+      "error",
+      {
+        allow: ["warn", "error", "info", "debug"]
+      }
+    ],
     "no-restricted-properties": [
       "warn",
       {

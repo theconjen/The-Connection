@@ -7,19 +7,166 @@ import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
 
+// Helper function to calculate distance using Haversine formula (returns miles)
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3959; // Earth's radius in miles
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+
+  return Math.round(distance * 10) / 10; // Round to 1 decimal place
+}
+
+function toRad(degrees: number): number {
+  return degrees * (Math.PI / 180);
+}
+
 router.get('/api/communities', async (req, res) => {
   try {
     const userId = getSessionUserId(req);
     const searchQuery = req.query.search as string;
+
+    // Extract location parameters
+    const userLat = req.query.userLat ? parseFloat(req.query.userLat as string) : null;
+    const userLng = req.query.userLng ? parseFloat(req.query.userLng as string) : null;
+    const maxDistance = req.query.maxDistance ? parseFloat(req.query.maxDistance as string) : null; // in miles
+
+    // Extract filter parameters
+    const filters = {
+      ageGroup: req.query.ageGroup as string,
+      gender: req.query.gender as string,
+      ministryTypes: req.query.ministryTypes ? (req.query.ministryTypes as string).split(',') : [],
+      activities: req.query.activities ? (req.query.activities as string).split(',') : [],
+      professions: req.query.professions ? (req.query.professions as string).split(',') : [],
+      recoverySupport: req.query.recoverySupport ? (req.query.recoverySupport as string).split(',') : [],
+      meetingType: req.query.meetingType as string,
+      frequency: req.query.frequency as string,
+      lifeStages: req.query.lifeStages ? (req.query.lifeStages as string).split(',') : [],
+      parentCategories: req.query.parentCategories ? (req.query.parentCategories as string).split(',') : [],
+    };
+
     let communities = await storage.getPublicCommunitiesAndUserCommunities(userId, searchQuery);
+
+    // Calculate distance for each community if user location is provided
+    if (userLat !== null && userLng !== null) {
+      communities = communities.map((community: any) => {
+        let distance = null;
+        if (community.latitude && community.longitude) {
+          const communityLat = parseFloat(community.latitude);
+          const communityLng = parseFloat(community.longitude);
+          if (!isNaN(communityLat) && !isNaN(communityLng)) {
+            distance = calculateDistance(userLat, userLng, communityLat, communityLng);
+          }
+        }
+        return { ...community, distance };
+      });
+    }
+
+    // Apply filters
+    communities = communities.filter((community: any) => {
+      // Age Group filter
+      if (filters.ageGroup && community.ageGroup && community.ageGroup !== filters.ageGroup) {
+        return false;
+      }
+
+      // Gender filter
+      if (filters.gender && community.gender && community.gender !== filters.gender) {
+        return false;
+      }
+
+      // Meeting Type filter
+      if (filters.meetingType && community.meetingType && community.meetingType !== filters.meetingType) {
+        return false;
+      }
+
+      // Frequency filter
+      if (filters.frequency && community.frequency && community.frequency !== filters.frequency) {
+        return false;
+      }
+
+      // Ministry Types filter (array overlap check)
+      if (filters.ministryTypes.length > 0 && community.ministryTypes) {
+        const hasMatch = filters.ministryTypes.some((type: string) => community.ministryTypes.includes(type));
+        if (!hasMatch) return false;
+      }
+
+      // Activities filter (array overlap check)
+      if (filters.activities.length > 0 && community.activities) {
+        const hasMatch = filters.activities.some((activity: string) => community.activities.includes(activity));
+        if (!hasMatch) return false;
+      }
+
+      // Professions filter (array overlap check)
+      if (filters.professions.length > 0 && community.professions) {
+        const hasMatch = filters.professions.some((profession: string) => community.professions.includes(profession));
+        if (!hasMatch) return false;
+      }
+
+      // Recovery Support filter (array overlap check)
+      if (filters.recoverySupport.length > 0 && community.recoverySupport) {
+        const hasMatch = filters.recoverySupport.some((support: string) => community.recoverySupport.includes(support));
+        if (!hasMatch) return false;
+      }
+
+      // Life Stages filter (array overlap check)
+      if (filters.lifeStages.length > 0 && community.lifeStages) {
+        const hasMatch = filters.lifeStages.some((stage: string) => community.lifeStages.includes(stage));
+        if (!hasMatch) return false;
+      }
+
+      // Parent Categories filter (array overlap check)
+      if (filters.parentCategories.length > 0 && community.parentCategories) {
+        const hasMatch = filters.parentCategories.some((category: string) => community.parentCategories.includes(category));
+        if (!hasMatch) return false;
+      }
+
+      // Distance filter - only apply to in-person communities
+      if (maxDistance !== null && community.meetingType === 'In-Person') {
+        // If community has no location, filter it out when distance filtering is active
+        if (community.distance === null) return false;
+        // Filter out communities beyond max distance
+        if (community.distance > maxDistance) return false;
+      }
+
+      return true;
+    });
+
     if (userId) {
       const blockedIds = await storage.getBlockedUserIdsFor(userId);
       if (blockedIds && blockedIds.length > 0) {
         communities = communities.filter((c: any) => !blockedIds.includes(c.createdBy));
       }
     }
-    // Recent 50 (assume createdAt desc order downstream or sort here)
-    communities = communities.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 50);
+
+    // Smart sorting: prioritize local in-person communities
+    communities = communities.sort((a: any, b: any) => {
+      // If both have distances, sort by distance (closest first) for in-person
+      if (a.distance !== null && b.distance !== null) {
+        // Prioritize in-person communities by distance
+        if (a.meetingType === 'In-Person' && b.meetingType === 'In-Person') {
+          return a.distance - b.distance;
+        }
+        // In-person with distance comes before online
+        if (a.meetingType === 'In-Person' && b.meetingType !== 'In-Person') {
+          return -1;
+        }
+        if (a.meetingType !== 'In-Person' && b.meetingType === 'In-Person') {
+          return 1;
+        }
+      }
+      // Fall back to creation date
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    // Limit to 50 results
+    communities = communities.slice(0, 50);
     res.json(communities);
   } catch (error) {
     console.error('Error fetching communities:', error);
@@ -27,9 +174,37 @@ router.get('/api/communities', async (req, res) => {
   }
 });
 
+// Get communities where user is admin (owner or moderator)
+router.get('/api/communities/admin', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+
+    // Get all user's communities
+    const userCommunities = await storage.getUserCommunities(userId);
+
+    // Filter to only communities where user is owner or moderator
+    const adminCommunities = [];
+    for (const community of userCommunities) {
+      const member = await storage.getCommunityMember(community.id, userId);
+      if (member && (member.role === 'owner' || member.role === 'moderator')) {
+        adminCommunities.push({
+          ...community,
+          role: member.role
+        });
+      }
+    }
+
+    res.json(adminCommunities);
+  } catch (error) {
+    console.error('Error fetching admin communities:', error);
+    res.status(500).json(buildErrorResponse('Error fetching admin communities', error));
+  }
+});
+
 router.get('/api/communities/:idOrSlug', async (req, res) => {
   try {
     const { idOrSlug } = req.params;
+    const userId = getSessionUserId(req);
     const isNumeric = /^\d+$/.test(idOrSlug);
     let community;
     if (isNumeric) {
@@ -39,7 +214,29 @@ router.get('/api/communities/:idOrSlug', async (req, res) => {
       community = await storage.getCommunityBySlug(idOrSlug);
     }
     if (!community) return res.status(404).json({ message: 'Community not found' });
-    res.json(community);
+
+    // Include membership info if user is logged in
+    let memberInfo = null;
+    if (userId) {
+      const member = await storage.getCommunityMember(community.id, userId);
+      if (member) {
+        memberInfo = {
+          isMember: true,
+          role: member.role,
+          isAdmin: member.role === 'owner',
+          isModerator: member.role === 'moderator'
+        };
+      } else {
+        memberInfo = {
+          isMember: false,
+          role: null,
+          isAdmin: false,
+          isModerator: false
+        };
+      }
+    }
+
+    res.json({ ...community, ...memberInfo });
   } catch (error) {
     console.error('Error fetching community:', error);
     res.status(500).json(buildErrorResponse('Error fetching community', error));
@@ -104,6 +301,348 @@ router.post('/api/communities', requireAuth, async (req, res) => {
   }
 });
 
+// Join community
+router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    if (!Number.isFinite(communityId)) return res.status(400).json({ message: 'invalid id' });
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if already a member
+    const existingMember = await storage.getCommunityMember(communityId, userId);
+    if (existingMember) {
+      return res.status(400).json({ message: 'Already a member of this community' });
+    }
+
+    // Check if community is private
+    if (community.isPrivate) {
+      // For private communities, create a join request (invitation) instead
+      // Check if invitation already exists
+      const existingInvitation = await storage.getCommunityInvitationByEmailAndCommunity(
+        (await storage.getUser(userId))?.email || '',
+        communityId
+      );
+
+      if (existingInvitation) {
+        return res.status(400).json({
+          message: 'Join request already pending',
+          isPending: true
+        });
+      }
+
+      // Create join request
+      const user = await storage.getUser(userId);
+      if (!user || !user.email) {
+        return res.status(400).json({ message: 'User not found' });
+      }
+
+      // Create join request with 30-day expiration
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
+      await storage.createCommunityInvitation({
+        communityId,
+        inviterUserId: userId, // Self-invitation indicates a join request
+        inviteeEmail: user.email,
+        inviteeUserId: userId,
+        status: 'pending',
+        token: `join-request-${userId}-${communityId}-${Date.now()}`,
+        expiresAt
+      });
+
+      // Notify community creator about join request
+      const owner = await storage.getCommunityMembers(communityId);
+      const ownerMember = owner.find(m => m.role === 'owner');
+      if (ownerMember) {
+        await storage.createNotification({
+          userId: ownerMember.userId,
+          title: 'New Join Request',
+          body: `${user.displayName || user.username} wants to join ${community.name}`,
+          data: { communityId, userId, type: 'join_request' },
+          category: 'community'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Join request sent. Waiting for approval from community creator.',
+        isPending: true,
+        isMember: false
+      });
+    }
+
+    // For public communities, add as regular member immediately
+    await storage.addCommunityMember({ communityId, userId, role: 'member' });
+
+    res.json({
+      success: true,
+      message: 'Joined community successfully',
+      isMember: true,
+      role: 'member'
+    });
+  } catch (error) {
+    console.error('Error joining community:', error);
+    res.status(500).json(buildErrorResponse('Error joining community', error));
+  }
+});
+
+// Leave community
+router.post('/api/communities/:id/leave', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    if (!Number.isFinite(communityId)) return res.status(400).json({ message: 'invalid id' });
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(400).json({ message: 'Not a member of this community' });
+    }
+
+    // Prevent owner from leaving
+    if (member.role === 'owner') {
+      return res.status(400).json({ message: 'Owner cannot leave community. Delete it instead.' });
+    }
+
+    // Remove member
+    await storage.removeCommunityMember(communityId, userId);
+
+    res.json({
+      success: true,
+      message: 'Left community successfully',
+      isMember: false
+    });
+  } catch (error) {
+    console.error('Error leaving community:', error);
+    res.status(500).json(buildErrorResponse('Error leaving community', error));
+  }
+});
+
+// Get community members
+router.get('/api/communities/:id/members', async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    if (!Number.isFinite(communityId)) return res.status(400).json({ message: 'invalid id' });
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    const members = await storage.getCommunityMembers(communityId);
+
+    res.json(members);
+  } catch (error) {
+    console.error('Error fetching community members:', error);
+    res.status(500).json(buildErrorResponse('Error fetching community members', error));
+  }
+});
+
+// Update member role (admin/moderator management)
+router.put('/api/communities/:id/members/:userId', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const targetUserId = parseInt(req.params.userId);
+    const adminUserId = requireSessionUserId(req);
+    const { role } = req.body;
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(targetUserId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    if (!['member', 'moderator'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be member or moderator' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner
+    const adminMember = await storage.getCommunityMember(communityId, adminUserId);
+    if (!adminMember || adminMember.role !== 'owner') {
+      return res.status(403).json({ message: 'Only owner can change member roles' });
+    }
+
+    // Check if target user is a member
+    const targetMember = await storage.getCommunityMember(communityId, targetUserId);
+    if (!targetMember) {
+      return res.status(404).json({ message: 'User is not a member of this community' });
+    }
+
+    // Prevent changing owner role
+    if (targetMember.role === 'owner') {
+      return res.status(400).json({ message: 'Cannot change owner role' });
+    }
+
+    // Update role
+    await storage.updateCommunityMemberRole(communityId, targetUserId, role);
+
+    res.json({
+      success: true,
+      message: `Updated user role to ${role}`,
+      role
+    });
+  } catch (error) {
+    console.error('Error updating member role:', error);
+    res.status(500).json(buildErrorResponse('Error updating member role', error));
+  }
+});
+
+// Remove member (admin only)
+router.delete('/api/communities/:id/members/:userId', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const targetUserId = parseInt(req.params.userId);
+    const adminUserId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(targetUserId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner
+    const adminMember = await storage.getCommunityMember(communityId, adminUserId);
+    if (!adminMember || adminMember.role !== 'owner') {
+      return res.status(403).json({ message: 'Only owner can remove members' });
+    }
+
+    // Check if target user is a member
+    const targetMember = await storage.getCommunityMember(communityId, targetUserId);
+    if (!targetMember) {
+      return res.status(404).json({ message: 'User is not a member of this community' });
+    }
+
+    // Prevent removing owner
+    if (targetMember.role === 'owner') {
+      return res.status(400).json({ message: 'Cannot remove owner from community' });
+    }
+
+    // Remove member
+    await storage.removeCommunityMember(communityId, targetUserId);
+
+    res.json({
+      success: true,
+      message: 'Member removed successfully'
+    });
+  } catch (error) {
+    console.error('Error removing member:', error);
+    res.status(500).json(buildErrorResponse('Error removing member', error));
+  }
+});
+
+// Get wall posts
+router.get('/api/communities/:id/wall', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if user is a member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ message: 'Must be a community member to view wall posts' });
+    }
+
+    // Get wall posts
+    const posts = await storage.getCommunityWallPosts(communityId);
+
+    res.json(posts);
+  } catch (error) {
+    console.error('Error fetching wall posts:', error);
+    res.status(500).json(buildErrorResponse('Error fetching wall posts', error));
+  }
+});
+
+// Create wall post
+router.post('/api/communities/:id/wall', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const { content } = req.body;
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ message: 'Post content is required' });
+    }
+
+    if (content.trim().length < 5) {
+      return res.status(400).json({ message: 'Post must be at least 5 characters long' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if user is a member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ message: 'Must be a community member to post' });
+    }
+
+    // Create wall post
+    const post = await storage.createCommunityWallPost({
+      communityId,
+      authorId: userId,
+      content: content.trim(),
+    });
+
+    // Get post with author info
+    const postWithAuthor = await storage.getCommunityWallPost(post.id);
+
+    res.status(201).json(postWithAuthor);
+  } catch (error) {
+    console.error('Error creating wall post:', error);
+    res.status(500).json(buildErrorResponse('Error creating wall post', error));
+  }
+});
+
+// Delete wall post (admin/moderator only)
+router.delete('/api/communities/:id/wall/:postId', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is admin or moderator
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member || (member.role !== 'owner' && member.role !== 'moderator')) {
+      return res.status(403).json({ message: 'Only admins and moderators can delete posts' });
+    }
+
+    // Delete the post
+    await storage.deleteCommunityWallPost(postId);
+
+    res.json({
+      success: true,
+      message: 'Post deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json(buildErrorResponse('Error deleting post', error));
+  }
+});
+
 router.delete('/api/communities/:id', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
@@ -119,6 +658,413 @@ router.delete('/api/communities/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error deleting community:', error);
     res.status(500).json(buildErrorResponse('Error deleting community', error));
+  }
+});
+
+// Get pending join requests (owner/moderator only)
+router.get('/api/communities/:id/join-requests', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner or moderator
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can view join requests' });
+    }
+
+    // Get pending join requests
+    const allInvitations = await storage.getCommunityInvitations(communityId);
+    const joinRequests = allInvitations.filter((inv: any) =>
+      inv.status === 'pending' && inv.inviterUserId === inv.inviteeUserId
+    );
+
+    res.json(joinRequests);
+  } catch (error) {
+    console.error('Error fetching join requests:', error);
+    res.status(500).json(buildErrorResponse('Error fetching join requests', error));
+  }
+});
+
+// Approve join request (owner/moderator only)
+router.post('/api/communities/:id/join-requests/:requestId/approve', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const requestId = parseInt(req.params.requestId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(requestId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner or moderator
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can approve join requests' });
+    }
+
+    // Get the invitation
+    const invitation = await storage.getCommunityInvitationById(requestId);
+    if (!invitation || invitation.communityId !== communityId) {
+      return res.status(404).json({ message: 'Join request not found' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.status(400).json({ message: 'Join request already processed' });
+    }
+
+    // Add user to community
+    if (invitation.inviteeUserId) {
+      await storage.addCommunityMember({
+        communityId,
+        userId: invitation.inviteeUserId,
+        role: 'member'
+      });
+
+      // Update invitation status
+      await storage.updateCommunityInvitationStatus(requestId, 'accepted');
+
+      // Notify the user
+      await storage.createNotification({
+        userId: invitation.inviteeUserId,
+        title: 'Join Request Approved',
+        body: `Your request to join ${community.name} has been approved!`,
+        data: { communityId, type: 'join_approved' },
+        category: 'community'
+      });
+
+      res.json({
+        success: true,
+        message: 'Join request approved'
+      });
+    } else {
+      return res.status(400).json({ message: 'Invalid join request' });
+    }
+  } catch (error) {
+    console.error('Error approving join request:', error);
+    res.status(500).json(buildErrorResponse('Error approving join request', error));
+  }
+});
+
+// Deny join request (owner/moderator only)
+router.post('/api/communities/:id/join-requests/:requestId/deny', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const requestId = parseInt(req.params.requestId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(requestId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner or moderator
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can deny join requests' });
+    }
+
+    // Get the invitation
+    const invitation = await storage.getCommunityInvitationById(requestId);
+    if (!invitation || invitation.communityId !== communityId) {
+      return res.status(404).json({ message: 'Join request not found' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.status(400).json({ message: 'Join request already processed' });
+    }
+
+    // Update invitation status
+    await storage.updateCommunityInvitationStatus(requestId, 'declined');
+
+    // Notify the user
+    if (invitation.inviteeUserId) {
+      await storage.createNotification({
+        userId: invitation.inviteeUserId,
+        title: 'Join Request Declined',
+        body: `Your request to join ${community.name} was not approved.`,
+        data: { communityId, type: 'join_denied' },
+        category: 'community'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Join request denied'
+    });
+  } catch (error) {
+    console.error('Error denying join request:', error);
+    res.status(500).json(buildErrorResponse('Error denying join request', error));
+  }
+});
+
+// Invite user to community by email (owner/moderator only)
+router.post('/api/communities/:id/invite', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const { email } = req.body;
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ message: 'Valid email is required' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if requester is owner or moderator
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can send invitations' });
+    }
+
+    // Check if invitation already exists
+    const existingInvitation = await storage.getCommunityInvitationByEmailAndCommunity(email, communityId);
+    if (existingInvitation && existingInvitation.status === 'pending') {
+      return res.status(400).json({ message: 'Invitation already sent to this email' });
+    }
+
+    // Check if user with this email exists
+    const invitedUser = await storage.getUserByEmail(email);
+
+    // Create invitation with 30-day expiration
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const invitation = await storage.createCommunityInvitation({
+      communityId,
+      inviterUserId: userId,
+      inviteeEmail: email,
+      inviteeUserId: invitedUser?.id,
+      status: 'pending',
+      token: `invite-${communityId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      expiresAt
+    });
+
+    // Notify the user if they exist
+    if (invitedUser) {
+      await storage.createNotification({
+        userId: invitedUser.id,
+        title: 'Community Invitation',
+        body: `You've been invited to join ${community.name}`,
+        data: { communityId, invitationId: invitation.id, type: 'community_invite' },
+        category: 'community'
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Invitation sent successfully',
+      invitation
+    });
+  } catch (error) {
+    console.error('Error sending invitation:', error);
+    res.status(500).json(buildErrorResponse('Error sending invitation', error));
+  }
+});
+
+// ============================================================================
+// COMMUNITY UPDATE
+// ============================================================================
+
+// Update community details (owner only)
+router.patch('/api/communities/:id', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'Invalid community ID' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if user is owner
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member || member.role !== 'owner') {
+      return res.status(403).json({ message: 'Only community owners can update community details' });
+    }
+
+    // Update allowed fields
+    const {
+      name,
+      description,
+      iconName,
+      iconColor,
+      interestTags,
+      city,
+      state,
+      isPrivate,
+      hasPrivateWall,
+      hasPublicWall,
+      bannerUrl,
+      avatarUrl
+    } = req.body;
+
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (iconName !== undefined) updateData.iconName = iconName;
+    if (iconColor !== undefined) updateData.iconColor = iconColor;
+    if (interestTags !== undefined) updateData.interestTags = interestTags;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (isPrivate !== undefined) updateData.isPrivate = isPrivate;
+    if (hasPrivateWall !== undefined) updateData.hasPrivateWall = hasPrivateWall;
+    if (hasPublicWall !== undefined) updateData.hasPublicWall = hasPublicWall;
+    if (bannerUrl !== undefined) updateData.bannerUrl = bannerUrl;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+
+    const updatedCommunity = await storage.updateCommunity(communityId, updateData);
+
+    res.json({
+      success: true,
+      community: updatedCommunity
+    });
+  } catch (error) {
+    console.error('Error updating community:', error);
+    res.status(500).json(buildErrorResponse('Error updating community', error));
+  }
+});
+
+// ============================================================================
+// WALL POST LIKES
+// ============================================================================
+
+// Like a wall post
+router.post('/api/communities/:id/wall/:postId/like', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    // Check if user is member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ message: 'Must be a community member to like posts' });
+    }
+
+    // Check if post exists
+    const wallPosts = await storage.getCommunityWallPosts(communityId);
+    const post = wallPosts.find((p: any) => p.id === postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Wall post not found' });
+    }
+
+    // Toggle like (create or delete)
+    const result = await storage.toggleCommunityWallPostLike(postId, userId);
+
+    res.json({
+      success: true,
+      liked: result.liked,
+      likeCount: result.likeCount
+    });
+  } catch (error) {
+    console.error('Error liking wall post:', error);
+    res.status(500).json(buildErrorResponse('Error liking wall post', error));
+  }
+});
+
+// Unlike a wall post (same as POST for toggle)
+router.delete('/api/communities/:id/wall/:postId/like', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    const result = await storage.toggleCommunityWallPostLike(postId, userId);
+
+    res.json({
+      success: true,
+      liked: result.liked,
+      likeCount: result.likeCount
+    });
+  } catch (error) {
+    console.error('Error unliking wall post:', error);
+    res.status(500).json(buildErrorResponse('Error unliking wall post', error));
+  }
+});
+
+// ============================================================================
+// WALL POST COMMENTS
+// ============================================================================
+
+// Get comments for a wall post
+router.get('/api/communities/:id/wall/:postId/comments', async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    const comments = await storage.getCommunityWallPostComments(postId);
+    res.json(comments);
+  } catch (error) {
+    console.error('Error fetching wall post comments:', error);
+    res.status(500).json(buildErrorResponse('Error fetching wall post comments', error));
+  }
+});
+
+// Create a comment on a wall post
+router.post('/api/communities/:id/wall/:postId/comments', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId);
+    const userId = requireSessionUserId(req);
+    const { content, parentId } = req.body;
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(postId)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Comment content is required' });
+    }
+
+    // Check if user is member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ message: 'Must be a community member to comment' });
+    }
+
+    const comment = await storage.createCommunityWallPostComment({
+      postId,
+      authorId: userId,
+      content: content.trim(),
+      parentId: parentId || null
+    });
+
+    res.status(201).json(comment);
+  } catch (error) {
+    console.error('Error creating wall post comment:', error);
+    res.status(500).json(buildErrorResponse('Error creating wall post comment', error));
   }
 });
 

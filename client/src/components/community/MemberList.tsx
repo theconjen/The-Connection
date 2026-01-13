@@ -150,7 +150,7 @@ export function MemberList({ communityId, isOwner, isModerator }: MemberListProp
   }
   
   const sortedMembers = [...(members || [])].sort((a, b) => {
-    // Sort by role: owner first, then moderators, then members
+    // Sort by role: creator first, then moderators, then members
     const roleOrder = { owner: 0, moderator: 1, member: 2 };
     const roleA = roleOrder[a.role as keyof typeof roleOrder] || 3;
     const roleB = roleOrder[b.role as keyof typeof roleOrder] || 3;
@@ -196,7 +196,7 @@ export function MemberList({ communityId, isOwner, isModerator }: MemberListProp
               </div>
             </div>
             
-            {/* Actions menu for owner/moderator */}
+            {/* Actions menu for creator/moderator */}
             {(isOwner || (isModerator && member.role === 'member')) && member.user.id !== user?.id && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -224,7 +224,7 @@ export function MemberList({ communityId, isOwner, isModerator }: MemberListProp
                       {member.role !== 'owner' && (
                         <DropdownMenuItem onClick={() => handleRoleChange(member, 'owner')}>
                           <ShieldAlert className="mr-2 h-4 w-4" />
-                          <span>Transfer Ownership</span>
+                          <span>Transfer Creator Role</span>
                         </DropdownMenuItem>
                       )}
                       
@@ -293,7 +293,7 @@ function MemberRoleBadge({ role }: MemberRoleBadgeProps) {
       badge = (
         <Badge variant="default" className="bg-amber-500 hover:bg-amber-500/90">
           <ShieldAlert className="h-3 w-3 mr-1" />
-          Owner
+          Creator
         </Badge>
       );
       break;

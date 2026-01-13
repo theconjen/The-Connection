@@ -49,6 +49,7 @@ export default async function defineConfig(): Promise<UserConfig> {
     build: {
       outDir: fileURLToPath(new URL('dist/public', import.meta.url)),
       emptyOutDir: true,
+      sourcemap: true, // Enable source maps for error tracking
       rollupOptions: {
         output: {
           manualChunks: {

@@ -12,18 +12,69 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.theconnection.mobile",
-      "buildNumber": "4"
+      "buildNumber": "4",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
+        "NSCameraUsageDescription": "The Connection needs access to your camera to upload photos for your profile and posts.",
+        "NSPhotoLibraryUsageDescription": "The Connection needs access to your photo library to upload photos for your profile and posts.",
+        "NSPhotoLibraryAddUsageDescription": "The Connection needs access to save photos to your library.",
+        "NSCalendarsUsageDescription": "The Connection needs access to your calendar to add events you're attending.",
+        "NSUserNotificationsUsageDescription": "The Connection needs to send you notifications about community posts, events, and messages.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a2a4a"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "NOTIFICATIONS"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The Connection needs access to your photos to share images in posts."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "The Connection needs your location to show nearby events and add location to posts.",
+          "locationWhenInUsePermission": "The Connection needs your location to show nearby events and add location to posts."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1a2a4a",
+          "sounds": ["./assets/notification-sound.wav"]
+        }
+      ]
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
       "apiBase": "https://api.theconnection.app/api",
       "router": {
@@ -31,7 +82,10 @@
       },
       "eas": {
         "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
-      }
+      },
+      "sentryDsn": "https://50195a543d2fcd9402cf365144b55262@o4510395566718976.ingest.us.sentry.io/4510395580219392",
+      "sentryOrg": "the-connection",
+      "sentryProject": "the-connection"
     }
   }
 }

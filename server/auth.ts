@@ -131,7 +131,6 @@ export function setupAuth(app: Express) {
       const hashedPassword = await bcrypt.hash(password, 12);
 
       // Create user
-      console.log(`[REGISTRATION] Creating user with data:`, { username, email, displayName: displayName || username });
       const user = await storage.createUser({
         username,
         email,
@@ -140,19 +139,11 @@ export function setupAuth(app: Express) {
         isAdmin: false,
         phoneNumber: normalizedPhone || undefined,
       });
-      
-      console.log(`[REGISTRATION] User created successfully:`, { 
-        id: user.id, 
-        username: user.username, 
-        idType: typeof user.id,
-        userObject: JSON.stringify(user, null, 2)
-      });
 
       // Send verification email using new system with branded template
       const apiBase = process.env.API_BASE_URL || process.env.FRONTEND_URL || 'https://the-connection.onrender.com';
       try {
         await createAndSendVerification(user.id, user.email, apiBase);
-        console.log(`[REGISTRATION] Verification email sent to ${user.email}`);
       } catch (error) {
         console.error("Failed to send verification email:", error);
       }
@@ -164,7 +155,6 @@ export function setupAuth(app: Express) {
           smsVerificationCode,
           smsVerified: false,
         });
-        console.log(`[SMS] Verification code for user ${user.id}: ${smsVerificationCode}`);
       }
 
       // SECURITY: Log registration for audit trail
@@ -246,7 +236,6 @@ export function setupAuth(app: Express) {
         smsVerificationCode: code,
         smsVerified: false,
       });
-      console.log(`[SMS] Verification code for user ${userId}: ${code}`);
       res.json({ message: "SMS verification code generated" });
     } catch (error) {
       console.error("Error requesting SMS code:", error);
@@ -285,7 +274,6 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Username and password are required" });
       }
       
-      console.log(`Login attempt for username: ${username}`);
       
       try {
         // Find user by username
@@ -297,7 +285,6 @@ export function setupAuth(app: Express) {
         }
         
         if (!user) {
-          console.log(`User not found: ${username}`);
           // SECURITY: Log failed login attempt
           await logLoginFailed(username, 'User not found', req);
           return res.status(401).json({ message: "Invalid username or password" });
@@ -307,7 +294,6 @@ export function setupAuth(app: Express) {
         if (user.lockoutUntil && new Date(user.lockoutUntil) > new Date()) {
           const remainingMs = new Date(user.lockoutUntil).getTime() - Date.now();
           const lockoutMinutes = Math.ceil(remainingMs / 60000);
-          console.log(`Account locked for user: ${username}, ${lockoutMinutes} minutes remaining`);
           await logLoginFailed(username, 'Account locked', req);
           return res.status(423).json({
             message: `Account locked due to repeated failed attempts. Try again in ${lockoutMinutes} minute(s).`
@@ -317,7 +303,6 @@ export function setupAuth(app: Express) {
         // Check password using bcrypt
         const passwordMatches = await bcrypt.compare(password, user.password);
         if (!passwordMatches) {
-          console.log(`Invalid password for user: ${username}`);
 
           const newAttempts = (user.loginAttempts || 0) + 1;
           const maxAttempts = 10;
@@ -330,7 +315,6 @@ export function setupAuth(app: Express) {
               lockoutUntil,
             });
 
-            console.log(`Account locked for user: ${username} after ${maxAttempts} failed attempts`);
             await logLoginFailed(username, `Account locked after ${maxAttempts} attempts`, req);
 
             return res.status(423).json({
@@ -339,7 +323,6 @@ export function setupAuth(app: Express) {
           }
 
           await storage.updateUser(user.id, { loginAttempts: newAttempts });
-          console.log(`Failed login attempt ${newAttempts}/${maxAttempts} for user: ${username}`);
           await logLoginFailed(username, `Invalid password (attempt ${newAttempts}/${maxAttempts})`, req);
 
           return res.status(401).json({
@@ -361,7 +344,6 @@ export function setupAuth(app: Express) {
           const apiBase = process.env.API_BASE_URL || process.env.FRONTEND_URL || 'https://the-connection.onrender.com';
           try {
             await createAndSendVerification(user.id, user.email, apiBase);
-            console.log(`[LOGIN] Resent verification email to ${user.email}`);
           } catch (error) {
             console.error("Failed to send verification email during login:", error);
           }
@@ -375,13 +357,7 @@ export function setupAuth(app: Express) {
         req.session.username = user.username;
         req.session.isAdmin = user.isAdmin || false;
         req.session.email = user.email;
-        
-        console.log(`Setting session data for user ${username}:`, {
-          userId: req.session.userId,
-          username: req.session.username,
-          sessionID: req.sessionID
-        });
-        
+
         // Create session and return user data
         req.session.save(async (err) => {
           if (err) {
@@ -389,14 +365,29 @@ export function setupAuth(app: Express) {
             return res.status(500).json(buildErrorResponse("Error creating session", err));
           }
 
-          console.log(`User logged in successfully: ${username} (ID: ${user.id}), Session saved with ID: ${req.sessionID}`);
+          console.info(`Session saved with ID: ${req.sessionID}`);
 
           // SECURITY: Log successful login
           await logLogin(user.id, user.username, req);
 
-          // Return user data without password
+          // Generate JWT token for mobile apps
+          const jwtSecret = process.env.JWT_SECRET;
+          let jwtToken = null;
+          if (jwtSecret) {
+            try {
+              const jwt = require('jsonwebtoken');
+              jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });
+            } catch (error) {
+              console.error('Error generating JWT:', error);
+            }
+          }
+
+          // Return user data without password, with optional JWT token
           const { password, ...userWithoutPassword } = user;
-          return res.status(200).json(userWithoutPassword);
+          return res.status(200).json({
+            ...userWithoutPassword,
+            token: jwtToken, // JWT token for mobile apps (null if JWT_SECRET not configured)
+          });
         });
       } catch (error) {
         console.error(`Error retrieving user ${username}:`, error);
@@ -437,17 +428,9 @@ export function setupAuth(app: Express) {
   // Current user endpoint
   app.get("/api/user", async (req, res) => {
     try {
-      console.log(`/api/user request - SessionID: ${req.sessionID}, Session data:`, {
-        hasSession: !!req.session,
-        userId: req.session?.userId,
-        username: req.session?.username,
-        sessionID: req.sessionID
-      });
-      
       const userId = getSessionUserId(req);
 
       if (!req.session || !userId) {
-        console.log("Authentication failed - no session or userId");
         return res.status(401).json({ message: "Not authenticated" });
       }
 

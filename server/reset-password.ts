@@ -101,12 +101,15 @@ export async function resetPassword(token: string, newPassword: string): Promise
       return false;
     }
     
-    // Update password
-    // In a real application, we'd use the storage method to update the password
-    // This is just a placeholder for now
-    console.log(`Would update password for user ${user.id}`);
-    // await storage.updateUserPassword(user.id, newPassword);
-    
+    // Hash and update password
+    const bcrypt = await import('bcrypt');
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const updatedUser = await storage.updateUserPassword(user.id, hashedPassword);
+
+    if (!updatedUser) {
+      return false;
+    }
+
     // Remove used token
     passwordResetTokens.delete(token);
     

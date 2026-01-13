@@ -8,6 +8,7 @@ import { setupAuth, isAuthenticated, isAdmin } from './auth';
 import { storage as storageReal } from './storage';
 import rateLimit from 'express-rate-limit';
 import { sendPushNotification } from './services/pushService';
+import { notifyUserWithPreferences, truncateText } from './services/notificationHelper';
 import { contentCreationLimiter, messageCreationLimiter } from './rate-limiters';
 
 // NOTE: many of the shared "Insert..." Zod-derived types are being inferred
@@ -96,7 +97,12 @@ import communitiesRoutes from './routes/communities';
 import eventsRoutes from './routes/events';
 import apologeticsRoutes from './routes/apologetics';
 import moderationRoutes from './routes/moderation';
+import followRoutes from './routes/follow';
+import searchRoutes from './routes/search';
+import passwordResetRoutes from './routes/passwordReset';
+import uploadRoutes from './routes/upload';
 import { chatMessagesQuerySchema } from './routes/chatMessages';
+import messagesRoutes from './routes/messages';
 
 declare module 'express-session' {
   interface SessionData {
@@ -343,25 +349,24 @@ export function registerSocketHandlers(
         io.to(`user_${authenticatedUserId}`).emit("new_message", savedMessage);
         io.to(`user_${receiverId}`).emit("new_message", savedMessage);
 
-        // Send push notification to receiver if they're offline
+        // Send notification using dual system (in-app + push)
         try {
-          const pushTokens = await storageDep.getUserPushTokens(parseInt(receiverId));
-          if (pushTokens && pushTokens.length > 0) {
-            const sender = await storageDep.getUser(authenticatedUserId);
-            const senderName = sender?.displayName || sender?.username || 'Someone';
+          const sender = await storageDep.getUser(authenticatedUserId);
+          const senderName = sender?.displayName || sender?.username || 'Someone';
 
-            for (const tokenData of pushTokens) {
-              await pushNotification(
-                tokenData.token,
-                `New message from ${senderName}`,
-                content,
-                { type: 'dm', senderId: authenticatedUserId, messageId: savedMessage.id }
-              );
-            }
-          }
-        } catch (pushError) {
-          logger.error('Error sending push notification:', pushError);
-          // Don't fail the message send if push fails
+          await notifyUserWithPreferences(parseInt(receiverId), {
+            title: `New message from ${senderName}`,
+            body: truncateText(content, 80),
+            data: {
+              type: 'dm',
+              senderId: authenticatedUserId,
+              messageId: savedMessage.id,
+            },
+            category: 'dm',
+          });
+        } catch (notifError) {
+          logger.error('Error sending DM notification:', notifError);
+          // Don't fail the message send if notification fails
         }
       } catch (error) {
         emitSocketError(socket, logger, 'Error handling DM', error, {
@@ -416,11 +421,14 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Register modular routes only if their feature flag is enabled
   if (FEATURES.AUTH) {
     app.use('/api', authRoutes);
+    app.use('/api/password-reset', passwordResetRoutes);
     app.use('/api', accountRoutes);
     app.use('/api', safetyRoutes);
     // compatibility moderation router (legacy clients hitting /api/moderation/* will be redirected)
     app.use('/api', moderationRoutes);
     app.use('/api/admin', adminRoutes);
+    app.use('/api', followRoutes);
+    app.use('/api', uploadRoutes); // File upload routes (GCS)
   }
 
   if (FEATURES.ORGS) {
@@ -485,6 +493,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api/user', userSettingsRoutes);
     app.use('/api/dms', dmRoutes);
     app.use('/api/messages', dmRoutes); // Alias for mobile app compatibility
+    app.use('/api', messagesRoutes); // Community chat routes (has /communities/:id/chat/* endpoints)
     app.use('/api/push-tokens', pushTokenRoutes);
   }
 
@@ -783,7 +792,6 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
           inviter!.displayName || inviter!.username,
           token
         );
-        console.log(`Community invitation email sent to ${email}`);
       } catch (emailError) {
         console.error('Failed to send invitation email:', emailError);
         // Don't fail the request if email fails
@@ -2103,42 +2111,8 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Location-based community search (supports city, state, interests, radius)
   registerLocationSearchRoutes(app);
 
-  // Global search endpoint
-  app.get('/api/search', async (req, res) => {
-    try {
-      const query = req.query.q as string;
-      if (!query || query.trim().length === 0) {
-        return res.status(400).json({ message: 'Search query is required' });
-      }
-
-      // Search all entities in parallel
-      const [users, communities, posts, events, microblogs, prayerRequests, apologeticsQuestions] = await Promise.all([
-        storage.searchUsers(query),
-        storage.searchCommunities(query),
-        storage.searchPosts(query),
-        storage.searchEvents(query),
-        storage.searchMicroblogs(query),
-        storage.searchPrayerRequests(query),
-        storage.searchApologeticsQuestions(query)
-      ]);
-
-      // Format results with type labels
-      const results = {
-        users: users.map(u => ({ ...u, type: 'user' as const })),
-        communities: communities.map(c => ({ ...c, type: 'community' as const })),
-        posts: posts.map(p => ({ ...p, type: 'post' as const })),
-        events: events.map(e => ({ ...e, type: 'event' as const })),
-        microblogs: microblogs.map(m => ({ ...m, type: 'microblog' as const })),
-        prayerRequests: prayerRequests.map(pr => ({ ...pr, type: 'prayer' as const })),
-        apologeticsQuestions: apologeticsQuestions.map(q => ({ ...q, type: 'question' as const }))
-      };
-
-      res.json(results);
-    } catch (error) {
-      console.error('Error performing global search:', error);
-      res.status(500).json(buildErrorResponse('Error performing search', error));
-    }
-  });
+  // Global search endpoint (returns flat array with type filters)
+  app.use('/api/search', searchRoutes);
 
   // Object storage endpoints
   const uploadsRoot = path.resolve(process.cwd(), 'public', 'uploads');
@@ -2265,7 +2239,6 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   const userId = requireSessionUserId(req);
       const { contentId, contentType, interactionType } = req.body;
 
-      console.log(`Interaction recorded: User ${userId} -> ${interactionType} on ${contentType} ${contentId}`);
 
       // Store in recommendation system (this would be implemented in storage)
       // await storage.recordUserInteraction(userId, contentId, contentType, interactionType);

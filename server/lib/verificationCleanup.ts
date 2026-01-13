@@ -23,7 +23,6 @@ export function startVerificationCleanup(opts?: { intervalMs?: number; retention
         emailVerificationLastSentAt: null as any,
       } as any).where(sql`${users.emailVerificationExpiresAt} < ${cutoff}`);
 
-      console.log(`Verification cleanup: cleared tokens expired before ${cutoff.toISOString()}`);
     } catch (err) {
       console.warn('Verification cleanup failed:', err);
     }
@@ -50,7 +49,7 @@ export async function runVerificationCleanupOnce(retentionDays?: number) {
       emailVerificationExpiresAt: null as any,
       emailVerificationLastSentAt: null as any,
     } as any).where(sql`${users.emailVerificationExpiresAt} < ${cutoff}`);
-    console.log(`Verification cleanup (on-demand): cleared tokens expired before ${cutoff.toISOString()}`);
+    console.info(`Verification cleanup: cleared tokens expired before ${cutoff.toISOString()}`);
   } catch (err) {
     console.warn('Verification cleanup (on-demand) failed:', err);
     throw err;

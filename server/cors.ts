@@ -4,9 +4,19 @@ import { envConfig } from "./config/env";
 const DEV = !envConfig.isProduction;
 
 const DEFAULT_ALLOWED_ORIGINS = [
-  "https://<your-vercel-app>.vercel.app",
+  // Production domains
+  "https://theconnection.app",
+  "https://www.theconnection.app",
   "https://app.theconnection.app",
+  "https://api.theconnection.app",
+
+  // Mobile app
   "capacitor://localhost",
+
+  // Development
+  "http://localhost:5173",
+  "http://localhost:5000",
+  "http://localhost:3000",
 ];
 
 // Patterns for Vercel preview/production deployments
@@ -34,6 +44,7 @@ export function makeCors() {
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept", "Cookie"],
+    exposedHeaders: ["Set-Cookie"],
   });
 }

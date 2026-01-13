@@ -1,5 +1,6 @@
 import createHttpError from 'http-errors';
 import type { NextFunction, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 
 function normalizeSessionValue(raw: string | number | undefined): number | undefined {
   if (raw === undefined || raw === null) return undefined;
@@ -9,11 +10,34 @@ function normalizeSessionValue(raw: string | number | undefined): number | undef
 }
 
 export function getSessionUserId(req: Request): number | undefined {
+  // First, try session-based auth
   const normalized = normalizeSessionValue(req.session?.userId as any);
-  if (normalized === undefined || normalized <= 0) {
-    return undefined;
+  if (normalized && normalized > 0) {
+    return normalized;
   }
-  return normalized;
+
+  // Then, try JWT token from Authorization header (for mobile apps)
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      return undefined;
+    }
+
+    try {
+      const decoded = jwt.verify(token, jwtSecret) as { sub?: number; id?: number };
+      const userId = decoded.sub || decoded.id;
+      if (userId && userId > 0) {
+        return userId;
+      }
+    } catch (error) {
+      // Invalid token, continue
+    }
+  }
+
+  return undefined;
 }
 
 export function requireSessionUserId(req: Request): number {

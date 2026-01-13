@@ -10,8 +10,7 @@ services:
     buildCommand: >-
       corepack enable &&
       corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install --no-frozen-lockfile &&
-      pnpm -w build
+      bash scripts/render-build.sh
     startCommand: >-
       bash -lc "if [ ! -f dist-server/index.cjs ]; then pnpm run build:server; fi; node dist-server/index.cjs"
     healthCheckPath: /api/health
@@ -43,4 +42,30 @@ services:
       - key: GOOGLE_CLOUD_PROJECT_ID
         sync: false
       - key: GOOGLE_CLOUD_STORAGE_BUCKET
+        sync: false
+      - key: BOT_PASSWORD
+        sync: false
+
+  # Background worker for content bots (Bible verses & theology quotes)
+  - type: worker
+    runtime: node
+    name: content-bots
+    plan: starter
+    region: ohio
+    autoDeploy: true
+    repo: https://github.com/The-Connection-App/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install
+    startCommand: pnpm bots:scheduler
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: true
+      - key: BOT_PASSWORD
         sync: false

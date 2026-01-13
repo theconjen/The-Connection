@@ -68,36 +68,22 @@ export default function CommunityPage() {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
-  // Fetch community details
+  // Fetch community details (includes isMember, role, isAdmin, isModerator from API)
   const {
     data: community,
     isLoading: isLoadingCommunity,
     error: communityError
-  } = useQuery<Community | null>({
+  } = useQuery<Community & { isMember?: boolean; role?: string | null; isAdmin?: boolean; isModerator?: boolean } | null>({
     queryKey: [`/api/communities/${slug}`],
     // Allow guests to load the community in read-only mode instead of failing on 401s
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!slug,
   });
-  
-  // Check membership status
-  const {
-    data: membership,
-    isLoading: isLoadingMembership,
-    error: membershipError
-  } = useQuery({
-    queryKey: [`/api/communities/${slug}/members`],
-    enabled: !!slug && !!user,
-    select: (data: CommunityMember[]) => {
-      if (!user) return null;
-      return data.find((member) => member.userId === user.id) || null;
-    },
-  });
-  
-  // Role checks
-  const isOwner = membership?.role === 'owner';
-  const isModerator = membership?.role === 'moderator';
-  const isMember = !!membership;
+
+  // Role checks - using data from community API response
+  const isMember = community?.isMember ?? false;
+  const isOwner = community?.role === 'owner';
+  const isModerator = community?.isModerator ?? false;
   
   // Join community mutation
   const joinMutation = useMutation({
@@ -112,6 +98,8 @@ export default function CommunityPage() {
     },
     onSuccess: () => {
       if (!community) return;
+      // Invalidate community query to refresh membership status
+      queryClient.invalidateQueries({ queryKey: [`/api/communities/${slug}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/communities/${slug}/members`] });
       toast({
         title: "Joined community",
@@ -139,6 +127,8 @@ export default function CommunityPage() {
     },
     onSuccess: () => {
       if (!community) return;
+      // Invalidate community query to refresh membership status
+      queryClient.invalidateQueries({ queryKey: [`/api/communities/${slug}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/communities/${slug}/members`] });
       toast({
         title: "Left community",
@@ -195,7 +185,7 @@ export default function CommunityPage() {
   };
   
   // Loading state
-  if (isLoadingCommunity || (user && isLoadingMembership)) {
+  if (isLoadingCommunity) {
     return (
       <div className="flex justify-center items-center min-h-[600px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -203,16 +193,16 @@ export default function CommunityPage() {
       </div>
     );
   }
-  
+
   // Error state
-  if (communityError || membershipError) {
+  if (communityError) {
     return (
       <div className="container max-w-6xl mx-auto px-4 py-8">
         <div className="p-6 text-center">
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Error Loading Community</h2>
           <p className="text-muted-foreground mb-4">
-            {(communityError as Error)?.message || (membershipError as Error)?.message || "Failed to load community details."}
+            {(communityError as Error)?.message || "Failed to load community details."}
           </p>
           <Button onClick={() => navigate('/communities')}>
             Back to Communities
@@ -301,7 +291,7 @@ export default function CommunityPage() {
                       {isOwner && (
                         <div className="mt-2 text-destructive">
                           <ShieldAlert className="inline h-4 w-4 mr-1" />
-                          Warning: You are the owner of this community. If you leave, ownership must be transferred first.
+                          Warning: You are the creator of this community. If you leave, the creator role must be transferred first.
                         </div>
                       )}
                     </DialogDescription>

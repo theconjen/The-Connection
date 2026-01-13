@@ -50,6 +50,13 @@ export const users = pgTable("users", {
   smsVerificationCode: text("sms_verification_code"),
   loginAttempts: integer("login_attempts").default(0),
   lockoutUntil: timestamp("lockout_until"),
+  // Christian-focused profile fields
+  location: text("location"),
+  denomination: text("denomination"),
+  homeChurch: text("home_church"),
+  favoriteBibleVerse: text("favorite_bible_verse"),
+  testimony: text("testimony"),
+  interests: text("interests"),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -138,8 +145,19 @@ export const communities = pgTable("communities", {
   longitude: text("longitude"),
   memberCount: integer("member_count").default(0),
   isPrivate: boolean("is_private").default(false),
-  hasPrivateWall: boolean("has_private_wall").default(false), 
+  hasPrivateWall: boolean("has_private_wall").default(false),
   hasPublicWall: boolean("has_public_wall").default(true),
+  // Filter fields for community discovery
+  ageGroup: text("age_group"), // Youth, Young Adult, Adult, Seniors, All Ages
+  gender: text("gender"), // Men's Only, Women's Only, Co-Ed
+  ministryTypes: text("ministry_types").array(), // Bible Study, Prayer, Worship, etc.
+  activities: text("activities").array(), // Sports, Music, Hiking, etc.
+  professions: text("professions").array(), // Healthcare, Teachers, Tech, Blue Collar, etc.
+  recoverySupport: text("recovery_support").array(), // Addiction Recovery, Grief Support, etc.
+  meetingType: text("meeting_type"), // In-Person, Online, Hybrid
+  frequency: text("frequency"), // Daily, Weekly, Bi-weekly, Monthly, One-time
+  lifeStages: text("life_stages").array(), // Singles, Married, Students, etc.
+  parentCategories: text("parent_categories").array(), // All Parents, Moms, Dads, etc.
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   createdBy: integer("created_by").references(() => users.id),
@@ -364,6 +382,7 @@ export const posts = pgTable("posts", {
   groupId: integer("group_id").references(() => groups.id),
   authorId: integer("author_id").references(() => users.id),
   upvotes: integer("upvotes").default(0),
+  downvotes: integer("downvotes").default(0),
   commentCount: integer("comment_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
@@ -384,6 +403,7 @@ export const postVotes = pgTable(
     id: serial("id").primaryKey(),
     postId: integer("post_id").notNull().references(() => posts.id),
     userId: integer("user_id").notNull().references(() => users.id),
+    voteType: text("vote_type").default("upvote"), // 'upvote' or 'downvote'
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [
@@ -404,6 +424,7 @@ export const comments = pgTable("comments", {
   authorId: integer("author_id"),
   parentId: integer("parent_id"),
   upvotes: integer("upvotes").default(0),
+  downvotes: integer("downvotes").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
 } as any);
@@ -421,6 +442,7 @@ export const commentVotes = pgTable(
     id: serial("id").primaryKey(),
     commentId: integer("comment_id").notNull().references(() => comments.id),
     userId: integer("user_id").notNull().references(() => users.id),
+    voteType: text("vote_type").default("upvote"), // 'upvote' or 'downvote'
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [
@@ -800,11 +822,43 @@ export const insertMicroblogLikeSchema = createInsertSchema(microblogLikes).pick
   userId: true,
 } as any);
 
+// Microblog reposts table for tracking user reposts
+export const microblogReposts = pgTable("microblog_reposts", {
+  id: serial("id").primaryKey(),
+  microblogId: integer("microblog_id").references(() => microblogs.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any);
+
+export const insertMicroblogRepostSchema = createInsertSchema(microblogReposts).pick({
+  microblogId: true,
+  userId: true,
+} as any);
+
+// Microblog bookmarks table for tracking user bookmarks
+export const microblogBookmarks = pgTable("microblog_bookmarks", {
+  id: serial("id").primaryKey(),
+  microblogId: integer("microblog_id").references(() => microblogs.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any);
+
+export const insertMicroblogBookmarkSchema = createInsertSchema(microblogBookmarks).pick({
+  microblogId: true,
+  userId: true,
+} as any);
+
 export type InsertMicroblog = typeof microblogs.$inferInsert;
 export type Microblog = typeof microblogs.$inferSelect;
 
 export type InsertMicroblogLike = typeof microblogLikes.$inferInsert;
 export type MicroblogLike = typeof microblogLikes.$inferSelect;
+
+export type InsertMicroblogRepost = typeof microblogReposts.$inferInsert;
+export type MicroblogRepost = typeof microblogReposts.$inferSelect;
+
+export type InsertMicroblogBookmark = typeof microblogBookmarks.$inferInsert;
+export type MicroblogBookmark = typeof microblogBookmarks.$inferSelect;
 
 // Duplicate type definitions removed - they're already defined earlier in the file
 
@@ -1393,6 +1447,28 @@ export const contentReports = pgTable("content_reports", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Backwards-compatible alias: some parts of the codebase import `userReports`.
+// Backwards-compatible table for user reports (legacy consumers)
+export const userReports = pgTable("user_reports", {
+  id: serial("id").primaryKey(),
+  reporterId: integer("reporter_id").references(() => users.id),
+  reportedUserId: integer("reported_user_id").references(() => users.id),
+  reason: text("reason").notNull(),
+  status: text("status").default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
+} as any);
+
+export const insertUserReportSchema = createInsertSchema(userReports).omit({
+  id: true,
+  createdAt: true,
+  deletedAt: true,
+} as any);
+
+export type UserReport = typeof userReports.$inferSelect;
+export type InsertUserReport = typeof userReports.$inferInsert;
+
+
 // Push tokens table (used for push notification delivery)
 export const pushTokens = pgTable("push_tokens", {
   id: serial("id").primaryKey(),
@@ -1490,6 +1566,48 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   createdAt: true,
 } as any);
 
+// User Reputation System
+export const userReputation = pgTable("user_reputation", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  reputationScore: integer("reputation_score").default(100), // Starts at 100
+  trustLevel: integer("trust_level").default(1), // 1-5, higher is better
+  totalReports: integer("total_reports").default(0),
+  validReports: integer("valid_reports").default(0), // Reports against them that were confirmed
+  falseReports: integer("false_reports").default(0), // Reports against them that were dismissed
+  contentCreated: integer("content_created").default(0),
+  contentRemoved: integer("content_removed").default(0),
+  helpfulFlags: integer("helpful_flags").default(0), // Reports they filed that were confirmed
+  warnings: integer("warnings").default(0),
+  suspensions: integer("suspensions").default(0),
+  lastViolation: timestamp("last_violation"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUserReputationSchema = createInsertSchema(userReputation).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+} as any);
+
+// Reputation History (track changes over time)
+export const reputationHistory = pgTable("reputation_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  change: integer("change").notNull(), // +/- amount
+  reason: text("reason").notNull(), // 'content_approved', 'content_removed', 'helpful_flag', etc.
+  contentType: text("content_type"), // 'post', 'comment', etc.
+  contentId: integer("content_id"),
+  moderatorId: integer("moderator_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertReputationHistorySchema = createInsertSchema(reputationHistory).omit({
+  id: true,
+  createdAt: true,
+} as any);
+
 // Type exports for content moderation
 export type ContentReport = typeof contentReports.$inferSelect;
 export type InsertContentReport = typeof contentReports.$inferInsert;
@@ -1505,3 +1623,9 @@ export type InsertModerationSettings = typeof moderationSettings.$inferInsert;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+export type UserReputation = typeof userReputation.$inferSelect;
+export type InsertUserReputation = typeof userReputation.$inferInsert;
+
+export type ReputationHistory = typeof reputationHistory.$inferSelect;
+export type InsertReputationHistory = typeof reputationHistory.$inferInsert;

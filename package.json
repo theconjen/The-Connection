@@ -10,11 +10,21 @@
     "build:client": "pnpm -C client run build",
     "build:server": "pnpm -C server run build",
     "build": "pnpm run build:client && pnpm run build:server",
-    "postinstall": "node ./scripts/ensure-assets.js",
+    "postinstall": "node -e \"import('./scripts/ensure-assets.js')\" && node -e \"import('./scripts/apply-patches.js')\"",
     "test:api": "vitest run tests/api",
-    "eas": "pnpm dlx eas-cli",
-    "android": "pnpm -C mobile-app/TheConnectionMobile-new run android",
-    "ios": "pnpm -C mobile-app/TheConnectionMobile-new run ios"
+    "eas": "cd ../TheConnectionMobile-standalone && pnpm dlx eas-cli",
+    "android": "cd ../TheConnectionMobile-standalone && npx expo run:android",
+    "ios": "cd ../TheConnectionMobile-standalone && npx expo run:ios",
+    "mobile": "cd ../TheConnectionMobile-standalone && npx expo start",
+    "clean:logs": "node scripts/remove-console-logs.cjs",
+    "clean:logs:check": "node scripts/remove-console-logs.cjs --dry-run",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
+    "prepare": "node -e \"try { require('husky').default.install() } catch (e) {}\"",
+    "bots:create": "tsx server/bots/create-bot-users.ts",
+    "bots:bible": "tsx server/bots/bible-verse-bot.ts",
+    "bots:quotes": "tsx server/bots/theology-quote-bot.ts",
+    "bots:scheduler": "tsx server/bots/scheduler.ts"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
@@ -25,6 +35,7 @@
     "@types/express-session": "^1.18.2",
     "@types/http-errors": "^2.0.5",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^1.4.12",
     "@types/node": "^24.10.1",
     "@types/passport": "^1.0.17",
     "@types/react": "~18.3.11",
@@ -42,14 +53,14 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.18",
     "tailwindcss-animate": "^1.0.7",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "vite": "^7.2.4",
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.10"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=20.19.0"
   },
   "packageManager": "pnpm@10.24.0",
   "pnpm": {
@@ -58,7 +69,14 @@
       "react-native": "0.77.3",
       "react-native-reanimated": "3.16.5",
       "expo": "~54.0.25",
-      "expo-modules-core": "3.0.26"
+      "expo-modules-core": "3.0.26",
+      "@remix-run/router": ">=1.23.2",
+      "preact": ">=10.27.3",
+      "@sentry/browser": ">=7.119.1",
+      "esbuild": ">=0.25.0",
+      "undici": ">=7.16.0",
+      "path-to-regexp": ">=6.3.0",
+      "jws": ">=4.0.1"
     }
   },
   "dependencies": {
@@ -75,7 +93,7 @@
     "@types/lusca": "^1.7.5",
     "@types/memoizee": "^0.4.12",
     "@types/passport-local": "^1.0.38",
-    "@vercel/node": "^2.3.0",
+    "@vercel/node": "^5.5.16",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "connect-pg-simple": "^10.0.0",
@@ -97,11 +115,12 @@
     "i18next-icu": "^2.4.1",
     "isomorphic-dompurify": "^2.32.0",
     "jsdom": "^27.2.0",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.3",
     "lusca": "^1.7.0",
+    "multer": "^1.4.5-lts.1",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
-    "qs": "^6.14.0",
+    "qs": "^6.14.1",
     "react": "18.3.1",
     "react-native": "0.77.3",
     "react-native-reanimated": "3.16.5",

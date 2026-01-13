@@ -1,3 +1,9 @@
+CI: Relax Node engine to match Render host
+
+- Date: 2026-01-09
+- Change: `package.json` engines.node relaxed from `>=22.0.0` to `>=20.19.0`.
+- Reason: Render build environment used Node v20.19.0 during `pnpm install`, causing an `ELIFECYCLE` failure. Relaxing the engine requirement allows the install to proceed on Render while we stabilize runtime configuration.
+- Next steps: Update Render service to explicitly use Node 22 (recommended) or pin Node in CI. Revert this relaxation after confirming all environments support Node 22.
 # Critical Fixes Applied - The Connection
 
 **Date:** November 14, 2025
