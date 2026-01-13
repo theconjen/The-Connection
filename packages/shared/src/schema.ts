@@ -145,8 +145,19 @@ export const communities = pgTable("communities", {
   longitude: text("longitude"),
   memberCount: integer("member_count").default(0),
   isPrivate: boolean("is_private").default(false),
-  hasPrivateWall: boolean("has_private_wall").default(false), 
+  hasPrivateWall: boolean("has_private_wall").default(false),
   hasPublicWall: boolean("has_public_wall").default(true),
+  // Filter fields for community discovery
+  ageGroup: text("age_group"), // Youth, Young Adult, Adult, Seniors, All Ages
+  gender: text("gender"), // Men's Only, Women's Only, Co-Ed
+  ministryTypes: text("ministry_types").array(), // Bible Study, Prayer, Worship, etc.
+  activities: text("activities").array(), // Sports, Music, Hiking, etc.
+  professions: text("professions").array(), // Healthcare, Teachers, Tech, Blue Collar, etc.
+  recoverySupport: text("recovery_support").array(), // Addiction Recovery, Grief Support, etc.
+  meetingType: text("meeting_type"), // In-Person, Online, Hybrid
+  frequency: text("frequency"), // Daily, Weekly, Bi-weekly, Monthly, One-time
+  lifeStages: text("life_stages").array(), // Singles, Married, Students, etc.
+  parentCategories: text("parent_categories").array(), // All Parents, Moms, Dads, etc.
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   createdBy: integer("created_by").references(() => users.id),

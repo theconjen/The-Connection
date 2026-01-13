@@ -7,19 +7,166 @@ import { buildErrorResponse } from '../utils/errors';
 
 const router = Router();
 
+// Helper function to calculate distance using Haversine formula (returns miles)
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3959; // Earth's radius in miles
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+
+  return Math.round(distance * 10) / 10; // Round to 1 decimal place
+}
+
+function toRad(degrees: number): number {
+  return degrees * (Math.PI / 180);
+}
+
 router.get('/api/communities', async (req, res) => {
   try {
     const userId = getSessionUserId(req);
     const searchQuery = req.query.search as string;
+
+    // Extract location parameters
+    const userLat = req.query.userLat ? parseFloat(req.query.userLat as string) : null;
+    const userLng = req.query.userLng ? parseFloat(req.query.userLng as string) : null;
+    const maxDistance = req.query.maxDistance ? parseFloat(req.query.maxDistance as string) : null; // in miles
+
+    // Extract filter parameters
+    const filters = {
+      ageGroup: req.query.ageGroup as string,
+      gender: req.query.gender as string,
+      ministryTypes: req.query.ministryTypes ? (req.query.ministryTypes as string).split(',') : [],
+      activities: req.query.activities ? (req.query.activities as string).split(',') : [],
+      professions: req.query.professions ? (req.query.professions as string).split(',') : [],
+      recoverySupport: req.query.recoverySupport ? (req.query.recoverySupport as string).split(',') : [],
+      meetingType: req.query.meetingType as string,
+      frequency: req.query.frequency as string,
+      lifeStages: req.query.lifeStages ? (req.query.lifeStages as string).split(',') : [],
+      parentCategories: req.query.parentCategories ? (req.query.parentCategories as string).split(',') : [],
+    };
+
     let communities = await storage.getPublicCommunitiesAndUserCommunities(userId, searchQuery);
+
+    // Calculate distance for each community if user location is provided
+    if (userLat !== null && userLng !== null) {
+      communities = communities.map((community: any) => {
+        let distance = null;
+        if (community.latitude && community.longitude) {
+          const communityLat = parseFloat(community.latitude);
+          const communityLng = parseFloat(community.longitude);
+          if (!isNaN(communityLat) && !isNaN(communityLng)) {
+            distance = calculateDistance(userLat, userLng, communityLat, communityLng);
+          }
+        }
+        return { ...community, distance };
+      });
+    }
+
+    // Apply filters
+    communities = communities.filter((community: any) => {
+      // Age Group filter
+      if (filters.ageGroup && community.ageGroup && community.ageGroup !== filters.ageGroup) {
+        return false;
+      }
+
+      // Gender filter
+      if (filters.gender && community.gender && community.gender !== filters.gender) {
+        return false;
+      }
+
+      // Meeting Type filter
+      if (filters.meetingType && community.meetingType && community.meetingType !== filters.meetingType) {
+        return false;
+      }
+
+      // Frequency filter
+      if (filters.frequency && community.frequency && community.frequency !== filters.frequency) {
+        return false;
+      }
+
+      // Ministry Types filter (array overlap check)
+      if (filters.ministryTypes.length > 0 && community.ministryTypes) {
+        const hasMatch = filters.ministryTypes.some((type: string) => community.ministryTypes.includes(type));
+        if (!hasMatch) return false;
+      }
+
+      // Activities filter (array overlap check)
+      if (filters.activities.length > 0 && community.activities) {
+        const hasMatch = filters.activities.some((activity: string) => community.activities.includes(activity));
+        if (!hasMatch) return false;
+      }
+
+      // Professions filter (array overlap check)
+      if (filters.professions.length > 0 && community.professions) {
+        const hasMatch = filters.professions.some((profession: string) => community.professions.includes(profession));
+        if (!hasMatch) return false;
+      }
+
+      // Recovery Support filter (array overlap check)
+      if (filters.recoverySupport.length > 0 && community.recoverySupport) {
+        const hasMatch = filters.recoverySupport.some((support: string) => community.recoverySupport.includes(support));
+        if (!hasMatch) return false;
+      }
+
+      // Life Stages filter (array overlap check)
+      if (filters.lifeStages.length > 0 && community.lifeStages) {
+        const hasMatch = filters.lifeStages.some((stage: string) => community.lifeStages.includes(stage));
+        if (!hasMatch) return false;
+      }
+
+      // Parent Categories filter (array overlap check)
+      if (filters.parentCategories.length > 0 && community.parentCategories) {
+        const hasMatch = filters.parentCategories.some((category: string) => community.parentCategories.includes(category));
+        if (!hasMatch) return false;
+      }
+
+      // Distance filter - only apply to in-person communities
+      if (maxDistance !== null && community.meetingType === 'In-Person') {
+        // If community has no location, filter it out when distance filtering is active
+        if (community.distance === null) return false;
+        // Filter out communities beyond max distance
+        if (community.distance > maxDistance) return false;
+      }
+
+      return true;
+    });
+
     if (userId) {
       const blockedIds = await storage.getBlockedUserIdsFor(userId);
       if (blockedIds && blockedIds.length > 0) {
         communities = communities.filter((c: any) => !blockedIds.includes(c.createdBy));
       }
     }
-    // Recent 50 (assume createdAt desc order downstream or sort here)
-    communities = communities.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 50);
+
+    // Smart sorting: prioritize local in-person communities
+    communities = communities.sort((a: any, b: any) => {
+      // If both have distances, sort by distance (closest first) for in-person
+      if (a.distance !== null && b.distance !== null) {
+        // Prioritize in-person communities by distance
+        if (a.meetingType === 'In-Person' && b.meetingType === 'In-Person') {
+          return a.distance - b.distance;
+        }
+        // In-person with distance comes before online
+        if (a.meetingType === 'In-Person' && b.meetingType !== 'In-Person') {
+          return -1;
+        }
+        if (a.meetingType !== 'In-Person' && b.meetingType === 'In-Person') {
+          return 1;
+        }
+      }
+      // Fall back to creation date
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    // Limit to 50 results
+    communities = communities.slice(0, 50);
     res.json(communities);
   } catch (error) {
     console.error('Error fetching communities:', error);
