@@ -98,6 +98,7 @@ import eventsRoutes from './routes/events';
 import apologeticsRoutes from './routes/apologetics';
 import moderationRoutes from './routes/moderation';
 import followRoutes from './routes/follow';
+import searchRoutes from './routes/search';
 import passwordResetRoutes from './routes/passwordReset';
 import uploadRoutes from './routes/upload';
 import { chatMessagesQuerySchema } from './routes/chatMessages';
@@ -2026,42 +2027,8 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Location-based community search (supports city, state, interests, radius)
   registerLocationSearchRoutes(app);
 
-  // Global search endpoint
-  app.get('/api/search', async (req, res) => {
-    try {
-      const query = req.query.q as string;
-      if (!query || query.trim().length === 0) {
-        return res.status(400).json({ message: 'Search query is required' });
-      }
-
-      // Search all entities in parallel
-      const [users, communities, posts, events, microblogs, prayerRequests, apologeticsQuestions] = await Promise.all([
-        storage.searchUsers(query),
-        storage.searchCommunities(query),
-        storage.searchPosts(query),
-        storage.searchEvents(query),
-        storage.searchMicroblogs(query),
-        storage.searchPrayerRequests(query),
-        storage.searchApologeticsQuestions(query)
-      ]);
-
-      // Format results with type labels
-      const results = {
-        users: users.map(u => ({ ...u, type: 'user' as const })),
-        communities: communities.map(c => ({ ...c, type: 'community' as const })),
-        posts: posts.map(p => ({ ...p, type: 'post' as const })),
-        events: events.map(e => ({ ...e, type: 'event' as const })),
-        microblogs: microblogs.map(m => ({ ...m, type: 'microblog' as const })),
-        prayerRequests: prayerRequests.map(pr => ({ ...pr, type: 'prayer' as const })),
-        apologeticsQuestions: apologeticsQuestions.map(q => ({ ...q, type: 'question' as const }))
-      };
-
-      res.json(results);
-    } catch (error) {
-      console.error('Error performing global search:', error);
-      res.status(500).json(buildErrorResponse('Error performing search', error));
-    }
-  });
+  // Global search endpoint (returns flat array with type filters)
+  app.use('/api/search', searchRoutes);
 
   // Object storage endpoints
   const uploadsRoot = path.resolve(process.cwd(), 'public', 'uploads');

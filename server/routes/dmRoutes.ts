@@ -28,6 +28,46 @@ async function checkBlockingRelationship(currentUserId: number, otherUserId: num
   return { status: 'ok' };
 }
 
+async function checkDmPrivacy(senderId: number, receiverId: number): Promise<
+  | { allowed: true }
+  | { allowed: false; reason: string }
+> {
+  try {
+    // Get receiver's privacy settings
+    const receiver = await storage.getUser(receiverId);
+    if (!receiver) {
+      return { allowed: false, reason: 'User not found' };
+    }
+
+    // If dmPrivacy is 'everyone', allow
+    const dmPrivacy = receiver.dmPrivacy || 'everyone';
+    if (dmPrivacy === 'everyone') {
+      return { allowed: true };
+    }
+
+    // If dmPrivacy is 'followers' or 'friends', check if sender follows receiver
+    if (dmPrivacy === 'followers' || dmPrivacy === 'friends') {
+      const isFollowing = await storage.isUserFollowing?.(senderId, receiverId);
+      if (!isFollowing) {
+        return { allowed: false, reason: 'You must follow this user to send them messages' };
+      }
+      return { allowed: true };
+    }
+
+    // If dmPrivacy is 'nobody', deny
+    if (dmPrivacy === 'nobody') {
+      return { allowed: false, reason: 'This user has disabled direct messages' };
+    }
+
+    // Default to allowing
+    return { allowed: true };
+  } catch (error) {
+    console.error('Error checking DM privacy:', error);
+    // On error, allow (fail open)
+    return { allowed: true };
+  }
+}
+
 // Get all conversations for current user
 router.get("/conversations", async (req, res) => {
   const currentUserId = getSessionUserId(req);
@@ -113,6 +153,12 @@ router.post("/send", dmSendLimiter, async (req, res) => {
       return res.status(403).json({ message: 'You cannot message this user' });
     }
 
+    // Check DM privacy settings
+    const privacyCheck = await checkDmPrivacy(senderId, parsedReceiverId);
+    if (!privacyCheck.allowed) {
+      return res.status(403).json({ message: privacyCheck.reason });
+    }
+
     ensureCleanText(content, 'Direct message');
     const message = await storage.createDirectMessage({
       senderId: senderId,
@@ -142,7 +188,7 @@ router.post("/send", dmSendLimiter, async (req, res) => {
             console.error('Error sending to specific token:', tokenError);
           }
         }
-        console.log(`Push notifications sent to ${pushTokens.length} device(s)`);
+        console.info(`Sent push notification to ${pushTokens.length} device(s)`);
       }
     } catch (pushError) {
       // Don't fail the request if push notification fails

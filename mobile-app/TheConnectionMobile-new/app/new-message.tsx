@@ -59,22 +59,35 @@ export default function NewMessageScreen() {
       ? item.avatarUrl
       : (item.displayName || item.username).charAt(0).toUpperCase();
     const displayName = item.displayName || item.username;
+    const canMessage = item.canMessage !== false; // Default to true if not specified
 
     return (
       <TouchableOpacity
-        style={styles.userItem}
-        onPress={() => handleUserSelect(item)}
+        style={[styles.userItem, !canMessage && styles.userItemDisabled]}
+        onPress={() => canMessage && handleUserSelect(item)}
+        disabled={!canMessage}
       >
-        <View style={styles.avatarPlaceholder}>
+        <View style={[styles.avatarPlaceholder, !canMessage && styles.avatarDisabled]}>
           <Text style={styles.avatarText}>{avatar}</Text>
         </View>
         <View style={styles.userInfo}>
-          <Text style={styles.username}>{displayName}</Text>
+          <Text style={[styles.username, !canMessage && styles.textDisabled]}>
+            {displayName}
+          </Text>
           {item.username !== displayName && (
-            <Text style={styles.handle}>@{item.username}</Text>
+            <Text style={[styles.handle, !canMessage && styles.textDisabled]}>
+              @{item.username}
+            </Text>
+          )}
+          {!canMessage && item.dmPrivacyReason && (
+            <Text style={styles.privacyNote}>{item.dmPrivacyReason}</Text>
           )}
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#637083" />
+        {canMessage ? (
+          <Ionicons name="chevron-forward" size={20} color="#637083" />
+        ) : (
+          <Ionicons name="lock-closed" size={20} color="#B0BBC6" />
+        )}
       </TouchableOpacity>
     );
   };
@@ -253,6 +266,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
   },
+  userItemDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#F5F8FA',
+  },
   avatar: {
     width: 50,
     height: 50,
@@ -267,6 +284,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#222D99',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarDisabled: {
+    backgroundColor: '#B0BBC6',
   },
   avatarText: {
     color: '#fff',
@@ -290,5 +310,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#637083',
     marginTop: 4,
+  },
+  textDisabled: {
+    color: '#B0BBC6',
+  },
+  privacyNote: {
+    fontSize: 12,
+    color: '#637083',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
