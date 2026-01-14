@@ -111,12 +111,31 @@ async function bootstrap() {
 
   app.use(session(sessionOptions));
 
+  // CSRF protection for non-API routes
+  // Skip CSRF for: /api routes, JWT-authenticated requests (mobile apps), and safe methods
   const csrfProtection = lusca.csrf();
   app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.startsWith("/api")) {
+    // Skip CSRF for /api routes (check both path and url for different route mounting scenarios)
+    if (req.path.startsWith('/api') || req.url.startsWith('/api')) {
       return next();
     }
 
+    // Skip CSRF for mobile app requests (identified by custom header)
+    if (req.headers['x-mobile-app'] === 'true' || req.headers['x-requested-with'] === 'com.theconnection.mobile') {
+      return next();
+    }
+
+    // Skip CSRF for JWT-authenticated requests (mobile apps use Bearer tokens)
+    if (req.headers.authorization?.startsWith('Bearer ')) {
+      return next();
+    }
+
+    // Skip CSRF for safe HTTP methods (GET, HEAD, OPTIONS are idempotent)
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+      return next();
+    }
+
+    // Apply CSRF protection for all other requests (web forms, etc.)
     return csrfProtection(req, res, next);
   });
 
