@@ -124,7 +124,8 @@ class StorageSafety {
     'createEventRSVP', 'getEventRSVPs', 'getUserEventRSVP', 'upsertEventRSVP',
     'deleteEventRSVP', 'getAllMicroblogs', 'getMicroblog', 'getUserMicroblogs',
     'createMicroblog', 'updateMicroblog', 'deleteMicroblog', 'likeMicroblog',
-    'unlikeMicroblog', 'getUserLikedMicroblogs', 'getAllLivestreams',
+    'unlikeMicroblog', 'getUserLikedMicroblogs', 'hasUserLikedMicroblog',
+    'hasUserRepostedMicroblog', 'hasUserBookmarkedMicroblog', 'getAllLivestreams',
     'createLivestream', 'getLivestreamerApplicationByUserId',
     'getPendingLivestreamerApplications', 'createLivestreamerApplication',
     'updateLivestreamerApplication', 'isApprovedLivestreamer',
@@ -270,6 +271,7 @@ export interface IStorage {
   getPrayerRequest(id: number): Promise<PrayerRequest | undefined>;
   getUserPrayerRequests(userId: number): Promise<PrayerRequest[]>;
   getGroupPrayerRequests(groupId: number): Promise<PrayerRequest[]>;
+  getCommunityPrayerRequests(communityId: number): Promise<PrayerRequest[]>;
   getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]>;
   createPrayerRequest(prayer: InsertPrayerRequest): Promise<PrayerRequest>;
   updatePrayerRequest(id: number, prayer: Partial<InsertPrayerRequest>): Promise<PrayerRequest>;
@@ -339,6 +341,11 @@ export interface IStorage {
   bookmarkMicroblog(microblogId: number, userId: number): Promise<MicroblogBookmark>;
   unbookmarkMicroblog(microblogId: number, userId: number): Promise<boolean>;
   getUserBookmarkedMicroblogs(userId: number): Promise<Microblog[]>;
+
+  // Microblog engagement check methods
+  hasUserLikedMicroblog(microblogId: number, userId: number): Promise<boolean>;
+  hasUserRepostedMicroblog(microblogId: number, userId: number): Promise<boolean>;
+  hasUserBookmarkedMicroblog(microblogId: number, userId: number): Promise<boolean>;
 
   // Livestream methods
   getAllLivestreams(): Promise<Livestream[]>;
@@ -1335,7 +1342,13 @@ export class MemStorage implements IStorage {
       .filter(p => p.groupId === groupId)
       .map(p => ({ ...p, description: p.title }));
   }
-  
+
+  async getCommunityPrayerRequests(communityId: number): Promise<PrayerRequest[]> {
+    return this.data.prayerRequests
+      .filter(p => p.communityId === communityId)
+      .map(p => ({ ...p, description: p.title }));
+  }
+
   async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
     // Get user's groups
     const userGroups = this.data.groupMembers
@@ -1870,6 +1883,19 @@ export class MemStorage implements IStorage {
   async getUserBookmarkedMicroblogs(userId: number): Promise<Microblog[]> {
     const bookmarks = this.data.microblogBookmarks.filter(b => b.userId === userId);
     return bookmarks.map(b => this.data.microblogs.find(m => m.id === b.microblogId)!).filter(Boolean);
+  }
+
+  // Microblog engagement check methods
+  async hasUserLikedMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    return this.data.microblogLikes.some(like => like.microblogId === microblogId && like.userId === userId);
+  }
+
+  async hasUserRepostedMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    return this.data.microblogReposts.some(repost => repost.microblogId === microblogId && repost.userId === userId);
+  }
+
+  async hasUserBookmarkedMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    return this.data.microblogBookmarks.some(bookmark => bookmark.microblogId === microblogId && bookmark.userId === userId);
   }
 
   // Livestreamer application methods
@@ -3503,7 +3529,14 @@ export class DbStorage implements IStorage {
       .where(eq(prayerRequests.groupId, groupId))
       .orderBy(desc(prayerRequests.createdAt));
   }
-  
+
+  async getCommunityPrayerRequests(communityId: number): Promise<PrayerRequest[]> {
+    return await db.select()
+      .from(prayerRequests)
+      .where(eq(prayerRequests.communityId, communityId))
+      .orderBy(desc(prayerRequests.createdAt));
+  }
+
   async getPrayerRequestsVisibleToUser(userId: number): Promise<PrayerRequest[]> {
     // Get user's groups
     const userGroups = await db.select({ groupId: groupMembers.groupId })
@@ -4111,6 +4144,46 @@ export class DbStorage implements IStorage {
       .select()
       .from(microblogs)
       .where(inArray(microblogs.id, microblogIds));
+  }
+
+  // Microblog engagement check methods
+  async hasUserLikedMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    const [like] = await db
+      .select()
+      .from(microblogLikes)
+      .where(and(
+        eq(microblogLikes.microblogId, microblogId),
+        eq(microblogLikes.userId, userId)
+      ))
+      .limit(1);
+
+    return !!like;
+  }
+
+  async hasUserRepostedMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    const [repost] = await db
+      .select()
+      .from(microblogReposts)
+      .where(and(
+        eq(microblogReposts.microblogId, microblogId),
+        eq(microblogReposts.userId, userId)
+      ))
+      .limit(1);
+
+    return !!repost;
+  }
+
+  async hasUserBookmarkedMicroblog(microblogId: number, userId: number): Promise<boolean> {
+    const [bookmark] = await db
+      .select()
+      .from(microblogBookmarks)
+      .where(and(
+        eq(microblogBookmarks.microblogId, microblogId),
+        eq(microblogBookmarks.userId, userId)
+      ))
+      .limit(1);
+
+    return !!bookmark;
   }
 
   // Livestreamer application methods
