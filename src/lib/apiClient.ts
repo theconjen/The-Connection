@@ -93,9 +93,18 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Posts API (Forum posts)
+// Posts API (Forum posts - supports anonymous posting)
 export const postsAPI = {
-  create: (data: { text: string; title?: string; communityId?: number; imageUrl?: string; videoUrl?: string; location?: string; taggedUserIds?: number[] }) =>
+  create: (data: {
+    text: string;
+    title?: string;
+    communityId?: number;
+    imageUrl?: string;
+    videoUrl?: string;
+    location?: string;
+    taggedUserIds?: number[];
+    isAnonymous?: boolean; // Forum posts can be anonymous
+  }) =>
     apiClient.post('/api/posts', data),
   getAll: () => apiClient.get('/api/posts'),
   getById: (id: number) => apiClient.get(`/api/posts/${id}`),
@@ -147,6 +156,14 @@ export const communitiesAPI = {
     apiClient.put(`/api/communities/${communityId}/members/${userId}`, { role }).then(res => res.data),
   removeMember: (communityId: number, userId: number) =>
     apiClient.delete(`/api/communities/${communityId}/members/${userId}`).then(res => res.data),
+
+  // Prayer Requests
+  getPrayerRequests: (communityId: number) =>
+    apiClient.get(`/api/communities/${communityId}/prayer-requests`).then(res => res.data),
+  createPrayerRequest: (communityId: number, data: { title: string; content: string; isAnonymous?: boolean }) =>
+    apiClient.post(`/api/communities/${communityId}/prayer-requests`, data).then(res => res.data),
+  markPrayerAnswered: (communityId: number, prayerId: number, answeredDescription?: string) =>
+    apiClient.patch(`/api/communities/${communityId}/prayer-requests/${prayerId}/answered`, { answeredDescription }).then(res => res.data),
 };
 
 // Direct Messages API
