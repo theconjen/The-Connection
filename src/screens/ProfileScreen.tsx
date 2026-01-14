@@ -47,7 +47,7 @@ export function ProfileScreen({
   userDenomination = '',
   onSaveProfile,
 }: ProfileScreenProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, colorScheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
 
   // Edit form state
@@ -87,7 +87,7 @@ export function ProfileScreen({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar
-        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
+        barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
       />
 
       <PageHeader

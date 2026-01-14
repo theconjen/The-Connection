@@ -682,7 +682,6 @@ export function CommunitiesScreen({
           setUserLocation(location);
         }
       } catch (err) {
-        console.log('Could not get user location:', err);
         // Non-blocking - continue without location
       }
     };

@@ -27,6 +27,8 @@ import { getCurrentLocationWithAddress, type UserLocation } from '../services/lo
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiClient, queryClient } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 
 // No custom icon components needed - using Ionicons directly
 
@@ -390,6 +392,7 @@ export function EventsScreen({
   const [locationFilter, setLocationFilter] = useState('');
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
 
   // Create Event Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -423,6 +426,38 @@ export function EventsScreen({
   // Check if user can create events (app admin OR community admin)
   const canCreateEvents = user?.isAdmin || (adminCommunities && adminCommunities.length > 0);
 
+  // Request location permissions when map view is selected
+  useEffect(() => {
+    if (viewMode === 'map') {
+      requestLocationPermission();
+    }
+  }, [viewMode]);
+
+  const requestLocationPermission = async () => {
+    try {
+      setLoadingLocation(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      setLocationPermission(status === 'granted');
+
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          address: '',
+          city: '',
+          state: '',
+          zipCode: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error requesting location permission:', error);
+      setLocationPermission(false);
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
   // Fetch events from API
   const { data: events = [], isLoading, refetch } = useQuery<Event[]>({
     queryKey: ['/api/events', searchQuery, locationFilter],
@@ -444,6 +479,9 @@ export function EventsScreen({
 
       const response = await apiClient.get(endpoint);
       let eventsData = response.data;
+
+      // Filter out virtual events (only show in-person events)
+      eventsData = eventsData.filter((event: Event) => !event.isVirtual);
 
       // Fetch RSVP status for each event if user is logged in
       if (user) {
@@ -937,40 +975,81 @@ export function EventsScreen({
           <View
             style={{
               flex: 1,
-              backgroundColor: colors.muted,
               marginHorizontal: spacing.lg,
               marginTop: spacing.lg,
               borderRadius: radii.xl,
+              overflow: 'hidden',
               borderWidth: 1,
               borderColor: colors.border,
               minHeight: 400,
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: spacing.xl,
             }}
           >
-            <Ionicons name="map-outline" size={48} color={colors.mutedForeground} />
-            <Text
-              variant="body"
-              style={{
-                fontWeight: '600',
-                color: colors.foreground,
-                marginTop: spacing.md,
-                textAlign: 'center',
-              }}
-            >
-              Event Map
-            </Text>
-            <Text
-              variant="bodySmall"
-              style={{
-                color: colors.mutedForeground,
-                marginTop: spacing.sm,
-                textAlign: 'center',
-              }}
-            >
-              Events with location coordinates will appear here. Add an event with a specific address to see it on the map.
-            </Text>
+            {loadingLocation ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text variant="body" style={{ marginTop: spacing.md, color: colors.mutedForeground }}>
+                  Requesting location permissions...
+                </Text>
+              </View>
+            ) : locationPermission === false ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted, padding: spacing.xl }}>
+                <Ionicons name="location-outline" size={48} color={colors.mutedForeground} />
+                <Text variant="body" style={{ fontWeight: '600', color: colors.foreground, marginTop: spacing.md, textAlign: 'center' }}>
+                  Location Permission Denied
+                </Text>
+                <Text variant="bodySmall" style={{ color: colors.mutedForeground, marginTop: spacing.sm, textAlign: 'center' }}>
+                  Please enable location permissions in your device settings to view events on the map.
+                </Text>
+                <Pressable
+                  onPress={requestLocationPermission}
+                  style={{
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.md,
+                    borderRadius: radii.md,
+                    marginTop: spacing.lg,
+                  }}
+                >
+                  <Text variant="body" style={{ color: colors.primaryForeground, fontWeight: '600' }}>
+                    Request Permission
+                  </Text>
+                </Pressable>
+              </View>
+            ) : userLocation ? (
+              <MapView
+                style={{ flex: 1 }}
+                provider={PROVIDER_GOOGLE}
+                initialRegion={{
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                  latitudeDelta: 0.2,
+                  longitudeDelta: 0.2,
+                }}
+                showsUserLocation
+                showsMyLocationButton
+              >
+                {events
+                  .filter(event => event.latitude && event.longitude)
+                  .map(event => (
+                    <Marker
+                      key={event.id}
+                      coordinate={{
+                        latitude: parseFloat(event.latitude!),
+                        longitude: parseFloat(event.longitude!),
+                      }}
+                      title={event.title}
+                      description={`${new Date(event.eventDate).toLocaleDateString()} at ${event.startTime}`}
+                    />
+                  ))}
+              </MapView>
+            ) : (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted, padding: spacing.xl }}>
+                <Ionicons name="map-outline" size={48} color={colors.mutedForeground} />
+                <Text variant="body" style={{ fontWeight: '600', color: colors.foreground, marginTop: spacing.md, textAlign: 'center' }}>
+                  Loading Map...
+                </Text>
+              </View>
+            )}
           </View>
         ) : (
           /* List View */

@@ -95,13 +95,25 @@ export function AppHeader({
             )}
           </Pressable>
 
-          {/* Center: Logo */}
+          {/* Center: Logo with theme-aware background */}
           <View style={styles.centerSection}>
-            <Image
-              source={require('../../assets/tc-logo-hd.png')}
-              style={styles.centeredLogo}
-              resizeMode="contain"
-            />
+            <View style={{
+              backgroundColor: colors.surface,
+              paddingHorizontal: 20,
+              paddingVertical: 6,
+              borderRadius: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2,
+            }}>
+              <Image
+                source={require('../../assets/tc-logo-hd.png')}
+                style={styles.centeredLogo}
+                resizeMode="contain"
+              />
+            </View>
           </View>
 
           {/* Right: Action Buttons */}
