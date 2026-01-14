@@ -207,10 +207,10 @@ function useReportPost() {
 
 function useComments(postId: number | null) {
   return useQuery<Comment[]>({
-    queryKey: ['/api/posts', postId, 'comments'],
+    queryKey: ['/api/microblogs', postId, 'comments'],
     queryFn: async () => {
       if (!postId) return [];
-      const response = await apiClient.get(`/api/posts/${postId}/comments`);
+      const response = await apiClient.get(`/api/microblogs/${postId}/comments`);
       return response.data;
     },
     enabled: !!postId,
@@ -226,7 +226,7 @@ function useCreateComment() {
       return response.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/posts', variables.postId, 'comments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/microblogs', variables.postId, 'comments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
     },
   });

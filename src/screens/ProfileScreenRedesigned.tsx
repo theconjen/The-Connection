@@ -131,7 +131,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
         // Upload to server using apiClient
         const apiClient = (await import('../lib/apiClient')).default;
         const response = await apiClient.patch('/api/user/profile', {
-          profileImageUrl: base64data,
+          avatarUrl: base64data,
         });
 
         // Refresh profile data
@@ -168,7 +168,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
     );
   }
 
-  const { user, stats, communities, recentPosts } = profile;
+  const { user, stats, communities, recentPosts, recentMicroblogs } = profile;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -374,9 +374,32 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
         <View style={[styles.content, { backgroundColor: colors.background }]}>
           {activeTab === 'posts' && (
             <View style={styles.postsContainer}>
-              {recentPosts && recentPosts.length > 0 ? (
+              {/* Show microblogs (feed posts) */}
+              {recentMicroblogs && recentMicroblogs.length > 0 ? (
+                recentMicroblogs.map((microblog: any) => (
+                  <View key={`microblog-${microblog.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Text style={[styles.postContent, { color: colors.text }]} numberOfLines={4}>
+                      {microblog.content}
+                    </Text>
+                    <View style={styles.postFooter}>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
+                        {new Date(microblog.createdAt).toLocaleDateString()}
+                      </Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
+                        {microblog.likeCount || 0} likes
+                      </Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
+                        {microblog.replyCount || 0} comments
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              ) : recentPosts && recentPosts.length > 0 ? (
+                // Show forum posts if no microblogs
                 recentPosts.map((post: any) => (
-                  <View key={post.id} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <View key={`post-${post.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={[styles.postTitle, { color: colors.text }]}>{post.title}</Text>
                     <Text style={[styles.postContent, { color: colors.textSecondary }]} numberOfLines={3}>
                       {post.content}
