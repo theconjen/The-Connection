@@ -33,29 +33,20 @@ const ENABLE_REAL_EMAIL =
   enableRealEmailEnv === 'true' ||
   (enableRealEmailEnv !== 'false' && (hasResend || hasSendGrid || hasAwsCredentials));
 
-console.log(`📧 [SETUP] Email mock mode = ${forceMockMode ? 'ON' : 'OFF'} (FORCE_EMAIL_MOCK_MODE=${process.env.FORCE_EMAIL_MOCK_MODE || 'unset'}, ENABLE_REAL_EMAIL=${enableRealEmailEnv || 'auto'})`);
-
 if (forceMockMode) {
-  console.log("📧 Email functionality running in MOCK MODE. No actual emails will be sent.");
-  console.log("📧 All email operations will simulate success for testing purposes.");
   // We don't enable real email functionality in mock mode
 } else if (!ENABLE_REAL_EMAIL) {
-  console.log("📧 Email functionality disabled. Set ENABLE_REAL_EMAIL=true to enable real sending.");
-  console.log("📧 All email operations will continue to run in mock mode.");
 } else if (!hasAwsCredentials && !hasResend && !hasSendGrid) {
   console.warn("⚠️ No email provider credentials set (AWS, SendGrid, or Resend). Email functionality will be disabled.");
   console.warn("⚠️ Users can still register but won't receive actual emails.");
 } else {
   emailFunctionalityEnabled = true;
   if (hasAwsCredentials) {
-    console.log("📧 Email functionality enabled with AWS SES");
     sesAvailable = true;
   }
   if (hasSendGrid) {
-    console.log("📧 Email functionality enabled with SendGrid");
   }
   if (hasResend) {
-    console.log("📧 Email functionality enabled with Resend");
   }
 }
 
@@ -84,7 +75,6 @@ if (RESEND_API_KEY) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { Resend } = require('resend');
     resendClient = new Resend(RESEND_API_KEY);
-    console.log('📧 Resend client initialized');
   } catch (err) {
     console.warn('📧 Resend package not available or failed to initialize; falling back to SES if enabled');
     resendClient = null;
@@ -107,12 +97,14 @@ interface EmailParams {
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
   if (forceMockMode || !emailFunctionalityEnabled) {
-    console.log('📧 [MOCK] Would have sent email to:', params.to);
-    console.log('📧 [MOCK] Email subject:', params.subject);
     // Log more detailed information in development mode
     if (process.env.NODE_ENV !== 'production') {
-      console.log('📧 [MOCK] Email content (Text):', params.text?.substring(0, 100) + (params.text && params.text.length > 100 ? '...' : ''));
-      console.log('📧 [MOCK] Email content (HTML):', params.html?.substring(0, 100) + (params.html && params.html.length > 100 ? '...' : ''));
+      console.info('[EMAIL] Mock mode - email not sent:', {
+        to: params.to,
+        subject: params.subject,
+        hasText: !!params.text,
+        hasHtml: !!params.html
+      });
     }
     return true; // Return true in mock mode to simulate success
   }
@@ -128,7 +120,6 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
           html: params.html,
           text: params.text
         });
-        console.log(`Email sent via Resend to ${params.to}`);
         return true;
       } catch (resendErr) {
         console.error('Resend send error, falling back to SES:', resendErr);
@@ -145,7 +136,6 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
           html: params.html,
           text: params.text
         });
-        console.log(`Email sent via SendGrid to ${params.to}`);
         return true;
       } catch (sendGridErr) {
         console.warn('SendGrid send failed; falling back to SES if configured', sendGridErr);
@@ -187,18 +177,14 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
 
     // Send the email
     const response = await sesClient.send(sendEmailCommand);
-    console.log(`Email sent successfully to ${params.to}`, response.MessageId);
     return true;
   } catch (error) {
     console.error('AWS SES email error:', error);
     
     // Log email details for debugging but protect sensitive information
-    console.log('Failed to send email to:', params.to);
-    console.log('Email subject:', params.subject);
     
     // In development mode, we can simulate success if needed
     if (process.env.NODE_ENV !== 'production' && process.env.MOCK_EMAIL_SUCCESS === 'true') {
-      console.log('MOCK_EMAIL_SUCCESS is enabled - simulating successful email delivery');
       return true;
     }
     
@@ -222,7 +208,6 @@ export interface EmailTemplateParams {
  */
 export async function createEmailTemplate(params: EmailTemplateParams): Promise<boolean> {
   if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
-    console.log('📧 [MOCK] Would have created template:', params.TemplateName);
     return true; // Return true in mock mode to simulate success
   }
   
@@ -237,7 +222,6 @@ export async function createEmailTemplate(params: EmailTemplateParams): Promise<
     });
     
     await sesClient.send(createTemplateCommand);
-    console.log('Email template created:', params.TemplateName);
     return true;
   } catch (error) {
     console.error('Error creating email template:', error);
@@ -250,7 +234,6 @@ export async function createEmailTemplate(params: EmailTemplateParams): Promise<
  */
 export async function updateEmailTemplate(params: EmailTemplateParams): Promise<boolean> {
   if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
-    console.log('📧 [MOCK] Would have updated template:', params.TemplateName);
     return true; // Return true in mock mode to simulate success
   }
   
@@ -265,7 +248,6 @@ export async function updateEmailTemplate(params: EmailTemplateParams): Promise<
     });
     
     await sesClient.send(updateTemplateCommand);
-    console.log('Email template updated:', params.TemplateName);
     return true;
   } catch (error) {
     console.error('Error updating email template:', error);
@@ -278,7 +260,6 @@ export async function updateEmailTemplate(params: EmailTemplateParams): Promise<
  */
 export async function deleteEmailTemplate(templateName: string): Promise<boolean> {
   if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
-    console.log('📧 [MOCK] Would have deleted template:', templateName);
     return true; // Return true in mock mode to simulate success
   }
   
@@ -288,7 +269,6 @@ export async function deleteEmailTemplate(templateName: string): Promise<boolean
     });
     
     await sesClient.send(deleteTemplateCommand);
-    console.log('Email template deleted:', templateName);
     return true;
   } catch (error) {
     console.error('Error deleting email template:', error);
@@ -301,7 +281,6 @@ export async function deleteEmailTemplate(templateName: string): Promise<boolean
  */
 export async function listEmailTemplates(): Promise<string[]> {
   if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
-    console.log('📧 [MOCK] Would have listed templates.');
     // Return some mock template names to simulate the API
     return Object.values(DEFAULT_TEMPLATES);
   }
@@ -322,7 +301,6 @@ export async function listEmailTemplates(): Promise<string[]> {
  */
 export async function getEmailTemplate(templateName: string): Promise<Template | null> {
   if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
-    console.log('📧 [MOCK] Would have retrieved template:', templateName);
     // Return a mock template in mock mode
     return {
       TemplateName: templateName,
@@ -356,9 +334,6 @@ export async function sendTemplatedEmail(params: {
 }): Promise<boolean> {
   const { to, from, templateName, templateData } = params;
   if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
-    console.log('📧 [MOCK] Would have sent templated email to:', to);
-    console.log('📧 [MOCK] Template:', templateName);
-    console.log('📧 [MOCK] Template data:', JSON.stringify(templateData));
     return true; // Return true in mock mode to simulate success
   }
   
@@ -373,7 +348,6 @@ export async function sendTemplatedEmail(params: {
     });
     
     const response = await sesClient.send(sendTemplatedEmailCommand);
-    console.log(`Templated email sent successfully to ${to}`, response.MessageId);
     return true;
   } catch (error) {
     console.error('Error sending templated email:', error);
@@ -396,27 +370,12 @@ export const DEFAULT_TEMPLATES = {
  * Initialize all email templates
  */
 export async function initializeEmailTemplates(): Promise<void> {
-  console.log('Initializing email templates...');
-  console.log(`Email functionality enabled: ${emailFunctionalityEnabled}`);
-  console.log(`Using AWS Region: ${awsRegion}`);
-  console.log(`Forced mock mode: ${forceMockMode}`);
-  
+
   if (forceMockMode) {
-    console.log('💡 Running in FORCED MOCK MODE - skipping actual AWS SES template setup');
-    console.log('✓ Welcome template setup complete (mock)');
-    console.log('✓ Password reset template setup complete (mock)');
-    console.log('✓ Notification template setup complete (mock)');
-    console.log('✓ Livestream invite template setup complete (mock)');
-    console.log('✓ Application notification template setup complete (mock)');
-    console.log('✓ Application status update template setup complete (mock)');
-    console.log('✓ Community invitation template setup complete (mock)');
-    console.log('✓ All email templates successfully initialized in mock mode.');
     return;
   }
   
   if (!emailFunctionalityEnabled || !sesAvailable) {
-    console.log('Email functionality disabled or SES unavailable. Skipping template initialization.');
-    console.log('Email templates initialized in mock mode.');
     return;
   }
 
@@ -424,46 +383,34 @@ export async function initializeEmailTemplates(): Promise<void> {
     // Test AWS credentials with a simple list templates call
     try {
       const listResult = await listEmailTemplates();
-      console.log(`Found ${listResult.length} existing email templates`);
     } catch (error) {
       console.error('Error testing AWS SES credentials:', error);
-      console.log('Email template initialization aborted due to credential issues.');
-      console.log('Email templates initialized in fallback mode.');
       return;
     }
     
     // Welcome template
     await setupWelcomeTemplate();
-    console.log('✓ Welcome template setup complete');
     
     // Password reset template
     await setupPasswordResetTemplate();
-    console.log('✓ Password reset template setup complete');
     
     // Notification template
     await setupNotificationTemplate();
-    console.log('✓ Notification template setup complete');
     
     // Livestream invite template
     await setupLivestreamInviteTemplate();
-    console.log('✓ Livestream invite template setup complete');
     
     // Application notification templates
     const { setupApplicationNotificationTemplate, setupApplicationStatusUpdateTemplate } = await import('./email-templates');
     await setupApplicationNotificationTemplate();
-    console.log('✓ Application notification template setup complete');
     
     await setupApplicationStatusUpdateTemplate();
-    console.log('✓ Application status update template setup complete');
     
     // Community invitation template
     await setupCommunityInvitationTemplate();
-    console.log('✓ Community invitation template setup complete');
     
-    console.log('✓ All email templates successfully initialized.');
   } catch (error) {
     console.error('Error initializing email templates:', error);
-    console.log('Email templates initialized with errors.');
   }
 }
 

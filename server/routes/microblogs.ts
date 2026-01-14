@@ -9,17 +9,42 @@ import { buildErrorResponse } from '../utils/errors';
 export function createMicroblogsRouter(storage = defaultStorage) {
   const router = Router();
 
-  router.get('/api/microblogs', async (_req, res) => {
+  router.get('/microblogs', async (req, res) => {
     try {
+      const userId = getSessionUserId(req);
       const microblogs = await storage.getAllMicroblogs();
-      res.json(microblogs);
+
+      // Enrich microblogs with author data and user engagement status
+      const enrichedMicroblogs = await Promise.all(
+        microblogs.map(async (microblog) => {
+          const author = await storage.getUser(microblog.authorId);
+          const isLiked = userId ? await storage.hasUserLikedMicroblog(microblog.id, userId) : false;
+          const isReposted = userId ? await storage.hasUserRepostedMicroblog(microblog.id, userId) : false;
+          const isBookmarked = userId ? await storage.hasUserBookmarkedMicroblog(microblog.id, userId) : false;
+
+          return {
+            ...microblog,
+            author: author ? {
+              id: author.id,
+              username: author.username,
+              displayName: author.displayName,
+              profileImageUrl: author.profileImageUrl,
+            } : undefined,
+            isLiked,
+            isReposted,
+            isBookmarked,
+          };
+        })
+      );
+
+      res.json(enrichedMicroblogs);
     } catch (error) {
       console.error('Error fetching microblogs:', error);
       res.status(500).json(buildErrorResponse('Error fetching microblogs', error));
     }
   });
 
-  router.get('/api/microblogs/:id', async (req, res) => {
+  router.get('/microblogs/:id', async (req, res) => {
     try {
       const microblogId = parseInt(req.params.id);
       const microblog = await storage.getMicroblog(microblogId);
@@ -33,7 +58,7 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     }
   });
 
-  router.post('/api/microblogs', contentCreationLimiter, requireAuth, async (req, res) => {
+  router.post('/microblogs', contentCreationLimiter, requireAuth, async (req, res) => {
     try {
       const userId = requireSessionUserId(req);
       const validatedData = insertMicroblogSchema.parse({
@@ -48,7 +73,7 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     }
   });
 
-  router.post('/api/microblogs/:id/like', requireAuth, async (req, res) => {
+  router.post('/microblogs/:id/like', requireAuth, async (req, res) => {
     try {
       const microblogId = parseInt(req.params.id);
       const userId = requireSessionUserId(req);
@@ -60,7 +85,7 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     }
   });
 
-  router.delete('/api/microblogs/:id/like', requireAuth, async (req, res) => {
+  router.delete('/microblogs/:id/like', requireAuth, async (req, res) => {
     try {
       const microblogId = parseInt(req.params.id);
       const userId = requireSessionUserId(req);
@@ -72,7 +97,7 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     }
   });
 
-  router.delete('/api/microblogs/:id', requireAuth, async (req, res) => {
+  router.delete('/microblogs/:id', requireAuth, async (req, res) => {
     try {
       const userId = requireSessionUserId(req);
       const microblogId = parseInt(req.params.id);
@@ -96,7 +121,7 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     }
   });
 
-  router.post('/api/microblogs/:id/comments', messageCreationLimiter, requireAuth, async (req, res) => {
+  router.post('/microblogs/:id/comments', messageCreationLimiter, requireAuth, async (req, res) => {
     try {
       const userId = requireSessionUserId(req);
       const microblogId = parseInt(req.params.id);
@@ -115,6 +140,76 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     } catch (error) {
       console.error('Error creating microblog comment:', error);
       res.status(500).json(buildErrorResponse('Error creating microblog comment', error));
+    }
+  });
+
+  router.post('/microblogs/:id/repost', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const microblogId = parseInt(req.params.id);
+      const microblog = await storage.getMicroblog(microblogId);
+      if (!microblog || (microblog as any).deletedAt) {
+        return res.status(404).json({ message: 'Microblog not found' });
+      }
+
+      const repost = await storage.repostMicroblog(microblogId, userId);
+      res.status(201).json(repost);
+    } catch (error: any) {
+      if (error.message === 'Already reposted') {
+        return res.status(400).json({ message: 'Already reposted' });
+      }
+      console.error('Error reposting microblog:', error);
+      res.status(500).json(buildErrorResponse('Error reposting microblog', error));
+    }
+  });
+
+  router.delete('/microblogs/:id/repost', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const microblogId = parseInt(req.params.id);
+      const success = await storage.unrepostMicroblog(microblogId, userId);
+      if (!success) {
+        return res.status(404).json({ message: 'Repost not found' });
+      }
+      res.json({ message: 'Microblog unreposted successfully' });
+    } catch (error) {
+      console.error('Error unreposting microblog:', error);
+      res.status(500).json(buildErrorResponse('Error unreposting microblog', error));
+    }
+  });
+
+  router.post('/microblogs/:id/bookmark', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const microblogId = parseInt(req.params.id);
+      const microblog = await storage.getMicroblog(microblogId);
+      if (!microblog || (microblog as any).deletedAt) {
+        return res.status(404).json({ message: 'Microblog not found' });
+      }
+
+      const bookmark = await storage.bookmarkMicroblog(microblogId, userId);
+      res.status(201).json(bookmark);
+    } catch (error: any) {
+      if (error.message === 'Already bookmarked') {
+        return res.status(400).json({ message: 'Already bookmarked' });
+      }
+      console.error('Error bookmarking microblog:', error);
+      res.status(500).json(buildErrorResponse('Error bookmarking microblog', error));
+    }
+  });
+
+  router.delete('/microblogs/:id/bookmark', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const microblogId = parseInt(req.params.id);
+      const success = await storage.unbookmarkMicroblog(microblogId, userId);
+      if (!success) {
+        return res.status(404).json({ message: 'Bookmark not found' });
+      }
+      res.json({ message: 'Microblog unbookmarked successfully' });
+    } catch (error) {
+      console.error('Error unbookmarking microblog:', error);
+      res.status(500).json(buildErrorResponse('Error unbookmarking microblog', error));
     }
   });
 

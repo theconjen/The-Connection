@@ -210,14 +210,14 @@ router.get('/users/:userId/profile', async (req, res) => {
       const postsResult = await db
         .select({ count: sql<number>`count(*)` })
         .from(postsTable)
-        .where(eq(postsTable.userId, userId));
+        .where(eq(postsTable.authorId, userId));
       postsCount = Number(postsResult[0]?.count || 0);
 
       // Get microblogs count (feed posts)
       const microblogsResult = await db
         .select({ count: sql<number>`count(*)` })
         .from(microblogsTable)
-        .where(eq(microblogsTable.userId, userId));
+        .where(eq(microblogsTable.authorId, userId));
       microblogsCount = Number(microblogsResult[0]?.count || 0);
     } catch (error) {
       console.error('[PROFILE] Error fetching stats:', error);
