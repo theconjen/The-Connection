@@ -121,6 +121,35 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     }
   });
 
+  // Get comments for a microblog
+  router.get('/microblogs/:id/comments', async (req, res) => {
+    try {
+      const microblogId = parseInt(req.params.id);
+      const comments = await storage.getCommentsByPostId(microblogId);
+
+      // Enrich comments with author data
+      const enrichedComments = await Promise.all(
+        comments.map(async (comment: any) => {
+          const author = await storage.getUser(comment.authorId);
+          return {
+            ...comment,
+            author: author ? {
+              id: author.id,
+              username: author.username,
+              displayName: author.displayName,
+              profileImageUrl: author.profileImageUrl,
+            } : undefined,
+          };
+        })
+      );
+
+      res.json(enrichedComments);
+    } catch (error) {
+      console.error('Error fetching microblog comments:', error);
+      res.status(500).json(buildErrorResponse('Error fetching microblog comments', error));
+    }
+  });
+
   router.post('/microblogs/:id/comments', messageCreationLimiter, requireAuth, async (req, res) => {
     try {
       const userId = requireSessionUserId(req);
