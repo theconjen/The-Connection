@@ -15,6 +15,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface FanMenuProps {
   visible: boolean;
@@ -31,6 +32,7 @@ export function FanMenu({
   onCreateCommunity,
   onCreateForum,
 }: FanMenuProps) {
+  const { colors } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const scale1 = useRef(new Animated.Value(0)).current;
   const scale2 = useRef(new Animated.Value(0)).current;
@@ -221,9 +223,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 12,
     fontWeight: '600',
-    color: '#1F2937',
-    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
 });

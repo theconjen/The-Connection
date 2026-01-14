@@ -28,7 +28,7 @@ export default function TabsLayout() {
   };
 
   const handleCreateForum = () => {
-    router.push('/create-post');
+    router.push('/create-forum-post'); // Reddit-style forum post with anonymous option
   };
 
   return (
@@ -36,7 +36,7 @@ export default function TabsLayout() {
       <Tabs screenOptions={{
       headerShown: false,
       tabBarActiveTintColor: colors.primary,
-      tabBarInactiveTintColor: '#94A3B8', // Muted gray for inactive
+      tabBarInactiveTintColor: colors.textSecondary,
       tabBarStyle: {
         backgroundColor: colors.surface,
         borderTopColor: colors.border,
@@ -58,7 +58,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? "chatbubble" : "chatbubble-outline"}
               size={size}
-              color={focused ? iconColors.feed : '#94A3B8'}
+              color={focused ? iconColors.feed : colors.textSecondary}
             />
           ),
           tabBarActiveTintColor: iconColors.feed,
@@ -72,7 +72,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? "people" : "people-outline"}
               size={size}
-              color={focused ? iconColors.communities : '#94A3B8'}
+              color={focused ? iconColors.communities : colors.textSecondary}
             />
           ),
           tabBarActiveTintColor: iconColors.communities,
@@ -122,7 +122,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? "calendar" : "calendar-outline"}
               size={size}
-              color={focused ? iconColors.events : '#94A3B8'}
+              color={focused ? iconColors.events : colors.textSecondary}
             />
           ),
           tabBarActiveTintColor: iconColors.events,
@@ -136,7 +136,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? "chatbubbles" : "chatbubbles-outline"}
               size={size}
-              color={focused ? iconColors.forum : '#94A3B8'}
+              color={focused ? iconColors.forum : colors.textSecondary}
             />
           ),
           tabBarActiveTintColor: iconColors.forum,
