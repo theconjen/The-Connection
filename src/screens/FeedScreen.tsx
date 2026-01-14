@@ -190,8 +190,8 @@ function useReportPost() {
   return useMutation({
     mutationFn: async ({ postId, reason }: { postId: number; reason: string }) => {
       const response = await apiClient.post('/api/reports', {
-        contentType: 'microblog',
-        contentId: postId,
+        subjectType: 'microblog',
+        subjectId: postId,
         reason,
       });
       return response.data;

@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
+import { Alert } from "react-native";
 
 export default function ForumTab() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function ForumTab() {
         router.push("/(tabs)/messages");
       }}
       onCreatePostPress={() => {
-        router.push("/create-post");
+        router.push("/create-forum-post"); // Reddit-style forum post with anonymous option
       }}
       onAuthorPress={(authorId) => {
         // Navigate to user profile
@@ -45,6 +46,13 @@ export default function ForumTab() {
       onClose={() => setMenuVisible(false)}
       onSettings={() => router.push("/settings")}
       onNotifications={() => router.push("/notifications")}
+      onApologetics={() => {
+        Alert.alert(
+          "Coming Soon",
+          "The Apologetics feature is currently under development. Stay tuned. If you are interested in becoming a verified Apologist email: hello@theconnection.app",
+          [{ text: "OK" }]
+        );
+      }}
     />
   </>
   );

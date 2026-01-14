@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { useState } from "react";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
+import { Alert } from "react-native";
 
 export default function CommunitiesTab() {
   const router = useRouter();
@@ -48,6 +49,13 @@ export default function CommunitiesTab() {
       onClose={() => setMenuVisible(false)}
       onSettings={() => router.push("/settings")}
       onNotifications={() => router.push("/notifications")}
+      onApologetics={() => {
+        Alert.alert(
+          "Coming Soon",
+          "The Apologetics feature is currently under development. Stay tuned. If you are interested in becoming a verified Apologist email: hello@theconnection.app",
+          [{ text: "OK" }]
+        );
+      }}
     />
   </>
   );
