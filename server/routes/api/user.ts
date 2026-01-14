@@ -58,8 +58,6 @@ router.patch('/profile', async (req, res, next) => {
       return;
     }
 
-    console.log('[PATCH /user/profile] userId:', userId);
-    console.log('[PATCH /user/profile] Request body:', req.body);
 
     const {
       displayName, bio, avatarUrl, email, city, state, zipCode,
@@ -91,11 +89,10 @@ router.patch('/profile', async (req, res, next) => {
     if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
 
-    console.log('[PATCH /user/profile] Update data being sent to storage:', updateData);
 
     const updatedUser = await storage.updateUser(userId, updateData);
 
-    console.log('[PATCH /user/profile] Updated user from DB:', {
+    console.info('[PATCH /user/profile] Updated user from DB:', {
       id: updatedUser.id,
       displayName: updatedUser.displayName,
       location: updatedUser.location,
@@ -395,6 +392,62 @@ router.delete("/account", async (req, res) => {
   } catch (error) {
     console.error('Error deleting account:', error);
     res.status(500).json(buildErrorResponse('Error deleting account', error));
+  }
+});
+
+// Get user stats (followers, following, posts count)
+router.get('/:id/stats', async (req, res, next) => {
+  try {
+    const targetUserId = parseInt(req.params.id);
+    if (!Number.isFinite(targetUserId)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    const { db } = await import('../../db');
+    const { userFollows, posts, microblogs } = await import('@shared/schema');
+    const { eq, and, sql } = await import('drizzle-orm');
+
+    // Get followers count (users who follow this user)
+    const followersResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userFollows)
+      .where(eq(userFollows.followingId, targetUserId));
+    const followersCount = Number(followersResult[0]?.count || 0);
+
+    // Get following count (users this user follows)
+    const followingResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, targetUserId));
+    const followingCount = Number(followingResult[0]?.count || 0);
+
+    // Get posts count (forum posts)
+    const postsResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(posts)
+      .where(eq(posts.userId, targetUserId));
+    const postsCount = Number(postsResult[0]?.count || 0);
+
+    // Get microblogs count (feed posts)
+    const microblogsResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(microblogs)
+      .where(eq(microblogs.userId, targetUserId));
+    const microblogsCount = Number(microblogsResult[0]?.count || 0);
+
+    // Total posts = forum posts + microblogs
+    const totalPosts = postsCount + microblogsCount;
+
+    res.json({
+      followersCount,
+      followingCount,
+      postsCount: totalPosts,
+      forumPostsCount: postsCount,
+      feedPostsCount: microblogsCount,
+    });
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    next(error);
   }
 });
 
