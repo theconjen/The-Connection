@@ -116,7 +116,7 @@ function useMicroblogs(filter: 'recent' | 'popular') {
         throw error;
       }
     },
-    enabled: false, // Disabled until microblogs endpoint is implemented on server
+    enabled: !!user, // Enable when user is authenticated
   });
 }
 
@@ -366,7 +366,7 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               <Text style={styles.postTime}>{formatTime(post.createdAt)}</Text>
             </View>
             <Pressable style={styles.postMoreButton} onPress={onMorePress} hitSlop={8}>
-              <Ionicons name="ellipsis-horizontal" size={18} color="#536471" />
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.icon} />
             </Pressable>
           </View>
 
@@ -380,10 +380,8 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               hitSlop={8}
               onPress={onCommentPress}
             >
-              <Ionicons name="chatbubble-outline" size={18} color="#536471" />
-              {post.commentCount > 0 && (
-                <Text style={styles.postActionText}>{post.commentCount}</Text>
-              )}
+              <Ionicons name="chatbubble-outline" size={18} color={colors.icon} />
+              <Text style={styles.postActionText}>{post.commentCount || 0}</Text>
             </Pressable>
 
             <Pressable
@@ -391,7 +389,14 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               hitSlop={8}
               onPress={onRepostPress}
             >
-              <Ionicons name="repeat-outline" size={20} color="#536471" />
+              <Ionicons
+                name={post.isReposted ? 'repeat' : 'repeat-outline'}
+                size={20}
+                color={post.isReposted ? colors.repost : colors.icon}
+              />
+              <Text style={[styles.postActionText, post.isReposted && styles.postActionReposted]}>
+                {post.repostCount || 0}
+              </Text>
             </Pressable>
 
             <Pressable
@@ -403,24 +408,22 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               <Ionicons
                 name={post.isLiked ? 'heart' : 'heart-outline'}
                 size={18}
-                color={post.isLiked ? '#F91880' : '#536471'}
+                color={post.isLiked ? colors.like : colors.icon}
               />
-              {post.likeCount > 0 && (
-                <Text style={[styles.postActionText, post.isLiked && styles.postActionLiked]}>
-                  {post.likeCount}
-                </Text>
-              )}
+              <Text style={[styles.postActionText, post.isLiked && styles.postActionLiked]}>
+                {post.likeCount || 0}
+              </Text>
             </Pressable>
 
             <Pressable style={styles.postAction} onPress={onSharePress} hitSlop={8}>
-              <Ionicons name="share-outline" size={18} color="#536471" />
+              <Ionicons name="share-outline" size={18} color={colors.icon} />
             </Pressable>
 
             <Pressable style={styles.postAction} onPress={onBookmarkPress} hitSlop={8}>
               <Ionicons
                 name={post.isBookmarked ? 'bookmark' : 'bookmark-outline'}
                 size={18}
-                color={post.isBookmarked ? '#1D9BF0' : '#536471'}
+                color={post.isBookmarked ? colors.bookmark : colors.icon}
               />
             </Pressable>
           </View>
@@ -737,11 +740,37 @@ export default function FeedScreen({
         onMenuPress={onSettingsPress}
       />
 
-      {/* Search Bar */}
-      <Pressable onPress={onSearchPress} style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#64748B" />
-        <Text style={styles.searchPlaceholder}>Search feed...</Text>
-      </Pressable>
+      {/* Trending Hashtags */}
+      <View style={styles.trendingSection}>
+        <View style={styles.trendingHeader}>
+          <Ionicons name="trending-up" size={18} color={colors.primary} />
+          <Text style={styles.trendingTitle}>Trending</Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.trendingTags}
+        >
+          <Pressable style={styles.hashtagBadge}>
+            <Text style={styles.hashtagText}>#Prayer</Text>
+          </Pressable>
+          <Pressable style={styles.hashtagBadge}>
+            <Text style={styles.hashtagText}>#BibleStudy</Text>
+          </Pressable>
+          <Pressable style={styles.hashtagBadge}>
+            <Text style={styles.hashtagText}>#Worship</Text>
+          </Pressable>
+          <Pressable style={styles.hashtagBadge}>
+            <Text style={styles.hashtagText}>#Faith</Text>
+          </Pressable>
+          <Pressable style={styles.hashtagBadge}>
+            <Text style={styles.hashtagText}>#Community</Text>
+          </Pressable>
+          <Pressable style={styles.hashtagBadge}>
+            <Text style={styles.hashtagText}>#Testimony</Text>
+          </Pressable>
+        </ScrollView>
+      </View>
 
       {/* Tabs */}
       <View style={styles.tabs}>
@@ -767,7 +796,7 @@ export default function FeedScreen({
       >
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#222D99" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading feed...</Text>
           </View>
         ) : microblogs && microblogs.length > 0 ? (
@@ -786,7 +815,7 @@ export default function FeedScreen({
           ))
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubbles-outline" size={64} color="#D1D8DE" />
+            <Ionicons name="chatbubbles-outline" size={64} color={colors.mutedForeground} />
             <Text style={styles.emptyText}>No posts yet</Text>
             <Text style={styles.emptySubtext}>Be the first to share something!</Text>
           </View>
@@ -808,7 +837,7 @@ export default function FeedScreen({
                 setSelectedVideo(null);
                 setPostContent('');
               }} hitSlop={8}>
-                <Ionicons name="close" size={24} color="#0F1419" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </Pressable>
               <Pressable
                 onPress={handleCreatePost}
@@ -832,7 +861,7 @@ export default function FeedScreen({
                   <TextInput
                     style={styles.composerInput}
                     placeholder="What's happening?"
-                    placeholderTextColor="#536471"
+                    placeholderTextColor={colors.textSecondary}
                     multiline
                     value={postContent}
                     onChangeText={setPostContent}
@@ -847,7 +876,7 @@ export default function FeedScreen({
                         style={styles.mediaRemove}
                         onPress={() => setSelectedImage(null)}
                       >
-                        <Ionicons name="close-circle" size={28} color="#0F1419" />
+                        <Ionicons name="close-circle" size={28} color={colors.text} />
                       </Pressable>
                     </View>
                   )}
@@ -855,14 +884,14 @@ export default function FeedScreen({
                   {selectedVideo && (
                     <View style={styles.mediaPreview}>
                       <View style={styles.videoPlaceholder}>
-                        <Ionicons name="videocam" size={48} color="#536471" />
+                        <Ionicons name="videocam" size={48} color={colors.icon} />
                         <Text style={styles.videoText}>Video selected</Text>
                       </View>
                       <Pressable
                         style={styles.mediaRemove}
                         onPress={() => setSelectedVideo(null)}
                       >
-                        <Ionicons name="close-circle" size={28} color="#0F1419" />
+                        <Ionicons name="close-circle" size={28} color={colors.text} />
                       </Pressable>
                     </View>
                   )}
@@ -874,22 +903,22 @@ export default function FeedScreen({
             <View style={styles.mediaToolbar}>
               <View style={styles.mediaButtons}>
                 <Pressable style={styles.mediaButton} onPress={handlePickImage} hitSlop={8}>
-                  <Ionicons name="image-outline" size={22} color="#1D9BF0" />
+                  <Ionicons name="image-outline" size={22} color={colors.accent} />
                 </Pressable>
                 <Pressable style={styles.mediaButton} onPress={handlePickVideo} hitSlop={8}>
-                  <Ionicons name="videocam-outline" size={22} color="#1D9BF0" />
+                  <Ionicons name="videocam-outline" size={22} color={colors.accent} />
                 </Pressable>
                 <Pressable style={styles.mediaButton} hitSlop={8}>
-                  <Ionicons name="bar-chart-outline" size={22} color="#1D9BF0" />
+                  <Ionicons name="bar-chart-outline" size={22} color={colors.accent} />
                 </Pressable>
                 <Pressable style={styles.mediaButton} hitSlop={8}>
-                  <Ionicons name="happy-outline" size={22} color="#1D9BF0" />
+                  <Ionicons name="happy-outline" size={22} color={colors.accent} />
                 </Pressable>
                 <Pressable style={styles.mediaButton} hitSlop={8}>
-                  <Ionicons name="calendar-outline" size={22} color="#1D9BF0" />
+                  <Ionicons name="calendar-outline" size={22} color={colors.accent} />
                 </Pressable>
                 <Pressable style={styles.mediaButton} hitSlop={8}>
-                  <Ionicons name="location-outline" size={22} color="#1D9BF0" />
+                  <Ionicons name="location-outline" size={22} color={colors.accent} />
                 </Pressable>
               </View>
 
@@ -928,7 +957,7 @@ export default function FeedScreen({
                 }}
                 hitSlop={8}
               >
-                <Ionicons name="close" size={24} color="#0F1419" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </Pressable>
               <Text style={styles.commentsTitle}>Comments</Text>
               <View style={{ width: 24 }} />
@@ -967,7 +996,7 @@ export default function FeedScreen({
             <ScrollView style={styles.commentsList} showsVerticalScrollIndicator={false}>
               {commentsLoading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#222D99" />
+                  <ActivityIndicator size="small" color={colors.primary} />
                   <Text style={styles.loadingText}>Loading comments...</Text>
                 </View>
               ) : comments.length > 0 ? (
@@ -994,7 +1023,7 @@ export default function FeedScreen({
                 ))
               ) : (
                 <View style={styles.emptyComments}>
-                  <Ionicons name="chatbubbles-outline" size={48} color="#D1D8DE" />
+                  <Ionicons name="chatbubbles-outline" size={48} color={colors.mutedForeground} />
                   <Text style={styles.emptyCommentsText}>No comments yet</Text>
                   <Text style={styles.emptyCommentsSubtext}>Be the first to comment!</Text>
                 </View>
@@ -1007,7 +1036,7 @@ export default function FeedScreen({
               <TextInput
                 style={styles.commentInput}
                 placeholder="Write a comment..."
-                placeholderTextColor="#536471"
+                placeholderTextColor={colors.textSecondary}
                 multiline
                 value={commentContent}
                 onChangeText={setCommentContent}
@@ -1027,8 +1056,8 @@ export default function FeedScreen({
                   size={20}
                   color={
                     !commentContent.trim() || createCommentMutation.isPending
-                      ? '#8ED0F9'
-                      : '#1D9BF0'
+                      ? colors.mutedForeground
+                      : colors.accent
                   }
                 />
               </Pressable>
@@ -1052,20 +1081,39 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     flex: 1,
     backgroundColor: colors.surface,
   },
-  searchBar: {
+  trendingSection: {
+    backgroundColor: colors.surface,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  trendingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: isDark ? '#2F3336' : '#EFF3F4',
-    marginHorizontal: 12,
-    marginVertical: 8,
-    borderRadius: 20,
+    gap: 6,
+    marginBottom: 10,
   },
-  searchPlaceholder: {
+  trendingTitle: {
     fontSize: 15,
-    color: '#64748B',
+    fontWeight: '700',
+    color: colors.text,
+  },
+  trendingTags: {
+    gap: 8,
+  },
+  hashtagBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: isDark ? '#2563EB' : '#BFDBFE',
+  },
+  hashtagText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: isDark ? '#60A5FA' : '#1E40AF',
   },
   tabs: {
     flexDirection: 'row',
@@ -1113,7 +1161,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     marginTop: 16,
     fontSize: 18,
     fontWeight: '600',
-    color: '#0D1829',
+    color: colors.text,
   },
   emptySubtext: {
     marginTop: 8,
@@ -1204,7 +1252,10 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     fontWeight: '400',
   },
   postActionLiked: {
-    color: '#F91880',
+    color: colors.like,
+  },
+  postActionReposted: {
+    color: colors.repost,
   },
   // Twitter-style Modal
   modalSafeArea: {
@@ -1224,17 +1275,17 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     borderBottomColor: colors.border,
   },
   postButton: {
-    backgroundColor: '#1D9BF0',
+    backgroundColor: colors.accent,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
   },
   postButtonDisabled: {
-    backgroundColor: '#8ED0F9',
+    backgroundColor: colors.mutedForeground,
     opacity: 0.5,
   },
   postButtonText: {
-    color: '#FFFFFF',
+    color: colors.primaryForeground,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -1279,7 +1330,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     height: 200,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F7F9F9',
+    backgroundColor: colors.muted,
   },
   videoText: {
     marginTop: 8,
@@ -1290,7 +1341,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(15, 20, 25, 0.75)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(15, 20, 25, 0.75)',
     borderRadius: 14,
   },
   mediaToolbar: {
@@ -1409,7 +1460,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     marginRight: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: isDark ? '#2F3336' : '#F7F9F9',
+    backgroundColor: colors.muted,
     borderRadius: 18,
   },
   commentSendButton: {

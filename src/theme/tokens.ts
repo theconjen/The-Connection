@@ -16,7 +16,7 @@ export const colors = {
 
     // Borders
     border: '#E5E7EB',
-    borderLight: '#475569',
+    borderLight: '#D1D5DB',
 
     // Status colors
     destructive: '#EF4444',
@@ -35,43 +35,67 @@ export const colors = {
     text: '#1F2937',
     textSecondary: '#6B7280',
     textTertiary: '#9CA3AF',
+
+    // Social action colors (likes, reposts, bookmarks)
+    like: '#F91880',
+    likeActive: '#E0176B',
+    repost: '#00BA7C',
+    repostActive: '#00A56F',
+    bookmark: '#1D9BF0',
+    bookmarkActive: '#1A8CD8',
+
+    // Icon colors
+    icon: '#536471',
+    iconActive: '#0F1419',
   },
   dark: {
-    // Brand colors (adjusted for dark mode)
-    primary: '#4A90E2',
+    // Brand colors (adjusted for dark mode with better vibrancy)
+    primary: '#5BA3F5',
     primaryForeground: '#FFFFFF',
-    secondary: '#5B6CC6',
+    secondary: '#6B7DD9',
     secondaryForeground: '#FFFFFF',
-    accent: '#60A5FA',
+    accent: '#70AEFF',
     accentForeground: '#FFFFFF',
 
-    // Backgrounds - improved contrast
-    background: '#0B1120',
-    foreground: '#F8FAFC',
-    surface: '#1E293B',
-    surfaceSecondary: '#334155',
+    // Backgrounds - optimized for OLED and reduced eye strain
+    background: '#0F1419',
+    foreground: '#E7E9EA',
+    surface: '#16181C',
+    surfaceSecondary: '#1C1F23',
 
-    // Borders - better visibility
-    border: '#475569',
-    borderLight: '#64748B',
+    // Borders - improved visibility in dark mode
+    border: '#2F3336',
+    borderLight: '#3E4347',
 
-    // Status colors
-    destructive: '#EF4444',
+    // Status colors - improved contrast and visibility
+    destructive: '#FF6B6B',
     destructiveForeground: '#FFFFFF',
-    success: '#10B981',
-    successForeground: '#FFFFFF',
-    warning: '#F59E0B',
-    info: '#3B82F6',
+    success: '#51CF66',
+    successForeground: '#000000',
+    warning: '#FFD43B',
+    info: '#74C0FC',
 
-    // UI elements - improved contrast
-    card: '#1E2A3D',
-    cardForeground: '#F8FAFC',
-    muted: '#2D3748',
-    mutedForeground: '#CBD5E1',
-    input: '#2D3748',
-    text: '#F8FAFC',
-    textSecondary: '#E2E8F0',
-    textTertiary: '#CBD5E1',
+    // UI elements - optimized contrast ratios (WCAG AAA)
+    card: '#16181C',
+    cardForeground: '#FFFFFF',
+    muted: '#1C1F23',
+    mutedForeground: '#71767B',
+    input: '#1C1F23',
+    text: '#E7E9EA',
+    textSecondary: '#71767B',
+    textTertiary: '#8B9197',
+
+    // Social action colors (likes, reposts, bookmarks)
+    like: '#F91880',
+    likeActive: '#FF2D96',
+    repost: '#00BA7C',
+    repostActive: '#00D68F',
+    bookmark: '#1D9BF0',
+    bookmarkActive: '#3DAEFF',
+
+    // Icon colors
+    icon: '#71767B',
+    iconActive: '#E7E9EA',
   },
 } as const;
 

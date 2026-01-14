@@ -103,23 +103,23 @@ function NotificationCard({
 }) {
   const { colors, spacing, radii } = useTheme();
 
-  // Get icon based on category
+  // Get icon based on category - use theme-aware colors
   const getNotificationIcon = (category?: string) => {
     switch (category) {
       case 'event':
-        return { name: 'calendar', color: '#3B82F6', bg: '#DBEAFE' };
+        return { name: 'calendar', color: colors.info };
       case 'invitation':
-        return { name: 'mail', color: '#8B5CF6', bg: '#EDE9FE' };
+        return { name: 'mail', color: colors.accent };
       case 'like':
-        return { name: 'heart', color: '#EF4444', bg: '#FEE2E2' };
+        return { name: 'heart', color: colors.destructive };
       case 'comment':
-        return { name: 'chatbubble', color: '#10B981', bg: '#D1FAE5' };
+        return { name: 'chatbubble', color: colors.success };
       case 'reply':
-        return { name: 'arrow-undo', color: '#F59E0B', bg: '#FEF3C7' };
+        return { name: 'arrow-undo', color: colors.warning };
       case 'community':
-        return { name: 'people', color: '#6366F1', bg: '#E0E7FF' };
+        return { name: 'people', color: colors.primary };
       default:
-        return { name: 'notifications', color: '#6B7280', bg: '#F3F4F6' };
+        return { name: 'notifications', color: colors.textSecondary };
     }
   };
 
@@ -146,7 +146,7 @@ function NotificationCard({
           width: 40,
           height: 40,
           borderRadius: 20,
-          backgroundColor: icon.bg,
+          backgroundColor: colors.muted,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -231,7 +231,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <PageHeader
         title="Notifications"
         onBackPress={onBackPress}
@@ -389,10 +389,4 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
 // ============================================================================
 // STYLES
 // ============================================================================
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F8FA',
-  },
-});
+// (No static styles needed - all inline with theme)
