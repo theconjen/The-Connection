@@ -78,7 +78,6 @@ export default function ChatScreen() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Socket connected:', socket.id);
       // Join user's room for DMs
       socket.emit('join_user_room', user.id);
     });
@@ -107,7 +106,6 @@ export default function ChatScreen() {
     });
 
     socket.on('disconnect', () => {
-      console.log('Socket disconnected');
     });
 
     return () => {

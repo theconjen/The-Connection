@@ -44,7 +44,6 @@ export const useConversations = () => {
     queryFn: async () => {
       try {
         const conversations = await messagesAPI.getConversations();
-        console.log('[Messages] Successfully loaded conversations:', conversations?.length || 0);
         return conversations;
       } catch (error: any) {
         console.error('[Messages] Error loading conversations:', {
