@@ -61,7 +61,6 @@ export default function CommunityDetailScreen() {
 
   const [activeTab, setActiveTab] = useState<TabType>('feed');
   const [newPostContent, setNewPostContent] = useState('');
-  const [isPostInputVisible, setIsPostInputVisible] = useState(false);
   const [showModeratorModal, setShowModeratorModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [newPrayerRequest, setNewPrayerRequest] = useState('');
@@ -70,6 +69,9 @@ export default function CommunityDetailScreen() {
   const [newChatMessage, setNewChatMessage] = useState('');
   const [chatRoom, setChatRoom] = useState<any>(null);
   const chatScrollRef = useRef<ScrollView>(null);
+  const [showAnsweredModal, setShowAnsweredModal] = useState(false);
+  const [selectedPrayer, setSelectedPrayer] = useState<any>(null);
+  const [answeredDescription, setAnsweredDescription] = useState('');
 
   const communityId = parseInt(id || '0');
   const styles = getStyles(colors, colorScheme);
@@ -95,6 +97,13 @@ export default function CommunityDetailScreen() {
     queryKey: ['community-members', communityId],
     queryFn: () => communitiesAPI.getMembers(communityId),
     enabled: !!communityId && activeTab === 'members',
+  });
+
+  // Fetch prayer requests
+  const { data: prayerRequests = [], isLoading: prayersLoading, refetch: refetchPrayers } = useQuery({
+    queryKey: ['prayer-requests', communityId],
+    queryFn: () => communitiesAPI.getPrayerRequests(communityId),
+    enabled: !!communityId && activeTab === 'prayers' && !!community?.isMember,
   });
 
   // Fetch chat room
@@ -153,23 +162,22 @@ export default function CommunityDetailScreen() {
   const joinMutation = useMutation({
     mutationFn: () => communitiesAPI.join(communityId),
     onSuccess: () => {
-      // Optimistically update the community cache
+      // Optimistically update the community cache immediately
       queryClient.setQueryData(['community', communityId], (oldData: any) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
           isMember: true,
+          memberCount: (oldData.memberCount || 0) + 1,
+          role: 'member',
           isAdmin: false,
           isModerator: false,
-          role: 'member'
         };
       });
 
-      // Refetch after a short delay to let the server update
-      setTimeout(() => {
-        refetchCommunity();
-        queryClient.invalidateQueries({ queryKey: ['communities'] });
-      }, 1000);
+      // Invalidate queries immediately (no delay)
+      queryClient.invalidateQueries({ queryKey: ['communities'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
 
       Alert.alert('Success', 'You have joined the community!');
     },
@@ -181,19 +189,17 @@ export default function CommunityDetailScreen() {
           return {
             ...oldData,
             isMember: true,
+            role: 'member',
             isAdmin: false,
             isModerator: false,
-            role: 'member'
           };
         });
 
-        // Refetch after a delay
-        setTimeout(() => {
-          refetchCommunity();
-          queryClient.invalidateQueries({ queryKey: ['communities'] });
-        }, 1000);
+        // Invalidate immediately
+        queryClient.invalidateQueries({ queryKey: ['communities'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
 
-        Alert.alert('Success', 'You are already a member!');
+        Alert.alert('Already joined', 'You are already a member!');
       } else {
         Alert.alert('Error', error.response?.data?.message || 'Failed to join community');
       }
@@ -203,23 +209,22 @@ export default function CommunityDetailScreen() {
   const leaveMutation = useMutation({
     mutationFn: () => communitiesAPI.leave(communityId),
     onSuccess: () => {
-      // Optimistically update the community cache
+      // Optimistically update the community cache immediately
       queryClient.setQueryData(['community', communityId], (oldData: any) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
           isMember: false,
+          memberCount: Math.max((oldData.memberCount || 1) - 1, 0),
+          role: null,
           isAdmin: false,
           isModerator: false,
-          role: null
         };
       });
 
-      // Refetch after a short delay
-      setTimeout(() => {
-        refetchCommunity();
-        queryClient.invalidateQueries({ queryKey: ['communities'] });
-      }, 1000);
+      // Invalidate queries immediately (no delay)
+      queryClient.invalidateQueries({ queryKey: ['communities'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
 
       Alert.alert('Success', 'You have left the community');
     },
@@ -234,7 +239,6 @@ export default function CommunityDetailScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['community-wall', communityId] });
       setNewPostContent('');
-      setIsPostInputVisible(false);
       Alert.alert('Success', 'Your post has been shared!');
     },
     onError: (error: any) => {
@@ -281,6 +285,37 @@ export default function CommunityDetailScreen() {
     },
     onError: (error: any) => {
       Alert.alert('Error', error.response?.data?.message || 'Failed to delete post');
+    },
+  });
+
+  // Create prayer request mutation
+  const createPrayerMutation = useMutation({
+    mutationFn: (data: { title: string; content: string; isAnonymous?: boolean }) =>
+      communitiesAPI.createPrayerRequest(communityId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prayer-requests', communityId] });
+      setNewPrayerRequest('');
+      setIsPrayerInputVisible(false);
+      Alert.alert('Success', 'Prayer request shared!');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to create prayer request');
+    },
+  });
+
+  // Mark prayer as answered mutation
+  const markPrayerAnsweredMutation = useMutation({
+    mutationFn: ({ prayerId, description }: { prayerId: number; description?: string }) =>
+      communitiesAPI.markPrayerAnswered(communityId, prayerId, description),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prayer-requests', communityId] });
+      setShowAnsweredModal(false);
+      setSelectedPrayer(null);
+      setAnsweredDescription('');
+      Alert.alert('Success', 'Prayer marked as answered!');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to mark prayer as answered');
     },
   });
 
@@ -485,15 +520,16 @@ export default function CommunityDetailScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={postsLoading || membersLoading}
-            onRefresh={refetchPosts}
-          />
-        }
-      >
+      {activeTab !== 'chat' ? (
+        <ScrollView
+          style={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={postsLoading || membersLoading}
+              onRefresh={refetchPosts}
+            />
+          }
+        >
         {/* Feed Tab */}
         {activeTab === 'feed' && (
           <View style={styles.tabContent}>
@@ -505,59 +541,53 @@ export default function CommunityDetailScreen() {
               />
             ) : (
               <>
-                {/* Create Post Section */}
+                {/* Twitter-Style Post Composer */}
                 {community.isMember && (
-                  <View style={styles.createPostSection}>
-                    {!isPostInputVisible ? (
-                      <TouchableOpacity
-                        style={styles.createPostPrompt}
-                        onPress={() => setIsPostInputVisible(true)}
-                      >
-                        <Text style={styles.createPostPromptText}>
-                          Share something with the community...
+                  <View style={styles.twitterComposer}>
+                    <View style={styles.composerRow}>
+                      <View style={styles.composerAvatar}>
+                        <Text style={styles.composerAvatarText}>
+                          {user?.displayName?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() || 'U'}
                         </Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={styles.createPostForm}>
+                      </View>
+                      <View style={styles.composerInputContainer}>
                         <TextInput
-                          style={styles.postInput}
+                          style={styles.composerInput}
                           value={newPostContent}
                           onChangeText={setNewPostContent}
-                          placeholder="What's on your mind?"
+                          placeholder="Share with the community..."
                           placeholderTextColor={colors.mutedForeground}
                           multiline
-                          numberOfLines={4}
+                          maxLength={280}
                           textAlignVertical="top"
-                          autoFocus
                         />
-                        <View style={styles.postActions}>
-                          <TouchableOpacity
-                            style={styles.cancelPostButton}
-                            onPress={() => {
-                              setIsPostInputVisible(false);
-                              setNewPostContent('');
-                            }}
-                            disabled={createPostMutation.isPending}
-                          >
-                            <Text style={styles.cancelPostButtonText}>Cancel</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[
-                              styles.submitPostButton,
-                              createPostMutation.isPending && styles.submitPostButtonDisabled,
-                            ]}
-                            onPress={handleCreatePost}
-                            disabled={createPostMutation.isPending}
-                          >
-                            {createPostMutation.isPending ? (
-                              <ActivityIndicator size="small" color="#fff" />
-                            ) : (
-                              <Text style={styles.submitPostButtonText}>Post</Text>
-                            )}
-                          </TouchableOpacity>
-                        </View>
                       </View>
-                    )}
+                    </View>
+                    <View style={styles.composerFooter}>
+                      <View style={styles.charCountContainer}>
+                        <Text style={[
+                          styles.charCount,
+                          newPostContent.length > 260 && styles.charCountWarning,
+                          newPostContent.length === 280 && styles.charCountError
+                        ]}>
+                          {newPostContent.length}/280
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.composerButton,
+                          (!newPostContent.trim() || createPostMutation.isPending) && styles.composerButtonDisabled
+                        ]}
+                        onPress={handleCreatePost}
+                        disabled={!newPostContent.trim() || createPostMutation.isPending}
+                      >
+                        {createPostMutation.isPending ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.composerButtonText}>Post</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
 
@@ -666,109 +696,6 @@ export default function CommunityDetailScreen() {
           </View>
         )}
 
-        {/* Chat Tab */}
-        {activeTab === 'chat' && (
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-            keyboardVerticalOffset={100}
-          >
-            {!canViewContent ? (
-              <View style={styles.tabContent}>
-                <PrivateContentPlaceholder
-                  title="Private Chat"
-                  message="Join the community to participate in chat discussions."
-                  colors={colors}
-                />
-              </View>
-            ) : (
-              <View style={{ flex: 1 }}>
-                {/* Messages List */}
-                <ScrollView
-                  ref={chatScrollRef}
-                  style={styles.chatMessages}
-                  contentContainerStyle={styles.chatMessagesContent}
-                  onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: false })}
-                >
-                  {chatMessagesLoading ? (
-                    <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
-                  ) : chatMessages.length === 0 ? (
-                    <View style={styles.emptyState}>
-                      <Ionicons name="chatbubbles-outline" size={64} color={colors.mutedForeground} />
-                      <Text style={styles.emptyStateText}>No messages yet</Text>
-                      <Text style={styles.emptyStateSubtext}>
-                        Be the first to say something!
-                      </Text>
-                    </View>
-                  ) : (
-                    chatMessages.map((message) => {
-                      const isOwnMessage = message.senderId === user?.id;
-                      return (
-                        <View
-                          key={message.id}
-                          style={[
-                            styles.chatBubble,
-                            isOwnMessage ? styles.chatBubbleOwn : styles.chatBubbleOther,
-                          ]}
-                        >
-                          {!isOwnMessage && (
-                            <TouchableOpacity
-                              onPress={() => {
-                                if (message.sender?.id) {
-                                  router.push(`/profile?userId=${message.sender.id}`);
-                                }
-                              }}
-                            >
-                              <Text style={[styles.chatSenderName, { textDecorationLine: 'underline' }]}>
-                                @{message.sender?.username || message.sender?.displayName}
-                              </Text>
-                            </TouchableOpacity>
-                          )}
-                          <Text style={[
-                            styles.chatMessageText,
-                            isOwnMessage && styles.chatMessageTextOwn,
-                          ]}>
-                            {message.content}
-                          </Text>
-                          <Text style={[
-                            styles.chatMessageTime,
-                            isOwnMessage && styles.chatMessageTimeOwn,
-                          ]}>
-                            {formatDate(message.createdAt)}
-                          </Text>
-                        </View>
-                      );
-                    })
-                  )}
-                </ScrollView>
-
-                {/* Message Input */}
-                <View style={styles.chatInputContainer}>
-                  <TextInput
-                    style={styles.chatInput}
-                    value={newChatMessage}
-                    onChangeText={setNewChatMessage}
-                    placeholder="Type a message..."
-                    placeholderTextColor={colors.mutedForeground}
-                    multiline
-                    maxLength={500}
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.chatSendButton,
-                      !newChatMessage.trim() && styles.chatSendButtonDisabled,
-                    ]}
-                    onPress={handleSendChatMessage}
-                    disabled={!newChatMessage.trim()}
-                  >
-                    <Ionicons name="send" size={20} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </KeyboardAvoidingView>
-        )}
-
         {/* Members Tab */}
         {activeTab === 'members' && (
           <View style={styles.tabContent}>
@@ -789,6 +716,38 @@ export default function CommunityDetailScreen() {
                     </Text>
                   </View>
                 )}
+
+                {/* Leave Community Button for non-admin members */}
+                {!community.isAdmin && community.isMember && (
+                  <TouchableOpacity
+                    style={styles.leaveCommunityButton}
+                    onPress={() => {
+                      Alert.alert(
+                        'Leave Community',
+                        `Are you sure you want to leave ${community.name}?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Leave',
+                            style: 'destructive',
+                            onPress: () => leaveMutation.mutate(),
+                          },
+                        ]
+                      );
+                    }}
+                    disabled={leaveMutation.isPending}
+                  >
+                    {leaveMutation.isPending ? (
+                      <ActivityIndicator size="small" color="#EF4444" />
+                    ) : (
+                      <>
+                        <Ionicons name="exit-outline" size={20} color="#EF4444" />
+                        <Text style={styles.leaveCommunityButtonText}>Leave Community</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+
                 {members.map((member: any) => {
                   const memberData = member.user || member;
                   const isOwner = member.role === 'owner';
@@ -890,17 +849,22 @@ export default function CommunityDetailScreen() {
                           <TouchableOpacity
                             style={styles.submitPostButton}
                             onPress={() => {
-                              if (newPrayerRequest.trim().length >= 10) {
-                                // For now, just show success
-                                Alert.alert('Success', 'Prayer request shared!');
-                                setNewPrayerRequest('');
-                                setIsPrayerInputVisible(false);
-                              } else {
+                              if (newPrayerRequest.trim().length < 10) {
                                 Alert.alert('Error', 'Prayer request must be at least 10 characters');
+                                return;
                               }
+                              createPrayerMutation.mutate({
+                                title: 'Prayer Request',
+                                content: newPrayerRequest.trim(),
+                              });
                             }}
+                            disabled={createPrayerMutation.isPending}
                           >
-                            <Text style={styles.submitPostButtonText}>Share</Text>
+                            {createPrayerMutation.isPending ? (
+                              <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                              <Text style={styles.submitPostButtonText}>Share</Text>
+                            )}
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -908,18 +872,176 @@ export default function CommunityDetailScreen() {
                   </View>
                 )}
 
-                <View style={styles.emptyState}>
-                  <Ionicons name="heart-outline" size={64} color={colors.mutedForeground} />
-                  <Text style={styles.emptyStateText}>No prayer requests yet</Text>
-                  <Text style={styles.emptyStateSubtext}>
-                    {community.isMember ? 'Be the first to share a prayer request' : 'Join to see prayer requests'}
-                  </Text>
-                </View>
+                {/* Prayer Requests List */}
+                {prayersLoading ? (
+                  <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+                ) : prayerRequests.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="heart-outline" size={64} color={colors.mutedForeground} />
+                    <Text style={styles.emptyStateText}>No prayer requests yet</Text>
+                    <Text style={styles.emptyStateSubtext}>
+                      {community.isMember ? 'Be the first to share a prayer request' : 'Join to see prayer requests'}
+                    </Text>
+                  </View>
+                ) : (
+                  prayerRequests.map((prayer: any) => {
+                    const isAuthor = prayer.authorId === user?.id;
+                    return (
+                      <View key={prayer.id} style={styles.prayerCard}>
+                        <View style={styles.prayerHeader}>
+                          <View style={styles.authorInfo}>
+                            <View style={styles.avatar}>
+                              <Text style={styles.avatarText}>
+                                {prayer.isAnonymous ? '?' : (prayer.authorName?.charAt(0).toUpperCase() || 'U')}
+                              </Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.authorName}>
+                                {prayer.isAnonymous ? 'Anonymous' : `@${prayer.authorName}`}
+                              </Text>
+                              <Text style={styles.postTime}>{formatDate(prayer.createdAt)}</Text>
+                            </View>
+                          </View>
+                          {prayer.isAnswered && (
+                            <View style={styles.answeredBadge}>
+                              <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                              <Text style={styles.answeredBadgeText}>Answered</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.prayerContent}>{prayer.content}</Text>
+
+                        {prayer.isAnswered && prayer.answeredDescription && (
+                          <View style={styles.answeredSection}>
+                            <Ionicons name="sparkles" size={16} color="#10B981" style={{ marginRight: 6 }} />
+                            <Text style={styles.answeredDescription}>{prayer.answeredDescription}</Text>
+                          </View>
+                        )}
+
+                        {/* Answered Button - Only for author and unanswered prayers */}
+                        {isAuthor && !prayer.isAnswered && (
+                          <TouchableOpacity
+                            style={styles.answeredButton}
+                            onPress={() => {
+                              setSelectedPrayer(prayer);
+                              setShowAnsweredModal(true);
+                            }}
+                          >
+                            <Ionicons name="checkmark-circle-outline" size={18} color="#10B981" />
+                            <Text style={styles.answeredButtonText}>Mark as Answered</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })
+                )}
               </>
             )}
           </View>
         )}
       </ScrollView>
+      ) : (
+        /* Chat Tab - Outside ScrollView for proper keyboard handling */
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.content}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
+          {!canViewContent ? (
+            <View style={styles.tabContent}>
+              <PrivateContentPlaceholder
+                title="Private Chat"
+                message="Join the community to participate in chat discussions."
+                colors={colors}
+              />
+            </View>
+          ) : (
+            <View style={{ flex: 1 }}>
+              {/* Messages List */}
+              <ScrollView
+                ref={chatScrollRef}
+                style={styles.chatMessages}
+                contentContainerStyle={styles.chatMessagesContent}
+                onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: false })}
+              >
+                {chatMessagesLoading ? (
+                  <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+                ) : chatMessages.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="chatbubbles-outline" size={64} color={colors.mutedForeground} />
+                    <Text style={styles.emptyStateText}>No messages yet</Text>
+                    <Text style={styles.emptyStateSubtext}>
+                      Be the first to say something!
+                    </Text>
+                  </View>
+                ) : (
+                  chatMessages.map((message) => {
+                    const isOwnMessage = message.senderId === user?.id;
+                    return (
+                      <View
+                        key={message.id}
+                        style={[
+                          styles.chatBubble,
+                          isOwnMessage ? styles.chatBubbleOwn : styles.chatBubbleOther,
+                        ]}
+                      >
+                        {!isOwnMessage && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              if (message.sender?.id) {
+                                router.push(`/profile?userId=${message.sender.id}`);
+                              }
+                            }}
+                          >
+                            <Text style={[styles.chatSenderName, { textDecorationLine: 'underline' }]}>
+                              @{message.sender?.username || message.sender?.displayName}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        <Text style={[
+                          styles.chatMessageText,
+                          isOwnMessage && styles.chatMessageTextOwn,
+                        ]}>
+                          {message.content}
+                        </Text>
+                        <Text style={[
+                          styles.chatMessageTime,
+                          isOwnMessage && styles.chatMessageTimeOwn,
+                        ]}>
+                          {formatDate(message.createdAt)}
+                        </Text>
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+
+              {/* Message Input */}
+              <View style={styles.chatInputContainer}>
+                <TextInput
+                  style={styles.chatInput}
+                  value={newChatMessage}
+                  onChangeText={setNewChatMessage}
+                  placeholder="Type a message..."
+                  placeholderTextColor={colors.mutedForeground}
+                  multiline
+                  maxLength={500}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.chatSendButton,
+                    !newChatMessage.trim() && styles.chatSendButtonDisabled,
+                  ]}
+                  onPress={handleSendChatMessage}
+                  disabled={!newChatMessage.trim()}
+                >
+                  <Ionicons name="send" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </KeyboardAvoidingView>
+      )}
 
       {/* Moderator Management Modal */}
       {showModeratorModal && selectedMember && (
@@ -1069,6 +1191,72 @@ export default function CommunityDetailScreen() {
               <Ionicons name="person-remove" size={20} color="#EF4444" />
               <Text style={styles.removeMemberButtonText}>Remove Member</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Answered Prayer Modal */}
+      {showAnsweredModal && selectedPrayer && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Mark Prayer as Answered</Text>
+              <TouchableOpacity onPress={() => {
+                setShowAnsweredModal(false);
+                setSelectedPrayer(null);
+                setAnsweredDescription('');
+              }}>
+                <Ionicons name="close" size={24} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalDescription}>
+              Share how God answered this prayer (optional):
+            </Text>
+
+            <TextInput
+              style={styles.answeredInput}
+              value={answeredDescription}
+              onChangeText={setAnsweredDescription}
+              placeholder="E.g., 'God provided a new job!' or 'Healing was granted!'"
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setShowAnsweredModal(false);
+                  setSelectedPrayer(null);
+                  setAnsweredDescription('');
+                }}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => {
+                  markPrayerAnsweredMutation.mutate({
+                    prayerId: selectedPrayer.id,
+                    description: answeredDescription.trim() || undefined,
+                  });
+                }}
+                disabled={markPrayerAnsweredMutation.isPending}
+              >
+                {markPrayerAnsweredMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                    <Text style={styles.modalConfirmButtonText}>Mark Answered</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       )}
@@ -1281,69 +1469,81 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     paddingTop: 16,
     paddingBottom: 32,
   },
-  createPostSection: {
+  // Twitter-Style Composer
+  twitterComposer: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
     marginBottom: 16,
   },
-  createPostPrompt: {
+  composerRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  composerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginRight: 12,
   },
-  createPostPromptText: {
-    fontSize: 15,
-    color: colors.mutedForeground,
+  composerAvatarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  createPostForm: {
-    backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+  composerInputContainer: {
+    flex: 1,
   },
-  postInput: {
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: 12,
+  composerInput: {
     fontSize: 15,
     color: colors.foreground,
-    minHeight: 100,
+    minHeight: 60,
+    maxHeight: 150,
     textAlignVertical: 'top',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  postActions: {
+  composerFooter: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: 52, // Align with input text (40px avatar + 12px gap)
   },
-  cancelPostButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+  charCountContainer: {
+    flex: 1,
   },
-  cancelPostButtonText: {
+  charCount: {
+    fontSize: 13,
     color: colors.mutedForeground,
-    fontSize: 14,
+    fontWeight: '500',
+  },
+  charCountWarning: {
+    color: '#F59E0B',
+  },
+  charCountError: {
+    color: '#EF4444',
     fontWeight: '600',
   },
-  submitPostButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
+  composerButton: {
+    backgroundColor: '#1D9BF0',
+    paddingVertical: 8,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 20,
+    minWidth: 70,
+    alignItems: 'center',
   },
-  submitPostButtonDisabled: {
-    opacity: 0.6,
+  composerButtonDisabled: {
+    backgroundColor: '#8ED0F9',
+    opacity: 0.5,
   },
-  submitPostButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+  composerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   postCard: {
     backgroundColor: colors.card,
@@ -1461,6 +1661,24 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     fontSize: 13,
     color: colors.mutedForeground,
     flex: 1,
+  },
+  leaveCommunityButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.card,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  leaveCommunityButtonText: {
+    fontSize: 15,
+    color: '#EF4444',
+    fontWeight: '600',
   },
   modalOverlay: {
     position: 'absolute',
@@ -1641,5 +1859,190 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   },
   chatSendButtonDisabled: {
     opacity: 0.5,
+  },
+  // Prayer Request Styles
+  prayerCard: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  prayerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  prayerContent: {
+    fontSize: 15,
+    color: colors.foreground,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  answeredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  answeredBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  answeredSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F0FDF4',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  answeredDescription: {
+    fontSize: 14,
+    color: '#166534',
+    fontStyle: 'italic',
+    lineHeight: 20,
+    flex: 1,
+  },
+  answeredButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  answeredButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  // Modal Styles
+  modalDescription: {
+    fontSize: 14,
+    color: colors.mutedForeground,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  answeredInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    color: colors.foreground,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: colors.muted,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCancelButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.foreground,
+  },
+  modalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#10B981',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  modalConfirmButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  // Create post section styles
+  createPostSection: {
+    marginBottom: 16,
+  },
+  createPostPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  createPostPromptText: {
+    fontSize: 15,
+    color: colors.mutedForeground,
+  },
+  createPostForm: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  postInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    color: colors.foreground,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+  },
+  postActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  cancelPostButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: colors.muted,
+  },
+  cancelPostButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.foreground,
+  },
+  submitPostButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  submitPostButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
