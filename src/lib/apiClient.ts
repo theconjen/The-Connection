@@ -5,8 +5,6 @@ import * as SecureStore from 'expo-secure-store';
 // TEMPORARY: Hardcoded for debugging
 const API_BASE_URL = 'https://api.theconnection.app';
 
-console.log('[API Client] Using API URL:', API_BASE_URL);
-console.log('[API Client] Testing API connection...');
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -14,6 +12,8 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'X-Mobile-App': 'true', // Identifies this as a mobile app (skips CSRF protection on server)
+    'X-Requested-With': 'com.theconnection.mobile', // Alternative mobile identifier
   },
   withCredentials: false, // React Native doesn't support automatic cookie handling
 });
@@ -93,13 +93,24 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Posts API
+// Posts API (Forum posts)
 export const postsAPI = {
   create: (data: { text: string; title?: string; communityId?: number; imageUrl?: string; videoUrl?: string; location?: string; taggedUserIds?: number[] }) =>
     apiClient.post('/api/posts', data),
   getAll: () => apiClient.get('/api/posts'),
   getById: (id: number) => apiClient.get(`/api/posts/${id}`),
   upvote: (id: number) => apiClient.post(`/api/posts/${id}/upvote`),
+};
+
+// Microblogs API (Feed posts - Twitter-like, always public)
+export const microblogsAPI = {
+  create: (data: { content: string }) =>
+    apiClient.post('/api/microblogs', data),
+  getAll: () => apiClient.get('/api/microblogs'),
+  getById: (id: number) => apiClient.get(`/api/microblogs/${id}`),
+  like: (id: number) => apiClient.post(`/api/microblogs/${id}/like`),
+  unlike: (id: number) => apiClient.delete(`/api/microblogs/${id}/like`),
+  delete: (id: number) => apiClient.delete(`/api/microblogs/${id}`),
 };
 
 // Communities API
@@ -199,6 +210,38 @@ export const eventsAPI = {
   delete: (id: number) => apiClient.delete(`/api/events/${id}`).then(res => res.data),
   rsvp: (id: number, status: string) =>
     apiClient.post(`/api/events/${id}/rsvp`, { status }).then(res => res.data),
+};
+
+// Safety & Moderation API
+export const safetyAPI = {
+  // Report content (posts, microblogs, communities, events, etc.)
+  reportContent: (data: {
+    subjectType: 'post' | 'microblog' | 'community' | 'event' | 'prayer_request' | 'comment';
+    subjectId: number;
+    reason: 'spam' | 'harassment' | 'inappropriate' | 'hate_speech' | 'false_info' | 'other';
+    description?: string;
+  }) => apiClient.post('/api/reports', data).then(res => res.data),
+
+  // Report a user
+  reportUser: (data: {
+    userId: number;
+    reason: string;
+    description?: string;
+  }) => apiClient.post('/api/user-reports', data).then(res => res.data),
+
+  // Block a user
+  blockUser: (data: {
+    userId: number;
+    reason?: string;
+  }) => apiClient.post('/api/blocks', data).then(res => res.data),
+
+  // Unblock a user
+  unblockUser: (userId: number) =>
+    apiClient.delete(`/api/blocks/${userId}`).then(res => res.data),
+
+  // Get list of blocked users
+  getBlockedUsers: () =>
+    apiClient.get('/api/blocked-users').then(res => res.data),
 };
 
 export default apiClient;

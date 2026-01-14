@@ -6,7 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { PageHeader } from './AppHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../lib/apiClient';
+import { safetyAPI } from '../lib/apiClient';
 
 interface BlockedUsersScreenProps {
   onBackPress?: () => void;
@@ -28,17 +28,11 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
 
   const { data: blockedUsers = [], isLoading } = useQuery<BlockedUser[]>({
     queryKey: ['/api/blocked-users'],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/blocked-users');
-      return response.data;
-    },
+    queryFn: () => safetyAPI.getBlockedUsers(),
   });
 
   const unblockMutation = useMutation({
-    mutationFn: async (userId: number) => {
-      const response = await apiClient.delete(`/api/blocks/${userId}`);
-      return response.data;
-    },
+    mutationFn: (userId: number) => safetyAPI.unblockUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/blocked-users'] });
     },
