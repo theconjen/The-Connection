@@ -5,7 +5,7 @@ services:
     plan: starter
     region: ohio
     autoDeploy: true
-    repo: https://github.com/The-Connection-App/The-Connection
+    repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
       corepack enable &&
@@ -53,7 +53,7 @@ services:
     plan: starter
     region: ohio
     autoDeploy: true
-    repo: https://github.com/The-Connection-App/The-Connection
+    repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
       corepack enable &&
