@@ -90,12 +90,20 @@ apiClient.interceptors.response.use(
       const suppressedErrors = [
         { status: 400, messageIncludes: 'Already a member' },
         { status: 400, messageIncludes: 'already a member' },
+        { status: 404, url: '/api/microblogs/trending/combined' }, // Backend endpoint not deployed yet
       ];
 
       const shouldSuppress = suppressedErrors.some(
-        (suppressed) =>
-          status === suppressed.status &&
-          message.toLowerCase().includes(suppressed.messageIncludes.toLowerCase())
+        (suppressed) => {
+          if (suppressed.status !== status) return false;
+          if (suppressed.messageIncludes) {
+            return message.toLowerCase().includes(suppressed.messageIncludes.toLowerCase());
+          }
+          if (suppressed.url) {
+            return url.includes(suppressed.url);
+          }
+          return false;
+        }
       );
 
       if (!shouldSuppress) {
