@@ -31,7 +31,7 @@ export default function DeleteAccountScreen() {
 
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
-      return apiClient.delete('/user/account', {
+      return apiClient.delete('/api/user/account', {
         data: { password },
       });
     },

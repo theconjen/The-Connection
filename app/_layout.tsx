@@ -52,10 +52,18 @@ function RootLayoutNav() {
     }
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inOnboardingGroup = segments[0] === '(onboarding)';
 
     if (user && inAuthGroup) {
-      router.replace('/(tabs)/feed');
-    } else if (!user && !inAuthGroup) {
+      // Check if user has completed onboarding
+      if (user.onboardingCompleted === false) {
+        // New user - send to onboarding
+        router.replace('/(onboarding)/welcome');
+      } else {
+        // Existing user - send to feed
+        router.replace('/(tabs)/feed');
+      }
+    } else if (!user && !inAuthGroup && !inOnboardingGroup) {
       router.replace('/(auth)/login');
     }
   }, [user, isLoading, segments]);

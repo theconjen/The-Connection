@@ -11,6 +11,7 @@ interface User {
   avatarUrl?: string;
   profileImageUrl?: string;
   bio?: string;
+  onboardingCompleted?: boolean;
 }
 
 interface RegisterPayload {
