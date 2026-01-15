@@ -142,19 +142,40 @@ export default function ChatScreen() {
     markAsRead();
   }, [user?.id, otherUserId, queryClient]);
 
-  const handleSend = () => {
-    if (!messageText.trim() || !user?.id || !socketRef.current) return;
+  const handleSend = async () => {
+    if (!messageText.trim() || !user?.id) return;
 
-    // Send via Socket.IO for real-time delivery
-    socketRef.current.emit('send_dm', {
-      senderId: user.id,
-      receiverId: otherUserId,
-      content: messageText.trim(),
-    });
+    const content = messageText.trim();
+    setMessageText(''); // Clear input immediately for better UX
 
-    setMessageText('');
-    // Invalidate conversations to update last message
-    queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    try {
+      // Send via REST API to ensure message is saved
+      const response = await apiClient.post('/api/messages/send', {
+        receiverId: otherUserId,
+        content,
+      });
+
+      // Optimistically add message to local state
+      const newMessage: Message = {
+        id: response.data.id || Date.now().toString(),
+        senderId: user.id,
+        receiverId: otherUserId,
+        content,
+        createdAt: new Date().toISOString(),
+        isRead: false,
+        readAt: null,
+      };
+
+      setLocalMessages((prev) => [...prev, newMessage]);
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['messages', otherUserId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // Restore message text on error
+      setMessageText(content);
+    }
   };
 
   useEffect(() => {
@@ -248,7 +269,7 @@ export default function ChatScreen() {
         <TouchableOpacity
           style={[styles.sendButton, !messageText.trim() && styles.sendButtonDisabled]}
           onPress={handleSend}
-          disabled={!messageText.trim() || !socketRef.current}
+          disabled={!messageText.trim()}
         >
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>
