@@ -215,8 +215,9 @@ export default function ChatScreen() {
   // Extract other user's name from enriched message data OR fetched profile
   const otherUserName = React.useMemo(() => {
     // First priority: get from fetched user profile data (works even with no messages)
-    if (otherUserData) {
-      return otherUserData.displayName || otherUserData.username || 'User';
+    if (otherUserData?.user) {
+      // Profile API returns nested structure: { user: { username, displayName, ... } }
+      return otherUserData.user.displayName || otherUserData.user.username || 'User';
     }
 
     // Second priority: extract from messages if they exist
