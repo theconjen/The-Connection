@@ -191,7 +191,7 @@ router.get('/user', async (req, res) => {
   try {
   // Get full user details from database. Coerce session userId to number.
   const user = await storage.getUser(userId);
-    
+
     if (!user) {
       // Session contains a userId but user doesn't exist
       req.session.destroy(() => {
@@ -199,10 +199,14 @@ router.get('/user', async (req, res) => {
       });
       return;
     }
-    
+
     // Return user data (excluding password)
-    const { password: _, ...userData } = user;
-    res.json(userData);
+    // Map avatarUrl to profileImageUrl for consistency with profile endpoint
+    const { password: _, avatarUrl, ...userData } = user;
+    res.json({
+      ...userData,
+      profileImageUrl: avatarUrl,
+    });
   } catch (error) {
     console.error('Error fetching user details:', error);
     res.status(500).json(buildErrorResponse("Error fetching user details", error));
