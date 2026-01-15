@@ -70,7 +70,7 @@ import {
 } from "@shared/schema";
 import { postVotes, commentVotes } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, sql, inArray, like, isNull } from "drizzle-orm";
+import { eq, and, or, desc, sql, inArray, like, ilike, isNull } from "drizzle-orm";
 import { whereNotDeleted, andNotDeleted } from "./db/helpers";
 import { geocodeAddress } from "./geocoding";
 import softDelete from './db/softDelete';
@@ -2031,9 +2031,9 @@ export class DbStorage implements IStorage {
     const term = `%${searchTerm}%`;
     return await db.select().from(users).where(and(
       or(
-        like(users.username, term),
-        like(users.email, term),
-        like(users.displayName, term)
+        ilike(users.username, term),
+        ilike(users.email, term),
+        ilike(users.displayName, term)
       ),
       whereNotDeleted(users)
     ));
