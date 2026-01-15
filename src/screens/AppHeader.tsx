@@ -64,9 +64,9 @@ export function AppHeader({
       style={[
         styles.container,
         {
-          backgroundColor: transparent ? 'transparent' : colors.card,
+          backgroundColor: transparent ? 'transparent' : '#7B9CAF', // Earth-toned blue
           borderBottomWidth: transparent ? 0 : 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: transparent ? 'transparent' : '#6A8B9D',
           paddingHorizontal: spacing.lg,
         },
       ]}
@@ -89,7 +89,7 @@ export function AppHeader({
             {userAvatar ? (
               <Image source={{ uri: userAvatar }} style={styles.avatar} />
             ) : (
-              <Text style={{ color: colors.primaryForeground, fontSize: 16, fontWeight: '600' }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
                 {getUserInitials()}
               </Text>
             )}
@@ -124,12 +124,12 @@ export function AppHeader({
                 style={({ pressed }) => [
                   styles.iconButton,
                   {
-                    backgroundColor: pressed ? colors.muted : 'transparent',
+                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
                     borderRadius: radii.full,
                   },
                 ]}
               >
-                <Ionicons name="chatbubble-outline" size={20} color={colors.foreground} />
+                <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
               </Pressable>
             )}
 
@@ -139,12 +139,12 @@ export function AppHeader({
                 style={({ pressed }) => [
                   styles.iconButton,
                   {
-                    backgroundColor: pressed ? colors.muted : 'transparent',
+                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
                     borderRadius: radii.full,
                   },
                 ]}
               >
-                <Ionicons name="menu-outline" size={24} color={colors.foreground} />
+                <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
               </Pressable>
             )}
 
@@ -160,16 +160,16 @@ export function AppHeader({
                 onPress={onBackPress}
                 style={({ pressed }) => [
                   styles.iconButton,
-                  { backgroundColor: pressed ? colors.muted : 'transparent', borderRadius: radii.full },
+                  { backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent', borderRadius: radii.full },
                 ]}
               >
-                <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
               </Pressable>
             ) : (
               <View style={styles.brandContainer}>
                 {showLogo && <View style={styles.logo} />}
                 {showBrandText && (
-                  <Text variant="title" style={styles.brandText}>
+                  <Text variant="title" style={[styles.brandText, { color: '#FFFFFF' }]}>
                     The Connection
                   </Text>
                 )}
@@ -180,14 +180,14 @@ export function AppHeader({
           {/* Original Layout: Right Section */}
           <View style={styles.rightSection}>
             {showSearch && (
-              <Pressable onPress={onSearchPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? colors.muted : 'transparent' }]}>
-                <Ionicons name="search-outline" size={20} color={colors.mutedForeground} />
+              <Pressable onPress={onSearchPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent' }]}>
+                <Ionicons name="search-outline" size={20} color="#FFFFFF" />
               </Pressable>
             )}
 
             {showNotifications && (
-              <Pressable onPress={onNotificationsPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? colors.muted : 'transparent' }]}>
-                <Ionicons name="notifications-outline" size={20} color={colors.mutedForeground} />
+              <Pressable onPress={onNotificationsPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent' }]}>
+                <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
               </Pressable>
             )}
 
@@ -202,7 +202,7 @@ export function AppHeader({
                   },
                 ]}
               >
-                <Ionicons name="chatbubble-outline" size={20} color={colors.foreground} />
+                <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
               </Pressable>
             )}
 
@@ -212,12 +212,12 @@ export function AppHeader({
                 style={({ pressed }) => [
                   styles.iconButton,
                   {
-                    backgroundColor: pressed ? colors.muted : 'transparent',
+                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
                     borderRadius: radii.full,
                   },
                 ]}
               >
-                <Ionicons name="menu-outline" size={24} color={colors.foreground} />
+                <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
               </Pressable>
             )}
 
@@ -237,9 +237,9 @@ export function PageHeader({ title, onBackPress, rightElement }: { title: string
       style={[
         styles.container,
         {
-          backgroundColor: colors.card,
+          backgroundColor: '#7B9CAF', // Earth-toned blue to match AppHeader
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: '#6A8B9D',
           paddingHorizontal: spacing.lg,
         },
       ]}
@@ -249,16 +249,16 @@ export function PageHeader({ title, onBackPress, rightElement }: { title: string
         style={({ pressed }) => [
           styles.iconButton,
           {
-            backgroundColor: pressed ? colors.muted : 'transparent',
+            backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
             borderRadius: radii.full,
             marginLeft: -spacing.sm,
           },
         ]}
       >
-        <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
       </Pressable>
 
-      <Text variant="body" style={{ fontWeight: '600', flex: 1, textAlign: 'center' }}>
+      <Text variant="body" style={{ fontWeight: '600', flex: 1, textAlign: 'center', color: '#FFFFFF' }}>
         {title}
       </Text>
 
