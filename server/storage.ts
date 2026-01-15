@@ -4458,7 +4458,31 @@ export class DbStorage implements IStorage {
         and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
       )
     ).orderBy(messages.createdAt);
-    return result;
+
+    // Enrich messages with sender and receiver user information
+    const enrichedMessages = [];
+    for (const msg of result) {
+      const sender = await this.getUser(msg.senderId);
+      const receiver = await this.getUser(msg.receiverId);
+
+      enrichedMessages.push({
+        ...msg,
+        sender: sender ? {
+          id: sender.id,
+          username: sender.username,
+          displayName: sender.displayName,
+          profileImageUrl: sender.profileImageUrl,
+        } : null,
+        receiver: receiver ? {
+          id: receiver.id,
+          username: receiver.username,
+          displayName: receiver.displayName,
+          profileImageUrl: receiver.profileImageUrl,
+        } : null,
+      });
+    }
+
+    return enrichedMessages;
   }
   
   async createDirectMessage(message: any): Promise<any> {
