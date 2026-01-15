@@ -382,5 +382,86 @@ router.post('/auth/verify-email', async (req, res) => {
     res.status(500).json(buildErrorResponse('Error verifying email', error));
   }
 });
+
+// Registration endpoint
+router.post('/auth/register', async (req, res) => {
+  try {
+    const { email, username, password, firstName, lastName } = req.body;
+
+    // Validation
+    if (!email || !username || !password) {
+      return res.status(400).json({ message: 'Email, username, and password are required' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+
+    // Check if user already exists
+    const existingUser = await storage.getUserByUsername(username);
+    if (existingUser) {
+      return res.status(400).json({ message: 'Username already taken' });
+    }
+
+    const existingEmail = await storage.getUserByEmail(email);
+    if (existingEmail) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create user
+    const user = await storage.createUser({
+      email: email.trim().toLowerCase(),
+      username: username.trim().toLowerCase(),
+      password: passwordHash,
+      firstName: firstName?.trim(),
+      lastName: lastName?.trim(),
+      emailVerified: false,
+    });
+
+    // Generate JWT token for mobile apps
+    const jwtSecret = process.env.JWT_SECRET;
+    if (jwtSecret) {
+      const token = jwt.sign(
+        { sub: user.id, email: user.email, username: user.username },
+        jwtSecret,
+        { expiresIn: '7d' }
+      );
+
+      // Return user and token
+      const { password: _, ...userData } = user;
+      return res.status(201).json({
+        ...userData,
+        token,
+        verificationSent: false
+      });
+    }
+
+    // Fallback: Create session for web
+    if (req.session) {
+      setSessionUserId(req, user.id);
+      req.session.username = user.username;
+      req.session.isAdmin = false;
+
+      req.session.save(err => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.status(500).json(buildErrorResponse('Error saving session', err));
+        }
+        const { password: _, ...userData } = user;
+        res.status(201).json({ ...userData, verificationSent: false });
+      });
+    } else {
+      const { password: _, ...userData } = user;
+      res.status(201).json({ ...userData, verificationSent: false });
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json(buildErrorResponse('Server error during registration', error));
+  }
+});
+
 export default router;
 
