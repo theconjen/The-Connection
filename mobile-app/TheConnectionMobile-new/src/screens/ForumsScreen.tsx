@@ -20,33 +20,17 @@ import {
 import { Text, Screen,  } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { PostCard, Post } from './PostCard';
-import { ChannelCard, AddChannelCard, Channel } from './ChannelCard';
 import { AppHeader } from './AppHeader';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiClient, queryClient } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
-// Icons
-const UsersIcon = ({ color }: { color: string }) => (
-  <Text style={{ fontSize: 14, color }}>👥</Text>
-);
-
-// Sample channels data (will be replaced with real API later)
-const channels: Channel[] = [
-  { id: 1, name: 'c/faith', members: '45.2k', icon: 'F', isJoined: true },
-  { id: 2, name: 'c/prayer', members: '38.7k', icon: 'P', isJoined: true },
-  { id: 3, name: 'c/biblestudy', members: '29.1k', icon: 'B', isJoined: false },
-  { id: 4, name: 'c/encouragement', members: '52.3k', icon: 'E', isJoined: true },
-  { id: 5, name: 'c/testimony', members: '21.8k', icon: 'T', isJoined: false },
-];
-
 interface ForumsScreenProps {
   onProfilePress?: () => void;
   onPostPress?: (post: Post) => void;
-  onChannelPress?: (channel: Channel) => void;
   onSearchPress?: () => void;
-  onDiscoverPress?: () => void;
+  onNotificationsPress?: () => void;
   onSettingsPress?: () => void;
   onMessagesPress?: () => void;
   onCreatePostPress?: () => void;
@@ -55,12 +39,23 @@ interface ForumsScreenProps {
   userAvatar?: string;
 }
 
+// Hook to fetch trending items (hashtags + keywords, updates every 15 minutes)
+function useTrendingItems() {
+  return useQuery<any[]>({
+    queryKey: ['/api/posts/trending/combined'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/posts/trending/combined?limit=10');
+      return response.data;
+    },
+    refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
+  });
+}
+
 export function ForumsScreen({
   onProfilePress,
   onPostPress,
-  onChannelPress,
   onSearchPress,
-  onDiscoverPress,
+  onNotificationsPress,
   onSettingsPress,
   onMessagesPress,
   onCreatePostPress,
@@ -71,14 +66,27 @@ export function ForumsScreen({
   const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'home' | 'popular'>('home');
+  const [selectedTrending, setSelectedTrending] = useState<{ type: 'hashtag' | 'keyword', value: string, display: string } | null>(null);
+
+  // Fetch trending items
+  const { data: trendingItems, isLoading: trendingLoading } = useTrendingItems();
 
   // Fetch posts from API
   const filter = activeTab === 'popular' ? 'popular' : 'recent';
   const { data: posts = [], isLoading, refetch } = useQuery<Post[]>({
-    queryKey: ['/api/posts', { filter }],
+    queryKey: ['/api/posts', { filter, selectedTrending }],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/posts?filter=${filter}`);
-      return response.data;
+      if (selectedTrending) {
+        // Fetch posts filtered by hashtag or keyword
+        const endpoint = selectedTrending.type === 'hashtag'
+          ? `/api/posts/hashtags/${selectedTrending.value}`
+          : `/api/posts/keywords/${selectedTrending.value}`;
+        const response = await apiClient.get(endpoint);
+        return response.data;
+      } else {
+        const response = await apiClient.get(`/api/posts?filter=${filter}`);
+        return response.data;
+      }
     },
   });
 
@@ -160,14 +168,82 @@ export function ForumsScreen({
     <>
       {/* App Header */}
       <AppHeader
-        onProfilePress={onProfilePress}
-        onSearchPress={onSearchPress}
-        onSettingsPress={onSettingsPress}
-        onMessagesPress={onMessagesPress}
+        showCenteredLogo={true}
         userName={userName}
         userAvatar={userAvatar}
-        searchPlaceholder="Search forums..."
+        onProfilePress={onProfilePress}
+        showMessages={true}
+        onMessagesPress={onMessagesPress}
+        showMenu={true}
+        onMenuPress={onSettingsPress}
       />
+
+      {/* Search Bar */}
+      <Pressable onPress={onSearchPress} style={styles.searchBar}>
+        <Ionicons name="search-outline" size={20} color="#64748B" />
+        <Text style={styles.searchPlaceholder}>Search forums...</Text>
+      </Pressable>
+
+      {/* Trending Section (Hashtags + Keywords) */}
+      <View style={styles.trendingSection}>
+        <View style={styles.trendingHeader}>
+          <Ionicons name="trending-up" size={18} color={colors.accent} />
+          <Text style={styles.trendingTitle}>Trending in Forums</Text>
+          {selectedTrending && (
+            <Pressable
+              onPress={() => setSelectedTrending(null)}
+              style={styles.clearFilterButton}
+            >
+              <Text style={styles.clearFilterText}>Clear</Text>
+            </Pressable>
+          )}
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.trendingTags}
+        >
+          {trendingLoading ? (
+            <ActivityIndicator size="small" color={colors.accent} />
+          ) : (
+            trendingItems?.map((item) => {
+              const isHashtag = item.type === 'hashtag';
+              const displayText = isHashtag ? item.displayTag : item.displayKeyword;
+              const tag = isHashtag ? item.tag : item.keyword;
+              const isActive = selectedTrending?.value === tag && selectedTrending?.type === item.type;
+
+              return (
+                <Pressable
+                  key={`${item.type}-${item.id}`}
+                  style={[
+                    styles.trendingBadge,
+                    isActive && styles.trendingBadgeActive
+                  ]}
+                  onPress={() => setSelectedTrending({ type: item.type, value: tag, display: displayText })}
+                >
+                  <Text style={[
+                    styles.trendingText,
+                    isActive && styles.trendingTextActive
+                  ]}>
+                    {isHashtag ? '#' : ''}{displayText}
+                  </Text>
+                  <Text style={styles.trendingScore}>{item.trendingScore}</Text>
+                </Pressable>
+              );
+            })
+          )}
+        </ScrollView>
+      </View>
+
+      {/* Filter Indicator */}
+      {selectedTrending && (
+        <View style={styles.filterIndicator}>
+          <Ionicons name="filter" size={16} color={colors.text} />
+          <Text style={styles.filterText}>
+            Showing {selectedTrending.type === 'hashtag' ? '#' : ''}{selectedTrending.display}
+          </Text>
+        </View>
+      )}
 
       {/* Tabs */}
       <View
@@ -249,49 +325,6 @@ export function ForumsScreen({
         </View>
       </View>
 
-      {/* Communities Section */}
-      <View
-        style={{
-          backgroundColor: colors.card,
-          marginTop: spacing.sm,
-          padding: spacing.lg,
-        }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: spacing.md,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <UsersIcon color={colors.mutedForeground} />
-            <Text variant="bodySmall">Your Communities</Text>
-          </View>
-          <Pressable>
-            <Text variant="caption" style={{ color: colors.accent }}>
-              See all
-            </Text>
-          </Pressable>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: spacing.sm }}
-        >
-          <AddChannelCard onPress={onDiscoverPress} />
-          {channels.map((channel) => (
-            <ChannelCard
-              key={channel.id}
-              channel={channel}
-              onToggleJoin={(joined) => {}}
-            />
-          ))}
-        </ScrollView>
-      </View>
-
       {/* Spacer before posts */}
       <View style={{ height: spacing.sm }} />
     </>
@@ -355,4 +388,95 @@ export function ForumsScreen({
   );
 }
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#EFF3F4',
+    marginHorizontal: 12,
+    marginVertical: 8,
+    borderRadius: 20,
+  },
+  searchPlaceholder: {
+    fontSize: 15,
+    color: '#64748B',
+  },
+  trendingSection: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  trendingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  trendingTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  clearFilterButton: {
+    marginLeft: 'auto',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  clearFilterText: {
+    fontSize: 13,
+    color: '#2563EB',
+    fontWeight: '600',
+  },
+  trendingTags: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  trendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  trendingBadgeActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  trendingText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  trendingTextActive: {
+    color: '#FFFFFF',
+  },
+  trendingScore: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginLeft: 4,
+  },
+  filterIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#EFF6FF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+  },
+  filterText: {
+    fontSize: 13,
+    color: '#1E40AF',
+    fontWeight: '600',
+  },
+});

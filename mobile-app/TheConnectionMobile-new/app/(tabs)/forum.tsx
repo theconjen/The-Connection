@@ -1,48 +1,45 @@
-import { CommunitiesScreen } from "../../src/screens/CommunitiesScreen";
+import { ForumsScreen } from "../../src/screens/ForumsScreen";
 import { useRouter } from "expo-router";
-import { useAuth } from "../../src/contexts/AuthContext";
 import { useState } from "react";
+import { useAuth } from "../../src/contexts/AuthContext";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
 import { Alert } from "react-native";
 
-export default function CommunitiesTab() {
+export default function ForumTab() {
   const router = useRouter();
   const { user } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
 
   return (
     <>
-      <CommunitiesScreen
-      userName={user?.displayName || user?.username || "User"}
-      userAvatar={user?.profileImageUrl}
+      <ForumsScreen
       onProfilePress={() => {
         router.push("/profile");
       }}
+      onPostPress={(post) => {
+        // Navigate to post detail screen
+        router.push(`/posts/${post.id}`);
+      }}
       onSearchPress={() => {
+        // Navigate to search screen
         router.push("/search");
       }}
       onNotificationsPress={() => {
         router.push("/notifications");
       }}
-      onSettingsPress={() => {
-        router.push("/settings");
-      }}
+      onSettingsPress={() => setMenuVisible(true)}
       onMessagesPress={() => {
         router.push("/(tabs)/messages");
       }}
-      onMenuPress={() => setMenuVisible(true)}
-      onCreatePress={() => {
-        router.push("/communities/create");
+      onCreatePostPress={() => {
+        router.push("/create-forum-post"); // Reddit-style forum post with anonymous option
       }}
-      onCommunityPress={(community) => {
-        router.push(`/communities/${community.id}`);
+      onAuthorPress={(authorId) => {
+        // Navigate to user profile
+        router.push(`/profile?userId=${authorId}`);
       }}
-      onCategoryPress={(category) => {
-        setSelectedCategory(category.id);
-      }}
-      selectedCategory={selectedCategory}
-      onClearCategory={() => setSelectedCategory(null)}
+      userName={user?.displayName || user?.username || "User"}
+      userAvatar={user?.profileImageUrl}
     />
     <MenuDrawer
       visible={menuVisible}

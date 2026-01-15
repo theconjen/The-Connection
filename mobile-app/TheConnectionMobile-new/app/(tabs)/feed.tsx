@@ -1,11 +1,11 @@
 import FeedScreen from "../../src/screens/FeedScreen";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert } from "react-native";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "../../src/lib/apiClient";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
+import { Alert } from "react-native";
 
 export default function FeedTab() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function FeedTab() {
         return 0;
       }
     },
-    enabled: !!user,
+    enabled: false, // Disabled until notifications endpoint is implemented
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
@@ -53,6 +53,7 @@ export default function FeedTab() {
         onClose={() => setMenuVisible(false)}
         onSettings={() => router.push("/settings")}
         onNotifications={() => router.push("/notifications")}
+        onBookmarks={() => router.push("/bookmarks")}
         onApologetics={() => {
           Alert.alert(
             "Coming Soon",

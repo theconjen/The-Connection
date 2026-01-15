@@ -1,42 +1,60 @@
 import { EventsScreen } from "../../src/screens/EventsScreen";
 import { useRouter } from "expo-router";
-import { Alert } from "react-native";
 import { useAuth } from "../../src/contexts/AuthContext";
+import { useState } from "react";
+import { MenuDrawer } from "../../src/components/MenuDrawer";
+import { Alert } from "react-native";
 
 export default function EventsTab() {
   const router = useRouter();
   const { user } = useAuth();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   return (
-    <EventsScreen
-      showCenteredLogo={true}
+    <>
+      <EventsScreen
       userName={user?.displayName || user?.username || "User"}
       userAvatar={user?.profileImageUrl}
       onProfilePress={() => {
         router.push("/profile");
       }}
+      onSearchPress={() => {
+        router.push("/search");
+      }}
+      onNotificationsPress={() => {
+        router.push("/notifications");
+      }}
+      onSettingsPress={() => {
+        router.push("/settings");
+      }}
       onMessagesPress={() => {
         router.push("/(tabs)/messages");
       }}
-      onMenuPress={() => {
-        Alert.alert("Menu", "Settings and more options coming soon!");
-      }}
-      onSearchPress={() => {
-        Alert.alert("Search Events", "Search for events coming soon!");
-      }}
-      // onCreatePress removed - let EventsScreen handle it with modal
+      onMenuPress={() => setMenuVisible(true)}
       onEventPress={(event) => {
-        Alert.alert(
-          event.title,
-          `${event.subtitle}\n\n📅 ${event.date} at ${event.time}\n📍 ${event.location}\n👥 ${event.attendees} attending\n\nEvent details page coming soon!`
-        );
+        router.push(`/events/${event.id}`);
       }}
       onCategoryPress={(category) => {
+        setSelectedCategory(category.id);
+      }}
+      selectedCategory={selectedCategory}
+      onClearCategory={() => setSelectedCategory(null)}
+    />
+    <MenuDrawer
+      visible={menuVisible}
+      onClose={() => setMenuVisible(false)}
+      onSettings={() => router.push("/settings")}
+      onNotifications={() => router.push("/notifications")}
+      onBookmarks={() => router.push("/bookmarks")}
+      onApologetics={() => {
         Alert.alert(
-          category.title,
-          `Browse ${category.count} ${category.title.toLowerCase()} events\n\nCategory filter coming soon!`
+          "Coming Soon",
+          "The Apologetics feature is currently under development. Stay tuned. If you are interested in becoming a verified Apologist email: hello@theconnection.app",
+          [{ text: "OK" }]
         );
       }}
     />
+  </>
   );
 }
