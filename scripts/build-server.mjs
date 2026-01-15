@@ -21,6 +21,8 @@ const external = [
   'argon2',
   // fsevents contains a native .node binary; avoid bundling it
   'fsevents',
+  // Keep franc-min external (language detection)
+  'franc-min',
 ];
 
 await build({
