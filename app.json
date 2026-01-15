@@ -73,6 +73,21 @@
           "icon": "./assets/notification-icon.png",
           "color": "#1a2a4a"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "extraPods": [
+              {
+                "name": "RCT-Folly",
+                "configurations": ["Debug", "Release"],
+                "modular_headers": true
+              }
+            ],
+            "deploymentTarget": "13.4"
+          }
+        }
       ]
     ],
     "extra": {

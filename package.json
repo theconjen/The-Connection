@@ -29,6 +29,7 @@
     "babel-plugin-module-resolver": "^5.0.2",
     "date-fns": "^4.1.0",
     "expo": "~54.0.31",
+    "expo-build-properties": "^1.0.10",
     "expo-calendar": "^15.0.8",
     "expo-constants": "~18.0.13",
     "expo-device": "~8.0.10",
