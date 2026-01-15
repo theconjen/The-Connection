@@ -31,6 +31,7 @@ import {
   Alert,
   StatusBar,
   Share,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -83,15 +84,39 @@ interface FeedScreenProps {
 // API HOOKS
 // ============================================================================
 
-function useMicroblogs(filter: 'recent' | 'popular') {
+// Hook to fetch trending items (hashtags + keywords, updates every 15 minutes)
+function useTrendingItems() {
+  return useQuery<any[]>({
+    queryKey: ['/api/microblogs/trending/combined'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/microblogs/trending/combined?limit=10');
+      return response.data;
+    },
+    refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
+  });
+}
+
+function useMicroblogs(filter: 'recent' | 'popular', trendingFilter?: { type: 'hashtag' | 'keyword', value: string } | null) {
   const { user } = useAuth();
 
   return useQuery<Microblog[]>({
-    queryKey: ['/api/microblogs', filter],
+    queryKey: ['/api/microblogs', filter, trendingFilter],
     queryFn: async () => {
       try {
-        // Fetch microblogs (feed posts - Twitter-like, always public, never anonymous)
-        const response = await apiClient.get('/api/microblogs');
+        let response;
+
+        if (trendingFilter) {
+          // Fetch microblogs filtered by hashtag or keyword
+          if (trendingFilter.type === 'hashtag') {
+            response = await apiClient.get(`/api/microblogs/hashtags/${trendingFilter.value}`);
+          } else {
+            response = await apiClient.get(`/api/microblogs/keywords/${trendingFilter.value}`);
+          }
+        } else {
+          // Fetch all microblogs with sort filter
+          response = await apiClient.get(`/api/microblogs?filter=${filter}`);
+        }
+
         const microblogs = response.data;
 
         // Microblogs already include author data from the API
@@ -107,10 +132,9 @@ function useMicroblogs(filter: 'recent' | 'popular') {
           },
         }));
 
-        // Sort by creation date (most recent first)
-        return microblogsWithAuthors.sort((a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+        // If trending filter is active, already sorted by engagement from API
+        // Otherwise, sorted by filter (recent or popular) from API
+        return microblogsWithAuthors;
       } catch (error) {
         console.error('Error fetching microblogs:', error);
         throw error;
@@ -125,16 +149,31 @@ function useLikeMicroblog() {
 
   return useMutation({
     mutationFn: async ({ postId, isLiked }: { postId: number; isLiked: boolean }) => {
-      // Toggle like/unlike on microblog
-      if (isLiked) {
-        await apiClient.delete(`/api/microblogs/${postId}/like`);
-      } else {
-        await apiClient.post(`/api/microblogs/${postId}/like`);
+      try {
+        // Toggle like/unlike on microblog
+        if (isLiked) {
+          await apiClient.delete(`/api/microblogs/${postId}/like`);
+        } else {
+          await apiClient.post(`/api/microblogs/${postId}/like`);
+        }
+      } catch (error: any) {
+        // If we get 404 on delete, the like didn't exist - treat as success
+        if (error.response?.status === 404 && isLiked) {
+          return;
+        }
+        // If we get 400 "already liked" on post, treat as success
+        if (error.response?.status === 400 && !isLiked) {
+          return;
+        }
+        throw error;
       }
     },
     onMutate: async ({ postId, isLiked }) => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: ['/api/microblogs'] });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueryData(['/api/microblogs']);
 
       // Optimistic update
       queryClient.setQueriesData({ queryKey: ['/api/microblogs'] }, (oldData: any) => {
@@ -149,9 +188,17 @@ function useLikeMicroblog() {
             : post
         );
       });
+
+      return { previousData };
     },
-    onError: () => {
-      // Revert on error
+    onError: (error: any, variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/microblogs'], context.previousData);
+      }
+    },
+    onSettled: () => {
+      // Always refetch to sync with server
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
     },
   });
@@ -270,13 +317,33 @@ function useBookmarkMicroblog() {
 
   return useMutation({
     mutationFn: async ({ postId, isBookmarked }: { postId: number; isBookmarked: boolean }) => {
-      if (isBookmarked) {
-        await apiClient.delete(`/api/microblogs/${postId}/bookmark`);
-      } else {
-        await apiClient.post(`/api/microblogs/${postId}/bookmark`);
+      try {
+        if (isBookmarked) {
+          // Currently bookmarked, so unbookmark
+          await apiClient.delete(`/api/microblogs/${postId}/bookmark`);
+        } else {
+          // Not bookmarked, so bookmark
+          await apiClient.post(`/api/microblogs/${postId}/bookmark`);
+        }
+      } catch (error: any) {
+        // If we get 404 on delete, the bookmark didn't exist - treat as success
+        if (error.response?.status === 404 && isBookmarked) {
+          return;
+        }
+        // If we get 400 "already bookmarked" on post, treat as success
+        if (error.response?.status === 400 && !isBookmarked) {
+          return;
+        }
+        throw error;
       }
     },
     onMutate: async ({ postId, isBookmarked }) => {
+      // Cancel outgoing queries to avoid race conditions
+      await queryClient.cancelQueries({ queryKey: ['/api/microblogs'] });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueryData(['/api/microblogs']);
+
       // Optimistic update
       queryClient.setQueriesData({ queryKey: ['/api/microblogs'] }, (oldData: any) => {
         if (!oldData) return oldData;
@@ -286,13 +353,20 @@ function useBookmarkMicroblog() {
             : post
         );
       });
+
+      return { previousData };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
-    },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/microblogs'], context.previousData);
+      }
       Alert.alert('Error', 'Failed to update bookmark. Please try again.');
+    },
+    onSettled: () => {
+      // Always refetch after error or success to sync with server
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/microblogs/bookmarks'] });
     },
   });
 }
@@ -452,13 +526,20 @@ export default function FeedScreen({
   const [activeTab, setActiveTab] = useState<'recent' | 'popular'>('recent');
   const [showComposer, setShowComposer] = useState(false);
   const [postContent, setPostContent] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [selectedGif, setSelectedGif] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'images' | 'video' | 'gif' | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifSearchQuery, setGifSearchQuery] = useState('');
+  const [gifs, setGifs] = useState<any[]>([]);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [selectedPostForComments, setSelectedPostForComments] = useState<Microblog | null>(null);
   const [commentContent, setCommentContent] = useState('');
+  const [selectedTrending, setSelectedTrending] = useState<{ type: 'hashtag' | 'keyword', value: string, display: string } | null>(null);
 
-  const { data: microblogs, isLoading, refetch } = useMicroblogs(activeTab);
+  const { data: trendingItems, isLoading: trendingLoading } = useTrendingItems();
+  const { data: microblogs, isLoading, refetch } = useMicroblogs(activeTab, selectedTrending ? { type: selectedTrending.type, value: selectedTrending.value } : null);
   const likeMutation = useLikeMicroblog();
   const createMutation = useCreateMicroblog();
   const deleteMutation = useDeletePost();
@@ -604,19 +685,8 @@ export default function FeedScreen({
       return;
     }
 
-    Alert.alert(
-      'Repost',
-      'Repost this to your followers?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Repost',
-          onPress: () => {
-            repostMutation.mutate(postId);
-          },
-        },
-      ]
-    );
+    // Directly repost to followers without confirmation
+    repostMutation.mutate(postId);
   };
 
   const handleShare = async (post: Microblog) => {
@@ -650,21 +720,84 @@ export default function FeedScreen({
   };
 
   const handlePickImage = async () => {
+    // Check if we've reached the limit
+    if (selectedImages.length >= 10) {
+      Alert.alert('Limit Reached', 'You can only add up to 10 images per post');
+      return;
+    }
+
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission required', 'Please grant photo library permissions');
       return;
     }
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: [ImagePicker.MediaType.Images],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: 10 - selectedImages.length, // Remaining slots
+      quality: 0.8,
+      allowsEditing: false, // Disable editing for multiple selection
+    });
+
+    if (!result.canceled && result.assets) {
+      const newImages = result.assets.map(asset => asset.uri);
+      setSelectedImages(prev => [...prev, ...newImages].slice(0, 10)); // Ensure max 10
+      setSelectedVideo(null);
+      setMediaType('images');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    // Check if we've reached the limit
+    if (selectedImages.length >= 10) {
+      Alert.alert('Limit Reached', 'You can only add up to 10 images per post');
+      return;
+    }
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please grant camera permissions');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [16, 9] as [number, number],
       quality: 0.8,
     });
+
     if (!result.canceled && result.assets[0]) {
-      setSelectedImage(result.assets[0].uri);
+      setSelectedImages(prev => [...prev, result.assets[0].uri].slice(0, 10));
       setSelectedVideo(null);
+      setMediaType('images');
     }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    if (selectedImages.length === 1) {
+      setMediaType(null);
+    }
+  };
+
+  const handleMoveImageUp = (index: number) => {
+    if (index === 0) return;
+    setSelectedImages(prev => {
+      const newImages = [...prev];
+      [newImages[index - 1], newImages[index]] = [newImages[index], newImages[index - 1]];
+      return newImages;
+    });
+  };
+
+  const handleMoveImageDown = (index: number) => {
+    if (index === selectedImages.length - 1) return;
+    setSelectedImages(prev => {
+      const newImages = [...prev];
+      [newImages[index], newImages[index + 1]] = [newImages[index + 1], newImages[index]];
+      return newImages;
+    });
   };
 
   const handlePickVideo = async () => {
@@ -673,46 +806,165 @@ export default function FeedScreen({
       Alert.alert('Permission required', 'Please grant photo library permissions');
       return;
     }
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: [ImagePicker.MediaType.Videos],
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       allowsEditing: false,
       quality: 0.8,
+      videoMaxDuration: 120, // 2 minutes max
     });
+
     if (!result.canceled && result.assets[0]) {
-      setSelectedVideo(result.assets[0].uri);
-      setSelectedImage(null);
+      const asset = result.assets[0];
+      // Check file size (max 50MB for video)
+      if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
+        Alert.alert('File Too Large', 'Video must be under 50MB');
+        return;
+      }
+      setSelectedVideo(asset.uri);
+      setSelectedImages([]);
+      setMediaType('video');
     }
   };
 
-  const handleCreatePost = () => {
+  const handleTakeVideo = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please grant camera permissions');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
+      quality: 0.8,
+      videoMaxDuration: 120, // 2 minutes max
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
+        Alert.alert('File Too Large', 'Video must be under 50MB');
+        return;
+      }
+      setSelectedVideo(asset.uri);
+      setSelectedImages([]);
+      setSelectedGif(null);
+      setMediaType('video');
+    }
+  };
+
+  // GIF Picker Functions
+  const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh'; // Free Giphy API key (public beta)
+
+  const searchGifs = async (query: string) => {
+    if (!query.trim()) {
+      // Load trending GIFs when no search query
+      try {
+        const response = await fetch(
+          `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=50&rating=g`
+        );
+        const data = await response.json();
+        setGifs(data.data || []);
+      } catch (error) {
+        console.error('Error loading trending GIFs:', error);
+      }
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=50&rating=g`
+      );
+      const data = await response.json();
+      setGifs(data.data || []);
+    } catch (error) {
+      console.error('Error searching GIFs:', error);
+      Alert.alert('Error', 'Failed to load GIFs. Please try again.');
+    }
+  };
+
+  const handleOpenGifPicker = () => {
+    setShowGifPicker(true);
+    searchGifs(''); // Load trending
+  };
+
+  const handleSelectGif = (gif: any) => {
+    const gifUrl = gif.images.downsized_medium.url;
+    setSelectedGif(gifUrl);
+    setSelectedImages([]);
+    setSelectedVideo(null);
+    setMediaType('gif');
+    setShowGifPicker(false);
+    setGifSearchQuery('');
+  };
+
+  const handleCreatePost = async () => {
     if (!postContent.trim()) return;
 
+    try {
+      const FileSystem = await import('expo-file-system');
+      let mediaUrls: string[] = [];
+      let videoUrl: string | null = null;
 
-    createMutation.mutate(
-      { content: postContent },
-      {
-        onSuccess: (data) => {
-          setPostContent('');
-          setSelectedImage(null);
-          setSelectedVideo(null);
-          setShowComposer(false);
-          Alert.alert('Success', 'Post created successfully!');
-        },
-        onError: (error: any) => {
-          console.error('Failed to create post - Full error:', JSON.stringify(error, null, 2));
-          console.error('Error response:', error?.response);
-          console.error('Error status:', error?.response?.status);
-          console.error('Error data:', error?.response?.data);
-
-          const errorMessage = error?.response?.data?.message
-            || error?.response?.data?.error
-            || error?.message
-            || 'Failed to create post. Please try again.';
-
-          Alert.alert('Error', `Failed to create post: ${errorMessage}\n\nStatus: ${error?.response?.status || 'Unknown'}`);
-        },
+      // Convert multiple images to base64
+      if (selectedImages.length > 0) {
+        for (const imageUri of selectedImages) {
+          const base64 = await FileSystem.readAsStringAsync(imageUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const extension = imageUri.split('.').pop()?.toLowerCase();
+          const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+          mediaUrls.push(`data:${mimeType};base64,${base64}`);
+        }
       }
-    );
+
+      // Convert video to base64 if selected
+      if (selectedVideo) {
+        const base64 = await FileSystem.readAsStringAsync(selectedVideo, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const extension = selectedVideo.split('.').pop()?.toLowerCase();
+        const mimeType = `video/${extension || 'mp4'}`;
+        videoUrl = `data:${mimeType};base64,${base64}`;
+      }
+
+      createMutation.mutate(
+        {
+          content: postContent,
+          imageUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
+          videoUrl: videoUrl || undefined,
+          gifUrl: selectedGif || undefined,
+        },
+        {
+          onSuccess: (data) => {
+            setPostContent('');
+            setSelectedImages([]);
+            setSelectedVideo(null);
+            setSelectedGif(null);
+            setMediaType(null);
+            setShowComposer(false);
+            Alert.alert('Success', 'Post created successfully!');
+          },
+          onError: (error: any) => {
+            console.error('Failed to create post - Full error:', JSON.stringify(error, null, 2));
+            console.error('Error response:', error?.response);
+            console.error('Error status:', error?.response?.status);
+            console.error('Error data:', error?.response?.data);
+
+            const errorMessage = error?.response?.data?.message
+              || error?.response?.data?.error
+              || error?.message
+              || 'Failed to create post. Please try again.';
+
+            Alert.alert('Error', `Failed to create post: ${errorMessage}\n\nStatus: ${error?.response?.status || 'Unknown'}`);
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error preparing post:', error);
+      Alert.alert('Error', 'Failed to prepare media. Please try again.');
+    }
   };
 
   const [refreshing, setRefreshing] = useState(false);
@@ -740,37 +992,66 @@ export default function FeedScreen({
         onMenuPress={onSettingsPress}
       />
 
-      {/* Trending Hashtags */}
+      {/* Trending Section (Hashtags + Keywords) */}
       <View style={styles.trendingSection}>
         <View style={styles.trendingHeader}>
           <Ionicons name="trending-up" size={18} color={colors.primary} />
           <Text style={styles.trendingTitle}>Trending</Text>
+          {selectedTrending && (
+            <Pressable
+              onPress={() => setSelectedTrending(null)}
+              style={styles.clearFilterButton}
+            >
+              <Text style={styles.clearFilterText}>Clear</Text>
+            </Pressable>
+          )}
         </View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.trendingTags}
         >
-          <Pressable style={styles.hashtagBadge}>
-            <Text style={styles.hashtagText}>#Prayer</Text>
-          </Pressable>
-          <Pressable style={styles.hashtagBadge}>
-            <Text style={styles.hashtagText}>#BibleStudy</Text>
-          </Pressable>
-          <Pressable style={styles.hashtagBadge}>
-            <Text style={styles.hashtagText}>#Worship</Text>
-          </Pressable>
-          <Pressable style={styles.hashtagBadge}>
-            <Text style={styles.hashtagText}>#Faith</Text>
-          </Pressable>
-          <Pressable style={styles.hashtagBadge}>
-            <Text style={styles.hashtagText}>#Community</Text>
-          </Pressable>
-          <Pressable style={styles.hashtagBadge}>
-            <Text style={styles.hashtagText}>#Testimony</Text>
-          </Pressable>
+          {trendingLoading ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            trendingItems?.map((item) => {
+              const isHashtag = item.type === 'hashtag';
+              const displayText = isHashtag ? item.displayTag : item.displayKeyword;
+              const tag = isHashtag ? item.tag : item.keyword;
+              const isActive = selectedTrending?.value === tag && selectedTrending?.type === item.type;
+
+              return (
+                <Pressable
+                  key={`${item.type}-${item.id}`}
+                  style={[
+                    styles.hashtagBadge,
+                    isActive && styles.hashtagBadgeActive
+                  ]}
+                  onPress={() => setSelectedTrending({ type: item.type, value: tag, display: displayText })}
+                >
+                  <Text style={[
+                    styles.hashtagText,
+                    isActive && styles.hashtagTextActive
+                  ]}>
+                    {isHashtag ? '#' : ''}{displayText}
+                  </Text>
+                  <Text style={styles.hashtagCount}>{item.trendingScore}</Text>
+                </Pressable>
+              );
+            })
+          )}
         </ScrollView>
       </View>
+
+      {/* Filter Indicator */}
+      {selectedTrending && (
+        <View style={styles.filterIndicator}>
+          <Ionicons name="filter" size={16} color={colors.text} />
+          <Text style={styles.filterText}>
+            Showing {selectedTrending.type === 'hashtag' ? '#' : ''}{selectedTrending.display}
+          </Text>
+        </View>
+      )}
 
       {/* Tabs */}
       <View style={styles.tabs}>
@@ -833,8 +1114,10 @@ export default function FeedScreen({
             <View style={styles.modalHeader}>
               <Pressable onPress={() => {
                 setShowComposer(false);
-                setSelectedImage(null);
+                setSelectedImages([]);
                 setSelectedVideo(null);
+                setSelectedGif(null);
+                setMediaType(null);
                 setPostContent('');
               }} hitSlop={8}>
                 <Ionicons name="close" size={24} color={colors.text} />
@@ -868,19 +1151,78 @@ export default function FeedScreen({
                     autoFocus
                   />
 
-                  {/* Media Preview */}
-                  {selectedImage && (
-                    <View style={styles.mediaPreview}>
-                      <Image source={{ uri: selectedImage }} style={styles.mediaImage} />
-                      <Pressable
-                        style={styles.mediaRemove}
-                        onPress={() => setSelectedImage(null)}
-                      >
-                        <Ionicons name="close-circle" size={28} color={colors.text} />
-                      </Pressable>
+                  {/* Multiple Images Preview - Simple Grid with Reorder Buttons */}
+                  {selectedImages.length > 0 && (
+                    <View style={styles.imagesGrid}>
+                      {selectedImages.map((uri, index) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.gridImageContainer,
+                            selectedImages.length === 1 && styles.singleImage,
+                            selectedImages.length === 2 && styles.doubleImage,
+                            selectedImages.length >= 3 && styles.gridImage,
+                          ]}
+                        >
+                          <Image source={{ uri }} style={styles.gridImageContent} />
+
+                          {/* Remove button */}
+                          <Pressable
+                            style={styles.gridImageRemove}
+                            onPress={() => handleRemoveImage(index)}
+                          >
+                            <Ionicons name="close-circle" size={24} color="#FFFFFF" />
+                          </Pressable>
+
+                          {/* Image counter */}
+                          {selectedImages.length > 1 && (
+                            <View style={styles.imageCounter}>
+                              <Text style={styles.imageCounterText}>{index + 1}/{selectedImages.length}</Text>
+                            </View>
+                          )}
+
+                          {/* Reorder buttons */}
+                          {selectedImages.length > 1 && (
+                            <View style={styles.reorderButtons}>
+                              {index > 0 && (
+                                <Pressable
+                                  style={styles.reorderButton}
+                                  onPress={() => handleMoveImageUp(index)}
+                                >
+                                  <Ionicons name="arrow-up" size={16} color="#FFFFFF" />
+                                </Pressable>
+                              )}
+                              {index < selectedImages.length - 1 && (
+                                <Pressable
+                                  style={styles.reorderButton}
+                                  onPress={() => handleMoveImageDown(index)}
+                                >
+                                  <Ionicons name="arrow-down" size={16} color="#FFFFFF" />
+                                </Pressable>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      ))}
+
+                      {/* Add more button */}
+                      {selectedImages.length < 10 && (
+                        <Pressable
+                          style={[
+                            styles.gridImageContainer,
+                            styles.addMoreButton,
+                            selectedImages.length >= 3 && styles.gridImage,
+                          ]}
+                          onPress={handlePickImage}
+                        >
+                          <Ionicons name="add" size={32} color={colors.textSecondary} />
+                          <Text style={styles.addMoreText}>Add more</Text>
+                        </Pressable>
+                      )}
                     </View>
                   )}
 
+                  {/* Video Preview */}
                   {selectedVideo && (
                     <View style={styles.mediaPreview}>
                       <View style={styles.videoPlaceholder}>
@@ -889,7 +1231,26 @@ export default function FeedScreen({
                       </View>
                       <Pressable
                         style={styles.mediaRemove}
-                        onPress={() => setSelectedVideo(null)}
+                        onPress={() => {
+                          setSelectedVideo(null);
+                          setMediaType(null);
+                        }}
+                      >
+                        <Ionicons name="close-circle" size={28} color={colors.text} />
+                      </Pressable>
+                    </View>
+                  )}
+
+                  {/* GIF Preview */}
+                  {selectedGif && (
+                    <View style={styles.mediaPreview}>
+                      <Image source={{ uri: selectedGif }} style={styles.gifImage} resizeMode="contain" />
+                      <Pressable
+                        style={styles.mediaRemove}
+                        onPress={() => {
+                          setSelectedGif(null);
+                          setMediaType(null);
+                        }}
                       >
                         <Ionicons name="close-circle" size={28} color={colors.text} />
                       </Pressable>
@@ -899,35 +1260,126 @@ export default function FeedScreen({
               </View>
             </ScrollView>
 
-            {/* Media Toolbar - Twitter Style */}
+            {/* Media Toolbar - Instagram/Twitter Style with Camera */}
             <View style={styles.mediaToolbar}>
-              <View style={styles.mediaButtons}>
-                <Pressable style={styles.mediaButton} onPress={handlePickImage} hitSlop={8}>
-                  <Ionicons name="image-outline" size={22} color={colors.accent} />
-                </Pressable>
-                <Pressable style={styles.mediaButton} onPress={handlePickVideo} hitSlop={8}>
-                  <Ionicons name="videocam-outline" size={22} color={colors.accent} />
-                </Pressable>
-                <Pressable style={styles.mediaButton} hitSlop={8}>
-                  <Ionicons name="bar-chart-outline" size={22} color={colors.accent} />
-                </Pressable>
-                <Pressable style={styles.mediaButton} hitSlop={8}>
-                  <Ionicons name="happy-outline" size={22} color={colors.accent} />
-                </Pressable>
-                <Pressable style={styles.mediaButton} hitSlop={8}>
-                  <Ionicons name="calendar-outline" size={22} color={colors.accent} />
-                </Pressable>
-                <Pressable style={styles.mediaButton} hitSlop={8}>
-                  <Ionicons name="location-outline" size={22} color={colors.accent} />
-                </Pressable>
-              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.mediaButtons}>
+                  <Pressable style={styles.mediaButton} onPress={handlePickImage} hitSlop={8}>
+                    <Ionicons name="image-outline" size={22} color={colors.accent} />
+                  </Pressable>
+                  <Pressable style={styles.mediaButton} onPress={handleTakePhoto} hitSlop={8}>
+                    <Ionicons name="camera-outline" size={22} color={colors.accent} />
+                  </Pressable>
+                  <Pressable style={styles.mediaButton} onPress={handlePickVideo} hitSlop={8}>
+                    <Ionicons name="videocam-outline" size={22} color={colors.accent} />
+                  </Pressable>
+                  <Pressable style={styles.mediaButton} onPress={handleTakeVideo} hitSlop={8}>
+                    <Ionicons name="film-outline" size={22} color={colors.accent} />
+                  </Pressable>
+                  <Pressable style={styles.mediaButton} onPress={handleOpenGifPicker} hitSlop={8}>
+                    <Text style={styles.gifButtonText}>GIF</Text>
+                  </Pressable>
+                  <Pressable style={styles.mediaButton} hitSlop={8}>
+                    <Ionicons name="location-outline" size={22} color={colors.accent} />
+                  </Pressable>
+                </View>
+              </ScrollView>
 
-              {/* Character Count */}
+              {/* Media Counter & Character Count */}
               <View style={styles.charCount}>
+                {selectedImages.length > 0 && (
+                  <Text style={styles.mediaCountText}>{selectedImages.length}/10 📷</Text>
+                )}
+                {selectedVideo && (
+                  <Text style={styles.mediaCountText}>🎥</Text>
+                )}
+                {selectedGif && (
+                  <Text style={styles.mediaCountText}>GIF</Text>
+                )}
                 <Text style={styles.charCountText}>{postContent.length}/280</Text>
               </View>
             </View>
           </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* GIF Picker Modal */}
+      <Modal
+        visible={showGifPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowGifPicker(false)}
+      >
+        <SafeAreaView style={styles.modalSafeArea} edges={['top']}>
+          <View style={styles.gifPickerContainer}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Pressable onPress={() => setShowGifPicker(false)} hitSlop={8}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </Pressable>
+              <Text style={[styles.commentsTitle, { color: colors.text }]}>Choose a GIF</Text>
+              <View style={{ width: 24 }} />
+            </View>
+
+            {/* Search Bar */}
+            <View style={[styles.gifSearchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="search" size={20} color={colors.textSecondary} />
+              <TextInput
+                style={[styles.gifSearchInput, { color: colors.text }]}
+                placeholder="Search GIFs..."
+                placeholderTextColor={colors.textSecondary}
+                value={gifSearchQuery}
+                onChangeText={(text) => {
+                  setGifSearchQuery(text);
+                  searchGifs(text);
+                }}
+                autoCapitalize="none"
+              />
+              {gifSearchQuery.length > 0 && (
+                <Pressable onPress={() => {
+                  setGifSearchQuery('');
+                  searchGifs('');
+                }}>
+                  <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                </Pressable>
+              )}
+            </View>
+
+            {/* GIF Grid */}
+            <FlatList
+              data={gifs}
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              contentContainerStyle={styles.gifGrid}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={styles.gifItem}
+                  onPress={() => handleSelectGif(item)}
+                >
+                  <Image
+                    source={{ uri: item.images.fixed_height.url }}
+                    style={styles.gifThumbnail}
+                    resizeMode="cover"
+                  />
+                </Pressable>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyGifContainer}>
+                  <Ionicons name="images-outline" size={64} color={colors.mutedForeground} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                    {gifSearchQuery ? 'No GIFs found' : 'Search for GIFs'}
+                  </Text>
+                </View>
+              }
+            />
+
+            {/* Powered by Giphy */}
+            <View style={styles.giphyBranding}>
+              <Text style={[styles.giphyText, { color: colors.textSecondary }]}>
+                Powered by GIPHY
+              </Text>
+            </View>
+          </View>
         </SafeAreaView>
       </Modal>
 
@@ -1114,6 +1566,45 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     fontSize: 13,
     fontWeight: '600',
     color: isDark ? '#60A5FA' : '#1E40AF',
+  },
+  hashtagBadgeActive: {
+    backgroundColor: isDark ? '#2563EB' : '#3B82F6',
+    borderColor: isDark ? '#3B82F6' : '#2563EB',
+  },
+  hashtagTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  hashtagCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: isDark ? '#60A5FA' : '#1E40AF',
+    marginLeft: 4,
+  },
+  clearFilterButton: {
+    marginLeft: 'auto',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  clearFilterText: {
+    fontSize: 13,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  filterIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  filterText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
   },
   tabs: {
     flexDirection: 'row',
@@ -1344,6 +1835,93 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(15, 20, 25, 0.75)',
     borderRadius: 14,
   },
+  // Multiple Images Grid - Instagram Style
+  imagesGrid: {
+    marginTop: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  gridImageContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.borderLight,
+    position: 'relative',
+  },
+  singleImage: {
+    width: '100%',
+    height: 300,
+  },
+  doubleImage: {
+    width: 'calc(50% - 2px)',
+    height: 200,
+  },
+  gridImage: {
+    width: 'calc(33.33% - 3px)',
+    height: 120,
+  },
+  gridImageContent: {
+    width: '100%',
+    height: '100%',
+  },
+  gridImageRemove: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+  },
+  imageCounter: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  imageCounterText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  reorderButtons: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    flexDirection: 'column',
+    gap: 4,
+  },
+  reorderButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 10,
+    padding: 4,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addMoreButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.muted,
+  },
+  addMoreText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  gifImage: {
+    width: '100%',
+    height: 250,
+    borderRadius: 16,
+  },
+  gifButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.accent,
+  },
   mediaToolbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1364,6 +1942,14 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   charCount: {
     paddingLeft: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mediaCountText: {
+    fontSize: 12,
+    color: colors.accent,
+    fontWeight: '600',
   },
   charCountText: {
     fontSize: 13,
@@ -1474,6 +2060,56 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   commentSendButtonDisabled: {
     opacity: 0.5,
+  },
+  // GIF Picker Styles
+  gifPickerContainer: {
+    flex: 1,
+  },
+  gifSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  gifSearchInput: {
+    flex: 1,
+    fontSize: 16,
+  },
+  gifGrid: {
+    padding: 8,
+  },
+  gifItem: {
+    flex: 1,
+    aspectRatio: 1,
+    margin: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: colors.borderLight,
+  },
+  gifThumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  emptyGifContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  giphyBranding: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  giphyText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 };

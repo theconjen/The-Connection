@@ -16,6 +16,8 @@ import {
   Platform,
   ScrollView,
   Switch,
+  Image,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -23,6 +25,8 @@ import { postsAPI, communitiesAPI } from '../src/lib/apiClient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/contexts/ThemeContext';
 import { useAuth } from '../src/contexts/AuthContext';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 export default function CreateForumPostScreen() {
   const router = useRouter();
@@ -34,6 +38,9 @@ export default function CreateForumPostScreen() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(null);
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'images' | 'video' | null>(null);
 
   // Fetch user's communities for selection
   const { data: communities = [] } = useQuery({
@@ -61,6 +68,120 @@ export default function CreateForumPostScreen() {
     },
   });
 
+  const handlePickImage = async () => {
+    // Check limit
+    if (selectedImages.length >= 10) {
+      Alert.alert('Limit Reached', 'You can only add up to 10 images per post');
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please grant photo library permissions');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: 10 - selectedImages.length,
+      quality: 0.8,
+      allowsEditing: false,
+    });
+
+    if (!result.canceled && result.assets) {
+      const newImages = result.assets.map(asset => asset.uri);
+      setSelectedImages(prev => [...prev, ...newImages].slice(0, 10));
+      setSelectedVideo(null);
+      setMediaType('images');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    if (selectedImages.length >= 10) {
+      Alert.alert('Limit Reached', 'You can only add up to 10 images per post');
+      return;
+    }
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please grant camera permissions');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9] as [number, number],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedImages(prev => [...prev, result.assets[0].uri].slice(0, 10));
+      setSelectedVideo(null);
+      setMediaType('images');
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    if (selectedImages.length === 1) {
+      setMediaType(null);
+    }
+  };
+
+  const handlePickVideo = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please grant photo library permissions');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
+      quality: 0.8,
+      videoMaxDuration: 120,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
+        Alert.alert('File Too Large', 'Video must be under 50MB');
+        return;
+      }
+      setSelectedVideo(asset.uri);
+      setSelectedImages([]);
+      setMediaType('video');
+    }
+  };
+
+  const handleTakeVideo = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please grant camera permissions');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
+      quality: 0.8,
+      videoMaxDuration: 120,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
+        Alert.alert('File Too Large', 'Video must be under 50MB');
+        return;
+      }
+      setSelectedVideo(asset.uri);
+      setSelectedImages([]);
+      setMediaType('video');
+    }
+  };
+
   const handlePost = async () => {
     if (!title.trim()) {
       Alert.alert('Error', 'Title is required');
@@ -82,12 +203,44 @@ export default function CreateForumPostScreen() {
       return;
     }
 
-    createMutation.mutate({
-      title: title.trim(),
-      text: content.trim(),
-      communityId: selectedCommunityId,
-      isAnonymous,
-    });
+    try {
+      let mediaUrls: string[] = [];
+      let videoUrl: string | null = null;
+
+      // Convert multiple images to base64
+      if (selectedImages.length > 0) {
+        for (const imageUri of selectedImages) {
+          const base64 = await FileSystem.readAsStringAsync(imageUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const extension = imageUri.split('.').pop()?.toLowerCase();
+          const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+          mediaUrls.push(`data:${mimeType};base64,${base64}`);
+        }
+      }
+
+      // Convert video to base64 if selected
+      if (selectedVideo) {
+        const base64 = await FileSystem.readAsStringAsync(selectedVideo, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const extension = selectedVideo.split('.').pop()?.toLowerCase();
+        const mimeType = `video/${extension || 'mp4'}`;
+        videoUrl = `data:${mimeType};base64,${base64}`;
+      }
+
+      createMutation.mutate({
+        title: title.trim(),
+        text: content.trim(),
+        communityId: selectedCommunityId,
+        isAnonymous,
+        imageUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
+        videoUrl: videoUrl || undefined,
+      });
+    } catch (error) {
+      console.error('Error preparing post:', error);
+      Alert.alert('Error', 'Failed to prepare media. Please try again.');
+    }
   };
 
   const selectedCommunity = communities.find((c: any) => c.id === selectedCommunityId);
@@ -167,6 +320,105 @@ export default function CreateForumPostScreen() {
             {content.length} characters
           </Text>
         </View>
+
+        {/* Media Upload Section */}
+        <View style={[styles.mediaSection, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Media</Text>
+
+          {/* Media Buttons Row */}
+          <View style={styles.mediaButtonsRow}>
+            <Pressable
+              onPress={handlePickImage}
+              style={[styles.mediaActionButton, { backgroundColor: colors.primary }]}
+            >
+              <Ionicons name="image-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.mediaActionButtonText}>Gallery</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleTakePhoto}
+              style={[styles.mediaActionButton, { backgroundColor: colors.accent }]}
+            >
+              <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.mediaActionButtonText}>Camera</Text>
+            </Pressable>
+            <Pressable
+              onPress={handlePickVideo}
+              style={[styles.mediaActionButton, { backgroundColor: colors.primary }]}
+            >
+              <Ionicons name="videocam-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.mediaActionButtonText}>Video</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleTakeVideo}
+              style={[styles.mediaActionButton, { backgroundColor: colors.accent }]}
+            >
+              <Ionicons name="film-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.mediaActionButtonText}>Record</Text>
+            </Pressable>
+          </View>
+
+          {/* Media Counter */}
+          {selectedImages.length > 0 && (
+            <Text style={[styles.mediaCounterText, { color: colors.textSecondary }]}>
+              {selectedImages.length}/10 images selected
+            </Text>
+          )}
+          {selectedVideo && (
+            <Text style={[styles.mediaCounterText, { color: colors.textSecondary }]}>
+              1 video selected (max 2 min, 50MB)
+            </Text>
+          )}
+        </View>
+
+        {/* Multiple Images Grid Preview */}
+        {selectedImages.length > 0 && (
+          <View style={styles.imagesGridContainer}>
+            <View style={styles.imagesGrid}>
+              {selectedImages.map((imageUri, index) => (
+                <View key={index} style={[
+                  styles.gridImageWrapper,
+                  selectedImages.length === 1 && styles.singleImageWrapper,
+                  selectedImages.length === 2 && styles.doubleImageWrapper,
+                  selectedImages.length >= 3 && styles.gridImageWrapper,
+                ]}>
+                  <Image source={{ uri: imageUri }} style={styles.gridImage} />
+                  <Pressable
+                    onPress={() => handleRemoveImage(index)}
+                    style={styles.gridImageRemove}
+                  >
+                    <Ionicons name="close-circle" size={24} color="#FFFFFF" />
+                  </Pressable>
+                  {selectedImages.length > 1 && (
+                    <View style={styles.gridImageCounter}>
+                      <Text style={styles.gridImageCounterText}>{index + 1}/{selectedImages.length}</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Video Preview */}
+        {selectedVideo && (
+          <View style={[styles.videoPreviewContainer, { borderBottomColor: colors.border }]}>
+            <View style={[styles.videoPreview, { backgroundColor: colors.muted }]}>
+              <Ionicons name="videocam" size={64} color={colors.icon} />
+              <Text style={[styles.videoPreviewText, { color: colors.textSecondary }]}>
+                Video selected
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                setSelectedVideo(null);
+                setMediaType(null);
+              }}
+              style={styles.removeImageButton}
+            >
+              <Ionicons name="close-circle" size={28} color={colors.text} />
+            </Pressable>
+          </View>
+        )}
 
         {/* Community Selection */}
         <View style={[styles.optionContainer, { borderBottomColor: colors.border }]}>
@@ -374,5 +626,136 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
+  },
+  imageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  imageButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  imagePreviewContainer: {
+    marginVertical: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    position: 'relative',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 14,
+  },
+  // New Media Section Styles
+  mediaSection: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  mediaButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  mediaActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  mediaActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  mediaCounterText: {
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  // Multiple Images Grid
+  imagesGridContainer: {
+    marginBottom: 16,
+  },
+  imagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  gridImageWrapper: {
+    width: 'calc(33.33% - 3px)',
+    height: 120,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#E0E0E0',
+  },
+  singleImageWrapper: {
+    width: '100%',
+    height: 300,
+  },
+  doubleImageWrapper: {
+    width: 'calc(50% - 2px)',
+    height: 200,
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gridImageRemove: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+  },
+  gridImageCounter: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  gridImageCounterText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  // Video Preview
+  videoPreviewContainer: {
+    marginVertical: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    position: 'relative',
+  },
+  videoPreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPreviewText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
