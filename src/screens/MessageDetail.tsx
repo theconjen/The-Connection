@@ -24,7 +24,7 @@ interface MessageDetailProps {
   };
 }
 
-export function MessageDetail({ onBack, conversationId, otherUser }: MessageDetailProps) {
+export function MessageDetail({ onBack, conversationId, otherUser: providedOtherUser }: MessageDetailProps) {
   const { colors, spacing, radii } = useTheme();
   const { user: currentUser } = useAuth();
   const [messageText, setMessageText] = useState('');
@@ -33,6 +33,28 @@ export function MessageDetail({ onBack, conversationId, otherUser }: MessageDeta
   const { data: messages, isLoading, isError } = useConversationMessages(conversationId);
   const sendMessageMutation = useSendMessage();
   const markAsReadMutation = useMarkAsRead();
+
+  // Extract otherUser from messages if not provided as prop
+  const otherUser = React.useMemo(() => {
+    if (providedOtherUser) return providedOtherUser;
+
+    if (messages && messages.length > 0 && currentUser) {
+      const firstMessage = messages[0];
+      // Determine who the other user is
+      const isCurrentUserSender = firstMessage.senderId === currentUser.id;
+      const otherUserData = isCurrentUserSender ? firstMessage.receiver : firstMessage.sender;
+
+      if (otherUserData) {
+        return {
+          id: otherUserData.id,
+          name: otherUserData.displayName || otherUserData.username,
+          avatar: otherUserData.profileImageUrl,
+        };
+      }
+    }
+
+    return null;
+  }, [providedOtherUser, messages, currentUser]);
 
   useEffect(() => {
     if (conversationId) {
@@ -60,10 +82,10 @@ export function MessageDetail({ onBack, conversationId, otherUser }: MessageDeta
         isMe ? styles.myMessageContainer : styles.theirMessageContainer
       ]}>
         {!isMe && (
-          <Avatar 
-            src={item.sender?.avatarUrl || otherUser?.avatar} 
-            size="sm" 
-            style={styles.messageAvatar} 
+          <Avatar
+            src={item.sender?.profileImageUrl || otherUser?.avatar}
+            size="sm"
+            style={styles.messageAvatar}
           />
         )}
         <View style={[
