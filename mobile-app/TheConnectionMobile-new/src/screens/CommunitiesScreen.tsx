@@ -471,19 +471,8 @@ export function CommunitiesScreen({
       >
         {/* App Header with Logo */}
         <AppHeader
-          showCenteredLogo={showCenteredLogo}
-          userName={userName}
-          userAvatar={userAvatar}
-          onProfilePress={onProfilePress}
-          showMessages={showCenteredLogo}
-          onMessagesPress={onMessagesPress}
-          showMenu={showCenteredLogo}
-          onMenuPress={onMenuPress}
-          showLogo={!showCenteredLogo}
-          showBrandText={!showCenteredLogo}
-          showSearch={!showCenteredLogo}
-          onSearchPress={onSearchPress}
-          rightElement={!showCenteredLogo ? (
+          showBrandText={true}
+          rightElement={
             <Pressable
               onPress={onCreatePress}
               style={({ pressed }) => ({
@@ -503,7 +492,7 @@ export function CommunitiesScreen({
             >
               <PlusIcon color={colors.secondaryForeground} />
             </Pressable>
-          ) : undefined}
+          }
         />
 
         {/* Filter Bar - Sticky */}

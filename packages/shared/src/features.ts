@@ -11,5 +11,5 @@ export const FEATURES = {
   ORGS: true,
   PAYMENTS: false,
   NOTIFICATIONS: true,
-  RECOMMENDATIONS: false,
+  RECOMMENDATIONS: true,
 };

@@ -19,6 +19,13 @@ import {
   MicroblogLike, InsertMicroblogLike,
   MicroblogRepost, InsertMicroblogRepost,
   MicroblogBookmark, InsertMicroblogBookmark,
+  PostBookmark, InsertPostBookmark,
+  Hashtag, InsertHashtag,
+  MicroblogHashtag, InsertMicroblogHashtag,
+  PostHashtag, InsertPostHashtag,
+  Keyword, InsertKeyword,
+  MicroblogKeyword, InsertMicroblogKeyword,
+  PostKeyword, InsertPostKeyword,
   UserPreferences, InsertUserPreferences,
 
   // Apologetics system
@@ -50,7 +57,9 @@ import {
   // Database tables
   users, communities, communityMembers, communityInvitations, communityChatRooms, chatMessages, communityWallPosts,
   posts, comments, groups, groupMembers, apologeticsResources,
-  livestreams, microblogs, microblogLikes, microblogReposts, microblogBookmarks,
+  livestreams, microblogs, microblogLikes, microblogReposts, microblogBookmarks, postBookmarks,
+  hashtags, microblogHashtags, postHashtags,
+  keywords, microblogKeywords, postKeywords,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
   events, eventRsvps, prayerRequests, prayers,
   bibleReadingPlans, bibleReadingProgress, bibleStudyNotes,
@@ -237,6 +246,7 @@ export interface IStorage {
   getPostsByCommunitySlug(communitySlug: string, filter?: string): Promise<Post[]>;
   getPostsByGroupId(groupId: number, filter?: string): Promise<Post[]>;
   getUserPosts(userId: number): Promise<any[]>;
+  getFollowingPosts(userId: number): Promise<Post[]>;
   createPost(post: InsertPost): Promise<Post>;
   updatePost(id: number, data: Partial<Post>): Promise<Post>;
   deletePost(id: number): Promise<boolean>;
@@ -323,6 +333,7 @@ export interface IStorage {
   getAllMicroblogs(): Promise<Microblog[]>;
   getMicroblog(id: number): Promise<Microblog | undefined>;
   getUserMicroblogs(userId: number): Promise<Microblog[]>;
+  getFollowingMicroblogs(userId: number): Promise<Microblog[]>;
   createMicroblog(microblog: InsertMicroblog): Promise<Microblog>;
   updateMicroblog(id: number, data: Partial<Microblog>): Promise<Microblog>;
   deleteMicroblog(id: number): Promise<boolean>;
@@ -346,6 +357,34 @@ export interface IStorage {
   hasUserLikedMicroblog(microblogId: number, userId: number): Promise<boolean>;
   hasUserRepostedMicroblog(microblogId: number, userId: number): Promise<boolean>;
   hasUserBookmarkedMicroblog(microblogId: number, userId: number): Promise<boolean>;
+
+  // Post bookmark methods
+  bookmarkPost(postId: number, userId: number): Promise<PostBookmark>;
+  unbookmarkPost(postId: number, userId: number): Promise<boolean>;
+  getUserBookmarkedPosts(userId: number): Promise<Post[]>;
+  hasUserBookmarkedPost(postId: number, userId: number): Promise<boolean>;
+
+  // Hashtag methods
+  getOrCreateHashtag(tag: string, displayTag: string): Promise<Hashtag>;
+  linkHashtagToMicroblog(microblogId: number, hashtagId: number): Promise<void>;
+  linkHashtagToPost(postId: number, hashtagId: number): Promise<void>;
+  getTrendingHashtags(limit?: number): Promise<Hashtag[]>;
+  getMicroblogsByHashtag(hashtagTag: string, limit?: number): Promise<Microblog[]>;
+  getPostsByHashtag(hashtagTag: string, limit?: number): Promise<any[]>;
+  processMicroblogHashtags(microblogId: number, content: string): Promise<void>;
+  processPostHashtags(postId: number, title: string, content: string): Promise<void>;
+
+  // Keyword methods
+  getOrCreateKeyword(keyword: string, displayKeyword: string): Promise<any>;
+  linkKeywordToMicroblog(microblogId: number, keywordId: number, frequency: number): Promise<void>;
+  linkKeywordToPost(postId: number, keywordId: number, frequency: number): Promise<void>;
+  getTrendingKeywords(limit?: number): Promise<any[]>;
+  getMicroblogsByKeyword(keyword: string, limit?: number): Promise<Microblog[]>;
+  getPostsByKeyword(keyword: string, limit?: number): Promise<any[]>;
+  processMicroblogKeywords(microblogId: number, content: string): Promise<void>;
+  processPostKeywords(postId: number, title: string, content: string): Promise<void>;
+  updateTrendingScores(): Promise<void>;
+  updateKeywordTrendingScores(): Promise<void>;
 
   // Livestream methods
   getAllLivestreams(): Promise<Livestream[]>;
@@ -1147,14 +1186,19 @@ export class MemStorage implements IStorage {
   const posts = this.data.posts.filter(p => p.authorId === userId && !p.deletedAt);
     const microblogs = this.data.microblogs.filter(m => m.authorId === userId);
     const wallPosts = this.data.communityWallPosts.filter(p => p.authorId === userId);
-    
+
     return [
       ...posts.map(p => ({ ...p, type: 'post' })),
       ...microblogs.map(m => ({ ...m, type: 'microblog' })),
       ...wallPosts.map(p => ({ ...p, type: 'wall_post' }))
     ].sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
-  
+
+  async getFollowingPosts(_userId: number): Promise<Post[]> {
+    // In-memory stub - not implemented
+    return [];
+  }
+
   async createPost(post: InsertPost): Promise<Post> {
     const newPost: Post = {
       id: this.nextId++,
@@ -1733,7 +1777,12 @@ export class MemStorage implements IStorage {
       .filter(m => m.authorId === userId)
       .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
-  
+
+  async getFollowingMicroblogs(_userId: number): Promise<Microblog[]> {
+    // In-memory stub - not implemented
+    return [];
+  }
+
   async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
     const newMicroblog: Microblog = {
       id: this.nextId++,
@@ -1896,6 +1945,620 @@ export class MemStorage implements IStorage {
 
   async hasUserBookmarkedMicroblog(microblogId: number, userId: number): Promise<boolean> {
     return this.data.microblogBookmarks.some(bookmark => bookmark.microblogId === microblogId && bookmark.userId === userId);
+  }
+
+  // Post bookmark methods
+  async bookmarkPost(_postId: number, _userId: number): Promise<PostBookmark> {
+    throw new Error('Not implemented in MemStorage');
+  }
+
+  async unbookmarkPost(_postId: number, _userId: number): Promise<boolean> {
+    return false;
+  }
+
+  async getUserBookmarkedPosts(_userId: number): Promise<Post[]> {
+    return [];
+  }
+
+  async hasUserBookmarkedPost(_postId: number, _userId: number): Promise<boolean> {
+    return false;
+  }
+
+  // ============================================================================
+  // HASHTAG METHODS
+  // ============================================================================
+
+  /**
+   * Get or create hashtag by tag
+   * Returns existing hashtag if found, creates new one if not
+   */
+  async getOrCreateHashtag(tag: string, displayTag: string): Promise<Hashtag> {
+    const normalized = tag.toLowerCase();
+
+    // Try to find existing hashtag
+    const [existing] = await db
+      .select()
+      .from(hashtags)
+      .where(eq(hashtags.tag, normalized))
+      .limit(1);
+
+    if (existing) {
+      return existing;
+    }
+
+    // Create new hashtag
+    const [newHashtag] = await db
+      .insert(hashtags)
+      .values({
+        tag: normalized,
+        displayTag,
+        usageCount: 0,
+        trendingScore: 0,
+        lastUsedAt: new Date(),
+      } as any)
+      .returning();
+
+    return newHashtag;
+  }
+
+  /**
+   * Link hashtag to microblog
+   * Creates junction table entry (idempotent - ignores duplicates)
+   */
+  async linkHashtagToMicroblog(microblogId: number, hashtagId: number): Promise<void> {
+    await db
+      .insert(microblogHashtags)
+      .values({ microblogId, hashtagId } as any)
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Get hashtags for a specific microblog
+   */
+  async getMicroblogHashtags(microblogId: number): Promise<Hashtag[]> {
+    const results = await db
+      .select({
+        hashtag: hashtags,
+      })
+      .from(microblogHashtags)
+      .innerJoin(hashtags, eq(microblogHashtags.hashtagId, hashtags.id))
+      .where(eq(microblogHashtags.microblogId, microblogId));
+
+    return results.map(r => r.hashtag);
+  }
+
+  /**
+   * Get trending hashtags (top N by trending score)
+   * Used by the trending section in the feed
+   */
+  async getTrendingHashtags(limit: number = 10): Promise<Hashtag[]> {
+    return await db
+      .select()
+      .from(hashtags)
+      .orderBy(desc(hashtags.trendingScore))
+      .limit(limit);
+  }
+
+  /**
+   * Get microblogs by hashtag
+   * Returns microblogs sorted by engagement (likes + reposts + comments)
+   */
+  async getMicroblogsByHashtag(hashtagTag: string, limit: number = 20): Promise<Microblog[]> {
+    const normalized = hashtagTag.toLowerCase();
+
+    // Find hashtag
+    const [hashtag] = await db
+      .select()
+      .from(hashtags)
+      .where(eq(hashtags.tag, normalized))
+      .limit(1);
+
+    if (!hashtag) return [];
+
+    // Get microblogs with this hashtag, sorted by engagement
+    const results = await db
+      .select({
+        microblog: microblogs,
+      })
+      .from(microblogHashtags)
+      .innerJoin(microblogs, eq(microblogHashtags.microblogId, microblogs.id))
+      .where(eq(microblogHashtags.hashtagId, hashtag.id))
+      .orderBy(
+        desc(sql`COALESCE(${microblogs.likeCount}, 0) + COALESCE(${microblogs.repostCount}, 0) + COALESCE(${microblogs.replyCount}, 0)`)
+      )
+      .limit(limit);
+
+    return results.map(r => r.microblog);
+  }
+
+  /**
+   * Update trending scores for all hashtags
+   * Called by the trending scheduler every 15 minutes
+   * Includes both microblogs AND forum posts
+   *
+   * Formula: (recent_usage * 10) + (recent_engagement * weight)
+   * Microblogs: likes*5 + reposts*7 + comments*3
+   * Posts: upvotes*5 + comments*3
+   * 4-hour window for "recent" activity
+   */
+  async updateTrendingScores(): Promise<void> {
+    const now = new Date();
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+
+    // Update trending scores for active hashtags (combining microblogs + posts)
+    await db.execute(sql`
+      UPDATE hashtags h
+      SET
+        trending_score = COALESCE(engagement_data.score, 0),
+        updated_at = NOW()
+      FROM (
+        SELECT
+          hashtag_id,
+          SUM(score) as score
+        FROM (
+          -- Microblog hashtags
+          SELECT
+            mh.hashtag_id,
+            (COUNT(DISTINCT m.id) * 10 +
+             SUM(COALESCE(m.like_count, 0)) * 5 +
+             SUM(COALESCE(m.repost_count, 0)) * 7 +
+             SUM(COALESCE(m.reply_count, 0)) * 3) as score
+          FROM microblog_hashtags mh
+          INNER JOIN microblogs m ON mh.microblog_id = m.id
+          WHERE m.created_at >= ${fourHoursAgo}
+          GROUP BY mh.hashtag_id
+
+          UNION ALL
+
+          -- Post hashtags
+          SELECT
+            ph.hashtag_id,
+            (COUNT(DISTINCT p.id) * 10 +
+             SUM(COALESCE(p.upvotes, 0)) * 5 +
+             SUM(COALESCE(p.comment_count, 0)) * 3) as score
+          FROM post_hashtags ph
+          INNER JOIN posts p ON ph.post_id = p.id
+          WHERE p.created_at >= ${fourHoursAgo} AND p.deleted_at IS NULL
+          GROUP BY ph.hashtag_id
+        ) combined
+        GROUP BY hashtag_id
+      ) engagement_data
+      WHERE h.id = engagement_data.hashtag_id
+    `);
+
+    // Reset scores for hashtags with no recent activity
+    await db.execute(sql`
+      UPDATE hashtags
+      SET trending_score = 0, updated_at = NOW()
+      WHERE id NOT IN (
+        SELECT DISTINCT hashtag_id FROM (
+          SELECT mh.hashtag_id
+          FROM microblog_hashtags mh
+          INNER JOIN microblogs m ON mh.microblog_id = m.id
+          WHERE m.created_at >= ${fourHoursAgo}
+
+          UNION
+
+          SELECT ph.hashtag_id
+          FROM post_hashtags ph
+          INNER JOIN posts p ON ph.post_id = p.id
+          WHERE p.created_at >= ${fourHoursAgo} AND p.deleted_at IS NULL
+        ) all_hashtags
+      )
+    `);
+  }
+
+  /**
+   * Process hashtags when creating a microblog
+   * Extracts hashtags from content, creates/links them, updates usage counts
+   *
+   * @param microblogId - The ID of the microblog
+   * @param content - The microblog content to extract hashtags from
+   */
+  async processMicroblogHashtags(microblogId: number, content: string): Promise<void> {
+    const { extractHashtags } = await import('./utils/hashtagExtractor');
+    const extractedHashtags = extractHashtags(content);
+
+    for (const { tag, displayTag } of extractedHashtags) {
+      const hashtag = await this.getOrCreateHashtag(tag, displayTag);
+      await this.linkHashtagToMicroblog(microblogId, hashtag.id);
+
+      // Update usage count and timestamp
+      await db
+        .update(hashtags)
+        .set({
+          usageCount: sql`${hashtags.usageCount} + 1`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(hashtags.id, hashtag.id));
+    }
+  }
+
+  // ============================================================================
+  // KEYWORD METHODS
+  // ============================================================================
+
+  /**
+   * Get or create keyword by normalized keyword
+   * Returns existing keyword if found, creates new one if not
+   */
+  async getOrCreateKeyword(keyword: string, displayKeyword: string, isProperNoun: boolean): Promise<Keyword> {
+    const normalized = keyword.toLowerCase();
+
+    // Try to find existing keyword
+    const [existing] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.keyword, normalized))
+      .limit(1);
+
+    if (existing) {
+      return existing;
+    }
+
+    // Create new keyword
+    const [newKeyword] = await db
+      .insert(keywords)
+      .values({
+        keyword: normalized,
+        displayKeyword,
+        isProperNoun,
+        usageCount: 0,
+        trendingScore: 0,
+        lastUsedAt: new Date(),
+      } as any)
+      .returning();
+
+    return newKeyword;
+  }
+
+  /**
+   * Link keyword to microblog with frequency
+   * Creates junction table entry (idempotent - ignores duplicates)
+   */
+  async linkKeywordToMicroblog(microblogId: number, keywordId: number, frequency: number): Promise<void> {
+    await db
+      .insert(microblogKeywords)
+      .values({ microblogId, keywordId, frequency } as any)
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Get keywords for a specific microblog
+   */
+  async getMicroblogKeywords(microblogId: number): Promise<Keyword[]> {
+    const results = await db
+      .select({
+        keyword: keywords,
+      })
+      .from(microblogKeywords)
+      .innerJoin(keywords, eq(microblogKeywords.keywordId, keywords.id))
+      .where(eq(microblogKeywords.microblogId, microblogId));
+
+    return results.map(r => r.keyword);
+  }
+
+  /**
+   * Get trending keywords (top N by trending score)
+   * Used by the trending section in the feed
+   */
+  async getTrendingKeywords(limit: number = 10): Promise<Keyword[]> {
+    return await db
+      .select()
+      .from(keywords)
+      .orderBy(desc(keywords.trendingScore))
+      .limit(limit);
+  }
+
+  /**
+   * Get microblogs by keyword
+   * Returns microblogs sorted by engagement (likes + reposts + comments)
+   */
+  async getMicroblogsByKeyword(keywordText: string, limit: number = 20): Promise<Microblog[]> {
+    const normalized = keywordText.toLowerCase();
+
+    // Find keyword
+    const [keyword] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.keyword, normalized))
+      .limit(1);
+
+    if (!keyword) return [];
+
+    // Get microblogs with this keyword, sorted by engagement
+    const results = await db
+      .select({
+        microblog: microblogs,
+      })
+      .from(microblogKeywords)
+      .innerJoin(microblogs, eq(microblogKeywords.microblogId, microblogs.id))
+      .where(eq(microblogKeywords.keywordId, keyword.id))
+      .orderBy(
+        desc(sql`COALESCE(${microblogs.likeCount}, 0) + COALESCE(${microblogs.repostCount}, 0) + COALESCE(${microblogs.replyCount}, 0)`)
+      )
+      .limit(limit);
+
+    return results.map(r => r.microblog);
+  }
+
+  /**
+   * Update trending scores for all keywords
+   * Called by the trending scheduler every 15 minutes
+   * Includes both microblogs AND forum posts
+   *
+   * Formula: (recent_usage * 10) + (recent_engagement * weight)
+   * Microblogs: likes*5 + reposts*7 + comments*3
+   * Posts: upvotes*5 + comments*3
+   * 4-hour window for "recent" activity
+   */
+  async updateKeywordTrendingScores(): Promise<void> {
+    const now = new Date();
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+
+    // Update trending scores for active keywords (combining microblogs + posts)
+    await db.execute(sql`
+      UPDATE keywords k
+      SET
+        trending_score = COALESCE(engagement_data.score, 0),
+        updated_at = NOW()
+      FROM (
+        SELECT
+          keyword_id,
+          SUM(score) as score
+        FROM (
+          -- Microblog keywords
+          SELECT
+            mk.keyword_id,
+            (COUNT(DISTINCT m.id) * 10 +
+             SUM(COALESCE(m.like_count, 0)) * 5 +
+             SUM(COALESCE(m.repost_count, 0)) * 7 +
+             SUM(COALESCE(m.reply_count, 0)) * 3) as score
+          FROM microblog_keywords mk
+          INNER JOIN microblogs m ON mk.microblog_id = m.id
+          WHERE m.created_at >= ${fourHoursAgo}
+          GROUP BY mk.keyword_id
+
+          UNION ALL
+
+          -- Post keywords
+          SELECT
+            pk.keyword_id,
+            (COUNT(DISTINCT p.id) * 10 +
+             SUM(COALESCE(p.upvotes, 0)) * 5 +
+             SUM(COALESCE(p.comment_count, 0)) * 3) as score
+          FROM post_keywords pk
+          INNER JOIN posts p ON pk.post_id = p.id
+          WHERE p.created_at >= ${fourHoursAgo} AND p.deleted_at IS NULL
+          GROUP BY pk.keyword_id
+        ) combined
+        GROUP BY keyword_id
+      ) engagement_data
+      WHERE k.id = engagement_data.keyword_id
+    `);
+
+    // Reset scores for keywords with no recent activity
+    await db.execute(sql`
+      UPDATE keywords
+      SET trending_score = 0, updated_at = NOW()
+      WHERE id NOT IN (
+        SELECT DISTINCT keyword_id FROM (
+          SELECT mk.keyword_id
+          FROM microblog_keywords mk
+          INNER JOIN microblogs m ON mk.microblog_id = m.id
+          WHERE m.created_at >= ${fourHoursAgo}
+
+          UNION
+
+          SELECT pk.keyword_id
+          FROM post_keywords pk
+          INNER JOIN posts p ON pk.post_id = p.id
+          WHERE p.created_at >= ${fourHoursAgo} AND p.deleted_at IS NULL
+        ) all_keywords
+      )
+    `);
+  }
+
+  /**
+   * Process keywords when creating a microblog
+   * Extracts keywords from content, creates/links them, updates usage counts
+   *
+   * @param microblogId - The ID of the microblog
+   * @param content - The microblog content to extract keywords from
+   */
+  async processMicroblogKeywords(microblogId: number, content: string): Promise<void> {
+    const { extractKeywords } = await import('./utils/keywordExtractor');
+    const extractedKeywords = extractKeywords(content);
+
+    for (const { keyword, displayKeyword, isProperNoun, frequency } of extractedKeywords) {
+      const keywordRecord = await this.getOrCreateKeyword(keyword, displayKeyword, isProperNoun);
+      await this.linkKeywordToMicroblog(microblogId, keywordRecord.id, frequency);
+
+      // Update usage count and timestamp
+      await db
+        .update(keywords)
+        .set({
+          usageCount: sql`${keywords.usageCount} + 1`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(keywords.id, keywordRecord.id));
+    }
+  }
+
+  // ============================================================================
+  // POST HASHTAG/KEYWORD METHODS (Forums)
+  // ============================================================================
+
+  /**
+   * Link hashtag to post
+   */
+  async linkHashtagToPost(postId: number, hashtagId: number): Promise<void> {
+    await db
+      .insert(postHashtags)
+      .values({ postId, hashtagId } as any)
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Link keyword to post with frequency
+   */
+  async linkKeywordToPost(postId: number, keywordId: number, frequency: number): Promise<void> {
+    await db
+      .insert(postKeywords)
+      .values({ postId, keywordId, frequency } as any)
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Get hashtags for a specific post
+   */
+  async getPostHashtags(postId: number): Promise<Hashtag[]> {
+    const results = await db
+      .select({
+        hashtag: hashtags,
+      })
+      .from(postHashtags)
+      .innerJoin(hashtags, eq(postHashtags.hashtagId, hashtags.id))
+      .where(eq(postHashtags.postId, postId));
+
+    return results.map(r => r.hashtag);
+  }
+
+  /**
+   * Get keywords for a specific post
+   */
+  async getPostKeywords(postId: number): Promise<Keyword[]> {
+    const results = await db
+      .select({
+        keyword: keywords,
+      })
+      .from(postKeywords)
+      .innerJoin(keywords, eq(postKeywords.keywordId, keywords.id))
+      .where(eq(postKeywords.postId, postId));
+
+    return results.map(r => r.keyword);
+  }
+
+  /**
+   * Get posts by hashtag
+   * Returns posts sorted by engagement (upvotes + comments)
+   */
+  async getPostsByHashtag(hashtagTag: string, limit: number = 20): Promise<Post[]> {
+    const normalized = hashtagTag.toLowerCase();
+
+    // Find hashtag
+    const [hashtag] = await db
+      .select()
+      .from(hashtags)
+      .where(eq(hashtags.tag, normalized))
+      .limit(1);
+
+    if (!hashtag) return [];
+
+    // Get posts with this hashtag, sorted by engagement
+    const results = await db
+      .select({
+        post: posts,
+      })
+      .from(postHashtags)
+      .innerJoin(posts, eq(postHashtags.postId, posts.id))
+      .where(and(
+        eq(postHashtags.hashtagId, hashtag.id),
+        isNull(posts.deletedAt)
+      ))
+      .orderBy(
+        desc(sql`COALESCE(${posts.upvotes}, 0) + COALESCE(${posts.commentCount}, 0)`)
+      )
+      .limit(limit);
+
+    return results.map(r => r.post);
+  }
+
+  /**
+   * Get posts by keyword
+   * Returns posts sorted by engagement (upvotes + comments)
+   */
+  async getPostsByKeyword(keywordText: string, limit: number = 20): Promise<Post[]> {
+    const normalized = keywordText.toLowerCase();
+
+    // Find keyword
+    const [keyword] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.keyword, normalized))
+      .limit(1);
+
+    if (!keyword) return [];
+
+    // Get posts with this keyword, sorted by engagement
+    const results = await db
+      .select({
+        post: posts,
+      })
+      .from(postKeywords)
+      .innerJoin(posts, eq(postKeywords.postId, posts.id))
+      .where(and(
+        eq(postKeywords.keywordId, keyword.id),
+        isNull(posts.deletedAt)
+      ))
+      .orderBy(
+        desc(sql`COALESCE(${posts.upvotes}, 0) + COALESCE(${posts.commentCount}, 0)`)
+      )
+      .limit(limit);
+
+    return results.map(r => r.post);
+  }
+
+  /**
+   * Process hashtags when creating a post
+   * Extracts hashtags from title + content, creates/links them, updates usage counts
+   */
+  async processPostHashtags(postId: number, title: string, content: string): Promise<void> {
+    const { extractHashtags } = await import('./utils/hashtagExtractor');
+    const combinedText = `${title} ${content}`;
+    const extractedHashtags = extractHashtags(combinedText);
+
+    for (const { tag, displayTag } of extractedHashtags) {
+      const hashtag = await this.getOrCreateHashtag(tag, displayTag);
+      await this.linkHashtagToPost(postId, hashtag.id);
+
+      // Update usage count and timestamp
+      await db
+        .update(hashtags)
+        .set({
+          usageCount: sql`${hashtags.usageCount} + 1`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(hashtags.id, hashtag.id));
+    }
+  }
+
+  /**
+   * Process keywords when creating a post
+   * Extracts keywords from title + content, creates/links them, updates usage counts
+   */
+  async processPostKeywords(postId: number, title: string, content: string): Promise<void> {
+    const { extractKeywords } = await import('./utils/keywordExtractor');
+    const combinedText = `${title} ${content}`;
+    const extractedKeywords = extractKeywords(combinedText);
+
+    for (const { keyword, displayKeyword, isProperNoun, frequency } of extractedKeywords) {
+      const keywordRecord = await this.getOrCreateKeyword(keyword, displayKeyword, isProperNoun);
+      await this.linkKeywordToPost(postId, keywordRecord.id, frequency);
+
+      // Update usage count and timestamp
+      await db
+        .update(keywords)
+        .set({
+          usageCount: sql`${keywords.usageCount} + 1`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(keywords.id, keywordRecord.id));
+    }
   }
 
   // Livestreamer application methods
@@ -2367,6 +3030,43 @@ export class MemStorage implements IStorage {
     this.data.contentReports[idx] = updated;
     return updated as ContentReport;
   }
+
+  // Hashtag/Keyword stubs (not implemented for MemStorage)
+  async getOrCreateHashtag(_tag: string, _displayTag: string): Promise<any> {
+    throw new Error('Hashtags not implemented in MemStorage');
+  }
+  async linkHashtagToMicroblog(_microblogId: number, _hashtagId: number): Promise<void> {}
+  async linkHashtagToPost(_postId: number, _hashtagId: number): Promise<void> {}
+  async getTrendingHashtags(_limit?: number): Promise<any[]> {
+    return [];
+  }
+  async getMicroblogsByHashtag(_hashtagTag: string, _limit?: number): Promise<any[]> {
+    return [];
+  }
+  async getPostsByHashtag(_hashtagTag: string, _limit?: number): Promise<any[]> {
+    return [];
+  }
+  async processMicroblogHashtags(_microblogId: number, _content: string): Promise<void> {}
+  async processPostHashtags(_postId: number, _title: string, _content: string): Promise<void> {}
+
+  async getOrCreateKeyword(_keyword: string, _displayKeyword: string): Promise<any> {
+    throw new Error('Keywords not implemented in MemStorage');
+  }
+  async linkKeywordToMicroblog(_microblogId: number, _keywordId: number, _frequency: number): Promise<void> {}
+  async linkKeywordToPost(_postId: number, _keywordId: number, _frequency: number): Promise<void> {}
+  async getTrendingKeywords(_limit?: number): Promise<any[]> {
+    return [];
+  }
+  async getMicroblogsByKeyword(_keyword: string, _limit?: number): Promise<any[]> {
+    return [];
+  }
+  async getPostsByKeyword(_keyword: string, _limit?: number): Promise<any[]> {
+    return [];
+  }
+  async processMicroblogKeywords(_microblogId: number, _content: string): Promise<void> {}
+  async processPostKeywords(_postId: number, _title: string, _content: string): Promise<void> {}
+  async updateTrendingScores(): Promise<void> {}
+  async updateKeywordTrendingScores(): Promise<void> {}
 }
 
 // Database-backed storage implementation
@@ -2750,7 +3450,47 @@ export class DbStorage implements IStorage {
       whereNotDeleted(communities)
     ));
   }
-  
+
+  /**
+   * Get personalized community recommendations for a user
+   * Uses recommendation algorithm to score and sort communities
+   */
+  async getRecommendedCommunities(userId: number, limit: number = 10): Promise<Community[]> {
+    const { sortCommunitiesByRecommendation } = await import('./personalization/communityRecommender');
+
+    // Get user data
+    const user = await this.getUser(userId);
+    if (!user) {
+      return [];
+    }
+
+    // Get all public communities (excluding ones user is already a member of)
+    const allCommunities = await db.select()
+      .from(communities)
+      .where(and(
+        eq(communities.isPrivate, false),
+        whereNotDeleted(communities)
+      ));
+
+    // Get communities user is already a member of
+    const userCommunities = await db.select()
+      .from(communityMembers)
+      .where(eq(communityMembers.userId, userId));
+
+    const memberCommunityIds = new Set(userCommunities.map(m => m.communityId));
+
+    // Filter out communities user is already in
+    const availableCommunities = allCommunities.filter(
+      c => !memberCommunityIds.has(c.id)
+    );
+
+    // Sort by recommendation score
+    const recommended = sortCommunitiesByRecommendation(user, availableCommunities);
+
+    // Return top N recommendations
+    return recommended.slice(0, limit);
+  }
+
   async getPublicCommunitiesAndUserCommunities(userId?: number, searchQuery?: string): Promise<Community[]> {
     let whereCondition = eq(communities.isPrivate, false);
 
@@ -3295,7 +4035,31 @@ export class DbStorage implements IStorage {
       .orderBy(desc(posts.createdAt));
     return userPosts;
   }
-  
+
+  async getFollowingPosts(userId: number): Promise<Post[]> {
+    // Get IDs of users that this user follows
+    const following = await db.select({ followingId: userFollows.followingId })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+
+    const followingIds = following.map(f => f.followingId);
+
+    if (followingIds.length === 0) {
+      return [];
+    }
+
+    // Get posts from followed users
+    const followingPosts = await db.select()
+      .from(posts)
+      .where(and(
+        sql`${posts.authorId} IN (${sql.join(followingIds.map(id => sql`${id}`), sql`, `)})`,
+        isNull(posts.deletedAt)
+      ))
+      .orderBy(desc(posts.createdAt));
+
+    return followingPosts;
+  }
+
   async createPost(post: InsertPost): Promise<Post> {
     const [newPost] = await db.insert(posts)
       .values({
@@ -3779,9 +4543,9 @@ export class DbStorage implements IStorage {
 
   // Event methods
   async getAllEvents(): Promise<Event[]> {
+    // Events don't have soft delete (no deletedAt column)
     const allEvents = await db.select()
       .from(events)
-      .where(whereNotDeleted(events))
       .orderBy(events.eventDate, events.startTime);
     return allEvents;
   }
@@ -3789,7 +4553,7 @@ export class DbStorage implements IStorage {
   async getEvent(id: number): Promise<Event | undefined> {
     const [event] = await db.select()
       .from(events)
-      .where(and(eq(events.id, id), whereNotDeleted(events)))
+      .where(eq(events.id, id))
       .limit(1);
     return event;
   }
@@ -3797,10 +4561,7 @@ export class DbStorage implements IStorage {
   async getUserEvents(userId: number): Promise<Event[]> {
     const userEvents = await db.select()
       .from(events)
-      .where(and(
-        eq(events.creatorId, userId),
-        whereNotDeleted(events)
-      ))
+      .where(eq(events.creatorId, userId))
       .orderBy(events.eventDate, events.startTime);
     return userEvents;
   }
@@ -3814,8 +4575,8 @@ export class DbStorage implements IStorage {
 
   async updateEvent(id: number, data: Partial<Event>): Promise<Event> {
     const [updated] = await db.update(events)
-      .set({ ...data, updatedAt: new Date() })
-      .where(and(eq(events.id, id), whereNotDeleted(events)))
+      .set(data as any)
+      .where(eq(events.id, id))
       .returning();
 
     if (!updated) {
@@ -3826,29 +4587,29 @@ export class DbStorage implements IStorage {
   }
   
   async deleteEvent(id: number): Promise<boolean> {
-    const result = await softDelete(db, events, events.id, id);
-    return !!result;
+    // Events don't have soft delete - use hard delete
+    const result = await db.delete(events)
+      .where(eq(events.id, id));
+    return true;
   }
 
   async searchEvents(searchTerm: string): Promise<Event[]> {
     const term = `%${searchTerm}%`;
     return await db.select()
       .from(events)
-      .where(and(
+      .where(
         or(
           like(events.title, term),
           like(events.description, term),
-        like(events.location, term)
-      ),
-        whereNotDeleted(events)
-      ));
+          like(events.location, term)
+        )
+      );
   }
 
   async getNearbyEvents(latitude: number, longitude: number, radius: number): Promise<Event[]> {
     const rows = await db.select()
       .from(events)
       .where(and(
-        whereNotDeleted(events),
         sql`${events.latitude} IS NOT NULL`,
         sql`${events.longitude} IS NOT NULL`
       ));
@@ -3938,7 +4699,28 @@ export class DbStorage implements IStorage {
       .orderBy(desc(microblogs.createdAt));
     return userMicroblogs;
   }
-  
+
+  async getFollowingMicroblogs(userId: number): Promise<Microblog[]> {
+    // Get IDs of users that this user follows
+    const following = await db.select({ followingId: userFollows.followingId })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+
+    const followingIds = following.map(f => f.followingId);
+
+    if (followingIds.length === 0) {
+      return [];
+    }
+
+    // Get microblogs from followed users
+    const followingMicroblogs = await db.select()
+      .from(microblogs)
+      .where(sql`${microblogs.authorId} IN (${sql.join(followingIds.map(id => sql`${id}`), sql`, `)})`)
+      .orderBy(desc(microblogs.createdAt));
+
+    return followingMicroblogs;
+  }
+
   async createMicroblog(microblog: InsertMicroblog): Promise<Microblog> {
     const [newMicroblog] = await db.insert(microblogs)
       .values({
@@ -4137,13 +4919,18 @@ export class DbStorage implements IStorage {
       .from(microblogBookmarks)
       .where(eq(microblogBookmarks.userId, userId));
 
-    const microblogIds = bookmarks.map(b => b.microblogId);
+    // Filter out any bookmarks with invalid IDs
+    const microblogIds = bookmarks
+      .map(b => b.microblogId)
+      .filter(id => id != null && !isNaN(id));
+
     if (microblogIds.length === 0) return [];
 
     return await db
       .select()
       .from(microblogs)
-      .where(inArray(microblogs.id, microblogIds));
+      .where(inArray(microblogs.id, microblogIds))
+      .orderBy(desc(microblogs.createdAt));
   }
 
   // Microblog engagement check methods
@@ -4184,6 +4971,674 @@ export class DbStorage implements IStorage {
       .limit(1);
 
     return !!bookmark;
+  }
+
+  // ============================================================================
+  // HASHTAG METHODS (DbStorage)
+  // ============================================================================
+
+  /**
+   * Get or create hashtag by tag
+   */
+  async getOrCreateHashtag(tag: string, displayTag: string): Promise<Hashtag> {
+    const normalized = tag.toLowerCase();
+
+    const [existing] = await db
+      .select()
+      .from(hashtags)
+      .where(eq(hashtags.tag, normalized))
+      .limit(1);
+
+    if (existing) {
+      return existing;
+    }
+
+    const [newHashtag] = await db
+      .insert(hashtags)
+      .values({
+        tag: normalized,
+        displayTag,
+        usageCount: 0,
+        trendingScore: 0,
+        lastUsedAt: new Date(),
+      } as any)
+      .returning();
+
+    return newHashtag;
+  }
+
+  /**
+   * Link hashtag to microblog
+   */
+  async linkHashtagToMicroblog(microblogId: number, hashtagId: number): Promise<void> {
+    await db
+      .insert(microblogHashtags)
+      .values({ microblogId, hashtagId } as any)
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Get trending hashtags (top N by trending score)
+   */
+  async getTrendingHashtags(limit: number = 10): Promise<Hashtag[]> {
+    return await db
+      .select()
+      .from(hashtags)
+      .orderBy(desc(hashtags.trendingScore))
+      .limit(limit);
+  }
+
+  /**
+   * Get microblogs by hashtag (sorted by engagement)
+   */
+  async getMicroblogsByHashtag(hashtagTag: string, limit: number = 20): Promise<Microblog[]> {
+    const normalized = hashtagTag.toLowerCase();
+
+    const [hashtag] = await db
+      .select()
+      .from(hashtags)
+      .where(eq(hashtags.tag, normalized))
+      .limit(1);
+
+    if (!hashtag) return [];
+
+    const results = await db
+      .select({ microblog: microblogs })
+      .from(microblogHashtags)
+      .innerJoin(microblogs, eq(microblogHashtags.microblogId, microblogs.id))
+      .where(eq(microblogHashtags.hashtagId, hashtag.id))
+      .orderBy(
+        desc(sql`COALESCE(${microblogs.likeCount}, 0) + COALESCE(${microblogs.repostCount}, 0) + COALESCE(${microblogs.replyCount}, 0)`)
+      )
+      .limit(limit);
+
+    return results.map(r => r.microblog);
+  }
+
+  /**
+   * Update trending scores for all hashtags
+   * Formula: (recent_usage * 10) + (recent_likes * 5) + (recent_reposts * 7) + (recent_comments * 3)
+   */
+  async updateTrendingScores(): Promise<void> {
+    const now = new Date();
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+
+    await db.execute(sql`
+      UPDATE hashtags h
+      SET
+        trending_score = COALESCE(engagement_data.score, 0),
+        updated_at = NOW()
+      FROM (
+        SELECT
+          mh.hashtag_id,
+          (COUNT(DISTINCT m.id) * 10 +
+           SUM(COALESCE(m.like_count, 0)) * 5 +
+           SUM(COALESCE(m.repost_count, 0)) * 7 +
+           SUM(COALESCE(m.reply_count, 0)) * 3) as score
+        FROM microblog_hashtags mh
+        INNER JOIN microblogs m ON mh.microblog_id = m.id
+        WHERE m.created_at >= ${fourHoursAgo}
+        GROUP BY mh.hashtag_id
+      ) engagement_data
+      WHERE h.id = engagement_data.hashtag_id
+    `);
+
+    await db.execute(sql`
+      UPDATE hashtags
+      SET trending_score = 0, updated_at = NOW()
+      WHERE id NOT IN (
+        SELECT DISTINCT mh.hashtag_id
+        FROM microblog_hashtags mh
+        INNER JOIN microblogs m ON mh.microblog_id = m.id
+        WHERE m.created_at >= ${fourHoursAgo}
+      )
+    `);
+  }
+
+  /**
+   * Process hashtags when creating a microblog
+   */
+  async processMicroblogHashtags(microblogId: number, content: string): Promise<void> {
+    const { extractHashtags } = await import('./utils/hashtagExtractor');
+    const extractedHashtags = extractHashtags(content);
+
+    for (const { tag, displayTag } of extractedHashtags) {
+      const hashtag = await this.getOrCreateHashtag(tag, displayTag);
+      await this.linkHashtagToMicroblog(microblogId, hashtag.id);
+
+      await db
+        .update(hashtags)
+        .set({
+          usageCount: sql`${hashtags.usageCount} + 1`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(hashtags.id, hashtag.id));
+    }
+  }
+
+  // ============================================================================
+  // POST BOOKMARK METHODS (DbStorage)
+  // ============================================================================
+
+  async bookmarkPost(postId: number, userId: number): Promise<PostBookmark> {
+    // Check if already bookmarked
+    const existing = await db
+      .select()
+      .from(postBookmarks)
+      .where(and(
+        eq(postBookmarks.postId, postId),
+        eq(postBookmarks.userId, userId)
+      ));
+
+    if (existing.length > 0) {
+      throw new Error('Already bookmarked');
+    }
+
+    // Insert bookmark
+    const [newBookmark] = await db
+      .insert(postBookmarks)
+      .values({ postId, userId } as any)
+      .returning();
+
+    return newBookmark;
+  }
+
+  async unbookmarkPost(postId: number, userId: number): Promise<boolean> {
+    // Delete bookmark
+    const deleted = await db
+      .delete(postBookmarks)
+      .where(and(
+        eq(postBookmarks.postId, postId),
+        eq(postBookmarks.userId, userId)
+      ))
+      .returning();
+
+    return deleted.length > 0;
+  }
+
+  async getUserBookmarkedPosts(userId: number): Promise<Post[]> {
+    const bookmarks = await db
+      .select()
+      .from(postBookmarks)
+      .where(eq(postBookmarks.userId, userId));
+
+    // Filter out any bookmarks with invalid IDs
+    const postIds = bookmarks
+      .map(b => b.postId)
+      .filter(id => id != null && !isNaN(id));
+
+    if (postIds.length === 0) return [];
+
+    return await db
+      .select()
+      .from(posts)
+      .where(and(
+        inArray(posts.id, postIds),
+        isNull(posts.deletedAt)
+      ))
+      .orderBy(desc(posts.createdAt));
+  }
+
+  async hasUserBookmarkedPost(postId: number, userId: number): Promise<boolean> {
+    const [bookmark] = await db
+      .select()
+      .from(postBookmarks)
+      .where(and(
+        eq(postBookmarks.postId, postId),
+        eq(postBookmarks.userId, userId)
+      ))
+      .limit(1);
+
+    return !!bookmark;
+  }
+
+  // ============================================================================
+  // HASHTAG METHODS (DbStorage)
+  // ============================================================================
+
+  /**
+   * Get or create hashtag by tag
+   */
+  async getOrCreateHashtag(tag: string, displayTag: string): Promise<Hashtag> {
+    const normalized = tag.toLowerCase();
+
+    const [existing] = await db
+      .select()
+      .from(hashtags)
+      .where(eq(hashtags.tag, normalized))
+      .limit(1);
+
+    if (existing) {
+      return existing;
+    }
+
+    const [newHashtag] = await db
+      .insert(hashtags)
+      .values({
+        tag: normalized,
+        displayTag,
+        usageCount: 0,
+        trendingScore: 0,
+        lastUsedAt: new Date(),
+      } as any)
+      .returning();
+
+    return newHashtag;
+  }
+
+  /**
+   * Link hashtag to microblog
+   */
+  async linkHashtagToMicroblog(microblogId: number, hashtagId: number): Promise<void> {
+    await db
+      .insert(microblogHashtags)
+      .values({ microblogId, hashtagId } as any)
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Link hashtag to post
+   */
+  async linkHashtagToPost(postId: number, hashtagId: number): Promise<void> {
+    await db
+      .insert(postHashtags)
+      .values({ postId, hashtagId } as any)
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Get trending hashtags (top N by trending score)
+   */
+  async getTrendingHashtags(limit: number = 10): Promise<Hashtag[]> {
+    return await db
+      .select()
+      .from(hashtags)
+      .orderBy(desc(hashtags.trendingScore))
+      .limit(limit);
+  }
+
+  /**
+   * Get microblogs by hashtag (sorted by engagement)
+   */
+  async getMicroblogsByHashtag(hashtagTag: string, limit: number = 20): Promise<Microblog[]> {
+    const normalized = hashtagTag.toLowerCase();
+
+    const [hashtag] = await db
+      .select()
+      .from(hashtags)
+      .where(eq(hashtags.tag, normalized))
+      .limit(1);
+
+    if (!hashtag) return [];
+
+    const results = await db
+      .select({ microblog: microblogs })
+      .from(microblogHashtags)
+      .innerJoin(microblogs, eq(microblogHashtags.microblogId, microblogs.id))
+      .where(eq(microblogHashtags.hashtagId, hashtag.id))
+      .orderBy(
+        desc(sql`COALESCE(${microblogs.likeCount}, 0) + COALESCE(${microblogs.repostCount}, 0) + COALESCE(${microblogs.replyCount}, 0)`)
+      )
+      .limit(limit);
+
+    return results.map(r => r.microblog);
+  }
+
+  /**
+   * Get posts by hashtag (sorted by engagement)
+   */
+  async getPostsByHashtag(hashtagTag: string, limit: number = 20): Promise<any[]> {
+    const normalized = hashtagTag.toLowerCase();
+
+    const [hashtag] = await db
+      .select()
+      .from(hashtags)
+      .where(eq(hashtags.tag, normalized))
+      .limit(1);
+
+    if (!hashtag) return [];
+
+    const results = await db
+      .select({ post: posts })
+      .from(postHashtags)
+      .innerJoin(posts, eq(postHashtags.postId, posts.id))
+      .where(eq(postHashtags.hashtagId, hashtag.id))
+      .orderBy(desc(sql`COALESCE(${posts.upvotes}, 0) + COALESCE(${posts.commentCount}, 0)`))
+      .limit(limit);
+
+    return results.map(r => r.post);
+  }
+
+  /**
+   * Process hashtags when creating a microblog
+   */
+  async processMicroblogHashtags(microblogId: number, content: string): Promise<void> {
+    const { extractHashtags } = await import('./utils/hashtagExtractor');
+    const extractedHashtags = extractHashtags(content);
+
+    for (const { tag, displayTag } of extractedHashtags) {
+      const hashtag = await this.getOrCreateHashtag(tag, displayTag);
+      await this.linkHashtagToMicroblog(microblogId, hashtag.id);
+
+      await db
+        .update(hashtags)
+        .set({
+          usageCount: sql`${hashtags.usageCount} + 1`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(hashtags.id, hashtag.id));
+    }
+  }
+
+  /**
+   * Process hashtags when creating a post
+   */
+  async processPostHashtags(postId: number, title: string, content: string): Promise<void> {
+    const { extractHashtags } = await import('./utils/hashtagExtractor');
+    const combinedText = `${title} ${content}`;
+    const extractedHashtags = extractHashtags(combinedText);
+
+    for (const { tag, displayTag } of extractedHashtags) {
+      const hashtag = await this.getOrCreateHashtag(tag, displayTag);
+      await this.linkHashtagToPost(postId, hashtag.id);
+
+      await db
+        .update(hashtags)
+        .set({
+          usageCount: sql`${hashtags.usageCount} + 1`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(hashtags.id, hashtag.id));
+    }
+  }
+
+  // ============================================================================
+  // KEYWORD METHODS (DbStorage)
+  // ============================================================================
+
+  /**
+   * Get or create keyword
+   */
+  async getOrCreateKeyword(keyword: string, displayKeyword: string): Promise<any> {
+    const normalized = keyword.toLowerCase();
+
+    const [existing] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.keyword, normalized))
+      .limit(1);
+
+    if (existing) {
+      return existing;
+    }
+
+    const [newKeyword] = await db
+      .insert(keywords)
+      .values({
+        keyword: normalized,
+        displayKeyword,
+        usageCount: 0,
+        trendingScore: 0,
+        lastUsedAt: new Date(),
+      } as any)
+      .returning();
+
+    return newKeyword;
+  }
+
+  /**
+   * Link keyword to microblog
+   */
+  async linkKeywordToMicroblog(microblogId: number, keywordId: number, frequency: number): Promise<void> {
+    await db
+      .insert(microblogKeywords)
+      .values({ microblogId, keywordId, frequency } as any)
+      .onConflictDoUpdate({
+        target: [microblogKeywords.microblogId, microblogKeywords.keywordId],
+        set: { frequency: sql`${microblogKeywords.frequency} + ${frequency}` }
+      });
+  }
+
+  /**
+   * Link keyword to post
+   */
+  async linkKeywordToPost(postId: number, keywordId: number, frequency: number): Promise<void> {
+    await db
+      .insert(postKeywords)
+      .values({ postId, keywordId, frequency } as any)
+      .onConflictDoUpdate({
+        target: [postKeywords.postId, postKeywords.keywordId],
+        set: { frequency: sql`${postKeywords.frequency} + ${frequency}` }
+      });
+  }
+
+  /**
+   * Get trending keywords
+   */
+  async getTrendingKeywords(limit: number = 10): Promise<any[]> {
+    return await db
+      .select()
+      .from(keywords)
+      .orderBy(desc(keywords.trendingScore))
+      .limit(limit);
+  }
+
+  /**
+   * Get microblogs by keyword
+   */
+  async getMicroblogsByKeyword(keyword: string, limit: number = 20): Promise<Microblog[]> {
+    const normalized = keyword.toLowerCase();
+
+    const [keywordRecord] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.keyword, normalized))
+      .limit(1);
+
+    if (!keywordRecord) return [];
+
+    const results = await db
+      .select({ microblog: microblogs })
+      .from(microblogKeywords)
+      .innerJoin(microblogs, eq(microblogKeywords.microblogId, microblogs.id))
+      .where(eq(microblogKeywords.keywordId, keywordRecord.id))
+      .orderBy(
+        desc(sql`COALESCE(${microblogs.likeCount}, 0) + COALESCE(${microblogs.repostCount}, 0) + COALESCE(${microblogs.replyCount}, 0)`)
+      )
+      .limit(limit);
+
+    return results.map(r => r.microblog);
+  }
+
+  /**
+   * Get posts by keyword
+   */
+  async getPostsByKeyword(keyword: string, limit: number = 20): Promise<any[]> {
+    const normalized = keyword.toLowerCase();
+
+    const [keywordRecord] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.keyword, normalized))
+      .limit(1);
+
+    if (!keywordRecord) return [];
+
+    const results = await db
+      .select({ post: posts })
+      .from(postKeywords)
+      .innerJoin(posts, eq(postKeywords.postId, posts.id))
+      .where(eq(postKeywords.keywordId, keywordRecord.id))
+      .orderBy(desc(sql`COALESCE(${posts.upvotes}, 0) + COALESCE(${posts.commentCount}, 0)`))
+      .limit(limit);
+
+    return results.map(r => r.post);
+  }
+
+  /**
+   * Process keywords when creating a microblog
+   */
+  async processMicroblogKeywords(microblogId: number, content: string): Promise<void> {
+    const { extractKeywords } = await import('./utils/keywordExtractor');
+    const extractedKeywords = extractKeywords(content);
+
+    for (const { keyword, displayKeyword, frequency } of extractedKeywords) {
+      const keywordRecord = await this.getOrCreateKeyword(keyword, displayKeyword);
+      await this.linkKeywordToMicroblog(microblogId, keywordRecord.id, frequency);
+
+      await db
+        .update(keywords)
+        .set({
+          usageCount: sql`${keywords.usageCount} + ${frequency}`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(keywords.id, keywordRecord.id));
+    }
+  }
+
+  /**
+   * Process keywords when creating a post
+   */
+  async processPostKeywords(postId: number, title: string, content: string): Promise<void> {
+    const { extractKeywords } = await import('./utils/keywordExtractor');
+    const combinedText = `${title} ${content}`;
+    const extractedKeywords = extractKeywords(combinedText);
+
+    for (const { keyword, displayKeyword, frequency } of extractedKeywords) {
+      const keywordRecord = await this.getOrCreateKeyword(keyword, displayKeyword);
+      await this.linkKeywordToPost(postId, keywordRecord.id, frequency);
+
+      await db
+        .update(keywords)
+        .set({
+          usageCount: sql`${keywords.usageCount} + ${frequency}`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(keywords.id, keywordRecord.id));
+    }
+  }
+
+  /**
+   * Update trending scores for all hashtags
+   */
+  async updateTrendingScores(): Promise<void> {
+    const now = new Date();
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+
+    await db.execute(sql`
+      UPDATE hashtags h
+      SET
+        trending_score = COALESCE(engagement_data.score, 0),
+        updated_at = NOW()
+      FROM (
+        SELECT hashtag_id, SUM(score) as score FROM (
+          SELECT
+            mh.hashtag_id,
+            (COUNT(DISTINCT m.id) * 10 +
+             SUM(COALESCE(m.like_count, 0)) * 5 +
+             SUM(COALESCE(m.repost_count, 0)) * 7 +
+             SUM(COALESCE(m.reply_count, 0)) * 3) as score
+          FROM microblog_hashtags mh
+          INNER JOIN microblogs m ON mh.microblog_id = m.id
+          WHERE m.created_at >= ${fourHoursAgo}
+          GROUP BY mh.hashtag_id
+
+          UNION ALL
+
+          SELECT
+            ph.hashtag_id,
+            (COUNT(DISTINCT p.id) * 10 +
+             SUM(COALESCE(p.upvotes, 0)) * 5 +
+             SUM(COALESCE(p.comment_count, 0)) * 8) as score
+          FROM post_hashtags ph
+          INNER JOIN posts p ON ph.post_id = p.id
+          WHERE p.created_at >= ${fourHoursAgo}
+          GROUP BY ph.hashtag_id
+        ) combined
+        GROUP BY hashtag_id
+      ) engagement_data
+      WHERE h.id = engagement_data.hashtag_id
+    `);
+
+    await db.execute(sql`
+      UPDATE hashtags
+      SET trending_score = 0, updated_at = NOW()
+      WHERE id NOT IN (
+        SELECT DISTINCT hashtag_id FROM (
+          SELECT mh.hashtag_id FROM microblog_hashtags mh
+          INNER JOIN microblogs m ON mh.microblog_id = m.id
+          WHERE m.created_at >= ${fourHoursAgo}
+          UNION
+          SELECT ph.hashtag_id FROM post_hashtags ph
+          INNER JOIN posts p ON ph.post_id = p.id
+          WHERE p.created_at >= ${fourHoursAgo}
+        ) combined
+      )
+    `);
+  }
+
+  /**
+   * Update keyword trending scores
+   */
+  async updateKeywordTrendingScores(): Promise<void> {
+    const now = new Date();
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+
+    await db.execute(sql`
+      UPDATE keywords k
+      SET
+        trending_score = COALESCE(engagement_data.score, 0),
+        updated_at = NOW()
+      FROM (
+        SELECT keyword_id, SUM(score) as score FROM (
+          SELECT
+            mk.keyword_id,
+            (SUM(mk.frequency) * 8 +
+             SUM(COALESCE(m.like_count, 0)) * 3 +
+             SUM(COALESCE(m.repost_count, 0)) * 5 +
+             SUM(COALESCE(m.reply_count, 0)) * 2) as score
+          FROM microblog_keywords mk
+          INNER JOIN microblogs m ON mk.microblog_id = m.id
+          WHERE m.created_at >= ${fourHoursAgo}
+          GROUP BY mk.keyword_id
+
+          UNION ALL
+
+          SELECT
+            pk.keyword_id,
+            (SUM(pk.frequency) * 8 +
+             SUM(COALESCE(p.upvotes, 0)) * 3 +
+             SUM(COALESCE(p.comment_count, 0)) * 6) as score
+          FROM post_keywords pk
+          INNER JOIN posts p ON pk.post_id = p.id
+          WHERE p.created_at >= ${fourHoursAgo}
+          GROUP BY pk.keyword_id
+        ) combined
+        GROUP BY keyword_id
+      ) engagement_data
+      WHERE k.id = engagement_data.keyword_id
+    `);
+
+    await db.execute(sql`
+      UPDATE keywords
+      SET trending_score = 0, updated_at = NOW()
+      WHERE id NOT IN (
+        SELECT DISTINCT keyword_id FROM (
+          SELECT mk.keyword_id FROM microblog_keywords mk
+          INNER JOIN microblogs m ON mk.microblog_id = m.id
+          WHERE m.created_at >= ${fourHoursAgo}
+          UNION
+          SELECT pk.keyword_id FROM post_keywords pk
+          INNER JOIN posts p ON pk.post_id = p.id
+          WHERE p.created_at >= ${fourHoursAgo}
+        ) combined
+      )
+    `);
   }
 
   // Livestreamer application methods

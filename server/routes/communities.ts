@@ -201,6 +201,22 @@ router.get('/api/communities/admin', requireAuth, async (req, res) => {
   }
 });
 
+// Get personalized recommended communities for user
+router.get('/api/communities/recommended', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    // Get recommended communities based on user profile, interests, location, etc.
+    const recommendations = await storage.getRecommendedCommunities(userId, Math.min(limit, 20));
+
+    res.json(recommendations);
+  } catch (error) {
+    console.error('Error fetching recommended communities:', error);
+    res.status(500).json(buildErrorResponse('Error fetching recommended communities', error));
+  }
+});
+
 router.get('/api/communities/:idOrSlug', async (req, res) => {
   try {
     const { idOrSlug } = req.params;
@@ -1065,6 +1081,116 @@ router.post('/api/communities/:id/wall/:postId/comments', requireAuth, async (re
   } catch (error) {
     console.error('Error creating wall post comment:', error);
     res.status(500).json(buildErrorResponse('Error creating wall post comment', error));
+  }
+});
+
+// ============================================================================
+// PRAYER REQUEST ENDPOINTS
+// ============================================================================
+
+// Get community prayer requests
+router.get('/api/communities/:id/prayer-requests', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    // Check if user is a member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ message: 'Must be a community member to view prayer requests' });
+    }
+
+    const prayerRequests = await storage.getCommunityPrayerRequests(communityId);
+    res.json(prayerRequests);
+  } catch (error) {
+    console.error('Error fetching community prayer requests:', error);
+    res.status(500).json(buildErrorResponse('Error fetching prayer requests', error));
+  }
+});
+
+// Create prayer request in community
+router.post('/api/communities/:id/prayer-requests', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const { title, content, isAnonymous } = req.body;
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'invalid id' });
+    }
+
+    if (!title || title.trim().length === 0) {
+      return res.status(400).json({ message: 'Prayer request title is required' });
+    }
+
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ message: 'Prayer request content is required' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if user is a member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ message: 'Must be a community member to create prayer requests' });
+    }
+
+    // Create prayer request
+    const prayerRequest = await storage.createPrayerRequest({
+      communityId,
+      authorId: userId,
+      title: title.trim(),
+      content: content.trim(),
+      isAnonymous: isAnonymous || false,
+      privacyLevel: 'community-only',
+    } as any);
+
+    res.status(201).json(prayerRequest);
+  } catch (error) {
+    console.error('Error creating prayer request:', error);
+    res.status(500).json(buildErrorResponse('Error creating prayer request', error));
+  }
+});
+
+// Mark prayer request as answered
+router.patch('/api/communities/:id/prayer-requests/:prayerId/answered', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const prayerId = parseInt(req.params.prayerId);
+    const userId = requireSessionUserId(req);
+    const { answeredDescription } = req.body;
+
+    if (!communityId || !prayerId) {
+      return res.status(400).json({ message: 'Invalid community or prayer request ID' });
+    }
+
+    // Get prayer request
+    const prayerRequest = await storage.getPrayerRequest(prayerId);
+    if (!prayerRequest) {
+      return res.status(404).json({ message: 'Prayer request not found' });
+    }
+
+    // Only the author can mark their prayer as answered
+    if (prayerRequest.authorId !== userId) {
+      return res.status(403).json({ message: 'Only the author can mark this prayer as answered' });
+    }
+
+    // Update prayer request
+    const updated = await storage.updatePrayerRequest(prayerId, {
+      isAnswered: true,
+      answeredDescription: answeredDescription || null,
+      updatedAt: new Date(),
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error marking prayer as answered:', error);
+    res.status(500).json(buildErrorResponse('Error marking prayer as answered', error));
   }
 });
 
