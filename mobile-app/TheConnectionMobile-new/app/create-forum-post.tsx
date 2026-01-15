@@ -341,20 +341,6 @@ export default function CreateForumPostScreen() {
               <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
               <Text style={styles.mediaActionButtonText}>Camera</Text>
             </Pressable>
-            <Pressable
-              onPress={handlePickVideo}
-              style={[styles.mediaActionButton, { backgroundColor: colors.primary }]}
-            >
-              <Ionicons name="videocam-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.mediaActionButtonText}>Video</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleTakeVideo}
-              style={[styles.mediaActionButton, { backgroundColor: colors.accent }]}
-            >
-              <Ionicons name="film-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.mediaActionButtonText}>Record</Text>
-            </Pressable>
           </View>
 
           {/* Media Counter */}

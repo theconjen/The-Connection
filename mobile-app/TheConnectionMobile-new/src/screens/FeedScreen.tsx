@@ -1260,30 +1260,18 @@ export default function FeedScreen({
               </View>
             </ScrollView>
 
-            {/* Media Toolbar - Instagram/Twitter Style with Camera */}
+            {/* Media Toolbar - Simplified */}
             <View style={styles.mediaToolbar}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.mediaButtons}>
-                  <Pressable style={styles.mediaButton} onPress={handlePickImage} hitSlop={8}>
-                    <Ionicons name="image-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} onPress={handleTakePhoto} hitSlop={8}>
-                    <Ionicons name="camera-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} onPress={handlePickVideo} hitSlop={8}>
-                    <Ionicons name="videocam-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} onPress={handleTakeVideo} hitSlop={8}>
-                    <Ionicons name="film-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} onPress={handleOpenGifPicker} hitSlop={8}>
-                    <Text style={styles.gifButtonText}>GIF</Text>
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} hitSlop={8}>
-                    <Ionicons name="location-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                </View>
-              </ScrollView>
+              <View style={styles.mediaButtons}>
+                <Pressable style={styles.mediaButton} onPress={handlePickImage} hitSlop={8}>
+                  <Ionicons name="image-outline" size={22} color={colors.accent} />
+                  <Text style={[styles.mediaButtonLabel, { color: colors.textSecondary }]}>Gallery</Text>
+                </Pressable>
+                <Pressable style={styles.mediaButton} onPress={handleTakePhoto} hitSlop={8}>
+                  <Ionicons name="camera-outline" size={22} color={colors.accent} />
+                  <Text style={[styles.mediaButtonLabel, { color: colors.textSecondary }]}>Camera</Text>
+                </Pressable>
+              </View>
 
               {/* Media Counter & Character Count */}
               <View style={styles.charCount}>
@@ -1938,7 +1926,14 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     gap: 16,
   },
   mediaButton: {
-    padding: 4,
+    padding: 8,
+    alignItems: 'center',
+    gap: 4,
+  },
+  mediaButtonLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
   },
   charCount: {
     paddingLeft: 12,
