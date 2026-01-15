@@ -491,6 +491,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   if (FEATURES.AUTH) {
     app.use('/api/user', userRoutes);
     app.use('/api/user', userSettingsRoutes);
+    registerOnboardingRoutes(app); // Register onboarding completion endpoint
     app.use('/api/dms', dmRoutes);
     app.use('/api/messages', dmRoutes); // Alias for mobile app compatibility
     app.use('/api', messagesRoutes); // Community chat routes (has /communities/:id/chat/* endpoints)
