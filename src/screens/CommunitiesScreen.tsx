@@ -378,7 +378,13 @@ function FilterModal({
 }
 
 // Category card component
-function CategoryCard({ category }: { category: Category }) {
+function CategoryCard({
+  category,
+  onPress,
+}: {
+  category: Category;
+  onPress?: () => void;
+}) {
   const { spacing, radii } = useTheme();
 
   // Map invalid icon names to valid ones
@@ -396,6 +402,7 @@ function CategoryCard({ category }: { category: Category }) {
 
   return (
     <Pressable
+      onPress={onPress}
       style={({ pressed }) => ({
         flex: 1,
         backgroundColor: category.bgColor,
@@ -620,6 +627,8 @@ interface CommunitiesScreenProps {
   onCreatePress?: () => void;
   onCommunityPress?: (community: Community) => void;
   onCategoryPress?: (category: Category) => void;
+  selectedCategory?: string | null;
+  onClearCategory?: () => void;
 }
 
 export function CommunitiesScreen({
@@ -633,6 +642,8 @@ export function CommunitiesScreen({
   onCreatePress,
   onCommunityPress,
   onCategoryPress,
+  selectedCategory,
+  onClearCategory,
 }: CommunitiesScreenProps) {
   const { colors, spacing, radii } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -779,6 +790,67 @@ export function CommunitiesScreen({
   };
 
   const categories = getFeaturedCategories();
+
+  // Filter communities by selected category
+  const filteredCommunities = React.useMemo(() => {
+    if (!selectedCategory) {
+      console.log('[CommunitiesScreen] No category selected, showing all communities:', communities.length);
+      return communities;
+    }
+
+    console.log('[CommunitiesScreen] Filtering by category:', selectedCategory);
+
+    // Map category IDs to filter fields
+    const categoryMap: Record<string, { field: keyof any; value: string }> = {
+      'bible-study': { field: 'ministryTypes', value: 'Bible Study' },
+      'prayer': { field: 'ministryTypes', value: 'Prayer' },
+      'worship': { field: 'ministryTypes', value: 'Worship' },
+      'missions': { field: 'ministryTypes', value: 'Missions' },
+      'discipleship': { field: 'ministryTypes', value: 'Discipleship' },
+      'youth': { field: 'ministryTypes', value: 'Youth Ministry' },
+      'sports': { field: 'activities', value: 'Sports' },
+      'music': { field: 'activities', value: 'Music' },
+      'hiking': { field: 'activities', value: 'Hiking' },
+      'arts': { field: 'activities', value: 'Arts & Crafts' },
+      'book-club': { field: 'activities', value: 'Book Club' },
+      'service': { field: 'activities', value: 'Service Projects' },
+      'healthcare': { field: 'professions', value: 'Healthcare' },
+      'teachers': { field: 'professions', value: 'Teachers' },
+      'business': { field: 'professions', value: 'Business' },
+      'tech': { field: 'professions', value: 'Tech' },
+      'creatives': { field: 'professions', value: 'Creatives' },
+      'blue-collar': { field: 'professions', value: 'Blue Collar' },
+      'young-professionals': { field: 'lifeStages', value: 'Young Professionals' },
+      'singles': { field: 'lifeStages', value: 'Singles' },
+      'married': { field: 'lifeStages', value: 'Married' },
+      'parents': { field: 'lifeStages', value: 'Parents' },
+      'seniors': { field: 'lifeStages', value: 'Seniors' },
+      'recovery': { field: 'recoverySupport', value: 'Addiction Recovery' },
+      'grief-support': { field: 'recoverySupport', value: 'Grief Support' },
+    };
+
+    const mapping = categoryMap[selectedCategory];
+    if (!mapping) {
+      console.log('[CommunitiesScreen] No mapping found for category:', selectedCategory);
+      return communities;
+    }
+
+    console.log('[CommunitiesScreen] Mapping:', mapping);
+
+    const filtered = communities.filter((community: any) => {
+      const fieldValue = community[mapping.field];
+      if (!fieldValue) return false;
+      if (Array.isArray(fieldValue)) {
+        return fieldValue.includes(mapping.value);
+      }
+      return fieldValue === mapping.value;
+    });
+
+    console.log('[CommunitiesScreen] Filtered communities:', filtered.length);
+    console.log('[CommunitiesScreen] Filtered community names:', filtered.map((c: any) => c.name));
+
+    return filtered;
+  }, [communities, selectedCategory]);
 
   // Communities are now fetched from the API via useEffect above
 
@@ -933,12 +1005,24 @@ export function CommunitiesScreen({
           {/* 2x2 Grid */}
           <View style={{ gap: spacing.sm }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <CategoryCard category={categories[0]} />
-              <CategoryCard category={categories[1]} />
+              <CategoryCard
+                category={categories[0]}
+                onPress={() => onCategoryPress?.(categories[0])}
+              />
+              <CategoryCard
+                category={categories[1]}
+                onPress={() => onCategoryPress?.(categories[1])}
+              />
             </View>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <CategoryCard category={categories[2]} />
-              <CategoryCard category={categories[3]} />
+              <CategoryCard
+                category={categories[2]}
+                onPress={() => onCategoryPress?.(categories[2])}
+              />
+              <CategoryCard
+                category={categories[3]}
+                onPress={() => onCategoryPress?.(categories[3])}
+              />
             </View>
           </View>
         </View>
@@ -966,6 +1050,47 @@ export function CommunitiesScreen({
             </Pressable>
           </View>
 
+          {/* Category Filter Indicator */}
+          {selectedCategory && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: colors.primary + '15',
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm,
+                borderRadius: radii.lg,
+                marginBottom: spacing.md,
+                borderWidth: 1,
+                borderColor: colors.primary + '30',
+              }}
+            >
+              <Ionicons name="funnel" size={14} color={colors.primary} />
+              <Text
+                variant="caption"
+                style={{
+                  marginLeft: spacing.sm,
+                  color: colors.primary,
+                  fontWeight: '600',
+                  flex: 1,
+                }}
+              >
+                Filtering by: {categories.find((c) => c.id === selectedCategory)?.title || selectedCategory}
+              </Text>
+              <Pressable
+                onPress={onClearCategory}
+                style={{
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 4,
+                  backgroundColor: colors.primary,
+                  borderRadius: radii.md,
+                }}
+              >
+                <Ionicons name="close" size={14} color="#FFFFFF" />
+              </Pressable>
+            </View>
+          )}
+
           {/* Loading State */}
           {isLoading && (
             <View style={{ alignItems: 'center', padding: spacing.xl }}>
@@ -989,7 +1114,7 @@ export function CommunitiesScreen({
           {/* Community List */}
           {!isLoading && !error && (
             <View style={{ gap: spacing.sm }}>
-              {communities.length === 0 ? (
+              {filteredCommunities.length === 0 ? (
                 <View style={{ alignItems: 'center', padding: spacing.xl }}>
                   <Ionicons name="search" size={48} color={colors.mutedForeground} />
                   <Text style={{ marginTop: spacing.sm, color: colors.mutedForeground }}>
@@ -1000,7 +1125,7 @@ export function CommunitiesScreen({
                   </Text>
                 </View>
               ) : (
-                communities.map((community) => (
+                filteredCommunities.map((community) => (
                   <CommunityRow
                     key={community.id}
                     community={{
