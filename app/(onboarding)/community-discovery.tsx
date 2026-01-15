@@ -97,14 +97,14 @@ export default function CommunityDiscoveryScreen() {
       const faith = faithData ? JSON.parse(faithData) : {};
 
       // Update user profile with all onboarding data
-      await apiClient.put('/api/user', {
+      await apiClient.patch('/api/user/profile', {
         displayName: profile.displayName,
         bio: profile.bio,
         location: profile.location,
         denomination: faith.denomination,
         homeChurch: faith.homeChurch,
         favoriteBibleVerse: faith.favoriteBibleVerse,
-        interests: faith.interests?.join(', ') || '',
+        interests: faith.interests || [],
       });
 
       // Mark onboarding as completed
@@ -141,6 +141,8 @@ export default function CommunityDiscoveryScreen() {
 
   const CommunityCard = ({ community }: { community: Community }) => {
     const isJoined = joinedCommunities.has(community.id);
+    const [isExpanded, setIsExpanded] = useState(false);
+    const shouldShowExpand = community.description && community.description.length > 100;
 
     return (
       <View style={[styles.communityCard, {
@@ -167,9 +169,19 @@ export default function CommunityDiscoveryScreen() {
           </View>
         </View>
 
-        <Text style={[styles.communityDescription, { color: colors.textSecondary }]} numberOfLines={2}>
-          {community.description}
-        </Text>
+        <Pressable onPress={() => shouldShowExpand && setIsExpanded(!isExpanded)}>
+          <Text
+            style={[styles.communityDescription, { color: colors.textSecondary }]}
+            numberOfLines={isExpanded ? undefined : 2}
+          >
+            {community.description}
+          </Text>
+          {shouldShowExpand && (
+            <Text style={[styles.expandText, { color: colors.primary }]}>
+              {isExpanded ? 'Show less' : 'Read more'}
+            </Text>
+          )}
+        </Pressable>
 
         <Pressable
           style={[styles.joinButton, {
@@ -373,7 +385,13 @@ const styles = StyleSheet.create({
   communityDescription: {
     fontSize: 14,
     lineHeight: 20,
+    marginBottom: 8,
+  },
+  expandText: {
+    fontSize: 13,
+    fontWeight: '600',
     marginBottom: 12,
+    marginTop: 4,
   },
   joinButton: {
     flexDirection: 'row',

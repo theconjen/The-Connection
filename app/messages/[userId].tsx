@@ -47,7 +47,7 @@ export default function ChatScreen() {
   const { data: initialMessages = [], isLoading } = useQuery<Message[]>({
     queryKey: ['messages', otherUserId],
     queryFn: async () => {
-      const response = await apiClient.get(`/messages/${otherUserId}`);
+      const response = await apiClient.get(`/api/messages/${otherUserId}`);
       return response.data;
     },
     enabled: !!otherUserId,
@@ -119,7 +119,7 @@ export default function ChatScreen() {
 
     const markAsRead = async () => {
       try {
-        await apiClient.post(`/messages/mark-conversation-read/${otherUserId}`);
+        await apiClient.post(`/api/messages/mark-conversation-read/${otherUserId}`);
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
         queryClient.invalidateQueries({ queryKey: ['messages', otherUserId] });
       } catch (error) {

@@ -35,7 +35,7 @@ export default function NewMessageScreen() {
     queryKey: ['search-users', searchQuery],
     queryFn: async () => {
       if (!searchQuery.trim()) return [];
-      const response = await apiClient.get('/search', {
+      const response = await apiClient.get('/api/search', {
         params: { q: searchQuery, filter: 'accounts' }
       });
       return response.data || [];
