@@ -85,7 +85,7 @@
       ]
     ],
     "extra": {
-      "apiBase": "https://api.theconnection.app/api",
+      "apiBase": "https://api.theconnection.app",
       "router": {
         "origin": "https://app.theconnection.app"
       },
