@@ -1,12 +1,24 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
-// Use API URL from environment variables
-// TEMPORARY: Hardcoded for local development
-// For iOS Simulator: http://localhost:5001
-// For Android Emulator: http://10.0.2.2:5001
-// For physical device: http://YOUR_COMPUTER_IP:5001
-const API_BASE_URL = 'http://localhost:5001';
+// Get API URL from app config (supports production and development)
+// Production: Uses apiBase from app.json extra config
+// Development: Falls back to localhost for local testing
+const getApiBaseUrl = () => {
+  // Try to get from app config first (production builds)
+  const configApiBase = Constants.expoConfig?.extra?.apiBase;
+  if (configApiBase) {
+    console.log('[API] Using production API:', configApiBase);
+    return configApiBase;
+  }
+
+  // Fallback to localhost for local development
+  console.log('[API] Using local development API: http://localhost:5001');
+  return 'http://localhost:5001';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 
 const apiClient = axios.create({
