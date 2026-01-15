@@ -283,30 +283,59 @@ function useRepostMicroblog() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (postId: number) => {
-      const response = await apiClient.post(`/api/microblogs/${postId}/repost`);
-      return response.data;
+    mutationFn: async ({ postId, isReposted }: { postId: number; isReposted: boolean }) => {
+      try {
+        if (isReposted) {
+          // Already reposted, so undo the repost
+          await apiClient.delete(`/api/microblogs/${postId}/repost`);
+        } else {
+          // Not reposted, so repost it
+          const response = await apiClient.post(`/api/microblogs/${postId}/repost`);
+          return response.data;
+        }
+      } catch (error: any) {
+        // If we get 404 on delete, the repost didn't exist - treat as success
+        if (error.response?.status === 404 && isReposted) {
+          return;
+        }
+        // If we get 400 "already reposted" on post, treat as success
+        if (error.response?.status === 400 && !isReposted) {
+          return;
+        }
+        throw error;
+      }
     },
-    onMutate: async (postId) => {
+    onMutate: async ({ postId, isReposted }) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ['/api/microblogs'] });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueryData(['/api/microblogs']);
+
       // Optimistic update
       queryClient.setQueriesData({ queryKey: ['/api/microblogs'] }, (oldData: any) => {
         if (!oldData) return oldData;
         return oldData.map((post: Microblog) =>
           post.id === postId
-            ? { ...post, repostCount: (post.repostCount || 0) + 1, isReposted: true }
+            ? {
+                ...post,
+                isReposted: !isReposted,
+                repostCount: isReposted ? (post.repostCount || 0) - 1 : (post.repostCount || 0) + 1,
+              }
             : post
         );
       });
+
+      return { previousData };
+    },
+    onError: (error: any, variables, context) => {
+      // Revert optimistic update on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/microblogs'], context.previousData);
+      }
+      Alert.alert('Error', 'Failed to update repost. Please try again.');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
-    },
-    onError: (error: any) => {
-      if (error?.response?.data?.message === 'Already reposted') {
-        Alert.alert('Already Reposted', 'You have already reposted this post.');
-      } else {
-        Alert.alert('Error', 'Failed to repost. Please try again.');
-      }
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
     },
   });
@@ -395,6 +424,35 @@ function formatTime(dateString: string): string {
 // SUB-COMPONENTS
 // ============================================================================
 
+// Helper function to render content with clickable hashtags
+function renderContentWithHashtags(
+  content: string,
+  onHashtagPress: (tag: string) => void,
+  styles: any
+) {
+  const parts = content.split(/(#[a-zA-Z0-9_]+)/g);
+
+  return (
+    <Text style={styles.postContent}>
+      {parts.map((part, index) => {
+        if (part.startsWith('#')) {
+          const tag = part.slice(1);
+          return (
+            <Text
+              key={index}
+              style={styles.hashtagLink}
+              onPress={() => onHashtagPress(tag.toLowerCase())}
+            >
+              {part}
+            </Text>
+          );
+        }
+        return <Text key={index}>{part}</Text>;
+      })}
+    </Text>
+  );
+}
+
 interface PostItemProps {
   post: Microblog;
   onLike: () => void;
@@ -403,6 +461,7 @@ interface PostItemProps {
   onRepostPress: () => void;
   onSharePress: () => void;
   onBookmarkPress: () => void;
+  onHashtagPress: (tag: string) => void;
   isAuthenticated: boolean;
 }
 
@@ -415,7 +474,7 @@ interface Comment {
   author?: User;
 }
 
-const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommentPress, onRepostPress, onSharePress, onBookmarkPress, isAuthenticated }) => {
+const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommentPress, onRepostPress, onSharePress, onBookmarkPress, onHashtagPress, isAuthenticated }) => {
   const { colors, colorScheme } = useTheme();
   const styles = getStyles(colors, colorScheme);
 
@@ -445,7 +504,7 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
           </View>
 
           {/* Post Content */}
-          <Text style={styles.postContent}>{post.content}</Text>
+          {renderContentWithHashtags(post.content, onHashtagPress, styles)}
 
           {/* Post Actions */}
           <View style={styles.postActions}>
@@ -679,14 +738,14 @@ export default function FeedScreen({
     );
   };
 
-  const handleRepost = (postId: number) => {
+  const handleRepost = (postId: number, isReposted: boolean) => {
     if (!user) {
       Alert.alert('Sign In Required', 'Please sign in to repost.');
       return;
     }
 
-    // Directly repost to followers without confirmation
-    repostMutation.mutate(postId);
+    // Toggle repost (repost or undo repost)
+    repostMutation.mutate({ postId, isReposted });
   };
 
   const handleShare = async (post: Microblog) => {
@@ -911,7 +970,7 @@ export default function FeedScreen({
       if (selectedImages.length > 0) {
         for (const imageUri of selectedImages) {
           const base64 = await FileSystem.readAsStringAsync(imageUri, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64',
           });
           const extension = imageUri.split('.').pop()?.toLowerCase();
           const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
@@ -922,7 +981,7 @@ export default function FeedScreen({
       // Convert video to base64 if selected
       if (selectedVideo) {
         const base64 = await FileSystem.readAsStringAsync(selectedVideo, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
         const extension = selectedVideo.split('.').pop()?.toLowerCase();
         const mimeType = `video/${extension || 'mp4'}`;
@@ -1088,9 +1147,10 @@ export default function FeedScreen({
               onLike={() => handleLike(post.id, post.isLiked || false)}
               onMorePress={() => handleMorePress(post)}
               onCommentPress={() => handleOpenComments(post)}
-              onRepostPress={() => handleRepost(post.id)}
+              onRepostPress={() => handleRepost(post.id, post.isReposted || false)}
               onSharePress={() => handleShare(post)}
               onBookmarkPress={() => handleBookmark(post.id, post.isBookmarked || false)}
+              onHashtagPress={(tag) => setSelectedTrending({ type: 'hashtag', value: tag, display: tag })}
               isAuthenticated={!!user}
             />
           ))
@@ -1260,30 +1320,21 @@ export default function FeedScreen({
               </View>
             </ScrollView>
 
-            {/* Media Toolbar - Instagram/Twitter Style with Camera */}
+            {/* Media Toolbar - Simplified */}
             <View style={styles.mediaToolbar}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.mediaButtons}>
-                  <Pressable style={styles.mediaButton} onPress={handlePickImage} hitSlop={8}>
-                    <Ionicons name="image-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} onPress={handleTakePhoto} hitSlop={8}>
-                    <Ionicons name="camera-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} onPress={handlePickVideo} hitSlop={8}>
-                    <Ionicons name="videocam-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} onPress={handleTakeVideo} hitSlop={8}>
-                    <Ionicons name="film-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} onPress={handleOpenGifPicker} hitSlop={8}>
-                    <Text style={styles.gifButtonText}>GIF</Text>
-                  </Pressable>
-                  <Pressable style={styles.mediaButton} hitSlop={8}>
-                    <Ionicons name="location-outline" size={22} color={colors.accent} />
-                  </Pressable>
-                </View>
-              </ScrollView>
+              <View style={styles.mediaButtons}>
+                <Pressable style={styles.mediaButton} onPress={handlePickImage} hitSlop={8}>
+                  <Ionicons name="image-outline" size={22} color={colors.accent} />
+                  <Text style={[styles.mediaButtonLabel, { color: colors.textSecondary }]}>Gallery</Text>
+                </Pressable>
+                <Pressable style={styles.mediaButton} onPress={handleTakePhoto} hitSlop={8}>
+                  <Ionicons name="camera-outline" size={22} color={colors.accent} />
+                  <Text style={[styles.mediaButtonLabel, { color: colors.textSecondary }]}>Camera</Text>
+                </Pressable>
+                <Pressable style={styles.mediaButton} onPress={handleOpenGifPicker} hitSlop={8}>
+                  <Text style={styles.gifButtonText}>GIF</Text>
+                </Pressable>
+              </View>
 
               {/* Media Counter & Character Count */}
               <View style={styles.charCount}>
@@ -1723,6 +1774,10 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     marginTop: 4,
     marginBottom: 12,
   },
+  hashtagLink: {
+    color: theme === 'dark' ? '#60A5FA' : '#2563EB',
+    fontWeight: '600',
+  },
   postActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1938,7 +1993,14 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     gap: 16,
   },
   mediaButton: {
-    padding: 4,
+    padding: 8,
+    alignItems: 'center',
+    gap: 4,
+  },
+  mediaButtonLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
   },
   charCount: {
     paddingLeft: 12,

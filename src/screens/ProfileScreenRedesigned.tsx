@@ -18,7 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import { Text } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -117,7 +117,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
         // Convert to base64
         const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
 
         // Get the file extension to determine mime type

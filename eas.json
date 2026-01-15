@@ -10,16 +10,14 @@
       "ios": {
         "resourceClass": "m-medium"
       },
-      "channel": "development",
-      "prebuildCommand": "bash hooks/eas-build-pre-install.sh"
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "ios": {
         "simulator": true
       },
-      "channel": "preview",
-      "prebuildCommand": "bash hooks/eas-build-pre-install.sh"
+      "channel": "preview"
     },
     "production": {
       "ios": {
@@ -28,8 +26,7 @@
       "android": {
         "buildType": "apk"
       },
-      "channel": "production",
-      "prebuildCommand": "bash hooks/eas-build-pre-install.sh"
+      "channel": "production"
     }
   },
   "submit": {
