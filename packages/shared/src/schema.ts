@@ -387,6 +387,7 @@ export const posts = pgTable("posts", {
   upvotes: integer("upvotes").default(0),
   downvotes: integer("downvotes").default(0),
   commentCount: integer("comment_count").default(0),
+  detectedLanguage: text("detected_language"), // ISO 639-1 language code (e.g., en, ar, es)
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
 } as any);
@@ -845,6 +846,7 @@ export const microblogs: any = pgTable("microblogs", {
   repostCount: integer("repost_count").default(0),
   replyCount: integer("reply_count").default(0),
   parentId: integer("parent_id").references(() => microblogs.id), // For replies to other microblogs
+  detectedLanguage: text("detected_language"), // ISO 639-1 language code (e.g., en, ar, es)
   createdAt: timestamp("created_at").defaultNow(),
 } as any);
 
@@ -1273,6 +1275,8 @@ export const userPreferences = pgTable("user_preferences", {
   interests: jsonb("interests").default([]),
   favoriteTopics: jsonb("favorite_topics").default([]),
   engagementHistory: jsonb("engagement_history").default([]),
+  preferredLanguages: jsonb("preferred_languages").default(['en']), // Array of ISO 639-1 codes
+  languageEngagement: jsonb("language_engagement").default({}), // {"en": 45, "ar": 12, "es": 3}
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 } as any);

@@ -7,6 +7,9 @@ import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { contentCreationLimiter, messageCreationLimiter } from '../rate-limiters';
 import { notifyCommunityMembers, notifyUserWithPreferences, truncateText, getUserDisplayName } from '../services/notificationHelper';
+import { sortPostsByFeedScore } from '../algorithms/christianFeedScoring';
+import { detectLanguage } from '../services/languageDetection';
+import { trackEngagement } from '../services/engagementTracking';
 
 const MAX_TITLE_LENGTH = 60;
 
@@ -82,16 +85,182 @@ const sanitizePostForAnonymity = (post: any) => {
 export function createPostsRouter(storage = defaultStorage) {
   const router = Router();
 
-  router.get('/api/posts', async (req, res) => {
+  // Get trending hashtags for posts (MUST be before /api/posts/:id route)
+  router.get('/posts/hashtags/trending', async (req, res) => {
     try {
-      const filter = req.query.filter as string;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const trending = await storage.getTrendingHashtags(Math.min(limit, 20));
+      res.json(trending);
+    } catch (error) {
+      console.error('Error fetching trending hashtags:', error);
+      res.status(500).json(buildErrorResponse('Error fetching trending hashtags', error));
+    }
+  });
+
+  // Get posts by hashtag (MUST be before /api/posts/:id route)
+  router.get('/posts/hashtags/:tag', async (req, res) => {
+    try {
+      const { tag } = req.params;
+      const limit = parseInt(req.query.limit as string) || 20;
       const userId = getSessionUserId(req);
-      let posts = await storage.getAllPosts(filter);
+
+      let posts = await storage.getPostsByHashtag(tag, Math.min(limit, 50));
+
+      // Filter blocked users
       if (userId) {
         const blockedIds = await storage.getBlockedUserIdsFor(userId);
         if (blockedIds && blockedIds.length > 0) {
           posts = posts.filter((p: any) => !blockedIds.includes(p.authorId));
         }
+      }
+
+      // Enrich posts with author data
+      const enrichedPosts = await Promise.all(
+        posts.map(async (post: any) => {
+          const author = await storage.getUser(post.authorId);
+          return {
+            ...sanitizePostForAnonymity({
+              ...post,
+              author: author ? {
+                id: author.id,
+                username: author.username,
+                displayName: author.displayName,
+                avatarUrl: author.profileImageUrl,
+              } : undefined,
+            }),
+          };
+        })
+      );
+
+      res.json(enrichedPosts);
+    } catch (error) {
+      console.error('Error fetching posts by hashtag:', error);
+      res.status(500).json(buildErrorResponse('Error fetching posts by hashtag', error));
+    }
+  });
+
+  // Get trending keywords for posts (MUST be before /api/posts/:id route)
+  router.get('/posts/keywords/trending', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const trending = await storage.getTrendingKeywords(Math.min(limit, 20));
+      res.json(trending);
+    } catch (error) {
+      console.error('Error fetching trending keywords:', error);
+      res.status(500).json(buildErrorResponse('Error fetching trending keywords', error));
+    }
+  });
+
+  // Get posts by keyword (MUST be before /api/posts/:id route)
+  router.get('/posts/keywords/:keyword', async (req, res) => {
+    try {
+      const { keyword } = req.params;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const userId = getSessionUserId(req);
+
+      let posts = await storage.getPostsByKeyword(keyword, Math.min(limit, 50));
+
+      // Filter blocked users
+      if (userId) {
+        const blockedIds = await storage.getBlockedUserIdsFor(userId);
+        if (blockedIds && blockedIds.length > 0) {
+          posts = posts.filter((p: any) => !blockedIds.includes(p.authorId));
+        }
+      }
+
+      // Enrich posts with author data
+      const enrichedPosts = await Promise.all(
+        posts.map(async (post: any) => {
+          const author = await storage.getUser(post.authorId);
+          return {
+            ...sanitizePostForAnonymity({
+              ...post,
+              author: author ? {
+                id: author.id,
+                username: author.username,
+                displayName: author.displayName,
+                avatarUrl: author.profileImageUrl,
+              } : undefined,
+            }),
+          };
+        })
+      );
+
+      res.json(enrichedPosts);
+    } catch (error) {
+      console.error('Error fetching posts by keyword:', error);
+      res.status(500).json(buildErrorResponse('Error fetching posts by keyword', error));
+    }
+  });
+
+  // Get combined trending (hashtags + keywords) for posts (MUST be before /posts/:id route)
+  router.get('/posts/trending/combined', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const halfLimit = Math.ceil(limit / 2);
+
+      // Get top hashtags and keywords
+      const [hashtags, keywords] = await Promise.all([
+        storage.getTrendingHashtags(halfLimit),
+        storage.getTrendingKeywords(halfLimit),
+      ]);
+
+      // Combine and sort by trending score
+      const combined = [
+        ...hashtags.map(h => ({ type: 'hashtag', ...h })),
+        ...keywords.map(k => ({ type: 'keyword', ...k })),
+      ].sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0))
+        .slice(0, limit);
+
+      res.json(combined);
+    } catch (error) {
+      console.error('Error fetching combined trending:', error);
+      res.status(500).json(buildErrorResponse('Error fetching combined trending', error));
+    }
+  });
+
+  router.get('/posts', async (req, res) => {
+    try {
+      const filter = req.query.filter as string;
+      const userId = getSessionUserId(req);
+      let posts: any[] = [];
+
+      if (userId) {
+        if (filter === 'popular') {
+          // Popular: mix of followed users' posts + most popular posts
+          const [followingPosts, allPosts] = await Promise.all([
+            storage.getFollowingPosts(userId),
+            storage.getAllPosts(filter)
+          ]);
+
+          if (followingPosts.length === 0) {
+            // Not following anyone: show all posts scored by algorithm
+            posts = allPosts;
+          } else {
+            // Combine followed posts + top popular posts
+            const followingSet = new Set(followingPosts.map(p => p.id));
+            const popularPosts = sortPostsByFeedScore(allPosts.filter(p => !followingSet.has(p.id))).slice(0, 20);
+            posts = [...followingPosts, ...popularPosts];
+          }
+        } else {
+          // Recent: show posts from followed users, or all posts if not following anyone
+          const followingPosts = await storage.getFollowingPosts(userId);
+
+          if (followingPosts.length === 0) {
+            // Not following anyone: show all posts
+            posts = await storage.getAllPosts(filter);
+          } else {
+            posts = followingPosts;
+          }
+        }
+
+        const blockedIds = await storage.getBlockedUserIdsFor(userId);
+        if (blockedIds && blockedIds.length > 0) {
+          posts = posts.filter((p: any) => !blockedIds.includes(p.authorId));
+        }
+      } else {
+        // Not logged in: show all posts
+        posts = await storage.getAllPosts(filter);
       }
 
       // Filter out posts from private accounts (unless it's the user's own post)
@@ -103,6 +272,11 @@ export function createPostsRouter(storage = defaultStorage) {
         return true;
       });
 
+      // Apply Christian values sorting if filter=popular
+      if (filter === 'popular') {
+        posts = sortPostsByFeedScore(posts);
+      }
+
       // Sanitize anonymous posts to hide author information
       posts = posts.map((p: any) => sanitizePostForAnonymity(p));
 
@@ -113,7 +287,39 @@ export function createPostsRouter(storage = defaultStorage) {
     }
   });
 
-  router.get('/api/posts/:id', async (req, res) => {
+  // Get user's bookmarked posts (MUST come before /:id route)
+  router.get('/posts/bookmarks', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      let posts = await storage.getUserBookmarkedPosts(userId);
+
+      // Filter out any posts with invalid IDs
+      posts = posts.filter(p => p && p.id != null && !isNaN(p.id));
+
+      // Filter out posts from blocked users
+      const blockedIds = await storage.getBlockedUserIdsFor(userId);
+      if (blockedIds && blockedIds.length > 0) {
+        posts = posts.filter((p: any) => !blockedIds.includes(p.authorId));
+      }
+
+      // Filter out posts from private accounts (unless it's the user's own post)
+      posts = posts.filter((p: any) => {
+        if (p.authorId === userId) return true;
+        if (p.author?.profileVisibility === 'private') return false;
+        return true;
+      });
+
+      // Sanitize anonymous posts
+      posts = posts.map((p: any) => sanitizePostForAnonymity(p));
+
+      res.json(posts);
+    } catch (error) {
+      console.error('Error fetching bookmarked posts:', error);
+      res.status(500).json(buildErrorResponse('Error fetching bookmarked posts', error));
+    }
+  });
+
+  router.get('/posts/:id', async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
     const userId = getSessionUserId(req);
@@ -137,7 +343,7 @@ export function createPostsRouter(storage = defaultStorage) {
   });
 
   // Accept { text, communityId? } and map to schema fields
-  router.post('/api/posts', contentCreationLimiter, requireAuth, async (req, res) => {
+  router.post('/posts', contentCreationLimiter, requireAuth, async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
     const result = resolvePostPayload(req.body, userId);
@@ -147,6 +353,25 @@ export function createPostsRouter(storage = defaultStorage) {
 
     const validatedData = insertPostSchema.parse(result.payload as any);
     const post = await storage.createPost(validatedData);
+
+    // Detect and update language asynchronously (don't block response)
+    Promise.resolve().then(async () => {
+      try {
+        const detectedLanguage = detectLanguage(post.title + ' ' + post.content);
+        await storage.updatePost(post.id, { detectedLanguage } as any);
+        console.info(`[Language] Detected ${detectedLanguage} for post ${post.id}`);
+      } catch (error) {
+        console.error('Error detecting language for post:', error);
+      }
+    });
+
+    // Process hashtags asynchronously (don't block response)
+    storage.processPostHashtags(post.id, post.title, post.content)
+      .catch(error => console.error('Error processing post hashtags:', error));
+
+    // Process keywords asynchronously (don't block response)
+    storage.processPostKeywords(post.id, post.title, post.content)
+      .catch(error => console.error('Error processing post keywords:', error));
 
     // Notify community members about new post (if posted in a community)
     if (post.communityId && !post.isAnonymous) {
@@ -183,7 +408,7 @@ export function createPostsRouter(storage = defaultStorage) {
   }
   });
 
-  router.post('/api/posts/:id/upvote', requireAuth, async (req, res) => {
+  router.post('/posts/:id/upvote', requireAuth, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -192,6 +417,12 @@ export function createPostsRouter(storage = defaultStorage) {
       return res.status(401).json({ message: 'User not found' });
     }
     const result = await storage.togglePostVote(postId, userId, 'upvote');
+
+    // Track engagement for language personalization (only if liked)
+    if (result.voted) {
+      trackEngagement(userId, postId, 'post', 'like')
+        .catch(error => console.error('Error tracking engagement:', error));
+    }
 
     // Notify post author about like (only if liked, not unliked)
     if (result.voted && result.post && result.post.authorId !== userId) {
@@ -219,7 +450,7 @@ export function createPostsRouter(storage = defaultStorage) {
   }
   });
 
-  router.post('/api/posts/:id/downvote', requireAuth, async (req, res) => {
+  router.post('/posts/:id/downvote', requireAuth, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -235,7 +466,7 @@ export function createPostsRouter(storage = defaultStorage) {
   }
   });
 
-  router.get('/api/posts/:id/comments', async (req, res) => {
+  router.get('/posts/:id/comments', async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
     const comments = await storage.getCommentsByPostId(postId);
@@ -362,7 +593,7 @@ export function createPostsRouter(storage = defaultStorage) {
   });
 
   // DELETE /api/posts/:id - Delete own post
-  router.delete('/api/posts/:id', requireAuth, async (req, res) => {
+  router.delete('/posts/:id', requireAuth, async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
 
@@ -387,6 +618,46 @@ export function createPostsRouter(storage = defaultStorage) {
     console.error('Error deleting post:', error);
     res.status(500).json(buildErrorResponse('Error deleting post', error));
   }
+  });
+
+  // Bookmark a post
+  router.post('/posts/:id/bookmark', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const postId = parseInt(req.params.id);
+      const post = await storage.getPost(postId);
+
+      if (!post) {
+        return res.status(404).json({ message: 'Post not found' });
+      }
+
+      const bookmark = await storage.bookmarkPost(postId, userId);
+      res.status(201).json(bookmark);
+    } catch (error: any) {
+      if (error.message === 'Already bookmarked') {
+        return res.status(400).json({ message: 'Already bookmarked' });
+      }
+      console.error('Error bookmarking post:', error);
+      res.status(500).json(buildErrorResponse('Error bookmarking post', error));
+    }
+  });
+
+  // Unbookmark a post
+  router.delete('/posts/:id/bookmark', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const postId = parseInt(req.params.id);
+      const success = await storage.unbookmarkPost(postId, userId);
+
+      if (!success) {
+        return res.status(404).json({ message: 'Bookmark not found' });
+      }
+
+      res.json({ message: 'Post unbookmarked successfully' });
+    } catch (error) {
+      console.error('Error unbookmarking post:', error);
+      res.status(500).json(buildErrorResponse('Error unbookmarking post', error));
+    }
   });
 
   return router;
