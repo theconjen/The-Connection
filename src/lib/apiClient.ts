@@ -2,8 +2,11 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Use API URL from environment variables
-// TEMPORARY: Hardcoded for debugging
-const API_BASE_URL = 'https://api.theconnection.app';
+// TEMPORARY: Hardcoded for local development
+// For iOS Simulator: http://localhost:5001
+// For Android Emulator: http://10.0.2.2:5001
+// For physical device: http://YOUR_COMPUTER_IP:5001
+const API_BASE_URL = 'http://localhost:5001';
 
 
 const apiClient = axios.create({

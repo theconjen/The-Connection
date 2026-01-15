@@ -49,6 +49,7 @@ export default function CommunitiesTab() {
       onClose={() => setMenuVisible(false)}
       onSettings={() => router.push("/settings")}
       onNotifications={() => router.push("/notifications")}
+      onBookmarks={() => router.push("/bookmarks")}
       onApologetics={() => {
         Alert.alert(
           "Coming Soon",

@@ -10,9 +10,10 @@ interface MenuDrawerProps {
   onSettings: () => void;
   onNotifications: () => void;
   onApologetics: () => void;
+  onBookmarks: () => void;
 }
 
-export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onApologetics }: MenuDrawerProps) {
+export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onApologetics, onBookmarks }: MenuDrawerProps) {
   return (
     <Modal
       visible={visible}
@@ -54,6 +55,18 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onAp
               >
                 <Ionicons name="notifications-outline" size={24} color="#0F1419" />
                 <Text style={styles.menuItemText}>Notification Center</Text>
+                <Ionicons name="chevron-forward" size={20} color="#536471" />
+              </Pressable>
+
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  onClose();
+                  onBookmarks();
+                }}
+              >
+                <Ionicons name="bookmark-outline" size={24} color="#0F1419" />
+                <Text style={styles.menuItemText}>Bookmarks</Text>
                 <Ionicons name="chevron-forward" size={20} color="#536471" />
               </Pressable>
 
