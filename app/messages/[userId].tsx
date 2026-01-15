@@ -29,6 +29,18 @@ interface Message {
   senderName?: string;
   isRead?: boolean;
   readAt?: string | null;
+  sender?: {
+    id: number;
+    username: string;
+    displayName?: string;
+    profileImageUrl?: string;
+  };
+  receiver?: {
+    id: number;
+    username: string;
+    displayName?: string;
+    profileImageUrl?: string;
+  };
 }
 
 export default function ChatScreen() {
@@ -154,9 +166,24 @@ export default function ChatScreen() {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
-  const otherUserName = localMessages[0]?.senderId === otherUserId
-    ? localMessages[0]?.senderName
-    : localMessages.find(m => m.senderId === otherUserId)?.senderName || 'User';
+  // Extract other user's name from enriched message data
+  const otherUserName = React.useMemo(() => {
+    if (localMessages.length === 0) return 'User';
+
+    const firstMessage = localMessages[0];
+    // Check if we have enriched data (sender/receiver objects)
+    if (firstMessage.sender || firstMessage.receiver) {
+      const otherUserData = firstMessage.senderId === otherUserId
+        ? firstMessage.sender
+        : firstMessage.receiver;
+      return otherUserData?.displayName || otherUserData?.username || 'User';
+    }
+
+    // Fallback to legacy senderName field
+    return firstMessage.senderId === otherUserId
+      ? firstMessage.senderName
+      : localMessages.find(m => m.senderId === otherUserId)?.senderName || 'User';
+  }, [localMessages, otherUserId]);
 
   return (
     <KeyboardAvoidingView
