@@ -49,7 +49,8 @@
         "android.permission.NOTIFICATIONS",
         "android.permission.RECORD_AUDIO"
       ],
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "package": "app.theconnection.mobile"
     },
     "plugins": [
       "expo-router",
@@ -78,13 +79,6 @@
         "expo-build-properties",
         {
           "ios": {
-            "extraPods": [
-              {
-                "name": "RCT-Folly",
-                "configurations": ["Debug", "Release"],
-                "modular_headers": true
-              }
-            ],
             "deploymentTarget": "15.1"
           }
         }
