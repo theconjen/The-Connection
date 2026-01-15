@@ -66,14 +66,29 @@ export default function ChatScreen() {
   });
 
   // Fetch other user's profile data (needed when no messages exist yet)
-  const { data: otherUserData } = useQuery({
+  const { data: otherUserData, error: profileError, isLoading: profileLoading } = useQuery({
     queryKey: ['user-profile', otherUserId],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/users/${otherUserId}/profile`);
-      return response.data;
+      console.log('[ChatScreen] Fetching profile for user:', otherUserId);
+      try {
+        const response = await apiClient.get(`/api/users/${otherUserId}/profile`);
+        console.log('[ChatScreen] Profile data received:', response.data);
+        return response.data;
+      } catch (error) {
+        console.error('[ChatScreen] Error fetching profile:', error);
+        throw error;
+      }
     },
     enabled: !!otherUserId,
+    retry: 2,
   });
+
+  // Debug log when profile data changes
+  useEffect(() => {
+    console.log('[ChatScreen] otherUserData updated:', otherUserData);
+    console.log('[ChatScreen] profileError:', profileError);
+    console.log('[ChatScreen] profileLoading:', profileLoading);
+  }, [otherUserData, profileError, profileLoading]);
 
   // Update local messages when initial messages load
   useEffect(() => {
