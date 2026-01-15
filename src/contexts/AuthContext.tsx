@@ -110,7 +110,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: RegisterPayload) => {
     try {
+      console.info('[AUTH] Starting registration with data:', {
+        email: data.email,
+        username: data.username,
+        hasPassword: !!data.password,
+        passwordLength: data.password?.length,
+        firstName: data.firstName,
+        lastName: data.lastName,
+      });
+
       const response = await apiClient.post('/api/auth/register', data);
+
+      console.info('[AUTH] Registration successful, user ID:', response.data?.id);
 
       // Save JWT token if present (for mobile app API auth)
       if (response.data.token) {
@@ -139,9 +150,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { verificationSent: false };
     } catch (error: any) {
-      console.error('Registration error:', error);
-      console.error('Registration error response:', error.response?.data);
-      throw new Error(error.response?.data?.message || 'Registration failed');
+      console.error('[AUTH] Registration error:', error);
+      console.error('[AUTH] Registration error status:', error.response?.status);
+      console.error('[AUTH] Registration error response:', error.response?.data);
+      console.error('[AUTH] Full error object:', JSON.stringify(error, null, 2));
+
+      // More specific error messages
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again in a moment.');
+      } else if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else {
+        throw new Error('Registration failed. Please check your connection and try again.');
+      }
     }
   };
 
