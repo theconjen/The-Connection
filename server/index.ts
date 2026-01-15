@@ -165,8 +165,10 @@ async function bootstrap() {
     }
   });
 
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+  // Set body size limit for image uploads (profile pictures, post images)
+  // Matches Instagram's ~8MB image limit for good quality without excessive bandwidth
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
   // Legacy compatibility handler for probes that still request /api.php
   app.get("/api.php", (_req: Request, res: Response) => {
