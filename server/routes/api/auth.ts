@@ -421,6 +421,18 @@ router.post('/auth/register', async (req, res) => {
       emailVerified: false,
     });
 
+    // Send email verification
+    let verificationSent = false;
+    try {
+      const apiBase = process.env.API_BASE_URL || 'https://theconnection.app';
+      await createAndSendVerification(user.id, user.email, apiBase);
+      verificationSent = true;
+      console.info('[REGISTRATION] Verification email sent to:', user.email);
+    } catch (emailError) {
+      console.error('[REGISTRATION] Failed to send verification email:', emailError);
+      // Don't fail registration if email fails - user can resend later
+    }
+
     // Generate JWT token for mobile apps
     const jwtSecret = process.env.JWT_SECRET;
     if (jwtSecret) {
@@ -435,7 +447,7 @@ router.post('/auth/register', async (req, res) => {
       return res.status(201).json({
         ...userData,
         token,
-        verificationSent: false
+        verificationSent
       });
     }
 
@@ -451,11 +463,11 @@ router.post('/auth/register', async (req, res) => {
           return res.status(500).json(buildErrorResponse('Error saving session', err));
         }
         const { password: _, ...userData } = user;
-        res.status(201).json({ ...userData, verificationSent: false });
+        res.status(201).json({ ...userData, verificationSent });
       });
     } else {
       const { password: _, ...userData } = user;
-      res.status(201).json({ ...userData, verificationSent: false });
+      res.status(201).json({ ...userData, verificationSent });
     }
   } catch (error) {
     console.error('Registration error:', error);
