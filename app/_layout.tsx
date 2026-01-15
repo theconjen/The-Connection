@@ -54,17 +54,26 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
 
-    if (user && inAuthGroup) {
-      // Check if user has completed onboarding
-      if (user.onboardingCompleted === false) {
-        // New user - send to onboarding
-        router.replace('/(onboarding)/welcome');
-      } else {
-        // Existing user - send to feed
+    if (!user) {
+      // Not logged in - redirect to login (unless already on auth screens)
+      if (!inAuthGroup) {
+        router.replace('/(auth)/login');
+      }
+    } else {
+      // Logged in
+      if (inAuthGroup) {
+        // User is logged in but on auth screens (just registered/logged in)
+        // Check if they need onboarding
+        if (user.onboardingCompleted === false) {
+          router.replace('/(onboarding)/welcome');
+        } else {
+          router.replace('/(tabs)/feed');
+        }
+      } else if (inOnboardingGroup && user.onboardingCompleted === true) {
+        // User completed onboarding but still on onboarding screens - redirect to feed
         router.replace('/(tabs)/feed');
       }
-    } else if (!user && !inAuthGroup && !inOnboardingGroup) {
-      router.replace('/(auth)/login');
+      // If user is in tabs or other authenticated areas, let them be
     }
   }, [user, isLoading, segments]);
 

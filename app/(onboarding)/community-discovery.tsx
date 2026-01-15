@@ -35,7 +35,7 @@ interface Community {
 export default function CommunityDiscoveryScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
 
   const [communities, setCommunities] = useState<Community[]>([]);
   const [joinedCommunities, setJoinedCommunities] = useState<Set<number>>(new Set());
@@ -112,6 +112,9 @@ export default function CommunityDiscoveryScreen() {
         onboardingCompleted: true,
         interests: faith.interests || [],
       });
+
+      // Refresh user context to get updated onboardingCompleted status
+      await refresh();
 
       // Clean up secure storage
       await SecureStore.deleteItemAsync('onboarding_profile');
