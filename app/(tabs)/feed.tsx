@@ -61,6 +61,7 @@ export default function FeedTab() {
             [{ text: "OK" }]
           );
         }}
+        onSearch={() => router.push("/search")}
       />
     </>
   );

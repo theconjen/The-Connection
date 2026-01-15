@@ -57,6 +57,7 @@ export default function CommunitiesTab() {
           [{ text: "OK" }]
         );
       }}
+      onSearch={() => router.push("/search")}
     />
   </>
   );

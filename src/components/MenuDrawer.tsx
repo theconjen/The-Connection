@@ -1,5 +1,5 @@
-import React from 'react';
-import { Modal, View, Pressable, StyleSheet, Animated } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, View, Pressable, StyleSheet, Animated, TextInput } from 'react-native';
 import { Text } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,9 +11,19 @@ interface MenuDrawerProps {
   onNotifications: () => void;
   onApologetics: () => void;
   onBookmarks: () => void;
+  onSearch?: () => void;
 }
 
-export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onApologetics, onBookmarks }: MenuDrawerProps) {
+export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onApologetics, onBookmarks, onSearch }: MenuDrawerProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = () => {
+    if (searchQuery.trim() && onSearch) {
+      onClose();
+      onSearch();
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -29,6 +39,23 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onAp
               <Text style={styles.headerTitle}>Menu</Text>
               <Pressable onPress={onClose} style={styles.closeButton}>
                 <Ionicons name="close" size={24} color="#0F1419" />
+              </Pressable>
+            </View>
+
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#536471" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search for people..."
+                placeholderTextColor="#536471"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={handleSearch}
+                returnKeyType="search"
+              />
+              <Pressable onPress={handleSearch} style={styles.searchButton}>
+                <Ionicons name="search" size={18} color="#fff" />
               </Pressable>
             </View>
 
@@ -100,7 +127,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   drawer: {
-    width: 280,
+    width: 360,
     flex: 1,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
@@ -119,12 +146,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 60,
     paddingBottom: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#EFF3F4',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#0F1419',
   },
@@ -135,18 +162,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 20,
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#EFF3F4',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CFD9DE',
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 8,
+    color: '#0F1419',
+  },
+  searchButton: {
+    backgroundColor: '#1DA1F2',
+    padding: 10,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
   menuItems: {
     paddingTop: 8,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    gap: 12,
+    padding: 20,
+    paddingLeft: 20,
+    paddingRight: 20,
+    gap: 16,
   },
   menuItemText: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '500',
     color: '#0F1419',
   },

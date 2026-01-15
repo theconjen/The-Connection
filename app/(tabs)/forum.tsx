@@ -54,6 +54,7 @@ export default function ForumTab() {
           [{ text: "OK" }]
         );
       }}
+      onSearch={() => router.push("/search")}
     />
   </>
   );

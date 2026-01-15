@@ -54,6 +54,7 @@ export default function EventsTab() {
           [{ text: "OK" }]
         );
       }}
+      onSearch={() => router.push("/search")}
     />
   </>
   );
