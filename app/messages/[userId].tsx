@@ -65,6 +65,16 @@ export default function ChatScreen() {
     enabled: !!otherUserId,
   });
 
+  // Fetch other user's profile data (needed when no messages exist yet)
+  const { data: otherUserData } = useQuery({
+    queryKey: ['user-profile', otherUserId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/users/${otherUserId}/profile`);
+      return response.data;
+    },
+    enabled: !!otherUserId,
+  });
+
   // Update local messages when initial messages load
   useEffect(() => {
     if (initialMessages.length > 0) {
@@ -187,24 +197,33 @@ export default function ChatScreen() {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
-  // Extract other user's name from enriched message data
+  // Extract other user's name from enriched message data OR fetched profile
   const otherUserName = React.useMemo(() => {
-    if (localMessages.length === 0) return 'User';
-
-    const firstMessage = localMessages[0];
-    // Check if we have enriched data (sender/receiver objects)
-    if (firstMessage.sender || firstMessage.receiver) {
-      const otherUserData = firstMessage.senderId === otherUserId
-        ? firstMessage.sender
-        : firstMessage.receiver;
-      return otherUserData?.displayName || otherUserData?.username || 'User';
+    // First priority: get from fetched user profile data (works even with no messages)
+    if (otherUserData) {
+      return otherUserData.displayName || otherUserData.username || 'User';
     }
 
-    // Fallback to legacy senderName field
-    return firstMessage.senderId === otherUserId
-      ? firstMessage.senderName
-      : localMessages.find(m => m.senderId === otherUserId)?.senderName || 'User';
-  }, [localMessages, otherUserId]);
+    // Second priority: extract from messages if they exist
+    if (localMessages.length > 0) {
+      const firstMessage = localMessages[0];
+      // Check if we have enriched data (sender/receiver objects)
+      if (firstMessage.sender || firstMessage.receiver) {
+        const userData = firstMessage.senderId === otherUserId
+          ? firstMessage.sender
+          : firstMessage.receiver;
+        return userData?.displayName || userData?.username || 'User';
+      }
+
+      // Fallback to legacy senderName field
+      return firstMessage.senderId === otherUserId
+        ? firstMessage.senderName
+        : localMessages.find(m => m.senderId === otherUserId)?.senderName || 'User';
+    }
+
+    // Final fallback
+    return 'User';
+  }, [localMessages, otherUserId, otherUserData]);
 
   return (
     <KeyboardAvoidingView
