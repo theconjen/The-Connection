@@ -40,7 +40,7 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, colorScheme } = useTheme();
   const { user: currentUser } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'posts' | 'communities'>('posts');
@@ -54,21 +54,6 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   // Fetch user profile data
   const { data: profile, isLoading, error, refetch } = useUserProfile(targetUserId);
   const { data: followStatus } = useFollowStatus(targetUserId);
-
-  // Debug logging
-  React.useEffect(() => {
-    if (profile) {
-      console.info('[ProfileScreen] Profile data received:', JSON.stringify(profile, null, 2));
-      console.info('[ProfileScreen] User fields:', {
-        location: profile.user?.location,
-        denomination: profile.user?.denomination,
-        homeChurch: profile.user?.homeChurch,
-        favoriteBibleVerse: profile.user?.favoriteBibleVerse,
-        testimony: profile.user?.testimony,
-        interests: profile.user?.interests,
-      });
-    }
-  }, [profile]);
 
   const followMutation = useFollowUser();
   const unfollowMutation = useUnfollowUser();
@@ -118,7 +103,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
         // Convert to base64
         const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
 
         // Get the file extension to determine mime type
@@ -131,7 +116,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
         // Upload to server using apiClient
         const apiClient = (await import('../lib/apiClient')).default;
-        const response = await apiClient.patch('/user/profile', {
+        const response = await apiClient.patch('/api/user/profile', {
           avatarUrl: base64data,
         });
 
@@ -148,7 +133,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   if (isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <PageHeader title="Profile" onBackPress={onBackPress} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={Colors.primary} />
@@ -160,7 +145,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   if (!profile) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <PageHeader title="Profile" onBackPress={onBackPress} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text>Profile not found</Text>
@@ -169,11 +154,11 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
     );
   }
 
-  const { user, stats, communities, recentPosts } = profile;
+  const { user, stats, communities, recentPosts, recentMicroblogs } = profile;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <PageHeader
         title="Profile"
@@ -202,7 +187,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
         }
       >
         {/* Profile Header - Instagram Style */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           {/* Top Row: Avatar + Stats */}
           <View style={styles.topRow}>
             {/* Avatar */}
@@ -218,14 +203,14 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 />
               ) : (
                 <View style={[styles.avatar, { backgroundColor: Colors.primary }]}>
-                  <Text style={styles.avatarText}>
+                  <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
                     {getInitials(user.displayName || user.username)}
                   </Text>
                 </View>
               )}
               {viewingOwnProfile && (
-                <View style={styles.avatarEditBadge}>
-                  <Ionicons name="camera" size={14} color="#fff" />
+                <View style={[styles.avatarEditBadge, { borderColor: colors.surface }]}>
+                  <Ionicons name="camera" size={14} color={colors.primaryForeground} />
                 </View>
               )}
             </Pressable>
@@ -233,16 +218,16 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Stats */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.postsCount}</Text>
-                <Text style={styles.statLabel}>Posts</Text>
+                <Text style={[styles.statNumber, { color: colors.text }]}>{stats.postsCount}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Posts</Text>
               </View>
               <Pressable style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.followersCount}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
+                <Text style={[styles.statNumber, { color: colors.text }]}>{stats.followersCount}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Followers</Text>
               </Pressable>
               <Pressable style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.followingCount}</Text>
-                <Text style={styles.statLabel}>Following</Text>
+                <Text style={[styles.statNumber, { color: colors.text }]}>{stats.followingCount}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Following</Text>
               </Pressable>
             </View>
           </View>
@@ -251,47 +236,47 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
           <View style={styles.infoSection}>
             {/* Name with denomination badge */}
             <View style={styles.nameRow}>
-              <Text style={styles.displayName}>
+              <Text style={[styles.displayName, { color: colors.text }]}>
                 {user.displayName || user.username}
               </Text>
               {user.denomination && (
-                <View style={styles.denominationBadge}>
-                  <Text style={styles.denominationText}>{user.denomination}</Text>
+                <View style={[styles.denominationBadge, { backgroundColor: `${colors.primary}15` }]}>
+                  <Text style={[styles.denominationText, { color: colors.primary }]}>{user.denomination}</Text>
                 </View>
               )}
             </View>
 
-            <Text style={styles.username}>@{user.username}</Text>
+            <Text style={[styles.username, { color: colors.textSecondary }]}>@{user.username}</Text>
 
             {/* Compact location & church info */}
             {(user.location || user.homeChurch) && (
               <View style={styles.compactInfoRow}>
                 {user.location && (
                   <>
-                    <Ionicons name="location" size={12} color="#6b7280" />
-                    <Text style={styles.compactInfoText}>{user.location}</Text>
+                    <Ionicons name="location" size={12} color={colors.textSecondary} />
+                    <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>{user.location}</Text>
                   </>
                 )}
                 {user.location && user.homeChurch && (
-                  <Text style={styles.separator}> | </Text>
+                  <Text style={[styles.separator, { color: colors.textSecondary }]}> | </Text>
                 )}
                 {user.homeChurch && (
                   <>
-                    <Ionicons name="business" size={12} color="#6b7280" />
-                    <Text style={styles.compactInfoText}>{user.homeChurch}</Text>
+                    <Ionicons name="business" size={12} color={colors.textSecondary} />
+                    <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>{user.homeChurch}</Text>
                   </>
                 )}
               </View>
             )}
 
             {/* Bio */}
-            {user.bio && <Text style={styles.bio}>{user.bio}</Text>}
+            {user.bio && <Text style={[styles.bio, { color: colors.text }]}>{user.bio}</Text>}
 
             {/* Bible Verse - Compact version */}
             {user.favoriteBibleVerse && (
-              <View style={styles.bibleVerseCompact}>
+              <View style={[styles.bibleVerseCompact, { backgroundColor: `${Colors.primary}10`, borderLeftColor: Colors.primary }]}>
                 <Ionicons name="book" size={14} color={Colors.primary} />
-                <Text style={styles.bibleVerseText}>{user.favoriteBibleVerse}</Text>
+                <Text style={[styles.bibleVerseText, { color: colors.text }]}>{user.favoriteBibleVerse}</Text>
               </View>
             )}
 
@@ -299,8 +284,8 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {user.interests && (
               <View style={styles.interestTags}>
                 {user.interests.split(',').slice(0, 5).map((interest: string, index: number) => (
-                  <View key={index} style={styles.interestTag}>
-                    <Text style={styles.interestTagText}>{interest.trim()}</Text>
+                  <View key={index} style={[styles.interestTag, { backgroundColor: colors.muted }]}>
+                    <Text style={[styles.interestTagText, { color: colors.textSecondary }]}>{interest.trim()}</Text>
                   </View>
                 ))}
               </View>
@@ -311,10 +296,10 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
           <View style={styles.actionButtons}>
             {viewingOwnProfile ? (
               <Pressable
-                style={styles.editProfileButton}
+                style={[styles.editProfileButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => router.push('/edit-profile')}
               >
-                <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+                <Text style={[styles.editProfileButtonText, { color: colors.text }]}>Edit Profile</Text>
               </Pressable>
             ) : (
               <Pressable
@@ -322,13 +307,14 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 disabled={followMutation.isPending || unfollowMutation.isPending}
                 style={[
                   styles.followButton,
-                  followStatus?.isFollowing && styles.followingButton,
+                  followStatus?.isFollowing && [styles.followingButton, { backgroundColor: colors.surface, borderColor: colors.border }],
                 ]}
               >
                 <Text
                   style={[
                     styles.followButtonText,
-                    followStatus?.isFollowing && styles.followingButtonText,
+                    { color: colors.primaryForeground },
+                    followStatus?.isFollowing && [styles.followingButtonText, { color: colors.text }],
                   ]}
                 >
                   {followStatus?.isFollowing ? 'Following' : 'Follow'}
@@ -339,7 +325,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
         </View>
 
         {/* Tabs */}
-        <View style={styles.tabsContainer}>
+        <View style={[styles.tabsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <Pressable
             style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
             onPress={() => setActiveTab('posts')}
@@ -347,9 +333,9 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             <Ionicons
               name="document-text-outline"
               size={20}
-              color={activeTab === 'posts' ? Colors.primary : '#6b7280'}
+              color={activeTab === 'posts' ? Colors.primary : colors.textSecondary}
             />
-            <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>
+            <Text style={[styles.tabText, { color: colors.textSecondary }, activeTab === 'posts' && styles.activeTabText]}>
               Posts
             </Text>
           </Pressable>
@@ -360,10 +346,10 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             <Ionicons
               name="people-outline"
               size={20}
-              color={activeTab === 'communities' ? Colors.primary : '#6b7280'}
+              color={activeTab === 'communities' ? Colors.primary : colors.textSecondary}
             />
             <Text
-              style={[styles.tabText, activeTab === 'communities' && styles.activeTabText]}
+              style={[styles.tabText, { color: colors.textSecondary }, activeTab === 'communities' && styles.activeTabText]}
             >
               Communities
             </Text>
@@ -371,29 +357,52 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
         </View>
 
         {/* Tab Content */}
-        <View style={styles.content}>
+        <View style={[styles.content, { backgroundColor: colors.background }]}>
           {activeTab === 'posts' && (
             <View style={styles.postsContainer}>
-              {recentPosts && recentPosts.length > 0 ? (
+              {/* Show microblogs (feed posts) */}
+              {recentMicroblogs && recentMicroblogs.length > 0 ? (
+                recentMicroblogs.map((microblog: any) => (
+                  <View key={`microblog-${microblog.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Text style={[styles.postContent, { color: colors.text }]} numberOfLines={4}>
+                      {microblog.content}
+                    </Text>
+                    <View style={styles.postFooter}>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
+                        {new Date(microblog.createdAt).toLocaleDateString()}
+                      </Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
+                        {microblog.likeCount || 0} likes
+                      </Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
+                        {microblog.replyCount || 0} comments
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              ) : recentPosts && recentPosts.length > 0 ? (
+                // Show forum posts if no microblogs
                 recentPosts.map((post: any) => (
-                  <View key={post.id} style={styles.postCard}>
-                    <Text style={styles.postTitle}>{post.title}</Text>
-                    <Text style={styles.postContent} numberOfLines={3}>
+                  <View key={`post-${post.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Text style={[styles.postTitle, { color: colors.text }]}>{post.title}</Text>
+                    <Text style={[styles.postContent, { color: colors.textSecondary }]} numberOfLines={3}>
                       {post.content}
                     </Text>
                     <View style={styles.postFooter}>
-                      <Text style={styles.postMeta}>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
                         {new Date(post.createdAt).toLocaleDateString()}
                       </Text>
-                      <Text style={styles.postMeta}>•</Text>
-                      <Text style={styles.postMeta}>{post.upvotes || 0} upvotes</Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>{post.upvotes || 0} upvotes</Text>
                     </View>
                   </View>
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="document-outline" size={48} color="#9ca3af" />
-                  <Text style={styles.emptyText}>No posts yet</Text>
+                  <Ionicons name="document-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No posts yet</Text>
                 </View>
               )}
             </View>
@@ -404,9 +413,13 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               {communities && communities.length > 0 ? (
                 <View style={styles.communitiesGrid}>
                   {communities.map((community: any) => (
-                    <Pressable key={community.id} style={styles.storyCircle}>
-                      <View style={styles.storyImageContainer}>
-                        <View style={styles.storyIconCircle}>
+                    <Pressable
+                      key={community.id}
+                      style={styles.storyCircle}
+                      onPress={() => router.push(`/communities/${community.id}`)}
+                    >
+                      <View style={[styles.storyImageContainer, { backgroundColor: colors.surface }]}>
+                        <View style={[styles.storyIconCircle, { backgroundColor: colors.muted }]}>
                           <Ionicons
                             name={community.iconName as any}
                             size={32}
@@ -414,7 +427,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                           />
                         </View>
                       </View>
-                      <Text style={styles.storyLabel} numberOfLines={1}>
+                      <Text style={[styles.storyLabel, { color: colors.text }]} numberOfLines={1}>
                         {community.name}
                       </Text>
                     </Pressable>
@@ -422,8 +435,8 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="people-outline" size={48} color="#9ca3af" />
-                  <Text style={styles.emptyText}>No communities yet</Text>
+                  <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No communities yet</Text>
                 </View>
               )}
             </View>
@@ -437,12 +450,10 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#fff',
     paddingTop: 16,
     paddingBottom: 20,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
   },
   topRow: {
     flexDirection: 'row',
@@ -456,10 +467,8 @@ const styles = StyleSheet.create({
     width: 86,
     height: 86,
     borderRadius: 43,
-    backgroundColor: '#f3f4f6',
   },
   avatarText: {
-    color: '#fff',
     fontSize: 32,
     fontWeight: '700',
     textAlign: 'center',
@@ -476,7 +485,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
   },
   statsRow: {
     flex: 1,
@@ -490,11 +498,9 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1f2937',
   },
   statLabel: {
     fontSize: 13,
-    color: '#6b7280',
     marginTop: 2,
   },
   infoSection: {
@@ -509,22 +515,18 @@ const styles = StyleSheet.create({
   displayName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1f2937',
   },
   denominationBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    backgroundColor: '#EFF6FF',
     borderRadius: 10,
   },
   denominationText: {
     fontSize: 11,
-    color: '#1E40AF',
     fontWeight: '600',
   },
   username: {
     fontSize: 14,
-    color: '#6b7280',
     marginTop: 2,
   },
   compactInfoRow: {
@@ -535,17 +537,14 @@ const styles = StyleSheet.create({
   },
   compactInfoText: {
     fontSize: 12,
-    color: '#6b7280',
     marginLeft: 3,
   },
   separator: {
     fontSize: 12,
-    color: '#d1d5db',
     marginHorizontal: 4,
   },
   bio: {
     fontSize: 14,
-    color: '#374151',
     marginTop: 10,
     lineHeight: 20,
   },
@@ -556,16 +555,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    backgroundColor: '#FEFCE8',
     borderRadius: 6,
     borderLeftWidth: 2,
-    borderLeftColor: '#EAB308',
   },
   bibleVerseText: {
     flex: 1,
     fontSize: 12,
     fontStyle: 'italic',
-    color: '#713F12',
     lineHeight: 16,
   },
   interestTags: {
@@ -577,12 +573,10 @@ const styles = StyleSheet.create({
   interestTag: {
     paddingVertical: 4,
     paddingHorizontal: 10,
-    backgroundColor: '#F3F4F6',
     borderRadius: 12,
   },
   interestTagText: {
     fontSize: 11,
-    color: '#4B5563',
     fontWeight: '500',
   },
   actionButtons: {
@@ -592,13 +586,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#d1d5db',
     alignItems: 'center',
   },
   editProfileButtonText: {
-    color: '#1f2937',
     fontWeight: '600',
     fontSize: 14,
   },
@@ -610,23 +601,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   followingButton: {
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#d1d5db',
   },
   followButtonText: {
-    color: '#fff',
     fontWeight: '600',
     fontSize: 14,
   },
   followingButtonText: {
-    color: '#1f2937',
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
   },
   tab: {
     flex: 1,
@@ -643,7 +628,6 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    color: '#6b7280',
     fontWeight: '500',
   },
   activeTabText: {
@@ -651,29 +635,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   content: {
-    backgroundColor: '#f9fafb',
     minHeight: 400,
   },
   postsContainer: {
     padding: 16,
   },
   postCard: {
-    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   postTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1f2937',
     marginBottom: 8,
   },
   postContent: {
     fontSize: 14,
-    color: '#6b7280',
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -684,7 +663,6 @@ const styles = StyleSheet.create({
   },
   postMeta: {
     fontSize: 12,
-    color: '#9ca3af',
   },
   communitiesContainer: {
     padding: 16,
@@ -705,7 +683,6 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     padding: 3,
-    backgroundColor: '#fff',
     borderWidth: 2,
     borderColor: Colors.primary,
     marginBottom: 6,
@@ -714,13 +691,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 33,
-    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   storyLabel: {
     fontSize: 12,
-    color: '#374151',
     textAlign: 'center',
     width: '100%',
   },
@@ -731,7 +706,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#9ca3af',
     marginTop: 12,
   },
 });

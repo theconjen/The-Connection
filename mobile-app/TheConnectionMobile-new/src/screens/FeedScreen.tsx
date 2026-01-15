@@ -911,7 +911,7 @@ export default function FeedScreen({
       if (selectedImages.length > 0) {
         for (const imageUri of selectedImages) {
           const base64 = await FileSystem.readAsStringAsync(imageUri, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64',
           });
           const extension = imageUri.split('.').pop()?.toLowerCase();
           const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
@@ -922,7 +922,7 @@ export default function FeedScreen({
       // Convert video to base64 if selected
       if (selectedVideo) {
         const base64 = await FileSystem.readAsStringAsync(selectedVideo, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
         const extension = selectedVideo.split('.').pop()?.toLowerCase();
         const mimeType = `video/${extension || 'mp4'}`;
@@ -1270,6 +1270,9 @@ export default function FeedScreen({
                 <Pressable style={styles.mediaButton} onPress={handleTakePhoto} hitSlop={8}>
                   <Ionicons name="camera-outline" size={22} color={colors.accent} />
                   <Text style={[styles.mediaButtonLabel, { color: colors.textSecondary }]}>Camera</Text>
+                </Pressable>
+                <Pressable style={styles.mediaButton} onPress={handleOpenGifPicker} hitSlop={8}>
+                  <Text style={styles.gifButtonText}>GIF</Text>
                 </Pressable>
               </View>
 

@@ -211,7 +211,7 @@ export default function CreateForumPostScreen() {
       if (selectedImages.length > 0) {
         for (const imageUri of selectedImages) {
           const base64 = await FileSystem.readAsStringAsync(imageUri, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64',
           });
           const extension = imageUri.split('.').pop()?.toLowerCase();
           const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
@@ -222,7 +222,7 @@ export default function CreateForumPostScreen() {
       // Convert video to base64 if selected
       if (selectedVideo) {
         const base64 = await FileSystem.readAsStringAsync(selectedVideo, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
         const extension = selectedVideo.split('.').pop()?.toLowerCase();
         const mimeType = `video/${extension || 'mp4'}`;
