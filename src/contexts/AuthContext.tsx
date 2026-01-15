@@ -110,16 +110,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: RegisterPayload) => {
     try {
-      await apiClient.post('/api/auth/register', data);
-      try {
-        await apiClient.post('/api/auth/send-verification', { email: data.email });
-        return { verificationSent: true };
-      } catch (sendError) {
-        console.error('Verification email send failed:', sendError);
-        return { verificationSent: false };
+      const response = await apiClient.post('/api/auth/register', data);
+
+      // Save JWT token if present (for mobile app API auth)
+      if (response.data.token) {
+        const { saveAuthToken } = await import('../lib/secureStorage');
+        await saveAuthToken(response.data.token);
+        console.info('JWT token saved successfully after registration');
       }
+
+      // Extract and save the session cookie directly
+      const setCookieHeader = response.headers['set-cookie'];
+      if (setCookieHeader) {
+        const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+        const sessionCookie = cookies.find((c: string) => c.includes('sessionId='));
+        if (sessionCookie) {
+          const cookieValue = sessionCookie.split(';')[0];
+          await SecureStore.setItemAsync('sessionCookie', cookieValue);
+          console.info('Session cookie saved after registration');
+        }
+      }
+
+      // Set user from registration response
+      if (response.data && response.data.id) {
+        setUser(response.data);
+        setIsLoading(false);
+      }
+
+      return { verificationSent: false };
     } catch (error: any) {
       console.error('Registration error:', error);
+      console.error('Registration error response:', error.response?.data);
       throw new Error(error.response?.data?.message || 'Registration failed');
     }
   };
