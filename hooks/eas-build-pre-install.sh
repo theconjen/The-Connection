@@ -8,6 +8,10 @@ echo "🔧 Applying Folly coroutines fix to Podfile..."
 PODFILE="ios/Podfile"
 
 if [ -f "$PODFILE" ]; then
+  # Update deployment target to 15.1
+  echo "Setting iOS deployment target to 15.1..."
+  sed -i.bak "s/platform :ios, .*/platform :ios, '15.1'/" "$PODFILE"
+
   # Check if fix is already applied
   if ! grep -q "FOLLY_CFG_NO_COROUTINES" "$PODFILE"; then
     echo "Adding Folly coroutines fix..."
