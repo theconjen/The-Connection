@@ -3,7 +3,14 @@
  * Detects language of content and manages user language preferences
  */
 
-import { franc } from 'franc-min';
+// Lazy load franc-min to prevent app crash if not available
+let franc: any = null;
+try {
+  const francModule = require('franc-min');
+  franc = francModule.franc;
+} catch (error) {
+  console.warn('franc-min not available, language detection will default to English');
+}
 
 // ISO 639-3 to ISO 639-1 mapping for common languages
 const ISO_MAP: Record<string, string> = {
@@ -63,6 +70,11 @@ export function detectLanguage(text: string): string {
   }
 
   try {
+    // If franc-min is not available, default to English
+    if (!franc) {
+      return 'en';
+    }
+
     // franc returns ISO 639-3 codes
     const detected = franc(cleanText, { minLength: 10 });
 
