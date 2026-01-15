@@ -377,7 +377,10 @@ export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   content: text("content").notNull(),
-  imageUrl: text("image_url"),
+  imageUrl: text("image_url"), // Legacy single image (kept for backward compatibility)
+  imageUrls: jsonb("image_urls").default('[]'), // Multiple images support (JSONB array)
+  videoUrl: text("video_url"), // Video attachment
+  gifUrl: text("gif_url"), // GIF attachment (from Giphy)
   communityId: integer("community_id").references(() => communities.id),
   groupId: integer("group_id").references(() => groups.id),
   authorId: integer("author_id").references(() => users.id),
@@ -392,7 +395,10 @@ export const insertPostSchema = createInsertSchema(posts).pick({
   title: true,
   content: true,
   imageUrl: true,
-  communityId: true, 
+  imageUrls: true,
+  videoUrl: true,
+  gifUrl: true,
+  communityId: true,
   groupId: true,
   authorId: true,
 } as any);
@@ -454,6 +460,45 @@ export const insertCommentVoteSchema = createInsertSchema(commentVotes).pick({
   commentId: true,
   userId: true,
 } as any);
+
+// Post-Hashtag junction table
+export const postHashtags = pgTable("post_hashtags", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id")
+    .references(() => posts.id, { onDelete: 'cascade' })
+    .notNull(),
+  hashtagId: integer("hashtag_id")
+    .references(() => hashtags.id, { onDelete: 'cascade' })
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_post_hashtag_unique").on(table.postId, table.hashtagId),
+  index("idx_post_hashtags_post").on(table.postId),
+  index("idx_post_hashtags_hashtag").on(table.hashtagId),
+]);
+
+export type PostHashtag = typeof postHashtags.$inferSelect;
+export type InsertPostHashtag = typeof postHashtags.$inferInsert;
+
+// Post-Keyword junction table
+export const postKeywords = pgTable("post_keywords", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id")
+    .references(() => posts.id, { onDelete: 'cascade' })
+    .notNull(),
+  keywordId: integer("keyword_id")
+    .references(() => keywords.id, { onDelete: 'cascade' })
+    .notNull(),
+  frequency: integer("frequency").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_post_keyword_unique").on(table.postId, table.keywordId),
+  index("idx_post_keywords_post").on(table.postId),
+  index("idx_post_keywords_keyword").on(table.keywordId),
+]);
+
+export type PostKeyword = typeof postKeywords.$inferSelect;
+export type InsertPostKeyword = typeof postKeywords.$inferInsert;
 
 // Apologetics resources schema
 export const apologeticsResources = pgTable("apologetics_resources", {
@@ -789,7 +834,10 @@ export type LivestreamGift = typeof livestreamGifts.$inferSelect;
 export const microblogs: any = pgTable("microblogs", {
   id: serial("id").primaryKey(),
   content: text("content").notNull(),
-  imageUrl: text("image_url"), // Optional image attachment
+  imageUrl: text("image_url"), // Legacy single image (kept for backward compatibility)
+  imageUrls: jsonb("image_urls").default('[]'), // Multiple images support (JSONB array)
+  videoUrl: text("video_url"), // Video attachment
+  gifUrl: text("gif_url"), // GIF attachment (from Giphy)
   authorId: integer("author_id").references(() => users.id).notNull(),
   communityId: integer("community_id").references(() => communities.id), // Optional community (public if null)
   groupId: integer("group_id").references(() => groups.id), // Optional private group (public if null)
@@ -803,6 +851,9 @@ export const microblogs: any = pgTable("microblogs", {
 export const insertMicroblogSchema = createInsertSchema(microblogs).pick({
   content: true,
   imageUrl: true,
+  imageUrls: true,
+  videoUrl: true,
+  gifUrl: true,
   authorId: true,
   communityId: true,
   groupId: true,
@@ -848,6 +899,106 @@ export const insertMicroblogBookmarkSchema = createInsertSchema(microblogBookmar
   userId: true,
 } as any);
 
+// Post bookmarks table for tracking user bookmarks
+export const postBookmarks = pgTable("post_bookmarks", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").references(() => posts.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any);
+
+export const insertPostBookmarkSchema = createInsertSchema(postBookmarks).pick({
+  postId: true,
+  userId: true,
+} as any);
+
+// Hashtags table
+export const hashtags = pgTable("hashtags", {
+  id: serial("id").primaryKey(),
+  tag: text("tag").notNull().unique(),
+  displayTag: text("display_tag").notNull(),
+  trendingScore: integer("trending_score").default(0),
+  usageCount: integer("usage_count").default(0),
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_hashtags_trending").on(table.trendingScore),
+  index("idx_hashtags_tag").on(table.tag),
+]);
+
+export const insertHashtagSchema = createInsertSchema(hashtags).pick({
+  tag: true,
+  displayTag: true,
+} as any);
+
+export type Hashtag = typeof hashtags.$inferSelect;
+export type InsertHashtag = typeof hashtags.$inferInsert;
+
+// Microblog-Hashtag junction table
+export const microblogHashtags = pgTable("microblog_hashtags", {
+  id: serial("id").primaryKey(),
+  microblogId: integer("microblog_id")
+    .references(() => microblogs.id, { onDelete: 'cascade' })
+    .notNull(),
+  hashtagId: integer("hashtag_id")
+    .references(() => hashtags.id, { onDelete: 'cascade' })
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_microblog_hashtag_unique").on(table.microblogId, table.hashtagId),
+  index("idx_microblog_hashtags_microblog").on(table.microblogId),
+  index("idx_microblog_hashtags_hashtag").on(table.hashtagId),
+]);
+
+export type MicroblogHashtag = typeof microblogHashtags.$inferSelect;
+export type InsertMicroblogHashtag = typeof microblogHashtags.$inferInsert;
+
+// Keywords table (similar to hashtags, but for extracted keywords without # symbol)
+export const keywords = pgTable("keywords", {
+  id: serial("id").primaryKey(),
+  keyword: text("keyword").notNull().unique(),
+  displayKeyword: text("display_keyword").notNull(),
+  trendingScore: integer("trending_score").default(0),
+  usageCount: integer("usage_count").default(0),
+  lastUsedAt: timestamp("last_used_at"),
+  isProperNoun: boolean("is_proper_noun").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_keywords_trending").on(table.trendingScore),
+  index("idx_keywords_keyword").on(table.keyword),
+]);
+
+export const insertKeywordSchema = createInsertSchema(keywords).pick({
+  keyword: true,
+  displayKeyword: true,
+  isProperNoun: true,
+} as any);
+
+export type Keyword = typeof keywords.$inferSelect;
+export type InsertKeyword = typeof keywords.$inferInsert;
+
+// Microblog-Keyword junction table
+export const microblogKeywords = pgTable("microblog_keywords", {
+  id: serial("id").primaryKey(),
+  microblogId: integer("microblog_id")
+    .references(() => microblogs.id, { onDelete: 'cascade' })
+    .notNull(),
+  keywordId: integer("keyword_id")
+    .references(() => keywords.id, { onDelete: 'cascade' })
+    .notNull(),
+  frequency: integer("frequency").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_microblog_keyword_unique").on(table.microblogId, table.keywordId),
+  index("idx_microblog_keywords_microblog").on(table.microblogId),
+  index("idx_microblog_keywords_keyword").on(table.keywordId),
+]);
+
+export type MicroblogKeyword = typeof microblogKeywords.$inferSelect;
+export type InsertMicroblogKeyword = typeof microblogKeywords.$inferInsert;
+
 export type InsertMicroblog = typeof microblogs.$inferInsert;
 export type Microblog = typeof microblogs.$inferSelect;
 
@@ -859,6 +1010,9 @@ export type MicroblogRepost = typeof microblogReposts.$inferSelect;
 
 export type InsertMicroblogBookmark = typeof microblogBookmarks.$inferInsert;
 export type MicroblogBookmark = typeof microblogBookmarks.$inferSelect;
+
+export type InsertPostBookmark = typeof postBookmarks.$inferInsert;
+export type PostBookmark = typeof postBookmarks.$inferSelect;
 
 // Duplicate type definitions removed - they're already defined earlier in the file
 
@@ -888,7 +1042,7 @@ export const events = pgTable("events", {
   groupId: integer("group_id").references(() => groups.id),
   creatorId: integer("creator_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
-  deletedAt: timestamp("deleted_at"),
+  // deletedAt: timestamp("deleted_at"), // Not in actual DB table
 } as any);
 
 export const insertEventSchema = createInsertSchema(events).pick({
@@ -942,8 +1096,9 @@ export const prayerRequests = pgTable("prayer_requests", {
   title: text("title").notNull(),
   content: text("content").notNull(),
   isAnonymous: boolean("is_anonymous").default(false),
-  privacyLevel: text("privacy_level").notNull(), // public, friends-only, group-only
+  privacyLevel: text("privacy_level").notNull(), // public, friends-only, group-only, community-only
   groupId: integer("group_id").references(() => groups.id),
+  communityId: integer("community_id").references(() => communities.id),
   authorId: integer("author_id").notNull().references(() => users.id),
   prayerCount: integer("prayer_count").default(0),
   isAnswered: boolean("is_answered").default(false),
@@ -958,6 +1113,7 @@ export const insertPrayerRequestSchema = createInsertSchema(prayerRequests).pick
   isAnonymous: true,
   privacyLevel: true,
   groupId: true,
+  communityId: true,
   authorId: true,
 } as any);
 
