@@ -4054,6 +4054,213 @@ export class DbStorage implements IStorage {
   }
 
   // ============================================================================
+  // KEYWORD METHODS (DbStorage)
+  // ============================================================================
+
+  /**
+   * Get or create keyword by keyword string
+   */
+  async getOrCreateKeyword(keyword: string, displayKeyword: string, isProperNoun: boolean = false): Promise<any> {
+    const normalized = keyword.toLowerCase();
+
+    const [existing] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.keyword, normalized))
+      .limit(1);
+
+    if (existing) {
+      return existing;
+    }
+
+    const [newKeyword] = await db
+      .insert(keywords)
+      .values({
+        keyword: normalized,
+        displayKeyword,
+        isProperNoun,
+        usageCount: 0,
+        trendingScore: 0,
+        lastUsedAt: new Date(),
+      } as any)
+      .returning();
+
+    return newKeyword;
+  }
+
+  /**
+   * Link keyword to microblog
+   */
+  async linkKeywordToMicroblog(microblogId: number, keywordId: number, frequency: number): Promise<void> {
+    await db
+      .insert(microblogKeywords)
+      .values({ microblogId, keywordId, frequency } as any)
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Link keyword to post
+   */
+  async linkKeywordToPost(postId: number, keywordId: number, frequency: number): Promise<void> {
+    await db
+      .insert(postKeywords)
+      .values({ postId, keywordId, frequency } as any)
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Get trending keywords (top N by trending score)
+   */
+  async getTrendingKeywords(limit: number = 10): Promise<any[]> {
+    return await db
+      .select()
+      .from(keywords)
+      .orderBy(desc(keywords.trendingScore))
+      .limit(limit);
+  }
+
+  /**
+   * Get microblogs by keyword (sorted by engagement)
+   */
+  async getMicroblogsByKeyword(keyword: string, limit: number = 20): Promise<Microblog[]> {
+    const normalized = keyword.toLowerCase();
+
+    const [keywordRecord] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.keyword, normalized))
+      .limit(1);
+
+    if (!keywordRecord) return [];
+
+    const results = await db
+      .select({ microblog: microblogs })
+      .from(microblogKeywords)
+      .innerJoin(microblogs, eq(microblogKeywords.microblogId, microblogs.id))
+      .where(eq(microblogKeywords.keywordId, keywordRecord.id))
+      .orderBy(
+        desc(sql`COALESCE(${microblogs.likeCount}, 0) + COALESCE(${microblogs.repostCount}, 0) + COALESCE(${microblogs.replyCount}, 0)`)
+      )
+      .limit(limit);
+
+    return results.map(r => r.microblog);
+  }
+
+  /**
+   * Get posts by keyword (sorted by engagement)
+   */
+  async getPostsByKeyword(keyword: string, limit: number = 20): Promise<any[]> {
+    const normalized = keyword.toLowerCase();
+
+    const [keywordRecord] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.keyword, normalized))
+      .limit(1);
+
+    if (!keywordRecord) return [];
+
+    const results = await db
+      .select({ post: posts })
+      .from(postKeywords)
+      .innerJoin(posts, eq(postKeywords.postId, posts.id))
+      .where(eq(postKeywords.keywordId, keywordRecord.id))
+      .orderBy(
+        desc(sql`COALESCE(${posts.upvotes}, 0) - COALESCE(${posts.downvotes}, 0)`)
+      )
+      .limit(limit);
+
+    return results.map(r => r.post);
+  }
+
+  /**
+   * Process keywords when creating a microblog
+   */
+  async processMicroblogKeywords(microblogId: number, content: string): Promise<void> {
+    const { extractKeywords } = await import('./utils/keywordExtractor');
+    const extractedKeywords = extractKeywords(content);
+
+    for (const { keyword, displayKeyword, isProperNoun, frequency } of extractedKeywords) {
+      const keywordRecord = await this.getOrCreateKeyword(keyword, displayKeyword, isProperNoun);
+      await this.linkKeywordToMicroblog(microblogId, keywordRecord.id, frequency);
+
+      await db
+        .update(keywords)
+        .set({
+          usageCount: sql`${keywords.usageCount} + 1`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(keywords.id, keywordRecord.id));
+    }
+  }
+
+  /**
+   * Process keywords when creating a post
+   */
+  async processPostKeywords(postId: number, title: string, content: string): Promise<void> {
+    const { extractKeywords } = await import('./utils/keywordExtractor');
+    const combinedText = `${title} ${content}`;
+    const extractedKeywords = extractKeywords(combinedText);
+
+    for (const { keyword, displayKeyword, isProperNoun, frequency } of extractedKeywords) {
+      const keywordRecord = await this.getOrCreateKeyword(keyword, displayKeyword, isProperNoun);
+      await this.linkKeywordToPost(postId, keywordRecord.id, frequency);
+
+      await db
+        .update(keywords)
+        .set({
+          usageCount: sql`${keywords.usageCount} + 1`,
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(keywords.id, keywordRecord.id));
+    }
+  }
+
+  /**
+   * Update trending scores for all keywords
+   * Formula: (recent_usage * 10) + (recent_likes * 5) + (recent_reposts * 7) + (recent_comments * 3)
+   */
+  async updateKeywordTrendingScores(): Promise<void> {
+    const now = new Date();
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+
+    // Update scores for keywords with recent activity
+    await db.execute(sql`
+      UPDATE keywords k
+      SET
+        trending_score = COALESCE(engagement_data.score, 0),
+        updated_at = NOW()
+      FROM (
+        SELECT
+          mk.keyword_id,
+          (COUNT(DISTINCT m.id) * 10 +
+           SUM(COALESCE(m.like_count, 0)) * 5 +
+           SUM(COALESCE(m.repost_count, 0)) * 7 +
+           SUM(COALESCE(m.reply_count, 0)) * 3) as score
+        FROM microblog_keywords mk
+        INNER JOIN microblogs m ON mk.microblog_id = m.id
+        WHERE m.created_at >= ${fourHoursAgo}
+        GROUP BY mk.keyword_id
+      ) engagement_data
+      WHERE k.id = engagement_data.keyword_id
+    `);
+
+    // Reset scores for keywords with no recent activity
+    await db.execute(sql`
+      UPDATE keywords
+      SET trending_score = 0, updated_at = NOW()
+      WHERE id NOT IN (
+        SELECT DISTINCT mk.keyword_id
+        FROM microblog_keywords mk
+        INNER JOIN microblogs m ON mk.microblog_id = m.id
+        WHERE m.created_at >= ${fourHoursAgo}
+      )
+    `);
+  }
+
+  // ============================================================================
   // POST BOOKMARK METHODS (DbStorage)
   // ============================================================================
 
