@@ -283,30 +283,59 @@ function useRepostMicroblog() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (postId: number) => {
-      const response = await apiClient.post(`/api/microblogs/${postId}/repost`);
-      return response.data;
+    mutationFn: async ({ postId, isReposted }: { postId: number; isReposted: boolean }) => {
+      try {
+        if (isReposted) {
+          // Already reposted, so undo the repost
+          await apiClient.delete(`/api/microblogs/${postId}/repost`);
+        } else {
+          // Not reposted, so repost it
+          const response = await apiClient.post(`/api/microblogs/${postId}/repost`);
+          return response.data;
+        }
+      } catch (error: any) {
+        // If we get 404 on delete, the repost didn't exist - treat as success
+        if (error.response?.status === 404 && isReposted) {
+          return;
+        }
+        // If we get 400 "already reposted" on post, treat as success
+        if (error.response?.status === 400 && !isReposted) {
+          return;
+        }
+        throw error;
+      }
     },
-    onMutate: async (postId) => {
+    onMutate: async ({ postId, isReposted }) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ['/api/microblogs'] });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueryData(['/api/microblogs']);
+
       // Optimistic update
       queryClient.setQueriesData({ queryKey: ['/api/microblogs'] }, (oldData: any) => {
         if (!oldData) return oldData;
         return oldData.map((post: Microblog) =>
           post.id === postId
-            ? { ...post, repostCount: (post.repostCount || 0) + 1, isReposted: true }
+            ? {
+                ...post,
+                isReposted: !isReposted,
+                repostCount: isReposted ? (post.repostCount || 0) - 1 : (post.repostCount || 0) + 1,
+              }
             : post
         );
       });
+
+      return { previousData };
+    },
+    onError: (error: any, variables, context) => {
+      // Revert optimistic update on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/microblogs'], context.previousData);
+      }
+      Alert.alert('Error', 'Failed to update repost. Please try again.');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
-    },
-    onError: (error: any) => {
-      if (error?.response?.data?.message === 'Already reposted') {
-        Alert.alert('Already Reposted', 'You have already reposted this post.');
-      } else {
-        Alert.alert('Error', 'Failed to repost. Please try again.');
-      }
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
     },
   });
@@ -679,14 +708,14 @@ export default function FeedScreen({
     );
   };
 
-  const handleRepost = (postId: number) => {
+  const handleRepost = (postId: number, isReposted: boolean) => {
     if (!user) {
       Alert.alert('Sign In Required', 'Please sign in to repost.');
       return;
     }
 
-    // Directly repost to followers without confirmation
-    repostMutation.mutate(postId);
+    // Toggle repost (repost or undo repost)
+    repostMutation.mutate({ postId, isReposted });
   };
 
   const handleShare = async (post: Microblog) => {
@@ -1088,7 +1117,7 @@ export default function FeedScreen({
               onLike={() => handleLike(post.id, post.isLiked || false)}
               onMorePress={() => handleMorePress(post)}
               onCommentPress={() => handleOpenComments(post)}
-              onRepostPress={() => handleRepost(post.id)}
+              onRepostPress={() => handleRepost(post.id, post.isReposted || false)}
               onSharePress={() => handleShare(post)}
               onBookmarkPress={() => handleBookmark(post.id, post.isBookmarked || false)}
               isAuthenticated={!!user}
