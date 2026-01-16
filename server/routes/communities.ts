@@ -28,7 +28,7 @@ function toRad(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
 
-router.get('/api/communities', async (req, res) => {
+router.get('/communities', async (req, res) => {
   try {
     const userId = getSessionUserId(req);
     const searchQuery = req.query.search as string;
@@ -175,7 +175,7 @@ router.get('/api/communities', async (req, res) => {
 });
 
 // Get communities where user is admin (owner or moderator)
-router.get('/api/communities/admin', requireAuth, async (req, res) => {
+router.get('/communities/admin', requireAuth, async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
 
@@ -202,7 +202,7 @@ router.get('/api/communities/admin', requireAuth, async (req, res) => {
 });
 
 // Get personalized recommended communities for user
-router.get('/api/communities/recommended', requireAuth, async (req, res) => {
+router.get('/communities/recommended', requireAuth, async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
     const limit = parseInt(req.query.limit as string) || 10;
@@ -217,7 +217,7 @@ router.get('/api/communities/recommended', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/api/communities/:idOrSlug', async (req, res) => {
+router.get('/communities/:idOrSlug', async (req, res) => {
   try {
     const { idOrSlug } = req.params;
 
@@ -281,7 +281,7 @@ router.get('/api/communities/:idOrSlug', async (req, res) => {
   }
 });
 
-router.get('/api/communities/:id/feed', async (req, res) => {
+router.get('/communities/:id/feed', async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     if (!Number.isFinite(communityId)) return res.status(400).json({ message: 'invalid id' });
@@ -306,7 +306,7 @@ router.get('/api/communities/:id/feed', async (req, res) => {
   }
 });
 
-router.post('/api/communities', requireAuth, async (req, res) => {
+router.post('/communities', requireAuth, async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
     // Allow title/desc inputs; set defaults for required fields
@@ -340,7 +340,7 @@ router.post('/api/communities', requireAuth, async (req, res) => {
 });
 
 // Join community
-router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
+router.post('/communities/:id/join', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -441,7 +441,7 @@ router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
 });
 
 // Leave community
-router.post('/api/communities/:id/leave', requireAuth, async (req, res) => {
+router.post('/communities/:id/leave', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -498,7 +498,7 @@ router.post('/api/communities/:id/leave', requireAuth, async (req, res) => {
 });
 
 // Get community members
-router.get('/api/communities/:id/members', async (req, res) => {
+router.get('/communities/:id/members', async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     if (!Number.isFinite(communityId)) return res.status(400).json({ message: 'invalid id' });
@@ -516,7 +516,7 @@ router.get('/api/communities/:id/members', async (req, res) => {
 });
 
 // Update member role (admin/moderator management)
-router.put('/api/communities/:id/members/:userId', requireAuth, async (req, res) => {
+router.put('/communities/:id/members/:userId', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const targetUserId = parseInt(req.params.userId);
@@ -566,7 +566,7 @@ router.put('/api/communities/:id/members/:userId', requireAuth, async (req, res)
 });
 
 // Remove member (admin only)
-router.delete('/api/communities/:id/members/:userId', requireAuth, async (req, res) => {
+router.delete('/communities/:id/members/:userId', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const targetUserId = parseInt(req.params.userId);
@@ -610,7 +610,7 @@ router.delete('/api/communities/:id/members/:userId', requireAuth, async (req, r
 });
 
 // Get wall posts
-router.get('/api/communities/:id/wall', requireAuth, async (req, res) => {
+router.get('/communities/:id/wall', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -639,7 +639,7 @@ router.get('/api/communities/:id/wall', requireAuth, async (req, res) => {
 });
 
 // Create wall post
-router.post('/api/communities/:id/wall', requireAuth, async (req, res) => {
+router.post('/communities/:id/wall', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -684,7 +684,7 @@ router.post('/api/communities/:id/wall', requireAuth, async (req, res) => {
 });
 
 // Delete wall post (admin/moderator only)
-router.delete('/api/communities/:id/wall/:postId', requireAuth, async (req, res) => {
+router.delete('/communities/:id/wall/:postId', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const postId = parseInt(req.params.postId);
@@ -716,7 +716,7 @@ router.delete('/api/communities/:id/wall/:postId', requireAuth, async (req, res)
   }
 });
 
-router.delete('/api/communities/:id', requireAuth, async (req, res) => {
+router.delete('/communities/:id', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -735,7 +735,7 @@ router.delete('/api/communities/:id', requireAuth, async (req, res) => {
 });
 
 // Get pending join requests (owner/moderator only)
-router.get('/api/communities/:id/join-requests', requireAuth, async (req, res) => {
+router.get('/communities/:id/join-requests', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -767,7 +767,7 @@ router.get('/api/communities/:id/join-requests', requireAuth, async (req, res) =
 });
 
 // Approve join request (owner/moderator only)
-router.post('/api/communities/:id/join-requests/:requestId/approve', requireAuth, async (req, res) => {
+router.post('/communities/:id/join-requests/:requestId/approve', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const requestId = parseInt(req.params.requestId);
@@ -835,7 +835,7 @@ router.post('/api/communities/:id/join-requests/:requestId/approve', requireAuth
 });
 
 // Deny join request (owner/moderator only)
-router.post('/api/communities/:id/join-requests/:requestId/deny', requireAuth, async (req, res) => {
+router.post('/communities/:id/join-requests/:requestId/deny', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const requestId = parseInt(req.params.requestId);
@@ -889,7 +889,7 @@ router.post('/api/communities/:id/join-requests/:requestId/deny', requireAuth, a
 });
 
 // Invite user to community by email (owner/moderator only)
-router.post('/api/communities/:id/invite', requireAuth, async (req, res) => {
+router.post('/communities/:id/invite', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -962,7 +962,7 @@ router.post('/api/communities/:id/invite', requireAuth, async (req, res) => {
 // ============================================================================
 
 // Update community details (owner only)
-router.patch('/api/communities/:id', requireAuth, async (req, res) => {
+router.patch('/communities/:id', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -1027,7 +1027,7 @@ router.patch('/api/communities/:id', requireAuth, async (req, res) => {
 // ============================================================================
 
 // Like a wall post
-router.post('/api/communities/:id/wall/:postId/like', requireAuth, async (req, res) => {
+router.post('/communities/:id/wall/:postId/like', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const postId = parseInt(req.params.postId);
@@ -1065,7 +1065,7 @@ router.post('/api/communities/:id/wall/:postId/like', requireAuth, async (req, r
 });
 
 // Unlike a wall post (same as POST for toggle)
-router.delete('/api/communities/:id/wall/:postId/like', requireAuth, async (req, res) => {
+router.delete('/communities/:id/wall/:postId/like', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const postId = parseInt(req.params.postId);
@@ -1093,7 +1093,7 @@ router.delete('/api/communities/:id/wall/:postId/like', requireAuth, async (req,
 // ============================================================================
 
 // Get comments for a wall post
-router.get('/api/communities/:id/wall/:postId/comments', async (req, res) => {
+router.get('/communities/:id/wall/:postId/comments', async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const postId = parseInt(req.params.postId);
@@ -1111,7 +1111,7 @@ router.get('/api/communities/:id/wall/:postId/comments', async (req, res) => {
 });
 
 // Create a comment on a wall post
-router.post('/api/communities/:id/wall/:postId/comments', requireAuth, async (req, res) => {
+router.post('/communities/:id/wall/:postId/comments', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const postId = parseInt(req.params.postId);
@@ -1151,7 +1151,7 @@ router.post('/api/communities/:id/wall/:postId/comments', requireAuth, async (re
 // ============================================================================
 
 // Get community prayer requests
-router.get('/api/communities/:id/prayer-requests', requireAuth, async (req, res) => {
+router.get('/communities/:id/prayer-requests', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -1175,7 +1175,7 @@ router.get('/api/communities/:id/prayer-requests', requireAuth, async (req, res)
 });
 
 // Create prayer request in community
-router.post('/api/communities/:id/prayer-requests', requireAuth, async (req, res) => {
+router.post('/communities/:id/prayer-requests', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -1220,7 +1220,7 @@ router.post('/api/communities/:id/prayer-requests', requireAuth, async (req, res
 });
 
 // Mark prayer request as answered
-router.patch('/api/communities/:id/prayer-requests/:prayerId/answered', requireAuth, async (req, res) => {
+router.patch('/communities/:id/prayer-requests/:prayerId/answered', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const prayerId = parseInt(req.params.prayerId);
