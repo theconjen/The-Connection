@@ -150,7 +150,8 @@ class StorageSafety {
     'updateBibleStudyNote', 'deleteBibleStudyNote', 'getDirectMessages', 'createDirectMessage',
     'getUserConversations', 'markMessageAsRead', 'markConversationAsRead', 'getUnreadMessageCount',
     'updateUserPreferences', 'getUserPreferences', 'bookmarkPost', 'unbookmarkPost',
-    'getUserBookmarkedPosts', 'hasUserBookmarkedPost'
+    'getUserBookmarkedPosts', 'hasUserBookmarkedPost', 'togglePostVote', 'toggleCommentVote',
+    'createContentReport', 'createUserBlock', 'getBlockedUserIdsFor', 'removeUserBlock'
   ]);
 
   static isMethodImplemented(methodName: string): boolean {
