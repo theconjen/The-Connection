@@ -2518,7 +2518,17 @@ export class DbStorage implements IStorage {
   }
   
   async updateCommunity(id: number, community: Partial<Community>): Promise<Community> {
-    const result = await db.update(communities).set(community).where(eq(communities.id, id)).returning();
+    // Geocode the address if city/state are updated but no new coordinates provided
+    const comm: any = community as any;
+    if ((comm.city || comm.state) && !comm.latitude && !comm.longitude) {
+      const geocodeResult = await geocodeAddress('', comm.city, comm.state);
+      if ('latitude' in geocodeResult) {
+        comm.latitude = geocodeResult.latitude.toString();
+        comm.longitude = geocodeResult.longitude.toString();
+      }
+    }
+
+    const result = await db.update(communities).set(comm).where(eq(communities.id, id)).returning();
     if (!result[0]) throw new Error('Community not found');
     return result[0];
   }
