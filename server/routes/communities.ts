@@ -220,7 +220,17 @@ router.get('/api/communities/recommended', requireAuth, async (req, res) => {
 router.get('/api/communities/:idOrSlug', async (req, res) => {
   try {
     const { idOrSlug } = req.params;
+
+    // Debug: Check all auth headers
+    console.error('[GET COMMUNITY] Auth headers:', {
+      authorization: req.headers.authorization?.substring(0, 20) + '...',
+      cookie: req.headers.cookie?.substring(0, 50) + '...',
+      sessionUserId: req.session?.userId
+    });
+
     const userId = getSessionUserId(req);
+    console.error(`[GET COMMUNITY] User ${userId || 'anonymous'} fetching community ${idOrSlug}`);
+
     const isNumeric = /^\d+$/.test(idOrSlug);
     let community;
     if (isNumeric) {
@@ -242,6 +252,7 @@ router.get('/api/communities/:idOrSlug', async (req, res) => {
           isAdmin: member.role === 'owner',
           isModerator: member.role === 'moderator'
         };
+        console.error(`[GET COMMUNITY] User ${userId} is a member with role: ${member.role}`);
       } else {
         memberInfo = {
           isMember: false,
@@ -249,6 +260,7 @@ router.get('/api/communities/:idOrSlug', async (req, res) => {
           isAdmin: false,
           isModerator: false
         };
+        console.error(`[GET COMMUNITY] User ${userId} is NOT a member`);
       }
     }
 
@@ -322,6 +334,8 @@ router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
+    console.error(`[JOIN] User ${userId} attempting to join community ${communityId}`);
+
     if (!Number.isFinite(communityId)) return res.status(400).json({ message: 'invalid id' });
 
     const community = await storage.getCommunity(communityId);
@@ -330,7 +344,12 @@ router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
     // Check if already a member
     const existingMember = await storage.getCommunityMember(communityId, userId);
     if (existingMember) {
-      return res.status(400).json({ message: 'Already a member of this community' });
+      console.error(`[JOIN] User ${userId} is already a member with role: ${existingMember.role}`);
+      return res.status(400).json({
+        message: 'Already a member of this community',
+        isMember: true,
+        role: existingMember.role
+      });
     }
 
     // Check if community is private
@@ -395,8 +414,10 @@ router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
     const hasOwner = existingMembers.some(m => m.role === 'owner');
     const role = (existingMembers.length === 0 || !hasOwner) ? 'owner' : 'member';
 
+    console.error(`[JOIN] Adding user ${userId} as ${role} (existing members: ${existingMembers.length}, has owner: ${hasOwner})`);
     await storage.addCommunityMember({ communityId, userId, role });
 
+    console.error(`[JOIN] Successfully added user ${userId} to community ${communityId} as ${role}`);
     res.json({
       success: true,
       message: role === 'owner' ? 'Joined community as owner' : 'Joined community successfully',
@@ -425,13 +446,35 @@ router.post('/api/communities/:id/leave', requireAuth, async (req, res) => {
       return res.status(400).json({ message: 'Not a member of this community' });
     }
 
-    // Prevent owner from leaving
+    // Handle owner leaving
     if (member.role === 'owner') {
-      return res.status(400).json({ message: 'Owner cannot leave community. Delete it instead.' });
+      const allMembers = await storage.getCommunityMembers(communityId);
+
+      if (allMembers.length === 1) {
+        // Owner is the only member - delete the community
+        console.error(`[LEAVE] Owner ${userId} is leaving and is the only member - deleting community ${communityId}`);
+        await storage.deleteCommunity(communityId);
+        return res.json({
+          success: true,
+          message: 'Community deleted successfully',
+          communityDeleted: true
+        });
+      } else {
+        // There are other members - transfer ownership to first moderator or first member
+        const otherMembers = allMembers.filter(m => m.userId !== userId);
+        const moderators = otherMembers.filter(m => m.role === 'moderator');
+        const newOwner = moderators[0] || otherMembers[0];
+
+        if (newOwner) {
+          console.error(`[LEAVE] Transferring ownership from ${userId} to ${newOwner.userId}`);
+          await storage.updateCommunityMemberRole(communityId, newOwner.userId, 'owner');
+        }
+      }
     }
 
     // Remove member
     await storage.removeCommunityMember(communityId, userId);
+    console.error(`[LEAVE] Successfully removed user ${userId} from community ${communityId}`);
 
     res.json({
       success: true,

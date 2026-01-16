@@ -13,6 +13,7 @@ export function getSessionUserId(req: Request): number | undefined {
   // First, try session-based auth
   const normalized = normalizeSessionValue(req.session?.userId as any);
   if (normalized && normalized > 0) {
+    console.error(`[AUTH] Using session userId: ${normalized}`);
     return normalized;
   }
 
@@ -23,20 +24,28 @@ export function getSessionUserId(req: Request): number | undefined {
     const jwtSecret = process.env.JWT_SECRET;
 
     if (!jwtSecret) {
+      console.error('[AUTH] JWT_SECRET not configured');
       return undefined;
     }
 
     try {
-      const decoded = jwt.verify(token, jwtSecret) as { sub?: number; id?: number };
-      const userId = decoded.sub || decoded.id;
+      const decoded = jwt.verify(token, jwtSecret) as { sub?: number; id?: number; userId?: number };
+      console.error('[AUTH] Decoded JWT token:', { sub: decoded.sub, id: decoded.id, userId: decoded.userId });
+      const userId = decoded.userId || decoded.sub || decoded.id;
       if (userId && userId > 0) {
+        console.error(`[AUTH] Using JWT userId: ${userId}`);
         return userId;
+      } else {
+        console.error('[AUTH] JWT token decoded but no valid userId found:', decoded);
       }
     } catch (error) {
-      // Invalid token, continue
+      console.error('[AUTH] JWT verification failed:', error instanceof Error ? error.message : error);
     }
+  } else if (authHeader) {
+    console.error('[AUTH] Authorization header present but not Bearer token:', authHeader.substring(0, 20));
   }
 
+  console.error('[AUTH] No valid authentication found');
   return undefined;
 }
 
