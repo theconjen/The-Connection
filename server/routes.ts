@@ -600,31 +600,9 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
     });
 
-  app.get('/api/communities/:idOrSlug', async (req, res) => {
-    try {
-      const { idOrSlug } = req.params;
-      
-      // Check if it's a numeric ID first
-      const isNumeric = /^\d+$/.test(idOrSlug);
-      let community;
-      
-      if (isNumeric) {
-        const communityId = parseInt(idOrSlug);
-        community = await storage.getCommunity(communityId);
-      } else {
-        // Treat as slug
-        community = await storage.getCommunityBySlug(idOrSlug);
-      }
-      
-      if (!community) {
-        return res.status(404).json({ message: 'Community not found' });
-      }
-      res.json(community);
-    } catch (error) {
-      console.error('Error fetching community:', error);
-      res.status(500).json(buildErrorResponse('Error fetching community', error));
-    }
-  });
+  // REMOVED: Duplicate route handler - using modular router from routes/communities.ts instead
+  // This OLD handler was returning community WITHOUT membership info (isMember, role, isAdmin)
+  // The NEW handler in routes/communities.ts properly computes and returns membership data
 
   app.post('/api/communities', contentCreationLimiter, isAuthenticated, async (req, res) => {
     try {
