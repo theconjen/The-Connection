@@ -98,12 +98,12 @@ function coerceCoordinate(value: unknown): number | null {
 // Add this safety utility class at the top of the file, after imports
 class StorageSafety {
   private static implementedMethods = new Set([
-    'getUser', 'getUserById', 'getUserByUsername', 'getUserByEmail', 
-    'searchUsers', 'getAllUsers', 'updateUser', 'createUser', 
-    'updateUserPassword', 'setVerifiedApologeticsAnswerer', 
-    'getVerifiedApologeticsAnswerers', 'getAllCommunities', 
-    'searchCommunities', 'getPublicCommunitiesAndUserCommunities', 
-    'getCommunity', 'getCommunityBySlug', 'createCommunity', 
+    'getUser', 'getUserById', 'getUserByUsername', 'getUserByEmail',
+    'searchUsers', 'getAllUsers', 'updateUser', 'createUser',
+    'updateUserPassword', 'setVerifiedApologeticsAnswerer',
+    'getVerifiedApologeticsAnswerers', 'getAllCommunities',
+    'searchCommunities', 'getPublicCommunitiesAndUserCommunities',
+    'getCommunity', 'getCommunityBySlug', 'createCommunity',
     'updateCommunity', 'deleteCommunity', 'getCommunityMembers',
     'getCommunityMember', 'getUserCommunities', 'addCommunityMember',
     'updateCommunityMemberRole', 'removeCommunityMember', 'isCommunityMember',
@@ -117,7 +117,7 @@ class StorageSafety {
     'deleteChatMessage', 'getCommunityWallPosts', 'getCommunityWallPost',
     'createCommunityWallPost', 'updateCommunityWallPost', 'deleteCommunityWallPost',
     'getAllPosts', 'getPost', 'getPostsByCommunitySlug', 'getPostsByGroupId',
-    'getUserPosts', 'createPost', 'updatePost', 'deletePost', 'upvotePost', 'getComment',
+    'getUserPosts', 'createPost', 'updatePost', 'deletePost', 'upvotePost', 'hasUserLikedPost', 'getComment',
     'getCommentsByPostId', 'createComment', 'upvoteComment', 'getGroup',
     'getGroupsByUserId', 'createGroup', 'addGroupMember', 'getGroupMembers',
     'isGroupAdmin', 'isGroupMember', 'getAllApologeticsResources',
@@ -149,7 +149,8 @@ class StorageSafety {
     'getBibleStudyNotes', 'getBibleStudyNote', 'createBibleStudyNote',
     'updateBibleStudyNote', 'deleteBibleStudyNote', 'getDirectMessages', 'createDirectMessage',
     'getUserConversations', 'markMessageAsRead', 'markConversationAsRead', 'getUnreadMessageCount',
-    'updateUserPreferences', 'getUserPreferences'
+    'updateUserPreferences', 'getUserPreferences', 'bookmarkPost', 'unbookmarkPost',
+    'getUserBookmarkedPosts', 'hasUserBookmarkedPost'
   ]);
 
   static isMethodImplemented(methodName: string): boolean {
@@ -254,7 +255,8 @@ export interface IStorage {
   deletePost(id: number): Promise<boolean>;
   upvotePost(id: number): Promise<Post>;
   searchPosts(searchTerm: string): Promise<Post[]>;
-  
+  hasUserLikedPost(postId: number, userId: number): Promise<boolean>;
+
   // Comment methods
   getComment(id: number): Promise<Comment | undefined>;
   getCommentsByPostId(postId: number): Promise<Comment[]>;
@@ -1966,6 +1968,10 @@ export class MemStorage implements IStorage {
     return false;
   }
 
+  async hasUserLikedPost(_postId: number, _userId: number): Promise<boolean> {
+    return false;
+  }
+
   // ============================================================================
   // Hashtag/Keyword stubs (not implemented for MemStorage)
   async getOrCreateHashtag(_tag: string, _displayTag: string): Promise<any> {
@@ -3099,6 +3105,65 @@ export class DbStorage implements IStorage {
         ),
         whereNotDeleted(posts)
       ));
+  }
+
+  async likePost(postId: number, userId: number): Promise<void> {
+    // Check if already liked
+    const existing = await db.select()
+      .from(postVotes)
+      .where(and(
+        eq(postVotes.postId, postId),
+        eq(postVotes.userId, userId)
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      throw new Error('Already liked');
+    }
+
+    // Create like (using upvote type)
+    await db.insert(postVotes).values({
+      postId,
+      userId,
+      voteType: 'upvote',
+    } as any);
+
+    // Increment like count
+    await db.update(posts)
+      .set({ upvotes: sql`${posts.upvotes} + 1` })
+      .where(eq(posts.id, postId));
+  }
+
+  async unlikePost(postId: number, userId: number): Promise<boolean> {
+    const deleted = await db.delete(postVotes)
+      .where(and(
+        eq(postVotes.postId, postId),
+        eq(postVotes.userId, userId)
+      ))
+      .returning();
+
+    if (deleted.length === 0) {
+      return false;
+    }
+
+    // Decrement like count
+    await db.update(posts)
+      .set({ upvotes: sql`GREATEST(${posts.upvotes} - 1, 0)` })
+      .where(eq(posts.id, postId));
+
+    return true;
+  }
+
+  async hasUserLikedPost(postId: number, userId: number): Promise<boolean> {
+    const [vote] = await db.select()
+      .from(postVotes)
+      .where(and(
+        eq(postVotes.postId, postId),
+        eq(postVotes.userId, userId)
+      ))
+      .limit(1);
+
+    return !!vote;
   }
 
   // Comment methods
