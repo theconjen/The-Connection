@@ -390,14 +390,18 @@ router.post('/api/communities/:id/join', requireAuth, async (req, res) => {
       });
     }
 
-    // For public communities, add as regular member immediately
-    await storage.addCommunityMember({ communityId, userId, role: 'member' });
+    // For public communities, check if this is the first member
+    const existingMembers = await storage.getCommunityMembers(communityId);
+    const hasOwner = existingMembers.some(m => m.role === 'owner');
+    const role = (existingMembers.length === 0 || !hasOwner) ? 'owner' : 'member';
+
+    await storage.addCommunityMember({ communityId, userId, role });
 
     res.json({
       success: true,
-      message: 'Joined community successfully',
+      message: role === 'owner' ? 'Joined community as owner' : 'Joined community successfully',
       isMember: true,
-      role: 'member'
+      role
     });
   } catch (error) {
     console.error('Error joining community:', error);
@@ -741,10 +745,15 @@ router.post('/api/communities/:id/join-requests/:requestId/approve', requireAuth
 
     // Add user to community
     if (invitation.inviteeUserId) {
+      // Check if this is the first member or if there's no owner
+      const existingMembers = await storage.getCommunityMembers(communityId);
+      const hasOwner = existingMembers.some(m => m.role === 'owner');
+      const role = (existingMembers.length === 0 || !hasOwner) ? 'owner' : 'member';
+
       await storage.addCommunityMember({
         communityId,
         userId: invitation.inviteeUserId,
-        role: 'member'
+        role
       });
 
       // Update invitation status
