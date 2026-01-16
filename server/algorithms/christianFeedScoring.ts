@@ -3,7 +3,7 @@
  * Promotes unity, Christ-likeness, healthy debate, and enjoyment
  */
 
-import { Microblog } from '@shared/schema';
+import { Microblog, Post } from '@shared/schema';
 
 const VALUE_KEYWORDS = {
   unity: [
@@ -101,5 +101,48 @@ export function calculateFeedScore(microblog: Microblog): number {
 export function sortByFeedScore(microblogs: Microblog[]): Microblog[] {
   return microblogs
     .map(m => ({ ...m, feedScore: calculateFeedScore(m) }))
+    .sort((a, b) => b.feedScore - a.feedScore);
+}
+
+/**
+ * Calculate engagement score for a Post (forum post)
+ * Posts use upvotes/downvotes instead of likes
+ */
+export function calculateEngagementScoreForPost(post: Post): number {
+  const upvotes = post.upvotes || 0;
+  const downvotes = post.downvotes || 0;
+  const comments = post.commentCount || 0;
+
+  // Net upvotes (upvotes - downvotes) weighted heavily
+  const netUpvotes = upvotes - downvotes;
+
+  return (comments * 5) + (netUpvotes * 2);
+}
+
+/**
+ * Calculate feed score for a Post (forum post)
+ */
+export function calculateFeedScoreForPost(post: Post): number {
+  const valueScores = calculateChristianValueScores(post.content);
+  const engagementScore = calculateEngagementScoreForPost(post);
+  const recencyScore = calculateRecencyScore(post.createdAt!);
+
+  const baseScore =
+    (valueScores.totalScore * 0.40) +
+    (Math.min(engagementScore, 100) * 0.30) +
+    (recencyScore * 0.20);
+
+  const hasHashtags = /#\w+/.test(post.content);
+  const diversityBonus = hasHashtags ? 10 : 0;
+
+  return baseScore + diversityBonus;
+}
+
+/**
+ * Sort posts by Christian values feed score
+ */
+export function sortPostsByFeedScore(posts: Post[]): Post[] {
+  return posts
+    .map(p => ({ ...p, feedScore: calculateFeedScoreForPost(p) }))
     .sort((a, b) => b.feedScore - a.feedScore);
 }
