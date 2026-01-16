@@ -66,9 +66,10 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
     setIsLoadingSuggestions(true);
     try {
       const response = await apiClient.get('/api/user/suggestions/friends?limit=5');
-      setFriendSuggestions(response.data);
+      // Ensure we always have an array
+      setFriendSuggestions(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching friend suggestions:', error);
+      // Silently fail - friend suggestions are optional
       setFriendSuggestions([]);
     } finally {
       setIsLoadingSuggestions(false);
