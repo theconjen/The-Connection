@@ -3,7 +3,7 @@
  * Promotes unity, Christ-likeness, healthy debate, and enjoyment
  */
 
-import { Microblog, Post } from '@shared/schema';
+import { Microblog } from '@shared/schema';
 
 const VALUE_KEYWORDS = {
   unity: [
@@ -41,7 +41,7 @@ export function calculateChristianValueScores(content: string) {
   const negativeMatches = NEGATIVE_PATTERNS.filter(p => lowerContent.includes(p)).length;
   const negativePenalty = Math.min(negativeMatches * 10, 50);
 
-  const hasBibleReference = /\b(genesis|exodus|matthew|john|acts|romans|psalm|proverbs)\s+\d+:\d+/i.test(content);
+  const hasBibleReference = /\b(genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|samuel|kings|chronicles|ezra|nehemiah|esther|job|psalm|proverbs|ecclesiastes|song|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|matthew|mark|luke|john|acts|romans|corinthians|galatians|ephesians|philippians|colossians|thessalonians|timothy|titus|philemon|hebrews|james|peter|jude|revelation)\s+\d+:\d+/i.test(content);
   const bibleBoost = hasBibleReference ? 15 : 0;
 
   const isPrayerRequest = /#prayer(request)?/i.test(content);
@@ -101,45 +101,5 @@ export function calculateFeedScore(microblog: Microblog): number {
 export function sortByFeedScore(microblogs: Microblog[]): Microblog[] {
   return microblogs
     .map(m => ({ ...m, feedScore: calculateFeedScore(m) }))
-    .sort((a, b) => b.feedScore - a.feedScore);
-}
-
-// ============================================================================
-// POST (FORUM) SCORING FUNCTIONS
-// ============================================================================
-
-export function calculatePostEngagementScore(post: Post): number {
-  const upvotes = post.upvoteCount || 0;
-  const downvotes = post.downvoteCount || 0;
-  const comments = post.commentCount || 0;
-
-  // Weight comments heavily for forum posts (encourages discussion)
-  // Net votes (upvotes - downvotes) with diminishing penalty for downvotes
-  const netVotes = upvotes - (downvotes * 0.5);
-
-  return (comments * 10) + (netVotes * 2);
-}
-
-export function calculatePostFeedScore(post: Post): number {
-  // Combine title and content for scoring
-  const fullContent = `${post.title} ${post.content}`;
-  const valueScores = calculateChristianValueScores(fullContent);
-  const engagementScore = calculatePostEngagementScore(post);
-  const recencyScore = calculateRecencyScore(post.createdAt!);
-
-  const baseScore =
-    (valueScores.totalScore * 0.40) +
-    (Math.min(engagementScore, 100) * 0.30) +
-    (recencyScore * 0.20);
-
-  const hasHashtags = /#\w+/.test(fullContent);
-  const diversityBonus = hasHashtags ? 10 : 0;
-
-  return baseScore + diversityBonus;
-}
-
-export function sortPostsByFeedScore(posts: Post[]): Post[] {
-  return posts
-    .map(p => ({ ...p, feedScore: calculatePostFeedScore(p) }))
     .sort((a, b) => b.feedScore - a.feedScore);
 }

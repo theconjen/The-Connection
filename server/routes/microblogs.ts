@@ -314,6 +314,15 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     try {
       const microblogId = parseInt(req.params.id);
       const userId = requireSessionUserId(req);
+
+      // Check if already liked
+      const isLiked = await storage.hasUserLikedMicroblog(microblogId, userId);
+
+      if (isLiked) {
+        // Already liked - return success (idempotent)
+        return res.status(200).json({ message: 'Microblog already liked', alreadyLiked: true });
+      }
+
       const like = await storage.likeMicroblog(microblogId, userId);
 
       // Track engagement for language personalization (asynchronously)
@@ -458,12 +467,17 @@ export function createMicroblogsRouter(storage = defaultStorage) {
         return res.status(404).json({ message: 'Microblog not found' });
       }
 
+      // Check if already bookmarked
+      const isBookmarked = await storage.hasUserBookmarkedMicroblog(microblogId, userId);
+
+      if (isBookmarked) {
+        // Already bookmarked - return success (idempotent)
+        return res.status(200).json({ message: 'Microblog already bookmarked', alreadyBookmarked: true });
+      }
+
       const bookmark = await storage.bookmarkMicroblog(microblogId, userId);
       res.status(201).json(bookmark);
     } catch (error: any) {
-      if (error.message === 'Already bookmarked') {
-        return res.status(400).json({ message: 'Already bookmarked' });
-      }
       console.error('Error bookmarking microblog:', error);
       res.status(500).json(buildErrorResponse('Error bookmarking microblog', error));
     }

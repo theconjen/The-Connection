@@ -277,6 +277,28 @@ export function createPostsRouter(storage = defaultStorage) {
         posts = sortPostsByFeedScore(posts);
       }
 
+      // Enrich with bookmark and like status
+      if (userId) {
+        posts = await Promise.all(
+          posts.map(async (post: any) => {
+            const isBookmarked = await storage.hasUserBookmarkedPost(post.id, userId);
+            const isLiked = await storage.hasUserLikedPost(post.id, userId);
+            return {
+              ...post,
+              isBookmarked,
+              isLiked,
+              likeCount: post.upvotes || 0, // Map upvotes to likeCount for frontend
+            };
+          })
+        );
+      } else {
+        // Not logged in - just add likeCount
+        posts = posts.map((post: any) => ({
+          ...post,
+          likeCount: post.upvotes || 0,
+        }));
+      }
+
       // Sanitize anonymous posts to hide author information
       posts = posts.map((p: any) => sanitizePostForAnonymity(p));
 
@@ -631,12 +653,17 @@ export function createPostsRouter(storage = defaultStorage) {
         return res.status(404).json({ message: 'Post not found' });
       }
 
+      // Check if already bookmarked
+      const isBookmarked = await storage.hasUserBookmarkedPost(postId, userId);
+
+      if (isBookmarked) {
+        // Already bookmarked - return success (idempotent)
+        return res.status(200).json({ message: 'Post already bookmarked', alreadyBookmarked: true });
+      }
+
       const bookmark = await storage.bookmarkPost(postId, userId);
       res.status(201).json(bookmark);
     } catch (error: any) {
-      if (error.message === 'Already bookmarked') {
-        return res.status(400).json({ message: 'Already bookmarked' });
-      }
       console.error('Error bookmarking post:', error);
       res.status(500).json(buildErrorResponse('Error bookmarking post', error));
     }
@@ -657,6 +684,51 @@ export function createPostsRouter(storage = defaultStorage) {
     } catch (error) {
       console.error('Error unbookmarking post:', error);
       res.status(500).json(buildErrorResponse('Error unbookmarking post', error));
+    }
+  });
+
+  // Like a post
+  router.post('/posts/:id/like', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const postId = parseInt(req.params.id);
+      const post = await storage.getPost(postId);
+
+      if (!post) {
+        return res.status(404).json({ message: 'Post not found' });
+      }
+
+      // Check if already liked
+      const isLiked = await storage.hasUserLikedPost(postId, userId);
+
+      if (isLiked) {
+        // Already liked - return success (idempotent)
+        return res.status(200).json({ message: 'Post already liked', alreadyLiked: true });
+      }
+
+      await storage.likePost(postId, userId);
+      res.status(201).json({ message: 'Post liked successfully' });
+    } catch (error: any) {
+      console.error('Error liking post:', error);
+      res.status(500).json(buildErrorResponse('Error liking post', error));
+    }
+  });
+
+  // Unlike a post
+  router.delete('/posts/:id/like', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const postId = parseInt(req.params.id);
+      const success = await storage.unlikePost(postId, userId);
+
+      if (!success) {
+        return res.status(404).json({ message: 'Like not found' });
+      }
+
+      res.json({ message: 'Post unliked successfully' });
+    } catch (error) {
+      console.error('Error unliking post:', error);
+      res.status(500).json(buildErrorResponse('Error unliking post', error));
     }
   });
 
