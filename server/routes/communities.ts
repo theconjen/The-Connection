@@ -268,6 +268,12 @@ router.get('/api/communities/:idOrSlug', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+    res.setHeader('X-Debug-Timestamp', new Date().toISOString());
+    res.setHeader('X-Debug-Code-Version', 'v2-with-membership');
+
+    console.error(`[GET COMMUNITY] ===== RETURNING RESPONSE =====`);
+    console.error(`[GET COMMUNITY] Community: ${community.name}, Member: ${memberInfo?.isMember}, Role: ${memberInfo?.role}`);
+
     res.json({ ...community, ...memberInfo });
   } catch (error) {
     console.error('Error fetching community:', error);
