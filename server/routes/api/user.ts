@@ -451,4 +451,150 @@ router.get('/:id/stats', async (req, res, next) => {
   }
 });
 
+// Get friend suggestions based on mutual friends, communities, and location
+router.get('/suggestions/friends', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const limit = parseInt(req.query.limit as string) || 5;
+    const { db } = await import('../../db');
+    const { users, userFollows, communityMembers, userBlocks } = await import('@shared/schema');
+    const { eq, and, sql, ne, notInArray, inArray } = await import('drizzle-orm');
+
+    // Get current user's data
+    const currentUser = await storage.getUser(userId);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get users the current user is already following
+    const following = await db
+      .select({ followingId: userFollows.followingId })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+    const followingIds = following.map(f => f.followingId);
+
+    // Get users who have blocked current user or current user has blocked
+    const blocked = await db
+      .select({ userId: userBlocks.userId, blockedUserId: userBlocks.blockedUserId })
+      .from(userBlocks)
+      .where(
+        sql`${userBlocks.userId} = ${userId} OR ${userBlocks.blockedUserId} = ${userId}`
+      );
+    const blockedIds = [
+      ...blocked.filter(b => b.userId === userId).map(b => b.blockedUserId),
+      ...blocked.filter(b => b.blockedUserId === userId).map(b => b.userId)
+    ];
+
+    // Get current user's communities
+    const userCommunities = await db
+      .select({ communityId: communityMembers.communityId })
+      .from(communityMembers)
+      .where(eq(communityMembers.userId, userId));
+    const communityIds = userCommunities.map(c => c.communityId);
+
+    // Build exclusion list: self, already following, blocked users
+    const excludeIds = [userId, ...followingIds, ...blockedIds];
+
+    // Query to find suggested friends with scoring
+    const suggestions = await db.execute(sql`
+      WITH candidate_users AS (
+        SELECT DISTINCT u.id
+        FROM ${users} u
+        WHERE u.id != ${userId}
+          AND u.id NOT IN (${sql.join(excludeIds.length > 0 ? excludeIds : [-1], sql`, `)})
+          AND u.profile_visibility != 'private'
+      ),
+      mutual_follows AS (
+        SELECT
+          cu.id as user_id,
+          COUNT(DISTINCT uf1.following_id) as mutual_count
+        FROM candidate_users cu
+        LEFT JOIN ${userFollows} uf1 ON uf1.follower_id = cu.id
+        LEFT JOIN ${userFollows} uf2 ON uf2.follower_id = ${userId} AND uf2.following_id = uf1.following_id
+        WHERE uf2.following_id IS NOT NULL
+        GROUP BY cu.id
+      ),
+      mutual_communities AS (
+        SELECT
+          cu.id as user_id,
+          COUNT(DISTINCT cm1.community_id) as community_count
+        FROM candidate_users cu
+        LEFT JOIN ${communityMembers} cm1 ON cm1.user_id = cu.id
+        WHERE cm1.community_id IN (${sql.join(communityIds.length > 0 ? communityIds : [-1], sql`, `)})
+        GROUP BY cu.id
+      ),
+      location_matches AS (
+        SELECT
+          cu.id as user_id,
+          CASE
+            WHEN u.city = ${currentUser.city} AND u.state = ${currentUser.state} THEN 20
+            WHEN u.state = ${currentUser.state} THEN 10
+            ELSE 0
+          END as location_score
+        FROM candidate_users cu
+        JOIN ${users} u ON u.id = cu.id
+      ),
+      scored_suggestions AS (
+        SELECT
+          cu.id,
+          COALESCE(mf.mutual_count, 0) * 15 as mutual_follows_score,
+          COALESCE(mc.community_count, 0) * 10 as community_score,
+          COALESCE(lm.location_score, 0) as location_score,
+          (COALESCE(mf.mutual_count, 0) * 15 +
+           COALESCE(mc.community_count, 0) * 10 +
+           COALESCE(lm.location_score, 0)) as total_score
+        FROM candidate_users cu
+        LEFT JOIN mutual_follows mf ON mf.user_id = cu.id
+        LEFT JOIN mutual_communities mc ON mc.user_id = cu.id
+        LEFT JOIN location_matches lm ON lm.user_id = cu.id
+        WHERE (COALESCE(mf.mutual_count, 0) + COALESCE(mc.community_count, 0) + COALESCE(lm.location_score, 0)) > 0
+      )
+      SELECT
+        u.id,
+        u.username,
+        u.display_name,
+        u.avatar_url,
+        u.bio,
+        u.city,
+        u.state,
+        u.denomination,
+        ss.total_score,
+        ss.mutual_follows_score,
+        ss.community_score,
+        ss.location_score
+      FROM scored_suggestions ss
+      JOIN ${users} u ON u.id = ss.id
+      ORDER BY ss.total_score DESC
+      LIMIT ${limit}
+    `);
+
+    // Format results
+    const formattedSuggestions = suggestions.rows.map((row: any) => ({
+      id: row.id,
+      username: row.username,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+      bio: row.bio,
+      city: row.city,
+      state: row.state,
+      denomination: row.denomination,
+      suggestionScore: {
+        total: row.total_score,
+        mutualFollows: row.mutual_follows_score,
+        mutualCommunities: row.community_score,
+        location: row.location_score,
+      },
+    }));
+
+    res.json(formattedSuggestions);
+  } catch (error) {
+    console.error('Error fetching friend suggestions:', error);
+    next(error);
+  }
+});
+
 export default router;
