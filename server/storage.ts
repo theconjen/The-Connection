@@ -2552,7 +2552,17 @@ export class DbStorage implements IStorage {
       .leftJoin(users, eq(communityMembers.userId, users.id))
       .where(eq(communityMembers.communityId, communityId));
 
-    return members.map(m => ({
+    // Deduplicate members by userId (in case of duplicate database records)
+    const seen = new Set<number>();
+    const uniqueMembers = members.filter(m => {
+      if (seen.has(m.community_members.userId)) {
+        return false;
+      }
+      seen.add(m.community_members.userId);
+      return true;
+    });
+
+    return uniqueMembers.map(m => ({
       id: m.community_members.id,
       communityId: m.community_members.communityId,
       userId: m.community_members.userId,

@@ -631,7 +631,14 @@ router.get('/communities/:id/wall', requireAuth, async (req, res) => {
     // Get wall posts
     const posts = await storage.getCommunityWallPosts(communityId);
 
-    res.json(posts);
+    // Add authorName field for mobile app compatibility
+    const enrichedPosts = posts.map((post: any) => ({
+      ...post,
+      authorName: post.author?.username || post.author?.displayName || 'Unknown',
+      authorAvatar: post.author?.profileImageUrl
+    }));
+
+    res.json(enrichedPosts);
   } catch (error) {
     console.error('Error fetching wall posts:', error);
     res.status(500).json(buildErrorResponse('Error fetching wall posts', error));

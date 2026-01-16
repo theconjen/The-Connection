@@ -188,7 +188,9 @@ export const communityMembers = pgTable("community_members", {
   userId: integer("user_id").references(() => users.id).notNull(),
   role: text("role").notNull().default("member"), // "owner", "moderator", "member"
   joinedAt: timestamp("joined_at").defaultNow(),
-} as any);
+} as any, (table) => ({
+  uniqueMemberPerCommunity: uniqueIndex("community_members_unique_idx").on(table.communityId, table.userId),
+}));
 
 export const insertCommunityMemberSchema = createInsertSchema(communityMembers).pick({
   communityId: true,
