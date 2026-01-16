@@ -264,6 +264,10 @@ router.get('/api/communities/:idOrSlug', async (req, res) => {
       }
     }
 
+    // Prevent caching to ensure fresh membership data
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.json({ ...community, ...memberInfo });
   } catch (error) {
     console.error('Error fetching community:', error);
