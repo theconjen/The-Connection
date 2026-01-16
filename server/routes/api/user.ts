@@ -462,7 +462,7 @@ router.get('/suggestions/friends', async (req, res, next) => {
     const limit = parseInt(req.query.limit as string) || 5;
     const { db } = await import('../../db');
     const { users, userFollows, communityMembers, userBlocks } = await import('@shared/schema');
-    const { eq, and, sql, ne, notInArray, inArray } = await import('drizzle-orm');
+    const { eq, and, sql, ne, notInArray, inArray, isNotNull } = await import('drizzle-orm');
 
     // Get current user's data
     const currentUser = await storage.getUser(userId);
@@ -499,98 +499,93 @@ router.get('/suggestions/friends', async (req, res, next) => {
     // Build exclusion list: self, already following, blocked users
     const excludeIds = [userId, ...followingIds, ...blockedIds];
 
-    // Query to find suggested friends with scoring
-    const suggestions = await db.execute(sql`
-      WITH candidate_users AS (
-        SELECT DISTINCT u.id
-        FROM ${users} u
-        WHERE u.id != ${userId}
-          AND u.id NOT IN (${sql.join(excludeIds.length > 0 ? excludeIds : [-1], sql`, `)})
-          AND u.profile_visibility != 'private'
-      ),
-      mutual_follows AS (
-        SELECT
-          cu.id as user_id,
-          COUNT(DISTINCT uf1.following_id) as mutual_count
-        FROM candidate_users cu
-        LEFT JOIN ${userFollows} uf1 ON uf1.follower_id = cu.id
-        LEFT JOIN ${userFollows} uf2 ON uf2.follower_id = ${userId} AND uf2.following_id = uf1.following_id
-        WHERE uf2.following_id IS NOT NULL
-        GROUP BY cu.id
-      ),
-      mutual_communities AS (
-        SELECT
-          cu.id as user_id,
-          COUNT(DISTINCT cm1.community_id) as community_count
-        FROM candidate_users cu
-        LEFT JOIN ${communityMembers} cm1 ON cm1.user_id = cu.id
-        WHERE cm1.community_id IN (${sql.join(communityIds.length > 0 ? communityIds : [-1], sql`, `)})
-        GROUP BY cu.id
-      ),
-      location_matches AS (
-        SELECT
-          cu.id as user_id,
-          CASE
-            WHEN u.city = ${currentUser.city} AND u.state = ${currentUser.state} THEN 20
-            WHEN u.state = ${currentUser.state} THEN 10
-            ELSE 0
-          END as location_score
-        FROM candidate_users cu
-        JOIN ${users} u ON u.id = cu.id
-      ),
-      scored_suggestions AS (
-        SELECT
-          cu.id,
-          COALESCE(mf.mutual_count, 0) * 15 as mutual_follows_score,
-          COALESCE(mc.community_count, 0) * 10 as community_score,
-          COALESCE(lm.location_score, 0) as location_score,
-          (COALESCE(mf.mutual_count, 0) * 15 +
-           COALESCE(mc.community_count, 0) * 10 +
-           COALESCE(lm.location_score, 0)) as total_score
-        FROM candidate_users cu
-        LEFT JOIN mutual_follows mf ON mf.user_id = cu.id
-        LEFT JOIN mutual_communities mc ON mc.user_id = cu.id
-        LEFT JOIN location_matches lm ON lm.user_id = cu.id
-        WHERE (COALESCE(mf.mutual_count, 0) + COALESCE(mc.community_count, 0) + COALESCE(lm.location_score, 0)) > 0
+    // Get all users except excluded ones
+    const allUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+        bio: users.bio,
+        city: users.city,
+        state: users.state,
+        denomination: users.denomination,
+      })
+      .from(users)
+      .where(
+        and(
+          ne(users.id, userId),
+          excludeIds.length > 0 ? sql`${users.id} NOT IN (${sql.join(excludeIds.map(id => sql`${id}`), sql`, `)})` : sql`1=1`,
+          sql`(${users.profileVisibility} != 'private' OR ${users.profileVisibility} IS NULL)`
+        )
       )
-      SELECT
-        u.id,
-        u.username,
-        u.display_name,
-        u.avatar_url,
-        u.bio,
-        u.city,
-        u.state,
-        u.denomination,
-        ss.total_score,
-        ss.mutual_follows_score,
-        ss.community_score,
-        ss.location_score
-      FROM scored_suggestions ss
-      JOIN ${users} u ON u.id = ss.id
-      ORDER BY ss.total_score DESC
-      LIMIT ${limit}
-    `);
+      .limit(100); // Get max 100 candidates
 
-    // Format results
-    const formattedSuggestions = suggestions.rows.map((row: any) => ({
-      id: row.id,
-      username: row.username,
-      displayName: row.display_name,
-      avatarUrl: row.avatar_url,
-      bio: row.bio,
-      city: row.city,
-      state: row.state,
-      denomination: row.denomination,
-      suggestionScore: {
-        total: row.total_score,
-        mutualFollows: row.mutual_follows_score,
-        mutualCommunities: row.community_score,
-        location: row.location_score,
-      },
-    }));
+    // Score each user
+    const scoredUsers = await Promise.all(
+      allUsers.map(async (user) => {
+        let mutualFollowsScore = 0;
+        let mutualCommunitiesScore = 0;
+        let locationScore = 0;
 
-    res.json(formattedSuggestions);
+        // Calculate mutual follows score
+        const mutualFollows = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(userFollows)
+          .where(
+            and(
+              eq(userFollows.followerId, user.id),
+              sql`${userFollows.followingId} IN (
+                SELECT following_id FROM ${userFollows} WHERE follower_id = ${userId}
+              )`
+            )
+          );
+        mutualFollowsScore = Number(mutualFollows[0]?.count || 0) * 15;
+
+        // Calculate mutual communities score
+        if (communityIds.length > 0) {
+          const mutualCommunities = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(communityMembers)
+            .where(
+              and(
+                eq(communityMembers.userId, user.id),
+                inArray(communityMembers.communityId, communityIds)
+              )
+            );
+          mutualCommunitiesScore = Number(mutualCommunities[0]?.count || 0) * 10;
+        }
+
+        // Calculate location score
+        if (currentUser.city && currentUser.state) {
+          if (user.city === currentUser.city && user.state === currentUser.state) {
+            locationScore = 20;
+          } else if (user.state === currentUser.state) {
+            locationScore = 10;
+          }
+        }
+
+        const totalScore = mutualFollowsScore + mutualCommunitiesScore + locationScore;
+
+        return {
+          ...user,
+          suggestionScore: {
+            total: totalScore,
+            mutualFollows: mutualFollowsScore,
+            mutualCommunities: mutualCommunitiesScore,
+            location: locationScore,
+          },
+        };
+      })
+    );
+
+    // Filter users with score > 0 and sort by score
+    const suggestions = scoredUsers
+      .filter(user => user.suggestionScore.total > 0)
+      .sort((a, b) => b.suggestionScore.total - a.suggestionScore.total)
+      .slice(0, limit);
+
+    res.json(suggestions);
   } catch (error) {
     console.error('Error fetching friend suggestions:', error);
     next(error);
