@@ -2438,8 +2438,49 @@ export class DbStorage implements IStorage {
     // Ensure we only return non-deleted communities at runtime
     whereCondition = and(whereCondition, whereNotDeleted(communities));
 
-    const query = db.select().from(communities).where(whereCondition);
-    return await query;
+    const publicCommunities = await db.select().from(communities).where(whereCondition);
+
+    // If no user ID, return public communities without membership info
+    if (!userId) {
+      return publicCommunities.map((c: any) => ({ ...c, isMember: false }));
+    }
+
+    // Get all communities where user is a member
+    const userMembershipIds = await db
+      .select({ communityId: communityMembers.communityId })
+      .from(communityMembers)
+      .where(eq(communityMembers.userId, userId))
+      .then(rows => rows.map(r => r.communityId));
+
+    // Get private communities where user is a member
+    let privateMemberCommunities: any[] = [];
+    if (userMembershipIds.length > 0) {
+      let privateWhereCondition = and(
+        eq(communities.isPrivate, true),
+        inArray(communities.id, userMembershipIds),
+        whereNotDeleted(communities)
+      );
+
+      if (searchQuery) {
+        const term = `%${searchQuery}%`;
+        privateWhereCondition = and(
+          privateWhereCondition,
+          or(like(communities.name, term), like(communities.description, term))
+        );
+      }
+
+      privateMemberCommunities = await db
+        .select()
+        .from(communities)
+        .where(privateWhereCondition);
+    }
+
+    // Combine all communities and add isMember flag
+    const allCommunities = [...publicCommunities, ...privateMemberCommunities];
+    return allCommunities.map((community: any) => ({
+      ...community,
+      isMember: userMembershipIds.includes(community.id),
+    }));
   }
   
   async getCommunity(id: number): Promise<Community | undefined> {
