@@ -2457,12 +2457,19 @@ export class DbStorage implements IStorage {
       return publicCommunities.map((c: any) => ({ ...c, isMember: false }));
     }
 
-    // Get all communities where user is a member
-    const userMembershipIds = await db
-      .select({ communityId: communityMembers.communityId })
+    // Get all communities where user is a member, including their role
+    const userMemberships = await db
+      .select({
+        communityId: communityMembers.communityId,
+        role: communityMembers.role
+      })
       .from(communityMembers)
-      .where(eq(communityMembers.userId, userId))
-      .then(rows => rows.map(r => r.communityId));
+      .where(eq(communityMembers.userId, userId));
+
+    const userMembershipMap = new Map(
+      userMemberships.map(m => [m.communityId, m.role])
+    );
+    const userMembershipIds = userMemberships.map(m => m.communityId);
 
     // Get private communities where user is a member
     let privateMemberCommunities: any[] = [];
@@ -2487,12 +2494,18 @@ export class DbStorage implements IStorage {
         .where(privateWhereCondition);
     }
 
-    // Combine all communities and add isMember flag
+    // Combine all communities and add isMember flag + role
     const allCommunities = [...publicCommunities, ...privateMemberCommunities];
-    return allCommunities.map((community: any) => ({
-      ...community,
-      isMember: userMembershipIds.includes(community.id),
-    }));
+    return allCommunities.map((community: any) => {
+      const isMember = userMembershipIds.includes(community.id);
+      const role = userMembershipMap.get(community.id);
+      return {
+        ...community,
+        isMember,
+        role: isMember ? role : null,
+        userRole: isMember ? role : null, // Add both for compatibility
+      };
+    });
   }
   
   async getCommunity(id: number): Promise<Community | undefined> {
