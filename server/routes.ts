@@ -462,28 +462,22 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api', questionsRoutes); // Q&A Inbox System
   }
   
-  // Get current user endpoint (must be before userRoutes)
+  // CRITICAL: This MUST execute for mobile app to get permissions
+  // DO NOT add any routes before this that could shadow it
   app.get('/api/user', async (req, res) => {
-    console.error('🔴🔴🔴 ROUTES.TS /api/user HANDLER EXECUTING 🔴🔴🔴');
+    console.log('ROUTES.TS /api/user HANDLER CALLED');
     try {
       const userId = getSessionUserId(req);
-      console.error('🔴 routes.ts: userId =', userId);
-
       if (!userId) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
 
-      if (userId === undefined) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-
       const user = await storage.getUser(userId);
-
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Get user permissions from user_permissions table
+      // ALWAYS get permissions - this is critical for mobile app
       const { db } = await import('./db');
       const { userPermissions } = await import('@shared/schema');
       const { eq } = await import('drizzle-orm');
@@ -494,22 +488,22 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         .where(eq(userPermissions.userId, userId));
 
       const permissions = permissionsResult.map(p => p.permission);
+      console.log('Returning permissions:', permissions, 'for user:', user.username);
 
-      console.info('=== [GET /api/user FIXED VERSION] ===');
-      console.info('[GET /api/user] User:', userId, user.username);
-      console.info('[GET /api/user] Permissions query result:', permissionsResult);
-      console.info('[GET /api/user] Permissions array:', permissions);
-      console.info('=== [END GET /api/user] ===');
+      // Remove password, add permissions, map avatarUrl for mobile compatibility
+      const { password, avatarUrl, ...userData } = user;
 
-      // Remove password from response, add permissions
-      const { password, ...userData } = user;
-      res.json({
+      const response = {
         ...userData,
-        permissions,
-      });
+        profileImageUrl: avatarUrl,  // Mobile app expects this field name
+        permissions,                  // CRITICAL: Include permissions array
+      };
+
+      console.log('Response includes permissions:', 'permissions' in response);
+      res.json(response);
     } catch (error) {
-      console.error('Error fetching current user:', error);
-      res.status(500).json(buildErrorResponse('Error fetching user', error));
+      console.error('Error in /api/user:', error);
+      res.status(500).json({ error: 'Error fetching user' });
     }
   });
   

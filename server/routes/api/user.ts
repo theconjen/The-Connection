@@ -30,10 +30,10 @@ router.use(requireAuth);
 
 // Get current user with permissions (used by mobile app)
 router.get('/', async (req, res, next) => {
-  console.error('🟢🟢🟢 USER.TS ROUTER / HANDLER EXECUTING 🟢🟢🟢');
+  console.error('USER.TS ROUTER / HANDLER EXECUTING');
   try {
     const userId = requireSessionUserId(req);
-    console.error('🟢 user.ts: userId =', userId);
+    console.error('user.ts: userId =', userId);
     if (!userId) {
       return;
     }
