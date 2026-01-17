@@ -13,11 +13,11 @@ import {
 } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 
-// Connection Research Team User ID (adjust if different in your DB)
+// Connection Research Team User ID - this will be the responder
 const RESEARCH_TEAM_USER_ID = 19;
 
-// Seed asker user ID (use same as research team for demo, or any existing user)
-const SEED_ASKER_USER_ID = 19;
+// Seed asker user ID - use a different user to ask questions
+const SEED_ASKER_USER_ID = 1; // smoketest user
 
 function slugify(s: string) {
   return s
