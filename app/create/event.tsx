@@ -28,6 +28,8 @@ interface Community {
   id: number;
   name: string;
   description: string;
+  role?: string;
+  userRole?: string;
 }
 
 export default function CreateEventScreen() {
@@ -54,10 +56,17 @@ export default function CreateEventScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // Fetch user's communities
+  // Fetch user's communities (only where user is moderator or admin)
   const { data: communities, isLoading: communitiesLoading } = useQuery<Community[]>({
-    queryKey: ['communities'],
-    queryFn: communitiesAPI.getAll,
+    queryKey: ['communities', 'moderator'],
+    queryFn: async () => {
+      const allCommunities = await communitiesAPI.getAll();
+      // Filter to only communities where user is moderator or admin
+      return allCommunities.filter((c: any) => {
+        const role = c.role || c.userRole;
+        return role === 'moderator' || role === 'admin';
+      });
+    },
   });
 
   const createMutation = useMutation({
@@ -151,17 +160,24 @@ export default function CreateEventScreen() {
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowCommunityPicker(true)}
-              disabled={communitiesLoading}
+              disabled={communitiesLoading || (communities && communities.length === 0)}
             >
               <Text style={[styles.pickerText, !selectedCommunity && styles.placeholderText]}>
                 {communitiesLoading
                   ? 'Loading communities...'
+                  : communities && communities.length === 0
+                  ? 'No communities available'
                   : selectedCommunity
                   ? selectedCommunity.name
                   : 'Select a community'}
               </Text>
               <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
             </TouchableOpacity>
+            {communities && communities.length === 0 && !communitiesLoading && (
+              <Text style={[styles.helpText, { color: colors.textMuted, marginTop: 8 }]}>
+                You must be a moderator or admin of a community to create events. Join or create a community first.
+              </Text>
+            )}
           </View>
 
           {/* Title */}
@@ -481,5 +497,10 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
     communityDescription: {
       fontSize: 14,
       color: colors.textMuted,
+    },
+    helpText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 18,
     },
   });
