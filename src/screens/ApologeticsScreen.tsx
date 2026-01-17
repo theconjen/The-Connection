@@ -29,7 +29,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme";
 import { AppHeader } from "./AppHeader";
 import { useAuth } from "../contexts/AuthContext";
-import { apiClient } from "../lib/apiClient";
+import apiClient from "../lib/apiClient";
 
 type Domain = "apologetics" | "polemics";
 

@@ -20,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/theme";
 import { AppHeader } from "../../src/screens/AppHeader";
 import { useAuth } from "../../src/contexts/AuthContext";
-import { apiClient } from "../../src/lib/apiClient";
+import apiClient from "../../src/lib/apiClient";
 
 type QADetail = {
   id: string;
