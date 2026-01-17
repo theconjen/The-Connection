@@ -231,15 +231,21 @@ export default function ApologeticsScreen() {
         onRefresh={() => feedQ.refetch()}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No results</Text>
+            <Text style={styles.emptyTitle}>
+              {feedQ.error ? "Error loading" : "No results"}
+            </Text>
             <Text style={styles.emptyBody}>
-              Try different keywords, or pick an Area to narrow your search.
+              {feedQ.error
+                ? `Failed to load: ${feedQ.error instanceof Error ? feedQ.error.message : 'Unknown error'}`
+                : "Try different keywords, or pick an Area to narrow your search."}
             </Text>
             <Pressable
               style={styles.primaryButton}
-              onPress={() => router.push("/questions/ask" as any)}
+              onPress={() => feedQ.error ? feedQ.refetch() : router.push("/questions/ask" as any)}
             >
-              <Text style={styles.primaryButtonText}>Ask a question</Text>
+              <Text style={styles.primaryButtonText}>
+                {feedQ.error ? "Retry" : "Ask a question"}
+              </Text>
             </Pressable>
           </View>
         }
