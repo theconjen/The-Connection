@@ -94,14 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[AUTH] Response data:', JSON.stringify(response.data, null, 2));
       }
 
-      // If login response contains user data, use it directly
-      if (response.data && response.data.id) {
-        setUser(response.data);
-        setIsLoading(false);
-      } else {
-        // Otherwise fetch user data
-        await checkAuth();
-      }
+      // Always fetch complete user data from /api/user to get permissions
+      // The login response doesn't include permissions, but /api/user does
+      console.info('[AUTH] Login successful, fetching complete user data with permissions...');
+      await checkAuth();
     } catch (error: any) {
       console.error('Login error:', error);
       console.error('Login error response:', error.response?.data);
