@@ -264,11 +264,11 @@ function FilterModal({
             justifyContent: 'space-between',
             padding: spacing.lg,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
           }}
         >
           <Pressable onPress={onClose}>
-            <Ionicons name="close" size={24} color={colors.foreground} />
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text variant="body" style={{ fontWeight: '700' }}>
             Filters
@@ -293,7 +293,7 @@ function FilterModal({
                 <Ionicons
                   name={category.iconName}
                   size={20}
-                  color={colors.foreground}
+                  color={colors.textPrimary}
                 />
                 <Text variant="bodySmall" style={{ fontWeight: '700' }}>
                   {category.name}
@@ -321,9 +321,9 @@ function FilterModal({
                         borderRadius: radii.full,
                         backgroundColor: isSelected
                           ? colors.primary
-                          : colors.card,
+                          : colors.surface,
                         borderWidth: 1,
-                        borderColor: isSelected ? colors.primary : colors.border,
+                        borderColor: isSelected ? colors.primary : colors.borderSubtle,
                       }}
                     >
                       <Text
@@ -331,7 +331,7 @@ function FilterModal({
                         style={{
                           color: isSelected
                             ? colors.primaryForeground
-                            : colors.foreground,
+                            : colors.textPrimary,
                           fontWeight: '500',
                         }}
                       >
@@ -350,7 +350,7 @@ function FilterModal({
           style={{
             padding: spacing.lg,
             borderTopWidth: 1,
-            borderTopColor: colors.border,
+            borderTopColor: colors.borderSubtle,
             backgroundColor: colors.background,
           }}
         >
@@ -475,11 +475,11 @@ function CommunityRow({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        backgroundColor: colors.card,
+        backgroundColor: colors.surface,
         padding: spacing.md,
         borderRadius: radii.xl,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: colors.borderSubtle,
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.md,
@@ -517,7 +517,7 @@ function CommunityRow({
         >
           <Text
             variant="bodySmall"
-            style={{ fontWeight: '700', color: colors.foreground }}
+            style={{ fontWeight: '700', color: colors.textPrimary }}
             numberOfLines={1}
           >
             {community.title}
@@ -585,8 +585,8 @@ function CommunityRow({
               borderRadius: radii.sm,
             }}
           >
-            <Ionicons name="people" size={10} color={colors.mutedForeground} />
-            <Text style={{ fontSize: 10, color: colors.mutedForeground }}>
+            <Ionicons name="people" size={10} color={colors.textMuted} />
+            <Text style={{ fontSize: 10, color: colors.textMuted }}>
               {community.members}
             </Text>
           </View>
@@ -601,8 +601,8 @@ function CommunityRow({
               borderRadius: radii.sm,
             }}
           >
-            <Ionicons name="location" size={10} color={colors.mutedForeground} />
-            <Text style={{ fontSize: 10, color: colors.mutedForeground }}>
+            <Ionicons name="location" size={10} color={colors.textMuted} />
+            <Text style={{ fontSize: 10, color: colors.textMuted }}>
               {community.tag}
             </Text>
           </View>
@@ -610,7 +610,7 @@ function CommunityRow({
       </View>
 
       {/* Arrow */}
-      <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
     </Pressable>
   );
 }
@@ -822,7 +822,7 @@ export function CommunitiesScreen({
         {userChannels.length > 0 && (
           <View
             style={{
-              backgroundColor: colors.card,
+              backgroundColor: colors.surface,
               marginTop: spacing.sm,
               padding: spacing.lg,
             }}
@@ -836,7 +836,7 @@ export function CommunitiesScreen({
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Ionicons name="people" size={14} color={colors.mutedForeground} />
+                <Ionicons name="people" size={14} color={colors.textMuted} />
                 <Text variant="bodySmall" style={{ fontWeight: '600' }}>Your Communities</Text>
               </View>
             </View>
@@ -877,21 +877,21 @@ export function CommunitiesScreen({
               gap: spacing.sm,
             }}
           >
-            <Ionicons name="search" size={20} color={colors.mutedForeground} />
+            <Ionicons name="search" size={20} color={colors.textMuted} />
             <TextInput
               style={{
                 flex: 1,
                 fontSize: 16,
-                color: colors.foreground,
+                color: colors.textPrimary,
               }}
               placeholder="Search communities..."
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
               <Pressable onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
+                <Ionicons name="close-circle" size={20} color={colors.textMuted} />
               </Pressable>
             )}
           </View>
@@ -996,7 +996,7 @@ export function CommunitiesScreen({
           {isLoading && (
             <View style={{ alignItems: 'center', padding: spacing.xl }}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={{ marginTop: spacing.sm, color: colors.mutedForeground }}>
+              <Text style={{ marginTop: spacing.sm, color: colors.textMuted }}>
                 Loading communities...
               </Text>
             </View>
@@ -1017,11 +1017,11 @@ export function CommunitiesScreen({
             <View style={{ gap: spacing.sm }}>
               {filteredCommunities.length === 0 ? (
                 <View style={{ alignItems: 'center', padding: spacing.xl }}>
-                  <Ionicons name="search" size={48} color={colors.mutedForeground} />
-                  <Text style={{ marginTop: spacing.sm, color: colors.mutedForeground }}>
+                  <Ionicons name="search" size={48} color={colors.textMuted} />
+                  <Text style={{ marginTop: spacing.sm, color: colors.textMuted }}>
                     No communities found
                   </Text>
-                  <Text style={{ marginTop: spacing.xs, color: colors.mutedForeground, fontSize: 12 }}>
+                  <Text style={{ marginTop: spacing.xs, color: colors.textMuted, fontSize: 12 }}>
                     Try adjusting your filters
                   </Text>
                 </View>

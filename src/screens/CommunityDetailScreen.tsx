@@ -270,19 +270,19 @@ const WallPostCard: React.FC<WallPostCardProps> = ({ post, colors }) => {
 
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary }}>
               {post.author.displayName || post.author.username}
             </Text>
-            <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+            <Text style={{ fontSize: 13, color: colors.textMuted }}>
               @{post.author.username}
             </Text>
-            <Text style={{ fontSize: 13, color: colors.mutedForeground }}>•</Text>
-            <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+            <Text style={{ fontSize: 13, color: colors.textMuted }}>•</Text>
+            <Text style={{ fontSize: 13, color: colors.textMuted }}>
               {formatTime(post.createdAt)}
             </Text>
           </View>
 
-          <Text style={{ fontSize: 15, lineHeight: 20, color: colors.foreground }}>
+          <Text style={{ fontSize: 15, lineHeight: 20, color: colors.textPrimary }}>
             {post.content}
           </Text>
         </View>
@@ -422,7 +422,7 @@ export function CommunityDetailScreen({
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.mutedForeground} />
+          <Ionicons name="alert-circle-outline" size={64} color={colors.textMuted} />
           <Text style={styles.errorText}>Community not found</Text>
           <Pressable style={styles.backButton} onPress={onBack}>
             <Text style={styles.backButtonText}>Go Back</Text>
@@ -440,7 +440,7 @@ export function CommunityDetailScreen({
       {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.headerButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>{community.name}</Text>
         <View style={styles.headerButton} />
@@ -461,12 +461,12 @@ export function CommunityDetailScreen({
 
           <View style={styles.communityMeta}>
             <View style={styles.metaItem}>
-              <Ionicons name="people-outline" size={16} color={colors.mutedForeground} />
+              <Ionicons name="people-outline" size={16} color={colors.textMuted} />
               <Text style={styles.metaText}>{members.length} members</Text>
             </View>
             {community.isPrivate && (
               <View style={styles.metaItem}>
-                <Ionicons name="lock-closed-outline" size={16} color={colors.mutedForeground} />
+                <Ionicons name="lock-closed-outline" size={16} color={colors.textMuted} />
                 <Text style={styles.metaText}>Private</Text>
               </View>
             )}
@@ -525,7 +525,7 @@ export function CommunityDetailScreen({
                 <TextInput
                   style={styles.postInput}
                   placeholder="Share something with the community..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   multiline
                   numberOfLines={3}
                   value={postContent}
@@ -555,7 +555,7 @@ export function CommunityDetailScreen({
               wallPosts.map(post => <WallPostCard key={post.id} post={post} colors={colors} />)
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="chatbubbles-outline" size={48} color={colors.mutedForeground} />
+                <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />
                 <Text style={styles.emptyText}>No posts yet</Text>
                 <Text style={styles.emptySubtext}>
                   {isMember ? 'Be the first to post!' : 'Join to see posts'}
@@ -574,14 +574,14 @@ export function CommunityDetailScreen({
                 <TextInput
                   style={styles.postInput}
                   placeholder="Prayer request title..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={prayerTitle}
                   onChangeText={setPrayerTitle}
                 />
                 <TextInput
                   style={styles.postInput}
                   placeholder="Share your prayer request with the community..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   multiline
                   numberOfLines={3}
                   value={prayerContent}
@@ -625,26 +625,26 @@ export function CommunityDetailScreen({
                     </View>
 
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground, marginBottom: 4 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 4 }}>
                         {prayer.title}
                       </Text>
-                      <Text style={{ fontSize: 15, lineHeight: 20, color: colors.foreground, marginBottom: 8 }}>
+                      <Text style={{ fontSize: 15, lineHeight: 20, color: colors.textPrimary, marginBottom: 8 }}>
                         {prayer.content}
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                           <Ionicons name="heart" size={16} color="#E74C3C" />
-                          <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+                          <Text style={{ fontSize: 13, color: colors.textMuted }}>
                             {prayer.prayerCount || 0} prayers
                           </Text>
                         </View>
                         {prayer.author && !prayer.isAnonymous && (
-                          <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+                          <Text style={{ fontSize: 13, color: colors.textMuted }}>
                             by {prayer.author.displayName || prayer.author.username}
                           </Text>
                         )}
                         {prayer.isAnonymous && (
-                          <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+                          <Text style={{ fontSize: 13, color: colors.textMuted }}>
                             Anonymous
                           </Text>
                         )}
@@ -655,7 +655,7 @@ export function CommunityDetailScreen({
               ))
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="heart-outline" size={48} color={colors.mutedForeground} />
+                <Ionicons name="heart-outline" size={48} color={colors.textMuted} />
                 <Text style={styles.emptyText}>No prayer requests yet</Text>
                 <Text style={styles.emptySubtext}>
                   {isMember ? 'Be the first to request prayer!' : 'Join to see prayer requests'}
@@ -692,7 +692,7 @@ export function CommunityDetailScreen({
 
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary }}>
                         {member.user.displayName || member.user.username}
                       </Text>
                       {member.role === 'owner' && (
@@ -706,10 +706,10 @@ export function CommunityDetailScreen({
                         </View>
                       )}
                       {member.userId === user?.id && (
-                        <Text style={{ fontSize: 13, color: colors.mutedForeground }}>(You)</Text>
+                        <Text style={{ fontSize: 13, color: colors.textMuted }}>(You)</Text>
                       )}
                     </View>
-                    <Text style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 2 }}>
+                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
                       @{member.user.username}
                     </Text>
                   </View>
@@ -739,9 +739,9 @@ const getStyles = (colors: any) =>
       justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     headerButton: {
       width: 40,
@@ -752,7 +752,7 @@ const getStyles = (colors: any) =>
     headerTitle: {
       fontSize: 17,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     content: {
       flex: 1,
@@ -766,7 +766,7 @@ const getStyles = (colors: any) =>
     loadingText: {
       marginTop: 12,
       fontSize: 16,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     errorContainer: {
       flex: 1,
@@ -778,7 +778,7 @@ const getStyles = (colors: any) =>
       marginTop: 16,
       fontSize: 18,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     backButton: {
       marginTop: 24,
@@ -795,9 +795,9 @@ const getStyles = (colors: any) =>
     communityHeader: {
       alignItems: 'center',
       padding: 24,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     communityIcon: {
       width: 80,
@@ -810,14 +810,14 @@ const getStyles = (colors: any) =>
     communityName: {
       fontSize: 24,
       fontWeight: '700',
-      color: colors.foreground,
+      color: colors.textPrimary,
       marginBottom: 8,
       textAlign: 'center',
     },
     communityDescription: {
       fontSize: 15,
       lineHeight: 20,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
       textAlign: 'center',
       marginBottom: 16,
     },
@@ -833,7 +833,7 @@ const getStyles = (colors: any) =>
     },
     metaText: {
       fontSize: 14,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     actionButtons: {
       flexDirection: 'row',
@@ -845,13 +845,13 @@ const getStyles = (colors: any) =>
       paddingVertical: 12,
       borderRadius: 20,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSubtle,
       alignItems: 'center',
     },
     leaveButtonText: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     createEventButton: {
       flex: 1,
@@ -870,9 +870,9 @@ const getStyles = (colors: any) =>
     },
     tabs: {
       flexDirection: 'row',
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     tab: {
       flex: 1,
@@ -887,7 +887,7 @@ const getStyles = (colors: any) =>
     tabText: {
       fontSize: 15,
       fontWeight: '500',
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     tabTextActive: {
       color: '#222D99',
@@ -895,16 +895,16 @@ const getStyles = (colors: any) =>
     },
     createPostContainer: {
       padding: 16,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     postInput: {
       backgroundColor: colors.muted,
       borderRadius: 12,
       padding: 12,
       fontSize: 15,
-      color: colors.foreground,
+      color: colors.textPrimary,
       minHeight: 80,
       textAlignVertical: 'top',
       marginBottom: 12,
@@ -931,20 +931,20 @@ const getStyles = (colors: any) =>
       marginTop: 16,
       fontSize: 16,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     emptySubtext: {
       marginTop: 4,
       fontSize: 14,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     memberCard: {
       flexDirection: 'row',
       alignItems: 'center',
       padding: 16,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     roleBadge: {
       paddingHorizontal: 8,

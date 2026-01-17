@@ -219,7 +219,7 @@ function EventCard({
       onPress={onPress}
       style={[
         styles.card,
-        { backgroundColor: colors.card, borderColor: colors.borderSubtle },
+        { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
       ]}
     >
       {/* Poster block with default gradient */}
@@ -373,7 +373,7 @@ export default function EventsScreenNew() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.borderSubtle }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Events</Text>
         <Pressable
           onPress={() => router.push("/events/create")}
@@ -441,7 +441,7 @@ export default function EventsScreenNew() {
         <View
           style={[
             styles.mapPlaceholder,
-            { backgroundColor: colors.card, borderColor: colors.borderSubtle },
+            { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
           ]}
         >
           <Text style={{ color: colors.textSecondary, fontWeight: "700" }}>
@@ -460,7 +460,7 @@ export default function EventsScreenNew() {
             <View
               style={[
                 styles.empty,
-                { backgroundColor: colors.card, borderColor: colors.borderSubtle },
+                { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
               ]}
             >
               <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "900" }}>

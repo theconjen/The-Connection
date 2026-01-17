@@ -176,7 +176,7 @@ function NotificationCard({
         <Text
           style={{
             fontSize: 11,
-            color: colors.mutedForeground,
+            color: colors.textMuted,
           }}
         >
           {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
@@ -266,9 +266,9 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
           gap: spacing.sm,
           paddingHorizontal: spacing.lg,
           paddingVertical: spacing.md,
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.borderSubtle,
         }}
       >
         <Pressable
@@ -286,7 +286,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
             variant="bodySmall"
             style={{
               fontWeight: '600',
-              color: filter === 'all' ? colors.primaryForeground : colors.foreground,
+              color: filter === 'all' ? colors.primaryForeground : colors.textPrimary,
             }}
           >
             All ({notifications.length})
@@ -308,7 +308,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
             variant="bodySmall"
             style={{
               fontWeight: '600',
-              color: filter === 'unread' ? colors.primaryForeground : colors.foreground,
+              color: filter === 'unread' ? colors.primaryForeground : colors.textPrimary,
             }}
           >
             Unread ({unreadCount})
@@ -342,7 +342,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
               paddingHorizontal: spacing.lg,
             }}
           >
-            <Ionicons name="notifications-off-outline" size={64} color={colors.mutedForeground} />
+            <Ionicons name="notifications-off-outline" size={64} color={colors.textMuted} />
             <Text
               variant="body"
               style={{
@@ -370,7 +370,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
                 key={notification.id}
                 style={{
                   borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
+                  borderBottomColor: colors.borderSubtle,
                 }}
               >
                 <NotificationCard

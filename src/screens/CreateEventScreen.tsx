@@ -192,7 +192,7 @@ export function CreateEventScreen({
           <TextInput
             style={styles.input}
             placeholder="Sunday Service"
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor={colors.textMuted}
             value={formData.title}
             onChangeText={(text) => updateField('title', text)}
           />
@@ -204,7 +204,7 @@ export function CreateEventScreen({
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Join us for our weekly worship service..."
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor={colors.textMuted}
             multiline
             numberOfLines={4}
             value={formData.description}
@@ -218,7 +218,7 @@ export function CreateEventScreen({
           <TextInput
             style={styles.input}
             placeholder="2026-01-15"
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor={colors.textMuted}
             value={formData.eventDate}
             onChangeText={(text) => updateField('eventDate', text)}
           />
@@ -232,7 +232,7 @@ export function CreateEventScreen({
             <TextInput
               style={styles.input}
               placeholder="10:00"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={formData.startTime}
               onChangeText={(text) => updateField('startTime', text)}
             />
@@ -244,7 +244,7 @@ export function CreateEventScreen({
             <TextInput
               style={styles.input}
               placeholder="12:00"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={formData.endTime}
               onChangeText={(text) => updateField('endTime', text)}
             />
@@ -255,7 +255,7 @@ export function CreateEventScreen({
         {/* Virtual Event Toggle */}
         <View style={styles.toggleSection}>
           <View style={styles.toggleHeader}>
-            <Ionicons name="videocam-outline" size={20} color={colors.foreground} />
+            <Ionicons name="videocam-outline" size={20} color={colors.textPrimary} />
             <Text style={styles.toggleTitle}>Virtual Event</Text>
           </View>
           <Switch
@@ -279,7 +279,7 @@ export function CreateEventScreen({
               <TextInput
                 style={styles.input}
                 placeholder="Main Church Building"
-                placeholderTextColor={colors.mutedForeground}
+                placeholderTextColor={colors.textMuted}
                 value={formData.location}
                 onChangeText={(text) => updateField('location', text)}
               />
@@ -290,7 +290,7 @@ export function CreateEventScreen({
               <TextInput
                 style={styles.input}
                 placeholder="123 Main St"
-                placeholderTextColor={colors.mutedForeground}
+                placeholderTextColor={colors.textMuted}
                 value={formData.address}
                 onChangeText={(text) => updateField('address', text)}
               />
@@ -302,7 +302,7 @@ export function CreateEventScreen({
                 <TextInput
                   style={styles.input}
                   placeholder="Springfield"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={formData.city}
                   onChangeText={(text) => updateField('city', text)}
                 />
@@ -313,7 +313,7 @@ export function CreateEventScreen({
                 <TextInput
                   style={styles.input}
                   placeholder="IL"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={formData.state}
                   onChangeText={(text) => updateField('state', text)}
                 />
@@ -324,7 +324,7 @@ export function CreateEventScreen({
                 <TextInput
                   style={styles.input}
                   placeholder="62701"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={formData.zipCode}
                   onChangeText={(text) => updateField('zipCode', text)}
                 />
@@ -340,7 +340,7 @@ export function CreateEventScreen({
             <TextInput
               style={styles.input}
               placeholder="https://zoom.us/j/123456789"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={formData.virtualMeetingUrl}
               onChangeText={(text) => updateField('virtualMeetingUrl', text)}
               autoCapitalize="none"
@@ -352,7 +352,7 @@ export function CreateEventScreen({
         {/* Public Event Toggle */}
         <View style={styles.toggleSection}>
           <View style={styles.toggleHeader}>
-            <Ionicons name="globe-outline" size={20} color={colors.foreground} />
+            <Ionicons name="globe-outline" size={20} color={colors.textPrimary} />
             <Text style={styles.toggleTitle}>Show on Events Page</Text>
           </View>
           <Switch
@@ -399,9 +399,9 @@ const getStyles = (colors: any) =>
       justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     headerButton: {
       minWidth: 60,
@@ -409,11 +409,11 @@ const getStyles = (colors: any) =>
     headerTitle: {
       fontSize: 17,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     cancelText: {
       fontSize: 16,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     createText: {
       fontSize: 16,
@@ -422,7 +422,7 @@ const getStyles = (colors: any) =>
       textAlign: 'right',
     },
     createTextDisabled: {
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     content: {
       flex: 1,
@@ -454,7 +454,7 @@ const getStyles = (colors: any) =>
     label: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
       marginBottom: 8,
     },
     input: {
@@ -463,9 +463,9 @@ const getStyles = (colors: any) =>
       paddingHorizontal: 12,
       paddingVertical: 12,
       fontSize: 15,
-      color: colors.foreground,
+      color: colors.textPrimary,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSubtle,
     },
     textArea: {
       minHeight: 100,
@@ -473,7 +473,7 @@ const getStyles = (colors: any) =>
     },
     hint: {
       fontSize: 12,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
       marginTop: 4,
     },
     toggleSection: {
@@ -490,11 +490,11 @@ const getStyles = (colors: any) =>
     toggleTitle: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     toggleDescription: {
       fontSize: 13,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
       marginBottom: 20,
       lineHeight: 18,
     },

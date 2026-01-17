@@ -140,7 +140,7 @@ export default function MessagesScreen({
             paddingVertical: 12,
             backgroundColor: colors.surface,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
           }}>
             <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>Messages</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -194,7 +194,7 @@ export default function MessagesScreen({
             paddingVertical: 12,
             backgroundColor: colors.surface,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
           }}>
             <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>Messages</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -215,7 +215,7 @@ export default function MessagesScreen({
             paddingHorizontal: 12,
             borderRadius: 10,
             borderWidth: 1,
-            borderColor: colors.border,
+            borderColor: colors.borderSubtle,
           }}>
             <Ionicons name="search" size={20} color={colors.textSecondary} style={{ marginRight: 8 }} />
             <TextInput
@@ -248,7 +248,7 @@ export default function MessagesScreen({
           paddingVertical: 12,
           backgroundColor: colors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.borderSubtle,
         }}>
           <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>Messages</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -269,7 +269,7 @@ export default function MessagesScreen({
           paddingHorizontal: 12,
           borderRadius: 10,
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: colors.borderSubtle,
         }}>
           <Ionicons name="search" size={20} color={colors.textSecondary} style={{ marginRight: 8 }} />
           <TextInput

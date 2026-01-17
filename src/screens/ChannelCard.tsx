@@ -50,9 +50,9 @@ export function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps
         {
           width: 96,
           height: 96,
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderWidth: 1,
-          borderColor: pressed ? colors.accent : colors.border,
+          borderColor: pressed ? colors.accent : colors.borderSubtle,
           borderRadius: radii.lg,
           padding: spacing.sm,
           alignItems: 'center',
@@ -134,7 +134,7 @@ export function AddChannelCard({ onPress }: { onPress?: () => void }) {
           height: 96,
           borderWidth: 2,
           borderStyle: 'dashed',
-          borderColor: pressed ? colors.accent : colors.border,
+          borderColor: pressed ? colors.accent : colors.borderSubtle,
           borderRadius: radii.lg,
           alignItems: 'center',
           justifyContent: 'center',
@@ -153,7 +153,7 @@ export function AddChannelCard({ onPress }: { onPress?: () => void }) {
           justifyContent: 'center',
         }}
       >
-        <Text style={{ fontSize: 18, color: colors.mutedForeground }}>+</Text>
+        <Text style={{ fontSize: 18, color: colors.textMuted }}>+</Text>
       </View>
       <Text variant="caption" color="mutedForeground">
         Discover

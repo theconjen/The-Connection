@@ -96,9 +96,9 @@ Whether you're a seasoned developer or just starting your journey, there's never
       {/* Header */}
       <View
         style={{
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.borderSubtle,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -115,7 +115,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
             marginLeft: -spacing.sm,
           })}
         >
-          <BackIcon color={colors.foreground} />
+          <BackIcon color={colors.textPrimary} />
         </Pressable>
         <Text variant="body" style={{ fontWeight: '500' }}>
           {post.channel}
@@ -128,7 +128,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
             marginRight: -spacing.sm,
           })}
         >
-          <MoreIcon color={colors.mutedForeground} />
+          <MoreIcon color={colors.textMuted} />
         </Pressable>
       </View>
 
@@ -247,7 +247,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
               paddingHorizontal: spacing.sm,
               paddingVertical: spacing.sm,
               borderTopWidth: 1,
-              borderTopColor: colors.border,
+              borderTopColor: colors.borderSubtle,
             }}
           >
             {/* Votes */}
@@ -261,7 +261,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 })}
               >
                 <ArrowUpIcon
-                  color={voteStatus === 'up' ? colors.accent : colors.mutedForeground}
+                  color={voteStatus === 'up' ? colors.accent : colors.textMuted}
                   filled={voteStatus === 'up'}
                 />
               </Pressable>
@@ -275,8 +275,8 @@ Whether you're a seasoned developer or just starting your journey, there's never
                     voteStatus === 'up'
                       ? colors.accent
                       : voteStatus === 'down'
-                      ? colors.mutedForeground
-                      : colors.foreground,
+                      ? colors.textMuted
+                      : colors.textPrimary,
                 }}
               >
                 {votes}
@@ -290,7 +290,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 })}
               >
                 <ArrowDownIcon
-                  color={colors.mutedForeground}
+                  color={colors.textMuted}
                   filled={voteStatus === 'down'}
                 />
               </Pressable>
@@ -308,7 +308,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 backgroundColor: pressed ? colors.muted : 'transparent',
               })}
             >
-              <CommentIcon color={colors.mutedForeground} />
+              <CommentIcon color={colors.textMuted} />
               <Text variant="bodySmall" color="mutedForeground">
                 {post.comments}
               </Text>
@@ -322,7 +322,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 backgroundColor: pressed ? colors.muted : 'transparent',
               })}
             >
-              <ShareIcon color={colors.mutedForeground} />
+              <ShareIcon color={colors.textMuted} />
             </Pressable>
 
             {/* Bookmark */}
@@ -333,7 +333,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 backgroundColor: pressed ? colors.muted : 'transparent',
               })}
             >
-              <BookmarkIcon color={colors.mutedForeground} />
+              <BookmarkIcon color={colors.textMuted} />
             </Pressable>
           </View>
         </View>

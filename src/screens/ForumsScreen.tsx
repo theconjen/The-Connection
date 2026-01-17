@@ -253,16 +253,16 @@ export function ForumsScreen({
       {/* Tabs */}
       <View
         style={{
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.borderSubtle,
         }}
       >
         <View
           style={{
             flexDirection: 'row',
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
           }}
         >
           <Pressable
@@ -277,7 +277,7 @@ export function ForumsScreen({
             <Text
               variant="bodySmall"
               style={{
-                color: activeTab === 'home' ? colors.accent : colors.mutedForeground,
+                color: activeTab === 'home' ? colors.accent : colors.textMuted,
                 fontWeight: activeTab === 'home' ? '600' : '400',
               }}
             >
@@ -308,7 +308,7 @@ export function ForumsScreen({
             <Text
               variant="bodySmall"
               style={{
-                color: activeTab === 'popular' ? colors.accent : colors.mutedForeground,
+                color: activeTab === 'popular' ? colors.accent : colors.textMuted,
                 fontWeight: activeTab === 'popular' ? '600' : '400',
               }}
             >
@@ -410,14 +410,14 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     },
     searchPlaceholder: {
       fontSize: 15,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     trendingSection: {
       backgroundColor: colors.surface,
       paddingVertical: 12,
       paddingHorizontal: 16,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     trendingHeader: {
       flexDirection: 'row',
@@ -482,7 +482,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
       paddingVertical: 8,
       backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     filterText: {
       fontSize: 13,

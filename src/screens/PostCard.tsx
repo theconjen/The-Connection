@@ -141,7 +141,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
               <Ionicons
                 name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
                 size={18}
-                color={isBookmarked ? colors.bookmark : colors.mutedForeground}
+                color={isBookmarked ? colors.bookmark : colors.textMuted}
               />
             </Pressable>
 
@@ -160,7 +160,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
               <Ionicons
                 name="ellipsis-horizontal"
                 size={18}
-                color={colors.mutedForeground}
+                color={colors.textMuted}
               />
             </Pressable>
           </View>
@@ -202,7 +202,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
               backgroundColor: pressed ? colors.muted : 'transparent',
             })}
           >
-            <Ionicons name="chatbubble-outline" size={18} color={colors.mutedForeground} />
+            <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
             <Text variant="caption" color="mutedForeground">
               {post.comments}
             </Text>
@@ -226,11 +226,11 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
             <Ionicons
               name={post.isLiked ? 'heart' : 'heart-outline'}
               size={18}
-              color={post.isLiked ? colors.like : colors.mutedForeground}
+              color={post.isLiked ? colors.like : colors.textMuted}
             />
             <Text
               variant="caption"
-              style={{ color: post.isLiked ? colors.like : colors.mutedForeground }}
+              style={{ color: post.isLiked ? colors.like : colors.textMuted }}
             >
               {formatCount(post.likes)}
             </Text>

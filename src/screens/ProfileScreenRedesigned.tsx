@@ -194,7 +194,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Ionicons name="settings-outline" size={24} color={colors.foreground} />
+              <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
             </Pressable>
           ) : undefined
         }

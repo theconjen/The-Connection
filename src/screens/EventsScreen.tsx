@@ -91,9 +91,9 @@ function FilterPill({
         height: 28,
         paddingHorizontal: spacing.md,
         borderRadius: radii.full,
-        backgroundColor: isActive ? colors.primary : colors.card,
+        backgroundColor: isActive ? colors.primary : colors.surface,
         borderWidth: isActive ? 0 : 1,
-        borderColor: colors.border,
+        borderColor: colors.borderSubtle,
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.xs,
@@ -104,7 +104,7 @@ function FilterPill({
       <Text
         variant="caption"
         style={{
-          color: isActive ? colors.primaryForeground : colors.mutedForeground,
+          color: isActive ? colors.primaryForeground : colors.textMuted,
           fontWeight: '500',
         }}
       >
@@ -188,7 +188,7 @@ function EventCard({
   const getRsvpColor = () => {
     if (event.userRsvpStatus === 'going') return colors.primary;
     if (event.userRsvpStatus === 'maybe') return '#F59E0B'; // Amber
-    return colors.border;
+    return colors.borderSubtle;
   };
 
   // Get RSVP icon
@@ -206,11 +206,11 @@ function EventCard({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        backgroundColor: colors.card,
+        backgroundColor: colors.surface,
         padding: spacing.md,
         borderRadius: radii.xl,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: colors.borderSubtle,
         marginBottom: spacing.sm,
         shadowColor: '#000',
         shadowOpacity: 0.03,
@@ -251,7 +251,7 @@ function EventCard({
           >
             <Text
               variant="bodySmall"
-              style={{ fontWeight: '700', color: colors.foreground, flex: 1 }}
+              style={{ fontWeight: '700', color: colors.textPrimary, flex: 1 }}
               numberOfLines={1}
             >
               {event.title}
@@ -290,26 +290,26 @@ function EventCard({
           {/* Event Details */}
           <View style={{ gap: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="calendar-outline" size={12} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+              <Ionicons name="calendar-outline" size={12} color={colors.textMuted} />
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>
                 {formatDate(event.eventDate)}
               </Text>
-              <Ionicons name="time-outline" size={12} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+              <Ionicons name="time-outline" size={12} color={colors.textMuted} />
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>
                 {event.startTime}
               </Text>
             </View>
             {event.location && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="location-outline" size={12} color={colors.mutedForeground} />
-                <Text style={{ fontSize: 11, color: colors.mutedForeground }} numberOfLines={1}>
+                <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+                <Text style={{ fontSize: 11, color: colors.textMuted }} numberOfLines={1}>
                   {event.location}
                 </Text>
               </View>
             )}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="people-outline" size={12} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+              <Ionicons name="people-outline" size={12} color={colors.textMuted} />
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>
                 {event.rsvpCount || 0} attending
               </Text>
             </View>
@@ -338,13 +338,13 @@ function EventCard({
               <Ionicons
                 name={getRsvpIcon()}
                 size={14}
-                color={event.userRsvpStatus ? colors.primaryForeground : colors.mutedForeground}
+                color={event.userRsvpStatus ? colors.primaryForeground : colors.textMuted}
               />
               <Text
                 style={{
                   fontSize: 11,
                   fontWeight: '600',
-                  color: event.userRsvpStatus ? colors.primaryForeground : colors.mutedForeground,
+                  color: event.userRsvpStatus ? colors.primaryForeground : colors.textMuted,
                 }}
               >
                 {event.userRsvpStatus === 'going' ? 'Going' : event.userRsvpStatus === 'maybe' ? 'Maybe' : 'RSVP'}
@@ -779,11 +779,11 @@ export function EventsScreen({
         {/* Search and Filters Section */}
         <View
           style={{
-            backgroundColor: colors.card,
+            backgroundColor: colors.surface,
             paddingHorizontal: spacing.lg,
             paddingVertical: spacing.md,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
             gap: spacing.md,
           }}
         >
@@ -800,19 +800,19 @@ export function EventsScreen({
                   paddingHorizontal: spacing.md,
                   height: 40,
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: colors.borderSubtle,
                 }}
               >
-                <Ionicons name="search" size={18} color={colors.mutedForeground} />
+                <Ionicons name="search" size={18} color={colors.textMuted} />
                 <TextInput
                   style={{
                     flex: 1,
                     marginLeft: spacing.sm,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                   }}
                   placeholder="Search events..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
@@ -830,7 +830,7 @@ export function EventsScreen({
                   paddingHorizontal: spacing.md,
                   height: 40,
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: colors.borderSubtle,
                 }}
               >
                 {loadingLocation ? (
@@ -845,16 +845,16 @@ export function EventsScreen({
                     flex: 1,
                     marginLeft: spacing.sm,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                   }}
                   placeholder="Filter by city..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={locationFilter}
                   onChangeText={setLocationFilter}
                 />
                 {locationFilter.length > 0 && (
                   <Pressable onPress={() => setLocationFilter('')}>
-                    <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                   </Pressable>
                 )}
               </View>
@@ -878,22 +878,22 @@ export function EventsScreen({
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.xs,
                 borderRadius: radii.md,
-                backgroundColor: viewMode === 'list' ? colors.primary : colors.card,
+                backgroundColor: viewMode === 'list' ? colors.primary : colors.surface,
                 borderWidth: 1,
-                borderColor: viewMode === 'list' ? colors.primary : colors.border,
+                borderColor: viewMode === 'list' ? colors.primary : colors.borderSubtle,
                 opacity: pressed ? 0.8 : 1,
               })}
             >
               <Ionicons
                 name="list"
                 size={16}
-                color={viewMode === 'list' ? colors.primaryForeground : colors.foreground}
+                color={viewMode === 'list' ? colors.primaryForeground : colors.textPrimary}
               />
               <Text
                 variant="caption"
                 style={{
                   fontWeight: '600',
-                  color: viewMode === 'list' ? colors.primaryForeground : colors.foreground,
+                  color: viewMode === 'list' ? colors.primaryForeground : colors.textPrimary,
                 }}
               >
                 List
@@ -909,22 +909,22 @@ export function EventsScreen({
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.xs,
                 borderRadius: radii.md,
-                backgroundColor: viewMode === 'map' ? colors.primary : colors.card,
+                backgroundColor: viewMode === 'map' ? colors.primary : colors.surface,
                 borderWidth: 1,
-                borderColor: viewMode === 'map' ? colors.primary : colors.border,
+                borderColor: viewMode === 'map' ? colors.primary : colors.borderSubtle,
                 opacity: pressed ? 0.8 : 1,
               })}
             >
               <Ionicons
                 name="map"
                 size={16}
-                color={viewMode === 'map' ? colors.primaryForeground : colors.foreground}
+                color={viewMode === 'map' ? colors.primaryForeground : colors.textPrimary}
               />
               <Text
                 variant="caption"
                 style={{
                   fontWeight: '600',
-                  color: viewMode === 'map' ? colors.primaryForeground : colors.foreground,
+                  color: viewMode === 'map' ? colors.primaryForeground : colors.textPrimary,
                 }}
               >
                 Map
@@ -939,7 +939,7 @@ export function EventsScreen({
             backgroundColor: colors.background,
             paddingVertical: spacing.sm,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
           }}
         >
           <ScrollView
@@ -957,16 +957,16 @@ export function EventsScreen({
                 height: 28,
                 paddingHorizontal: spacing.md,
                 borderRadius: radii.full,
-                backgroundColor: colors.card,
+                backgroundColor: colors.surface,
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor: colors.borderSubtle,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: spacing.xs,
                 opacity: pressed ? 0.8 : 1,
               })}
             >
-              <Ionicons name="options-outline" size={14} color={colors.foreground} />
+              <Ionicons name="options-outline" size={14} color={colors.textPrimary} />
               <Text variant="caption" style={{ fontWeight: '500' }}>
                 Filters
               </Text>
@@ -977,7 +977,7 @@ export function EventsScreen({
               style={{
                 width: 1,
                 height: 16,
-                backgroundColor: colors.border,
+                backgroundColor: colors.borderSubtle,
               }}
             />
 
@@ -1004,24 +1004,24 @@ export function EventsScreen({
               borderRadius: radii.xl,
               overflow: 'hidden',
               borderWidth: 1,
-              borderColor: colors.border,
+              borderColor: colors.borderSubtle,
               minHeight: 400,
             }}
           >
             {loadingLocation ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted }}>
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text variant="body" style={{ marginTop: spacing.md, color: colors.mutedForeground }}>
+                <Text variant="body" style={{ marginTop: spacing.md, color: colors.textMuted }}>
                   Requesting location permissions...
                 </Text>
               </View>
             ) : locationPermission === false ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted, padding: spacing.xl }}>
-                <Ionicons name="location-outline" size={48} color={colors.mutedForeground} />
-                <Text variant="body" style={{ fontWeight: '600', color: colors.foreground, marginTop: spacing.md, textAlign: 'center' }}>
+                <Ionicons name="location-outline" size={48} color={colors.textMuted} />
+                <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginTop: spacing.md, textAlign: 'center' }}>
                   Location Permission Denied
                 </Text>
-                <Text variant="bodySmall" style={{ color: colors.mutedForeground, marginTop: spacing.sm, textAlign: 'center' }}>
+                <Text variant="bodySmall" style={{ color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>
                   Please enable location permissions in your device settings to view events on the map.
                 </Text>
                 <Pressable
@@ -1047,7 +1047,7 @@ export function EventsScreen({
                   top: spacing.md,
                   right: spacing.md,
                   zIndex: 10,
-                  backgroundColor: colors.card,
+                  backgroundColor: colors.surface,
                   borderRadius: radii.md,
                   padding: spacing.md,
                   shadowColor: '#000',
@@ -1059,15 +1059,15 @@ export function EventsScreen({
                   alignItems: 'center',
                   gap: spacing.sm,
                 }}>
-                  <Ionicons name="people" size={18} color={colors.foreground} />
+                  <Ionicons name="people" size={18} color={colors.textPrimary} />
                   <Text variant="bodySmall" style={{ fontWeight: '600' }}>
                     Communities
                   </Text>
                   <Switch
                     value={showCommunities}
                     onValueChange={setShowCommunities}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={showCommunities ? colors.primaryForeground : colors.mutedForeground}
+                    trackColor={{ false: colors.borderSubtle, true: colors.primary }}
+                    thumbColor={showCommunities ? colors.primaryForeground : colors.textMuted}
                   />
                 </View>
 
@@ -1116,8 +1116,8 @@ export function EventsScreen({
               </>
             ) : (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted, padding: spacing.xl }}>
-                <Ionicons name="map-outline" size={48} color={colors.mutedForeground} />
-                <Text variant="body" style={{ fontWeight: '600', color: colors.foreground, marginTop: spacing.md, textAlign: 'center' }}>
+                <Ionicons name="map-outline" size={48} color={colors.textMuted} />
+                <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginTop: spacing.md, textAlign: 'center' }}>
                   Loading Map...
                 </Text>
               </View>
@@ -1199,7 +1199,7 @@ export function EventsScreen({
                   paddingHorizontal: spacing.lg,
                 }}
               >
-                <Ionicons name="calendar-outline" size={64} color={colors.mutedForeground} />
+                <Ionicons name="calendar-outline" size={64} color={colors.textMuted} />
                 <Text
                   variant="body"
                   style={{
@@ -1254,11 +1254,11 @@ export function EventsScreen({
                 paddingHorizontal: spacing.lg,
                 paddingVertical: spacing.md,
                 borderBottomWidth: 1,
-                borderBottomColor: colors.border,
+                borderBottomColor: colors.borderSubtle,
               }}
             >
               <Pressable onPress={() => setShowCreateModal(false)}>
-                <Ionicons name="close" size={24} color={colors.foreground} />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
               <Text variant="body" style={{ fontWeight: '700' }}>
                 Create Event
@@ -1269,7 +1269,7 @@ export function EventsScreen({
               >
                 <Text
                   style={{
-                    color: createEventMutation.isPending ? colors.mutedForeground : colors.primary,
+                    color: createEventMutation.isPending ? colors.textMuted : colors.primary,
                     fontWeight: '600',
                   }}
                 >
@@ -1288,9 +1288,9 @@ export function EventsScreen({
                 <Pressable
                   onPress={() => setShowCommunityPicker(!showCommunityPicker)}
                   style={{
-                    backgroundColor: colors.card,
+                    backgroundColor: colors.surface,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     borderRadius: radii.lg,
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.sm + 2,
@@ -1303,8 +1303,8 @@ export function EventsScreen({
                     style={{
                       fontSize: 14,
                       color: selectedCommunityId
-                        ? colors.foreground
-                        : colors.mutedForeground,
+                        ? colors.textPrimary
+                        : colors.textMuted,
                     }}
                   >
                     {selectedCommunityId
@@ -1314,7 +1314,7 @@ export function EventsScreen({
                   <Ionicons
                     name={showCommunityPicker ? 'chevron-up' : 'chevron-down'}
                     size={20}
-                    color={colors.mutedForeground}
+                    color={colors.textMuted}
                   />
                 </Pressable>
 
@@ -1323,9 +1323,9 @@ export function EventsScreen({
                   <View
                     style={{
                       marginTop: spacing.xs,
-                      backgroundColor: colors.card,
+                      backgroundColor: colors.surface,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.borderSubtle,
                       borderRadius: radii.lg,
                       maxHeight: 200,
                     }}
@@ -1343,7 +1343,7 @@ export function EventsScreen({
                             paddingVertical: spacing.sm + 2,
                             backgroundColor: pressed ? colors.muted : 'transparent',
                             borderBottomWidth: 1,
-                            borderBottomColor: colors.border,
+                            borderBottomColor: colors.borderSubtle,
                           })}
                         >
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -1382,17 +1382,17 @@ export function EventsScreen({
                 </Text>
                 <TextInput
                   style={{
-                    backgroundColor: colors.card,
+                    backgroundColor: colors.surface,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     borderRadius: radii.lg,
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.sm + 2,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                   }}
                   placeholder="Enter event title"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={newEventTitle}
                   onChangeText={setNewEventTitle}
                 />
@@ -1405,19 +1405,19 @@ export function EventsScreen({
                 </Text>
                 <TextInput
                   style={{
-                    backgroundColor: colors.card,
+                    backgroundColor: colors.surface,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     borderRadius: radii.lg,
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.sm + 2,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                     minHeight: 100,
                     textAlignVertical: 'top',
                   }}
                   placeholder="Describe your event"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={newEventDescription}
                   onChangeText={setNewEventDescription}
                   multiline
@@ -1432,17 +1432,17 @@ export function EventsScreen({
                 </Text>
                 <TextInput
                   style={{
-                    backgroundColor: colors.card,
+                    backgroundColor: colors.surface,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     borderRadius: radii.lg,
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.sm + 2,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                   }}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={newEventDate}
                   onChangeText={setNewEventDate}
                 />
@@ -1456,17 +1456,17 @@ export function EventsScreen({
                   </Text>
                   <TextInput
                     style={{
-                      backgroundColor: colors.card,
+                      backgroundColor: colors.surface,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.borderSubtle,
                       borderRadius: radii.lg,
                       paddingHorizontal: spacing.md,
                       paddingVertical: spacing.sm + 2,
                       fontSize: 14,
-                      color: colors.foreground,
+                      color: colors.textPrimary,
                     }}
                     placeholder="HH:MM"
-                    placeholderTextColor={colors.mutedForeground}
+                    placeholderTextColor={colors.textMuted}
                     value={newEventStartTime}
                     onChangeText={setNewEventStartTime}
                   />
@@ -1477,17 +1477,17 @@ export function EventsScreen({
                   </Text>
                   <TextInput
                     style={{
-                      backgroundColor: colors.card,
+                      backgroundColor: colors.surface,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.borderSubtle,
                       borderRadius: radii.lg,
                       paddingHorizontal: spacing.md,
                       paddingVertical: spacing.sm + 2,
                       fontSize: 14,
-                      color: colors.foreground,
+                      color: colors.textPrimary,
                     }}
                     placeholder="HH:MM"
-                    placeholderTextColor={colors.mutedForeground}
+                    placeholderTextColor={colors.textMuted}
                     value={newEventEndTime}
                     onChangeText={setNewEventEndTime}
                   />
@@ -1516,7 +1516,7 @@ export function EventsScreen({
                   value={isInPerson}
                   onValueChange={setIsInPerson}
                   trackColor={{ false: colors.muted, true: colors.primary }}
-                  thumbColor={colors.card}
+                  thumbColor={colors.surface}
                 />
               </View>
 
@@ -1530,17 +1530,17 @@ export function EventsScreen({
                     </Text>
                     <TextInput
                       style={{
-                        backgroundColor: colors.card,
+                        backgroundColor: colors.surface,
                         borderWidth: 1,
-                        borderColor: colors.border,
+                        borderColor: colors.borderSubtle,
                         borderRadius: radii.lg,
                         paddingHorizontal: spacing.md,
                         paddingVertical: spacing.sm + 2,
                         fontSize: 14,
-                        color: colors.foreground,
+                        color: colors.textPrimary,
                       }}
                       placeholder="e.g., Grace Community Church"
-                      placeholderTextColor={colors.mutedForeground}
+                      placeholderTextColor={colors.textMuted}
                       value={newEventLocation}
                       onChangeText={setNewEventLocation}
                     />
@@ -1553,17 +1553,17 @@ export function EventsScreen({
                     </Text>
                     <TextInput
                       style={{
-                        backgroundColor: colors.card,
+                        backgroundColor: colors.surface,
                         borderWidth: 1,
-                        borderColor: colors.border,
+                        borderColor: colors.borderSubtle,
                         borderRadius: radii.lg,
                         paddingHorizontal: spacing.md,
                         paddingVertical: spacing.sm + 2,
                         fontSize: 14,
-                        color: colors.foreground,
+                        color: colors.textPrimary,
                       }}
                       placeholder="123 Main St"
-                      placeholderTextColor={colors.mutedForeground}
+                      placeholderTextColor={colors.textMuted}
                       value={newEventAddress}
                       onChangeText={setNewEventAddress}
                     />
@@ -1577,17 +1577,17 @@ export function EventsScreen({
                       </Text>
                       <TextInput
                         style={{
-                          backgroundColor: colors.card,
+                          backgroundColor: colors.surface,
                           borderWidth: 1,
-                          borderColor: colors.border,
+                          borderColor: colors.borderSubtle,
                           borderRadius: radii.lg,
                           paddingHorizontal: spacing.md,
                           paddingVertical: spacing.sm + 2,
                           fontSize: 14,
-                          color: colors.foreground,
+                          color: colors.textPrimary,
                         }}
                         placeholder="City"
-                        placeholderTextColor={colors.mutedForeground}
+                        placeholderTextColor={colors.textMuted}
                         value={newEventCity}
                         onChangeText={setNewEventCity}
                       />
@@ -1598,17 +1598,17 @@ export function EventsScreen({
                       </Text>
                       <TextInput
                         style={{
-                          backgroundColor: colors.card,
+                          backgroundColor: colors.surface,
                           borderWidth: 1,
-                          borderColor: colors.border,
+                          borderColor: colors.borderSubtle,
                           borderRadius: radii.lg,
                           paddingHorizontal: spacing.md,
                           paddingVertical: spacing.sm + 2,
                           fontSize: 14,
-                          color: colors.foreground,
+                          color: colors.textPrimary,
                         }}
                         placeholder="ST"
-                        placeholderTextColor={colors.mutedForeground}
+                        placeholderTextColor={colors.textMuted}
                         value={newEventState}
                         onChangeText={setNewEventState}
                         maxLength={2}
@@ -1620,17 +1620,17 @@ export function EventsScreen({
                       </Text>
                       <TextInput
                         style={{
-                          backgroundColor: colors.card,
+                          backgroundColor: colors.surface,
                           borderWidth: 1,
-                          borderColor: colors.border,
+                          borderColor: colors.borderSubtle,
                           borderRadius: radii.lg,
                           paddingHorizontal: spacing.md,
                           paddingVertical: spacing.sm + 2,
                           fontSize: 14,
-                          color: colors.foreground,
+                          color: colors.textPrimary,
                         }}
                         placeholder="12345"
-                        placeholderTextColor={colors.mutedForeground}
+                        placeholderTextColor={colors.textMuted}
                         value={newEventZipCode}
                         onChangeText={setNewEventZipCode}
                         keyboardType="numeric"
@@ -1647,17 +1647,17 @@ export function EventsScreen({
                   </Text>
                   <TextInput
                     style={{
-                      backgroundColor: colors.card,
+                      backgroundColor: colors.surface,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.borderSubtle,
                       borderRadius: radii.lg,
                       paddingHorizontal: spacing.md,
                       paddingVertical: spacing.sm + 2,
                       fontSize: 14,
-                      color: colors.foreground,
+                      color: colors.textPrimary,
                     }}
                     placeholder="https://zoom.us/j/..."
-                    placeholderTextColor={colors.mutedForeground}
+                    placeholderTextColor={colors.textMuted}
                     value={newEventVirtualUrl}
                     onChangeText={setNewEventVirtualUrl}
                     autoCapitalize="none"
@@ -1688,7 +1688,7 @@ export function EventsScreen({
                   value={isPublicEvent}
                   onValueChange={setIsPublicEvent}
                   trackColor={{ false: colors.muted, true: colors.primary }}
-                  thumbColor={colors.card}
+                  thumbColor={colors.surface}
                 />
               </View>
             </ScrollView>

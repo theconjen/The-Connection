@@ -80,7 +80,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
             paddingHorizontal: spacing.lg,
           }}
         >
-          <Ionicons name="ban-outline" size={64} color={colors.mutedForeground} />
+          <Ionicons name="ban-outline" size={64} color={colors.textMuted} />
           <Text
             variant="body"
             style={{
@@ -129,7 +129,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
                   alignItems: 'center',
                   paddingVertical: spacing.md,
                   borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
+                  borderBottomColor: colors.borderSubtle,
                 }}
               >
                 {/* Avatar */}

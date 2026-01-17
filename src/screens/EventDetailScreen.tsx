@@ -236,7 +236,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.mutedForeground} />
+          <Ionicons name="alert-circle-outline" size={64} color={colors.textMuted} />
           <Text style={styles.errorText}>Event not found</Text>
           <Pressable style={styles.backButton} onPress={onBack}>
             <Text style={styles.backButtonText}>Go Back</Text>
@@ -251,7 +251,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
       {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.headerButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Event Details</Text>
         <View style={styles.headerButton} />
@@ -277,12 +277,12 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
 
           {/* Date & Time */}
           <View style={styles.metaRow}>
-            <Ionicons name="calendar-outline" size={20} color={colors.mutedForeground} />
+            <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
             <Text style={styles.metaText}>{formatDate(event.eventDate)}</Text>
           </View>
 
           <View style={styles.metaRow}>
-            <Ionicons name="time-outline" size={20} color={colors.mutedForeground} />
+            <Ionicons name="time-outline" size={20} color={colors.textMuted} />
             <Text style={styles.metaText}>
               {formatTime(event.startTime)} - {formatTime(event.endTime)}
             </Text>
@@ -291,7 +291,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
           {/* Location */}
           {event.isVirtual ? (
             <View style={styles.metaRow}>
-              <Ionicons name="videocam-outline" size={20} color={colors.mutedForeground} />
+              <Ionicons name="videocam-outline" size={20} color={colors.textMuted} />
               <Text style={styles.metaText}>Virtual Event</Text>
             </View>
           ) : event.location ? (
@@ -306,7 +306,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
 
           {/* Attendees */}
           <View style={styles.metaRow}>
-            <Ionicons name="people-outline" size={20} color={colors.mutedForeground} />
+            <Ionicons name="people-outline" size={20} color={colors.textMuted} />
             <Text style={styles.metaText}>
               {attendingCount} {attendingCount === 1 ? 'person' : 'people'} attending
             </Text>
@@ -399,7 +399,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
                 style={styles.rsvpOptionCancel}
                 onPress={() => setShowRSVPOptions(false)}
               >
-                <Ionicons name="close" size={24} color={colors.mutedForeground} />
+                <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
           )}
@@ -425,9 +425,9 @@ const getStyles = (colors: any) =>
       justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     headerButton: {
       width: 40,
@@ -438,7 +438,7 @@ const getStyles = (colors: any) =>
     headerTitle: {
       fontSize: 17,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     content: {
       flex: 1,
@@ -451,7 +451,7 @@ const getStyles = (colors: any) =>
     loadingText: {
       marginTop: 12,
       fontSize: 16,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     errorContainer: {
       flex: 1,
@@ -463,7 +463,7 @@ const getStyles = (colors: any) =>
       marginTop: 16,
       fontSize: 18,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     backButton: {
       marginTop: 24,
@@ -488,7 +488,7 @@ const getStyles = (colors: any) =>
     eventTitle: {
       fontSize: 24,
       fontWeight: '700',
-      color: colors.foreground,
+      color: colors.textPrimary,
       marginBottom: 12,
     },
     communityBadge: {
@@ -515,7 +515,7 @@ const getStyles = (colors: any) =>
     },
     metaText: {
       fontSize: 15,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     linkText: {
       color: '#222D99',
@@ -524,14 +524,14 @@ const getStyles = (colors: any) =>
     sectionTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: colors.foreground,
+      color: colors.textPrimary,
       marginTop: 24,
       marginBottom: 12,
     },
     description: {
       fontSize: 15,
       lineHeight: 22,
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     virtualLinkContainer: {
       flexDirection: 'row',
@@ -564,11 +564,11 @@ const getStyles = (colors: any) =>
     hostName: {
       fontSize: 16,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     hostUsername: {
       fontSize: 14,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
       marginTop: 2,
     },
     messageButton: {
@@ -581,9 +581,9 @@ const getStyles = (colors: any) =>
     },
     footer: {
       padding: 16,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderTopWidth: 1,
-      borderTopColor: colors.border,
+      borderTopColor: colors.borderSubtle,
     },
     rsvpButton: {
       backgroundColor: '#222D99',

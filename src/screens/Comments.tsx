@@ -59,14 +59,14 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
         isReply && {
           marginLeft: spacing.xl,
           borderLeftWidth: 2,
-          borderLeftColor: colors.border,
+          borderLeftColor: colors.borderSubtle,
           paddingLeft: spacing.sm,
         },
       ]}
     >
       <View
         style={{
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           paddingVertical: spacing.md,
           paddingHorizontal: spacing.lg,
         }}
@@ -107,7 +107,7 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
                 style={{ padding: spacing.xs }}
               >
                 <ArrowUpIcon
-                  color={voteStatus === 'up' ? colors.accent : colors.mutedForeground}
+                  color={voteStatus === 'up' ? colors.accent : colors.textMuted}
                 />
               </Pressable>
               <Text
@@ -119,8 +119,8 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
                     voteStatus === 'up'
                       ? colors.accent
                       : voteStatus === 'down'
-                      ? colors.mutedForeground
-                      : colors.foreground,
+                      ? colors.textMuted
+                      : colors.textPrimary,
                 }}
               >
                 {currentVotes}
@@ -129,7 +129,7 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
                 onPress={() => setVoteStatus(voteStatus === 'down' ? null : 'down')}
                 style={{ padding: spacing.xs }}
               >
-                <ArrowDownIcon color={colors.mutedForeground} />
+                <ArrowDownIcon color={colors.textMuted} />
               </Pressable>
 
               {/* Reply */}
@@ -146,7 +146,7 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
                   marginLeft: spacing.sm,
                 })}
               >
-                <ReplyIcon color={colors.mutedForeground} />
+                <ReplyIcon color={colors.textMuted} />
                 <Text variant="caption" color="mutedForeground">
                   Reply
                 </Text>
@@ -164,7 +164,7 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
                   backgroundColor: pressed ? colors.muted : 'transparent',
                 })}
               >
-                <ShareIcon color={colors.mutedForeground} />
+                <ShareIcon color={colors.textMuted} />
                 <Text variant="caption" color="mutedForeground">
                   Share
                 </Text>
@@ -179,7 +179,7 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
                   marginLeft: 'auto',
                 })}
               >
-                <MoreIcon color={colors.mutedForeground} />
+                <MoreIcon color={colors.textMuted} />
               </Pressable>
             </View>
           </View>
@@ -224,7 +224,7 @@ export function Comments({ comments, onReply, onSubmitComment }: CommentsProps) 
           paddingHorizontal: spacing.lg,
           paddingVertical: spacing.md,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.borderSubtle,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
@@ -233,17 +233,17 @@ export function Comments({ comments, onReply, onSubmitComment }: CommentsProps) 
             value={commentText}
             onChangeText={setCommentText}
             placeholder="Add a comment..."
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor={colors.textMuted}
             onSubmitEditing={handleSubmit}
             style={{
               flex: 1,
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.sm,
               borderWidth: 1,
-              borderColor: colors.border,
+              borderColor: colors.borderSubtle,
               borderRadius: radii.full,
               fontSize: 14,
-              color: colors.foreground,
+              color: colors.textPrimary,
               backgroundColor: colors.background,
             }}
           />
@@ -259,7 +259,7 @@ export function Comments({ comments, onReply, onSubmitComment }: CommentsProps) 
           paddingHorizontal: spacing.lg,
           paddingVertical: spacing.sm,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.borderSubtle,
         }}
       >
         {(['best', 'top', 'new'] as const).map((option) => (
@@ -267,7 +267,7 @@ export function Comments({ comments, onReply, onSubmitComment }: CommentsProps) 
             <Text
               variant="bodySmall"
               style={{
-                color: sortBy === option ? colors.accent : colors.mutedForeground,
+                color: sortBy === option ? colors.accent : colors.textMuted,
                 fontWeight: sortBy === option ? '600' : '400',
                 textTransform: 'capitalize',
               }}

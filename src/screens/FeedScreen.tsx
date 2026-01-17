@@ -1555,7 +1555,7 @@ export default function FeedScreen({
             </View>
 
             {/* Search Bar */}
-            <View style={[styles.gifSearchContainer, { backgroundColor: colors.card, borderColor: colors.borderSubtle }]}>
+            <View style={[styles.gifSearchContainer, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
               <Ionicons name="search" size={20} color={colors.textSecondary} />
               <TextInput
                 style={[styles.gifSearchInput, { color: colors.textPrimary }]}

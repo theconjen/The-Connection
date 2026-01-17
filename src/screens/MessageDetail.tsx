@@ -97,7 +97,7 @@ export function MessageDetail({ onBack, conversationId, otherUser: providedOther
             borderRadius: radii.lg,
           }
         ]}>
-          <Text style={{ color: isMe ? colors.primaryForeground : colors.foreground }}>
+          <Text style={{ color: isMe ? colors.primaryForeground : colors.textPrimary }}>
             {item.content}
           </Text>
         </View>
@@ -147,7 +147,7 @@ export function MessageDetail({ onBack, conversationId, otherUser: providedOther
           { 
             padding: spacing.md,
             borderTopWidth: 1,
-            borderTopColor: colors.border,
+            borderTopColor: colors.borderSubtle,
             backgroundColor: colors.background
           }
         ]}>

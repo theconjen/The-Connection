@@ -316,7 +316,7 @@ function getStyles(colors: any, isDark: boolean) {
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
       gap: 12,
     },
     backButton: {
@@ -342,7 +342,7 @@ function getStyles(colors: any, isDark: boolean) {
     tabs: {
       flexDirection: 'row',
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     tab: {
       flex: 1,
@@ -372,7 +372,7 @@ function getStyles(colors: any, isDark: boolean) {
     postCard: {
       padding: 16,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
       backgroundColor: colors.cardBackground,
     },
     postHeader: {
