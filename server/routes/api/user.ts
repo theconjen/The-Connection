@@ -53,6 +53,10 @@ router.get('/', async (req, res, next) => {
 
     const permissions = permissionsResult.map(p => p.permission);
 
+    console.info('[GET /api/user] User:', userId, user.username);
+    console.info('[GET /api/user] Permissions query result:', permissionsResult);
+    console.info('[GET /api/user] Permissions array:', permissions);
+
     // Return user data without sensitive fields, with permissions
     const { password, ...userData } = user;
     res.json({
