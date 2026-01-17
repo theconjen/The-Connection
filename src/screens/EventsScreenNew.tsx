@@ -150,7 +150,13 @@ function ToggleTabs({
 }
 
 function formatWhen(iso: string) {
+  if (!iso) return "Date TBD";
+
   const d = new Date(iso);
+
+  // Check if date is valid
+  if (isNaN(d.getTime())) return "Date TBD";
+
   const opts: Intl.DateTimeFormatOptions = {
     weekday: "short",
     month: "short",
@@ -158,10 +164,11 @@ function formatWhen(iso: string) {
     hour: "numeric",
     minute: "2-digit",
   };
+
   try {
     return new Intl.DateTimeFormat(undefined, opts).format(d);
   } catch {
-    return d.toLocaleString();
+    return "Date TBD";
   }
 }
 
@@ -586,14 +593,15 @@ const styles = StyleSheet.create({
 
   card: {
     marginHorizontal: 16,
-    marginTop: 8,
+    marginTop: 12,
+    marginBottom: 4,
     borderRadius: 12,
     borderWidth: 1,
-    padding: 10,
+    padding: 12,
   },
 
   poster: {
-    height: 100,
+    height: 120,
     borderRadius: 10,
     borderWidth: 1,
     overflow: "hidden",
@@ -636,19 +644,19 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: "900" },
 
   title: {
-    marginTop: 8,
-    fontSize: 15,
-    fontWeight: "800",
-    lineHeight: 19,
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 22,
   },
 
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    marginTop: 5,
+    gap: 6,
+    marginTop: 6,
   },
-  metaText: { fontSize: 12, fontWeight: "600" },
+  metaText: { fontSize: 13, fontWeight: "500" },
 
   footerRow: {
     marginTop: 8,

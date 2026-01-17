@@ -1200,29 +1200,27 @@ export default function FeedScreen({
 
       {/* Content area with white background */}
       <View style={styles.container}>
-      {/* Trending Section (Hashtags + Keywords) */}
-      <View style={styles.trendingSection}>
-        <View style={styles.trendingHeader}>
-          <Ionicons name="trending-up" size={18} color={colors.primary} />
-          <Text style={styles.trendingTitle}>Trending</Text>
-          {selectedTrending && (
-            <Pressable
-              onPress={() => setSelectedTrending(null)}
-              style={styles.clearFilterButton}
-            >
-              <Text style={styles.clearFilterText}>Clear</Text>
-            </Pressable>
-          )}
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.trendingTags}
-        >
-          {trendingLoading ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : trendingHashtags && trendingHashtags.length > 0 ? (
-            trendingHashtags.map((hashtag) => {
+      {/* Trending Section (Hashtags + Keywords) - Only show if there are hashtags */}
+      {!trendingLoading && trendingHashtags && trendingHashtags.length > 0 && (
+        <View style={styles.trendingSection}>
+          <View style={styles.trendingHeader}>
+            <Ionicons name="trending-up" size={18} color={colors.iconActive} />
+            <Text style={styles.trendingTitle}>Trending</Text>
+            {selectedTrending && (
+              <Pressable
+                onPress={() => setSelectedTrending(null)}
+                style={styles.clearFilterButton}
+              >
+                <Text style={styles.clearFilterText}>Clear</Text>
+              </Pressable>
+            )}
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.trendingTags}
+          >
+            {trendingHashtags.map((hashtag) => {
               const isActive = selectedTrending?.value === hashtag.tag && selectedTrending?.type === 'hashtag';
 
               return (
@@ -1243,12 +1241,10 @@ export default function FeedScreen({
                   <Text style={styles.hashtagCount}>{hashtag.trendingScore}</Text>
                 </Pressable>
               );
-            })
-          ) : (
-            <Text style={styles.emptyTrending}>No trending hashtags yet</Text>
-          )}
-        </ScrollView>
-      </View>
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Filter Indicator */}
       {selectedTrending && (
@@ -1909,9 +1905,9 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   postContainer: {
     flexDirection: 'row',
-    padding: 12,
-    paddingTop: 12,
-    paddingBottom: 8,
+    padding: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
   },
   postAvatar: {
     width: 40,
@@ -1942,28 +1938,28 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     marginRight: 4,
   },
   postUsername: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textSecondary,
     marginRight: 4,
   },
   postDot: {
-    fontSize: 15,
-    color: colors.textSecondary,
+    fontSize: 14,
+    color: colors.textMuted,
     marginRight: 4,
   },
   postTime: {
-    fontSize: 15,
-    color: colors.textSecondary,
+    fontSize: 13,
+    color: colors.textMuted,
   },
   postMoreButton: {
     padding: 4,
     marginLeft: 8,
   },
   postContent: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 22,
     color: colors.textPrimary,
-    marginTop: 4,
+    marginTop: 6,
     marginBottom: 12,
   },
   hashtagLink: {
@@ -1986,8 +1982,8 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   postActionText: {
     fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '400',
+    color: colors.textMuted,
+    fontWeight: '500',
   },
   postActionLiked: {
     color: colors.like,
