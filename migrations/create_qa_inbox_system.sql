@@ -55,7 +55,8 @@ CREATE INDEX IF NOT EXISTS idx_qa_tags_area_id ON qa_tags(area_id);
 CREATE INDEX IF NOT EXISTS idx_qa_tags_order ON qa_tags("order");
 
 -- ============================================================================
--- Apologist Profiles (verified scholars/experts)
+-- Apologist Profiles (expert profiles for both public Q&A and private inbox)
+-- NOTE: Verification status comes from users.is_verified_apologetics_answerer (canonical)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS apologist_profiles (
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS apologist_profiles (
   title TEXT, -- Dr., Rev., etc.
   credentials_short TEXT,
   bio_long TEXT,
-  verification_status TEXT NOT NULL DEFAULT 'none', -- none, internal, pending, verified
+  verification_status TEXT NOT NULL DEFAULT 'none', -- none, internal, pending (NOT 'verified' - use users.is_verified_apologetics_answerer)
   inbox_enabled BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()

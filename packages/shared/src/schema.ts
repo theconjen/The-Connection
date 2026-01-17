@@ -1855,14 +1855,15 @@ export const insertQaTagSchema = createInsertSchema(qaTags).pick({
   order: true,
 } as any);
 
-// Apologist Profiles - verified scholars/experts who answer questions
+// Apologist Profiles - expert profiles for both public Q&A and private inbox
+// NOTE: Verification status comes from users.isVerifiedApologeticsAnswerer (canonical)
 export const apologistProfiles = pgTable("apologist_profiles", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
   title: text("title"), // Dr., Rev., etc.
   credentialsShort: text("credentials_short"), // PhD Theology
   bioLong: text("bio_long"),
-  verificationStatus: text("verification_status").notNull().default("none"), // none, internal, pending, verified
+  verificationStatus: text("verification_status").notNull().default("none"), // none, internal, pending (NOT 'verified' - use users.isVerifiedApologeticsAnswerer)
   inboxEnabled: boolean("inbox_enabled").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

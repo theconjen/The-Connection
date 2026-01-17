@@ -96,6 +96,7 @@ import microblogsRoutes from './routes/microblogs';
 import communitiesRoutes from './routes/communities';
 import eventsRoutes from './routes/events';
 import apologeticsRoutes from './routes/apologetics';
+import questionsRoutes from './routes/questions';
 import moderationRoutes from './routes/moderation';
 import followRoutes from './routes/follow';
 import searchRoutes from './routes/search';
@@ -458,6 +459,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   }
   if (FEATURES.APOLOGETICS) {
     app.use('/api', apologeticsRoutes);
+    app.use('/api', questionsRoutes); // Q&A Inbox System
   }
   
   // Get current user endpoint (must be before userRoutes)

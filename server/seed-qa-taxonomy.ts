@@ -252,8 +252,9 @@ async function seedQaTaxonomy() {
   }
 }
 
-// Run if called directly
-if (require.main === module) {
+// Run if called directly (ES module check)
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   seedQaTaxonomy()
     .then(() => {
       console.info('\n🎉 Done!');

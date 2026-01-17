@@ -151,7 +151,12 @@ class StorageSafety {
     'getUserConversations', 'markMessageAsRead', 'markConversationAsRead', 'getUnreadMessageCount',
     'updateUserPreferences', 'getUserPreferences', 'bookmarkPost', 'unbookmarkPost',
     'getUserBookmarkedPosts', 'hasUserBookmarkedPost', 'togglePostVote', 'toggleCommentVote',
-    'createContentReport', 'createUserBlock', 'getBlockedUserIdsFor', 'removeUserBlock'
+    'createContentReport', 'createUserBlock', 'getBlockedUserIdsFor', 'removeUserBlock',
+    'userHasPermission', 'getQaArea', 'getQaTag', 'createUserQuestion', 'autoAssignQuestion',
+    'getUserQuestions', 'getInboxQuestions', 'userCanAccessQuestion', 'getQuestionMessages',
+    'createQuestionMessage', 'getUserQuestionById', 'getActiveAssignment', 'updateQuestionStatus',
+    'updateAssignmentStatus', 'getQuestionAssignment', 'declineAssignment', 'grantPermission',
+    'revokePermission', 'getAllResponders'
   ]);
 
   static isMethodImplemented(methodName: string): boolean {
@@ -4787,6 +4792,413 @@ export class DbStorage implements IStorage {
       .returning();
 
     return newNotification;
+  }
+
+  // ============================================================================
+  // Q&A INBOX SYSTEM
+  // ============================================================================
+
+  /**
+   * Check if user has a specific permission
+   */
+  async userHasPermission(userId: number, permission: string): Promise<boolean> {
+    const { userPermissions } = await import('@shared/schema');
+    const result = await db
+      .select()
+      .from(userPermissions)
+      .where(and(
+        eq(userPermissions.userId, userId),
+        eq(userPermissions.permission, permission)
+      ))
+      .limit(1);
+
+    return result.length > 0;
+  }
+
+  /**
+   * Get Q&A area by ID
+   */
+  async getQaArea(areaId: number): Promise<any> {
+    const { qaAreas } = await import('@shared/schema');
+    const [area] = await db
+      .select()
+      .from(qaAreas)
+      .where(eq(qaAreas.id, areaId))
+      .limit(1);
+
+    return area;
+  }
+
+  /**
+   * Get Q&A tag by ID
+   */
+  async getQaTag(tagId: number): Promise<any> {
+    const { qaTags } = await import('@shared/schema');
+    const [tag] = await db
+      .select()
+      .from(qaTags)
+      .where(eq(qaTags.id, tagId))
+      .limit(1);
+
+    return tag;
+  }
+
+  /**
+   * Create a new user question
+   */
+  async createUserQuestion(data: {
+    askerUserId: number;
+    domain: string;
+    areaId: number;
+    tagId: number;
+    questionText: string;
+    status: string;
+  }): Promise<any> {
+    const { userQuestions } = await import('@shared/schema');
+    const [question] = await db
+      .insert(userQuestions)
+      .values({
+        askerUserId: data.askerUserId,
+        domain: data.domain,
+        areaId: data.areaId,
+        tagId: data.tagId,
+        questionText: data.questionText,
+        status: data.status,
+      } as any)
+      .returning();
+
+    return question;
+  }
+
+  /**
+   * Auto-assign question to a responder
+   * Currently assigns to Connection Research Team (env: RESEARCH_TEAM_USER_ID)
+   * Future: Route based on area/tag expertise
+   */
+  async autoAssignQuestion(questionId: number): Promise<any> {
+    const { questionAssignments } = await import('@shared/schema');
+
+    // Get research team user ID from env (default to 1 for development)
+    const researchTeamUserId = parseInt(process.env.RESEARCH_TEAM_USER_ID || '1', 10);
+
+    const [assignment] = await db
+      .insert(questionAssignments)
+      .values({
+        questionId,
+        assignedToUserId: researchTeamUserId,
+        assignedByUserId: null, // Auto-assigned by system
+        status: 'assigned',
+      } as any)
+      .returning();
+
+    // Update question status to 'routed'
+    await this.updateQuestionStatus(questionId, 'routed');
+
+    return assignment;
+  }
+
+  /**
+   * Get all questions submitted by a user
+   */
+  async getUserQuestions(userId: number): Promise<any[]> {
+    const { userQuestions, qaAreas, qaTags } = await import('@shared/schema');
+
+    const questions = await db
+      .select({
+        question: userQuestions,
+        area: qaAreas,
+        tag: qaTags,
+      })
+      .from(userQuestions)
+      .leftJoin(qaAreas, eq(userQuestions.areaId, qaAreas.id))
+      .leftJoin(qaTags, eq(userQuestions.tagId, qaTags.id))
+      .where(eq(userQuestions.askerUserId, userId))
+      .orderBy(desc(userQuestions.createdAt));
+
+    return questions.map((row: any) => ({
+      ...row.question,
+      area: row.area,
+      tag: row.tag,
+    }));
+  }
+
+  /**
+   * Get questions in responder's inbox
+   */
+  async getInboxQuestions(userId: number, status?: string): Promise<any[]> {
+    const { userQuestions, questionAssignments, qaAreas, qaTags, users } = await import('@shared/schema');
+
+    let query = db
+      .select({
+        question: userQuestions,
+        assignment: questionAssignments,
+        area: qaAreas,
+        tag: qaTags,
+        asker: {
+          id: users.id,
+          username: users.username,
+          displayName: users.displayName,
+        },
+      })
+      .from(questionAssignments)
+      .innerJoin(userQuestions, eq(questionAssignments.questionId, userQuestions.id))
+      .leftJoin(qaAreas, eq(userQuestions.areaId, qaAreas.id))
+      .leftJoin(qaTags, eq(userQuestions.tagId, qaTags.id))
+      .leftJoin(users, eq(userQuestions.askerUserId, users.id))
+      .where(eq(questionAssignments.assignedToUserId, userId));
+
+    if (status) {
+      query = query.where(
+        and(
+          eq(questionAssignments.assignedToUserId, userId),
+          eq(questionAssignments.status, status)
+        )
+      );
+    }
+
+    const results = await query.orderBy(desc(userQuestions.createdAt));
+
+    return results.map((row: any) => ({
+      ...row.question,
+      assignment: row.assignment,
+      area: row.area,
+      tag: row.tag,
+      asker: row.asker,
+    }));
+  }
+
+  /**
+   * Check if user can access a question (either asker or assigned responder)
+   */
+  async userCanAccessQuestion(userId: number, questionId: number): Promise<boolean> {
+    const { userQuestions, questionAssignments } = await import('@shared/schema');
+
+    // Check if user is the asker
+    const [question] = await db
+      .select()
+      .from(userQuestions)
+      .where(eq(userQuestions.id, questionId))
+      .limit(1);
+
+    if (question && (question as any).askerUserId === userId) {
+      return true;
+    }
+
+    // Check if user is assigned responder
+    const assignment = await db
+      .select()
+      .from(questionAssignments)
+      .where(
+        and(
+          eq(questionAssignments.questionId, questionId),
+          eq(questionAssignments.assignedToUserId, userId)
+        )
+      )
+      .limit(1);
+
+    return assignment.length > 0;
+  }
+
+  /**
+   * Get all messages in a question thread
+   */
+  async getQuestionMessages(questionId: number): Promise<any[]> {
+    const { questionMessages, users } = await import('@shared/schema');
+
+    const messages = await db
+      .select({
+        message: questionMessages,
+        sender: {
+          id: users.id,
+          username: users.username,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+        },
+      })
+      .from(questionMessages)
+      .leftJoin(users, eq(questionMessages.senderUserId, users.id))
+      .where(eq(questionMessages.questionId, questionId))
+      .orderBy(questionMessages.createdAt);
+
+    return messages.map((row: any) => ({
+      ...row.message,
+      sender: row.sender,
+    }));
+  }
+
+  /**
+   * Create a message in a question thread
+   */
+  async createQuestionMessage(data: {
+    questionId: number;
+    senderUserId: number;
+    body: string;
+  }): Promise<any> {
+    const { questionMessages } = await import('@shared/schema');
+    const [message] = await db
+      .insert(questionMessages)
+      .values({
+        questionId: data.questionId,
+        senderUserId: data.senderUserId,
+        body: data.body,
+      } as any)
+      .returning();
+
+    return message;
+  }
+
+  /**
+   * Get a user question by ID
+   */
+  async getUserQuestionById(questionId: number): Promise<any> {
+    const { userQuestions } = await import('@shared/schema');
+    const [question] = await db
+      .select()
+      .from(userQuestions)
+      .where(eq(userQuestions.id, questionId))
+      .limit(1);
+
+    return question;
+  }
+
+  /**
+   * Get active assignment for a question
+   */
+  async getActiveAssignment(questionId: number): Promise<any> {
+    const { questionAssignments } = await import('@shared/schema');
+    const [assignment] = await db
+      .select()
+      .from(questionAssignments)
+      .where(
+        and(
+          eq(questionAssignments.questionId, questionId),
+          or(
+            eq(questionAssignments.status, 'assigned'),
+            eq(questionAssignments.status, 'accepted')
+          )
+        )
+      )
+      .orderBy(desc(questionAssignments.createdAt))
+      .limit(1);
+
+    return assignment;
+  }
+
+  /**
+   * Update question status
+   */
+  async updateQuestionStatus(questionId: number, status: string): Promise<any> {
+    const { userQuestions } = await import('@shared/schema');
+    const [updated] = await db
+      .update(userQuestions)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(userQuestions.id, questionId))
+      .returning();
+
+    return updated;
+  }
+
+  /**
+   * Update assignment status
+   */
+  async updateAssignmentStatus(assignmentId: number, status: string): Promise<any> {
+    const { questionAssignments } = await import('@shared/schema');
+    const [updated] = await db
+      .update(questionAssignments)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(questionAssignments.id, assignmentId))
+      .returning();
+
+    return updated;
+  }
+
+  /**
+   * Get assignment by ID
+   */
+  async getQuestionAssignment(assignmentId: number): Promise<any> {
+    const { questionAssignments } = await import('@shared/schema');
+    const [assignment] = await db
+      .select()
+      .from(questionAssignments)
+      .where(eq(questionAssignments.id, assignmentId))
+      .limit(1);
+
+    return assignment;
+  }
+
+  /**
+   * Decline an assignment
+   */
+  async declineAssignment(assignmentId: number, reason?: string): Promise<any> {
+    const { questionAssignments } = await import('@shared/schema');
+    const [updated] = await db
+      .update(questionAssignments)
+      .set({
+        status: 'declined',
+        reason: reason || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(questionAssignments.id, assignmentId))
+      .returning();
+
+    return updated;
+  }
+
+  /**
+   * Grant permission to a user
+   */
+  async grantPermission(userId: number, permission: string, grantedBy: number): Promise<any> {
+    const { userPermissions } = await import('@shared/schema');
+    const [granted] = await db
+      .insert(userPermissions)
+      .values({
+        userId,
+        permission,
+        grantedBy,
+      } as any)
+      .onConflictDoNothing()
+      .returning();
+
+    return granted;
+  }
+
+  /**
+   * Revoke permission from a user
+   */
+  async revokePermission(userId: number, permission: string): Promise<boolean> {
+    const { userPermissions } = await import('@shared/schema');
+    const result = await db
+      .delete(userPermissions)
+      .where(
+        and(
+          eq(userPermissions.userId, userId),
+          eq(userPermissions.permission, permission)
+        )
+      );
+
+    return true;
+  }
+
+  /**
+   * Get all users with inbox_access permission
+   */
+  async getAllResponders(): Promise<any[]> {
+    const { userPermissions, users } = await import('@shared/schema');
+
+    const responders = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        displayName: users.displayName,
+        email: users.email,
+        permission: userPermissions.permission,
+        grantedAt: userPermissions.grantedAt,
+      })
+      .from(userPermissions)
+      .innerJoin(users, eq(userPermissions.userId, users.id))
+      .where(eq(userPermissions.permission, 'inbox_access'));
+
+    return responders;
   }
 }
 

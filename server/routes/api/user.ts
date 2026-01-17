@@ -28,6 +28,42 @@ const filterItemsByUserId = <T>(items: T[], userId: number): T[] =>
 // Apply authentication middleware to all routes in this file
 router.use(requireAuth);
 
+// Get current user with permissions (used by mobile app)
+router.get('/', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get user permissions from user_permissions table
+    const { db } = await import('../../db');
+    const { userPermissions } = await import('@shared/schema');
+    const { eq } = await import('drizzle-orm');
+
+    const permissionsResult = await db
+      .select({ permission: userPermissions.permission })
+      .from(userPermissions)
+      .where(eq(userPermissions.userId, userId));
+
+    const permissions = permissionsResult.map(p => p.permission);
+
+    // Return user data without sensitive fields, with permissions
+    const { password, ...userData } = user;
+    res.json({
+      ...userData,
+      permissions,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get current user's profile
 router.get('/profile', async (req, res, next) => {
   try {

@@ -1,3 +1,6 @@
+// IMPORTANT: Load dotenv FIRST before any other imports
+import "dotenv/config";
+
 import { log } from "./vite-shim";
 import { runMigration as addLocalityInterests } from "./migrations/add-locality-interests";
 import { runMigration as createMvpTables } from "./migrations/0002_create_mvp_tables";
@@ -5,6 +8,10 @@ import { runMigration as addMessageReadStatus } from "./migrations/add-message-r
 import { runMigration as addDeletedAtColumns } from "./migrations/add-deleted-at-columns";
 import { runMigration as addFeedFeatures } from "./migrations/add-feed-features";
 import { runMigration as addCommunityFeatures } from "./migrations/add-community-features";
+import { runMigration as addHashtagSystem } from "./migrations/add-hashtag-system";
+import { runMigration as addKeywordSystem } from "./migrations/add-keyword-system";
+import { runMigration as addPostHashtagKeywordSystem } from "./migrations/add-post-hashtag-keyword-system";
+import { runMigration as addQaInboxSystem } from "./migrations/add-qa-inbox-system";
 import { isConnected } from "./db";
 
 /**
@@ -61,10 +68,54 @@ export async function runAllMigrations() {
       return false;
     }
 
+    // Add hashtag system (hashtags, microblog_hashtags, trending)
+    const hashtagSystemResult = await addHashtagSystem();
+    if (!hashtagSystemResult) {
+      log("❌ Add hashtag system migration failed");
+      return false;
+    }
+
+    // Add keyword system (keywords, microblog_keywords, trending)
+    const keywordSystemResult = await addKeywordSystem();
+    if (!keywordSystemResult) {
+      log("❌ Add keyword system migration failed");
+      return false;
+    }
+
+    // Add post hashtag/keyword system (post_hashtags, post_keywords)
+    const postHashtagKeywordResult = await addPostHashtagKeywordSystem();
+    if (!postHashtagKeywordResult) {
+      log("❌ Add post hashtag/keyword system migration failed");
+      return false;
+    }
+
+    // Add Q&A inbox system (user_permissions, qa_areas, qa_tags, user_questions, etc.)
+    const qaInboxSystemResult = await addQaInboxSystem();
+    if (!qaInboxSystemResult) {
+      log("❌ Add Q&A inbox system migration failed");
+      return false;
+    }
+
     log("✅ All migrations completed successfully");
     return true;
   } catch (error) {
     log("❌ Error running migrations: " + String(error));
     return false;
   }
+}
+
+// Run migrations when this file is executed directly (not when imported)
+// Check if this is the main module being executed
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+
+if (isMainModule) {
+  runAllMigrations()
+    .then((success) => {
+      console.info(`Migration process completed: ${success ? 'SUCCESS' : 'FAILED'}`);
+      process.exit(success ? 0 : 1);
+    })
+    .catch((error) => {
+      console.error("Fatal error running migrations:", error);
+      process.exit(1);
+    });
 }
