@@ -346,9 +346,9 @@ function Chip({
     >
       <Text
         style={{
-          color: active ? colors.buttonPrimaryText : colors.textPrimary,
+          color: active ? colors.buttonPrimaryText : colors.textSecondary,
           fontSize: 13,
-          fontWeight: '500',
+          fontWeight: '600',
         }}
         numberOfLines={1}
       >
