@@ -19,7 +19,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { Colors } from '../../src/shared/colors';
+import { useTheme } from '../../src/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -27,6 +27,8 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams() as { id: string };
   const { user } = useAuth();
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState('');
 
@@ -74,7 +76,7 @@ export default function PostDetailScreen() {
   if (postLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -207,44 +209,44 @@ export default function PostDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backIcon: { fontSize: 24, color: Colors.primary },
-  title: { fontSize: 18, fontWeight: '600', color: '#1f2937' },
+const getStyles = (colors: any, theme: string) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
+  backIcon: { fontSize: 24, color: colors.primary },
+  title: { fontSize: 18, fontWeight: '600', color: colors.text },
   content: { flex: 1 },
-  postSection: { backgroundColor: '#fff', padding: 16, borderBottomWidth: 8, borderBottomColor: '#f3f4f6' },
+  postSection: { backgroundColor: colors.card, padding: 16, borderBottomWidth: 8, borderBottomColor: colors.surfaceMuted },
   postHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  channelIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8F4F8', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  channelIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.muted, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   channelIconText: { fontSize: 20 },
   postMeta: { flex: 1 },
-  channelName: { fontSize: 14, fontWeight: '700', color: '#0F1419' },
-  metaSeparator: { fontSize: 14, color: '#536471', marginHorizontal: 2 },
-  authorName: { fontSize: 13, fontWeight: '500', color: '#536471' },
-  timeAgo: { fontSize: 13, color: '#536471' },
-  postTitle: { fontSize: 20, fontWeight: '700', color: '#0F1419', marginBottom: 12, lineHeight: 28 },
-  postContent: { fontSize: 16, color: '#0F1419', lineHeight: 24, marginBottom: 16 },
+  channelName: { fontSize: 14, fontWeight: '700', color: colors.text },
+  metaSeparator: { fontSize: 14, color: colors.textSecondary, marginHorizontal: 2 },
+  authorName: { fontSize: 13, fontWeight: '500', color: colors.textSecondary },
+  timeAgo: { fontSize: 13, color: colors.textSecondary },
+  postTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 12, lineHeight: 28 },
+  postContent: { fontSize: 16, color: colors.text, lineHeight: 24, marginBottom: 16 },
   flairContainer: { marginBottom: 12 },
-  flairBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start' },
-  flairText: { fontSize: 12, fontWeight: '600', color: '#1E40AF' },
-  engagementSection: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
+  flairBadge: { backgroundColor: colors.pillInactiveBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.pillInactiveBorder },
+  flairText: { fontSize: 12, fontWeight: '600', color: colors.accent },
+  engagementSection: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   likeButton: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 4 },
-  likeCount: { fontSize: 16, fontWeight: '600', color: '#0F1419' },
+  likeCount: { fontSize: 16, fontWeight: '600', color: colors.text },
   commentIndicator: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  commentCount: { fontSize: 14, color: '#536471' },
-  commentsSection: { padding: 16, backgroundColor: '#fff' },
-  commentsTitle: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 16 },
-  noComments: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginTop: 20 },
-  commentCard: { backgroundColor: '#F9FAFB', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e5e7eb' },
+  commentCount: { fontSize: 14, color: colors.textSecondary },
+  commentsSection: { padding: 16, backgroundColor: colors.card },
+  commentsTitle: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 16 },
+  noComments: { fontSize: 14, color: colors.textTertiary, textAlign: 'center', marginTop: 20 },
+  commentCard: { backgroundColor: colors.cardNested, padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
   commentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  smallAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
-  smallAvatarText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  commentAuthor: { fontSize: 13, fontWeight: '600', color: '#1f2937' },
-  commentContent: { fontSize: 14, color: '#374151', lineHeight: 20 },
-  inputContainer: { flexDirection: 'row', padding: 12, paddingBottom: Platform.OS === 'ios' ? 24 : 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb', alignItems: 'center' },
-  input: { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, maxHeight: 80, marginRight: 8 },
-  postButton: { backgroundColor: '#222D99', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  smallAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
+  smallAvatarText: { color: colors.primaryForeground, fontSize: 12, fontWeight: '600' },
+  commentAuthor: { fontSize: 13, fontWeight: '600', color: colors.text },
+  commentContent: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  inputContainer: { flexDirection: 'row', padding: 12, paddingBottom: Platform.OS === 'ios' ? 24 : 12, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, alignItems: 'center' },
+  input: { flex: 1, backgroundColor: colors.input, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, maxHeight: 80, marginRight: 8, color: colors.text, borderWidth: 1, borderColor: colors.border },
+  postButton: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
   postButtonDisabled: { opacity: 0.5 },
-  postButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  postButtonText: { color: colors.primaryForeground, fontSize: 14, fontWeight: '600' },
 });
