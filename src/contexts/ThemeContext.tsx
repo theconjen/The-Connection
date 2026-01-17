@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, spacing, radii, shadows, typeScale, ColorSet } from '../theme/tokens';
+import { colors, spacing, radii, shadows, typeScale, typography, ColorSet } from '../theme/tokens';
 
 type ThemePreference = 'light' | 'dark' | 'system';
 
@@ -13,6 +13,7 @@ export interface Theme {
   radii: typeof radii;
   shadows: typeof shadows;
   typeScale: typeof typeScale;
+  typography: typeof typography;
 }
 
 interface ThemeContextType extends Theme {
@@ -84,6 +85,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         radii,
         shadows,
         typeScale,
+        typography,
       }}
     >
       {children}

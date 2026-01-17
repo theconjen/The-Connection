@@ -72,8 +72,8 @@ function ChipRow<T extends string>({
             style={[
               styles.chip,
               {
-                backgroundColor: active ? colors.pillActiveBg : colors.pillInactiveBg,
-                borderColor: active ? colors.pillActiveBorder : colors.pillInactiveBorder,
+                backgroundColor: active ? colors.buttonPrimaryBg : colors.surfaceMuted,
+                borderColor: active ? colors.buttonPrimaryBg : colors.borderSoft,
               },
             ]}
           >
@@ -81,14 +81,14 @@ function ChipRow<T extends string>({
               <Ionicons
                 name={it.icon}
                 size={14}
-                color={active ? colors.pillActiveText : colors.textSecondary}
+                color={active ? colors.buttonPrimaryText : colors.textSecondary}
                 style={{ marginRight: 6 }}
               />
             ) : null}
             <Text
               style={[
                 styles.chipText,
-                { color: active ? colors.pillActiveText : colors.text },
+                { color: active ? colors.buttonPrimaryText : colors.textPrimary },
               ]}
               numberOfLines={1}
             >
@@ -118,7 +118,7 @@ function ToggleTabs({
     <View
       style={[
         styles.toggleWrap,
-        { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
+        { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
       ]}
     >
       {(["list", "map"] as const).map((v) => {
@@ -130,14 +130,14 @@ function ToggleTabs({
             style={[
               styles.toggleBtn,
               active
-                ? { backgroundColor: colors.pillActiveBg }
+                ? { backgroundColor: colors.buttonPrimaryBg }
                 : { backgroundColor: "transparent" },
             ]}
           >
             <Text
               style={[
                 styles.toggleText,
-                { color: active ? colors.pillActiveText : colors.textSecondary },
+                { color: active ? colors.buttonPrimaryText : colors.textSecondary },
               ]}
             >
               {v === "list" ? leftLabel : rightLabel}
@@ -212,7 +212,7 @@ function EventCard({
       onPress={onPress}
       style={[
         styles.card,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        { backgroundColor: colors.card, borderColor: colors.borderSubtle },
       ]}
     >
       {/* Poster block with default gradient */}
@@ -220,13 +220,13 @@ function EventCard({
         style={[
           styles.poster,
           item.posterUrl
-            ? { backgroundColor: colors.cardNested, borderColor: colors.border }
-            : { backgroundColor: gradientStart, borderColor: colors.border }
+            ? { backgroundColor: colors.cardNested, borderColor: colors.borderSubtle }
+            : { backgroundColor: gradientStart, borderColor: colors.borderSubtle }
         ]}
       >
         {item.posterUrl ? (
           <View style={styles.posterImagePlaceholder}>
-            <Text style={{ color: colors.textTertiary, fontWeight: "700" }}>
+            <Text style={{ color: colors.textPrimaryTertiary, fontWeight: "700" }}>
               Poster
             </Text>
           </View>
@@ -234,20 +234,20 @@ function EventCard({
           <View style={styles.posterFallback}>
             {/* Event type icon */}
             <View style={styles.posterIconContainer}>
-              <Ionicons name={eventIcon} size={32} color="rgba(255,255,255,0.9)" />
+              <Ionicons name={eventIcon} size={32} color={colors.textInverse} />
             </View>
 
             {/* Event type badge */}
-            <View style={styles.posterTypeBadge}>
-              <Text style={styles.posterTypeText}>{eventType}</Text>
+            <View style={[styles.posterTypeBadge, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+              <Text style={[styles.posterTypeText, { color: colors.textInverse }]}>{eventType}</Text>
             </View>
           </View>
         )}
 
         {/* Private badge */}
         {item.isPrivate ? (
-          <View style={[styles.badge, { borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.9)' }]}>
-            <Text style={[styles.badgeText, { color: '#1A1A1A' }]}>
+          <View style={[styles.badge, { borderColor: colors.borderSubtle, backgroundColor: colors.surface }]}>
+            <Text style={[styles.badgeText, { color: colors.textPrimary }]}>
               Private
             </Text>
           </View>
@@ -255,7 +255,7 @@ function EventCard({
       </View>
 
       {/* Title */}
-      <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+      <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={2}>
         {item.title}
       </Text>
 
@@ -285,11 +285,11 @@ function EventCard({
         <View
           style={[
             styles.categoryChip,
-            { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
+            { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
           ]}
         >
-          <Ionicons name={eventIcon} size={11} color={colors.text} style={{ marginRight: 4 }} />
-          <Text style={[styles.categoryText, { color: colors.text }]} numberOfLines={1}>
+          <Ionicons name={eventIcon} size={11} color={colors.textPrimary} style={{ marginRight: 4 }} />
+          <Text style={[styles.categoryText, { color: colors.textPrimary }]} numberOfLines={1}>
             {eventType}
           </Text>
         </View>
@@ -302,10 +302,10 @@ function EventCard({
             }}
             style={[
               styles.iconAction,
-              { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
+              { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
             ]}
           >
-            <Ionicons name="bookmark-outline" size={15} color={colors.text} />
+            <Ionicons name="bookmark-outline" size={15} color={colors.textPrimary} />
           </Pressable>
 
           <Pressable
@@ -315,10 +315,10 @@ function EventCard({
             }}
             style={[
               styles.iconAction,
-              { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
+              { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
             ]}
           >
-            <Ionicons name="checkmark-circle-outline" size={15} color={colors.text} />
+            <Ionicons name="checkmark-circle-outline" size={15} color={colors.textPrimary} />
           </Pressable>
         </View>
       </View>
@@ -366,16 +366,16 @@ export default function EventsScreenNew() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Events</Text>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.borderSubtle }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Events</Text>
         <Pressable
           onPress={() => router.push("/events/create")}
           style={[
             styles.headerBtn,
-            { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
+            { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
           ]}
         >
-          <Ionicons name="add" size={16} color={colors.text} />
+          <Ionicons name="add" size={16} color={colors.textPrimary} />
         </Pressable>
       </View>
 
@@ -384,7 +384,7 @@ export default function EventsScreenNew() {
         <View
           style={[
             styles.searchInputWrap,
-            { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
+            { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
           ]}
         >
           <Ionicons name="search-outline" size={14} color={colors.textSecondary} />
@@ -392,8 +392,8 @@ export default function EventsScreenNew() {
             value={q}
             onChangeText={setQ}
             placeholder="Search events"
-            placeholderTextColor={colors.textTertiary}
-            style={[styles.input, { color: colors.text }]}
+            placeholderTextColor={colors.textPrimaryTertiary}
+            style={[styles.input, { color: colors.textPrimary }]}
             returnKeyType="search"
             onSubmitEditing={() => refetch()}
           />
@@ -402,7 +402,7 @@ export default function EventsScreenNew() {
         <View
           style={[
             styles.searchInputWrap,
-            { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
+            { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
           ]}
         >
           <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
@@ -410,8 +410,8 @@ export default function EventsScreenNew() {
             value={city}
             onChangeText={setCity}
             placeholder="City"
-            placeholderTextColor={colors.textTertiary}
-            style={[styles.input, { color: colors.text }]}
+            placeholderTextColor={colors.textPrimaryTertiary}
+            style={[styles.input, { color: colors.textPrimary }]}
             returnKeyType="done"
             onSubmitEditing={() => refetch()}
           />
@@ -434,13 +434,13 @@ export default function EventsScreenNew() {
         <View
           style={[
             styles.mapPlaceholder,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            { backgroundColor: colors.card, borderColor: colors.borderSubtle },
           ]}
         >
           <Text style={{ color: colors.textSecondary, fontWeight: "700" }}>
             Map view goes here (full screen map with pins)
           </Text>
-          <Text style={{ color: colors.textTertiary, marginTop: 6 }}>
+          <Text style={{ color: colors.textPrimaryTertiary, marginTop: 6 }}>
             Keep list as default. Map should be a deliberate toggle.
           </Text>
         </View>
@@ -453,10 +453,10 @@ export default function EventsScreenNew() {
             <View
               style={[
                 styles.empty,
-                { backgroundColor: colors.card, borderColor: colors.border },
+                { backgroundColor: colors.card, borderColor: colors.borderSubtle },
               ]}
             >
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: "900" }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "900" }}>
                 No events found
               </Text>
               <Text style={{ color: colors.textSecondary, marginTop: 6, lineHeight: 18 }}>
@@ -614,13 +614,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   posterTypeBadge: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
   posterTypeText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
   },

@@ -1,183 +1,164 @@
-// Brand colors - source of truth for brand identity
+/**
+ * Design Token System
+ * Semantic color system for light and dark modes
+ * Premium, modern, non-cringey palette with warm paper (light) and ink night (dark)
+ */
+
+// Brand identity colors (use for primary actions, headers, highlights)
 export const brandColors = {
-  light: {
-    primary: '#0B132B',
-    secondary: '#222D99',
-    accent: '#4A90E2',
-    header: '#7B9CAF',
-  },
-  dark: {
-    primary: '#0F1833',
-    secondary: '#2B3BBD',
-    accent: '#6AA8FF',
-    header: '#8FA6BD',
-  },
+  primary: '#0B132B',      // Ink navy
+  secondary: '#222D99',    // Deep blue
+  accent: '#4A90E2',       // Sky blue
+  header: '#7B9CAF',       // Soft blue-gray
 } as const;
 
-export const colors = {
-  light: {
-    // Brand colors (use sparingly for buttons, highlights, CTAs)
-    primary: brandColors.light.primary,
-    primaryForeground: '#FFFFFF',
-    secondary: brandColors.light.secondary,
-    secondaryForeground: '#FFFFFF',
-    accent: brandColors.light.accent,
-    accentForeground: '#FFFFFF',
-    header: brandColors.light.header,
-    headerForeground: '#FFFFFF',
-
-    // Surfaces - earthy, editorial, paper-like
-    background: '#EFEAE5',        // Main screen background
-    foreground: '#1A1A1A',
-    surface: '#F8F4EF',           // Cards, panels
-    surfaceSecondary: '#F2EDE8',  // Nested cards, replies
-    surfaceNested: '#F2EDE8',     // Secondary panels
-    surfaceMuted: '#E9E3DD',      // Dividers, subtle sections
-
-    // Backgrounds (semantic aliases)
-    card: '#F8F4EF',              // Card background
-    cardNested: '#F2EDE8',        // Nested card background
-    cardForeground: '#1A1A1A',
-
-    // Borders - warm tones
-    border: '#E5DFD9',            // Card borders, separators
-    borderLight: '#DCD6D0',       // Very faint dividers
-    borderSubtle: '#DCD6D0',
-    headerBorder: '#E5DFD9',
-
-    // Text - hierarchy
-    text: '#1A1A1A',              // Headlines, titles
-    textPrimary: '#1A1A1A',
-    textSecondary: '#5B5B5B',     // Body text, labels
-    textTertiary: '#7A736D',      // Breadcrumbs, metadata
-    textMuted: '#7A736D',
-
-    // Pills / Chips / Tags
-    pillInactiveBg: '#F3EFE9',
-    pillInactiveBorder: '#E1DBD3',
-    pillInactiveText: '#5B5B5B',
-    pillActiveBg: '#2B2B2B',
-    pillActiveBorder: '#2B2B2B',
-    pillActiveText: '#FFFFFF',
-
-    // Status colors - Inbox states
-    statusNew: '#4A90E2',
-    statusAccepted: '#6AA8FF',
-    statusAnswered: '#5FD6A3',
-    statusDeclined: '#F2A1A8',
-
-    // Legacy status colors (for compatibility)
-    destructive: '#F2A1A8',
-    destructiveForeground: '#FFFFFF',
-    success: '#5FD6A3',
-    successForeground: '#1A1A1A',
-    warning: '#F59E0B',
-    info: '#4A90E2',
-
-    // Input
-    input: '#E5DFD9',
-    muted: '#E9E3DD',
-    mutedForeground: '#7A736D',
-
-    // Social action colors (likes, reposts, bookmarks)
-    like: '#F91880',
-    likeActive: '#E0176B',
-    repost: '#00BA7C',
-    repostActive: '#00A56F',
-    bookmark: '#1D9BF0',
-    bookmarkActive: '#1A8CD8',
-
-    // Icon colors
-    icon: '#5B5B5B',
-    iconActive: '#1A1A1A',
-  },
-  dark: {
-    // Brand colors (corrected for dark mode contrast)
-    primary: brandColors.dark.primary,
-    primaryForeground: '#FFFFFF',
-    secondary: brandColors.dark.secondary,
-    secondaryForeground: '#FFFFFF',
-    accent: brandColors.dark.accent,
-    accentForeground: '#FFFFFF',
-    header: brandColors.dark.header,
-    headerForeground: '#FFFFFF',
-
-    // Surfaces - deep, clean, premium
-    background: '#0A0F1A',        // Main screen background
-    foreground: '#F1F4F7',
-    surface: '#111826',           // Cards, panels
-    surfaceSecondary: '#161E30',  // Nested cards, replies
-    surfaceNested: '#161E30',     // Secondary panels
-    surfaceMuted: '#0F1523',      // Subtle sections
-
-    // Backgrounds (semantic aliases)
-    card: '#111826',              // Card background
-    cardNested: '#161E30',        // Nested card background
-    cardForeground: '#F1F4F7',
-
-    // Borders - subtle dark tones
-    border: '#1F2A3F',            // Card borders
-    borderLight: '#1A2336',       // Subtle dividers
-    borderSubtle: '#1A2336',
-    headerBorder: '#1F2A3F',
-
-    // Text - hierarchy
-    text: '#F1F4F7',              // Primary text
-    textPrimary: '#F1F4F7',
-    textSecondary: '#B6C2D2',     // Secondary text
-    textTertiary: '#8FA0B5',      // Muted text
-    textMuted: '#8FA0B5',
-
-    // Pills / Chips / Tags (Dark)
-    pillInactiveBg: '#141C2C',
-    pillInactiveBorder: '#1F2A3F',
-    pillInactiveText: '#B6C2D2',
-    pillActiveBg: '#F1F4F7',
-    pillActiveBorder: '#F1F4F7',
-    pillActiveText: '#0A0F1A',
-
-    // Status colors - Inbox states (dark)
-    statusNew: '#6AA8FF',
-    statusAccepted: '#8AD4FF',
-    statusAnswered: '#8AFFC4',
-    statusDeclined: '#FF9AA2',
-
-    // Legacy status colors (for compatibility)
-    destructive: '#FF9AA2',
-    destructiveForeground: '#0A0F1A',
-    success: '#8AFFC4',
-    successForeground: '#0A0F1A',
-    warning: '#FFD43B',
-    info: '#6AA8FF',
-
-    // Input
-    input: '#161E30',
-    muted: '#0F1523',
-    mutedForeground: '#8FA0B5',
-
-    // Social action colors (likes, reposts, bookmarks)
-    like: '#F91880',
-    likeActive: '#FF2D96',
-    repost: '#00BA7C',
-    repostActive: '#00D68F',
-    bookmark: '#1D9BF0',
-    bookmarkActive: '#3DAEFF',
-
-    // Icon colors
-    icon: '#B6C2D2',
-    iconActive: '#F1F4F7',
-  },
+// Optional accent colors (use sparingly for visual variety)
+export const accentColors = {
+  gold: '#C7A45B',
+  sage: '#7C8F78',
+  terracotta: '#B56A55',
 } as const;
 
+// Semantic color tokens - Light Mode
+export const lightColors = {
+  // Backgrounds
+  background: '#F3EFE9',        // Warm paper
+  backgroundSoft: '#F7F5F1',    // Panels/sheets
+  surface: '#FFFFFF',           // Cards
+  surfaceMuted: '#ECE7E1',      // Chips, segmented, subtle sections
+
+  // Text
+  textPrimary: '#0B132B',       // Ink
+  textSecondary: '#3A3F50',
+  textMuted: '#6B7280',
+  textInverse: '#FFFFFF',
+
+  // Borders
+  borderSubtle: '#E2DED7',
+  borderSoft: '#D6D2CB',
+
+  // Icons
+  iconDefault: '#6B7280',
+  iconMuted: '#9CA3AF',
+  iconActive: '#4A90E2',
+
+  // Buttons
+  buttonPrimaryBg: '#0B132B',
+  buttonPrimaryText: '#FFFFFF',
+  buttonSecondaryBg: '#222D99',
+  buttonSecondaryText: '#FFFFFF',
+  buttonOutlineBorder: '#0B132B',
+  buttonOutlineText: '#0B132B',
+
+  // Links & Focus
+  link: '#4A90E2',
+  focusRing: '#7B9CAF',
+
+  // Status
+  success: '#2E7D32',
+  warning: '#B26A00',
+  danger: '#B00020',
+  info: '#4A90E2',
+
+  // Social actions
+  like: '#F91880',
+  likeActive: '#E0176B',
+  repost: '#00BA7C',
+  repostActive: '#00A56F',
+  bookmark: '#4A90E2',
+  bookmarkActive: '#1A8CD8',
+
+  // Input
+  input: '#E2DED7',
+  inputFocus: '#D6D2CB',
+
+  // Brand (for compatibility)
+  primary: brandColors.primary,
+  primaryForeground: '#FFFFFF',
+  secondary: brandColors.secondary,
+  secondaryForeground: '#FFFFFF',
+  accent: brandColors.accent,
+  accentForeground: '#FFFFFF',
+  header: brandColors.header,
+  headerForeground: '#FFFFFF',
+} as const;
+
+// Semantic color tokens - Dark Mode
+export const darkColors = {
+  // Backgrounds
+  background: '#0A0F1C',        // Deep ink (not pure black)
+  backgroundSoft: '#101623',    // Panels/sheets
+  surface: '#141A2A',           // Cards
+  surfaceMuted: '#1A2032',      // Chips, segmented, subtle sections
+
+  // Text
+  textPrimary: '#F3EFE9',       // Paper
+  textSecondary: '#D8D3CC',
+  textMuted: '#9AA0AA',
+  textInverse: '#0A0F1C',
+
+  // Borders
+  borderSubtle: '#1F263A',
+  borderSoft: '#262E45',
+
+  // Icons
+  iconDefault: '#9AA0AA',
+  iconMuted: '#6B7280',
+  iconActive: '#4A90E2',
+
+  // Buttons
+  buttonPrimaryBg: '#F3EFE9',
+  buttonPrimaryText: '#0A0F1C',
+  buttonSecondaryBg: '#4A90E2',
+  buttonSecondaryText: '#0A0F1C',
+  buttonOutlineBorder: '#F3EFE9',
+  buttonOutlineText: '#F3EFE9',
+
+  // Links & Focus
+  link: '#7B9CAF',
+  focusRing: '#4A90E2',
+
+  // Status
+  success: '#66BB6A',
+  warning: '#FFB74D',
+  danger: '#EF5350',
+  info: '#4A90E2',
+
+  // Social actions
+  like: '#F91880',
+  likeActive: '#FF2D96',
+  repost: '#00BA7C',
+  repostActive: '#00D68F',
+  bookmark: '#4A90E2',
+  bookmarkActive: '#3DAEFF',
+
+  // Input
+  input: '#1F263A',
+  inputFocus: '#262E45',
+
+  // Brand (for compatibility)
+  primary: '#F3EFE9',
+  primaryForeground: '#0A0F1C',
+  secondary: '#4A90E2',
+  secondaryForeground: '#0A0F1C',
+  accent: '#7B9CAF',
+  accentForeground: '#0A0F1C',
+  header: '#8FA6BD',
+  headerForeground: '#0A0F1C',
+} as const;
+
+// Spacing scale
 export const spacing = {
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 24,
-  '2xl': 32,
+  xxl: 32,
+  xxxl: 48,
 } as const;
 
+// Border radius scale
 export const radii = {
   sm: 6,
   md: 8,
@@ -186,26 +167,65 @@ export const radii = {
   full: 9999,
 } as const;
 
+// Shadow definitions
 export const shadows = {
-  sm: { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  md: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  lg: { shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  sm: {
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  lg: {
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
 } as const;
 
+// Typography scale
+export const typography = {
+  h1: { fontSize: 28, fontWeight: '700' as const, lineHeight: 34 },
+  h2: { fontSize: 22, fontWeight: '600' as const, lineHeight: 28 },
+  h3: { fontSize: 18, fontWeight: '600' as const, lineHeight: 24 },
+  body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 22 },
+  bodyLarge: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
+  caption: { fontSize: 13, fontWeight: '400' as const, lineHeight: 18 },
+  small: { fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
+} as const;
+
+// Legacy typeScale for backwards compatibility
 export const typeScale = {
-  xs: 13,
-  sm: 15,
-  md: 17,
-  lg: 19,
+  xs: 12,
+  sm: 13,
+  md: 15,
+  lg: 18,
   xl: 22,
-  '2xl': 26,
+  '2xl': 28,
 } as const;
 
-export type ColorSet = typeof colors.light | typeof colors.dark;
+// Combined color object for backwards compatibility
+export const colors = {
+  light: lightColors,
+  dark: darkColors,
+} as const;
+
+// Type exports
+export type ColorSet = typeof lightColors | typeof darkColors;
+export type ThemeMode = 'light' | 'dark';
 export type ThemeTokens = {
   colors: ColorSet;
   spacing: typeof spacing;
   radii: typeof radii;
   shadows: typeof shadows;
-  typeScale: typeof typeScale;
+  typography: typeof typography;
 };

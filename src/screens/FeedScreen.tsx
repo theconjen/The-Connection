@@ -644,7 +644,7 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               <Text style={styles.postTime}>{formatTime(post.createdAt)}</Text>
             </Pressable>
             <Pressable style={styles.postMoreButton} onPress={onMorePress} hitSlop={8}>
-              <Ionicons name="ellipsis-horizontal" size={18} color={colors.icon} />
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.iconDefault} />
             </Pressable>
           </View>
 
@@ -658,7 +658,7 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               hitSlop={8}
               onPress={onCommentPress}
             >
-              <Ionicons name="chatbubble-outline" size={18} color={colors.icon} />
+              <Ionicons name="chatbubble-outline" size={18} color={colors.iconDefault} />
               <Text style={styles.postActionText}>{post.commentCount || 0}</Text>
             </Pressable>
 
@@ -670,7 +670,7 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               <Ionicons
                 name={post.isReposted ? 'repeat' : 'repeat-outline'}
                 size={20}
-                color={post.isReposted ? colors.repost : colors.icon}
+                color={post.isReposted ? colors.repost : colors.iconDefault}
               />
               <Text style={[styles.postActionText, post.isReposted && styles.postActionReposted]}>
                 {post.repostCount || 0}
@@ -686,7 +686,7 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               <Ionicons
                 name={post.isLiked ? 'heart' : 'heart-outline'}
                 size={18}
-                color={post.isLiked ? colors.like : colors.icon}
+                color={post.isLiked ? colors.like : colors.iconDefault}
               />
               <Text style={[styles.postActionText, post.isLiked && styles.postActionLiked]}>
                 {post.likeCount || 0}
@@ -694,14 +694,14 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
             </Pressable>
 
             <Pressable style={styles.postAction} onPress={onSharePress} hitSlop={8}>
-              <Ionicons name="share-outline" size={18} color={colors.icon} />
+              <Ionicons name="share-outline" size={18} color={colors.iconDefault} />
             </Pressable>
 
             <Pressable style={styles.postAction} onPress={onBookmarkPress} hitSlop={8}>
               <Ionicons
                 name={post.isBookmarked ? 'bookmark' : 'bookmark-outline'}
                 size={18}
-                color={post.isBookmarked ? colors.bookmark : colors.icon}
+                color={post.isBookmarked ? colors.bookmark : colors.iconDefault}
               />
             </Pressable>
           </View>
@@ -1253,7 +1253,7 @@ export default function FeedScreen({
       {/* Filter Indicator */}
       {selectedTrending && (
         <View style={styles.filterIndicator}>
-          <Ionicons name="filter" size={16} color={colors.text} />
+          <Ionicons name="filter" size={16} color={colors.textPrimary} />
           <Text style={styles.filterText}>
             Showing {selectedTrending.type === 'hashtag' ? '#' : ''}{selectedTrending.display}
           </Text>
@@ -1342,7 +1342,7 @@ export default function FeedScreen({
           })
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubbles-outline" size={64} color={colors.mutedForeground} />
+            <Ionicons name="chatbubbles-outline" size={64} color={colors.surfaceMutedForeground} />
             <Text style={styles.emptyText}>No posts yet</Text>
             <Text style={styles.emptySubtext}>Be the first to share something!</Text>
           </View>
@@ -1366,7 +1366,7 @@ export default function FeedScreen({
                 setMediaType(null);
                 setPostContent('');
               }} hitSlop={8}>
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
               <Pressable
                 onPress={handleCreatePost}
@@ -1472,7 +1472,7 @@ export default function FeedScreen({
                   {selectedVideo && (
                     <View style={styles.mediaPreview}>
                       <View style={styles.videoPlaceholder}>
-                        <Ionicons name="videocam" size={48} color={colors.icon} />
+                        <Ionicons name="videocam" size={48} color={colors.iconDefault} />
                         <Text style={styles.videoText}>Video selected</Text>
                       </View>
                       <Pressable
@@ -1482,7 +1482,7 @@ export default function FeedScreen({
                           setMediaType(null);
                         }}
                       >
-                        <Ionicons name="close-circle" size={28} color={colors.text} />
+                        <Ionicons name="close-circle" size={28} color={colors.textPrimary} />
                       </Pressable>
                     </View>
                   )}
@@ -1498,7 +1498,7 @@ export default function FeedScreen({
                           setMediaType(null);
                         }}
                       >
-                        <Ionicons name="close-circle" size={28} color={colors.text} />
+                        <Ionicons name="close-circle" size={28} color={colors.textPrimary} />
                       </Pressable>
                     </View>
                   )}
@@ -1552,17 +1552,17 @@ export default function FeedScreen({
             {/* Header */}
             <View style={styles.modalHeader}>
               <Pressable onPress={() => setShowGifPicker(false)} hitSlop={8}>
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
-              <Text style={[styles.commentsTitle, { color: colors.text }]}>Choose a GIF</Text>
+              <Text style={[styles.commentsTitle, { color: colors.textPrimary }]}>Choose a GIF</Text>
               <View style={{ width: 24 }} />
             </View>
 
             {/* Search Bar */}
-            <View style={[styles.gifSearchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.gifSearchContainer, { backgroundColor: colors.card, borderColor: colors.borderSubtle }]}>
               <Ionicons name="search" size={20} color={colors.textSecondary} />
               <TextInput
-                style={[styles.gifSearchInput, { color: colors.text }]}
+                style={[styles.gifSearchInput, { color: colors.textPrimary }]}
                 placeholder="Search GIFs..."
                 placeholderTextColor={colors.textSecondary}
                 value={gifSearchQuery}
@@ -1602,7 +1602,7 @@ export default function FeedScreen({
               )}
               ListEmptyComponent={
                 <View style={styles.emptyGifContainer}>
-                  <Ionicons name="images-outline" size={64} color={colors.mutedForeground} />
+                  <Ionicons name="images-outline" size={64} color={colors.surfaceMutedForeground} />
                   <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                     {gifSearchQuery ? 'No GIFs found' : 'Search for GIFs'}
                   </Text>
@@ -1646,7 +1646,7 @@ export default function FeedScreen({
                 }}
                 hitSlop={8}
               >
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
               <Text style={styles.commentsTitle}>Comments</Text>
               <View style={{ width: 24 }} />
@@ -1712,7 +1712,7 @@ export default function FeedScreen({
                 ))
               ) : (
                 <View style={styles.emptyComments}>
-                  <Ionicons name="chatbubbles-outline" size={48} color={colors.mutedForeground} />
+                  <Ionicons name="chatbubbles-outline" size={48} color={colors.surfaceMutedForeground} />
                   <Text style={styles.emptyCommentsText}>No comments yet</Text>
                   <Text style={styles.emptyCommentsSubtext}>Be the first to comment!</Text>
                 </View>
@@ -1745,7 +1745,7 @@ export default function FeedScreen({
                   size={20}
                   color={
                     !commentContent.trim() || createCommentMutation.isPending
-                      ? colors.mutedForeground
+                      ? colors.surfaceMutedForeground
                       : colors.accent
                   }
                 />
@@ -1776,7 +1776,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtleSubtle,
   },
   trendingHeader: {
     flexDirection: 'row',
@@ -1787,7 +1787,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   trendingTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.textPrimaryPrimary,
   },
   trendingTags: {
     gap: 8,
@@ -1795,28 +1795,28 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   hashtagBadge: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: colors.pillInactiveBg,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.pillInactiveBorder,
+    borderColor: colors.borderSubtleSoft,
   },
   hashtagText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.pillInactiveText,
+    color: colors.textSecondary,
   },
   hashtagBadgeActive: {
-    backgroundColor: colors.pillActiveBg,
-    borderColor: colors.pillActiveBorder,
+    backgroundColor: colors.buttonPrimaryBg,
+    borderColor: colors.buttonPrimaryBg,
   },
   hashtagTextActive: {
-    color: colors.pillActiveText,
+    color: colors.buttonPrimaryText,
     fontWeight: '700',
   },
   hashtagCount: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.accent,
+    color: colors.iconDefaultActive,
     marginLeft: 4,
   },
   clearFilterButton: {
@@ -1826,13 +1826,12 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   clearFilterText: {
     fontSize: 13,
-    color: colors.accent,
+    color: colors.link,
     fontWeight: '600',
   },
   emptyTrending: {
     fontSize: 14,
-    color: colors.text,
-    opacity: 0.6,
+    color: colors.textPrimaryMuted,
     paddingHorizontal: 8,
   },
   filterIndicator: {
@@ -1841,20 +1840,20 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.backgroundSoft,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtleSubtle,
   },
   filterText: {
     fontSize: 13,
-    color: colors.text,
+    color: colors.textPrimaryPrimary,
     fontWeight: '600',
   },
   tabs: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtleSubtle,
   },
   tab: {
     flex: 1,
@@ -1864,7 +1863,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: colors.accent,
+    borderBottomColor: colors.iconDefaultActive,
   },
   tabText: {
     fontSize: 15,
@@ -1872,7 +1871,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     color: colors.textSecondary,
   },
   tabTextActive: {
-    color: colors.text,
+    color: colors.textPrimaryPrimary,
   },
   feed: {
     flex: 1,
@@ -1896,7 +1895,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     marginTop: 16,
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textPrimary,
   },
   emptySubtext: {
     marginTop: 8,
@@ -1906,7 +1905,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   postCard: {
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
   postContainer: {
     flexDirection: 'row',
@@ -1918,7 +1917,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.surfaceMuted,
   },
   postMain: {
     flex: 1,
@@ -1939,7 +1938,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   postAuthorName: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.textPrimary,
     marginRight: 4,
   },
   postUsername: {
@@ -1963,7 +1962,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   postContent: {
     fontSize: 15,
     lineHeight: 20,
-    color: colors.text,
+    color: colors.textPrimary,
     marginTop: 4,
     marginBottom: 12,
   },
@@ -2011,7 +2010,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
   postButton: {
     backgroundColor: colors.accent,
@@ -2020,7 +2019,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     borderRadius: 20,
   },
   postButtonDisabled: {
-    backgroundColor: colors.mutedForeground,
+    backgroundColor: colors.surfaceMutedForeground,
     opacity: 0.5,
   },
   postButtonText: {
@@ -2040,7 +2039,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.surfaceMuted,
   },
   composerContent: {
     flex: 1,
@@ -2048,7 +2047,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   composerInput: {
     fontSize: 18,
-    color: colors.text,
+    color: colors.textPrimary,
     minHeight: 100,
     textAlignVertical: 'top',
   },
@@ -2056,7 +2055,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     marginTop: 12,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.surfaceMuted,
     position: 'relative',
   },
   mediaImage: {
@@ -2069,7 +2068,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     height: 200,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.muted,
+    backgroundColor: colors.surfaceMuted,
   },
   videoText: {
     marginTop: 8,
@@ -2080,7 +2079,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(15, 20, 25, 0.75)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(11, 19, 43, 0.75)',
     borderRadius: 14,
   },
   // Multiple Images Grid - Instagram Style
@@ -2093,7 +2092,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   gridImageContainer: {
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.surfaceMuted,
     position: 'relative',
   },
   singleImage: {
@@ -2116,20 +2115,20 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(11, 19, 43, 0.75)',
     borderRadius: 12,
   },
   imageCounter: {
     position: 'absolute',
     bottom: 6,
     left: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(11, 19, 43, 0.75)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   imageCounterText: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -2141,7 +2140,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     gap: 4,
   },
   reorderButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(11, 19, 43, 0.75)',
     borderRadius: 10,
     padding: 4,
     width: 24,
@@ -2152,7 +2151,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   addMoreButton: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.muted,
+    backgroundColor: colors.surfaceMuted,
   },
   addMoreText: {
     marginTop: 4,
@@ -2178,7 +2177,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     paddingTop: 12,
     paddingBottom: 34, // Safe area for iPhone home indicator
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
   },
   mediaButtons: {
     flexDirection: 'row',
@@ -2214,12 +2213,12 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   commentsTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.textPrimary,
   },
   originalPost: {
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
     paddingBottom: 12,
   },
   commentsList: {
@@ -2230,13 +2229,13 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     flexDirection: 'row',
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
   commentAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.surfaceMuted,
   },
   commentMain: {
     flex: 1,
@@ -2251,13 +2250,13 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   commentAuthorName: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.textPrimary,
     marginRight: 4,
   },
   commentContent: {
     fontSize: 14,
     lineHeight: 18,
-    color: colors.text,
+    color: colors.textPrimary,
   },
   emptyComments: {
     alignItems: 'center',
@@ -2267,7 +2266,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textPrimary,
   },
   emptyCommentsSubtext: {
     marginTop: 8,
@@ -2281,27 +2280,27 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     paddingTop: 12,
     paddingBottom: 34,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
     backgroundColor: colors.surface,
   },
   commentInputAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.surfaceMuted,
     marginBottom: 8,
   },
   commentInput: {
     flex: 1,
     fontSize: 15,
-    color: colors.text,
+    color: colors.textPrimary,
     minHeight: 36,
     maxHeight: 100,
     marginLeft: 12,
     marginRight: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: colors.muted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 18,
   },
   commentSendButton: {
@@ -2344,7 +2343,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     margin: 4,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.surfaceMuted,
   },
   gifThumbnail: {
     width: '100%',
@@ -2360,7 +2359,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     paddingVertical: 12,
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
   },
   giphyText: {
     fontSize: 12,
