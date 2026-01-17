@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/theme";
 import { AppHeader } from "../../src/screens/AppHeader";
 import { useAuth } from "../../src/contexts/AuthContext";
+import { apiClient } from "../../src/lib/apiClient";
 
 type QADetail = {
   id: string;
@@ -31,9 +32,8 @@ type QADetail = {
 };
 
 async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`Request failed: ${path}`);
-  return (await res.json()) as T;
+  const res = await apiClient.get(path);
+  return res.data as T;
 }
 
 export default function ApologeticsDetailScreen() {

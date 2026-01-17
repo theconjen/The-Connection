@@ -29,6 +29,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme";
 import { AppHeader } from "./AppHeader";
 import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/apiClient";
 
 type Domain = "apologetics" | "polemics";
 
@@ -45,9 +46,8 @@ type QAItem = {
 };
 
 async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`Request failed: ${path}`);
-  return (await res.json()) as T;
+  const res = await apiClient.get(path);
+  return res.data as T;
 }
 
 /**
