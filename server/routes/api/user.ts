@@ -545,8 +545,20 @@ router.get('/suggestions/friends', async (req, res, next) => {
       // Build exclusion list
       const excludeIds = [userId, ...followingIds, ...blockedIds];
 
-      // Get candidate users - use simpler query
-      let candidateQuery = db
+      // Get candidate users - build WHERE conditions first
+      let whereConditions;
+      if (excludeIds.length > 1) {
+        // Exclude current user AND followed/blocked users
+        whereConditions = and(
+          ne(users.id, userId),
+          notIn(users.id, excludeIds)
+        );
+      } else {
+        // Only exclude current user
+        whereConditions = ne(users.id, userId);
+      }
+
+      const allUsers = await db
         .select({
           id: users.id,
           username: users.username,
@@ -558,17 +570,8 @@ router.get('/suggestions/friends', async (req, res, next) => {
           denomination: users.denomination,
         })
         .from(users)
-        .where(ne(users.id, userId))
+        .where(whereConditions)
         .limit(100);
-
-      // Add exclusion only if we have IDs to exclude
-      if (excludeIds.length > 1) { // More than just userId
-        candidateQuery = candidateQuery.where(
-          sql`${users.id} NOT IN (${excludeIds.join(',')})`
-        );
-      }
-
-      const allUsers = await candidateQuery;
 
       // Score each user
       const scoredUsers = await Promise.all(
