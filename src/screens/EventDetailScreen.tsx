@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { AppHeader } from './AppHeader';
 import apiClient from '../lib/apiClient';
 
 // ============================================================================
@@ -223,9 +224,14 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+        <AppHeader
+          showCenteredLogo={true}
+          showBackInCenteredMode={true}
+          onBackPress={onBack}
+        />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#222D99" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading event...</Text>
         </View>
       </SafeAreaView>
@@ -234,7 +240,12 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
 
   if (!event) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+        <AppHeader
+          showCenteredLogo={true}
+          showBackInCenteredMode={true}
+          onBackPress={onBack}
+        />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color={colors.textMuted} />
           <Text style={styles.errorText}>Event not found</Text>
@@ -247,15 +258,12 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable style={styles.headerButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Event Details</Text>
-        <View style={styles.headerButton} />
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <AppHeader
+        showCenteredLogo={true}
+        showBackInCenteredMode={true}
+        onBackPress={onBack}
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Event Image */}
@@ -270,7 +278,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
           {/* Community */}
           {event.community && (
             <View style={styles.communityBadge}>
-              <Ionicons name="people" size={16} color="#222D99" />
+              <Ionicons name="people" size={16} color={colors.primary} />
               <Text style={styles.communityName}>{event.community.name}</Text>
             </View>
           )}
@@ -296,7 +304,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
             </View>
           ) : event.location ? (
             <Pressable style={styles.metaRow} onPress={handleOpenInMaps}>
-              <Ionicons name="location-outline" size={20} color="#222D99" />
+              <Ionicons name="location-outline" size={20} color={colors.primary} />
               <Text style={[styles.metaText, styles.linkText]}>
                 {event.location}
                 {event.city && `, ${event.city}`}
@@ -319,7 +327,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
           {/* Virtual Meeting Link */}
           {event.isVirtual && event.virtualMeetingUrl && myRSVP?.status === 'attending' && (
             <View style={styles.virtualLinkContainer}>
-              <Ionicons name="link" size={20} color="#222D99" />
+              <Ionicons name="link" size={20} color={colors.primary} />
               <Pressable
                 onPress={() => {
                   if (event.virtualMeetingUrl) {
@@ -419,27 +427,6 @@ const getStyles = (colors: any) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderSubtle,
-    },
-    headerButton: {
-      width: 40,
-      height: 40,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    headerTitle: {
-      fontSize: 17,
-      fontWeight: '600',
-      color: colors.textPrimary,
-    },
     content: {
       flex: 1,
     },
@@ -469,18 +456,18 @@ const getStyles = (colors: any) =>
       marginTop: 24,
       paddingHorizontal: 24,
       paddingVertical: 12,
-      backgroundColor: '#222D99',
+      backgroundColor: colors.primary,
       borderRadius: 20,
     },
     backButtonText: {
       fontSize: 16,
       fontWeight: '600',
-      color: '#fff',
+      color: colors.primaryForeground,
     },
     eventImage: {
       width: '100%',
       height: 240,
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
     },
     infoSection: {
       padding: 16,
@@ -498,14 +485,14 @@ const getStyles = (colors: any) =>
       alignSelf: 'flex-start',
       paddingHorizontal: 12,
       paddingVertical: 6,
-      backgroundColor: '#EEF2FF',
+      backgroundColor: colors.surfaceMuted,
       borderRadius: 16,
       marginBottom: 16,
     },
     communityName: {
       fontSize: 14,
       fontWeight: '600',
-      color: '#222D99',
+      color: colors.primary,
     },
     metaRow: {
       flexDirection: 'row',
@@ -518,7 +505,7 @@ const getStyles = (colors: any) =>
       color: colors.textMuted,
     },
     linkText: {
-      color: '#222D99',
+      color: colors.primary,
       textDecorationLine: 'underline',
     },
     sectionTitle: {
@@ -539,13 +526,13 @@ const getStyles = (colors: any) =>
       gap: 8,
       marginTop: 16,
       padding: 16,
-      backgroundColor: '#EEF2FF',
+      backgroundColor: colors.surfaceMuted,
       borderRadius: 12,
     },
     virtualLinkText: {
       fontSize: 15,
       fontWeight: '600',
-      color: '#222D99',
+      color: colors.primary,
       textDecorationLine: 'underline',
     },
     hostContainer: {
@@ -575,7 +562,7 @@ const getStyles = (colors: any) =>
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: '#222D99',
+      backgroundColor: colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -586,7 +573,7 @@ const getStyles = (colors: any) =>
       borderTopColor: colors.borderSubtle,
     },
     rsvpButton: {
-      backgroundColor: '#222D99',
+      backgroundColor: colors.primary,
       paddingVertical: 16,
       borderRadius: 12,
       alignItems: 'center',

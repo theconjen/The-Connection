@@ -93,11 +93,11 @@ export default function ProfileSetupScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
           Set Up Your Profile
         </Text>
         <View style={{ width: 40 }} />
@@ -116,7 +116,7 @@ export default function ProfileSetupScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Photo */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
             Profile Photo (Optional)
           </Text>
           <Pressable
@@ -141,7 +141,7 @@ export default function ProfileSetupScreen() {
 
         {/* Display Name */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
             Display Name <Text style={styles.required}>*</Text>
           </Text>
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
@@ -150,7 +150,7 @@ export default function ProfileSetupScreen() {
           <TextInput
             style={[styles.input, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
-              color: colors.text,
+              color: colors.textPrimary,
               borderColor: colors.border
             }]}
             value={formData.displayName}
@@ -164,7 +164,7 @@ export default function ProfileSetupScreen() {
 
         {/* Location */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
             Location (Optional)
           </Text>
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
@@ -173,7 +173,7 @@ export default function ProfileSetupScreen() {
           <TextInput
             style={[styles.input, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
-              color: colors.text,
+              color: colors.textPrimary,
               borderColor: colors.border
             }]}
             value={formData.location}
@@ -187,7 +187,7 @@ export default function ProfileSetupScreen() {
 
         {/* Bio */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
             Bio (Optional)
           </Text>
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
@@ -196,7 +196,7 @@ export default function ProfileSetupScreen() {
           <TextInput
             style={[styles.textArea, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
-              color: colors.text,
+              color: colors.textPrimary,
               borderColor: colors.border
             }]}
             value={formData.bio}
@@ -215,10 +215,10 @@ export default function ProfileSetupScreen() {
       </ScrollView>
 
       {/* Continue Button */}
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.borderSubtle }]}>
         <Pressable
           style={[styles.button, {
-            backgroundColor: formData.displayName.trim() ? colors.primary : colors.border,
+            backgroundColor: formData.displayName.trim() ? colors.primary : colors.borderSubtle,
           }]}
           onPress={handleContinue}
           disabled={!formData.displayName.trim() || isLoading}

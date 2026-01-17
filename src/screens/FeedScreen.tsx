@@ -729,12 +729,6 @@ export default function FeedScreen({
 }: FeedScreenProps) {
   const { user } = useAuth();
   const { colors, colorScheme } = useTheme();
-
-  // DEBUG: Log theme colors
-  console.log('🎨 [FeedScreen] Theme:', colorScheme);
-  console.log('🎨 [FeedScreen] textPrimary:', colors.textPrimary);
-  console.log('🎨 [FeedScreen] textSecondary:', colors.textSecondary);
-  console.log('🎨 [FeedScreen] background:', colors.background);
   const [activeTab, setActiveTab] = useState<'recent' | 'popular'>('recent');
   const [showComposer, setShowComposer] = useState(false);
   const [postContent, setPostContent] = useState('');
@@ -1778,7 +1772,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtleSubtle,
+    borderBottomColor: colors.borderSubtle,
   },
   trendingHeader: {
     flexDirection: 'row',
@@ -1789,7 +1783,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   trendingTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.textPrimaryPrimary,
+    color: colors.textPrimary,
   },
   trendingTags: {
     gap: 8,
@@ -1800,7 +1794,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     backgroundColor: colors.surfaceMuted,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.borderSubtleSoft,
+    borderColor: colors.borderSubtle,
   },
   hashtagText: {
     fontSize: 13,
@@ -1808,17 +1802,17 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     color: colors.textSecondary,
   },
   hashtagBadgeActive: {
-    backgroundColor: colors.buttonPrimaryBg,
-    borderColor: colors.buttonPrimaryBg,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   hashtagTextActive: {
-    color: colors.buttonPrimaryText,
+    color: colors.primaryForeground,
     fontWeight: '700',
   },
   hashtagCount: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.iconDefaultActive,
+    color: colors.iconActive,
     marginLeft: 4,
   },
   clearFilterButton: {
@@ -1833,7 +1827,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   emptyTrending: {
     fontSize: 14,
-    color: colors.textPrimaryMuted,
+    color: colors.textMuted,
     paddingHorizontal: 8,
   },
   filterIndicator: {
@@ -1844,18 +1838,18 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     paddingVertical: 8,
     backgroundColor: colors.backgroundSoft,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtleSubtle,
+    borderBottomColor: colors.borderSubtle,
   },
   filterText: {
     fontSize: 13,
-    color: colors.textPrimaryPrimary,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   tabs: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtleSubtle,
+    borderBottomColor: colors.borderSubtle,
   },
   tab: {
     flex: 1,
@@ -1865,7 +1859,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: colors.iconDefaultActive,
+    borderBottomColor: colors.iconActive,
   },
   tabText: {
     fontSize: 15,
@@ -1873,7 +1867,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     color: colors.textSecondary,
   },
   tabTextActive: {
-    color: colors.textPrimaryPrimary,
+    color: colors.textPrimary,
   },
   feed: {
     flex: 1,
@@ -1905,7 +1899,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     color: colors.textSecondary,
   },
   postCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.backgroundSoft,
     marginBottom: 1,
     borderRadius: 12,
     borderWidth: 1,

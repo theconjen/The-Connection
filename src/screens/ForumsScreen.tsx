@@ -243,7 +243,7 @@ export function ForumsScreen({
       {/* Filter Indicator */}
       {selectedTrending && (
         <View style={styles.filterIndicator}>
-          <Ionicons name="filter" size={16} color={colors.text} />
+          <Ionicons name="filter" size={16} color={colors.textPrimary} />
           <Text style={styles.filterText}>
             Showing {selectedTrending.type === 'hashtag' ? '#' : ''}{selectedTrending.display}
           </Text>
@@ -375,7 +375,7 @@ export function ForumsScreen({
               </Text>
               <Text
                 variant="bodySmall"
-                color="mutedForeground"
+                color="textMuted"
                 style={{ marginTop: spacing.sm, textAlign: 'center' }}
               >
                 Check back later for new discussions.
@@ -428,7 +428,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     trendingTitle: {
       fontSize: 15,
       fontWeight: '700',
-      color: colors.text,
+      color: colors.textPrimary,
     },
     clearFilterButton: {
       marginLeft: 'auto',
@@ -486,12 +486,12 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     },
     filterText: {
       fontSize: 13,
-      color: colors.text,
+      color: colors.textPrimary,
       fontWeight: '600',
     },
     emptyTrending: {
       fontSize: 14,
-      color: colors.text,
+      color: colors.textPrimary,
       opacity: 0.6,
       paddingHorizontal: 8,
     },

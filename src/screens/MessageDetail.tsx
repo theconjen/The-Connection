@@ -91,7 +91,7 @@ export function MessageDetail({ onBack, conversationId, otherUser: providedOther
         <View style={[
           styles.bubble,
           { 
-            backgroundColor: isMe ? colors.primary : colors.muted,
+            backgroundColor: isMe ? colors.primary : colors.surfaceMuted,
             borderBottomRightRadius: isMe ? radii.xs : radii.lg,
             borderBottomLeftRadius: isMe ? radii.lg : radii.xs,
             borderRadius: radii.lg,

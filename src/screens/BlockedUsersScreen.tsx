@@ -66,7 +66,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text
             variant="bodySmall"
-            color="mutedForeground"
+            color="textMuted"
             style={{ marginTop: spacing.md }}
           >
             Loading blocked users...
@@ -93,7 +93,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
           </Text>
           <Text
             variant="bodySmall"
-            color="mutedForeground"
+            color="textMuted"
             style={{ marginTop: spacing.sm, textAlign: 'center' }}
           >
             You haven't blocked any users yet.
@@ -113,7 +113,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
               borderLeftColor: colors.primary,
             }}
           >
-            <Text variant="caption" color="mutedForeground">
+            <Text variant="caption" color="textMuted">
               Blocked users can't see your posts or send you messages. You can unblock them
               anytime.
             </Text>
@@ -140,7 +140,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
                       width: 48,
                       height: 48,
                       borderRadius: 24,
-                      backgroundColor: colors.muted,
+                      backgroundColor: colors.surfaceMuted,
                     }}
                   />
                 ) : (
@@ -171,7 +171,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     {item.blockedUser.displayName || item.blockedUser.username}
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     @{item.blockedUser.username}
                   </Text>
                 </View>

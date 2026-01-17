@@ -232,7 +232,7 @@ export default function BookmarksScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>Bookmarks</Text>
@@ -332,7 +332,7 @@ function getStyles(colors: any, isDark: boolean) {
     headerTitle: {
       fontSize: 24,
       fontWeight: '700',
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 4,
     },
     headerSubtitle: {
@@ -373,7 +373,7 @@ function getStyles(colors: any, isDark: boolean) {
       padding: 16,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderSubtle,
-      backgroundColor: colors.cardBackground,
+      backgroundColor: colors.surfaceBackground,
     },
     postHeader: {
       flexDirection: 'row',
@@ -400,7 +400,7 @@ function getStyles(colors: any, isDark: boolean) {
     authorName: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textPrimary,
     },
     timestamp: {
       fontSize: 13,
@@ -426,13 +426,13 @@ function getStyles(colors: any, isDark: boolean) {
     postTitle: {
       fontSize: 17,
       fontWeight: '700',
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 8,
     },
     postContent: {
       fontSize: 15,
       lineHeight: 20,
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 12,
     },
     postStats: {
@@ -463,7 +463,7 @@ function getStyles(colors: any, isDark: boolean) {
     emptyStateTitle: {
       fontSize: 20,
       fontWeight: '700',
-      color: colors.text,
+      color: colors.textPrimary,
     },
     emptyStateText: {
       fontSize: 15,

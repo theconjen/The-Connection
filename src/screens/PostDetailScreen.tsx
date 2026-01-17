@@ -111,7 +111,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
           style={({ pressed }) => ({
             padding: spacing.sm,
             borderRadius: radii.full,
-            backgroundColor: pressed ? colors.muted : 'transparent',
+            backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
             marginLeft: -spacing.sm,
           })}
         >
@@ -124,7 +124,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
           style={({ pressed }) => ({
             padding: spacing.sm,
             borderRadius: radii.full,
-            backgroundColor: pressed ? colors.muted : 'transparent',
+            backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
             marginRight: -spacing.sm,
           })}
         >
@@ -134,7 +134,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
 
       <ScrollView style={{ flex: 1 }}>
         {/* Post Content Card */}
-        <View style={{ backgroundColor: colors.card }}>
+        <View style={{ backgroundColor: colors.surface }}>
           {/* Post Header */}
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
             <View
@@ -151,14 +151,14 @@ Whether you're a seasoned developer or just starting your journey, there's never
                   <Text variant="bodySmall" style={{ fontWeight: '600' }}>
                     {post.channel}
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     •
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Posted by u/{post.author}
                   </Text>
                 </View>
-                <Text variant="caption" color="mutedForeground">
+                <Text variant="caption" color="textMuted">
                   {post.timeAgo}
                 </Text>
               </View>
@@ -175,7 +175,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 alignSelf: 'flex-start',
                 paddingHorizontal: spacing.sm,
                 paddingVertical: 2,
-                backgroundColor: colors.muted,
+                backgroundColor: colors.surfaceMuted,
                 borderRadius: radii.sm,
                 marginBottom: spacing.md,
               }}
@@ -227,7 +227,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
               style={{
                 marginVertical: spacing.lg,
                 padding: spacing.md,
-                backgroundColor: colors.muted,
+                backgroundColor: colors.surfaceMuted,
                 borderLeftWidth: 2,
                 borderLeftColor: colors.accent,
               }}
@@ -257,7 +257,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 style={({ pressed }) => ({
                   padding: spacing.sm,
                   borderRadius: radii.full,
-                  backgroundColor: pressed ? colors.muted : 'transparent',
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                 })}
               >
                 <ArrowUpIcon
@@ -286,7 +286,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 style={({ pressed }) => ({
                   padding: spacing.sm,
                   borderRadius: radii.full,
-                  backgroundColor: pressed ? colors.muted : 'transparent',
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                 })}
               >
                 <ArrowDownIcon
@@ -305,11 +305,11 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.sm,
                 borderRadius: radii.full,
-                backgroundColor: pressed ? colors.muted : 'transparent',
+                backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
               })}
             >
               <CommentIcon color={colors.textMuted} />
-              <Text variant="bodySmall" color="mutedForeground">
+              <Text variant="bodySmall" color="textMuted">
                 {post.comments}
               </Text>
             </Pressable>
@@ -319,7 +319,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
               style={({ pressed }) => ({
                 padding: spacing.sm,
                 borderRadius: radii.full,
-                backgroundColor: pressed ? colors.muted : 'transparent',
+                backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
               })}
             >
               <ShareIcon color={colors.textMuted} />
@@ -330,7 +330,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
               style={({ pressed }) => ({
                 padding: spacing.sm,
                 borderRadius: radii.full,
-                backgroundColor: pressed ? colors.muted : 'transparent',
+                backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
               })}
             >
               <BookmarkIcon color={colors.textMuted} />

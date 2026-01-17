@@ -94,19 +94,19 @@ export default function NotificationSettingsScreen() {
       paddingTop: 60,
       backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     backButton: {
       padding: 8,
     },
     backIcon: {
       fontSize: 24,
-      color: colors.text,
+      color: colors.textPrimary,
     },
     title: {
       fontSize: 20,
       fontWeight: 'bold',
-      color: colors.text,
+      color: colors.textPrimary,
     },
     placeholder: {
       width: 40,
@@ -119,7 +119,7 @@ export default function NotificationSettingsScreen() {
       marginTop: 16,
       borderTopWidth: 1,
       borderBottomWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSubtle,
     },
     sectionHeader: {
       fontSize: 12,
@@ -136,7 +136,7 @@ export default function NotificationSettingsScreen() {
       alignItems: 'center',
       padding: 16,
       borderBottomWidth: 1,
-      borderBottomColor: colors.borderLight,
+      borderBottomColor: colors.borderSubtleLight,
     },
     settingIcon: {
       width: 40,
@@ -156,7 +156,7 @@ export default function NotificationSettingsScreen() {
     settingTitle: {
       fontSize: 16,
       fontWeight: '500',
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 2,
     },
     settingSubtitle: {
@@ -230,7 +230,7 @@ export default function NotificationSettingsScreen() {
             <Switch
               value={notifyDms}
               onValueChange={setNotifyDms}
-              trackColor={{ false: colors.muted, true: colors.accent }}
+              trackColor={{ false: colors.surfaceMuted, true: colors.accent }}
               thumbColor={notifyDms ? colors.primary : colors.surface}
             />
           </View>
@@ -248,7 +248,7 @@ export default function NotificationSettingsScreen() {
             <Switch
               value={notifyCommunities}
               onValueChange={setNotifyCommunities}
-              trackColor={{ false: colors.muted, true: colors.accent }}
+              trackColor={{ false: colors.surfaceMuted, true: colors.accent }}
               thumbColor={notifyCommunities ? colors.primary : colors.surface}
             />
           </View>
@@ -266,7 +266,7 @@ export default function NotificationSettingsScreen() {
             <Switch
               value={notifyForums}
               onValueChange={setNotifyForums}
-              trackColor={{ false: colors.muted, true: colors.accent }}
+              trackColor={{ false: colors.surfaceMuted, true: colors.accent }}
               thumbColor={notifyForums ? colors.primary : colors.surface}
             />
           </View>
@@ -284,7 +284,7 @@ export default function NotificationSettingsScreen() {
             <Switch
               value={notifyFeed}
               onValueChange={setNotifyFeed}
-              trackColor={{ false: colors.muted, true: colors.accent }}
+              trackColor={{ false: colors.surfaceMuted, true: colors.accent }}
               thumbColor={notifyFeed ? colors.primary : colors.surface}
             />
           </View>

@@ -89,7 +89,7 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
               <Text variant="bodySmall" style={{ fontWeight: '500' }}>
                 u/{comment.author}
               </Text>
-              <Text variant="caption" color="mutedForeground">
+              <Text variant="caption" color="textMuted">
                 • {comment.timeAgo}
               </Text>
             </View>
@@ -142,12 +142,12 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
                   paddingHorizontal: spacing.sm,
                   paddingVertical: spacing.xs,
                   borderRadius: radii.sm,
-                  backgroundColor: pressed ? colors.muted : 'transparent',
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                   marginLeft: spacing.sm,
                 })}
               >
                 <ReplyIcon color={colors.textMuted} />
-                <Text variant="caption" color="mutedForeground">
+                <Text variant="caption" color="textMuted">
                   Reply
                 </Text>
               </Pressable>
@@ -161,11 +161,11 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
                   paddingHorizontal: spacing.sm,
                   paddingVertical: spacing.xs,
                   borderRadius: radii.sm,
-                  backgroundColor: pressed ? colors.muted : 'transparent',
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                 })}
               >
                 <ShareIcon color={colors.textMuted} />
-                <Text variant="caption" color="mutedForeground">
+                <Text variant="caption" color="textMuted">
                   Share
                 </Text>
               </Pressable>
@@ -175,7 +175,7 @@ function CommentItem({ comment, isReply = false, onReply }: CommentItemProps) {
                 style={({ pressed }) => ({
                   padding: spacing.xs,
                   borderRadius: radii.sm,
-                  backgroundColor: pressed ? colors.muted : 'transparent',
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                   marginLeft: 'auto',
                 })}
               >
@@ -217,7 +217,7 @@ export function Comments({ comments, onReply, onSubmitComment }: CommentsProps) 
   };
 
   return (
-    <View style={{ backgroundColor: colors.card }}>
+    <View style={{ backgroundColor: colors.surface }}>
       {/* Comment Input */}
       <View
         style={{
@@ -283,7 +283,7 @@ export function Comments({ comments, onReply, onSubmitComment }: CommentsProps) 
         {comments.map((comment) => (
           <View
             key={comment.id}
-            style={{ borderBottomWidth: 1, borderBottomColor: colors.muted }}
+            style={{ borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted }}
           >
             <CommentItem comment={comment} onReply={onReply} />
           </View>

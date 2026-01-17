@@ -1,4 +1,5 @@
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet } from 'react-native';
+import { Text } from '../src/theme';
 import { Stack } from 'expo-router';
 
 export default function PrivacyPolicyScreen() {

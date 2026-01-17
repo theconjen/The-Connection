@@ -186,7 +186,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
@@ -198,7 +198,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: colors.statusAnswered,
+    backgroundColor: colors.surfaceMuted,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -217,7 +217,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   input: {
@@ -226,8 +226,8 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     padding: 16,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: colors.borderSubtle,
+    color: colors.textPrimary,
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -235,13 +235,13 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     backgroundColor: colors.input,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   passwordInput: {
     flex: 1,
     padding: 16,
     fontSize: 16,
-    color: colors.text,
+    color: colors.textPrimary,
   },
   eyeIcon: {
     padding: 16,
@@ -290,11 +290,11 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     marginTop: 16,
   },
   termsText: {
-    color: colors.textTertiary,
+    color: colors.textPrimaryTertiary,
     fontSize: 12,
   },
   termsLink: {
-    color: colors.textTertiary,
+    color: colors.textPrimaryTertiary,
     fontSize: 12,
     textDecorationLine: 'underline',
   },

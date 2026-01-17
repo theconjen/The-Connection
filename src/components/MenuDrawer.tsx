@@ -126,17 +126,17 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
             <View style={styles.header}>
               <Text style={styles.headerTitle}>Menu</Text>
               <Pressable onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#0F1419" />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
             </View>
 
             {/* Search Bar */}
             <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color="#536471" style={styles.searchIcon} />
+              <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search for people..."
-                placeholderTextColor="#536471"
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCapitalize="none"
@@ -144,7 +144,7 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
               />
               {searchQuery.length > 0 && (
                 <Pressable onPress={() => setSearchQuery('')} style={styles.clearButton}>
-                  <Ionicons name="close-circle" size={20} color="#536471" />
+                  <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                 </Pressable>
               )}
             </View>
@@ -155,7 +155,7 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
               <View style={styles.searchResults}>
                 {isSearching ? (
                   <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#1D9BF0" />
+                    <ActivityIndicator size="large" color={colors.primary} />
                     <Text style={styles.loadingText}>Searching...</Text>
                   </View>
                 ) : searchResults.length > 0 ? (
@@ -175,13 +175,13 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                           <Text style={styles.userDisplayName}>{user.displayName || user.username}</Text>
                           <Text style={styles.userUsername}>@{user.username}</Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={20} color="#536471" />
+                        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                       </Pressable>
                     ))}
                   </>
                 ) : (
                   <View style={styles.emptyContainer}>
-                    <Ionicons name="search-outline" size={48} color="#536471" />
+                    <Ionicons name="search-outline" size={48} color={colors.textMuted} />
                     <Text style={styles.emptyText}>No people found</Text>
                     <Text style={styles.emptySubtext}>Try a different search term</Text>
                   </View>
@@ -196,9 +196,9 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                   onSettings();
                 }}
               >
-                <Ionicons name="settings-outline" size={24} color="#0F1419" />
+                <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
                 <Text style={styles.menuItemText}>Settings</Text>
-                <Ionicons name="chevron-forward" size={20} color="#536471" />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               </Pressable>
 
               <Pressable
@@ -208,9 +208,9 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                   onNotifications();
                 }}
               >
-                <Ionicons name="notifications-outline" size={24} color="#0F1419" />
+                <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
                 <Text style={styles.menuItemText}>Notification Center</Text>
-                <Ionicons name="chevron-forward" size={20} color="#536471" />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               </Pressable>
 
               <Pressable
@@ -220,9 +220,9 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                   onBookmarks();
                 }}
               >
-                <Ionicons name="bookmark-outline" size={24} color="#0F1419" />
+                <Ionicons name="bookmark-outline" size={24} color={colors.textPrimary} />
                 <Text style={styles.menuItemText}>Bookmarks</Text>
-                <Ionicons name="chevron-forward" size={20} color="#536471" />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               </Pressable>
 
               {/* Q&A Inbox - Only show if user has inbox_access permission */}
@@ -234,9 +234,9 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                     onInbox();
                   }}
                 >
-                  <Ionicons name="mail-outline" size={24} color="#E74C3C" />
+                  <Ionicons name="mail-outline" size={24} color={colors.accent} />
                   <Text style={styles.menuItemText}>Q&A Inbox</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#536471" />
+                  <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                 </Pressable>
               )}
 
@@ -265,24 +265,24 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                         </Text>
                         {suggestion.suggestionScore.mutualCommunities > 0 && (
                           <Text style={styles.suggestionReason} numberOfLines={1}>
-                            <Ionicons name="people-outline" size={12} color="#536471" />{' '}
+                            <Ionicons name="people-outline" size={12} color={colors.textMuted} />{' '}
                             {suggestion.suggestionScore.mutualCommunities} mutual {suggestion.suggestionScore.mutualCommunities === 1 ? 'community' : 'communities'}
                           </Text>
                         )}
                         {suggestion.suggestionScore.mutualFollows > 0 && (
                           <Text style={styles.suggestionReason} numberOfLines={1}>
-                            <Ionicons name="person-outline" size={12} color="#536471" />{' '}
+                            <Ionicons name="person-outline" size={12} color={colors.textMuted} />{' '}
                             {suggestion.suggestionScore.mutualFollows} mutual {suggestion.suggestionScore.mutualFollows === 1 ? 'friend' : 'friends'}
                           </Text>
                         )}
                         {suggestion.suggestionScore.location > 0 && suggestion.city && (
                           <Text style={styles.suggestionReason} numberOfLines={1}>
-                            <Ionicons name="location-outline" size={12} color="#536471" />{' '}
+                            <Ionicons name="location-outline" size={12} color={colors.textMuted} />{' '}
                             {suggestion.city}, {suggestion.state}
                           </Text>
                         )}
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color="#536471" />
+                      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                     </Pressable>
                   ))}
                 </View>
@@ -290,7 +290,7 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
 
               {isLoadingSuggestions && friendSuggestions.length === 0 && (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#1D9BF0" />
+                  <ActivityIndicator size="small" color={colors.primary} />
                   <Text style={styles.loadingText}>Loading suggestions...</Text>
                 </View>
               )}
@@ -334,12 +334,12 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     paddingBottom: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.textPrimary,
   },
   closeButton: {
     width: 40,
@@ -359,7 +359,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     backgroundColor: colors.input,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   searchIcon: {
     marginRight: 10,
@@ -368,7 +368,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     flex: 1,
     fontSize: 16,
     paddingVertical: 8,
-    color: colors.text,
+    color: colors.textPrimary,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   clearButton: {
@@ -389,7 +389,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     flex: 1,
     fontSize: 17,
     fontWeight: '500',
-    color: colors.text,
+    color: colors.textPrimary,
   },
   comingSoonBadge: {
     backgroundColor: colors.warning,
@@ -400,7 +400,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
   comingSoonText: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textPrimary,
   },
   content: {
     flex: 1,
@@ -437,7 +437,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.muted,
+    backgroundColor: colors.surfaceMuted,
   },
   userInfo: {
     flex: 1,
@@ -445,7 +445,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
   userDisplayName: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   userUsername: {
@@ -460,7 +460,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textPrimary,
     marginTop: 16,
   },
   emptySubtext: {
@@ -473,12 +473,12 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     marginTop: 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
   },
   suggestionsHeader: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.textPrimary,
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
@@ -494,7 +494,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.muted,
+    backgroundColor: colors.surfaceMuted,
   },
   suggestionInfo: {
     flex: 1,
@@ -503,7 +503,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
   suggestionDisplayName: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textPrimary,
   },
   suggestionUsername: {
     fontSize: 13,

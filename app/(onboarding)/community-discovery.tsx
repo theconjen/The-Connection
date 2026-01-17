@@ -160,7 +160,7 @@ export default function CommunityDiscoveryScreen() {
             />
           </View>
           <View style={styles.communityInfo}>
-            <Text style={[styles.communityName, { color: colors.text }]}>
+            <Text style={[styles.communityName, { color: colors.textPrimary }]}>
               {community.name}
             </Text>
             <Text style={[styles.communityMembers, { color: colors.textSecondary }]}>
@@ -186,7 +186,7 @@ export default function CommunityDiscoveryScreen() {
         <Pressable
           style={[styles.joinButton, {
             backgroundColor: isJoined ? 'transparent' : colors.primary,
-            borderColor: isJoined ? colors.border : colors.primary,
+            borderColor: isJoined ? colors.borderSubtle : colors.primary,
             borderWidth: 1,
           }]}
           onPress={() => toggleJoin(community.id)}
@@ -194,10 +194,10 @@ export default function CommunityDiscoveryScreen() {
           <Ionicons
             name={isJoined ? 'checkmark-circle' : 'add-circle-outline'}
             size={20}
-            color={isJoined ? colors.text : '#fff'}
+            color={isJoined ? colors.textPrimary : '#fff'}
           />
           <Text style={[styles.joinButtonText, {
-            color: isJoined ? colors.text : '#fff'
+            color: isJoined ? colors.textPrimary : '#fff'
           }]}>
             {isJoined ? 'Joined' : 'Join'}
           </Text>
@@ -209,11 +209,11 @@ export default function CommunityDiscoveryScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
           Discover Communities
         </Text>
         <View style={{ width: 40 }} />
@@ -262,18 +262,18 @@ export default function CommunityDiscoveryScreen() {
           borderColor: colors.primary
         }]}>
           <Ionicons name="bulb" size={20} color={colors.primary} />
-          <Text style={[styles.encouragementText, { color: colors.text }]}>
+          <Text style={[styles.encouragementText, { color: colors.textPrimary }]}>
             Communities are where you'll find accountability, encouragement, and opportunities to grow in faith together.
           </Text>
         </View>
       </ScrollView>
 
       {/* Complete Button */}
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.borderSubtle }]}>
         <View style={[styles.statsBox, {
           backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
         }]}>
-          <Text style={[styles.statsText, { color: colors.text }]}>
+          <Text style={[styles.statsText, { color: colors.textPrimary }]}>
             {joinedCommunities.size} {joinedCommunities.size === 1 ? 'community' : 'communities'} joined
           </Text>
         </View>

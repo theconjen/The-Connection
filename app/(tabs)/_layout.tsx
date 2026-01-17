@@ -1,16 +1,17 @@
 import { Tabs, useRouter } from 'expo-router';
 import { useTheme } from '../../src/contexts/ThemeContext';
-import { useCreateMenu } from '../../src/contexts/CreateMenuContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { FanMenu } from '../../src/components/FanMenu';
+import { CreateHubSheet } from '../../src/components/CreateHubSheet';
+import { useState } from 'react';
+import * as Haptics from 'expo-haptics';
 
 export default function TabsLayout() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { isMenuOpen, openMenu, closeMenu } = useCreateMenu();
   const { user } = useAuth();
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
 
   // Check if user is admin
   const isAdmin = user?.role === 'admin';
@@ -31,20 +32,10 @@ export default function TabsLayout() {
     apologetics: '#27AE60', // Green
   };
 
-  const handleCreateFeed = () => {
-    router.push('/create-post');
-  };
-
-  const handleCreateCommunity = () => {
-    router.push('/communities/create');
-  };
-
-  const handleCreateForum = () => {
-    router.push('/create-forum-post'); // Reddit-style forum post with anonymous option
-  };
-
-  const handleCreateEvent = () => {
-    router.push('/events/create');
+  // Handle create button press
+  const handleCreatePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsCreateSheetOpen(true);
   };
 
   return (
@@ -55,7 +46,7 @@ export default function TabsLayout() {
       tabBarInactiveTintColor: colors.textSecondary,
       tabBarStyle: {
         backgroundColor: colors.surface,
-        borderTopColor: colors.border,
+        borderTopColor: colors.borderSubtle,
         paddingBottom: 34, // Safe area for iPhone home indicator (34px standard)
         paddingTop: 8,
         height: 90, // Increased height to accommodate elevated button
@@ -100,9 +91,7 @@ export default function TabsLayout() {
           title: '',
           tabBarButton: () => (
             <Pressable
-              onPress={() => {
-                openMenu();
-              }}
+              onPress={handleCreatePress}
               style={{
                 top: -20,
                 justifyContent: 'center',
@@ -178,14 +167,9 @@ export default function TabsLayout() {
       />
     </Tabs>
 
-      <FanMenu
-        visible={isMenuOpen}
-        onClose={closeMenu}
-        onCreateFeed={handleCreateFeed}
-        onCreateCommunity={handleCreateCommunity}
-        onCreateForum={handleCreateForum}
-        onCreateEvent={handleCreateEvent}
-        isAdmin={isAdmin}
+      <CreateHubSheet
+        open={isCreateSheetOpen}
+        onClose={() => setIsCreateSheetOpen(false)}
       />
     </View>
   );

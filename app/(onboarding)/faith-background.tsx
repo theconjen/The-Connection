@@ -102,11 +102,11 @@ export default function FaithBackgroundScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
           Faith Background
         </Text>
         <View style={{ width: 40 }} />
@@ -125,7 +125,7 @@ export default function FaithBackgroundScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Denomination */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
             Denomination (Optional)
           </Text>
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
@@ -141,7 +141,7 @@ export default function FaithBackgroundScreen() {
                     backgroundColor: denomination === denom
                       ? colors.primary
                       : isDark ? '#1a2a4a' : '#f0f4f8',
-                    borderColor: denomination === denom ? colors.primary : colors.border,
+                    borderColor: denomination === denom ? colors.primary : colors.borderSubtle,
                   }
                 ]}
                 onPress={() => setDenomination(denom)}
@@ -149,7 +149,7 @@ export default function FaithBackgroundScreen() {
                 <Text
                   style={[
                     styles.chipText,
-                    { color: denomination === denom ? '#fff' : colors.text }
+                    { color: denomination === denom ? '#fff' : colors.textPrimary }
                   ]}
                 >
                   {denom}
@@ -161,7 +161,7 @@ export default function FaithBackgroundScreen() {
 
         {/* Interests */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
             Interests (Optional)
           </Text>
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
@@ -177,7 +177,7 @@ export default function FaithBackgroundScreen() {
                     backgroundColor: selectedInterests.includes(interest)
                       ? colors.primary
                       : isDark ? '#1a2a4a' : '#f0f4f8',
-                    borderColor: selectedInterests.includes(interest) ? colors.primary : colors.border,
+                    borderColor: selectedInterests.includes(interest) ? colors.primary : colors.borderSubtle,
                   }
                 ]}
                 onPress={() => toggleInterest(interest)}
@@ -185,7 +185,7 @@ export default function FaithBackgroundScreen() {
                 <Text
                   style={[
                     styles.chipText,
-                    { color: selectedInterests.includes(interest) ? '#fff' : colors.text }
+                    { color: selectedInterests.includes(interest) ? '#fff' : colors.textPrimary }
                   ]}
                 >
                   {interest}
@@ -203,13 +203,13 @@ export default function FaithBackgroundScreen() {
 
         {/* Home Church */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
             Home Church (Optional)
           </Text>
           <TextInput
             style={[styles.input, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
-              color: colors.text,
+              color: colors.textPrimary,
               borderColor: colors.border
             }]}
             value={homeChurch}
@@ -223,13 +223,13 @@ export default function FaithBackgroundScreen() {
 
         {/* Favorite Bible Verse */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
             Favorite Bible Verse (Optional)
           </Text>
           <TextInput
             style={[styles.input, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
-              color: colors.text,
+              color: colors.textPrimary,
               borderColor: colors.border
             }]}
             value={favoriteBibleVerse}
@@ -246,14 +246,14 @@ export default function FaithBackgroundScreen() {
           borderColor: colors.primary
         }]}>
           <Ionicons name="heart" size={20} color={colors.primary} />
-          <Text style={[styles.encouragementText, { color: colors.text }]}>
+          <Text style={[styles.encouragementText, { color: colors.textPrimary }]}>
             "Iron sharpens iron, and one man sharpens another." - Proverbs 27:17
           </Text>
         </View>
       </ScrollView>
 
       {/* Continue Button */}
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.borderSubtle }]}>
         <Pressable
           style={[styles.button, { backgroundColor: colors.primary }]}
           onPress={handleContinue}

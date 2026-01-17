@@ -515,8 +515,8 @@ export default function CreateCommunityScreen() {
             <Switch
               value={isInviteOnly}
               onValueChange={setIsInviteOnly}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.card}
+              trackColor={{ false: colors.borderSubtle, true: colors.primary }}
+              thumbColor={colors.surface}
               disabled={createMutation.isPending}
             />
           </View>
@@ -578,9 +578,9 @@ const getStyles = (colors: any) => StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
   headerButton: {
     minWidth: 60,
@@ -648,7 +648,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     color: colors.foreground,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   textArea: {
     minHeight: 120,
@@ -676,7 +676,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   pickerText: {
     fontSize: 16,
@@ -684,11 +684,11 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontWeight: '500',
   },
   pickerDropdown: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -701,7 +701,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     padding: 16,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
   pickerOptionText: {
     fontSize: 16,
@@ -719,7 +719,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   toggleContent: {
     flexDirection: 'row',
@@ -751,7 +751,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
   },
   wallOptionActive: {
@@ -775,7 +775,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   locationButtonText: {
     fontSize: 14,

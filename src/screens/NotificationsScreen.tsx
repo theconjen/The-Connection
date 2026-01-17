@@ -146,7 +146,7 @@ function NotificationCard({
           width: 40,
           height: 40,
           borderRadius: 20,
-          backgroundColor: colors.muted,
+          backgroundColor: colors.surfaceMuted,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -167,7 +167,7 @@ function NotificationCard({
         </Text>
         <Text
           variant="caption"
-          color="mutedForeground"
+          color="textMuted"
           numberOfLines={2}
           style={{ marginBottom: 4 }}
         >
@@ -277,7 +277,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
             flex: 1,
             paddingVertical: spacing.sm,
             borderRadius: spacing.md,
-            backgroundColor: filter === 'all' ? colors.primary : colors.muted,
+            backgroundColor: filter === 'all' ? colors.primary : colors.surfaceMuted,
             alignItems: 'center',
             opacity: pressed ? 0.8 : 1,
           })}
@@ -299,7 +299,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
             flex: 1,
             paddingVertical: spacing.sm,
             borderRadius: spacing.md,
-            backgroundColor: filter === 'unread' ? colors.primary : colors.muted,
+            backgroundColor: filter === 'unread' ? colors.primary : colors.surfaceMuted,
             alignItems: 'center',
             opacity: pressed ? 0.8 : 1,
           })}
@@ -328,7 +328,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
             <ActivityIndicator size="large" color={colors.primary} />
             <Text
               variant="bodySmall"
-              color="mutedForeground"
+              color="textMuted"
               style={{ marginTop: spacing.md }}
             >
               Loading notifications...
@@ -355,7 +355,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
             </Text>
             <Text
               variant="bodySmall"
-              color="mutedForeground"
+              color="textMuted"
               style={{ marginTop: spacing.sm, textAlign: 'center' }}
             >
               {filter === 'unread'
@@ -364,7 +364,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
             </Text>
           </View>
         ) : (
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
             {filteredNotifications.map((notification) => (
               <View
                 key={notification.id}

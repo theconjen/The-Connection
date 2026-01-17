@@ -7,6 +7,7 @@ interface AppHeaderProps {
   showLogo?: boolean;
   showBrandText?: boolean;
   showCenteredLogo?: boolean; // New: Show logo in center instead of left
+  showBackInCenteredMode?: boolean; // New: Show back button instead of profile avatar when using centered logo
   userAvatar?: string | null;
   userName?: string;
   onProfilePress?: () => void;
@@ -21,6 +22,7 @@ interface AppHeaderProps {
   onMessagesPress?: () => void;
   showMenu?: boolean;
   onMenuPress?: () => void;
+  leftElement?: ReactNode; // New: Additional element to show next to avatar/back button
   rightElement?: ReactNode;
   transparent?: boolean;
 }
@@ -29,6 +31,7 @@ export function AppHeader({
   showLogo = true,
   showBrandText = true,
   showCenteredLogo = false,
+  showBackInCenteredMode = false,
   userAvatar,
   userName,
   onProfilePress,
@@ -43,6 +46,7 @@ export function AppHeader({
   onMessagesPress,
   showMenu = false,
   onMenuPress,
+  leftElement,
   rightElement,
   transparent = false,
 }: AppHeaderProps) {
@@ -77,26 +81,44 @@ export function AppHeader({
       {/* Centered Logo Layout */}
       {showCenteredLogo ? (
         <>
-          {/* Left: Profile Avatar */}
-          <Pressable
-            onPress={onProfilePress}
-            style={({ pressed }) => [
-              styles.avatarButton,
-              {
-                backgroundColor: userAvatar ? 'transparent' : colors.primary,
-                borderRadius: radii.full,
-                opacity: pressed ? 0.8 : 1,
-              },
-            ]}
-          >
-            {userAvatar ? (
-              <Image source={{ uri: userAvatar }} style={styles.avatar} />
+          {/* Left: Back Button/Profile Avatar + Optional Left Element */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 1 }}>
+            {showBackInCenteredMode ? (
+              <Pressable
+                onPress={onBackPress}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  {
+                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                    borderRadius: radii.full,
+                  },
+                ]}
+              >
+                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              </Pressable>
             ) : (
-              <Text style={{ color: colors.headerForeground, fontSize: 16, fontWeight: '600' }}>
-                {getUserInitials()}
-              </Text>
+              <Pressable
+                onPress={onProfilePress}
+                style={({ pressed }) => [
+                  styles.avatarButton,
+                  {
+                    backgroundColor: userAvatar ? 'transparent' : colors.primary,
+                    borderRadius: radii.full,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                {userAvatar ? (
+                  <Image source={{ uri: userAvatar }} style={styles.avatar} />
+                ) : (
+                  <Text style={{ color: colors.headerForeground, fontSize: 16, fontWeight: '600' }}>
+                    {getUserInitials()}
+                  </Text>
+                )}
+              </Pressable>
             )}
-          </Pressable>
+            {leftElement}
+          </View>
 
           {/* Center: Logo */}
           <View style={styles.centerSection}>
@@ -188,7 +210,7 @@ export function AppHeader({
                 style={({ pressed }) => [
                   styles.iconButton,
                   {
-                    backgroundColor: pressed ? colors.muted : 'transparent',
+                    backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                     borderRadius: radii.full,
                   },
                 ]}
@@ -220,7 +242,7 @@ export function AppHeader({
   );
 }
 
-export function PageHeader({ title, onBackPress, rightElement }: { title: string; onBackPress?: () => void; rightElement?: ReactNode }) {
+export function PageHeader({ title, onBackPress, rightElement, showLogo }: { title?: string; onBackPress?: () => void; rightElement?: ReactNode; showLogo?: boolean }) {
   const { colors, spacing, radii } = useTheme();
 
   return (
@@ -249,9 +271,17 @@ export function PageHeader({ title, onBackPress, rightElement }: { title: string
         <Ionicons name="arrow-back" size={24} color={colors.headerForeground} />
       </Pressable>
 
-      <Text variant="body" style={{ fontWeight: '600', flex: 1, textAlign: 'center', color: colors.headerForeground }}>
-        {title}
-      </Text>
+      {showLogo ? (
+        <Image
+          source={require('../../assets/tc-logo-lightmode.png')}
+          style={{ width: 120, height: 32, flex: 1 }}
+          resizeMode="contain"
+        />
+      ) : (
+        <Text variant="body" style={{ fontWeight: '600', flex: 1, textAlign: 'center', color: colors.headerForeground }}>
+          {title}
+        </Text>
+      )}
 
       {rightElement ?? <View style={{ width: 40 }} />}
     </View>

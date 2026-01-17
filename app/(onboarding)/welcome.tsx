@@ -31,7 +31,7 @@ export default function WelcomeScreen() {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
             Welcome to The Connection
           </Text>
         </View>
@@ -43,12 +43,12 @@ export default function WelcomeScreen() {
         }]}>
           <View style={styles.iconRow}>
             <Ionicons name="book" size={24} color={colors.primary} />
-            <Text style={[styles.valuesTitle, { color: colors.text }]}>
+            <Text style={[styles.valuesTitle, { color: colors.textPrimary }]}>
               Our Foundation
             </Text>
           </View>
 
-          <Text style={[styles.valuesText, { color: colors.text }]}>
+          <Text style={[styles.valuesText, { color: colors.textPrimary }]}>
             <Text style={styles.bold}>The Connection exists because Jesus Christ is Lord.</Text>
             {'\n\n'}
             This platform is built on the conviction that He is not merely a teacher, a symbol,
@@ -71,7 +71,7 @@ export default function WelcomeScreen() {
 
         {/* What You'll Find Here */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
             What You'll Find Here
           </Text>
 
@@ -84,7 +84,7 @@ export default function WelcomeScreen() {
           ].map((item, index) => (
             <View key={index} style={styles.featureRow}>
               <Ionicons name={item.icon as any} size={20} color={colors.primary} />
-              <Text style={[styles.featureText, { color: colors.text }]}>
+              <Text style={[styles.featureText, { color: colors.textPrimary }]}>
                 {item.text}
               </Text>
             </View>
@@ -93,7 +93,7 @@ export default function WelcomeScreen() {
       </ScrollView>
 
       {/* Continue Button */}
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.borderSubtle }]}>
         <Pressable
           style={[styles.button, { backgroundColor: colors.primary }]}
           onPress={() => router.push('/(onboarding)/profile-setup')}

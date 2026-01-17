@@ -475,7 +475,7 @@ function CommunityRow({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        backgroundColor: colors.surface,
+        backgroundColor: colors.backgroundSoft,
         padding: spacing.md,
         borderRadius: radii.xl,
         borderWidth: 1,
@@ -546,7 +546,7 @@ function CommunityRow({
 
         <Text
           variant="caption"
-          color="mutedForeground"
+          color="textMuted"
           numberOfLines={1}
           style={{ marginBottom: spacing.xs }}
         >
@@ -870,7 +870,7 @@ export function CommunitiesScreen({
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: colors.muted,
+              backgroundColor: colors.surfaceMuted,
               borderRadius: radii.full,
               paddingHorizontal: spacing.md,
               height: 44,

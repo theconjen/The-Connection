@@ -240,9 +240,10 @@ export const eventsAPI = {
     location?: string;
     latitude?: number;
     longitude?: number;
-    startTime: string;
-    endTime?: string;
-    communityId?: number;
+    eventDate: string; // YYYY-MM-DD format
+    startTime: string; // HH:MM:SS format
+    endTime: string; // HH:MM:SS format
+    communityId: number; // Required
   }) => apiClient.post('/api/events', data).then(res => res.data),
   update: (id: number, data: Partial<{
     title: string;
@@ -250,9 +251,10 @@ export const eventsAPI = {
     location?: string;
     latitude?: number;
     longitude?: number;
+    eventDate: string;
     startTime: string;
-    endTime?: string;
-  }>) => apiClient.put(`/api/events/${id}`, data).then(res => res.data),
+    endTime: string;
+  }>) => apiClient.patch(`/api/events/${id}`, data).then(res => res.data),
   delete: (id: number) => apiClient.delete(`/api/events/${id}`).then(res => res.data),
   rsvp: (id: number, status: string) =>
     apiClient.post(`/api/events/${id}/rsvp`, { status }).then(res => res.data),

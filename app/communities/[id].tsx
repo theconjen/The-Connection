@@ -6,7 +6,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -23,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI, chatAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { Text } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback } from 'react';
 import socketService, { ChatMessage } from '../../src/lib/socket';
@@ -1343,7 +1343,7 @@ function PrivateContentPlaceholder({ title, message, colors }: PrivateContentPla
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: colors.muted,
+        backgroundColor: colors.surfaceMuted,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 24,
@@ -1390,9 +1390,9 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
   backIcon: {
     padding: 8,
@@ -1416,9 +1416,9 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   infoBanner: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1449,12 +1449,12 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     fontWeight: '600',
   },
   settingsButton: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1476,9 +1476,9 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
   content: {
     flex: 1,
@@ -1490,10 +1490,10 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   },
   // Twitter-Style Composer
   twitterComposer: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     padding: 16,
     marginBottom: 16,
   },
@@ -1565,12 +1565,12 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     fontWeight: '700',
   },
   postCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   postHeader: {
     marginBottom: 12,
@@ -1611,12 +1611,12 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   memberCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     padding: 14,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   memberInfo: {
     flex: 1,
@@ -1671,7 +1671,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.muted,
+    backgroundColor: colors.surfaceMuted,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -1686,7 +1686,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 10,
@@ -1711,7 +1711,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     padding: 20,
   },
   modalContent: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     width: '100%',
@@ -1751,7 +1751,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   roleOptionActive: {
     borderColor: colors.primary,
@@ -1822,7 +1822,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   },
   chatBubbleOther: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomLeftRadius: 4,
   },
   chatSenderName: {
@@ -1852,9 +1852,9 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     alignItems: 'flex-end',
     gap: 8,
     padding: 12,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
   },
   chatInput: {
     flex: 1,
@@ -1866,7 +1866,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     color: colors.foreground,
     maxHeight: 100,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   chatSendButton: {
     width: 40,
@@ -1881,12 +1881,12 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   },
   // Prayer Request Styles
   prayerCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   prayerHeader: {
     flexDirection: 'row',
@@ -1959,7 +1959,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   answeredInput: {
     backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     borderRadius: 8,
     padding: 12,
     fontSize: 15,
@@ -1974,7 +1974,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: colors.muted,
+    backgroundColor: colors.surfaceMuted,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -2006,27 +2006,27 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   createPostPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   createPostPromptText: {
     fontSize: 15,
     color: colors.mutedForeground,
   },
   createPostForm: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   postInput: {
     backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     borderRadius: 8,
     padding: 12,
     fontSize: 15,
@@ -2044,7 +2044,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: colors.muted,
+    backgroundColor: colors.surfaceMuted,
   },
   cancelPostButtonText: {
     fontSize: 14,

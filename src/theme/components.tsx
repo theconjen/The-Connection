@@ -46,6 +46,7 @@ const textVariantStyles: Record<TextVariant, (theme: Theme) => TextStyle> = {
 export function Text({ children, variant = 'body', color = 'textPrimary', style, numberOfLines }: TextProps) {
   const theme = useTheme();
   const variantStyle = textVariantStyles[variant](theme);
+  const resolvedColor = theme.colors[color] as string;
 
   // Determine font family based on weight in style (using Figtree instead of Playfair Display)
   const getFontFamily = (styleObj: any) => {
@@ -62,7 +63,7 @@ export function Text({ children, variant = 'body', color = 'textPrimary', style,
     <RNText
       style={[
         {
-          color: theme.colors[color] as string,
+          color: resolvedColor,
           fontFamily: getFontFamily(variantStyle),
         },
         variantStyle,

@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet, Image } from 'react-native';
 import { Text, Badge, Avatar } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +31,8 @@ export interface Post {
   channel: string;
   channelIcon: string;
   author: string;
+  displayName?: string;
+  username?: string;
   authorId?: number;
   isAnonymous?: boolean;
   timeAgo: string;
@@ -54,6 +56,7 @@ interface PostCardProps {
 
 export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmarkPress, onMorePress, isBookmarked }: PostCardProps) {
   const { colors, spacing, radii } = useTheme();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const formatCount = (count: number | undefined | null) => {
     if (count === undefined || count === null) {
@@ -65,12 +68,30 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
     return count.toString();
   };
 
+  // Helper to get avatar URL for author
+  const getAvatarUrl = () => {
+    if (post.isAnonymous) {
+      return 'https://ui-avatars.com/api/?name=A&background=9CA3AF&color=fff';
+    }
+    const displayText = post.displayName || post.username || post.author;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayText)}&background=222D99&color=fff`;
+  };
+
+  // Get the display name to show
+  const getDisplayName = () => {
+    if (post.isAnonymous) return 'Anonymous';
+    return post.displayName || post.username || post.author;
+  };
+
+  // Check if content needs "Read more" (more than 2 lines worth of text, roughly 100 chars)
+  const needsExpansion = post.content.length > 100;
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         {
-          backgroundColor: colors.surface,
+          backgroundColor: colors.backgroundSoft,
           opacity: pressed ? 0.95 : 1,
           marginBottom: 1,
           borderRadius: radii.lg,
@@ -80,23 +101,42 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
         },
       ]}
     >
-      {/* Post Header */}
-      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md }}>
-        {/* Top Row: Channel/Author Info + Actions */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-          {/* Channel & Author Info */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
-            <Avatar initials={post.channelIcon} size={24} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap', flex: 1 }}>
-              <Text variant="caption" color="primary" style={{ fontWeight: '600' }}>
-                {post.channel}
-              </Text>
-              <Text variant="caption" color="muted">•</Text>
+      {/* Post Header - Matching Microblog Style */}
+      <View style={{ flexDirection: 'row', padding: spacing.lg, paddingBottom: spacing.md }}>
+        {/* Avatar - 40x40 to match microblogs */}
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            if (!post.isAnonymous && post.authorId && onAuthorPress) {
+              onAuthorPress(post.authorId);
+            }
+          }}
+          disabled={post.isAnonymous || !post.authorId || !onAuthorPress}
+        >
+          <Image
+            source={{ uri: getAvatarUrl() }}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: colors.surfaceMuted,
+            }}
+          />
+        </Pressable>
+
+        {/* Content Area */}
+        <View style={{ flex: 1, marginLeft: spacing.md }}>
+          {/* Header Row: Channel, Author, Time, Actions */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
               {post.isAnonymous ? (
                 <Text
-                  variant="caption"
-                  color="muted"
-                  style={{ fontStyle: 'italic' }}
+                  style={{
+                    fontSize: 15,
+                    fontWeight: '700',
+                    color: colors.textMuted,
+                    fontStyle: 'italic',
+                  }}
                 >
                   Anonymous
                 </Text>
@@ -111,22 +151,134 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
                   disabled={!post.authorId || !onAuthorPress}
                 >
                   <Text
-                    variant="caption"
-                    color="muted"
-                    style={{ textDecorationLine: onAuthorPress && post.authorId ? 'underline' : 'none' }}
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '700',
+                      color: colors.textPrimary,
+                      textDecorationLine: onAuthorPress && post.authorId ? 'underline' : 'none',
+                    }}
                   >
-                    @{post.author}
+                    {getDisplayName()}
                   </Text>
                 </Pressable>
               )}
-              <Text variant="caption" color="muted">•</Text>
-              <Text variant="caption" color="muted">{post.timeAgo}</Text>
+              <Text variant="caption" color="textMuted">•</Text>
+              <Text variant="caption" color="textMuted">{post.timeAgo}</Text>
+            </View>
+
+            {/* Top Right Actions */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onMorePress?.();
+                }}
+                style={({ pressed }) => ({
+                  padding: spacing.sm,
+                  borderRadius: radii.full,
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                })}
+              >
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              </Pressable>
             </View>
           </View>
 
-          {/* Top Right Actions: Bookmark + More */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-            {/* Bookmark */}
+          {/* Post Title */}
+          <Text variant="body" style={{ fontWeight: '500', marginBottom: spacing.sm }}>
+            {post.title}
+          </Text>
+
+          {/* Post Content Preview with Expand/Collapse */}
+          <View style={{ marginBottom: spacing.sm }}>
+            <Text
+              variant="bodySmall"
+              color="textMuted"
+              numberOfLines={isExpanded ? undefined : 2}
+            >
+              {post.content}
+            </Text>
+            {needsExpansion && (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
+                style={{ marginTop: spacing.xs }}
+              >
+                <Text
+                  variant="caption"
+                  style={{ color: colors.accent, fontWeight: '600' }}
+                >
+                  {isExpanded ? 'Show less' : 'Read more'}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Flair */}
+          <Badge variant="secondary">{post.flair}</Badge>
+
+          {/* Action Buttons - Match microblog layout */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: spacing.md,
+          }}>
+            {/* Left side: Comments and Like */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+              {/* Comments */}
+              <Pressable
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: spacing.sm,
+                  borderRadius: radii.full,
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                })}
+              >
+                <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
+                <Text variant="caption" color="textMuted">
+                  {post.comments}
+                </Text>
+              </Pressable>
+
+              {/* Like Button */}
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onLikePress?.();
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: spacing.sm,
+                  borderRadius: radii.full,
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                })}
+              >
+                <Ionicons
+                  name={post.isLiked ? 'heart' : 'heart-outline'}
+                  size={18}
+                  color={post.isLiked ? colors.like : colors.textMuted}
+                />
+                <Text
+                  variant="caption"
+                  style={{ color: post.isLiked ? colors.like : colors.textMuted }}
+                >
+                  {formatCount(post.likes)}
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Right side: Bookmark */}
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
@@ -135,7 +287,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
               style={({ pressed }) => ({
                 padding: spacing.sm,
                 borderRadius: radii.full,
-                backgroundColor: pressed ? colors.muted : 'transparent',
+                backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
               })}
             >
               <Ionicons
@@ -144,99 +296,9 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
                 color={isBookmarked ? colors.bookmark : colors.textMuted}
               />
             </Pressable>
-
-            {/* More Menu */}
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onMorePress?.();
-              }}
-              style={({ pressed }) => ({
-                padding: spacing.sm,
-                borderRadius: radii.full,
-                backgroundColor: pressed ? colors.muted : 'transparent',
-              })}
-            >
-              <Ionicons
-                name="ellipsis-horizontal"
-                size={18}
-                color={colors.textMuted}
-              />
-            </Pressable>
           </View>
-        </View>
-
-        {/* Post Title */}
-        <Text variant="body" style={{ fontWeight: '500', marginBottom: spacing.sm }}>
-          {post.title}
-        </Text>
-
-        {/* Post Content Preview */}
-        <Text
-          variant="bodySmall"
-          color="muted"
-          numberOfLines={2}
-          style={{ marginBottom: spacing.sm }}
-        >
-          {post.content}
-        </Text>
-
-        {/* Flair */}
-        <Badge variant="secondary">{post.flair}</Badge>
-
-        {/* Action Buttons - Match microblog layout */}
-        <View style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.xs,
-          marginTop: spacing.md,
-        }}>
-          {/* Comments */}
-          <Pressable
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              padding: spacing.sm,
-              borderRadius: radii.full,
-              backgroundColor: pressed ? colors.muted : 'transparent',
-            })}
-          >
-            <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
-            <Text variant="caption" color="muted">
-              {post.comments}
-            </Text>
-          </Pressable>
-
-          {/* Like Button */}
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onLikePress?.();
-            }}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              padding: spacing.sm,
-              borderRadius: radii.full,
-              backgroundColor: pressed ? colors.muted : 'transparent',
-            })}
-          >
-            <Ionicons
-              name={post.isLiked ? 'heart' : 'heart-outline'}
-              size={18}
-              color={post.isLiked ? colors.like : colors.textMuted}
-            />
-            <Text
-              variant="caption"
-              style={{ color: post.isLiked ? colors.like : colors.textMuted }}
-            >
-              {formatCount(post.likes)}
-            </Text>
-          </Pressable>
-        </View>
       </View>
-    </Pressable>
+    </View>
+  </Pressable>
   );
 }

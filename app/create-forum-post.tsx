@@ -251,11 +251,11 @@ export default function CreateForumPostScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>New Forum Post</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>New Forum Post</Text>
         <TouchableOpacity
           onPress={handlePost}
           disabled={createMutation.isPending || !title.trim() || !content.trim()}
@@ -274,15 +274,15 @@ export default function CreateForumPostScreen() {
 
       <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
         {/* Title Input */}
-        <View style={[styles.inputContainer, { borderBottomColor: colors.border }]}>
+        <View style={[styles.inputContainer, { borderBottomColor: colors.borderSubtle }]}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>Title</Text>
           <TextInput
             style={[
               styles.titleInput,
               {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                color: colors.text,
+                backgroundColor: colors.surface,
+                borderColor: colors.borderSubtle,
+                color: colors.textPrimary,
               },
             ]}
             value={title}
@@ -304,9 +304,9 @@ export default function CreateForumPostScreen() {
             style={[
               styles.contentInput,
               {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                color: colors.text,
+                backgroundColor: colors.surface,
+                borderColor: colors.borderSubtle,
+                color: colors.textPrimary,
               },
             ]}
             value={content}
@@ -322,7 +322,7 @@ export default function CreateForumPostScreen() {
         </View>
 
         {/* Media Upload Section */}
-        <View style={[styles.mediaSection, { borderBottomColor: colors.border }]}>
+        <View style={[styles.mediaSection, { borderBottomColor: colors.borderSubtle }]}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>Media</Text>
 
           {/* Media Buttons Row */}
@@ -401,8 +401,8 @@ export default function CreateForumPostScreen() {
 
         {/* Video Preview */}
         {selectedVideo && (
-          <View style={[styles.videoPreviewContainer, { borderBottomColor: colors.border }]}>
-            <View style={[styles.videoPreview, { backgroundColor: colors.muted }]}>
+          <View style={[styles.videoPreviewContainer, { borderBottomColor: colors.borderSubtle }]}>
+            <View style={[styles.videoPreview, { backgroundColor: colors.surfaceMuted }]}>
               <Ionicons name="videocam" size={64} color={colors.icon} />
               <Text style={[styles.videoPreviewText, { color: colors.textSecondary }]}>
                 Video selected
@@ -415,22 +415,22 @@ export default function CreateForumPostScreen() {
               }}
               style={styles.removeImageButton}
             >
-              <Ionicons name="close-circle" size={28} color={colors.text} />
+              <Ionicons name="close-circle" size={28} color={colors.textPrimary} />
             </Pressable>
           </View>
         )}
 
         {/* Community Selection */}
-        <View style={[styles.optionContainer, { borderBottomColor: colors.border }]}>
+        <View style={[styles.optionContainer, { borderBottomColor: colors.borderSubtle }]}>
           <View style={styles.optionRow}>
-            <Ionicons name="people-outline" size={20} color={colors.text} />
-            <Text style={[styles.optionLabel, { color: colors.text }]}>Community</Text>
+            <Ionicons name="people-outline" size={20} color={colors.textPrimary} />
+            <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Community</Text>
           </View>
           <TouchableOpacity
             onPress={() => setShowCommunityPicker(!showCommunityPicker)}
             style={styles.communitySelector}
           >
-            <Text style={[styles.communitySelectorText, { color: selectedCommunity ? colors.text : colors.textSecondary }]}>
+            <Text style={[styles.communitySelectorText, { color: selectedCommunity ? colors.textPrimary : colors.textSecondary }]}>
               {selectedCommunity ? selectedCommunity.name : 'None (General)'}
             </Text>
             <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
@@ -439,15 +439,15 @@ export default function CreateForumPostScreen() {
 
         {/* Community Picker */}
         {showCommunityPicker && (
-          <View style={[styles.communityPicker, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.communityPicker, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
             <TouchableOpacity
               onPress={() => {
                 setSelectedCommunityId(null);
                 setShowCommunityPicker(false);
               }}
-              style={[styles.communityOption, { borderBottomColor: colors.border }]}
+              style={[styles.communityOption, { borderBottomColor: colors.borderSubtle }]}
             >
-              <Text style={[styles.communityOptionText, { color: colors.text }]}>General (No community)</Text>
+              <Text style={[styles.communityOptionText, { color: colors.textPrimary }]}>General (No community)</Text>
             </TouchableOpacity>
             {communities.map((community: any) => (
               <TouchableOpacity
@@ -456,20 +456,20 @@ export default function CreateForumPostScreen() {
                   setSelectedCommunityId(community.id);
                   setShowCommunityPicker(false);
                 }}
-                style={[styles.communityOption, { borderBottomColor: colors.border }]}
+                style={[styles.communityOption, { borderBottomColor: colors.borderSubtle }]}
               >
-                <Text style={[styles.communityOptionText, { color: colors.text }]}>{community.name}</Text>
+                <Text style={[styles.communityOptionText, { color: colors.textPrimary }]}>{community.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
         {/* Anonymous Toggle */}
-        <View style={[styles.optionContainer, { borderBottomColor: colors.border }]}>
+        <View style={[styles.optionContainer, { borderBottomColor: colors.borderSubtle }]}>
           <View style={styles.optionRow}>
-            <Ionicons name="eye-off-outline" size={20} color={colors.text} />
+            <Ionicons name="eye-off-outline" size={20} color={colors.textPrimary} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: colors.text }]}>Post Anonymously</Text>
+              <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Post Anonymously</Text>
               <Text style={[styles.optionDescription, { color: colors.textSecondary }]}>
                 Your username will not be shown
               </Text>
@@ -478,13 +478,13 @@ export default function CreateForumPostScreen() {
           <Switch
             value={isAnonymous}
             onValueChange={setIsAnonymous}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={colors.card}
+            trackColor={{ false: colors.borderSubtle, true: colors.primary }}
+            thumbColor={colors.surface}
           />
         </View>
 
         {/* Info Box */}
-        <View style={[styles.infoBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+        <View style={[styles.infoBox, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
           <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             Forum posts support markdown formatting and can be upvoted by the community.

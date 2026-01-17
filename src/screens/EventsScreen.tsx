@@ -280,7 +280,7 @@ function EventCard({
 
           <Text
             variant="caption"
-            color="mutedForeground"
+            color="textMuted"
             numberOfLines={2}
             style={{ marginBottom: spacing.xs }}
           >
@@ -774,6 +774,21 @@ export function EventsScreen({
           onMessagesPress={onMessagesPress}
           showMenu={true}
           onMenuPress={onMenuPress}
+          rightElement={
+            <Pressable
+              onPress={() => setShowCreateModal(true)}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: pressed ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                borderRadius: radii.full,
+              })}
+            >
+              <Ionicons name="add" size={26} color="#FFFFFF" />
+            </Pressable>
+          }
         />
 
         {/* Search and Filters Section */}
@@ -795,7 +810,7 @@ export function EventsScreen({
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                   borderRadius: radii.lg,
                   paddingHorizontal: spacing.md,
                   height: 40,
@@ -825,7 +840,7 @@ export function EventsScreen({
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                   borderRadius: radii.lg,
                   paddingHorizontal: spacing.md,
                   height: 40,
@@ -1009,14 +1024,14 @@ export function EventsScreen({
             }}
           >
             {loadingLocation ? (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}>
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text variant="body" style={{ marginTop: spacing.md, color: colors.textMuted }}>
                   Requesting location permissions...
                 </Text>
               </View>
             ) : locationPermission === false ? (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted, padding: spacing.xl }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, padding: spacing.xl }}>
                 <Ionicons name="location-outline" size={48} color={colors.textMuted} />
                 <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginTop: spacing.md, textAlign: 'center' }}>
                   Location Permission Denied
@@ -1115,7 +1130,7 @@ export function EventsScreen({
                 </MapView>
               </>
             ) : (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted, padding: spacing.xl }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, padding: spacing.xl }}>
                 <Ionicons name="map-outline" size={48} color={colors.textMuted} />
                 <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginTop: spacing.md, textAlign: 'center' }}>
                   Loading Map...
@@ -1185,7 +1200,7 @@ export function EventsScreen({
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text
                   variant="bodySmall"
-                  color="mutedForeground"
+                  color="textMuted"
                   style={{ marginTop: spacing.md }}
                 >
                   Loading events...
@@ -1212,7 +1227,7 @@ export function EventsScreen({
                 </Text>
                 <Text
                   variant="bodySmall"
-                  color="mutedForeground"
+                  color="textMuted"
                   style={{ marginTop: spacing.sm, textAlign: 'center' }}
                 >
                   {searchQuery || locationFilter
@@ -1341,7 +1356,7 @@ export function EventsScreen({
                           style={({ pressed }) => ({
                             paddingHorizontal: spacing.md,
                             paddingVertical: spacing.sm + 2,
-                            backgroundColor: pressed ? colors.muted : 'transparent',
+                            backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                             borderBottomWidth: 1,
                             borderBottomColor: colors.borderSubtle,
                           })}
@@ -1353,7 +1368,7 @@ export function EventsScreen({
                               </Text>
                               <Text
                                 variant="caption"
-                                color="mutedForeground"
+                                color="textMuted"
                                 style={{ textTransform: 'capitalize' }}
                               >
                                 {community.role}
@@ -1508,14 +1523,14 @@ export function EventsScreen({
                   <Text variant="bodySmall" style={{ fontWeight: '600' }}>
                     In-Person Event
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Turn off for virtual events
                   </Text>
                 </View>
                 <Switch
                   value={isInPerson}
                   onValueChange={setIsInPerson}
-                  trackColor={{ false: colors.muted, true: colors.primary }}
+                  trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
                   thumbColor={colors.surface}
                 />
               </View>
@@ -1680,14 +1695,14 @@ export function EventsScreen({
                   <Text variant="bodySmall" style={{ fontWeight: '600' }}>
                     Public Event
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Anyone can see and join
                   </Text>
                 </View>
                 <Switch
                   value={isPublicEvent}
                   onValueChange={setIsPublicEvent}
-                  trackColor={{ false: colors.muted, true: colors.primary }}
+                  trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
                   thumbColor={colors.surface}
                 />
               </View>

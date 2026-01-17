@@ -136,7 +136,7 @@ export function ProfileScreen({
                   width: 100,
                   height: 100,
                   borderRadius: 50,
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                 }}
               />
             ) : (
@@ -372,7 +372,7 @@ export function ProfileScreen({
             <Pressable
               onPress={handleCancel}
               style={({ pressed }) => ({
-                backgroundColor: colors.muted,
+                backgroundColor: colors.surfaceMuted,
                 paddingVertical: spacing.md,
                 borderRadius: radii.lg,
                 alignItems: 'center',

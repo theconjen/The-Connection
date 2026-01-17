@@ -71,11 +71,11 @@ export default function CreatePostScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>New Post</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>New Post</Text>
         <TouchableOpacity
           onPress={handlePost}
           disabled={createMutation.isPending || !content.trim() || isOverLimit}
@@ -98,7 +98,7 @@ export default function CreatePostScreen() {
           style={[
             styles.input,
             {
-              color: colors.text,
+              color: colors.textPrimary,
               backgroundColor: colors.background,
             }
           ]}

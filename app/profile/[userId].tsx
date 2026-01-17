@@ -132,7 +132,7 @@ export default function UserProfileScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.errorContainer}>
           <Ionicons name="person-outline" size={64} color={colors.textSecondary} />
-          <Text style={[styles.errorText, { color: colors.text }]}>User not found</Text>
+          <Text style={[styles.errorText, { color: colors.textPrimary }]}>User not found</Text>
           <TouchableOpacity
             style={[styles.backButton, { backgroundColor: colors.primary }]}
             onPress={() => router.back()}
@@ -151,11 +151,11 @@ export default function UserProfileScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Profile</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -172,30 +172,30 @@ export default function UserProfileScreen() {
           )}
 
           {/* Name and Username */}
-          <Text style={[styles.displayName, { color: colors.text }]}>{displayName}</Text>
+          <Text style={[styles.displayName, { color: colors.textPrimary }]}>{displayName}</Text>
           <Text style={[styles.username, { color: colors.textSecondary }]}>@{user.username}</Text>
 
           {/* Bio */}
           {user.bio && (
-            <Text style={[styles.bio, { color: colors.text }]}>{user.bio}</Text>
+            <Text style={[styles.bio, { color: colors.textPrimary }]}>{user.bio}</Text>
           )}
 
           {/* Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.text }]}>{stats.followersCount}</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{stats.followersCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Followers</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.text }]}>{stats.followingCount}</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{stats.followingCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Following</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.text }]}>{stats.postsCount}</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{stats.postsCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Posts</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.text }]}>{stats.communitiesCount}</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{stats.communitiesCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Communities</Text>
             </View>
           </View>
@@ -208,7 +208,7 @@ export default function UserProfileScreen() {
                   styles.followButton,
                   {
                     backgroundColor: followStatus?.isFollowing ? colors.surface : colors.primary,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     borderWidth: followStatus?.isFollowing ? 1 : 0,
                   },
                 ]}
@@ -221,7 +221,7 @@ export default function UserProfileScreen() {
                   <Text
                     style={[
                       styles.followButtonText,
-                      { color: followStatus?.isFollowing ? colors.text : '#fff' },
+                      { color: followStatus?.isFollowing ? colors.textPrimary : '#fff' },
                     ]}
                   >
                     {followStatus?.isFollowing ? 'Following' : 'Follow'}
@@ -230,34 +230,34 @@ export default function UserProfileScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.messageButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                style={[styles.messageButton, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
                 onPress={handleMessage}
               >
-                <Ionicons name="mail-outline" size={20} color={colors.text} />
-                <Text style={[styles.messageButtonText, { color: colors.text }]}>Message</Text>
+                <Ionicons name="mail-outline" size={20} color={colors.textPrimary} />
+                <Text style={[styles.messageButtonText, { color: colors.textPrimary }]}>Message</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {/* Additional Info */}
           {(user.location || user.denomination || user.homeChurch) && (
-            <View style={[styles.infoSection, { borderTopColor: colors.border }]}>
+            <View style={[styles.infoSection, { borderTopColor: colors.borderSubtle }]}>
               {user.location && (
                 <View style={styles.infoItem}>
                   <Ionicons name="location-outline" size={18} color={colors.textSecondary} />
-                  <Text style={[styles.infoText, { color: colors.text }]}>{user.location}</Text>
+                  <Text style={[styles.infoText, { color: colors.textPrimary }]}>{user.location}</Text>
                 </View>
               )}
               {user.denomination && (
                 <View style={styles.infoItem}>
                   <Ionicons name="book-outline" size={18} color={colors.textSecondary} />
-                  <Text style={[styles.infoText, { color: colors.text }]}>{user.denomination}</Text>
+                  <Text style={[styles.infoText, { color: colors.textPrimary }]}>{user.denomination}</Text>
                 </View>
               )}
               {user.homeChurch && (
                 <View style={styles.infoItem}>
                   <Ionicons name="business-outline" size={18} color={colors.textSecondary} />
-                  <Text style={[styles.infoText, { color: colors.text }]}>{user.homeChurch}</Text>
+                  <Text style={[styles.infoText, { color: colors.textPrimary }]}>{user.homeChurch}</Text>
                 </View>
               )}
             </View>
@@ -265,15 +265,15 @@ export default function UserProfileScreen() {
 
           {/* Favorite Bible Verse */}
           {user.favoriteBibleVerse && (
-            <View style={[styles.verseContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.verseContainer, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
               <Ionicons name="book" size={20} color={colors.primary} />
-              <Text style={[styles.verseText, { color: colors.text }]}>"{user.favoriteBibleVerse}"</Text>
+              <Text style={[styles.verseText, { color: colors.textPrimary }]}>"{user.favoriteBibleVerse}"</Text>
             </View>
           )}
         </View>
 
         {/* Tabs */}
-        <View style={[styles.tabsContainer, { borderBottomColor: colors.border }]}>
+        <View style={[styles.tabsContainer, { borderBottomColor: colors.borderSubtle }]}>
           <TouchableOpacity
             style={[
               styles.tab,
@@ -315,9 +315,9 @@ export default function UserProfileScreen() {
               profile.recentPosts.map((post: any) => (
                 <View
                   key={post.id}
-                  style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
                 >
-                  <Text style={[styles.postTitle, { color: colors.text }]}>{post.title}</Text>
+                  <Text style={[styles.postTitle, { color: colors.textPrimary }]}>{post.title}</Text>
                   <Text style={[styles.postContent, { color: colors.textSecondary }]} numberOfLines={3}>
                     {post.content}
                   </Text>
@@ -334,11 +334,11 @@ export default function UserProfileScreen() {
               profile.communities.map((community: any) => (
                 <View
                   key={community.id}
-                  style={[styles.communityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  style={[styles.communityCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
                 >
                   <Ionicons name="people" size={24} color={colors.primary} />
                   <View style={styles.communityInfo}>
-                    <Text style={[styles.communityName, { color: colors.text }]}>{community.name}</Text>
+                    <Text style={[styles.communityName, { color: colors.textPrimary }]}>{community.name}</Text>
                     <Text style={[styles.communityMembers, { color: colors.textSecondary }]}>
                       {community.memberCount} members
                     </Text>

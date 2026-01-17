@@ -22,7 +22,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import { Text } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
-import { PageHeader } from './AppHeader';
+import { AppHeader } from './AppHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
@@ -154,9 +154,13 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
         <StatusBar barStyle="light-content" />
-        <PageHeader title="Profile" onBackPress={onBackPress} />
+        <AppHeader
+          showCenteredLogo={true}
+          showBackInCenteredMode={true}
+          onBackPress={onBackPress}
+        />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -166,7 +170,11 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
         <StatusBar barStyle="light-content" />
-        <PageHeader title="Profile" onBackPress={onBackPress} />
+        <AppHeader
+          showCenteredLogo={true}
+          showBackInCenteredMode={true}
+          onBackPress={onBackPress}
+        />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text>Profile not found</Text>
         </View>
@@ -180,8 +188,9 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
       <StatusBar barStyle="light-content" />
 
-      <PageHeader
-        title="Profile"
+      <AppHeader
+        showCenteredLogo={true}
+        showBackInCenteredMode={true}
         onBackPress={onBackPress}
         rightElement={
           viewingOwnProfile ? (
@@ -194,7 +203,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
+              <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
             </Pressable>
           ) : undefined
         }
@@ -207,7 +216,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
         }
       >
         {/* Profile Header - Instagram Style */}
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
           {/* Top Row: Avatar + Stats */}
           <View style={styles.topRow}>
             {/* Avatar */}
@@ -222,14 +231,14 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                   style={styles.avatar}
                 />
               ) : (
-                <View style={[styles.avatar, { backgroundColor: Colors.primary }]}>
+                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
                     {getInitials(user.displayName || user.username)}
                   </Text>
                 </View>
               )}
               {viewingOwnProfile && (
-                <View style={[styles.avatarEditBadge, { borderColor: colors.surface }]}>
+                <View style={[styles.avatarEditBadge, { borderColor: colors.surface, backgroundColor: colors.primary }]}>
                   <Ionicons name="camera" size={14} color={colors.primaryForeground} />
                 </View>
               )}
@@ -238,15 +247,15 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Stats */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: colors.text }]}>{stats.postsCount}</Text>
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.postsCount}</Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Posts</Text>
               </View>
               <Pressable style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: colors.text }]}>{stats.followersCount}</Text>
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.followersCount}</Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Followers</Text>
               </Pressable>
               <Pressable style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: colors.text }]}>{stats.followingCount}</Text>
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.followingCount}</Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Following</Text>
               </Pressable>
             </View>
@@ -256,7 +265,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
           <View style={styles.infoSection}>
             {/* Name with denomination badge */}
             <View style={styles.nameRow}>
-              <Text style={[styles.displayName, { color: colors.text }]}>
+              <Text style={[styles.displayName, { color: colors.textPrimary }]}>
                 {user.displayName || user.username}
               </Text>
               {user.denomination && (
@@ -290,13 +299,13 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             )}
 
             {/* Bio */}
-            {user.bio && <Text style={[styles.bio, { color: colors.text }]}>{user.bio}</Text>}
+            {user.bio && <Text style={[styles.bio, { color: colors.textPrimary }]}>{user.bio}</Text>}
 
             {/* Bible Verse - Compact version */}
             {user.favoriteBibleVerse && (
-              <View style={[styles.bibleVerseCompact, { backgroundColor: `${Colors.primary}10`, borderLeftColor: Colors.primary }]}>
-                <Ionicons name="book" size={14} color={Colors.primary} />
-                <Text style={[styles.bibleVerseText, { color: colors.text }]}>{user.favoriteBibleVerse}</Text>
+              <View style={[styles.bibleVerseCompact, { backgroundColor: colors.surfaceMuted, borderLeftColor: colors.primary }]}>
+                <Ionicons name="book" size={14} color={colors.primary} />
+                <Text style={[styles.bibleVerseText, { color: colors.textPrimary }]}>{user.favoriteBibleVerse}</Text>
               </View>
             )}
 
@@ -304,7 +313,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {user.interests && (
               <View style={styles.interestTags}>
                 {user.interests.split(',').slice(0, 5).map((interest: string, index: number) => (
-                  <View key={index} style={[styles.interestTag, { backgroundColor: colors.muted }]}>
+                  <View key={index} style={[styles.interestTag, { backgroundColor: colors.surfaceMuted }]}>
                     <Text style={[styles.interestTagText, { color: colors.textSecondary }]}>{interest.trim()}</Text>
                   </View>
                 ))}
@@ -316,10 +325,10 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
           <View style={styles.actionButtons}>
             {viewingOwnProfile ? (
               <Pressable
-                style={[styles.editProfileButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                style={[styles.editProfileButton, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
                 onPress={() => router.push('/edit-profile')}
               >
-                <Text style={[styles.editProfileButtonText, { color: colors.text }]}>Edit Profile</Text>
+                <Text style={[styles.editProfileButtonText, { color: colors.textPrimary }]}>Edit Profile</Text>
               </Pressable>
             ) : (
               <Pressable
@@ -327,14 +336,15 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 disabled={followMutation.isPending || unfollowMutation.isPending}
                 style={[
                   styles.followButton,
-                  followStatus?.isFollowing && [styles.followingButton, { backgroundColor: colors.surface, borderColor: colors.border }],
+                  { backgroundColor: colors.primary },
+                  followStatus?.isFollowing && [styles.followingButton, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }],
                 ]}
               >
                 <Text
                   style={[
                     styles.followButtonText,
                     { color: colors.primaryForeground },
-                    followStatus?.isFollowing && [styles.followingButtonText, { color: colors.text }],
+                    followStatus?.isFollowing && [styles.followingButtonText, { color: colors.textPrimary }],
                   ]}
                 >
                   {followStatus?.isFollowing ? 'Following' : 'Follow'}
@@ -345,31 +355,31 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
         </View>
 
         {/* Tabs */}
-        <View style={[styles.tabsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={[styles.tabsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
           <Pressable
-            style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
+            style={[styles.tab, activeTab === 'posts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
             onPress={() => setActiveTab('posts')}
           >
             <Ionicons
               name="document-text-outline"
               size={20}
-              color={activeTab === 'posts' ? Colors.primary : colors.textSecondary}
+              color={activeTab === 'posts' ? colors.primary : colors.textSecondary}
             />
-            <Text style={[styles.tabText, { color: colors.textSecondary }, activeTab === 'posts' && styles.activeTabText]}>
+            <Text style={[styles.tabText, { color: activeTab === 'posts' ? colors.primary : colors.textSecondary }]}>
               Posts
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.tab, activeTab === 'communities' && styles.activeTab]}
+            style={[styles.tab, activeTab === 'communities' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
             onPress={() => setActiveTab('communities')}
           >
             <Ionicons
               name="people-outline"
               size={20}
-              color={activeTab === 'communities' ? Colors.primary : colors.textSecondary}
+              color={activeTab === 'communities' ? colors.primary : colors.textSecondary}
             />
             <Text
-              style={[styles.tabText, { color: colors.textSecondary }, activeTab === 'communities' && styles.activeTabText]}
+              style={[styles.tabText, { color: activeTab === 'communities' ? colors.primary : colors.textSecondary }]}
             >
               Communities
             </Text>
@@ -383,8 +393,8 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               {/* Show microblogs (feed posts) */}
               {recentMicroblogs && recentMicroblogs.length > 0 ? (
                 recentMicroblogs.map((microblog: any) => (
-                  <View key={`microblog-${microblog.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={[styles.postContent, { color: colors.text }]} numberOfLines={4}>
+                  <View key={`microblog-${microblog.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+                    <Text style={[styles.postContent, { color: colors.textPrimary }]} numberOfLines={4}>
                       {microblog.content}
                     </Text>
                     <View style={styles.postFooter}>
@@ -405,8 +415,8 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               ) : recentPosts && recentPosts.length > 0 ? (
                 // Show forum posts if no microblogs
                 recentPosts.map((post: any) => (
-                  <View key={`post-${post.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={[styles.postTitle, { color: colors.text }]}>{post.title}</Text>
+                  <View key={`post-${post.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+                    <Text style={[styles.postTitle, { color: colors.textPrimary }]}>{post.title}</Text>
                     <Text style={[styles.postContent, { color: colors.textSecondary }]} numberOfLines={3}>
                       {post.content}
                     </Text>
@@ -438,16 +448,16 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                       style={styles.storyCircle}
                       onPress={() => router.push(`/communities/${community.id}`)}
                     >
-                      <View style={[styles.storyImageContainer, { backgroundColor: colors.surface }]}>
-                        <View style={[styles.storyIconCircle, { backgroundColor: colors.muted }]}>
+                      <View style={[styles.storyImageContainer, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+                        <View style={[styles.storyIconCircle, { backgroundColor: colors.surfaceMuted }]}>
                           <Ionicons
                             name={community.iconName as any}
                             size={32}
-                            color={Colors.primary}
+                            color={colors.primary}
                           />
                         </View>
                       </View>
-                      <Text style={[styles.storyLabel, { color: colors.text }]} numberOfLines={1}>
+                      <Text style={[styles.storyLabel, { color: colors.textPrimary }]} numberOfLines={1}>
                         {community.name}
                       </Text>
                     </Pressable>

@@ -111,7 +111,7 @@ export default function SettingsScreen() {
         styles.settingsItem,
         {
           backgroundColor: colors.surface,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.borderSubtle,
         }
       ]}
       onPress={onPress}
@@ -120,11 +120,11 @@ export default function SettingsScreen() {
       <Ionicons
         name={icon as any}
         size={22}
-        color={danger ? colors.destructive : colors.text}
+        color={danger ? colors.destructive : colors.textPrimary}
       />
       <Text style={[
         styles.settingsLabel,
-        { color: danger ? colors.destructive : colors.text }
+        { color: danger ? colors.destructive : colors.textPrimary }
       ]}>
         {label}
       </Text>
@@ -140,18 +140,18 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Settings</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Account Section */}
         <SectionHeader title="ACCOUNT" />
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="person-outline"
             label="Edit Profile"
@@ -171,7 +171,7 @@ export default function SettingsScreen() {
 
         {/* Appearance Section */}
         <SectionHeader title="APPEARANCE" />
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="moon-outline"
             label="Dark Mode"
@@ -187,7 +187,7 @@ export default function SettingsScreen() {
 
         {/* Notifications Section */}
         <SectionHeader title="NOTIFICATIONS" />
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="notifications-outline"
             label="Notification Preferences"
@@ -201,7 +201,7 @@ export default function SettingsScreen() {
               <Switch
                 value={emailNotifications}
                 onValueChange={setEmailNotifications}
-                trackColor={{ false: colors.muted, true: colors.primary }}
+                trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
               />
             }
           />
@@ -209,7 +209,7 @@ export default function SettingsScreen() {
 
         {/* Privacy Section */}
         <SectionHeader title="PRIVACY" />
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="eye-off-outline"
             label="Private Account"
@@ -218,7 +218,7 @@ export default function SettingsScreen() {
               <Switch
                 value={isPrivateAccount}
                 onValueChange={handlePrivacyToggle}
-                trackColor={{ false: colors.muted, true: colors.primary }}
+                trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
                 disabled={updatePrivacyMutation.isPending}
               />
             }
@@ -238,7 +238,7 @@ export default function SettingsScreen() {
 
         {/* Support Section */}
         <SectionHeader title="SUPPORT" />
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="help-circle-outline"
             label="Help Center"
@@ -258,7 +258,7 @@ export default function SettingsScreen() {
 
         {/* About Section */}
         <SectionHeader title="ABOUT" />
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="information-circle-outline"
             label="App Version"
@@ -268,7 +268,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* Logout */}
-        <View style={[styles.section, styles.logoutSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.section, styles.logoutSection, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="log-out-outline"
             label="Log Out"

@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Text, TextInput, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { initializeNotifications, cleanupNotifications, unregisterPushToken, getCurrentToken } from '../src/services/notificationService';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -147,14 +148,16 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <CreateMenuProvider>
-            <RootLayoutNav />
-          </CreateMenuProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <CreateMenuProvider>
+              <RootLayoutNav />
+            </CreateMenuProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

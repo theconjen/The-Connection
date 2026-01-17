@@ -114,7 +114,7 @@ export function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps
       </Text>
 
       {/* Member Count */}
-      <Text variant="caption" color="mutedForeground">
+      <Text variant="caption" color="textMuted">
         {channel.members}
       </Text>
     </Pressable>
@@ -139,7 +139,7 @@ export function AddChannelCard({ onPress }: { onPress?: () => void }) {
           alignItems: 'center',
           justifyContent: 'center',
           gap: spacing.xs,
-          backgroundColor: pressed ? colors.muted : 'transparent',
+          backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
         },
       ]}
     >
@@ -148,14 +148,14 @@ export function AddChannelCard({ onPress }: { onPress?: () => void }) {
           width: 32,
           height: 32,
           borderRadius: 16,
-          backgroundColor: colors.muted,
+          backgroundColor: colors.surfaceMuted,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
         <Text style={{ fontSize: 18, color: colors.textMuted }}>+</Text>
       </View>
-      <Text variant="caption" color="mutedForeground">
+      <Text variant="caption" color="textMuted">
         Discover
       </Text>
     </Pressable>

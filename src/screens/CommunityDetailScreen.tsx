@@ -251,14 +251,14 @@ const WallPostCard: React.FC<WallPostCardProps> = ({ post, colors }) => {
   };
 
   return (
-    <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+    <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
         <View
           style={{
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: colors.muted,
+            backgroundColor: colors.surfaceMuted,
             justifyContent: 'center',
             alignItems: 'center',
           }}
@@ -609,14 +609,14 @@ export function CommunityDetailScreen({
               </View>
             ) : prayerRequests.length > 0 ? (
               prayerRequests.map(prayer => (
-                <View key={prayer.id} style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <View key={prayer.id} style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle }}>
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
                     <View
                       style={{
                         width: 40,
                         height: 40,
                         borderRadius: 20,
-                        backgroundColor: colors.muted,
+                        backgroundColor: colors.surfaceMuted,
                         justifyContent: 'center',
                         alignItems: 'center',
                       }}
@@ -680,7 +680,7 @@ export function CommunityDetailScreen({
                       width: 40,
                       height: 40,
                       borderRadius: 20,
-                      backgroundColor: colors.muted,
+                      backgroundColor: colors.surfaceMuted,
                       justifyContent: 'center',
                       alignItems: 'center',
                     }}
@@ -900,7 +900,7 @@ const getStyles = (colors: any) =>
       borderBottomColor: colors.borderSubtle,
     },
     postInput: {
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
       borderRadius: 12,
       padding: 12,
       fontSize: 15,
@@ -916,7 +916,7 @@ const getStyles = (colors: any) =>
       alignItems: 'center',
     },
     postButtonDisabled: {
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
     },
     postButtonText: {
       fontSize: 15,

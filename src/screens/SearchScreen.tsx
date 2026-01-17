@@ -264,7 +264,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
           style={[
             styles.searchContainer,
             {
-              backgroundColor: colors.muted,
+              backgroundColor: colors.surfaceMuted,
               borderRadius: spacing.md,
             },
           ]}
@@ -319,7 +319,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   styles.filterButton,
                   {
                     backgroundColor:
-                      activeFilter === filter.id ? colors.primary : colors.muted,
+                      activeFilter === filter.id ? colors.primary : colors.surfaceMuted,
                     paddingHorizontal: spacing.lg,
                     paddingVertical: spacing.sm,
                     borderRadius: spacing.full,
@@ -345,7 +345,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
               style={({ pressed }) => [
                 styles.filterButton,
                 {
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                   paddingHorizontal: spacing.lg,
                   paddingVertical: spacing.sm,
                   borderRadius: spacing.full,
@@ -369,7 +369,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.filterButton,
                   {
-                    backgroundColor: colors.muted,
+                    backgroundColor: colors.surfaceMuted,
                     paddingHorizontal: spacing.lg,
                     paddingVertical: spacing.sm,
                     borderRadius: spacing.full,
@@ -433,7 +433,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     onPress={() => setSearchQuery(query)}
                     style={({ pressed }) => [
                       {
-                        backgroundColor: pressed ? colors.muted : colors.surface,
+                        backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                         borderTopWidth: index === 0 ? 1 : 0,
                         borderBottomWidth: 1,
                         borderColor: colors.borderSubtle,
@@ -471,7 +471,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     onPress={() => loadSavedSearch(search)}
                     style={({ pressed }) => [
                       {
-                        backgroundColor: pressed ? colors.muted : colors.surface,
+                        backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                         borderTopWidth: index === 0 ? 1 : 0,
                         borderBottomWidth: 1,
                         borderColor: colors.borderSubtle,
@@ -487,7 +487,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                       <Text variant="body" style={{ fontWeight: '600' }}>
                         {search.name}
                       </Text>
-                      <Text variant="caption" color="mutedForeground" numberOfLines={1}>
+                      <Text variant="caption" color="textMuted" numberOfLines={1}>
                         {search.query} • {search.filter}
                       </Text>
                     </View>
@@ -527,7 +527,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.quickAccessItem,
                   {
-                    backgroundColor: pressed ? colors.muted : colors.surface,
+                    backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                     borderTopWidth: 1,
                     borderBottomWidth: 1,
                     borderColor: colors.borderSubtle,
@@ -552,7 +552,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     Communities
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Find groups
                   </Text>
                 </View>
@@ -564,7 +564,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.quickAccessItem,
                   {
-                    backgroundColor: pressed ? colors.muted : colors.surface,
+                    backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                     borderBottomWidth: 1,
                     borderColor: colors.borderSubtle,
                     padding: spacing.md,
@@ -588,7 +588,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     Feed
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Latest posts
                   </Text>
                 </View>
@@ -600,7 +600,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.quickAccessItem,
                   {
-                    backgroundColor: pressed ? colors.muted : colors.surface,
+                    backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                     borderBottomWidth: 1,
                     borderColor: colors.borderSubtle,
                     padding: spacing.md,
@@ -624,7 +624,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     Events
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Upcoming events
                   </Text>
                 </View>
@@ -635,7 +635,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
         ) : isLoading ? (
           <View style={[styles.emptyState, { paddingVertical: spacing.xl * 2 }]}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text variant="bodySmall" color="mutedForeground" style={{ marginTop: spacing.md }}>
+            <Text variant="bodySmall" color="textMuted" style={{ marginTop: spacing.md }}>
               Searching...
             </Text>
           </View>
@@ -652,12 +652,12 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
             >
               No results found
             </Text>
-            <Text variant="caption" color="mutedForeground" style={{ marginTop: spacing.sm }}>
+            <Text variant="caption" color="textMuted" style={{ marginTop: spacing.sm }}>
               Try different keywords
             </Text>
           </View>
         ) : (
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
             {results.map((result, index) => (
               <Pressable
                 key={`${result.type}-${result.id}`}
@@ -665,7 +665,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.resultItem,
                   {
-                    backgroundColor: pressed ? colors.muted : colors.surface,
+                    backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                     borderBottomWidth: index < results.length - 1 ? 1 : 0,
                     borderBottomColor: colors.borderSubtle,
                     padding: spacing.md,
@@ -681,7 +681,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                       width: 48,
                       height: 48,
                       borderRadius: 24,
-                      backgroundColor: colors.muted,
+                      backgroundColor: colors.surfaceMuted,
                     }}
                   />
                 ) : (
@@ -710,7 +710,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   </Text>
                   <Text
                     variant="caption"
-                    color="mutedForeground"
+                    color="textMuted"
                     numberOfLines={2}
                     style={{ marginTop: 2 }}
                   >
@@ -759,7 +759,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
               style={[
                 styles.modalInput,
                 {
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                   color: colors.textPrimary,
                   borderRadius: spacing.md,
                   paddingHorizontal: spacing.md,
@@ -771,19 +771,19 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
 
             <View
               style={{
-                backgroundColor: colors.muted,
+                backgroundColor: colors.surfaceMuted,
                 borderRadius: spacing.md,
                 padding: spacing.md,
                 marginBottom: spacing.lg,
               }}
             >
-              <Text variant="bodySmall" color="mutedForeground">
+              <Text variant="bodySmall" color="textMuted">
                 Search Query
               </Text>
               <Text variant="body" style={{ marginTop: spacing.xs }}>
                 {searchQuery}
               </Text>
-              <Text variant="caption" color="mutedForeground" style={{ marginTop: spacing.xs }}>
+              <Text variant="caption" color="textMuted" style={{ marginTop: spacing.xs }}>
                 Filter: {activeFilter}
               </Text>
             </View>
@@ -798,7 +798,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   styles.modalButton,
                   {
                     flex: 1,
-                    backgroundColor: colors.muted,
+                    backgroundColor: colors.surfaceMuted,
                     borderRadius: spacing.md,
                     paddingVertical: spacing.md,
                     alignItems: 'center',
@@ -892,7 +892,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                         styles.filterChip,
                         {
                           backgroundColor:
-                            advancedFilters.dateRange === range ? colors.primary : colors.muted,
+                            advancedFilters.dateRange === range ? colors.primary : colors.surfaceMuted,
                           paddingHorizontal: spacing.lg,
                           paddingVertical: spacing.sm,
                           borderRadius: spacing.full,
@@ -930,7 +930,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                         styles.filterChip,
                         {
                           backgroundColor:
-                            advancedFilters.sortBy === sort ? colors.primary : colors.muted,
+                            advancedFilters.sortBy === sort ? colors.primary : colors.surfaceMuted,
                           paddingHorizontal: spacing.lg,
                           paddingVertical: spacing.sm,
                           borderRadius: spacing.full,
@@ -969,7 +969,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   style={[
                     styles.modalInput,
                     {
-                      backgroundColor: colors.muted,
+                      backgroundColor: colors.surfaceMuted,
                       color: colors.textPrimary,
                       borderRadius: spacing.md,
                       paddingHorizontal: spacing.md,
@@ -988,7 +988,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                   borderRadius: spacing.md,
                   padding: spacing.md,
                   marginBottom: spacing.xl,
@@ -998,7 +998,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     Verified Accounts Only
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Show only verified users and communities
                   </Text>
                 </View>
@@ -1028,7 +1028,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     styles.modalButton,
                     {
                       flex: 1,
-                      backgroundColor: colors.muted,
+                      backgroundColor: colors.surfaceMuted,
                       borderRadius: spacing.md,
                       paddingVertical: spacing.md,
                       alignItems: 'center',

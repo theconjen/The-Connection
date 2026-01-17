@@ -113,19 +113,19 @@ export default function ChangePasswordScreen() {
       paddingTop: 60,
       backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     backButton: {
       padding: 8,
     },
     backIcon: {
       fontSize: 24,
-      color: colors.text,
+      color: colors.textPrimary,
     },
     title: {
       fontSize: 20,
       fontWeight: 'bold',
-      color: colors.text,
+      color: colors.textPrimary,
     },
     placeholder: {
       width: 40,
@@ -139,7 +139,7 @@ export default function ChangePasswordScreen() {
     label: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 8,
     },
     input: {
@@ -149,7 +149,7 @@ export default function ChangePasswordScreen() {
       fontSize: 16,
       borderWidth: 1,
       borderColor: colors.input,
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 16,
     },
     hint: {
@@ -167,7 +167,7 @@ export default function ChangePasswordScreen() {
     requirementsTitle: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 8,
     },
     requirement: {

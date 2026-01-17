@@ -261,7 +261,7 @@ export function CreateEventScreen({
           <Switch
             value={formData.isVirtual}
             onValueChange={(value) => updateField('isVirtual', value)}
-            trackColor={{ false: colors.muted, true: '#222D99' }}
+            trackColor={{ false: colors.surfaceMuted, true: '#222D99' }}
             thumbColor="#fff"
           />
         </View>
@@ -358,7 +358,7 @@ export function CreateEventScreen({
           <Switch
             value={formData.isPublic}
             onValueChange={(value) => updateField('isPublic', value)}
-            trackColor={{ false: colors.muted, true: '#222D99' }}
+            trackColor={{ false: colors.surfaceMuted, true: '#222D99' }}
             thumbColor="#fff"
           />
         </View>
@@ -458,7 +458,7 @@ const getStyles = (colors: any) =>
       marginBottom: 8,
     },
     input: {
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
       borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 12,
