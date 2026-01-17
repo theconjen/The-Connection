@@ -1900,8 +1900,11 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   postCard: {
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
+    marginBottom: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    overflow: 'hidden',
   },
   postContainer: {
     flexDirection: 'row',
