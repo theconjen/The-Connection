@@ -425,36 +425,5 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Current user endpoint
-  app.get("/api/user", async (req, res) => {
-    try {
-      const userId = getSessionUserId(req);
-
-      if (!req.session || !userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      try {
-        const user = await storage.getUser(userId);
-        
-        if (!user) {
-          // Session exists but user doesn't - clear session
-          req.session.destroy((err) => {
-            if (err) console.error("Error destroying invalid session:", err);
-          });
-          return res.status(401).json({ message: "User not found" });
-        }
-        
-        // Return user data without password
-        const { password, ...userWithoutPassword } = user;
-        return res.json(userWithoutPassword);
-      } catch (error) {
-        console.error(`Error retrieving user ID ${userId ?? req.session?.userId}:`, error);
-        return res.status(500).json(buildErrorResponse("Database error", error));
-      }
-    } catch (error) {
-      console.error("Error fetching current user:", error);
-      return res.status(500).json(buildErrorResponse("Server error", error));
-    }
-  });
+  // Current user endpoint has been moved to routes.ts to include permissions
 }
