@@ -181,37 +181,13 @@ router.post('/auth/logout', (req, res) => {
   }
 });
 
-// Get current user endpoint
-router.get('/user', async (req, res) => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    return res.status(401).json({ message: "Not authenticated" });
-  }
-
-  try {
-  // Get full user details from database. Coerce session userId to number.
-  const user = await storage.getUser(userId);
-
-    if (!user) {
-      // Session contains a userId but user doesn't exist
-      req.session.destroy(() => {
-        res.status(401).json({ message: "User not found" });
-      });
-      return;
-    }
-
-    // Return user data (excluding password)
-    // Map avatarUrl to profileImageUrl for consistency with profile endpoint
-    const { password: _, avatarUrl, ...userData } = user;
-    res.json({
-      ...userData,
-      profileImageUrl: avatarUrl,
-    });
-  } catch (error) {
-    console.error('Error fetching user details:', error);
-    res.status(500).json(buildErrorResponse("Error fetching user details", error));
-  }
-});
+// REMOVED: Get current user endpoint (redundant - shadows correct handlers with permissions)
+// This endpoint was registered first via app.use('/api', authRoutes) and shadowed
+// the correct /api/user handlers that return permissions.
+// The correct /api/user endpoints are in:
+//   - routes.ts:466 (app.get('/api/user', ...)) - returns user WITH permissions
+//   - user.ts:32 (router.get('/', ...)) - returns user WITH permissions
+// Removing this endpoint allows the correct handlers to execute.
 
 // Send (or resend) verification email for a user's email address
 router.post('/auth/send-verification', async (req, res) => {
