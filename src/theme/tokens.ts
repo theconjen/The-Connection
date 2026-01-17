@@ -93,19 +93,19 @@ export const darkColors = {
   surface: '#141A2A',           // Cards
   surfaceMuted: '#1A2032',      // Chips, segmented, subtle sections
 
-  // Text
-  textPrimary: '#F3EFE9',       // Paper
-  textSecondary: '#D8D3CC',
-  textMuted: '#9AA0AA',
+  // Text (brighter for better readability in dark mode)
+  textPrimary: '#FFFFFF',       // Pure white for max readability
+  textSecondary: '#E8E4DD',     // Very light cream (was too dim)
+  textMuted: '#B0B6C0',         // Lighter gray (was too dim)
   textInverse: '#0A0F1C',
 
   // Borders
   borderSubtle: '#1F263A',
   borderSoft: '#262E45',
 
-  // Icons
-  iconDefault: '#9AA0AA',
-  iconMuted: '#6B7280',
+  // Icons (brighter for better visibility)
+  iconDefault: '#B0B6C0',       // Brighter (matches textMuted)
+  iconMuted: '#8A909A',         // Lighter than before
   iconActive: '#4A90E2',
 
   // Buttons
