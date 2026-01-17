@@ -88,14 +88,14 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
             <Avatar initials={post.channelIcon} size={24} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap', flex: 1 }}>
-              <Text variant="caption" color="foreground" style={{ fontWeight: '600' }}>
+              <Text variant="caption" color="primary" style={{ fontWeight: '600' }}>
                 {post.channel}
               </Text>
-              <Text variant="caption" color="mutedForeground">•</Text>
+              <Text variant="caption" color="muted">•</Text>
               {post.isAnonymous ? (
                 <Text
                   variant="caption"
-                  color="mutedForeground"
+                  color="muted"
                   style={{ fontStyle: 'italic' }}
                 >
                   Anonymous
@@ -112,15 +112,15 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
                 >
                   <Text
                     variant="caption"
-                    color="mutedForeground"
+                    color="muted"
                     style={{ textDecorationLine: onAuthorPress && post.authorId ? 'underline' : 'none' }}
                   >
                     @{post.author}
                   </Text>
                 </Pressable>
               )}
-              <Text variant="caption" color="mutedForeground">•</Text>
-              <Text variant="caption" color="mutedForeground">{post.timeAgo}</Text>
+              <Text variant="caption" color="muted">•</Text>
+              <Text variant="caption" color="muted">{post.timeAgo}</Text>
             </View>
           </View>
 
@@ -174,7 +174,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
         {/* Post Content Preview */}
         <Text
           variant="bodySmall"
-          color="mutedForeground"
+          color="muted"
           numberOfLines={2}
           style={{ marginBottom: spacing.sm }}
         >
@@ -203,7 +203,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
             })}
           >
             <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
-            <Text variant="caption" color="mutedForeground">
+            <Text variant="caption" color="muted">
               {post.comments}
             </Text>
           </Pressable>

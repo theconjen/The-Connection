@@ -93,10 +93,10 @@ export const darkColors = {
   surface: '#141A2A',           // Cards
   surfaceMuted: '#1A2032',      // Chips, segmented, subtle sections
 
-  // Text (brighter for better readability in dark mode)
-  textPrimary: '#FFFFFF',       // Pure white for max readability
-  textSecondary: '#E8E4DD',     // Very light cream (was too dim)
-  textMuted: '#B0B6C0',         // Lighter gray (was too dim)
+  // Text (light cream for better aesthetic in dark mode)
+  textPrimary: '#F5F1E8',       // Light cream (not stark white)
+  textSecondary: '#E8E4DD',     // Slightly dimmer cream
+  textMuted: '#B0B6C0',         // Lighter gray
   textInverse: '#0A0F1C',
 
   // Borders
