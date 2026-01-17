@@ -464,8 +464,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   
   // Get current user endpoint (must be before userRoutes)
   app.get('/api/user', async (req, res) => {
+    console.error('🔴🔴🔴 ROUTES.TS /api/user HANDLER EXECUTING 🔴🔴🔴');
     try {
       const userId = getSessionUserId(req);
+      console.error('🔴 routes.ts: userId =', userId);
 
       if (!userId) {
         return res.status(401).json({ message: 'Not authenticated' });
@@ -493,9 +495,11 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
       const permissions = permissionsResult.map(p => p.permission);
 
+      console.info('=== [GET /api/user FIXED VERSION] ===');
       console.info('[GET /api/user] User:', userId, user.username);
       console.info('[GET /api/user] Permissions query result:', permissionsResult);
       console.info('[GET /api/user] Permissions array:', permissions);
+      console.info('=== [END GET /api/user] ===');
 
       // Remove password from response, add permissions
       const { password, ...userData } = user;
