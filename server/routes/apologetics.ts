@@ -34,6 +34,179 @@ router.get('/apologetics', apologeticsLimiter, async (_req, res) => {
   }
 });
 
+// GET /apologetics/feed - Get Q&A feed with filtering
+router.get('/apologetics/feed', apologeticsLimiter, async (req, res) => {
+  try {
+    const { domain = 'apologetics', q, areaId } = req.query;
+
+    // Validate domain
+    if (domain !== 'apologetics' && domain !== 'polemics') {
+      return res.status(400).json({ message: 'Invalid domain. Must be "apologetics" or "polemics"' });
+    }
+
+    const { db } = await import('../db');
+    const { userQuestions, questionMessages, qaAreas, qaTags } = await import('@shared/schema');
+    const { eq, like, and, desc, sql, inArray } = await import('drizzle-orm');
+
+    // Build query conditions
+    const conditions: any[] = [];
+    conditions.push(eq(userQuestions.domain, domain));
+
+    // Search filter
+    if (q && typeof q === 'string' && q.trim()) {
+      conditions.push(
+        sql`${userQuestions.questionText} ILIKE ${`%${q.trim()}%`}`
+      );
+    }
+
+    // Area filter
+    if (areaId && typeof areaId === 'string') {
+      const parsedAreaId = parseInt(areaId, 10);
+      if (Number.isFinite(parsedAreaId)) {
+        conditions.push(eq(userQuestions.areaId, parsedAreaId));
+      }
+    }
+
+    // Get all answered questions
+    const questions = await db
+      .select({
+        questionId: userQuestions.id,
+        questionText: userQuestions.questionText,
+        areaId: userQuestions.areaId,
+        tagId: userQuestions.tagId,
+        askerUserId: userQuestions.askerUserId,
+      })
+      .from(userQuestions)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .limit(50);
+
+    if (questions.length === 0) {
+      return res.json([]);
+    }
+
+    // Get area and tag names
+    const areaIds = [...new Set(questions.map(q => q.areaId))];
+    const tagIds = [...new Set(questions.map(q => q.tagId))];
+
+    const areas = await db
+      .select()
+      .from(qaAreas)
+      .where(inArray(qaAreas.id, areaIds));
+
+    const tags = await db
+      .select()
+      .from(qaTags)
+      .where(inArray(qaTags.id, tagIds));
+
+    const areaMap = new Map(areas.map(a => [a.id, a.name]));
+    const tagMap = new Map(tags.map(t => [t.id, t.name]));
+
+    // Get all messages for these questions
+    const questionIds = questions.map(q => q.questionId);
+    const allMessages = await db
+      .select()
+      .from(questionMessages)
+      .where(inArray(questionMessages.questionId, questionIds))
+      .orderBy(desc(questionMessages.createdAt));
+
+    // Build map of question ID to asker user ID
+    const askerMap = new Map(
+      questions.map(q => [q.questionId, q.askerUserId])
+    );
+
+    // Group answers by question (find first non-asker message as the answer)
+    const answerMap = new Map<number, string>();
+    for (const msg of allMessages) {
+      if (!answerMap.has(msg.questionId)) {
+        const askerUserId = askerMap.get(msg.questionId);
+        const questionMsgs = allMessages.filter(m => m.questionId === msg.questionId);
+        const answerMsg = questionMsgs.find(m => m.senderUserId !== askerUserId);
+        if (answerMsg) {
+          answerMap.set(msg.questionId, answerMsg.body || '');
+        }
+      }
+    }
+
+    // Build feed
+    const feed = questions.map(q => ({
+      id: q.questionId.toString(),
+      question: q.questionText || '',
+      areaName: areaMap.get(q.areaId) || '',
+      tagName: tagMap.get(q.tagId) || '',
+      answer: answerMap.get(q.questionId) || '',
+      sources: [], // TODO: Extract sources from answer content if needed
+    }));
+
+    return res.json(feed);
+  } catch (err) {
+    console.error('Error serving apologetics feed:', err);
+    return res.status(500).json(buildErrorResponse('Error loading feed', err));
+  }
+});
+
+// GET /apologetics/questions/:id - Get single Q&A detail
+router.get('/apologetics/questions/:id', apologeticsLimiter, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: 'Invalid question ID' });
+    }
+
+    const { db } = await import('../db');
+    const { userQuestions, questionMessages, qaAreas, qaTags } = await import('@shared/schema');
+    const { eq, desc } = await import('drizzle-orm');
+
+    // Query the question
+    const [question] = await db
+      .select()
+      .from(userQuestions)
+      .where(eq(userQuestions.id, id))
+      .limit(1);
+
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
+    }
+
+    // Get area and tag info
+    const [area] = await db
+      .select()
+      .from(qaAreas)
+      .where(eq(qaAreas.id, question.areaId))
+      .limit(1);
+
+    const [tag] = await db
+      .select()
+      .from(qaTags)
+      .where(eq(qaTags.id, question.tagId))
+      .limit(1);
+
+    // Get all messages for this question
+    const messages = await db
+      .select()
+      .from(questionMessages)
+      .where(eq(questionMessages.questionId, id))
+      .orderBy(desc(questionMessages.createdAt));
+
+    // Filter for the answer (message not from the asker)
+    const answerMessage = messages.find(msg => msg.senderUserId !== question.askerUserId);
+    const answerBody = answerMessage?.body || '';
+
+    const questionDetail = {
+      id: question.id.toString(),
+      question: question.questionText || '',
+      areaName: area?.name || '',
+      tagName: tag?.name || '',
+      answer: answerBody,
+      sources: [], // TODO: Extract sources from answer content if needed
+    };
+
+    return res.json(questionDetail);
+  } catch (err) {
+    console.error('Error serving apologetics question:', err);
+    return res.status(500).json(buildErrorResponse('Error loading question', err));
+  }
+});
+
 // Admin guard wrapper to give clearer 403s (isAdmin already checks session).
 const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
   // Reuse isAdmin middleware but allow direct use
