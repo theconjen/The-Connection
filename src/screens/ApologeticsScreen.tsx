@@ -191,6 +191,7 @@ export default function ApologeticsScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipsRow}
+        style={styles.chipsScrollView}
       >
         {areas.map((a) => (
           <Chip
@@ -510,8 +511,13 @@ function getStyles(colors: any) {
       marginBottom: 6,
     },
 
+    chipsScrollView: {
+      marginTop: 8,
+    },
+
     chipsRow: {
-      paddingVertical: 8,
+      paddingTop: 12,
+      paddingBottom: 12,
       paddingRight: 16,
     },
 
