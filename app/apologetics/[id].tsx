@@ -127,7 +127,7 @@ export default function ApologeticsDetailScreen() {
         {/* Back Button */}
         <Pressable
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push("/(tabs)/apologetics" as any)}
         >
           <Ionicons name="arrow-back" size={20} color={colors.primary} />
           <Text style={styles.backButtonText}>Back to Apologetics</Text>
