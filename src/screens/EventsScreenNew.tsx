@@ -232,7 +232,7 @@ function EventCard({
 
       {/* Meta rows */}
       <View style={styles.metaRow}>
-        <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
+        <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
         <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
           {formatWhen(item.startsAt)}
         </Text>
@@ -241,7 +241,7 @@ function EventCard({
       <View style={styles.metaRow}>
         <Ionicons
           name={item.isOnline ? "videocam-outline" : "location-outline"}
-          size={16}
+          size={14}
           color={colors.textSecondary}
         />
         <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
@@ -267,7 +267,7 @@ function EventCard({
           <View />
         )}
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flexDirection: "row", gap: 8 }}>
           <Pressable
             hitSlop={10}
             onPress={() => {
@@ -278,7 +278,7 @@ function EventCard({
               { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
             ]}
           >
-            <Ionicons name="bookmark-outline" size={18} color={colors.text} />
+            <Ionicons name="bookmark-outline" size={16} color={colors.text} />
           </Pressable>
 
           <Pressable
@@ -291,7 +291,7 @@ function EventCard({
               { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
             ]}
           >
-            <Ionicons name="checkmark-circle-outline" size={18} color={colors.text} />
+            <Ionicons name="checkmark-circle-outline" size={16} color={colors.text} />
           </Pressable>
         </View>
       </View>
@@ -348,7 +348,7 @@ export default function EventsScreenNew() {
             { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
           ]}
         >
-          <Ionicons name="add" size={18} color={colors.text} />
+          <Ionicons name="add" size={16} color={colors.text} />
         </Pressable>
       </View>
 
@@ -360,7 +360,7 @@ export default function EventsScreenNew() {
             { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
           ]}
         >
-          <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
+          <Ionicons name="search-outline" size={14} color={colors.textSecondary} />
           <TextInput
             value={q}
             onChangeText={setQ}
@@ -378,7 +378,7 @@ export default function EventsScreenNew() {
             { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
           ]}
         >
-          <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
+          <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
           <TextInput
             value={city}
             onChangeText={setCity}
@@ -477,18 +477,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingTop: 56,
+    paddingBottom: 12,
     borderBottomWidth: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "900",
   },
   headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -496,58 +496,58 @@ const styles = StyleSheet.create({
 
   searchRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 6,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   searchInputWrap: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
+    height: 40,
+    borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   input: {
     flex: 1,
     fontSize: 14,
-    paddingVertical: Platform.select({ ios: 10, android: 8, default: 8 }),
+    paddingVertical: Platform.select({ ios: 8, android: 6, default: 6 }),
   },
 
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingTop: 2,
   },
 
   chipRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
     flexWrap: "wrap",
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
   },
-  chipText: { fontSize: 13, fontWeight: "800" },
+  chipText: { fontSize: 12, fontWeight: "800" },
 
   toggleWrap: {
-    width: 140,
-    height: 40,
+    width: 120,
+    height: 34,
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
-    padding: 3,
+    padding: 2,
   },
   toggleBtn: {
     flex: 1,
@@ -555,19 +555,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  toggleText: { fontSize: 13, fontWeight: "900" },
+  toggleText: { fontSize: 12, fontWeight: "900" },
 
   card: {
     marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 16,
+    marginTop: 10,
+    borderRadius: 14,
     borderWidth: 1,
     padding: 12,
   },
 
   poster: {
-    height: 170,
-    borderRadius: 14,
+    height: 140,
+    borderRadius: 12,
     borderWidth: 1,
     overflow: "hidden",
     position: "relative",
@@ -579,56 +579,56 @@ const styles = StyleSheet.create({
   },
   posterFallback: {
     flex: 1,
-    padding: 14,
+    padding: 12,
     justifyContent: "flex-end",
   },
-  posterTitle: { fontSize: 18, fontWeight: "900", lineHeight: 22 },
+  posterTitle: { fontSize: 16, fontWeight: "900", lineHeight: 20 },
 
   badge: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    top: 8,
+    right: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
   },
-  badgeText: { fontSize: 12, fontWeight: "900" },
+  badgeText: { fontSize: 11, fontWeight: "900" },
 
   title: {
     marginTop: 10,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "900",
-    lineHeight: 22,
+    lineHeight: 20,
   },
 
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginTop: 8,
+    gap: 6,
+    marginTop: 6,
   },
-  metaText: { fontSize: 13, fontWeight: "700" },
+  metaText: { fontSize: 13, fontWeight: "600" },
 
   footerRow: {
-    marginTop: 12,
+    marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   categoryChip: {
-    maxWidth: 160,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    maxWidth: 140,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
   },
-  categoryText: { fontSize: 12, fontWeight: "900" },
+  categoryText: { fontSize: 11, fontWeight: "900" },
 
   iconAction: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
