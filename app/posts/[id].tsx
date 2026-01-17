@@ -228,7 +228,7 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
   postTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 12, lineHeight: 28 },
   postContent: { fontSize: 16, color: colors.text, lineHeight: 24, marginBottom: 16 },
   flairContainer: { marginBottom: 12 },
-  flairBadge: { backgroundColor: colors.pillInactiveBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.pillInactiveBorder },
+  flairBadge: { backgroundColor: colors.surfaceMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.borderSoft },
   flairText: { fontSize: 12, fontWeight: '600', color: colors.accent },
   engagementSection: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   likeButton: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 4 },
