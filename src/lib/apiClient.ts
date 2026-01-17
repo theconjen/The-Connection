@@ -40,6 +40,16 @@ apiClient.interceptors.request.use(
       // Mobile apps use JWT token ONLY (no session cookies)
       const authToken = await SecureStore.getItemAsync('auth_token');
       if (authToken) {
+        // Validate token format (JWT has 3 parts: header.payload.signature)
+        const tokenParts = authToken.split('.');
+        if (tokenParts.length !== 3) {
+          console.error('[API] ⚠️ MALFORMED JWT TOKEN - Expected 3 parts, got:', tokenParts.length);
+          console.error('[API] Token preview:', authToken.substring(0, 50) + '...');
+          console.error('[API] User needs to log out and log back in to get a fresh token');
+        } else {
+          console.info('[API] ✓ Valid JWT token format (3 parts)');
+        }
+
         config.headers['Authorization'] = `Bearer ${authToken}`;
         console.info('[API] Using JWT token for auth');
       } else {

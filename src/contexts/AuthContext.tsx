@@ -79,13 +79,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Save JWT token (mobile apps use JWT exclusively, not session cookies)
       if (response.data.token) {
+        const token = response.data.token;
+        const tokenParts = token.split('.');
+
+        console.info('[AUTH] 🔑 Login successful - Received JWT token');
+        console.info('[AUTH] Token format valid:', tokenParts.length === 3 ? '✓ YES (3 parts)' : `✗ NO (${tokenParts.length} parts)`);
+        console.info('[AUTH] Token preview:', token.substring(0, 50) + '...');
+
         const { saveAuthToken } = await import('../lib/secureStorage');
-        await saveAuthToken(response.data.token);
-        console.info('[AUTH] JWT token saved successfully');
+        await saveAuthToken(token);
+        console.info('[AUTH] ✓ JWT token saved to SecureStore successfully');
       } else {
-        console.error('[AUTH] No JWT token in login response - authentication may fail');
+        console.error('[AUTH] ✗ No JWT token in login response - authentication may fail');
+        console.error('[AUTH] Response data:', JSON.stringify(response.data, null, 2));
       }
-      
+
       // If login response contains user data, use it directly
       if (response.data && response.data.id) {
         setUser(response.data);
