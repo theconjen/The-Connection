@@ -729,6 +729,12 @@ export default function FeedScreen({
 }: FeedScreenProps) {
   const { user } = useAuth();
   const { colors, colorScheme } = useTheme();
+
+  // DEBUG: Log theme colors
+  console.log('🎨 [FeedScreen] Theme:', colorScheme);
+  console.log('🎨 [FeedScreen] textPrimary:', colors.textPrimary);
+  console.log('🎨 [FeedScreen] textSecondary:', colors.textSecondary);
+  console.log('🎨 [FeedScreen] background:', colors.background);
   const [activeTab, setActiveTab] = useState<'recent' | 'popular'>('recent');
   const [showComposer, setShowComposer] = useState(false);
   const [postContent, setPostContent] = useState('');
