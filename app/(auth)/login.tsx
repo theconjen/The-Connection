@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { Colors } from '../../src/shared/colors';
+import { useTheme } from '../../src/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
@@ -21,6 +21,8 @@ export default function LoginScreen() {
   const { verified } = useLocalSearchParams();
   const isVerified = verified === '1' || verified === 'true';
   const { login, isAuthenticated, refresh } = useAuth();
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -71,7 +73,7 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Sign in to continue</Text>
           {isVerified && (
             <View style={styles.successPill}>
-              <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
+              <Ionicons name="checkmark-circle" size={18} color={colors.success} />
               <Text style={styles.successText}>Email verified. You can sign in now.</Text>
             </View>
           )}
@@ -110,7 +112,7 @@ export default function LoginScreen() {
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={24}
-                  color="#666"
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -122,7 +124,7 @@ export default function LoginScreen() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.primaryForeground} />
             ) : (
               <Text style={styles.buttonText}>Sign In</Text>
             )}
@@ -167,10 +169,10 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, theme: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -184,24 +186,24 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
   },
   successPill: {
     marginTop: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: '#ecfdf3',
+    backgroundColor: colors.statusAnswered,
     flexDirection: 'row',
     alignItems: 'center',
   },
   successText: {
-    color: '#166534',
+    color: colors.success,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
@@ -215,35 +217,37 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: colors.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.input,
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
+    color: colors.text,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.input,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
   },
   passwordInput: {
     flex: 1,
     padding: 16,
     fontSize: 16,
+    color: colors.text,
   },
   eyeIcon: {
     padding: 16,
   },
   button: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -253,7 +257,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#ffffff',
+    color: colors.primaryForeground,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -262,7 +266,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   forgotPasswordText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 14,
   },
   footer: {
@@ -271,11 +275,11 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   footerText: {
-    color: '#666',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   link: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -286,11 +290,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   termsText: {
-    color: '#999',
+    color: colors.textTertiary,
     fontSize: 12,
   },
   termsLink: {
-    color: '#999',
+    color: colors.textTertiary,
     fontSize: 12,
     textDecorationLine: 'underline',
   },

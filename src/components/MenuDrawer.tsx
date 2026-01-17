@@ -4,6 +4,7 @@ import { Text } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import apiClient from '../lib/apiClient';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface MenuDrawerProps {
   visible: boolean;
@@ -46,6 +47,8 @@ interface FriendSuggestion {
 }
 
 export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onInbox, hasInboxAccess, onSearch, onUserPress }: MenuDrawerProps) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -301,7 +304,7 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, theme: string) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -312,7 +315,7 @@ const styles = StyleSheet.create({
   drawer: {
     width: 360,
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: -2, height: 0 },
     shadowOpacity: 0.25,
@@ -331,12 +334,12 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#EFF3F4',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#0F1419',
+    color: colors.text,
   },
   closeButton: {
     width: 40,
@@ -353,10 +356,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: '#EFF3F4',
+    backgroundColor: colors.input,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#CFD9DE',
+    borderColor: colors.border,
   },
   searchIcon: {
     marginRight: 10,
@@ -365,7 +368,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     paddingVertical: 8,
-    color: '#0F1419',
+    color: colors.text,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   clearButton: {
@@ -386,10 +389,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     fontWeight: '500',
-    color: '#0F1419',
+    color: colors.text,
   },
   comingSoonBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.warning,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -397,7 +400,7 @@ const styles = StyleSheet.create({
   comingSoonText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#92400E',
+    color: colors.text,
   },
   content: {
     flex: 1,
@@ -412,12 +415,12 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: '#536471',
+    color: colors.textSecondary,
   },
   resultsHeader: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#536471',
+    color: colors.textSecondary,
     paddingHorizontal: 20,
     paddingVertical: 12,
     textTransform: 'uppercase',
@@ -434,7 +437,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#EFF3F4',
+    backgroundColor: colors.muted,
   },
   userInfo: {
     flex: 1,
@@ -442,12 +445,12 @@ const styles = StyleSheet.create({
   userDisplayName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0F1419',
+    color: colors.text,
     marginBottom: 2,
   },
   userUsername: {
     fontSize: 14,
-    color: '#536471',
+    color: colors.textSecondary,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -457,12 +460,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#0F1419',
+    color: colors.text,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#536471',
+    color: colors.textSecondary,
     marginTop: 8,
     textAlign: 'center',
   },
@@ -470,12 +473,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#EFF3F4',
+    borderTopColor: colors.border,
   },
   suggestionsHeader: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F1419',
+    color: colors.text,
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
@@ -485,13 +488,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   suggestionAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#EFF3F4',
+    backgroundColor: colors.muted,
   },
   suggestionInfo: {
     flex: 1,
@@ -500,15 +503,15 @@ const styles = StyleSheet.create({
   suggestionDisplayName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#0F1419',
+    color: colors.text,
   },
   suggestionUsername: {
     fontSize: 13,
-    color: '#536471',
+    color: colors.textSecondary,
   },
   suggestionReason: {
     fontSize: 12,
-    color: '#536471',
+    color: colors.textSecondary,
     marginTop: 2,
   },
 });

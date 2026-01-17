@@ -1769,7 +1769,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
   },
   trendingSection: {
     backgroundColor: colors.surface,
@@ -1795,28 +1795,28 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   hashtagBadge: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
+    backgroundColor: colors.pillInactiveBg,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: isDark ? '#2563EB' : '#BFDBFE',
+    borderColor: colors.pillInactiveBorder,
   },
   hashtagText: {
     fontSize: 13,
     fontWeight: '600',
-    color: isDark ? '#60A5FA' : '#1E40AF',
+    color: colors.pillInactiveText,
   },
   hashtagBadgeActive: {
-    backgroundColor: isDark ? '#2563EB' : '#3B82F6',
-    borderColor: isDark ? '#3B82F6' : '#2563EB',
+    backgroundColor: colors.pillActiveBg,
+    borderColor: colors.pillActiveBorder,
   },
   hashtagTextActive: {
-    color: '#FFFFFF',
+    color: colors.pillActiveText,
     fontWeight: '700',
   },
   hashtagCount: {
     fontSize: 11,
     fontWeight: '600',
-    color: isDark ? '#60A5FA' : '#1E40AF',
+    color: colors.accent,
     marginLeft: 4,
   },
   clearFilterButton: {
@@ -1841,7 +1841,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
+    backgroundColor: colors.surfaceMuted,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -1864,7 +1864,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: '#1D9BF0',
+    borderBottomColor: colors.accent,
   },
   tabText: {
     fontSize: 15,
@@ -1968,7 +1968,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     marginBottom: 12,
   },
   hashtagLink: {
-    color: theme === 'dark' ? '#60A5FA' : '#2563EB',
+    color: colors.accent,
     fontWeight: '600',
   },
   postActions: {

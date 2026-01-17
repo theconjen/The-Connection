@@ -45,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Use /api/user to get user data
       const response = await apiClient.get('/api/user');
+      console.info('[AuthContext] API response data:', JSON.stringify(response.data, null, 2));
+      console.info('[AuthContext] Permissions in response:', response.data?.permissions);
       setUser(response.data);
     } catch (error) {
       const status = (error as any)?.response?.status;

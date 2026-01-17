@@ -50,7 +50,7 @@ export function PostDetailScreen({
   comments = sampleComments,
   onBack,
 }: PostDetailScreenProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, theme } = useTheme();
   const [votes, setVotes] = useState(post.votes);
   const [voteStatus, setVoteStatus] = useState<'up' | 'down' | null>(null);
 
@@ -90,7 +90,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar
-        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
       />
 
       {/* Header */}

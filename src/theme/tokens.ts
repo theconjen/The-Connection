@@ -1,43 +1,83 @@
+// Brand colors - source of truth for brand identity
+export const brandColors = {
+  light: {
+    primary: '#0B132B',
+    secondary: '#222D99',
+    accent: '#4A90E2',
+    header: '#7B9CAF',
+  },
+  dark: {
+    primary: '#0F1833',
+    secondary: '#2B3BBD',
+    accent: '#6AA8FF',
+    header: '#8FA6BD',
+  },
+} as const;
+
 export const colors = {
   light: {
-    // Brand colors
-    primary: '#0B132B',
+    // Brand colors (use sparingly for buttons, highlights, CTAs)
+    primary: brandColors.light.primary,
     primaryForeground: '#FFFFFF',
-    secondary: '#222D99',
+    secondary: brandColors.light.secondary,
     secondaryForeground: '#FFFFFF',
-    accent: '#4A90E2',
+    accent: brandColors.light.accent,
     accentForeground: '#FFFFFF',
-
-    // Backgrounds
-    background: '#F9FAFB',
-    foreground: '#1F2937',
-    surface: '#FFFFFF',
-    surfaceSecondary: '#F3F4F6',
-
-    // Borders
-    border: '#E5E7EB',
-    borderLight: '#D1D5DB',
-
-    // Status colors
-    destructive: '#EF4444',
-    destructiveForeground: '#FFFFFF',
-    success: '#10B981',
-    successForeground: '#FFFFFF',
-    warning: '#F59E0B',
-    info: '#3B82F6',
-
-    // UI elements
-    card: '#FFFFFF',
-    cardForeground: '#111827',
-    header: '#7B9CAF', // Earth-toned blue for app header
+    header: brandColors.light.header,
     headerForeground: '#FFFFFF',
-    headerBorder: '#6A8B9D',
-    muted: '#F3F4F6',
-    mutedForeground: '#6B7280',
-    input: '#E5E7EB',
-    text: '#1F2937',
-    textSecondary: '#6B7280',
-    textTertiary: '#9CA3AF',
+
+    // Surfaces - earthy, editorial, paper-like
+    background: '#EFEAE5',        // Main screen background
+    foreground: '#1A1A1A',
+    surface: '#F8F4EF',           // Cards, panels
+    surfaceSecondary: '#F2EDE8',  // Nested cards, replies
+    surfaceNested: '#F2EDE8',     // Secondary panels
+    surfaceMuted: '#E9E3DD',      // Dividers, subtle sections
+
+    // Backgrounds (semantic aliases)
+    card: '#F8F4EF',              // Card background
+    cardNested: '#F2EDE8',        // Nested card background
+    cardForeground: '#1A1A1A',
+
+    // Borders - warm tones
+    border: '#E5DFD9',            // Card borders, separators
+    borderLight: '#DCD6D0',       // Very faint dividers
+    borderSubtle: '#DCD6D0',
+    headerBorder: '#E5DFD9',
+
+    // Text - hierarchy
+    text: '#1A1A1A',              // Headlines, titles
+    textPrimary: '#1A1A1A',
+    textSecondary: '#5B5B5B',     // Body text, labels
+    textTertiary: '#7A736D',      // Breadcrumbs, metadata
+    textMuted: '#7A736D',
+
+    // Pills / Chips / Tags
+    pillInactiveBg: '#F3EFE9',
+    pillInactiveBorder: '#E1DBD3',
+    pillInactiveText: '#5B5B5B',
+    pillActiveBg: '#2B2B2B',
+    pillActiveBorder: '#2B2B2B',
+    pillActiveText: '#FFFFFF',
+
+    // Status colors - Inbox states
+    statusNew: '#4A90E2',
+    statusAccepted: '#6AA8FF',
+    statusAnswered: '#5FD6A3',
+    statusDeclined: '#F2A1A8',
+
+    // Legacy status colors (for compatibility)
+    destructive: '#F2A1A8',
+    destructiveForeground: '#FFFFFF',
+    success: '#5FD6A3',
+    successForeground: '#1A1A1A',
+    warning: '#F59E0B',
+    info: '#4A90E2',
+
+    // Input
+    input: '#E5DFD9',
+    muted: '#E9E3DD',
+    mutedForeground: '#7A736D',
 
     // Social action colors (likes, reposts, bookmarks)
     like: '#F91880',
@@ -48,48 +88,72 @@ export const colors = {
     bookmarkActive: '#1A8CD8',
 
     // Icon colors
-    icon: '#536471',
-    iconActive: '#0F1419',
+    icon: '#5B5B5B',
+    iconActive: '#1A1A1A',
   },
   dark: {
-    // Brand colors (adjusted for dark mode with better vibrancy)
-    primary: '#5BA3F5',
+    // Brand colors (corrected for dark mode contrast)
+    primary: brandColors.dark.primary,
     primaryForeground: '#FFFFFF',
-    secondary: '#6B7DD9',
+    secondary: brandColors.dark.secondary,
     secondaryForeground: '#FFFFFF',
-    accent: '#70AEFF',
+    accent: brandColors.dark.accent,
     accentForeground: '#FFFFFF',
-
-    // Backgrounds - optimized for OLED and reduced eye strain
-    background: '#0F1419',
-    foreground: '#E7E9EA',
-    surface: '#16181C',
-    surfaceSecondary: '#1C1F23',
-
-    // Borders - improved visibility in dark mode
-    border: '#2F3336',
-    borderLight: '#3E4347',
-
-    // Status colors - improved contrast and visibility
-    destructive: '#FF6B6B',
-    destructiveForeground: '#FFFFFF',
-    success: '#51CF66',
-    successForeground: '#000000',
-    warning: '#FFD43B',
-    info: '#74C0FC',
-
-    // UI elements - optimized contrast ratios (WCAG AAA)
-    card: '#16181C',
-    cardForeground: '#FFFFFF',
-    header: '#5A7B8F', // Slightly lighter earth-toned blue for dark mode
+    header: brandColors.dark.header,
     headerForeground: '#FFFFFF',
-    headerBorder: '#4A6B7F',
-    muted: '#1C1F23',
-    mutedForeground: '#9CA3AF',
-    input: '#1C1F23',
-    text: '#E7E9EA',
-    textSecondary: '#9CA3AF',
-    textTertiary: '#B4B9BE',
+
+    // Surfaces - deep, clean, premium
+    background: '#0A0F1A',        // Main screen background
+    foreground: '#F1F4F7',
+    surface: '#111826',           // Cards, panels
+    surfaceSecondary: '#161E30',  // Nested cards, replies
+    surfaceNested: '#161E30',     // Secondary panels
+    surfaceMuted: '#0F1523',      // Subtle sections
+
+    // Backgrounds (semantic aliases)
+    card: '#111826',              // Card background
+    cardNested: '#161E30',        // Nested card background
+    cardForeground: '#F1F4F7',
+
+    // Borders - subtle dark tones
+    border: '#1F2A3F',            // Card borders
+    borderLight: '#1A2336',       // Subtle dividers
+    borderSubtle: '#1A2336',
+    headerBorder: '#1F2A3F',
+
+    // Text - hierarchy
+    text: '#F1F4F7',              // Primary text
+    textPrimary: '#F1F4F7',
+    textSecondary: '#B6C2D2',     // Secondary text
+    textTertiary: '#8FA0B5',      // Muted text
+    textMuted: '#8FA0B5',
+
+    // Pills / Chips / Tags (Dark)
+    pillInactiveBg: '#141C2C',
+    pillInactiveBorder: '#1F2A3F',
+    pillInactiveText: '#B6C2D2',
+    pillActiveBg: '#F1F4F7',
+    pillActiveBorder: '#F1F4F7',
+    pillActiveText: '#0A0F1A',
+
+    // Status colors - Inbox states (dark)
+    statusNew: '#6AA8FF',
+    statusAccepted: '#8AD4FF',
+    statusAnswered: '#8AFFC4',
+    statusDeclined: '#FF9AA2',
+
+    // Legacy status colors (for compatibility)
+    destructive: '#FF9AA2',
+    destructiveForeground: '#0A0F1A',
+    success: '#8AFFC4',
+    successForeground: '#0A0F1A',
+    warning: '#FFD43B',
+    info: '#6AA8FF',
+
+    // Input
+    input: '#161E30',
+    muted: '#0F1523',
+    mutedForeground: '#8FA0B5',
 
     // Social action colors (likes, reposts, bookmarks)
     like: '#F91880',
@@ -100,8 +164,8 @@ export const colors = {
     bookmarkActive: '#3DAEFF',
 
     // Icon colors
-    icon: '#9CA3AF',
-    iconActive: '#E7E9EA',
+    icon: '#B6C2D2',
+    iconActive: '#F1F4F7',
   },
 } as const;
 
