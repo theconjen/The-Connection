@@ -70,12 +70,12 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
       onPress={onPress}
       style={({ pressed }) => [
         {
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           opacity: pressed ? 0.95 : 1,
-          marginBottom: spacing.md,
+          marginBottom: 1,
           borderRadius: radii.lg,
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: colors.borderSubtle,
           overflow: 'hidden',
         },
       ]}

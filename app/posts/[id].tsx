@@ -162,7 +162,7 @@ export default function PostDetailScreen() {
           <Text style={styles.commentsTitle}>Comments ({comments?.length || 0})</Text>
 
           {commentsLoading ? (
-            <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
+            <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
           ) : !comments || comments.length === 0 ? (
             <Text style={styles.noComments}>No comments yet</Text>
           ) : (

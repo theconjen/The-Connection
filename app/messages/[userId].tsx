@@ -18,7 +18,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import apiClient from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { Colors } from '../../src/shared/colors';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 interface Message {
   id: string;
@@ -47,6 +47,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams() as { userId: string };
   const { user } = useAuth();
+  const { colors } = useTheme();
   const queryClient = useQueryClient();
   const scrollViewRef = useRef<ScrollView>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -241,6 +242,8 @@ export default function ChatScreen() {
     return 'User';
   }, [localMessages, otherUserId, otherUserData]);
 
+  const styles = getStyles(colors);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -313,27 +316,27 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+const getStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
   backButton: { padding: 8 },
-  backIcon: { fontSize: 24, color: Colors.primary },
-  title: { fontSize: 18, fontWeight: '600', color: '#1f2937' },
+  backIcon: { fontSize: 24, color: colors.primary },
+  title: { fontSize: 18, fontWeight: '600', color: colors.textPrimary },
   messagesContainer: { flex: 1 },
   messagesContent: { padding: 16 },
   messageBubble: { maxWidth: '75%', padding: 12, borderRadius: 16, marginBottom: 8 },
-  myMessage: { alignSelf: 'flex-end', backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
-  theirMessage: { alignSelf: 'flex-start', backgroundColor: '#fff', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#e5e7eb' },
-  messageText: { fontSize: 15, color: '#1f2937', marginBottom: 4 },
-  myMessageText: { color: '#fff' },
-  messageTime: { fontSize: 11, color: '#9ca3af' },
-  myMessageTime: { color: '#e9d5ff' },
+  myMessage: { alignSelf: 'flex-end', backgroundColor: colors.primary, borderBottomRightRadius: 4 },
+  theirMessage: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.borderSubtle },
+  messageText: { fontSize: 15, color: colors.textPrimary, marginBottom: 4 },
+  myMessageText: { color: colors.primaryForeground },
+  messageTime: { fontSize: 11, color: colors.textMuted },
+  myMessageTime: { color: colors.primaryForeground, opacity: 0.7 },
   emptyState: { alignItems: 'center', padding: 40, marginTop: 100 },
-  emptyStateText: { fontSize: 16, fontWeight: '600', color: '#6b7280', marginBottom: 4 },
-  emptyStateSubtext: { fontSize: 14, color: '#9ca3af' },
-  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb', alignItems: 'center' },
-  input: { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 100, marginRight: 8 },
-  sendButton: { backgroundColor: Colors.primary, borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 },
+  emptyStateText: { fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginBottom: 4 },
+  emptyStateSubtext: { fontSize: 14, color: colors.textMuted },
+  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSubtle, alignItems: 'center' },
+  input: { flex: 1, backgroundColor: colors.surfaceMuted, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 100, marginRight: 8, color: colors.textPrimary },
+  sendButton: { backgroundColor: colors.primary, borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 },
   sendButtonDisabled: { opacity: 0.5 },
-  sendButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  sendButtonText: { color: colors.primaryForeground, fontSize: 15, fontWeight: '600' },
 });
