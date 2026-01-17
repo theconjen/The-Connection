@@ -165,6 +165,26 @@ function formatWhen(iso: string) {
   }
 }
 
+// Event type icon mapping
+const EVENT_TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  'Sunday Service': 'church-outline',
+  'Worship': 'musical-notes-outline',
+  'Social': 'people-outline',
+  'Service': 'hand-left-outline',
+  'Bible Study': 'book-outline',
+  'Prayer': 'prism-outline',
+};
+
+// Default gradient colors for event types
+const EVENT_TYPE_GRADIENTS: Record<string, [string, string]> = {
+  'Sunday Service': ['#4A5568', '#2D3748'],
+  'Worship': ['#805AD5', '#553C9A'],
+  'Social': ['#48BB78', '#38A169'],
+  'Service': ['#ED8936', '#DD6B20'],
+  'Bible Study': ['#3182CE', '#2C5282'],
+  'Prayer': ['#9F7AEA', '#805AD5'],
+};
+
 function EventCard({
   item,
   colors,
@@ -183,6 +203,10 @@ function EventCard({
       ? `${item.distanceMiles.toFixed(1)} mi`
       : null;
 
+  const eventType = item.category || 'Sunday Service';
+  const eventIcon = EVENT_TYPE_ICONS[eventType] || 'calendar-outline';
+  const [gradientStart, gradientEnd] = EVENT_TYPE_GRADIENTS[eventType] || ['#4A5568', '#2D3748'];
+
   return (
     <Pressable
       onPress={onPress}
@@ -191,11 +215,13 @@ function EventCard({
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
-      {/* Poster block */}
+      {/* Poster block with default gradient */}
       <View
         style={[
           styles.poster,
-          { backgroundColor: colors.cardNested, borderColor: colors.border },
+          item.posterUrl
+            ? { backgroundColor: colors.cardNested, borderColor: colors.border }
+            : { backgroundColor: gradientStart, borderColor: colors.border }
         ]}
       >
         {item.posterUrl ? (
@@ -206,19 +232,22 @@ function EventCard({
           </View>
         ) : (
           <View style={styles.posterFallback}>
-            <Text
-              style={[styles.posterTitle, { color: colors.text }]}
-              numberOfLines={2}
-            >
-              {item.title}
-            </Text>
+            {/* Event type icon */}
+            <View style={styles.posterIconContainer}>
+              <Ionicons name={eventIcon} size={32} color="rgba(255,255,255,0.9)" />
+            </View>
+
+            {/* Event type badge */}
+            <View style={styles.posterTypeBadge}>
+              <Text style={styles.posterTypeText}>{eventType}</Text>
+            </View>
           </View>
         )}
 
         {/* Private badge */}
         {item.isPrivate ? (
-          <View style={[styles.badge, { borderColor: colors.border, backgroundColor: colors.pillInactiveBg }]}>
-            <Text style={[styles.badgeText, { color: colors.text }]}>
+          <View style={[styles.badge, { borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.9)' }]}>
+            <Text style={[styles.badgeText, { color: '#1A1A1A' }]}>
               Private
             </Text>
           </View>
@@ -232,7 +261,7 @@ function EventCard({
 
       {/* Meta rows */}
       <View style={styles.metaRow}>
-        <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+        <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
         <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
           {formatWhen(item.startsAt)}
         </Text>
@@ -241,7 +270,7 @@ function EventCard({
       <View style={styles.metaRow}>
         <Ionicons
           name={item.isOnline ? "videocam-outline" : "location-outline"}
-          size={14}
+          size={13}
           color={colors.textSecondary}
         />
         <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
@@ -252,22 +281,20 @@ function EventCard({
 
       {/* Footer actions */}
       <View style={styles.footerRow}>
-        {item.category ? (
-          <View
-            style={[
-              styles.categoryChip,
-              { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
-            ]}
-          >
-            <Text style={[styles.categoryText, { color: colors.text }]} numberOfLines={1}>
-              {item.category}
-            </Text>
-          </View>
-        ) : (
-          <View />
-        )}
+        {/* Event type chip - always show */}
+        <View
+          style={[
+            styles.categoryChip,
+            { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
+          ]}
+        >
+          <Ionicons name={eventIcon} size={11} color={colors.text} style={{ marginRight: 4 }} />
+          <Text style={[styles.categoryText, { color: colors.text }]} numberOfLines={1}>
+            {eventType}
+          </Text>
+        </View>
 
-        <View style={{ flexDirection: "row", gap: 8 }}>
+        <View style={{ flexDirection: "row", gap: 6 }}>
           <Pressable
             hitSlop={10}
             onPress={() => {
@@ -278,7 +305,7 @@ function EventCard({
               { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
             ]}
           >
-            <Ionicons name="bookmark-outline" size={16} color={colors.text} />
+            <Ionicons name="bookmark-outline" size={15} color={colors.text} />
           </Pressable>
 
           <Pressable
@@ -291,7 +318,7 @@ function EventCard({
               { backgroundColor: colors.pillInactiveBg, borderColor: colors.pillInactiveBorder },
             ]}
           >
-            <Ionicons name="checkmark-circle-outline" size={16} color={colors.text} />
+            <Ionicons name="checkmark-circle-outline" size={15} color={colors.text} />
           </Pressable>
         </View>
       </View>
@@ -559,15 +586,15 @@ const styles = StyleSheet.create({
 
   card: {
     marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 14,
+    marginTop: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 12,
+    padding: 10,
   },
 
   poster: {
-    height: 140,
-    borderRadius: 12,
+    height: 100,
+    borderRadius: 10,
     borderWidth: 1,
     overflow: "hidden",
     position: "relative",
@@ -579,56 +606,73 @@ const styles = StyleSheet.create({
   },
   posterFallback: {
     flex: 1,
-    padding: 12,
-    justifyContent: "flex-end",
+    padding: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  posterIconContainer: {
+    marginBottom: 6,
+  },
+  posterTypeBadge: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  posterTypeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
   },
   posterTitle: { fontSize: 16, fontWeight: "900", lineHeight: 20 },
 
   badge: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    top: 6,
+    right: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1,
   },
-  badgeText: { fontSize: 11, fontWeight: "900" },
+  badgeText: { fontSize: 10, fontWeight: "900" },
 
   title: {
-    marginTop: 10,
-    fontSize: 16,
-    fontWeight: "900",
-    lineHeight: 20,
+    marginTop: 8,
+    fontSize: 15,
+    fontWeight: "800",
+    lineHeight: 19,
   },
 
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 6,
+    gap: 5,
+    marginTop: 5,
   },
-  metaText: { fontSize: 13, fontWeight: "600" },
+  metaText: { fontSize: 12, fontWeight: "600" },
 
   footerRow: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   categoryChip: {
-    maxWidth: 140,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    maxWidth: 150,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
   },
-  categoryText: { fontSize: 11, fontWeight: "900" },
+  categoryText: { fontSize: 10, fontWeight: "900" },
 
   iconAction: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
