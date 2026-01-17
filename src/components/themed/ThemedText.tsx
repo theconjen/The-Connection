@@ -1,44 +1,56 @@
 import React from 'react';
-import { Text, TextProps, StyleSheet } from 'react-native';
+import { Text, TextProps, TextStyle } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
-import { typography } from '../../theme/tokens';
+import type { TextVariant, FontWeightName } from '../../theme/typography';
+import { getDefaultWeightForVariant, getTypographyStyle } from '../../theme/typography';
 
-interface ThemedTextProps extends TextProps {
-  variant?: 'h1' | 'h2' | 'h3' | 'body' | 'bodyLarge' | 'caption' | 'small';
+type ThemedTextProps = TextProps & {
+  variant?: TextVariant;
+  weight?: FontWeightName; // regular | medium | semibold | bold
   color?: 'primary' | 'secondary' | 'muted' | 'inverse';
-}
+  muted?: boolean; // Shorthand for color="muted"
+};
 
 export function ThemedText({
   variant = 'body',
-  color = 'primary',
+  weight,
+  color,
+  muted,
   style,
   ...props
 }: ThemedTextProps) {
-  const { colors } = useTheme();
+  const { colors, typography } = useTheme();
 
-  const textColor =
-    color === 'primary'
-      ? colors.textPrimary
-      : color === 'secondary'
-      ? colors.textSecondary
-      : color === 'muted'
-      ? colors.textMuted
-      : colors.textInverse;
+  // Determine color
+  const textColor = muted || color === 'muted'
+    ? colors.textMuted
+    : color === 'secondary'
+    ? colors.textSecondary
+    : color === 'inverse'
+    ? colors.textInverse
+    : colors.textPrimary;
 
-  const typographyStyle = typography[variant];
+  // Determine font weight (use weight prop or default for variant)
+  const chosenWeight = weight ?? getDefaultWeightForVariant(variant);
+
+  // Get font family for the chosen weight
+  const fontFamily = typography.family[chosenWeight] ?? typography.family.regular;
+
+  // Get typography style (fontSize, lineHeight)
+  const variantStyle = getTypographyStyle(variant);
 
   return (
     <Text
+      {...props}
       style={[
         {
           color: textColor,
-          fontSize: typographyStyle.fontSize,
-          fontWeight: typographyStyle.fontWeight,
-          lineHeight: typographyStyle.lineHeight,
+          fontFamily,
+          fontSize: variantStyle.fontSize,
+          lineHeight: variantStyle.lineHeight,
         },
         style,
       ]}
-      {...props}
     />
   );
 }

@@ -4,6 +4,8 @@
  * Premium, modern, non-cringey palette with warm paper (light) and ink night (dark)
  */
 
+import { typography } from './typography';
+
 // Brand identity colors (use for primary actions, headers, highlights)
 export const brandColors = {
   primary: '#0B132B',      // Ink navy
@@ -192,16 +194,8 @@ export const shadows = {
   },
 } as const;
 
-// Typography scale
-export const typography = {
-  h1: { fontSize: 28, fontWeight: '700' as const, lineHeight: 34 },
-  h2: { fontSize: 22, fontWeight: '600' as const, lineHeight: 28 },
-  h3: { fontSize: 18, fontWeight: '600' as const, lineHeight: 24 },
-  body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 22 },
-  bodyLarge: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
-  caption: { fontSize: 13, fontWeight: '400' as const, lineHeight: 18 },
-  small: { fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
-} as const;
+// Typography - imported from typography.ts (Figtree font system)
+export { typography } from './typography';
 
 // Legacy typeScale for backwards compatibility
 export const typeScale = {

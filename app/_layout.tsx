@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { ThemeProvider } from '../src/contexts/ThemeContext';
 import { CreateMenuProvider } from '../src/contexts/CreateMenuContext';
-import { useFonts, PlayfairDisplay_400Regular, PlayfairDisplay_500Medium, PlayfairDisplay_600SemiBold, PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
+import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { Text, TextInput, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -13,7 +13,7 @@ import { initializeNotifications, cleanupNotifications, unregisterPushToken, get
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
 
-// Global font configuration - Apply Playfair Display to ALL text
+// Global font configuration - Apply Figtree to ALL text
 if (Platform.OS !== 'web') {
   // Override Text component default props
   const textRender = Text.render;
@@ -22,14 +22,14 @@ if (Platform.OS !== 'web') {
   Text.render = function (props, ref) {
     return textRender.call(this, {
       ...props,
-      style: [{ fontFamily: 'PlayfairDisplay_500Medium' }, props.style],
+      style: [{ fontFamily: 'Figtree-Regular' }, props.style],
     }, ref);
   };
 
   TextInput.render = function (props, ref) {
     return textInputRender.call(this, {
       ...props,
-      style: [{ fontFamily: 'PlayfairDisplay_500Medium' }, props.style],
+      style: [{ fontFamily: 'Figtree-Regular' }, props.style],
     }, ref);
   };
 }
@@ -130,10 +130,10 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_500Medium,
-    PlayfairDisplay_600SemiBold,
-    PlayfairDisplay_700Bold,
+    'Figtree-Regular': require('../assets/fonts/Figtree-Regular.ttf'),
+    'Figtree-Medium': require('../assets/fonts/Figtree-Medium.ttf'),
+    'Figtree-SemiBold': require('../assets/fonts/Figtree-SemiBold.ttf'),
+    'Figtree-Bold': require('../assets/fonts/Figtree-Bold.ttf'),
   });
 
   useEffect(() => {
