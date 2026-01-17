@@ -56,15 +56,15 @@ export default function CreateEventScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // Fetch user's communities (only where user is moderator or admin)
+  // Fetch user's communities (only where user is moderator or owner)
   const { data: communities, isLoading: communitiesLoading } = useQuery<Community[]>({
     queryKey: ['communities', 'moderator'],
     queryFn: async () => {
       const allCommunities = await communitiesAPI.getAll();
-      // Filter to only communities where user is moderator or admin
+      // Filter to only communities where user is moderator or owner
       return allCommunities.filter((c: any) => {
         const role = c.role || c.userRole;
-        return role === 'moderator' || role === 'admin';
+        return role === 'moderator' || role === 'owner';
       });
     },
   });
@@ -175,7 +175,7 @@ export default function CreateEventScreen() {
             </TouchableOpacity>
             {communities && communities.length === 0 && !communitiesLoading && (
               <Text style={[styles.helpText, { color: colors.textMuted, marginTop: 8 }]}>
-                You must be a moderator or admin of a community to create events. Join or create a community first.
+                You must be an owner or moderator of a community to create events. Join or create a community first.
               </Text>
             )}
           </View>
