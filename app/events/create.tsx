@@ -15,14 +15,17 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { eventsAPI } from '../../src/lib/apiClient';
-import { Colors } from '../../src/shared/colors';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 export default function CreateEventScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { communityId } = useLocalSearchParams() as { communityId?: string };
+  const { colors, colorScheme } = useTheme();
+  const styles = getStyles(colors, colorScheme);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -33,6 +36,9 @@ export default function CreateEventScreen() {
     mutationFn: (data: any) => eventsAPI.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      if (communityId) {
+        queryClient.invalidateQueries({ queryKey: ['community-events', parseInt(communityId)] });
+      }
       Alert.alert('Success', 'Event created!', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -59,6 +65,7 @@ export default function CreateEventScreen() {
       description: description.trim(),
       location: location.trim() || undefined,
       startTime: new Date(startTime).toISOString(),
+      communityId: communityId ? parseInt(communityId) : undefined,
     });
   };
 
@@ -84,6 +91,7 @@ export default function CreateEventScreen() {
               value={title}
               onChangeText={setTitle}
               placeholder="Event title"
+              placeholderTextColor={colors.mutedForeground}
               maxLength={100}
             />
           </View>
@@ -95,6 +103,7 @@ export default function CreateEventScreen() {
               value={description}
               onChangeText={setDescription}
               placeholder="Event description"
+              placeholderTextColor={colors.mutedForeground}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -109,6 +118,7 @@ export default function CreateEventScreen() {
               value={location}
               onChangeText={setLocation}
               placeholder="Event location"
+              placeholderTextColor={colors.mutedForeground}
               maxLength={200}
             />
           </View>
@@ -120,6 +130,7 @@ export default function CreateEventScreen() {
               value={startTime}
               onChangeText={setStartTime}
               placeholder="2025-01-15 18:00"
+              placeholderTextColor={colors.mutedForeground}
               maxLength={16}
             />
             <Text style={styles.hint}>Format: 2025-01-15 18:00</Text>
@@ -144,20 +155,82 @@ export default function CreateEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  cancelText: { color: Colors.primary, fontSize: 16, fontWeight: '600' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
-  content: { flex: 1 },
-  form: { padding: 20 },
-  inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 8 },
-  input: { backgroundColor: '#fff', borderRadius: 8, padding: 16, fontSize: 16, borderWidth: 1, borderColor: '#d1d5db' },
-  textArea: { minHeight: 100, paddingTop: 12 },
-  hint: { fontSize: 12, color: '#9ca3af', marginTop: 4 },
-  footer: { backgroundColor: '#fff', padding: 20, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
-  createButton: { backgroundColor: Colors.primary, borderRadius: 8, padding: 16, alignItems: 'center' },
-  createButtonDisabled: { opacity: 0.6 },
-  createButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 60,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  cancelText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.foreground,
+  },
+  content: {
+    flex: 1,
+  },
+  form: {
+    padding: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.foreground,
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.foreground,
+  },
+  textArea: {
+    minHeight: 100,
+    paddingTop: 12,
+  },
+  hint: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    marginTop: 4,
+  },
+  footer: {
+    backgroundColor: colors.card,
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  createButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+  },
+  createButtonDisabled: {
+    opacity: 0.6,
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

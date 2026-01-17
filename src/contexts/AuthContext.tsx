@@ -12,6 +12,8 @@ interface User {
   profileImageUrl?: string;
   bio?: string;
   onboardingCompleted?: boolean;
+  role?: string; // admin, pastor, leader, member
+  permissions?: string[]; // inbox_access, manage_experts, etc.
 }
 
 interface RegisterPayload {
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuth = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Use /api/user to get user data
       const response = await apiClient.get('/api/user');
       setUser(response.data);
     } catch (error) {
@@ -72,26 +75,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await apiClient.post('/api/auth/login', { username, password });
 
-      // Save JWT token if present (for mobile app API auth)
+      // Save JWT token (mobile apps use JWT exclusively, not session cookies)
       if (response.data.token) {
         const { saveAuthToken } = await import('../lib/secureStorage');
         await saveAuthToken(response.data.token);
-        console.info('JWT token saved successfully');
-      }
-
-      // Extract and save the session cookie directly
-      const setCookieHeader = response.headers['set-cookie'];
-      if (setCookieHeader) {
-        const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
-        const sessionCookie = cookies.find((c: string) => c.includes('sessionId='));
-        if (sessionCookie) {
-          const cookieValue = sessionCookie.split(';')[0];
-          // Save directly to SecureStore
-          await SecureStore.setItemAsync('sessionCookie', cookieValue);
-          
-          // Small delay to ensure cookie is persisted
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        console.info('[AUTH] JWT token saved successfully');
+      } else {
+        console.error('[AUTH] No JWT token in login response - authentication may fail');
       }
       
       // If login response contains user data, use it directly
@@ -173,11 +163,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear both session cookie and JWT token
-      await Promise.all([
-        SecureStore.deleteItemAsync('sessionCookie').catch(() => {}),
-        SecureStore.deleteItemAsync('auth_token').catch(() => {}),
-      ]);
+      // Clear JWT token (mobile apps don't use session cookies)
+      await SecureStore.deleteItemAsync('auth_token').catch(() => {});
       setUser(null);
     }
   };

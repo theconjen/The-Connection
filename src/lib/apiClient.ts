@@ -2,20 +2,20 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
-// Get API URL from app config (supports production and development)
-// Production: Uses apiBase from app.json extra config
-// Development: Falls back to localhost for local testing
+// Get API URL from app config (exclusive to Render backend)
+// Always uses Render backend URL from app.json extra config
 const getApiBaseUrl = () => {
-  // Try to get from app config first (production builds)
+  // Always use Render backend (no localhost fallback)
   const configApiBase = Constants.expoConfig?.extra?.apiBase;
   if (configApiBase) {
-    console.log('[API] Using production API:', configApiBase);
+    console.info('[API] Using Render backend:', configApiBase);
     return configApiBase;
   }
 
-  // Fallback to localhost for local development
-  console.log('[API] Using local development API: http://localhost:5001');
-  return 'http://localhost:5001';
+  // Hardcoded fallback to Render backend (never localhost)
+  const renderUrl = 'https://api.theconnection.app';
+  console.info('[API] Using hardcoded Render backend:', renderUrl);
+  return renderUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -37,23 +37,17 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      // Try JWT token first (preferred for mobile)
+      // Mobile apps use JWT token ONLY (no session cookies)
       const authToken = await SecureStore.getItemAsync('auth_token');
       if (authToken) {
         config.headers['Authorization'] = `Bearer ${authToken}`;
         console.info('[API] Using JWT token for auth');
       } else {
-        console.warn('[API] No JWT token found');
+        console.warn('[API] No JWT token found - user may not be authenticated');
       }
 
-      // Also try session cookie as fallback
-      const sessionCookie = await SecureStore.getItemAsync('sessionCookie');
-      if (sessionCookie) {
-        config.headers['Cookie'] = sessionCookie;
-        console.info('[API] Using session cookie for auth');
-      } else {
-        console.warn('[API] No session cookie found');
-      }
+      // Do NOT send session cookies - mobile apps use JWT tokens exclusively
+      // Session cookies cause the backend to ignore JWT tokens
 
       console.info('[API Request]', config.method?.toUpperCase(), config.url);
     } catch (error) {
@@ -64,19 +58,11 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to capture session cookie
+// Response interceptor for logging and error handling
 apiClient.interceptors.response.use(
   async (response) => {
     console.info('[API Response]', response.status, response.config.url);
-    const setCookieHeader = response.headers['set-cookie'];
-    if (setCookieHeader) {
-      const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
-      const sessionCookie = cookies.find((c: string) => c.includes('sessionId='));
-      if (sessionCookie) {
-        const cookieValue = sessionCookie.split(';')[0];
-        await SecureStore.setItemAsync('sessionCookie', cookieValue);
-      }
-    }
+    // Mobile apps use JWT tokens only - do NOT capture session cookies
     return response;
   },
   (error) => {
@@ -90,7 +76,11 @@ apiClient.interceptors.response.use(
       const suppressedErrors = [
         { status: 400, messageIncludes: 'Already a member' },
         { status: 400, messageIncludes: 'already a member' },
+        { status: 400, messageIncludes: 'Already bookmarked' }, // Bookmark toggle behavior
+        { status: 400, messageIncludes: 'Already liked' }, // Like toggle behavior
+        { status: 403, messageIncludes: 'You do not have access to this private event' }, // Private events
         { status: 404, url: '/api/microblogs/trending/combined' }, // Backend endpoint not deployed yet
+        { status: 500, url: '/api/user/suggestions/friends' }, // Friend suggestions being deployed
       ];
 
       const shouldSuppress = suppressedErrors.some(
@@ -148,7 +138,13 @@ export const microblogsAPI = {
 // Communities API
 export const communitiesAPI = {
   getAll: () => apiClient.get('/api/communities').then(res => res.data),
-  getById: (id: number) => apiClient.get(`/api/communities/${id}`).then(res => res.data),
+  getById: (id: number) => apiClient.get(`/api/communities/${id}`, {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  }).then(res => res.data),
   create: (data: {
     name: string;
     description: string;

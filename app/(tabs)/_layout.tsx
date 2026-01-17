@@ -1,6 +1,7 @@
 import { Tabs, useRouter } from 'expo-router';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { useCreateMenu } from '../../src/contexts/CreateMenuContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { FanMenu } from '../../src/components/FanMenu';
@@ -9,14 +10,25 @@ export default function TabsLayout() {
   const { colors } = useTheme();
   const router = useRouter();
   const { isMenuOpen, openMenu, closeMenu } = useCreateMenu();
+  const { user } = useAuth();
 
+  // Check if user is admin
+  const isAdmin = user?.role === 'admin';
+
+  // Check if user has inbox access permission
+  const hasInboxAccess = user?.permissions?.includes('inbox_access') || false;
+
+  // Debug logging for inbox access
+  console.log('[Tab Layout] User:', user?.username);
+  console.log('[Tab Layout] Permissions:', user?.permissions);
+  console.log('[Tab Layout] Has Inbox Access:', hasInboxAccess);
 
   // Custom icon colors matching the design
   const iconColors = {
     feed: '#4A90E2',        // Blue
     communities: '#9B59B6', // Purple
     events: '#5B9BD5',      // Blue
-    forum: '#E67E22',       // Orange
+    apologetics: '#27AE60', // Green
   };
 
   const handleCreateFeed = () => {
@@ -29,6 +41,10 @@ export default function TabsLayout() {
 
   const handleCreateForum = () => {
     router.push('/create-forum-post'); // Reddit-style forum post with anonymous option
+  };
+
+  const handleCreateEvent = () => {
+    router.push('/events/create');
   };
 
   return (
@@ -129,21 +145,33 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="forum"
+        name="apologetics"
         options={{
-          title: 'Forum',
+          title: 'Apologetics',
           tabBarIcon: ({ focused, size }) => (
             <Ionicons
-              name={focused ? "chatbubbles" : "chatbubbles-outline"}
+              name={focused ? "book" : "book-outline"}
               size={size}
-              color={focused ? iconColors.forum : colors.textSecondary}
+              color={focused ? iconColors.apologetics : colors.textSecondary}
             />
           ),
-          tabBarActiveTintColor: iconColors.forum,
+          tabBarActiveTintColor: iconColors.apologetics,
+        }}
+      />
+      <Tabs.Screen
+        name="inbox"
+        options={{
+          href: null, // Hidden from tab bar, accessible only through Menu drawer
         }}
       />
       <Tabs.Screen
         name="messages"
+        options={{
+          href: null, // Hide from tab bar, but keep route accessible
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
         options={{
           href: null, // Hide from tab bar, but keep route accessible
         }}
@@ -156,6 +184,8 @@ export default function TabsLayout() {
         onCreateFeed={handleCreateFeed}
         onCreateCommunity={handleCreateCommunity}
         onCreateForum={handleCreateForum}
+        onCreateEvent={handleCreateEvent}
+        isAdmin={isAdmin}
       />
     </View>
   );

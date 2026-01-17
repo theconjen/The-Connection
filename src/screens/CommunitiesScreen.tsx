@@ -436,11 +436,11 @@ function CategoryCard({
       <View style={{ flex: 1 }}>
         <Text
           variant="caption"
-          style={{ fontWeight: '700', color: '#0B132B', lineHeight: 16 }}
+          style={{ fontWeight: '700', color: '#FFFFFF', lineHeight: 16 }}
         >
           {category.title}
         </Text>
-        <Text style={{ fontSize: 10, color: category.accentColor, fontWeight: '500' }}>
+        <Text style={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.85)', fontWeight: '500' }}>
           {category.count} groups
         </Text>
       </View>
@@ -645,7 +645,7 @@ export function CommunitiesScreen({
   selectedCategory,
   onClearCategory,
 }: CommunitiesScreenProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, colorScheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
@@ -655,9 +655,12 @@ export function CommunitiesScreen({
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Fetch user's communities for "Your Communities" section
-  const { data: userCommunities = [] } = useQuery({
+  const { data: userCommunities = [], refetch: refetchCommunities } = useQuery({
     queryKey: ['/api/communities'],
     queryFn: communitiesAPI.getAll,
+    staleTime: 0, // Always fetch fresh data to ensure membership status is current
+    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when app comes to foreground
   });
 
   // Map communities to channels format for the horizontal scroll
@@ -730,66 +733,7 @@ export function CommunitiesScreen({
     loadCommunities();
   }, [searchQuery, selectedFilters, userLocation]);
 
-  // Featured Categories - Rotates weekly based on current week
-  const getFeaturedCategories = (): Category[] => {
-    // Get current week of year (0-51)
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now.getTime() - start.getTime();
-    const oneWeek = 1000 * 60 * 60 * 24 * 7;
-    const weekOfYear = Math.floor(diff / oneWeek);
-
-    // All possible featured categories from filters
-    const allCategories = [
-      // Ministry Types
-      { id: 'bible-study', title: 'Bible Study', iconName: 'book', bgColor: '#FEF3C7', accentColor: '#D97706', borderColor: '#FDE68A' },
-      { id: 'prayer', title: 'Prayer', iconName: 'hand-right', bgColor: '#E0E7FF', accentColor: '#4F46E5', borderColor: '#C7D2FE' },
-      { id: 'worship', title: 'Worship', iconName: 'musical-notes', bgColor: '#FFE4E6', accentColor: '#E11D48', borderColor: '#FECDD3' },
-      { id: 'missions', title: 'Missions', iconName: 'airplane', bgColor: '#DBEAFE', accentColor: '#2563EB', borderColor: '#BFDBFE' },
-      { id: 'discipleship', title: 'Discipleship', iconName: 'people', bgColor: '#F5F3FF', accentColor: '#7C3AED', borderColor: '#EDE9FE' },
-      { id: 'youth', title: 'Youth Ministry', iconName: 'school', bgColor: '#FEF3C7', accentColor: '#F59E0B', borderColor: '#FDE68A' },
-      // Activities
-      { id: 'sports', title: 'Sports', iconName: 'basketball', bgColor: '#FFEDD5', accentColor: '#EA580C', borderColor: '#FED7AA' },
-      { id: 'music', title: 'Music', iconName: 'musical-notes', bgColor: '#FFE4E6', accentColor: '#DB2777', borderColor: '#FECDD3' },
-      { id: 'hiking', title: 'Hiking', iconName: 'trail-sign', bgColor: '#ECFDF5', accentColor: '#059669', borderColor: '#D1FAE5' },
-      { id: 'arts', title: 'Arts & Crafts', iconName: 'color-palette', bgColor: '#FDF2F8', accentColor: '#DB2777', borderColor: '#FCE7F3' },
-      { id: 'book-club', title: 'Book Club', iconName: 'book', bgColor: '#EFF6FF', accentColor: '#3B82F6', borderColor: '#DBEAFE' },
-      { id: 'service', title: 'Service Projects', iconName: 'heart', bgColor: '#FECDD3', accentColor: '#E11D48', borderColor: '#FFE4E6' },
-      // Professions
-      { id: 'healthcare', title: 'Healthcare', iconName: 'medical', bgColor: '#DBEAFE', accentColor: '#2563EB', borderColor: '#BFDBFE' },
-      { id: 'teachers', title: 'Teachers', iconName: 'school', bgColor: '#FEF3C7', accentColor: '#D97706', borderColor: '#FDE68A' },
-      { id: 'business', title: 'Business', iconName: 'briefcase', bgColor: '#EFF6FF', accentColor: '#2563EB', borderColor: '#DBEAFE' },
-      { id: 'tech', title: 'Tech', iconName: 'hardware-chip', bgColor: '#E0E7FF', accentColor: '#4F46E5', borderColor: '#C7D2FE' },
-      { id: 'creatives', title: 'Creatives', iconName: 'color-palette', bgColor: '#FDF2F8', accentColor: '#DB2777', borderColor: '#FCE7F3' },
-      { id: 'blue-collar', title: 'Blue Collar', iconName: 'construct', bgColor: '#FFEDD5', accentColor: '#EA580C', borderColor: '#FED7AA' },
-      // Life Stages
-      { id: 'young-professionals', title: 'Young Professionals', iconName: 'briefcase', bgColor: '#E0F2FE', accentColor: '#0284C7', borderColor: '#BAE6FD' },
-      { id: 'singles', title: 'Singles', iconName: 'person', bgColor: '#F5F3FF', accentColor: '#7C3AED', borderColor: '#EDE9FE' },
-      { id: 'married', title: 'Married', iconName: 'heart', bgColor: '#FFE4E6', accentColor: '#E11D48', borderColor: '#FECDD3' },
-      { id: 'parents', title: 'Parents', iconName: 'heart-circle', bgColor: '#FECDD3', accentColor: '#BE123C', borderColor: '#FFE4E6' },
-      { id: 'seniors', title: 'Seniors', iconName: 'people', bgColor: '#ECFDF5', accentColor: '#059669', borderColor: '#D1FAE5' },
-      // Recovery
-      { id: 'recovery', title: 'Recovery', iconName: 'medical', bgColor: '#DBEAFE', accentColor: '#2563EB', borderColor: '#BFDBFE' },
-      { id: 'grief-support', title: 'Grief Support', iconName: 'heart', bgColor: '#E0E7FF', accentColor: '#4F46E5', borderColor: '#C7D2FE' },
-    ];
-
-    // Rotate through categories: show 4 different ones each week
-    const startIndex = (weekOfYear * 4) % allCategories.length;
-    const featured: Category[] = [];
-
-    for (let i = 0; i < 4; i++) {
-      const index = (startIndex + i) % allCategories.length;
-      const cat = allCategories[index];
-      featured.push({
-        ...cat,
-        count: Math.floor(Math.random() * 30 + 5).toString(), // Random count between 5-35
-      });
-    }
-
-    return featured;
-  };
-
-  const categories = getFeaturedCategories();
+  // Featured Categories section removed - simplified UI
 
   // Filter communities by selected category
   const filteredCommunities = React.useMemo(() => {
@@ -855,13 +799,11 @@ export function CommunitiesScreen({
   // Communities are now fetched from the API via useEffect above
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar
-        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+      <StatusBar barStyle="light-content" />
 
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.surface }}
         contentContainerStyle={{ paddingBottom: 80 }}
       >
         {/* App Header with Logo */}
@@ -909,7 +851,7 @@ export function CommunitiesScreen({
                 <ChannelCard
                   key={channel.id}
                   channel={channel}
-                  onPress={() => onCommunityPress?.(channel.communityId)}
+                  onPress={() => onCommunityPress?.({ id: channel.communityId } as any)}
                 />
               ))}
             </ScrollView>
@@ -986,47 +928,6 @@ export function CommunitiesScreen({
           </Pressable>
         </View>
 
-        {/* Categories Section */}
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.xs,
-              marginBottom: spacing.sm,
-            }}
-          >
-            <Ionicons name="sparkles" size={18} color="#F59E0B" />
-            <Text variant="bodySmall" style={{ fontWeight: '700' }}>
-              Featured Categories
-            </Text>
-          </View>
-
-          {/* 2x2 Grid */}
-          <View style={{ gap: spacing.sm }}>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <CategoryCard
-                category={categories[0]}
-                onPress={() => onCategoryPress?.(categories[0])}
-              />
-              <CategoryCard
-                category={categories[1]}
-                onPress={() => onCategoryPress?.(categories[1])}
-              />
-            </View>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <CategoryCard
-                category={categories[2]}
-                onPress={() => onCategoryPress?.(categories[2])}
-              />
-              <CategoryCard
-                category={categories[3]}
-                onPress={() => onCategoryPress?.(categories[3])}
-              />
-            </View>
-          </View>
-        </View>
-
         {/* Suggested Section */}
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}>
           <View
@@ -1075,7 +976,7 @@ export function CommunitiesScreen({
                   flex: 1,
                 }}
               >
-                Filtering by: {categories.find((c) => c.id === selectedCategory)?.title || selectedCategory}
+                Filtering by: {selectedCategory}
               </Text>
               <Pressable
                 onPress={onClearCategory}

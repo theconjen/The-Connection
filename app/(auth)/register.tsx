@@ -198,6 +198,23 @@ export default function RegisterScreen() {
             )}
           </TouchableOpacity>
 
+          <View style={styles.termsContainer}>
+            <Text style={styles.termsText}>By creating an account, you agree to our </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/terms')}
+              disabled={isLoading}
+            >
+              <Text style={styles.termsLink}>Terms of Service</Text>
+            </TouchableOpacity>
+            <Text style={styles.termsText}> and </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/privacy')}
+              disabled={isLoading}
+            >
+              <Text style={styles.termsLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
             <TouchableOpacity
@@ -295,10 +312,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  termsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingHorizontal: 20,
+  },
+  termsText: {
+    color: '#666',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+    lineHeight: 18,
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 32,
+    marginTop: 24,
   },
   footerText: {
     color: '#666',

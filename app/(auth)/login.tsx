@@ -145,6 +145,22 @@ export default function LoginScreen() {
               <Text style={styles.link}>Sign Up</Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.termsContainer}>
+            <TouchableOpacity
+              onPress={() => router.push('/terms')}
+              disabled={isLoading}
+            >
+              <Text style={styles.termsLink}>Terms</Text>
+            </TouchableOpacity>
+            <Text style={styles.termsText}> • </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/privacy')}
+              disabled={isLoading}
+            >
+              <Text style={styles.termsLink}>Privacy</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -262,5 +278,20 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  termsText: {
+    color: '#999',
+    fontSize: 12,
+  },
+  termsLink: {
+    color: '#999',
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
 });

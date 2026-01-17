@@ -18,12 +18,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI, chatAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useCallback } from 'react';
 import socketService, { ChatMessage } from '../../src/lib/socket';
 
 interface WallPost {
@@ -79,11 +80,32 @@ export default function CommunityDetailScreen() {
   // Fetch community details
   const { data: community, isLoading: communityLoading, refetch: refetchCommunity } = useQuery<Community>({
     queryKey: ['community', communityId],
-    queryFn: () => communitiesAPI.getById(communityId),
+    queryFn: async () => {
+      console.log(`[FRONTEND] Fetching community ${communityId}`);
+      const result = await communitiesAPI.getById(communityId);
+      console.log(`[FRONTEND] Community data:`, {
+        id: result.id,
+        name: result.name,
+        isMember: result.isMember,
+        role: result.role,
+        isAdmin: result.isAdmin
+      });
+      return result;
+    },
     enabled: !!communityId,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    refetchOnWindowFocus: false, // Don't refetch when app comes to foreground
+    staleTime: 0, // Always fetch fresh data to ensure membership status is current
+    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when app comes to foreground
   });
+
+  // Refetch community data whenever screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (communityId) {
+        refetchCommunity();
+      }
+    }, [communityId, refetchCommunity])
+  );
 
   // Fetch wall posts
   const { data: wallPosts = [], isLoading: postsLoading, refetch: refetchPosts } = useQuery<WallPost[]>({
@@ -160,47 +182,39 @@ export default function CommunityDetailScreen() {
 
   // Join/Leave mutations
   const joinMutation = useMutation({
-    mutationFn: () => communitiesAPI.join(communityId),
-    onSuccess: () => {
-      // Optimistically update the community cache immediately
-      queryClient.setQueryData(['community', communityId], (oldData: any) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          isMember: true,
-          memberCount: (oldData.memberCount || 0) + 1,
-          role: 'member',
-          isAdmin: false,
-          isModerator: false,
-        };
-      });
+    mutationFn: async () => {
+      console.log(`[FRONTEND] Attempting to join community ${communityId}`);
+      const result = await communitiesAPI.join(communityId);
+      console.log(`[FRONTEND] Join response:`, result);
+      return result;
+    },
+    onSuccess: async (data) => {
+      console.log(`[FRONTEND] Join successful, data:`, data);
+      // Invalidate and refetch to get the correct role from backend (owner if first member)
+      await queryClient.invalidateQueries({ queryKey: ['community', communityId] });
+      await queryClient.invalidateQueries({ queryKey: ['communities'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
 
-      // Invalidate queries immediately (no delay)
-      queryClient.invalidateQueries({ queryKey: ['communities'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
+      // Refetch the community to get updated data with correct role
+      const refetchResult = await queryClient.refetchQueries({ queryKey: ['community', communityId] });
+      console.log(`[FRONTEND] Refetch result:`, refetchResult);
 
       Alert.alert('Success', 'You have joined the community!');
     },
-    onError: (error: any) => {
-      // If already a member, just update the cache
+    onError: async (error: any) => {
+      console.log(`[FRONTEND] Join error:`, error.response?.data);
+      // If already a member, refetch to get correct role
       if (error.response?.data?.message?.includes('Already a member')) {
-        queryClient.setQueryData(['community', communityId], (oldData: any) => {
-          if (!oldData) return oldData;
-          return {
-            ...oldData,
-            isMember: true,
-            role: 'member',
-            isAdmin: false,
-            isModerator: false,
-          };
-        });
-
-        // Invalidate immediately
-        queryClient.invalidateQueries({ queryKey: ['communities'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
+        console.log(`[FRONTEND] Already a member, refetching community data`);
+        // Refetch the community to get updated data with correct role
+        await queryClient.invalidateQueries({ queryKey: ['community', communityId] });
+        await queryClient.invalidateQueries({ queryKey: ['communities'] });
+        await queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
+        await queryClient.refetchQueries({ queryKey: ['community', communityId] });
 
         Alert.alert('Already joined', 'You are already a member!');
       } else {
+        console.error(`[FRONTEND] Join failed:`, error);
         Alert.alert('Error', error.response?.data?.message || 'Failed to join community');
       }
     },
@@ -226,7 +240,12 @@ export default function CommunityDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['communities'] });
       queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
 
-      Alert.alert('Success', 'You have left the community');
+      Alert.alert('Success', 'You have left the community', [
+        {
+          text: 'OK',
+          onPress: () => router.push('/(tabs)/communities'),
+        },
+      ]);
     },
     onError: (error: any) => {
       Alert.alert('Error', error.response?.data?.message || 'Failed to leave community');
@@ -399,7 +418,7 @@ export default function CommunityDetailScreen() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>Community not found</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/(tabs)/communities')}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -413,7 +432,7 @@ export default function CommunityDetailScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backIcon} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backIcon} onPress={() => router.push('/(tabs)/communities')}>
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -618,7 +637,7 @@ export default function CommunityDetailScreen() {
                               <TouchableOpacity
                                 onPress={() => {
                                   if (post.authorId) {
-                                    router.push(`/profile?userId=${post.authorId}`);
+                                    router.push(`/(tabs)/profile?userId=${post.authorId}`);
                                   }
                                 }}
                               >
@@ -673,11 +692,11 @@ export default function CommunityDetailScreen() {
               />
             ) : (
               <>
-                {/* Create Event Button (Admin Only) */}
+                {/* Create Event Button (Admins Only) */}
                 {community.isAdmin && (
                   <TouchableOpacity
                     style={styles.createEventButton}
-                    onPress={() => Alert.alert('Create Event', 'Event creation coming soon!')}
+                    onPress={() => router.push(`/events/create?communityId=${communityId}`)}
                   >
                     <Ionicons name="add-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
                     <Text style={styles.createEventButtonText}>Create Event</Text>
@@ -688,7 +707,7 @@ export default function CommunityDetailScreen() {
                   <Ionicons name="calendar-outline" size={64} color={colors.mutedForeground} />
                   <Text style={styles.emptyStateText}>No events scheduled</Text>
                   <Text style={styles.emptyStateSubtext}>
-                    {community.isAdmin ? 'Create your first event' : 'Check back later for upcoming events'}
+                    {community.isMember ? 'Create your first event' : 'Check back later for upcoming events'}
                   </Text>
                 </View>
               </>
@@ -989,7 +1008,7 @@ export default function CommunityDetailScreen() {
                           <TouchableOpacity
                             onPress={() => {
                               if (message.sender?.id) {
-                                router.push(`/profile?userId=${message.sender.id}`);
+                                router.push(`/(tabs)/profile?userId=${message.sender.id}`);
                               }
                             }}
                           >

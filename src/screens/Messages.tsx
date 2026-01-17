@@ -50,9 +50,9 @@ export default function MessagesScreen({
   const getConversationName = (conversation: any) => {
     if (conversation.name) return conversation.name;
     if (conversation.isGroup) return 'Group Chat';
-    // Get the other participant's name for 1-on-1 chats
-    const otherParticipant = conversation.participants?.[0];
-    return otherParticipant?.displayName || otherParticipant?.username || 'Unknown';
+    // Get the other user's name for 1-on-1 chats (API returns otherUser, not participants)
+    const otherUser = conversation.otherUser || conversation.participants?.[0];
+    return otherUser?.displayName || otherUser?.username || 'Unknown';
   };
 
   // Get conversation avatar

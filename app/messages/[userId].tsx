@@ -248,7 +248,7 @@ export default function ChatScreen() {
       keyboardVerticalOffset={0}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/messages')} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>{otherUserName}</Text>

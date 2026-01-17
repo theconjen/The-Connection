@@ -62,11 +62,14 @@ export function AppHeader({
   return (
     <View
       style={[
-        styles.container,
         {
-          backgroundColor: transparent ? 'transparent' : '#7B9CAF', // Earth-toned blue
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: 56,
+          backgroundColor: transparent ? 'transparent' : colors.header,
           borderBottomWidth: transparent ? 0 : 1,
-          borderBottomColor: transparent ? 'transparent' : '#6A8B9D',
+          borderBottomColor: transparent ? 'transparent' : colors.headerBorder,
           paddingHorizontal: spacing.lg,
         },
       ]}
@@ -89,31 +92,19 @@ export function AppHeader({
             {userAvatar ? (
               <Image source={{ uri: userAvatar }} style={styles.avatar} />
             ) : (
-              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
+              <Text style={{ color: colors.headerForeground, fontSize: 16, fontWeight: '600' }}>
                 {getUserInitials()}
               </Text>
             )}
           </Pressable>
 
-          {/* Center: Logo with theme-aware background */}
+          {/* Center: Logo */}
           <View style={styles.centerSection}>
-            <View style={{
-              backgroundColor: colors.surface,
-              paddingHorizontal: 20,
-              paddingVertical: 6,
-              borderRadius: 24,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}>
-              <Image
-                source={require('../../assets/tc-logo-hd.png')}
-                style={styles.centeredLogo}
-                resizeMode="contain"
-              />
-            </View>
+            <Image
+              source={require('../../assets/tc-logo-hd.png')}
+              style={styles.centeredLogo}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Right: Action Buttons */}
@@ -124,12 +115,12 @@ export function AppHeader({
                 style={({ pressed }) => [
                   styles.iconButton,
                   {
-                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
                     borderRadius: radii.full,
                   },
                 ]}
               >
-                <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+                <Ionicons name="chatbubble-outline" size={22} color="#FFFFFF" />
               </Pressable>
             )}
 
@@ -139,12 +130,12 @@ export function AppHeader({
                 style={({ pressed }) => [
                   styles.iconButton,
                   {
-                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
                     borderRadius: radii.full,
                   },
                 ]}
               >
-                <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
+                <Ionicons name="menu-outline" size={26} color="#FFFFFF" />
               </Pressable>
             )}
 
@@ -163,13 +154,13 @@ export function AppHeader({
                   { backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent', borderRadius: radii.full },
                 ]}
               >
-                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                <Ionicons name="arrow-back" size={24} color={colors.headerForeground} />
               </Pressable>
             ) : (
               <View style={styles.brandContainer}>
                 {showLogo && <View style={styles.logo} />}
                 {showBrandText && (
-                  <Text variant="title" style={[styles.brandText, { color: '#FFFFFF' }]}>
+                  <Text variant="title" style={[styles.brandText, { color: colors.headerForeground }]}>
                     The Connection
                   </Text>
                 )}
@@ -181,13 +172,13 @@ export function AppHeader({
           <View style={styles.rightSection}>
             {showSearch && (
               <Pressable onPress={onSearchPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent' }]}>
-                <Ionicons name="search-outline" size={20} color="#FFFFFF" />
+                <Ionicons name="search-outline" size={20} color={colors.headerForeground} />
               </Pressable>
             )}
 
             {showNotifications && (
               <Pressable onPress={onNotificationsPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent' }]}>
-                <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
+                <Ionicons name="notifications-outline" size={20} color={colors.headerForeground} />
               </Pressable>
             )}
 
@@ -202,7 +193,7 @@ export function AppHeader({
                   },
                 ]}
               >
-                <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+                <Ionicons name="chatbubble-outline" size={20} color={colors.headerForeground} />
               </Pressable>
             )}
 
@@ -217,7 +208,7 @@ export function AppHeader({
                   },
                 ]}
               >
-                <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
+                <Ionicons name="menu-outline" size={24} color={colors.headerForeground} />
               </Pressable>
             )}
 
@@ -237,9 +228,9 @@ export function PageHeader({ title, onBackPress, rightElement }: { title: string
       style={[
         styles.container,
         {
-          backgroundColor: '#7B9CAF', // Earth-toned blue to match AppHeader
+          backgroundColor: colors.header,
           borderBottomWidth: 1,
-          borderBottomColor: '#6A8B9D',
+          borderBottomColor: colors.headerBorder,
           paddingHorizontal: spacing.lg,
         },
       ]}
@@ -255,10 +246,10 @@ export function PageHeader({ title, onBackPress, rightElement }: { title: string
           },
         ]}
       >
-        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        <Ionicons name="arrow-back" size={24} color={colors.headerForeground} />
       </Pressable>
 
-      <Text variant="body" style={{ fontWeight: '600', flex: 1, textAlign: 'center', color: '#FFFFFF' }}>
+      <Text variant="body" style={{ fontWeight: '600', flex: 1, textAlign: 'center', color: colors.headerForeground }}>
         {title}
       </Text>
 

@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Text, Badge, Avatar } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 
 // Icons - you can replace these with @expo/vector-icons or lucide-react-native
 const ArrowUpIcon = ({ color, filled }: { color: string; filled?: boolean }) => (
@@ -35,32 +36,29 @@ export interface Post {
   timeAgo: string;
   title: string;
   content: string;
-  votes: number;
+  likes: number;
   comments: number;
   flair: string;
+  isLiked?: boolean;
 }
 
 interface PostCardProps {
   post: Post;
   onPress?: () => void;
-  onUpvote?: () => void;
-  onDownvote?: () => void;
+  onLikePress?: () => void;
   onAuthorPress?: (authorId: number) => void;
+  onBookmarkPress?: () => void;
+  onMorePress?: () => void;
+  isBookmarked?: boolean;
 }
 
-export function PostCard({ post, onPress, onUpvote, onDownvote, onAuthorPress }: PostCardProps) {
+export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmarkPress, onMorePress, isBookmarked }: PostCardProps) {
   const { colors, spacing, radii } = useTheme();
 
-  const handleVote = (type: 'up' | 'down') => {
-    if (type === 'up' && onUpvote) {
-      onUpvote();
+  const formatCount = (count: number | undefined | null) => {
+    if (count === undefined || count === null) {
+      return '0';
     }
-    if (type === 'down' && onDownvote) {
-      onDownvote();
-    }
-  };
-
-  const formatVotes = (count: number) => {
     if (count >= 1000) {
       return `${(count / 1000).toFixed(1)}k`;
     }
@@ -74,48 +72,97 @@ export function PostCard({ post, onPress, onUpvote, onDownvote, onAuthorPress }:
         {
           backgroundColor: colors.card,
           opacity: pressed ? 0.95 : 1,
+          marginBottom: spacing.md,
+          borderRadius: radii.lg,
+          borderWidth: 1,
+          borderColor: colors.border,
+          overflow: 'hidden',
         },
       ]}
     >
       {/* Post Header */}
-      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
-        {/* Channel & Author Info */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-          <Avatar initials={post.channelIcon} size={24} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
-            <Text variant="caption" color="foreground" style={{ fontWeight: '600' }}>
-              {post.channel}
-            </Text>
-            <Text variant="caption" color="mutedForeground">•</Text>
-            {post.isAnonymous ? (
-              <Text
-                variant="caption"
-                color="mutedForeground"
-                style={{ fontStyle: 'italic' }}
-              >
-                Anonymous
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md }}>
+        {/* Top Row: Channel/Author Info + Actions */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+          {/* Channel & Author Info */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+            <Avatar initials={post.channelIcon} size={24} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap', flex: 1 }}>
+              <Text variant="caption" color="foreground" style={{ fontWeight: '600' }}>
+                {post.channel}
               </Text>
-            ) : (
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  if (post.authorId && onAuthorPress) {
-                    onAuthorPress(post.authorId);
-                  }
-                }}
-                disabled={!post.authorId || !onAuthorPress}
-              >
+              <Text variant="caption" color="mutedForeground">•</Text>
+              {post.isAnonymous ? (
                 <Text
                   variant="caption"
                   color="mutedForeground"
-                  style={{ textDecorationLine: onAuthorPress && post.authorId ? 'underline' : 'none' }}
+                  style={{ fontStyle: 'italic' }}
                 >
-                  @{post.author}
+                  Anonymous
                 </Text>
-              </Pressable>
-            )}
-            <Text variant="caption" color="mutedForeground">•</Text>
-            <Text variant="caption" color="mutedForeground">{post.timeAgo}</Text>
+              ) : (
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (post.authorId && onAuthorPress) {
+                      onAuthorPress(post.authorId);
+                    }
+                  }}
+                  disabled={!post.authorId || !onAuthorPress}
+                >
+                  <Text
+                    variant="caption"
+                    color="mutedForeground"
+                    style={{ textDecorationLine: onAuthorPress && post.authorId ? 'underline' : 'none' }}
+                  >
+                    @{post.author}
+                  </Text>
+                </Pressable>
+              )}
+              <Text variant="caption" color="mutedForeground">•</Text>
+              <Text variant="caption" color="mutedForeground">{post.timeAgo}</Text>
+            </View>
+          </View>
+
+          {/* Top Right Actions: Bookmark + More */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+            {/* Bookmark */}
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                onBookmarkPress?.();
+              }}
+              style={({ pressed }) => ({
+                padding: spacing.sm,
+                borderRadius: radii.full,
+                backgroundColor: pressed ? colors.muted : 'transparent',
+              })}
+            >
+              <Ionicons
+                name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                size={18}
+                color={isBookmarked ? '#222D99' : colors.mutedForeground}
+              />
+            </Pressable>
+
+            {/* More Menu */}
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                onMorePress?.();
+              }}
+              style={({ pressed }) => ({
+                padding: spacing.sm,
+                borderRadius: radii.full,
+                backgroundColor: pressed ? colors.muted : 'transparent',
+              })}
+            >
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={18}
+                color={colors.mutedForeground}
+              />
+            </Pressable>
           </View>
         </View>
 
@@ -136,99 +183,59 @@ export function PostCard({ post, onPress, onUpvote, onDownvote, onAuthorPress }:
 
         {/* Flair */}
         <Badge variant="secondary">{post.flair}</Badge>
-      </View>
 
-      {/* Action Bar */}
-      <View
-        style={{
+        {/* Action Buttons - Match microblog layout */}
+        <View style={{
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: spacing.sm,
-          paddingVertical: spacing.sm,
-          borderTopWidth: 1,
-          borderTopColor: colors.muted,
-        }}
-      >
-        {/* Votes */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          gap: spacing.xs,
+          marginTop: spacing.md,
+        }}>
+          {/* Comments */}
           <Pressable
-            onPress={() => handleVote('up')}
             style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
               padding: spacing.sm,
               borderRadius: radii.full,
               backgroundColor: pressed ? colors.muted : 'transparent',
             })}
           >
-            <ArrowUpIcon
-              color={colors.mutedForeground}
-              filled={false}
-            />
+            <Ionicons name="chatbubble-outline" size={18} color={colors.mutedForeground} />
+            <Text variant="caption" color="mutedForeground">
+              {post.comments}
+            </Text>
           </Pressable>
-          <Text
-            variant="caption"
-            style={{
-              minWidth: 35,
-              textAlign: 'center',
-              color: colors.foreground,
-            }}
-          >
-            {formatVotes(post.votes)}
-          </Text>
+
+          {/* Like Button */}
           <Pressable
-            onPress={() => handleVote('down')}
+            onPress={(e) => {
+              e.stopPropagation();
+              onLikePress?.();
+            }}
             style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
               padding: spacing.sm,
               borderRadius: radii.full,
               backgroundColor: pressed ? colors.muted : 'transparent',
             })}
           >
-            <ArrowDownIcon
-              color={colors.mutedForeground}
-              filled={false}
+            <Ionicons
+              name={post.isLiked ? 'heart' : 'heart-outline'}
+              size={18}
+              color={post.isLiked ? '#E0245E' : colors.mutedForeground}
             />
+            <Text
+              variant="caption"
+              style={{ color: post.isLiked ? '#E0245E' : colors.mutedForeground }}
+            >
+              {formatCount(post.likes)}
+            </Text>
           </Pressable>
         </View>
-
-        {/* Comments */}
-        <Pressable
-          style={({ pressed }) => ({
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.xs,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            borderRadius: radii.full,
-            backgroundColor: pressed ? colors.muted : 'transparent',
-          })}
-        >
-          <CommentIcon color={colors.mutedForeground} />
-          <Text variant="caption" color="mutedForeground">
-            {post.comments}
-          </Text>
-        </Pressable>
-
-        {/* Share */}
-        <Pressable
-          style={({ pressed }) => ({
-            padding: spacing.sm,
-            borderRadius: radii.full,
-            backgroundColor: pressed ? colors.muted : 'transparent',
-          })}
-        >
-          <ShareIcon color={colors.mutedForeground} />
-        </Pressable>
-
-        {/* Bookmark */}
-        <Pressable
-          style={({ pressed }) => ({
-            padding: spacing.sm,
-            borderRadius: radii.full,
-            backgroundColor: pressed ? colors.muted : 'transparent',
-          })}
-        >
-          <BookmarkIcon color={colors.mutedForeground} />
-        </Pressable>
       </View>
     </Pressable>
   );

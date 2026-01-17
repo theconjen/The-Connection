@@ -231,7 +231,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
       <PageHeader
         title="Notifications"
         onBackPress={onBackPress}
@@ -318,7 +318,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
 
       {/* Notifications List */}
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.surface }}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={colors.primary} />
         }

@@ -10,8 +10,9 @@ interface MenuDrawerProps {
   onClose: () => void;
   onSettings: () => void;
   onNotifications: () => void;
-  onApologetics: () => void;
   onBookmarks: () => void;
+  onInbox?: () => void;
+  hasInboxAccess?: boolean;
   onSearch?: () => void;
   onUserPress?: (userId: number) => void;
 }
@@ -27,19 +28,55 @@ interface SearchResult {
   dmPrivacyReason?: string;
 }
 
-export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onApologetics, onBookmarks, onSearch, onUserPress }: MenuDrawerProps) {
+interface FriendSuggestion {
+  id: number;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+  bio?: string;
+  city?: string;
+  state?: string;
+  denomination?: string;
+  suggestionScore: {
+    total: number;
+    mutualFollows: number;
+    mutualCommunities: number;
+    location: number;
+  };
+}
+
+export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onInbox, hasInboxAccess, onSearch, onUserPress }: MenuDrawerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     if (!visible) {
       setSearchQuery('');
       setSearchResults([]);
       setShowResults(false);
+    } else {
+      // Fetch friend suggestions when menu opens
+      fetchFriendSuggestions();
     }
   }, [visible]);
+
+  const fetchFriendSuggestions = async () => {
+    setIsLoadingSuggestions(true);
+    try {
+      const response = await apiClient.get('/api/user/suggestions/friends?limit=5');
+      // Ensure we always have an array
+      setFriendSuggestions(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      // Silently fail - friend suggestions are optional
+      setFriendSuggestions([]);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
 
   useEffect(() => {
     const delaySearch = setTimeout(async () => {
@@ -185,19 +222,75 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onAp
                 <Ionicons name="chevron-forward" size={20} color="#536471" />
               </Pressable>
 
-              <Pressable
-                style={styles.menuItem}
-                onPress={() => {
-                  onClose();
-                  onApologetics();
-                }}
-              >
-                <Ionicons name="book-outline" size={24} color="#0F1419" />
-                <Text style={styles.menuItemText}>Apologetics</Text>
-                <View style={styles.comingSoonBadge}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
+              {/* Q&A Inbox - Only show if user has inbox_access permission */}
+              {hasInboxAccess && onInbox && (
+                <Pressable
+                  style={styles.menuItem}
+                  onPress={() => {
+                    onClose();
+                    onInbox();
+                  }}
+                >
+                  <Ionicons name="mail-outline" size={24} color="#E74C3C" />
+                  <Text style={styles.menuItemText}>Q&A Inbox</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#536471" />
+                </Pressable>
+              )}
+
+              {/* Suggested Friends Section */}
+              {friendSuggestions.length > 0 && (
+                <View style={styles.suggestionsSection}>
+                  <Text style={styles.suggestionsHeader}>Suggested Friends</Text>
+                  {friendSuggestions.map((suggestion) => (
+                    <Pressable
+                      key={suggestion.id}
+                      style={styles.suggestionCard}
+                      onPress={() => handleUserPress(suggestion as any)}
+                    >
+                      <Image
+                        source={{
+                          uri: suggestion.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(suggestion.displayName || suggestion.username)}&background=random`
+                        }}
+                        style={styles.suggestionAvatar}
+                      />
+                      <View style={styles.suggestionInfo}>
+                        <Text style={styles.suggestionDisplayName} numberOfLines={1}>
+                          {suggestion.displayName || suggestion.username}
+                        </Text>
+                        <Text style={styles.suggestionUsername} numberOfLines={1}>
+                          @{suggestion.username}
+                        </Text>
+                        {suggestion.suggestionScore.mutualCommunities > 0 && (
+                          <Text style={styles.suggestionReason} numberOfLines={1}>
+                            <Ionicons name="people-outline" size={12} color="#536471" />{' '}
+                            {suggestion.suggestionScore.mutualCommunities} mutual {suggestion.suggestionScore.mutualCommunities === 1 ? 'community' : 'communities'}
+                          </Text>
+                        )}
+                        {suggestion.suggestionScore.mutualFollows > 0 && (
+                          <Text style={styles.suggestionReason} numberOfLines={1}>
+                            <Ionicons name="person-outline" size={12} color="#536471" />{' '}
+                            {suggestion.suggestionScore.mutualFollows} mutual {suggestion.suggestionScore.mutualFollows === 1 ? 'friend' : 'friends'}
+                          </Text>
+                        )}
+                        {suggestion.suggestionScore.location > 0 && suggestion.city && (
+                          <Text style={styles.suggestionReason} numberOfLines={1}>
+                            <Ionicons name="location-outline" size={12} color="#536471" />{' '}
+                            {suggestion.city}, {suggestion.state}
+                          </Text>
+                        )}
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color="#536471" />
+                    </Pressable>
+                  ))}
                 </View>
-              </Pressable>
+              )}
+
+              {isLoadingSuggestions && friendSuggestions.length === 0 && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#1D9BF0" />
+                  <Text style={styles.loadingText}>Loading suggestions...</Text>
+                </View>
+              )}
             </View>
             )}
             </ScrollView>
@@ -372,5 +465,50 @@ const styles = StyleSheet.create({
     color: '#536471',
     marginTop: 8,
     textAlign: 'center',
+  },
+  suggestionsSection: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#EFF3F4',
+  },
+  suggestionsHeader: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F1419',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  suggestionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  suggestionAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EFF3F4',
+  },
+  suggestionInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  suggestionDisplayName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F1419',
+  },
+  suggestionUsername: {
+    fontSize: 13,
+    color: '#536471',
+  },
+  suggestionReason: {
+    fontSize: 12,
+    color: '#536471',
+    marginTop: 2,
   },
 });

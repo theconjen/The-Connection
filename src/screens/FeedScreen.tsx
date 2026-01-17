@@ -42,6 +42,7 @@ import apiClient from '../lib/apiClient';
 import { AppHeader } from './AppHeader';
 import { formatDistanceToNow } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
+import { PostCard } from './PostCard';
 
 // ============================================================================
 // TYPES
@@ -69,12 +70,28 @@ interface Microblog {
   isBookmarked?: boolean;
 }
 
+interface Post {
+  id: number;
+  title: string;
+  content: string;
+  authorId: number;
+  createdAt: string;
+  author?: User;
+  upvoteCount?: number;
+  commentCount?: number;
+  isAnonymous?: boolean;
+  hasUpvoted?: boolean;
+  communityId?: number;
+}
+
 interface FeedScreenProps {
   onProfilePress?: () => void;
   onSearchPress?: () => void;
   onSettingsPress?: () => void;
   onMessagesPress?: () => void;
   onNotificationsPress?: () => void;
+  onAuthorPress?: (userId: number) => void;
+  onPostPress?: (post: Post) => void;
   userName?: string;
   userAvatar?: string;
   unreadNotificationsCount?: number;
@@ -84,13 +101,16 @@ interface FeedScreenProps {
 // API HOOKS
 // ============================================================================
 
-// Hook to fetch trending items (hashtags + keywords, updates every 15 minutes)
-function useTrendingItems() {
+// Hook to fetch trending hashtags (updates every 15 minutes)
+function useTrendingHashtags() {
   return useQuery<any[]>({
-    queryKey: ['/api/microblogs/trending/combined'],
+    queryKey: ['/api/microblogs/hashtags/trending'],
     queryFn: async () => {
-      const response = await apiClient.get('/api/microblogs/trending/combined?limit=10');
-      return response.data;
+      const response = await apiClient.get('/api/microblogs/hashtags/trending?limit=10');
+      return response.data.map((hashtag: any) => ({
+        ...hashtag,
+        type: 'hashtag' as const,
+      }));
     },
     refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
   });
@@ -144,17 +164,82 @@ function useMicroblogs(filter: 'recent' | 'popular', trendingFilter?: { type: 'h
   });
 }
 
+function usePosts(filter: 'recent' | 'popular') {
+  const { user } = useAuth();
+
+  return useQuery<Post[]>({
+    queryKey: ['/api/posts', filter],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get(`/api/posts?filter=${filter}`);
+        const posts = response.data;
+
+        // Debug logging
+        const bookmarkedPosts = posts.filter((p: any) => p.isBookmarked);
+        if (bookmarkedPosts.length > 0) {
+          console.log('[DEBUG] Posts with bookmarks:', bookmarkedPosts.map((p: any) => ({ id: p.id, isBookmarked: p.isBookmarked })));
+        }
+
+        return posts.map((post: any) => ({
+          ...post,
+          author: post.author || {
+            id: post.authorId,
+            username: post.isAnonymous ? 'Anonymous' : 'Unknown',
+            displayName: post.isAnonymous ? 'Anonymous User' : 'Unknown User',
+          },
+        }));
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+        return []; // Return empty array on error instead of throwing
+      }
+    },
+    enabled: !!user,
+  });
+}
+
+// Combined feed hook that merges microblogs and posts
+function useCombinedFeed(filter: 'recent' | 'popular', trendingFilter?: { type: 'hashtag' | 'keyword', value: string } | null) {
+  const { data: microblogs = [], isLoading: microblogsLoading, refetch: refetchMicroblogs } = useMicroblogs(filter, trendingFilter);
+  const { data: posts = [], isLoading: postsLoading, refetch: refetchPosts } = usePosts(filter);
+
+  // Merge and sort by timestamp
+  const combinedData = React.useMemo(() => {
+    const allItems = [
+      ...microblogs.map(m => ({ ...m, type: 'microblog' as const })),
+      ...posts.map(p => ({ ...p, type: 'post' as const })),
+    ];
+
+    // Sort by timestamp (most recent first)
+    return allItems.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+  }, [microblogs, posts]);
+
+  const refetch = React.useCallback(async () => {
+    await Promise.all([refetchMicroblogs(), refetchPosts()]);
+  }, [refetchMicroblogs, refetchPosts]);
+
+  return {
+    data: combinedData,
+    isLoading: microblogsLoading || postsLoading,
+    refetch,
+  };
+}
+
 function useLikeMicroblog() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ postId, isLiked }: { postId: number; isLiked: boolean }) => {
+    mutationFn: async ({ postId, isLiked, type = 'microblog' }: { postId: number; isLiked: boolean; type?: 'microblog' | 'post' }) => {
       try {
-        // Toggle like/unlike on microblog
+        const endpoint = type === 'post' ? `/api/posts/${postId}/like` : `/api/microblogs/${postId}/like`;
+        // Toggle like/unlike
         if (isLiked) {
-          await apiClient.delete(`/api/microblogs/${postId}/like`);
+          await apiClient.delete(endpoint);
         } else {
-          await apiClient.post(`/api/microblogs/${postId}/like`);
+          await apiClient.post(endpoint);
         }
       } catch (error: any) {
         // If we get 404 on delete, the like didn't exist - treat as success
@@ -168,38 +253,59 @@ function useLikeMicroblog() {
         throw error;
       }
     },
-    onMutate: async ({ postId, isLiked }) => {
+    onMutate: async ({ postId, isLiked, type }) => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: ['/api/microblogs'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/posts'] });
 
-      // Snapshot previous value
-      const previousData = queryClient.getQueryData(['/api/microblogs']);
+      // Snapshot previous values
+      const previousMicroblogs = queryClient.getQueryData(['/api/microblogs']);
+      const previousPosts = queryClient.getQueryData(['/api/posts']);
 
-      // Optimistic update
-      queryClient.setQueriesData({ queryKey: ['/api/microblogs'] }, (oldData: any) => {
-        if (!oldData) return oldData;
-        return oldData.map((post: Microblog) =>
-          post.id === postId
-            ? {
-                ...post,
-                isLiked: !isLiked,
-                likeCount: isLiked ? (post.likeCount || 0) - 1 : (post.likeCount || 0) + 1,
-              }
-            : post
-        );
-      });
+      // Optimistic update - only update the relevant type
+      if (type === 'microblog') {
+        queryClient.setQueriesData({ queryKey: ['/api/microblogs'] }, (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.map((post: Microblog) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  isLiked: !isLiked,
+                  likeCount: isLiked ? (post.likeCount || 0) - 1 : (post.likeCount || 0) + 1,
+                }
+              : post
+          );
+        });
+      } else {
+        queryClient.setQueriesData({ queryKey: ['/api/posts'] }, (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.map((post: any) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  isLiked: !isLiked,
+                  likeCount: isLiked ? (post.likeCount || 0) - 1 : (post.likeCount || 0) + 1,
+                }
+              : post
+          );
+        });
+      }
 
-      return { previousData };
+      return { previousMicroblogs, previousPosts };
     },
     onError: (error: any, variables, context) => {
       // Rollback on error
-      if (context?.previousData) {
-        queryClient.setQueryData(['/api/microblogs'], context.previousData);
+      if (context?.previousMicroblogs) {
+        queryClient.setQueryData(['/api/microblogs'], context.previousMicroblogs);
+      }
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['/api/posts'], context.previousPosts);
       }
     },
     onSettled: () => {
       // Always refetch to sync with server
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
     },
   });
 }
@@ -345,16 +451,21 @@ function useBookmarkMicroblog() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ postId, isBookmarked }: { postId: number; isBookmarked: boolean }) => {
+    mutationFn: async ({ postId, isBookmarked, type = 'microblog' }: { postId: number; isBookmarked: boolean; type?: 'microblog' | 'post' }) => {
       try {
+        const endpoint = type === 'post' ? `/api/posts/${postId}/bookmark` : `/api/microblogs/${postId}/bookmark`;
+        console.log(`[BOOKMARK] ${type} ${postId}: ${isBookmarked ? 'unbookmark' : 'bookmark'} via ${endpoint}`);
         if (isBookmarked) {
           // Currently bookmarked, so unbookmark
-          await apiClient.delete(`/api/microblogs/${postId}/bookmark`);
+          await apiClient.delete(endpoint);
+          console.log(`[BOOKMARK] Successfully unbookmarked ${type} ${postId}`);
         } else {
           // Not bookmarked, so bookmark
-          await apiClient.post(`/api/microblogs/${postId}/bookmark`);
+          const response = await apiClient.post(endpoint);
+          console.log(`[BOOKMARK] Successfully bookmarked ${type} ${postId}`, response.data);
         }
       } catch (error: any) {
+        console.log(`[BOOKMARK] Error for ${type} ${postId}:`, error.response?.status, error.response?.data);
         // If we get 404 on delete, the bookmark didn't exist - treat as success
         if (error.response?.status === 404 && isBookmarked) {
           return;
@@ -366,36 +477,64 @@ function useBookmarkMicroblog() {
         throw error;
       }
     },
-    onMutate: async ({ postId, isBookmarked }) => {
+    onMutate: async ({ postId, isBookmarked, type }) => {
       // Cancel outgoing queries to avoid race conditions
       await queryClient.cancelQueries({ queryKey: ['/api/microblogs'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/posts'] });
 
-      // Snapshot previous value
-      const previousData = queryClient.getQueryData(['/api/microblogs']);
+      // Snapshot previous values
+      const previousMicroblogs = queryClient.getQueryData(['/api/microblogs']);
+      const previousPosts = queryClient.getQueryData(['/api/posts']);
 
-      // Optimistic update
-      queryClient.setQueriesData({ queryKey: ['/api/microblogs'] }, (oldData: any) => {
-        if (!oldData) return oldData;
-        return oldData.map((post: Microblog) =>
-          post.id === postId
-            ? { ...post, isBookmarked: !isBookmarked }
-            : post
-        );
-      });
+      // Optimistic update - only update the relevant type
+      if (type === 'microblog') {
+        queryClient.setQueriesData({ queryKey: ['/api/microblogs'] }, (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.map((post: Microblog) =>
+            post.id === postId
+              ? { ...post, isBookmarked: !isBookmarked }
+              : post
+          );
+        });
+      } else {
+        queryClient.setQueriesData({ queryKey: ['/api/posts'] }, (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.map((post: any) =>
+            post.id === postId
+              ? { ...post, isBookmarked: !isBookmarked }
+              : post
+          );
+        });
+      }
 
-      return { previousData };
+      return { previousMicroblogs, previousPosts };
     },
     onError: (error: any, variables, context) => {
       // Rollback on error
-      if (context?.previousData) {
-        queryClient.setQueryData(['/api/microblogs'], context.previousData);
+      if (context?.previousMicroblogs) {
+        queryClient.setQueryData(['/api/microblogs'], context.previousMicroblogs);
+      }
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['/api/posts'], context.previousPosts);
       }
       Alert.alert('Error', 'Failed to update bookmark. Please try again.');
     },
-    onSettled: () => {
+    onSettled: async (data, error, variables) => {
+      console.log(`[BOOKMARK] Settled for ${variables.type} ${variables.postId}, invalidating queries...`);
       // Always refetch after error or success to sync with server
-      queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs/bookmarks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/posts/bookmarks'] });
+
+      // Log the updated data after refetch
+      setTimeout(() => {
+        const postsData = queryClient.getQueryData(['/api/posts', 'recent']) as any[];
+        if (postsData) {
+          const post = postsData.find((p: any) => p.id === variables.postId);
+          console.log(`[BOOKMARK] After refetch, ${variables.type} ${variables.postId} isBookmarked:`, post?.isBookmarked);
+        }
+      }, 500);
     },
   });
 }
@@ -462,6 +601,7 @@ interface PostItemProps {
   onSharePress: () => void;
   onBookmarkPress: () => void;
   onHashtagPress: (tag: string) => void;
+  onAuthorPress: (userId: number) => void;
   isAuthenticated: boolean;
 }
 
@@ -474,7 +614,7 @@ interface Comment {
   author?: User;
 }
 
-const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommentPress, onRepostPress, onSharePress, onBookmarkPress, onHashtagPress, isAuthenticated }) => {
+const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommentPress, onRepostPress, onSharePress, onBookmarkPress, onHashtagPress, onAuthorPress, isAuthenticated }) => {
   const { colors, colorScheme } = useTheme();
   const styles = getStyles(colors, colorScheme);
 
@@ -482,13 +622,18 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
     <View style={styles.postCard}>
       <View style={styles.postContainer}>
         {/* Avatar */}
-        <Image source={{ uri: getAvatarUrl(post.author) }} style={styles.postAvatar} />
+        <Pressable onPress={() => post.author?.id && onAuthorPress(post.author.id)}>
+          <Image source={{ uri: getAvatarUrl(post.author) }} style={styles.postAvatar} />
+        </Pressable>
 
         {/* Post Content Area */}
         <View style={styles.postMain}>
           {/* Header: Name, Username, Time, Menu */}
           <View style={styles.postHeader}>
-            <View style={styles.postHeaderLeft}>
+            <Pressable
+              style={styles.postHeaderLeft}
+              onPress={() => post.author?.id && onAuthorPress(post.author.id)}
+            >
               <Text style={styles.postAuthorName}>
                 {post.author?.displayName || post.author?.username || 'Unknown User'}
               </Text>
@@ -497,7 +642,7 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               </Text>
               <Text style={styles.postDot}>·</Text>
               <Text style={styles.postTime}>{formatTime(post.createdAt)}</Text>
-            </View>
+            </Pressable>
             <Pressable style={styles.postMoreButton} onPress={onMorePress} hitSlop={8}>
               <Ionicons name="ellipsis-horizontal" size={18} color={colors.icon} />
             </Pressable>
@@ -576,6 +721,8 @@ export default function FeedScreen({
   onSettingsPress,
   onMessagesPress,
   onNotificationsPress,
+  onAuthorPress,
+  onPostPress,
   userName,
   userAvatar,
   unreadNotificationsCount,
@@ -597,8 +744,8 @@ export default function FeedScreen({
   const [commentContent, setCommentContent] = useState('');
   const [selectedTrending, setSelectedTrending] = useState<{ type: 'hashtag' | 'keyword', value: string, display: string } | null>(null);
 
-  const { data: trendingItems, isLoading: trendingLoading } = useTrendingItems();
-  const { data: microblogs, isLoading, refetch } = useMicroblogs(activeTab, selectedTrending ? { type: selectedTrending.type, value: selectedTrending.value } : null);
+  const { data: trendingHashtags, isLoading: trendingLoading } = useTrendingHashtags();
+  const { data: feedItems, isLoading, refetch } = useCombinedFeed(activeTab, selectedTrending ? { type: selectedTrending.type, value: selectedTrending.value } : null);
   const likeMutation = useLikeMicroblog();
   const createMutation = useCreateMicroblog();
   const deleteMutation = useDeletePost();
@@ -608,9 +755,9 @@ export default function FeedScreen({
   const repostMutation = useRepostMicroblog();
   const bookmarkMutation = useBookmarkMicroblog();
 
-  const handleLike = (postId: number, isLiked: boolean) => {
+  const handleLike = (postId: number, isLiked: boolean, type: 'microblog' | 'post' = 'microblog') => {
     if (!user) return;
-    likeMutation.mutate({ postId, isLiked });
+    likeMutation.mutate({ postId, isLiked, type });
   };
 
   const handleOpenComments = (post: Microblog) => {
@@ -770,12 +917,12 @@ export default function FeedScreen({
     }
   };
 
-  const handleBookmark = (postId: number, isBookmarked: boolean) => {
+  const handleBookmark = (postId: number, isBookmarked: boolean, type: 'microblog' | 'post' = 'microblog') => {
     if (!user) {
       Alert.alert('Sign In Required', 'Please sign in to bookmark posts.');
       return;
     }
-    bookmarkMutation.mutate({ postId, isBookmarked });
+    bookmarkMutation.mutate({ postId, isBookmarked, type });
   };
 
   const handlePickImage = async () => {
@@ -1037,8 +1184,8 @@ export default function FeedScreen({
   const styles = getStyles(colors, colorScheme);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <StatusBar barStyle="light-content" />
       {/* Header */}
       <AppHeader
         showCenteredLogo={true}
@@ -1051,6 +1198,8 @@ export default function FeedScreen({
         onMenuPress={onSettingsPress}
       />
 
+      {/* Content area with white background */}
+      <View style={styles.container}>
       {/* Trending Section (Hashtags + Keywords) */}
       <View style={styles.trendingSection}>
         <View style={styles.trendingHeader}>
@@ -1072,32 +1221,31 @@ export default function FeedScreen({
         >
           {trendingLoading ? (
             <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            trendingItems?.map((item) => {
-              const isHashtag = item.type === 'hashtag';
-              const displayText = isHashtag ? item.displayTag : item.displayKeyword;
-              const tag = isHashtag ? item.tag : item.keyword;
-              const isActive = selectedTrending?.value === tag && selectedTrending?.type === item.type;
+          ) : trendingHashtags && trendingHashtags.length > 0 ? (
+            trendingHashtags.map((hashtag) => {
+              const isActive = selectedTrending?.value === hashtag.tag && selectedTrending?.type === 'hashtag';
 
               return (
                 <Pressable
-                  key={`${item.type}-${item.id}`}
+                  key={hashtag.id}
                   style={[
                     styles.hashtagBadge,
                     isActive && styles.hashtagBadgeActive
                   ]}
-                  onPress={() => setSelectedTrending({ type: item.type, value: tag, display: displayText })}
+                  onPress={() => setSelectedTrending({ type: 'hashtag', value: hashtag.tag, display: hashtag.displayTag })}
                 >
                   <Text style={[
                     styles.hashtagText,
                     isActive && styles.hashtagTextActive
                   ]}>
-                    {isHashtag ? '#' : ''}{displayText}
+                    #{hashtag.displayTag}
                   </Text>
-                  <Text style={styles.hashtagCount}>{item.trendingScore}</Text>
+                  <Text style={styles.hashtagCount}>{hashtag.trendingScore}</Text>
                 </Pressable>
               );
             })
+          ) : (
+            <Text style={styles.emptyTrending}>No trending hashtags yet</Text>
           )}
         </ScrollView>
       </View>
@@ -1139,21 +1287,59 @@ export default function FeedScreen({
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading feed...</Text>
           </View>
-        ) : microblogs && microblogs.length > 0 ? (
-          microblogs.map((post) => (
-            <PostItem
-              key={post.id}
-              post={post}
-              onLike={() => handleLike(post.id, post.isLiked || false)}
-              onMorePress={() => handleMorePress(post)}
-              onCommentPress={() => handleOpenComments(post)}
-              onRepostPress={() => handleRepost(post.id, post.isReposted || false)}
-              onSharePress={() => handleShare(post)}
-              onBookmarkPress={() => handleBookmark(post.id, post.isBookmarked || false)}
-              onHashtagPress={(tag) => setSelectedTrending({ type: 'hashtag', value: tag, display: tag })}
-              isAuthenticated={!!user}
-            />
-          ))
+        ) : feedItems && feedItems.length > 0 ? (
+          feedItems.map((item: any) => {
+            if (item.type === 'microblog') {
+              // Render microblog post (Twitter-style)
+              return (
+                <PostItem
+                  key={`microblog-${item.id}`}
+                  post={item}
+                  onLike={() => handleLike(item.id, item.isLiked || false)}
+                  onMorePress={() => handleMorePress(item)}
+                  onCommentPress={() => handleOpenComments(item)}
+                  onRepostPress={() => handleRepost(item.id, item.isReposted || false)}
+                  onSharePress={() => handleShare(item)}
+                  onBookmarkPress={() => handleBookmark(item.id, item.isBookmarked || false)}
+                  onHashtagPress={(tag) => setSelectedTrending({ type: 'hashtag', value: tag, display: tag })}
+                  onAuthorPress={(userId) => onAuthorPress?.(userId)}
+                  isAuthenticated={!!user}
+                />
+              );
+            } else if (item.type === 'post') {
+              // Render forum post (Reddit-style)
+              // Map API data to PostCard expected format
+              const mappedPost = {
+                id: item.id,
+                channel: item.communityId ? `Community ${item.communityId}` : 'General',
+                channelIcon: '🏛️',
+                author: item.isAnonymous ? 'Anonymous' : (item.author?.displayName || item.author?.username || 'Unknown'),
+                authorId: item.authorId,
+                isAnonymous: item.isAnonymous,
+                timeAgo: formatDistanceToNow(new Date(item.createdAt), { addSuffix: true }),
+                title: item.title || 'Untitled Post',
+                content: item.content || '',
+                likes: item.likeCount || 0,
+                comments: item.commentCount || 0,
+                flair: item.isAnonymous ? 'Anonymous' : 'Discussion',
+                isLiked: item.isLiked || false,
+              };
+
+              return (
+                <PostCard
+                  key={`post-${item.id}`}
+                  post={mappedPost}
+                  onPress={() => onPostPress?.(item)}
+                  onLikePress={() => handleLike(item.id, item.isLiked || false)}
+                  onAuthorPress={(userId) => onAuthorPress?.(userId)}
+                  onBookmarkPress={() => handleBookmark(item.id, item.isBookmarked || false, 'post')}
+                  onMorePress={() => handleMorePress(item)}
+                  isBookmarked={item.isBookmarked || false}
+                />
+              );
+            }
+            return null;
+          })
         ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="chatbubbles-outline" size={64} color={colors.mutedForeground} />
@@ -1568,6 +1754,7 @@ export default function FeedScreen({
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+      </View>
     </SafeAreaView>
   );
 }
@@ -1641,6 +1828,12 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     fontSize: 13,
     color: colors.accent,
     fontWeight: '600',
+  },
+  emptyTrending: {
+    fontSize: 14,
+    color: colors.text,
+    opacity: 0.6,
+    paddingHorizontal: 8,
   },
   filterIndicator: {
     flexDirection: 'row',

@@ -57,9 +57,10 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.header }]} edges={['top']}>
       <PageHeader title="Blocked Users" onBackPress={onBackPress} />
 
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
       {isLoading ? (
         <View style={{ alignItems: 'center', paddingVertical: spacing.xl * 2 }}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -199,6 +200,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
           </View>
         </ScrollView>
       )}
+      </View>
     </SafeAreaView>
   );
 }

@@ -28,6 +28,7 @@ const THEME_STORAGE_KEY = '@theconnection_theme';
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemColorScheme = useColorScheme();
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Determine actual color scheme based on preference
   const colorScheme: 'light' | 'dark' =
@@ -43,6 +44,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     loadTheme();
   }, []);
 
+  // Re-render when system color scheme changes (for 'system' mode)
+  useEffect(() => {
+    if (isLoaded && themePreference === 'system') {
+      // Force re-render to pick up system theme changes
+    }
+  }, [systemColorScheme, themePreference, isLoaded]);
+
   const loadTheme = async () => {
     try {
       const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
@@ -51,6 +59,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error loading theme:', error);
+    } finally {
+      setIsLoaded(true);
     }
   };
 

@@ -29,6 +29,9 @@ export const colors = {
     // UI elements
     card: '#FFFFFF',
     cardForeground: '#111827',
+    header: '#7B9CAF', // Earth-toned blue for app header
+    headerForeground: '#FFFFFF',
+    headerBorder: '#6A8B9D',
     muted: '#F3F4F6',
     mutedForeground: '#6B7280',
     input: '#E5E7EB',
@@ -78,12 +81,15 @@ export const colors = {
     // UI elements - optimized contrast ratios (WCAG AAA)
     card: '#16181C',
     cardForeground: '#FFFFFF',
+    header: '#5A7B8F', // Slightly lighter earth-toned blue for dark mode
+    headerForeground: '#FFFFFF',
+    headerBorder: '#4A6B7F',
     muted: '#1C1F23',
-    mutedForeground: '#71767B',
+    mutedForeground: '#9CA3AF',
     input: '#1C1F23',
     text: '#E7E9EA',
-    textSecondary: '#71767B',
-    textTertiary: '#8B9197',
+    textSecondary: '#9CA3AF',
+    textTertiary: '#B4B9BE',
 
     // Social action colors (likes, reposts, bookmarks)
     like: '#F91880',
@@ -94,7 +100,7 @@ export const colors = {
     bookmarkActive: '#3DAEFF',
 
     // Icon colors
-    icon: '#71767B',
+    icon: '#9CA3AF',
     iconActive: '#E7E9EA',
   },
 } as const;

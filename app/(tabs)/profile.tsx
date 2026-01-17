@@ -1,6 +1,6 @@
-import { ProfileScreenRedesigned } from "../src/screens/ProfileScreenRedesigned";
+import { ProfileScreenRedesigned } from "../../src/screens/ProfileScreenRedesigned";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useAuth } from "../src/contexts/AuthContext";
+import { useAuth } from "../../src/contexts/AuthContext";
 
 export default function ProfileRoute() {
   const router = useRouter();

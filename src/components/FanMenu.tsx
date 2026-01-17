@@ -23,6 +23,8 @@ interface FanMenuProps {
   onCreateFeed: () => void;
   onCreateCommunity: () => void;
   onCreateForum: () => void;
+  onCreateEvent: () => void;
+  isAdmin?: boolean; // Only admins can create events
 }
 
 export function FanMenu({
@@ -31,12 +33,15 @@ export function FanMenu({
   onCreateFeed,
   onCreateCommunity,
   onCreateForum,
+  onCreateEvent,
+  isAdmin = false,
 }: FanMenuProps) {
   const { colors } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const scale1 = useRef(new Animated.Value(0)).current;
   const scale2 = useRef(new Animated.Value(0)).current;
   const scale3 = useRef(new Animated.Value(0)).current;
+  const scale4 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
@@ -61,6 +66,12 @@ export function FanMenu({
             useNativeDriver: true,
           }),
           Animated.spring(scale3, {
+            toValue: 1,
+            friction: 5,
+            tension: 100,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scale4, {
             toValue: 1,
             friction: 5,
             tension: 100,
@@ -91,9 +102,14 @@ export function FanMenu({
           duration: 150,
           useNativeDriver: true,
         }),
+        Animated.timing(scale4, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
       ]).start();
     }
-  }, [visible, opacity, scale1, scale2, scale3]);
+  }, [visible, opacity, scale1, scale2, scale3, scale4]);
 
   const handleAction = (action: () => void) => {
     onClose();
@@ -181,6 +197,30 @@ export function FanMenu({
           </Pressable>
           <Text style={styles.menuLabel}>Forum</Text>
         </Animated.View>
+
+        {/* Event Button - Only visible for admins */}
+        {isAdmin && (
+          <Animated.View
+            style={[
+              styles.menuItemContainer,
+              {
+                transform: [
+                  { scale: scale4 },
+                  { translateY: -70 },
+                  { translateX: 120 },
+                ],
+              },
+            ]}
+          >
+            <Pressable
+              style={[styles.menuButton, { backgroundColor: '#5B9BD5' }]}
+              onPress={() => handleAction(onCreateEvent)}
+            >
+              <Ionicons name="calendar" size={24} color="#fff" />
+            </Pressable>
+            <Text style={styles.menuLabel}>Event</Text>
+          </Animated.View>
+        )}
       </View>
     </View>
   );

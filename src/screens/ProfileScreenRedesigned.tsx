@@ -41,7 +41,7 @@ interface ProfileScreenProps {
 
 export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenProps) {
   const { colors, spacing, radii, colorScheme } = useTheme();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refresh: refreshAuth } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'posts' | 'communities'>('posts');
   const [refreshing, setRefreshing] = useState(false);
@@ -91,7 +91,10 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([
+      refetch(),        // Refresh local profile query
+      refreshAuth(),    // Refresh global user state
+    ]);
     setRefreshing(false);
   };
 
@@ -134,8 +137,11 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
           avatarUrl: base64data,
         });
 
-        // Refresh profile data
-        await refetch();
+        // Refresh both local profile data AND global auth context
+        await Promise.all([
+          refetch(),        // Refresh local profile query
+          refreshAuth(),    // Refresh global user state (updates avatars everywhere)
+        ]);
         Alert.alert('Success', 'Profile picture updated!');
       } catch (error) {
         console.error('Error updating avatar:', error);
@@ -146,8 +152,8 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+        <StatusBar barStyle="light-content" />
         <PageHeader title="Profile" onBackPress={onBackPress} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={Colors.primary} />
@@ -158,8 +164,8 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
   if (!profile) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+        <StatusBar barStyle="light-content" />
         <PageHeader title="Profile" onBackPress={onBackPress} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text>Profile not found</Text>
@@ -171,8 +177,8 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const { user, stats, communities, recentPosts, recentMicroblogs } = profile;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+      <StatusBar barStyle="light-content" />
 
       <PageHeader
         title="Profile"
@@ -195,7 +201,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
       />
 
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.surface }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }

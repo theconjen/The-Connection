@@ -5,12 +5,14 @@ import { useAuth } from "../../src/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "../../src/lib/apiClient";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
-import { Alert } from "react-native";
 
 export default function FeedTab() {
   const router = useRouter();
   const { user } = useAuth();
   const [menuVisible, setMenuVisible] = useState(false);
+
+  // Check if user has inbox access permission
+  const hasInboxAccess = user?.permissions?.includes('inbox_access') || false;
 
   // Fetch unread notifications count
   const { data: unreadCount = 0 } = useQuery<number>({
@@ -31,37 +33,28 @@ export default function FeedTab() {
   return (
     <>
       <FeedScreen
-        onProfilePress={() => {
-          router.push("/profile");
-        }}
-        onSearchPress={() => {
-          router.push("/search");
-        }}
+        onProfilePress={() => router.push("/(tabs)/profile")}
+        onSearchPress={() => router.push("/search")}
         onSettingsPress={() => setMenuVisible(true)}
-        onMessagesPress={() => {
-          router.push("/(tabs)/messages");
-        }}
-        onNotificationsPress={() => {
-          router.push("/notifications");
-        }}
+        onMessagesPress={() => router.push("/(tabs)/messages")}
+        onNotificationsPress={() => router.push("/notifications")}
+        onAuthorPress={(userId) => router.push(`/(tabs)/profile?userId=${userId}`)}
+        onPostPress={(post) => router.push(`/posts/${post.id}`)}
         userName={user?.displayName || user?.username || "User"}
-        userAvatar={user?.profileImageUrl}
+        userAvatar={user?.profileImageUrl || user?.avatarUrl}
         unreadNotificationsCount={unreadCount}
       />
+
       <MenuDrawer
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
         onSettings={() => router.push("/settings")}
         onNotifications={() => router.push("/notifications")}
         onBookmarks={() => router.push("/bookmarks")}
-        onApologetics={() => {
-          Alert.alert(
-            "Coming Soon",
-            "The Apologetics feature is currently under development. Stay tuned. If you are interested in becoming a verified Apologist email: hello@theconnection.app",
-            [{ text: "OK" }]
-          );
-        }}
+        onInbox={() => router.push("/questions/inbox")}
+        hasInboxAccess={hasInboxAccess}
         onSearch={() => router.push("/search")}
+        onUserPress={(userId) => router.push(`/(tabs)/profile?userId=${userId}`)}
       />
     </>
   );

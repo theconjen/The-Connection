@@ -31,7 +31,7 @@ export default function PrayerDetailScreen() {
   const { data: prayer, isLoading: prayerLoading } = useQuery({
     queryKey: ['prayer', prayerId],
     queryFn: async () => {
-      const response = await apiClient.get(`/prayer-requests/${prayerId}`);
+      const response = await apiClient.get(`/api/prayer-requests/${prayerId}`);
       return response.data;
     },
   });
@@ -39,13 +39,18 @@ export default function PrayerDetailScreen() {
   const { data: comments = [], isLoading: commentsLoading } = useQuery({
     queryKey: ['prayer-comments', prayerId],
     queryFn: async () => {
-      const response = await apiClient.get(`/prayer-requests/${prayerId}/comments`);
-      return response.data;
+      try {
+        const response = await apiClient.get(`/api/prayer-requests/${prayerId}/comments`);
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+        return [];
+      }
     },
   });
 
   const prayMutation = useMutation({
-    mutationFn: () => apiClient.post(`/prayer-requests/${prayerId}/pray`),
+    mutationFn: () => apiClient.post(`/api/prayer-requests/${prayerId}/pray`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prayer', prayerId] });
       queryClient.invalidateQueries({ queryKey: ['prayer-requests'] });
@@ -54,7 +59,7 @@ export default function PrayerDetailScreen() {
 
   const commentMutation = useMutation({
     mutationFn: async (content: string) => {
-      const response = await apiClient.post(`/prayer-requests/${prayerId}/comments`, { content });
+      const response = await apiClient.post(`/api/prayer-requests/${prayerId}/comments`, { content });
       return response.data;
     },
     onSuccess: () => {
@@ -133,14 +138,14 @@ export default function PrayerDetailScreen() {
         )}
 
         <View style={styles.commentsSection}>
-          <Text style={styles.commentsTitle}>Prayer Updates & Encouragement ({comments.length})</Text>
+          <Text style={styles.commentsTitle}>Prayer Updates & Encouragement ({comments?.length || 0})</Text>
 
           {commentsLoading ? (
             <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
-          ) : comments.length === 0 ? (
+          ) : !comments || comments.length === 0 ? (
             <Text style={styles.noComments}>No comments yet. Be the first to encourage!</Text>
           ) : (
-            comments.map((comment: any) => (
+            Array.isArray(comments) && comments.map((comment: any) => (
               <View key={comment.id} style={styles.commentCard}>
                 <View style={styles.commentHeader}>
                   <View style={styles.smallAvatar}>

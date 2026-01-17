@@ -85,10 +85,8 @@ export function ProfileScreen({
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar
-        barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+      <StatusBar barStyle="light-content" />
 
       <PageHeader
         title="Profile"
@@ -109,7 +107,7 @@ export function ProfileScreen({
       />
 
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.surface }}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         {/* Profile Header */}

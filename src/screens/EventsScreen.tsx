@@ -25,7 +25,8 @@ import { AppHeader } from './AppHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { getCurrentLocationWithAddress, type UserLocation } from '../services/locationService';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiClient, queryClient } from '../lib/apiClient';
+import apiClient, { communitiesAPI } from '../lib/apiClient';
+import { queryClient } from '../../lib/queryClient';
 import { useAuth } from '../contexts/AuthContext';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -384,7 +385,7 @@ export function EventsScreen({
   userName = 'User',
   userAvatar,
 }: EventsScreenProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, colorScheme } = useTheme();
   const { user } = useAuth();
   const [activeFilters, setActiveFilters] = useState<string[]>(['This Week']);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -393,6 +394,7 @@ export function EventsScreen({
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
+  const [showCommunities, setShowCommunities] = useState(true);
 
   // Create Event Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -505,6 +507,28 @@ export function EventsScreen({
 
       return eventsData;
     },
+  });
+
+  // Fetch public communities with locations for the map
+  const { data: communities = [] } = useQuery<any[]>({
+    queryKey: ['/api/communities/map'],
+    queryFn: async () => {
+      try {
+        const allCommunities = await communitiesAPI.getAll();
+        // Only return public communities with latitude/longitude
+        if (!Array.isArray(allCommunities)) {
+          console.error('Communities response is not an array:', allCommunities);
+          return [];
+        }
+        return allCommunities.filter((c: any) =>
+          !c.isPrivate && c.latitude && c.longitude
+        );
+      } catch (error) {
+        console.error('Error fetching communities for map:', error);
+        return [];
+      }
+    },
+    enabled: viewMode === 'map' && showCommunities,
   });
 
   // RSVP mutation
@@ -687,53 +711,53 @@ export function EventsScreen({
     'Paid',
   ];
 
+  const isDark = colorScheme === 'dark';
+
   const categories: EventCategory[] = [
     {
       id: 'worship',
       title: 'Worship',
       count: '18',
       iconName: 'musical-notes-outline',
-      bgColor: '#F0F9FF',
-      accentColor: '#0284C7',
-      borderColor: '#E0F2FE',
+      bgColor: isDark ? '#1E3A5F' : '#F0F9FF',
+      accentColor: isDark ? '#60A5FA' : '#0284C7',
+      borderColor: isDark ? '#2563EB' : '#E0F2FE',
     },
     {
       id: 'bible-study',
       title: 'Bible Study',
       count: '24',
       iconName: 'book-outline',
-      bgColor: '#FEF3C7',
-      accentColor: '#D97706',
-      borderColor: '#FDE68A',
+      bgColor: isDark ? '#422006' : '#FEF3C7',
+      accentColor: isDark ? '#FCD34D' : '#D97706',
+      borderColor: isDark ? '#92400E' : '#FDE68A',
     },
     {
       id: 'social',
       title: 'Social',
       count: '32',
       iconName: 'cafe-outline',
-      bgColor: '#ECFDF5',
-      accentColor: '#059669',
-      borderColor: '#D1FAE5',
+      bgColor: isDark ? '#022C22' : '#ECFDF5',
+      accentColor: isDark ? '#34D399' : '#059669',
+      borderColor: isDark ? '#065F46' : '#D1FAE5',
     },
     {
       id: 'outreach',
       title: 'Outreach',
       count: '12',
       iconName: 'heart-outline',
-      bgColor: '#FDF2F8',
-      accentColor: '#DB2777',
-      borderColor: '#FCE7F3',
+      bgColor: isDark ? '#500724' : '#FDF2F8',
+      accentColor: isDark ? '#F472B6' : '#DB2777',
+      borderColor: isDark ? '#9F1239' : '#FCE7F3',
     },
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      <StatusBar
-        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <StatusBar barStyle="light-content" />
 
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.surface }}
         contentContainerStyle={{ paddingBottom: 80 }}
         stickyHeaderIndices={[1]}
         refreshControl={
@@ -1016,32 +1040,80 @@ export function EventsScreen({
                 </Pressable>
               </View>
             ) : userLocation ? (
-              <MapView
-                style={{ flex: 1 }}
-                provider={PROVIDER_GOOGLE}
-                initialRegion={{
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                  latitudeDelta: 0.2,
-                  longitudeDelta: 0.2,
-                }}
-                showsUserLocation
-                showsMyLocationButton
-              >
-                {events
-                  .filter(event => event.latitude && event.longitude)
-                  .map(event => (
+              <>
+                {/* Map Toggle for Communities */}
+                <View style={{
+                  position: 'absolute',
+                  top: spacing.md,
+                  right: spacing.md,
+                  zIndex: 10,
+                  backgroundColor: colors.card,
+                  borderRadius: radii.md,
+                  padding: spacing.md,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  shadowOffset: { width: 0, height: 2 },
+                  elevation: 3,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                }}>
+                  <Ionicons name="people" size={18} color={colors.foreground} />
+                  <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+                    Communities
+                  </Text>
+                  <Switch
+                    value={showCommunities}
+                    onValueChange={setShowCommunities}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={showCommunities ? colors.primaryForeground : colors.mutedForeground}
+                  />
+                </View>
+
+                <MapView
+                  style={{ flex: 1 }}
+                  provider={PROVIDER_GOOGLE}
+                  initialRegion={{
+                    latitude: userLocation.latitude,
+                    longitude: userLocation.longitude,
+                    latitudeDelta: 0.2,
+                    longitudeDelta: 0.2,
+                  }}
+                  showsUserLocation
+                  showsMyLocationButton
+                >
+                  {/* Event Markers */}
+                  {events
+                    .filter(event => event.latitude && event.longitude)
+                    .map(event => (
+                      <Marker
+                        key={`event-${event.id}`}
+                        coordinate={{
+                          latitude: parseFloat(event.latitude!),
+                          longitude: parseFloat(event.longitude!),
+                        }}
+                        title={event.title}
+                        description={`${new Date(event.eventDate).toLocaleDateString()} at ${event.startTime}`}
+                        pinColor="#4A90E2"
+                      />
+                    ))}
+
+                  {/* Community Markers */}
+                  {showCommunities && communities.map(community => (
                     <Marker
-                      key={event.id}
+                      key={`community-${community.id}`}
                       coordinate={{
-                        latitude: parseFloat(event.latitude!),
-                        longitude: parseFloat(event.longitude!),
+                        latitude: parseFloat(community.latitude),
+                        longitude: parseFloat(community.longitude),
                       }}
-                      title={event.title}
-                      description={`${new Date(event.eventDate).toLocaleDateString()} at ${event.startTime}`}
+                      title={community.name}
+                      description={community.description || 'Community'}
+                      pinColor="#10B981"
                     />
                   ))}
-              </MapView>
+                </MapView>
+              </>
             ) : (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted, padding: spacing.xl }}>
                 <Ionicons name="map-outline" size={48} color={colors.mutedForeground} />
@@ -1623,32 +1695,6 @@ export function EventsScreen({
           </View>
         </SafeAreaView>
       </Modal>
-
-      {/* Floating Action Button - Only show if user can create events */}
-      {canCreateEvents && (
-        <Pressable
-          onPress={onCreatePress || (() => setShowCreateModal(true))}
-          style={({ pressed }) => ({
-            position: 'absolute',
-            bottom: 90,
-            right: spacing.lg,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: colors.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 8,
-            opacity: pressed ? 0.9 : 1,
-          })}
-        >
-          <Ionicons name="add" size={28} color={colors.primaryForeground} />
-        </Pressable>
-      )}
     </SafeAreaView>
   );
 }
