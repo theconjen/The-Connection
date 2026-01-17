@@ -466,24 +466,43 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.get('/api/user', async (req, res) => {
     try {
       const userId = getSessionUserId(req);
-      
+
       if (!userId) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
-      
+
       if (userId === undefined) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
 
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
-      
-      // Remove password from response
+
+      // Get user permissions from user_permissions table
+      const { db } = await import('./db');
+      const { userPermissions } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+
+      const permissionsResult = await db
+        .select({ permission: userPermissions.permission })
+        .from(userPermissions)
+        .where(eq(userPermissions.userId, userId));
+
+      const permissions = permissionsResult.map(p => p.permission);
+
+      console.info('[GET /api/user] User:', userId, user.username);
+      console.info('[GET /api/user] Permissions query result:', permissionsResult);
+      console.info('[GET /api/user] Permissions array:', permissions);
+
+      // Remove password from response, add permissions
       const { password, ...userData } = user;
-      res.json(userData);
+      res.json({
+        ...userData,
+        permissions,
+      });
     } catch (error) {
       console.error('Error fetching current user:', error);
       res.status(500).json(buildErrorResponse('Error fetching user', error));
