@@ -1791,3 +1791,189 @@ export type InsertUserReputation = typeof userReputation.$inferInsert;
 
 export type ReputationHistory = typeof reputationHistory.$inferSelect;
 export type InsertReputationHistory = typeof reputationHistory.$inferInsert;
+
+// ============================================================================
+// PRIVATE Q&A INBOX SYSTEM (Apologetics/Polemics)
+// ============================================================================
+
+// User Permissions - controls access to inbox and admin features
+export const userPermissions = pgTable("user_permissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  permission: text("permission").notNull(), // 'inbox_access', 'manage_experts'
+  grantedBy: integer("granted_by").references(() => users.id),
+  grantedAt: timestamp("granted_at").defaultNow(),
+} as any, (table) => ({
+  uniqueUserPermission: uniqueIndex("user_permissions_unique_idx").on(table.userId, table.permission),
+}));
+
+export const insertUserPermissionSchema = createInsertSchema(userPermissions).pick({
+  userId: true,
+  permission: true,
+  grantedBy: true,
+} as any);
+
+// Q&A Areas - categories for questions (Evidence, Theology, History, Objections, Perspectives)
+export const qaAreas = pgTable("qa_areas", {
+  id: serial("id").primaryKey(),
+  domain: text("domain").notNull(), // 'apologetics' or 'polemics'
+  name: text("name").notNull(), // Evidence, Theology, etc.
+  slug: text("slug").notNull(),
+  description: text("description"),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any, (table) => ({
+  uniqueDomainSlug: uniqueIndex("qa_areas_domain_slug_idx").on(table.domain, table.slug),
+}));
+
+export const insertQaAreaSchema = createInsertSchema(qaAreas).pick({
+  domain: true,
+  name: true,
+  slug: true,
+  description: true,
+  order: true,
+} as any);
+
+// Q&A Tags - specific topics within areas (Manuscripts, Resurrection, Trinity, etc.)
+export const qaTags = pgTable("qa_tags", {
+  id: serial("id").primaryKey(),
+  areaId: integer("area_id").notNull().references(() => qaAreas.id, { onDelete: 'cascade' }),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  description: text("description"),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any, (table) => ({
+  uniqueAreaSlug: uniqueIndex("qa_tags_area_slug_idx").on(table.areaId, table.slug),
+}));
+
+export const insertQaTagSchema = createInsertSchema(qaTags).pick({
+  areaId: true,
+  name: true,
+  slug: true,
+  description: true,
+  order: true,
+} as any);
+
+// Apologist Profiles - verified scholars/experts who answer questions
+export const apologistProfiles = pgTable("apologist_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  title: text("title"), // Dr., Rev., etc.
+  credentialsShort: text("credentials_short"), // PhD Theology
+  bioLong: text("bio_long"),
+  verificationStatus: text("verification_status").notNull().default("none"), // none, internal, pending, verified
+  inboxEnabled: boolean("inbox_enabled").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+} as any);
+
+export const insertApologistProfileSchema = createInsertSchema(apologistProfiles).pick({
+  userId: true,
+  title: true,
+  credentialsShort: true,
+  bioLong: true,
+  verificationStatus: true,
+  inboxEnabled: true,
+} as any);
+
+// Apologist Expertise - maps experts to areas and tags they can answer
+export const apologistExpertise = pgTable("apologist_expertise", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  areaId: integer("area_id").notNull().references(() => qaAreas.id, { onDelete: 'cascade' }),
+  tagId: integer("tag_id").references(() => qaTags.id, { onDelete: 'cascade' }), // null = area-level expertise
+  level: text("level").notNull().default("secondary"), // 'primary' or 'secondary'
+  createdAt: timestamp("created_at").defaultNow(),
+} as any, (table) => ({
+  uniqueExpertise: uniqueIndex("apologist_expertise_unique_idx").on(table.userId, table.areaId, table.tagId),
+}));
+
+export const insertApologistExpertiseSchema = createInsertSchema(apologistExpertise).pick({
+  userId: true,
+  areaId: true,
+  tagId: true,
+  level: true,
+} as any);
+
+// User Questions - private questions submitted by users
+export const userQuestions = pgTable("user_questions", {
+  id: serial("id").primaryKey(),
+  askerUserId: integer("asker_user_id").notNull().references(() => users.id),
+  domain: text("domain").notNull(), // 'apologetics' or 'polemics'
+  areaId: integer("area_id").notNull().references(() => qaAreas.id),
+  tagId: integer("tag_id").notNull().references(() => qaTags.id),
+  questionText: text("question_text").notNull(),
+  status: text("status").notNull().default("new"), // 'new', 'routed', 'answered', 'closed'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+} as any);
+
+export const insertUserQuestionSchema = createInsertSchema(userQuestions).pick({
+  askerUserId: true,
+  domain: true,
+  areaId: true,
+  tagId: true,
+  questionText: true,
+  status: true,
+} as any);
+
+// Question Assignments - routes questions to experts
+export const questionAssignments = pgTable("question_assignments", {
+  id: serial("id").primaryKey(),
+  questionId: integer("question_id").notNull().references(() => userQuestions.id, { onDelete: 'cascade' }),
+  assignedToUserId: integer("assigned_to_user_id").notNull().references(() => users.id),
+  assignedByUserId: integer("assigned_by_user_id").references(() => users.id),
+  status: text("status").notNull().default("assigned"), // 'assigned', 'accepted', 'declined', 'answered'
+  reason: text("reason"), // reason for decline or notes
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+} as any);
+
+export const insertQuestionAssignmentSchema = createInsertSchema(questionAssignments).pick({
+  questionId: true,
+  assignedToUserId: true,
+  assignedByUserId: true,
+  status: true,
+  reason: true,
+} as any);
+
+// Question Messages - threaded conversation between asker and answerer
+export const questionMessages = pgTable("question_messages", {
+  id: serial("id").primaryKey(),
+  questionId: integer("question_id").notNull().references(() => userQuestions.id, { onDelete: 'cascade' }),
+  senderUserId: integer("sender_user_id").notNull().references(() => users.id),
+  body: text("body").notNull(), // markdown allowed
+  createdAt: timestamp("created_at").defaultNow(),
+} as any);
+
+export const insertQuestionMessageSchema = createInsertSchema(questionMessages).pick({
+  questionId: true,
+  senderUserId: true,
+  body: true,
+} as any);
+
+// Type exports for Q&A Inbox system
+export type UserPermission = typeof userPermissions.$inferSelect;
+export type InsertUserPermission = typeof userPermissions.$inferInsert;
+
+export type QaArea = typeof qaAreas.$inferSelect;
+export type InsertQaArea = typeof qaAreas.$inferInsert;
+
+export type QaTag = typeof qaTags.$inferSelect;
+export type InsertQaTag = typeof qaTags.$inferInsert;
+
+export type ApologistProfile = typeof apologistProfiles.$inferSelect;
+export type InsertApologistProfile = typeof apologistProfiles.$inferInsert;
+
+export type ApologistExpertise = typeof apologistExpertise.$inferSelect;
+export type InsertApologistExpertise = typeof apologistExpertise.$inferInsert;
+
+export type UserQuestion = typeof userQuestions.$inferSelect;
+export type InsertUserQuestion = typeof userQuestions.$inferInsert;
+
+export type QuestionAssignment = typeof questionAssignments.$inferSelect;
+export type InsertQuestionAssignment = typeof questionAssignments.$inferInsert;
+
+export type QuestionMessage = typeof questionMessages.$inferSelect;
+export type InsertQuestionMessage = typeof questionMessages.$inferInsert;
