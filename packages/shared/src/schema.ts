@@ -1883,6 +1883,9 @@ export const qaLibraryPosts = pgTable("qa_library_posts", {
   tagId: integer("tag_id").references(() => qaTags.id, { onDelete: 'set null' }),
   title: text("title").notNull(),
   summary: text("summary"),
+  tldr: text("tldr"), // Quick answer (2-3 sentences) for GotQuestions UX
+  keyPoints: jsonb("key_points").default(sql`'[]'::jsonb`), // 3-5 bullet points
+  scriptureRefs: jsonb("scripture_refs").default(sql`'[]'::jsonb`), // Scripture references
   bodyMarkdown: text("body_markdown").notNull(),
   perspectives: text("perspectives").array().default(sql`'{}'::text[]`),
   sources: jsonb("sources").default(sql`'[]'::jsonb`),
@@ -1905,6 +1908,9 @@ export const insertQaLibraryPostSchema = createInsertSchema(qaLibraryPosts).pick
   tagId: true,
   title: true,
   summary: true,
+  tldr: true,
+  keyPoints: true,
+  scriptureRefs: true,
   bodyMarkdown: true,
   perspectives: true,
   sources: true,
@@ -1918,6 +1924,9 @@ export const updateQaLibraryPostSchema = createInsertSchema(qaLibraryPosts).pick
   tagId: true,
   title: true,
   summary: true,
+  tldr: true,
+  keyPoints: true,
+  scriptureRefs: true,
   bodyMarkdown: true,
   perspectives: true,
   sources: true,
@@ -1926,6 +1935,35 @@ export const updateQaLibraryPostSchema = createInsertSchema(qaLibraryPosts).pick
 
 export type QaLibraryPost = typeof qaLibraryPosts.$inferSelect;
 export type InsertQaLibraryPost = typeof qaLibraryPosts.$inferInsert;
+
+// Q&A Library Contributions - Multi-apologist collaboration on library posts
+// Only qualified apologists can propose, only user 19 can approve/reject
+export const qaLibraryContributions = pgTable("qa_library_contributions", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => qaLibraryPosts.id, { onDelete: 'cascade' }),
+  contributorUserId: integer("contributor_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: text("type").notNull(), // 'edit_suggestion' | 'additional_perspective' | 'add_sources' | 'clarification'
+  payload: jsonb("payload").notNull(), // Type-specific data
+  status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'rejected'
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedByUserId: integer("reviewed_by_user_id").references(() => users.id, { onDelete: 'set null' }),
+} as any, (table) => ({
+  postIdIdx: index("qa_library_contributions_post_id_idx").on(table.postId),
+  contributorIdx: index("qa_library_contributions_contributor_idx").on(table.contributorUserId),
+  statusIdx: index("qa_library_contributions_status_idx").on(table.status, table.createdAt),
+  reviewerIdx: index("qa_library_contributions_reviewer_idx").on(table.reviewedByUserId),
+}));
+
+export const insertQaLibraryContributionSchema = createInsertSchema(qaLibraryContributions).pick({
+  postId: true,
+  contributorUserId: true,
+  type: true,
+  payload: true,
+} as any);
+
+export type QaLibraryContribution = typeof qaLibraryContributions.$inferSelect;
+export type InsertQaLibraryContribution = typeof qaLibraryContributions.$inferInsert;
 
 // Apologist Profiles - expert profiles for both public Q&A and private inbox
 // NOTE: Verification status comes from users.isVerifiedApologeticsAnswerer (canonical)

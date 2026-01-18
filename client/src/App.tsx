@@ -11,6 +11,7 @@ const HomePage = lazy(() => import("./pages/home-page"));
 const AuthPage = lazy(() => import("./pages/auth-page"));
 const NotFound = lazy(() => import("./pages/not-found"));
 const ApologeticsPage = lazy(() => import("./pages/apologetics-page"));
+const ApologeticsDetail = lazy(() => import("./pages/apologetics-detail"));
 const LivestreamsPage = lazy(() => import("./pages/livestreams-page"));
 const CommunitiesPage = lazy(() => import("./pages/communities-page"));
 const CommunityPage = lazy(() => import("./pages/community-page"));
@@ -45,11 +46,12 @@ const OrganizationInvitePage = lazy(() => import("./pages/organization-invite-pa
 const AcceptInvitationPage = lazy(() => import("./pages/accept-invitation-page"));
 const SupportPage = lazy(() => import("./pages/support-page"));
 const ApologistDashboard = lazy(() => import("./pages/apologist-dashboard"));
-const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
-const TermsOfServicePage = lazy(() => import("./pages/TermsOfServicePage"));
+const PrivacyPolicyPage = lazy(() => import("./pages/privacy-policy-page"));
+const TermsOfServicePage = lazy(() => import("./pages/terms-of-service-page"));
 const LibraryPage = lazy(() => import("./pages/library-page"));
 const LibraryPostPage = lazy(() => import("./pages/library-post-page"));
 const LibraryCreatePage = lazy(() => import("./pages/library-create-page"));
+const QuestionsInbox = lazy(() => import("./pages/questions-inbox"));
 
 // Analytics tracking component with event tracking
 function AnalyticsTracker() {
@@ -108,10 +110,12 @@ function App() {
           <Route path="/events/:id" component={EventDetailPage} />
           <Route path="/prayer-requests" component={PrayerRequestsPage} />
           <Route path="/livestreams" component={LivestreamsPage} />
+          <Route path="/apologetics/:id" component={ApologeticsDetail} />
           <Route path="/apologetics" component={ApologeticsPage} />
           <Route path="/library" component={LibraryPage} />
           <Route path="/library/create" component={LibraryCreatePage} />
           <Route path="/library/:id" component={LibraryPostPage} />
+          <Route path="/questions/inbox" component={QuestionsInbox} />
 
           {/* User Actions */}
           <Route path="/submit" component={SubmitPostPage} />

@@ -59,6 +59,9 @@ export interface LibraryPost {
   tagId: number | null;
   title: string;
   summary: string | null;
+  tldr: string | null; // Quick answer (2-3 sentences) - GotQuestions UX
+  keyPoints: string[]; // 3-5 bullet points
+  scriptureRefs: string[]; // Scripture references
   bodyMarkdown: string;
   perspectives: string[];
   sources: LibraryPostSource[];
@@ -71,6 +74,15 @@ export interface LibraryPost {
   // Relations (populated in responses)
   area?: QaArea;
   tag?: QaTag;
+  author?: {
+    id: number;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    profileImageUrl: string | null;
+  };
+  // Contributions (populated when viewing post)
+  contributions?: LibraryContribution[];
 }
 
 // Library Post list item (lighter weight)
@@ -81,6 +93,7 @@ export interface LibraryPostListItem {
   tagId: number | null;
   title: string;
   summary: string | null;
+  tldr: string | null; // Preview for list view
   perspectives: string[];
   authorDisplayName: string;
   status: LibraryPostStatus;
@@ -105,6 +118,9 @@ export interface CreateLibraryPostRequest {
   tagId: number | null;
   title: string;
   summary?: string;
+  tldr: string; // Required for GotQuestions UX
+  keyPoints: string[];
+  scriptureRefs: string[];
   bodyMarkdown: string;
   perspectives: string[];
   sources: LibraryPostSource[];
@@ -115,6 +131,9 @@ export interface UpdateLibraryPostRequest {
   tagId?: number | null;
   title?: string;
   summary?: string;
+  tldr?: string;
+  keyPoints?: string[];
+  scriptureRefs?: string[];
   bodyMarkdown?: string;
   perspectives?: string[];
   sources?: LibraryPostSource[];
@@ -150,4 +169,77 @@ export interface ApologeticsMessage {
   senderId: number;
   content: string;
   createdAt: string;
+}
+
+// Library Contributions - Multi-apologist collaboration
+export type ContributionType =
+  | 'edit_suggestion'
+  | 'additional_perspective'
+  | 'add_sources'
+  | 'clarification';
+
+export type ContributionStatus = 'pending' | 'approved' | 'rejected';
+
+// Contribution payloads (type-specific)
+export interface AdditionalPerspectivePayload {
+  label: string; // e.g., "Catholic View", "Reformed Response"
+  bodyMarkdown: string;
+  scriptureRefs?: string[];
+}
+
+export interface AddSourcesPayload {
+  sources: LibraryPostSource[];
+}
+
+export interface EditSuggestionPayload {
+  proposedBodyMarkdown?: string;
+  patchDescription?: string;
+}
+
+export interface ClarificationPayload {
+  section: string; // Which section needs clarification
+  clarificationText: string;
+}
+
+export type ContributionPayload =
+  | AdditionalPerspectivePayload
+  | AddSourcesPayload
+  | EditSuggestionPayload
+  | ClarificationPayload;
+
+// Library Contribution (full detail)
+export interface LibraryContribution {
+  id: number;
+  postId: number;
+  contributorUserId: number;
+  type: ContributionType;
+  payload: ContributionPayload;
+  status: ContributionStatus;
+  createdAt: string;
+  reviewedAt: string | null;
+  reviewedByUserId: number | null;
+  // Relations
+  contributor?: {
+    id: number;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+  reviewer?: {
+    id: number;
+    username: string;
+    displayName: string | null;
+  };
+}
+
+// Create contribution request
+export interface CreateContributionRequest {
+  type: ContributionType;
+  payload: ContributionPayload;
+}
+
+// Contribution list response
+export interface ContributionsListResponse {
+  contributions: LibraryContribution[];
+  total: number;
 }

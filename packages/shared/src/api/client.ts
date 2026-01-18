@@ -13,6 +13,9 @@ import type {
   CreateLibraryPostRequest,
   UpdateLibraryPostRequest,
   ListLibraryPostsParams,
+  LibraryContribution,
+  CreateContributionRequest,
+  ContributionsListResponse,
 } from './types';
 
 export interface ApiClientConfig {
@@ -160,6 +163,23 @@ export function createApiClient(config: ApiClientConfig) {
 
     async deleteLibraryPost(id: number): Promise<void> {
       return del<void>(`/api/library/posts/${id}`);
+    },
+
+    // Library Contributions
+    async createContribution(postId: number, body: CreateContributionRequest): Promise<LibraryContribution> {
+      return post<LibraryContribution>(`/api/library/posts/${postId}/contributions`, body);
+    },
+
+    async listContributions(postId: number): Promise<ContributionsListResponse> {
+      return get<ContributionsListResponse>(`/api/library/posts/${postId}/contributions`);
+    },
+
+    async approveContribution(id: number): Promise<LibraryContribution> {
+      return post<LibraryContribution>(`/api/library/contributions/${id}/approve`);
+    },
+
+    async rejectContribution(id: number): Promise<LibraryContribution> {
+      return post<LibraryContribution>(`/api/library/contributions/${id}/reject`);
     },
   };
 }

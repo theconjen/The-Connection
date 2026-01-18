@@ -5354,8 +5354,8 @@ export class DbStorage implements IStorage {
   /**
    * Get single library post by ID
    */
-  async getLibraryPost(id: number, viewerUserId?: number): Promise<any> {
-    const { qaLibraryPosts, qaAreas, qaTags } = await import('@shared/schema');
+  async getLibraryPost(id: number, viewerUserId?: number, includeContributions = true): Promise<any> {
+    const { qaLibraryPosts, qaAreas, qaTags, qaLibraryContributions } = await import('@shared/schema');
 
     const [result] = await db
       .select({
@@ -5378,10 +5378,39 @@ export class DbStorage implements IStorage {
       return null;
     }
 
+    // Fetch approved contributions
+    let contributions = [];
+    if (includeContributions) {
+      const approvedContributions = await db
+        .select()
+        .from(qaLibraryContributions)
+        .where(and(
+          eq(qaLibraryContributions.postId, id),
+          eq(qaLibraryContributions.status, 'approved')
+        ))
+        .orderBy(desc(qaLibraryContributions.createdAt));
+
+      contributions = await Promise.all(
+        approvedContributions.map(async (c: any) => {
+          const contributor = await this.getUser(c.contributorUserId);
+          return {
+            ...c,
+            contributor: contributor ? {
+              id: contributor.id,
+              username: contributor.username,
+              displayName: contributor.displayName,
+              avatarUrl: contributor.avatarUrl,
+            } : undefined,
+          };
+        })
+      );
+    }
+
     return {
       ...post,
       area: result.area,
       tag: result.tag,
+      contributions,
     };
   }
 
@@ -5498,6 +5527,123 @@ export class DbStorage implements IStorage {
       .where(eq(qaLibraryPosts.id, id));
 
     return true;
+  }
+
+  /**
+   * Create library contribution
+   */
+  async createContribution(postId: number, contributorUserId: number, data: any): Promise<any> {
+    const { qaLibraryContributions } = await import('@shared/schema');
+
+    // Verify user can contribute
+    const canContribute = await this.canAuthorLibraryPosts(contributorUserId);
+    if (!canContribute) {
+      throw new Error('Unauthorized: only verified apologists can contribute');
+    }
+
+    const contributionData: any = {
+      postId,
+      contributorUserId,
+      type: data.type,
+      payload: data.payload,
+      status: 'pending',
+    };
+
+    const [created] = await db
+      .insert(qaLibraryContributions)
+      .values(contributionData)
+      .returning();
+
+    return created;
+  }
+
+  /**
+   * List contributions for a post
+   */
+  async listContributions(postId: number): Promise<any> {
+    const { qaLibraryContributions } = await import('@shared/schema');
+
+    const contributions = await db
+      .select()
+      .from(qaLibraryContributions)
+      .where(eq(qaLibraryContributions.postId, postId))
+      .orderBy(desc(qaLibraryContributions.createdAt));
+
+    // Enrich with contributor info
+    const enriched = await Promise.all(
+      contributions.map(async (c: any) => {
+        const contributor = await this.getUser(c.contributorUserId);
+        const reviewer = c.reviewedByUserId ? await this.getUser(c.reviewedByUserId) : null;
+
+        return {
+          ...c,
+          contributor: contributor ? {
+            id: contributor.id,
+            username: contributor.username,
+            displayName: contributor.displayName,
+            avatarUrl: contributor.avatarUrl,
+          } : undefined,
+          reviewer: reviewer ? {
+            id: reviewer.id,
+            username: reviewer.username,
+            displayName: reviewer.displayName,
+          } : undefined,
+        };
+      })
+    );
+
+    return {
+      contributions: enriched,
+      total: enriched.length,
+    };
+  }
+
+  /**
+   * Approve contribution
+   */
+  async approveContribution(id: number, reviewerUserId: number): Promise<any> {
+    const { qaLibraryContributions } = await import('@shared/schema');
+
+    // Only user 19 can approve
+    if (reviewerUserId !== 19) {
+      throw new Error('Unauthorized: only admin can approve contributions');
+    }
+
+    const [updated] = await db
+      .update(qaLibraryContributions)
+      .set({
+        status: 'approved',
+        reviewedAt: new Date(),
+        reviewedByUserId: reviewerUserId,
+      })
+      .where(eq(qaLibraryContributions.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  /**
+   * Reject contribution
+   */
+  async rejectContribution(id: number, reviewerUserId: number): Promise<any> {
+    const { qaLibraryContributions } = await import('@shared/schema');
+
+    // Only user 19 can reject
+    if (reviewerUserId !== 19) {
+      throw new Error('Unauthorized: only admin can reject contributions');
+    }
+
+    const [updated] = await db
+      .update(qaLibraryContributions)
+      .set({
+        status: 'rejected',
+        reviewedAt: new Date(),
+        reviewedByUserId: reviewerUserId,
+      })
+      .where(eq(qaLibraryContributions.id, id))
+      .returning();
+
+    return updated;
   }
 
   /**

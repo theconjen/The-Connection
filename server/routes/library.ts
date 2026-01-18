@@ -41,6 +41,9 @@ const createLibraryPostSchema = z.object({
   tagId: z.number().int().positive().nullable().optional(),
   title: z.string().min(1).max(500),
   summary: z.string().max(1000).nullable().optional(),
+  tldr: z.string().min(1).max(500), // Required for GotQuestions UX
+  keyPoints: z.array(z.string()).min(3).max(5), // 3-5 bullet points
+  scriptureRefs: z.array(z.string()).optional().default([]), // Scripture references
   bodyMarkdown: z.string().min(1),
   perspectives: z.array(z.string()).optional().default([]),
   sources: z.array(z.object({
@@ -57,6 +60,9 @@ const updateLibraryPostSchema = z.object({
   tagId: z.number().int().positive().nullable().optional(),
   title: z.string().min(1).max(500).optional(),
   summary: z.string().max(1000).nullable().optional(),
+  tldr: z.string().min(1).max(500).optional(),
+  keyPoints: z.array(z.string()).min(3).max(5).optional(),
+  scriptureRefs: z.array(z.string()).optional(),
   bodyMarkdown: z.string().min(1).optional(),
   perspectives: z.array(z.string()).optional(),
   sources: z.array(z.object({
@@ -66,6 +72,26 @@ const updateLibraryPostSchema = z.object({
     date: z.string().optional(),
   })).optional(),
   status: z.enum(['draft', 'published', 'archived']).optional(),
+});
+
+const createContributionSchema = z.object({
+  type: z.enum(['edit_suggestion', 'additional_perspective', 'add_sources', 'clarification']),
+  payload: z.object({
+    // Allow different payload structures based on type
+    label: z.string().optional(),
+    bodyMarkdown: z.string().optional(),
+    scriptureRefs: z.array(z.string()).optional(),
+    sources: z.array(z.object({
+      title: z.string(),
+      url: z.string().url(),
+      author: z.string().optional(),
+      date: z.string().optional(),
+    })).optional(),
+    proposedBodyMarkdown: z.string().optional(),
+    patchDescription: z.string().optional(),
+    section: z.string().optional(),
+    clarificationText: z.string().optional(),
+  }),
 });
 
 // ============================================================================
@@ -286,6 +312,209 @@ router.delete('/posts/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error deleting library post:', error);
     res.status(500).json(buildErrorResponse('Error deleting library post', error));
+  }
+});
+
+// ============================================================================
+// CONTRIBUTION ROUTES
+// ============================================================================
+
+/**
+ * POST /api/library/posts/:id/contributions
+ * Create a contribution to a library post
+ * Requires: canAuthorLibraryPosts permission (verified apologists only)
+ */
+router.post('/posts/:id/contributions', requireAuth, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id, 10);
+
+    if (isNaN(postId)) {
+      return res.status(400).json({ error: 'Invalid post ID' });
+    }
+
+    const contributorUserId = requireSessionUserId(req);
+
+    // Check contributor permission
+    const canContribute = await storage.canAuthorLibraryPosts(contributorUserId);
+    if (!canContribute) {
+      return res.status(403).json({
+        error: 'Insufficient permissions to contribute to library posts',
+      });
+    }
+
+    // Validate request body
+    const data = createContributionSchema.parse(req.body);
+
+    // Create contribution
+    const contribution = await storage.createContribution(postId, contributorUserId, data);
+
+    res.status(201).json(contribution);
+  } catch (error) {
+    console.error('Error creating contribution:', error);
+
+    if (error instanceof z.ZodError) {
+      return res.status(400).json(buildErrorResponse('Invalid request data', error));
+    }
+
+    res.status(500).json(buildErrorResponse('Error creating contribution', error));
+  }
+});
+
+/**
+ * GET /api/library/posts/:id/contributions
+ * List contributions for a library post
+ * PUBLIC: Only shows approved contributions
+ * EDITORS (userId 19): Shows all contributions
+ */
+router.get('/posts/:id/contributions', async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id, 10);
+
+    if (isNaN(postId)) {
+      return res.status(400).json({ error: 'Invalid post ID' });
+    }
+
+    const userId = getSessionUserId(req);
+    const isEditor = userId === 19; // Only user 19 (admin) can see all contributions
+
+    let contributions = await storage.listContributions(postId);
+
+    // Non-editors can only see approved contributions
+    if (!isEditor) {
+      contributions = contributions.filter(c => c.status === 'approved');
+    }
+
+    res.json(contributions);
+  } catch (error) {
+    console.error('Error listing contributions:', error);
+    res.status(500).json(buildErrorResponse('Error listing contributions', error));
+  }
+});
+
+/**
+ * POST /api/library/contributions/:id/approve
+ * Approve a contribution
+ * Requires: User 19 only (admin)
+ */
+router.post('/contributions/:id/approve', requireAuth, async (req, res) => {
+  try {
+    const contributionId = parseInt(req.params.id, 10);
+
+    if (isNaN(contributionId)) {
+      return res.status(400).json({ error: 'Invalid contribution ID' });
+    }
+
+    const reviewerUserId = requireSessionUserId(req);
+
+    // Only user 19 can approve
+    if (reviewerUserId !== 19) {
+      return res.status(403).json({
+        error: 'Unauthorized: only admin can approve contributions',
+      });
+    }
+
+    const contribution = await storage.approveContribution(contributionId, reviewerUserId);
+
+    res.json(contribution);
+  } catch (error) {
+    console.error('Error approving contribution:', error);
+    res.status(500).json(buildErrorResponse('Error approving contribution', error));
+  }
+});
+
+/**
+ * POST /api/library/contributions/:id/reject
+ * Reject a contribution
+ * Requires: User 19 only (admin)
+ */
+router.post('/contributions/:id/reject', requireAuth, async (req, res) => {
+  try {
+    const contributionId = parseInt(req.params.id, 10);
+
+    if (isNaN(contributionId)) {
+      return res.status(400).json({ error: 'Invalid contribution ID' });
+    }
+
+    const reviewerUserId = requireSessionUserId(req);
+
+    // Only user 19 can reject
+    if (reviewerUserId !== 19) {
+      return res.status(403).json({
+        error: 'Unauthorized: only admin can reject contributions',
+      });
+    }
+
+    const contribution = await storage.rejectContribution(contributionId, reviewerUserId);
+
+    res.json(contribution);
+  } catch (error) {
+    console.error('Error rejecting contribution:', error);
+    res.status(500).json(buildErrorResponse('Error rejecting contribution', error));
+  }
+});
+
+/**
+ * POST /api/library/questions/:questionId/publish
+ * Publish a user question as a library post
+ * Requires: Apologist permission (canAuthorApologeticsPosts)
+ */
+router.post('/questions/:questionId/publish', requireAuth, async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.questionId, 10);
+
+    if (isNaN(questionId)) {
+      return res.status(400).json({ error: 'Invalid question ID' });
+    }
+
+    const userId = requireSessionUserId(req);
+
+    // Check if user has apologist permissions
+    const user = await storage.getUser(userId);
+    if (!user || !user.canAuthorApologeticsPosts) {
+      return res.status(403).json({
+        error: 'Unauthorized: you must be an apologist to publish library posts',
+      });
+    }
+
+    // Validate the article data
+    const articleData = createLibraryPostSchema.parse(req.body);
+
+    // Get the user question
+    const question = await storage.getUserQuestionById(questionId);
+    if (!question) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+
+    // Check if already published (DB-level protection via UNIQUE constraint)
+    if (question.publishedPostId) {
+      return res.status(400).json({
+        error: 'This question is already published as an article.',
+        publishedPostId: question.publishedPostId,
+      });
+    }
+
+    // Create the library post
+    const libraryPost = await storage.createLibraryPost({
+      ...articleData,
+      authorUserId: userId,
+      authorDisplayName: 'Connection Research Team',
+      status: 'published',
+      level: 'intermediate',
+    });
+
+    // Link the question to the library post
+    await storage.updateUserQuestion(questionId, {
+      publishedPostId: libraryPost.id,
+      status: 'answered',
+    });
+
+    res.status(201).json({
+      libraryPost,
+      message: 'Question successfully published as library post',
+    });
+  } catch (error) {
+    console.error('Error publishing user question:', error);
+    res.status(500).json(buildErrorResponse('Error publishing user question', error));
   }
 });
 

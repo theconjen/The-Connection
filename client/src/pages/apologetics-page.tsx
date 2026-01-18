@@ -1,561 +1,412 @@
+/**
+ * Apologetics Page - GotQuestions UX
+ * GOAL: User gets a reliable answer in under 60 seconds
+ *
+ * Features:
+ * - Debounced search
+ * - Domain toggle: Apologetics | Polemics
+ * - Area/Tag filtering
+ * - Suggested searches
+ * - Library post cards with TL;DR
+ * - Inbox access for apologists
+ */
+
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../hooks/use-auth";
 import MainLayout from "../components/layouts/main-layout";
-import { ApologeticsResource, ApologeticsTopic, ApologeticsQuestion, User } from "@connection/shared/schema";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "../components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Skeleton } from "../components/ui/skeleton";
-import { Link } from "wouter";
-import { 
-  BookOpenIcon, 
-  VideoIcon, 
-  HeadphonesIcon, 
-  ExternalLinkIcon, 
-  MessagesSquareIcon,
-  UserCheckIcon,
-  ShieldQuestionIcon,
-  BookIcon,
-  AtomIcon,
-  HeartHandshakeIcon
+import { Card, CardContent } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import {
+  Search,
+  ShieldCheck,
+  CheckCircle2,
+  Users,
+  Mail,
+  Inbox
 } from "lucide-react";
-import { RecommendedForYou } from "../components/RecommendedForYou";
+import { Link } from "wouter";
 
-// Helper function to format dates
-const formatDate = (dateString?: string | Date | null) => {
-  if (!dateString) return '';
-  
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) {
-    return 'Today';
-  } else if (diffDays === 1) {
-    return 'Yesterday';
-  } else if (diffDays < 7) {
-    return `${diffDays} days ago`;
-  } else if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7);
-    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
-  } else {
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  }
+type Domain = "apologetics" | "polemics";
+
+type QaArea = {
+  id: number;
+  name: string;
+  slug: string;
+  domain: Domain;
+};
+
+type QaTag = {
+  id: number;
+  name: string;
+  slug: string;
+  areaId: number;
+};
+
+type LibraryPostListItem = {
+  id: number;
+  domain: Domain;
+  title: string;
+  tldr: string | null;
+  perspectives: string[];
+  authorDisplayName: string;
+  publishedAt: string | null;
+  area?: { id: number; name: string; slug: string };
+  tag?: { id: number; name: string; slug: string };
+};
+
+// Suggested searches for GotQuestions UX
+const SUGGESTED_SEARCHES = {
+  apologetics: [
+    "Evidence for the Resurrection",
+    "Historical reliability of the Bible",
+    "Problem of evil",
+    "Is faith rational?",
+    "Did Jesus claim to be God?",
+    "Trinity explained",
+    "Science and Christianity",
+    "Prophecies fulfilled by Jesus",
+  ],
+  polemics: [
+    "Problem of evil",
+    "Moral relativism",
+    "Biblical contradictions",
+    "Old Testament genocide",
+    "Hell and justice",
+    "Exclusivity of Christianity",
+    "Evolution and creation",
+    "Religious pluralism",
+  ],
 };
 
 export default function ApologeticsPage() {
   const { user } = useAuth();
-  const { data: resources, isLoading: resourcesLoading } = useQuery<ApologeticsResource[]>({
-    queryKey: ['/api/apologetics'],
+  const [domain, setDomain] = useState<Domain>("apologetics");
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [selectedAreaId, setSelectedAreaId] = useState<number | null>(null);
+  const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
+
+  // Fetch /api/me to check capabilities
+  const { data: meData } = useQuery<{
+    user: any;
+    permissions: string[];
+    capabilities: {
+      inboxAccess: boolean;
+      canAuthorApologeticsPosts: boolean;
+    };
+  }>({
+    queryKey: ['/api/me'],
+    enabled: !!user,
   });
-  
-  const { data: topics, isLoading: topicsLoading } = useQuery<ApologeticsTopic[]>({
-    queryKey: ['/api/apologetics/topics'],
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Fetch areas
+  const { data: areas = [], isLoading: areasLoading } = useQuery<QaArea[]>({
+    queryKey: ["qa-areas", domain],
+    queryFn: async () => {
+      const res = await fetch(`/api/qa-areas?domain=${domain}`);
+      if (!res.ok) throw new Error("Failed to fetch areas");
+      return res.json();
+    },
   });
-  
-  const { data: questions, isLoading: questionsLoading } = useQuery<ApologeticsQuestion[]>({
-    queryKey: ['/api/apologetics/questions'],
+
+  // Fetch tags for selected area
+  const { data: tags = [], isLoading: tagsLoading } = useQuery<QaTag[]>({
+    queryKey: ["qa-tags", selectedAreaId],
+    queryFn: async () => {
+      if (!selectedAreaId) return [];
+      const res = await fetch(`/api/qa-tags?areaId=${selectedAreaId}`);
+      if (!res.ok) throw new Error("Failed to fetch tags");
+      return res.json();
+    },
+    enabled: !!selectedAreaId,
   });
-  
-  const { data: verifiedAnswerers, isLoading: answererLoading } = useQuery<User[]>({
-    queryKey: ['/api/users/verified-apologetics-answerers'],
+
+  // Fetch library posts
+  const { data: postsData, isLoading: postsLoading } = useQuery<{
+    posts: LibraryPostListItem[];
+    total: number;
+  }>({
+    queryKey: ["library-posts", domain, debouncedQuery, selectedAreaId, selectedTagId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("domain", domain);
+      if (debouncedQuery.trim()) params.set("q", debouncedQuery.trim());
+      if (selectedAreaId) params.set("areaId", selectedAreaId.toString());
+      if (selectedTagId) params.set("tagId", selectedTagId.toString());
+      params.set("status", "published");
+      params.set("limit", "50");
+
+      const res = await fetch(`/api/library/posts?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch posts");
+      return res.json();
+    },
   });
 
-  const getResourceIcon = (type: string) => {
-    switch (type) {
-      case 'book':
-        return <BookOpenIcon className="text-amber-500 mr-3 h-5 w-5" />;
-      case 'video':
-        return <VideoIcon className="text-amber-500 mr-3 h-5 w-5" />;
-      case 'podcast':
-        return <HeadphonesIcon className="text-amber-500 mr-3 h-5 w-5" />;
-      default:
-        return <BookOpenIcon className="text-amber-500 mr-3 h-5 w-5" />;
-    }
-  };
+  const posts = postsData?.posts || [];
+  const hasInboxAccess = meData?.capabilities?.inboxAccess || false;
 
-  const getTopicIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'book':
-        return <BookIcon className="text-primary-600 mr-3 h-5 w-5" />;
-      case 'atom':
-        return <AtomIcon className="text-blue-600 mr-3 h-5 w-5" />;
-      case 'heart':
-        return <HeartHandshakeIcon className="text-rose-600 mr-3 h-5 w-5" />;
-      default:
-        return <ShieldQuestionIcon className="text-amber-500 mr-3 h-5 w-5" />;
-    }
-  };
+  function onSelectDomain(next: Domain) {
+    setDomain(next);
+    setSelectedAreaId(null);
+    setSelectedTagId(null);
+  }
 
-  const filterResourcesByType = (type: string) => {
-    return resources?.filter(resource => resource.type === type) || [];
-  };
+  function onSelectArea(areaId: number) {
+    setSelectedAreaId((prev) => (prev === areaId ? null : areaId));
+    setSelectedTagId(null);
+  }
 
-  const renderResourceGrid = (items: ApologeticsResource[]) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {items.map((resource) => (
-        <Card key={resource.id} className="h-full">
-          <CardContent className="p-4">
-            <div className="flex items-start mb-3">
-              {getResourceIcon(resource.type)}
-              <div>
-                <h3 className="font-medium">{resource.title}</h3>
-                <p className="text-sm text-neutral-500 capitalize">{resource.type}</p>
-              </div>
-            </div>
-            <p className="text-neutral-600 text-sm mb-4">{resource.description}</p>
-            {resource.url && (
-              <Button asChild variant="outline" size="sm">
-                <a href={resource.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLinkIcon className="mr-2 h-4 w-4" />
-                  View Resource
-                </a>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+  function onSelectTag(tagId: number) {
+    setSelectedTagId((prev) => (prev === tagId ? null : tagId));
+  }
 
-  const renderEmptyResources = (title: string, description: string) => (
-    <Card className="border-dashed bg-muted/40">
-      <CardContent className="p-6 text-center space-y-2">
-        <BookOpenIcon className="w-8 h-8 mx-auto text-muted-foreground" />
-        <p className="font-medium">{title}</p>
-        <p className="text-sm text-muted-foreground">{description}</p>
-        {!user && (
-          <Button asChild variant="outline" size="sm">
-            <Link href="/auth">Sign in for personalized picks</Link>
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
-  
+  const showSuggestedSearches = !query.trim() && posts.length === 0 && !postsLoading;
+  const suggestedSearches = SUGGESTED_SEARCHES[domain];
+
   return (
     <MainLayout>
-      <div className="flex-1">
-        {/* Recommended Content Section */}
-        {user && (
-          <div className="mb-8">
-            <RecommendedForYou section="apologetics" maxItems={4} showHeader={true} />
+      {/* Hero Section */}
+      <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="max-w-3xl">
+            <h1 className="text-4xl font-bold text-blue-900 dark:text-blue-100 mb-4">
+              Apologetics Library
+            </h1>
+            <p className="text-lg text-blue-800 dark:text-blue-200 mb-6">
+              Reliable answers to your faith questions in under 60 seconds
+            </p>
+            <p className="text-sm text-blue-700 dark:text-blue-300 italic border-l-4 border-blue-500 pl-4 py-2">
+              "Always be prepared to give an answer to everyone who asks you to give the reason for the hope that you have." — 1 Peter 3:15
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Inbox Access Button (for apologists) */}
+        {hasInboxAccess && (
+          <div className="mb-6">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/questions/inbox">
+                <Inbox className="mr-2 h-4 w-4" />
+                Apologetics Inbox
+              </Link>
+            </Button>
           </div>
         )}
 
-        {/* Hero Section */}
-        <Card className="mb-8 overflow-hidden">
-          <div className="bg-blue-100 text-primary-900 p-8 md:p-12">
-            <div className="max-w-3xl">
-              <h1 className="text-3xl font-bold mb-4 text-primary-900">Apologetics Resource Center</h1>
-              <p className="text-primary-800 text-lg mb-6">
-                Equipping believers with knowledge and resources to understand, explain, and defend the Christian faith with confidence and grace.
-              </p>
-              <p className="bg-primary-100 p-4 rounded text-primary-900 text-sm italic mb-6 border-l-4 border-primary-500 pl-4 shadow-sm">
-                "Always be prepared to give an answer to everyone who asks you to give the reason for the hope that you have." - 1 Peter 3:15
-              </p>
+        {/* Search */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+            <Input
+              type="text"
+              placeholder="Search questions, topics, or Scripture passages..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-10 h-12 text-base"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Domain Toggle */}
+        <Tabs value={domain} onValueChange={(v) => onSelectDomain(v as Domain)} className="mb-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="apologetics">Apologetics</TabsTrigger>
+            <TabsTrigger value="polemics">Polemics</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Area Chips */}
+        {areas.length > 0 && (
+          <div className="mb-4">
+            <div className="flex flex-wrap gap-2">
+              {areas.map((area) => (
+                <Badge
+                  key={area.id}
+                  variant={selectedAreaId === area.id ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => onSelectArea(area.id)}
+                >
+                  {area.name}
+                </Badge>
+              ))}
             </div>
           </div>
-          <CardContent className="p-6">
-            <p className="text-neutral-600 mb-4">
-              Our apologetics center provides carefully curated resources to help you grow in your understanding of Christian theology, answer difficult questions, and engage thoughtfully with those who are questioning.
-            </p>
-          </CardContent>
-        </Card>
+        )}
 
-        {/* Tabs for different sections */}
-        <Tabs defaultValue="resources" className="mb-6">
-          <TabsList className="mb-4">
-            <TabsTrigger value="resources">Resources</TabsTrigger>
-            <TabsTrigger value="questions">Q&A</TabsTrigger>
-            <TabsTrigger value="expert-answers">Expert Answers</TabsTrigger>
-          </TabsList>
-          
-          {/* Resources Tab */}
-          <TabsContent value="resources">
-            <Tabs defaultValue="all" className="mb-6">
-              <TabsList className="mb-4">
-                <TabsTrigger value="all">All Resources</TabsTrigger>
-                <TabsTrigger value="books">Books</TabsTrigger>
-                <TabsTrigger value="videos">Videos</TabsTrigger>
-                <TabsTrigger value="podcasts">Podcasts</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="all">
-                <h2 className="text-2xl font-bold mb-4">All Apologetics Resources</h2>
-                {resourcesLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <Card key={i} className="h-52">
-                        <CardContent className="p-4">
-                          <div className="flex items-start mb-3">
-                            <Skeleton className="h-10 w-10 rounded mr-3" />
-                            <div>
-                              <Skeleton className="h-5 w-40 mb-2" />
-                              <Skeleton className="h-4 w-20" />
-                            </div>
-                          </div>
-                          <Skeleton className="h-4 w-full mb-2" />
-                          <Skeleton className="h-4 w-full mb-2" />
-                          <Skeleton className="h-4 w-2/3 mb-4" />
-                          <Skeleton className="h-8 w-28" />
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : resources && resources.length > 0 ? (
-                  renderResourceGrid(resources)
-                ) : (
-                  renderEmptyResources(
-                    "Resources are being added",
-                    "Check back soon for books, videos, and podcasts curated by our community."
-                  )
-                )}
-              </TabsContent>
-
-              <TabsContent value="books">
-                <h2 id="books" className="text-2xl font-bold mb-4">Books</h2>
-                {resourcesLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Array.from({ length: 2 }).map((_, i) => (
-                      <Card key={i} className="h-52">
-                        <CardContent className="p-4">
-                          <Skeleton className="h-8 w-40 mb-3" />
-                          <Skeleton className="h-4 w-full mb-2" />
-                          <Skeleton className="h-4 w-full mb-2" />
-                          <Skeleton className="h-4 w-2/3 mb-4" />
-                          <Skeleton className="h-8 w-28" />
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : filterResourcesByType('book').length > 0 ? (
-                  renderResourceGrid(filterResourcesByType('book'))
-                ) : (
-                  renderEmptyResources(
-                    "No books available yet",
-                    "Once our team curates books, you will see them here."
-                  )
-                )}
-              </TabsContent>
-
-              <TabsContent value="videos">
-                <h2 id="videos" className="text-2xl font-bold mb-4">Videos</h2>
-                {resourcesLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Array.from({ length: 2 }).map((_, i) => (
-                      <Card key={i} className="h-52">
-                        <CardContent className="p-4">
-                          <Skeleton className="h-8 w-40 mb-3" />
-                          <Skeleton className="h-4 w-full mb-2" />
-                          <Skeleton className="h-4 w-full mb-2" />
-                          <Skeleton className="h-4 w-2/3 mb-4" />
-                          <Skeleton className="h-8 w-28" />
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : filterResourcesByType('video').length > 0 ? (
-                  renderResourceGrid(filterResourcesByType('video'))
-                ) : (
-                  renderEmptyResources(
-                    "No videos have been shared",
-                    "We are gathering trusted video lessons and debates for you."
-                  )
-                )}
-              </TabsContent>
-
-              <TabsContent value="podcasts">
-                <h2 id="podcasts" className="text-2xl font-bold mb-4">Podcasts</h2>
-                {resourcesLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Array.from({ length: 2 }).map((_, i) => (
-                      <Card key={i} className="h-52">
-                        <CardContent className="p-4">
-                          <Skeleton className="h-8 w-40 mb-3" />
-                          <Skeleton className="h-4 w-full mb-2" />
-                          <Skeleton className="h-4 w-full mb-2" />
-                          <Skeleton className="h-4 w-2/3 mb-4" />
-                          <Skeleton className="h-8 w-28" />
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : filterResourcesByType('podcast').length > 0 ? (
-                  renderResourceGrid(filterResourcesByType('podcast'))
-                ) : (
-                  renderEmptyResources(
-                    "Podcasts are coming soon",
-                    "Listen later for thoughtful conversations and Q&As from trusted voices."
-                  )
-                )}
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
-          
-          {/* Q&A Tab */}
-          <TabsContent value="questions">
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Apologetics Questions & Answers</h2>
-                <Button>
-                  <ShieldQuestionIcon className="mr-2 h-4 w-4" />
-                  Ask a Question
-                </Button>
-              </div>
-              
-              {/* Featured Topics */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Featured Topics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {topicsLoading ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <Card key={i} className="h-40">
-                        <CardContent className="p-5">
-                          <Skeleton className="h-8 w-8 mb-2" />
-                          <Skeleton className="h-6 w-32 mb-2" />
-                          <Skeleton className="h-4 w-full mb-1" />
-                          <Skeleton className="h-4 w-3/4" />
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : topics && topics.length > 0 ? (
-                    topics.slice(0, 3).map((topic) => (
-                      <Card key={topic.id} className="h-40 group hover:border-primary transition-colors">
-                        <Link href={`/apologetics/topics/${topic.slug}`}>
-                          <CardContent className="p-5 h-full flex flex-col">
-                            <div className="mb-2">
-                              {getTopicIcon(topic.iconName || 'default')}
-                            </div>
-                            <h4 className="font-semibold group-hover:text-primary transition-colors">{topic.name}</h4>
-                            <p className="text-sm text-muted-foreground line-clamp-2">{topic.description}</p>
-                          </CardContent>
-                        </Link>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="col-span-3 p-6 text-center border rounded-lg bg-muted/50">
-                      <ShieldQuestionIcon className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-                      <p>No topics available at the moment.</p>
-                      {user?.isVerifiedApologeticsAnswerer && (
-                        <Button variant="outline" className="mt-3">Create Topic</Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                {/* If there are more than 3 topics */}
-                {topics && topics.length > 3 && (
-                  <div className="mt-3 text-center">
-                    <Button variant="outline">View All Topics</Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Featured Questions */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Recent Questions</h3>
-                <div className="space-y-4">
-                  {questionsLoading ? (
-                    Array.from({ length: 2 }).map((_, i) => (
-                      <Card key={i} className="h-28">
-                        <CardContent className="p-5">
-                          <Skeleton className="h-6 w-3/4 mb-2" />
-                          <div className="flex">
-                            <Skeleton className="h-4 w-20 mr-4" />
-                            <Skeleton className="h-4 w-24 mr-4" />
-                            <Skeleton className="h-4 w-16" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : questions && questions.length > 0 ? (
-                    questions.slice(0, 3).map((question) => {
-                      // Find the associated topic
-                      const topic = topics?.find(t => t.id === question.topicId);
-                      
-                      return (
-                        <Card key={question.id}>
-                          <CardContent className="p-5">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <Link href={`/apologetics/questions/${question.id}`}>
-                                  <h4 className="font-medium text-lg mb-1 hover:text-primary transition-colors">{question.title}</h4>
-                                </Link>
-                                <div className="flex items-center text-sm text-muted-foreground flex-wrap">
-                                  {topic && (
-                                    <>
-                                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{topic.name}</span>
-                                      <span className="mx-2">•</span>
-                                    </>
-                                  )}
-                                  <span>Asked {formatDate(question.createdAt)}</span>
-                                  <span className="mx-2">•</span>
-                                  <span>{question.answerCount || 0} answers</span>
-                                </div>
-                              </div>
-                              {question.status === 'answered' && (
-                                <div className="flex items-center space-x-1 text-sm">
-                                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-md flex items-center">
-                                    <UserCheckIcon className="h-3 w-3 mr-1" />
-                                    Verified Answer
-                                  </span>
-                                </div>
-                              )}
-                              {question.status === 'pending' && (
-                                <div className="flex items-center space-x-1 text-sm">
-                                  <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-md">
-                                    Pending
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })
-                  ) : (
-                    <Card>
-                      <CardContent className="p-5 text-center">
-                        <p className="text-muted-foreground">No questions available</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                  
-                  <div className="text-center mt-6">
-                    <Button variant="outline">View All Questions</Button>
-                  </div>
-                </div>
-              </div>
+        {/* Tag Chips (conditional on area) */}
+        {selectedAreaId && tags.length > 0 && (
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <Badge
+                  key={tag.id}
+                  variant={selectedTagId === tag.id ? "default" : "secondary"}
+                  className="cursor-pointer"
+                  onClick={() => onSelectTag(tag.id)}
+                >
+                  {tag.name}
+                </Badge>
+              ))}
             </div>
-          </TabsContent>
-          
-          {/* Expert Answers Tab */}
-          <TabsContent value="expert-answers">
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Verified Expert Answers</h2>
-                {user?.isVerifiedApologeticsAnswerer ? (
-                  <Button variant="outline" asChild>
-                    <Link href="/apologist-dashboard">
-                      <div className="flex items-center">
-                        <UserCheckIcon className="mr-2 h-4 w-4" />
-                        Expert Dashboard
-                      </div>
-                    </Link>
+          </div>
+        )}
+
+        {/* Suggested Searches */}
+        {showSuggestedSearches && (
+          <Card className="mb-8">
+            <CardContent className="pt-6">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+                Suggested Searches
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {suggestedSearches.map((term, idx) => (
+                  <Button
+                    key={idx}
+                    variant="outline"
+                    size="sm"
+                    className="justify-start text-left h-auto py-2"
+                    onClick={() => setQuery(term)}
+                  >
+                    {term}
                   </Button>
-                ) : (
-                  <div className="flex gap-2 items-center">
-                    <div className="text-sm text-muted-foreground">Are you an apologetics expert?</div>
-                    <Button variant="outline" size="sm">
-                      Apply to Contribute
-                    </Button>
-                  </div>
-                )}
+                ))}
               </div>
-              
-              <Card className="mb-6">
-                <CardHeader className="bg-gradient-to-r from-primary-100 to-primary-50">
-                  <CardTitle className="text-primary-800">About Our Verified Experts</CardTitle>
-                  <CardDescription>
-                    Our verified apologetics experts are theologians, scholars, and ministry leaders with expertise in various aspects of Christian apologetics. Their verified answers provide trusted guidance based on Biblical truth and scholarly research.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="border rounded-lg p-4 bg-green-50 border-green-100">
-                      <h3 className="font-medium flex items-center text-green-800 mb-2">
-                        <BookIcon className="mr-2 h-5 w-5" />
-                        Biblical Faithfulness
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Our experts are committed to the authority and inspiration of Scripture, providing answers that honor the Biblical text.
-                      </p>
-                    </div>
-                    
-                    <div className="border rounded-lg p-4 bg-amber-50 border-amber-100">
-                      <h3 className="font-medium flex items-center text-amber-800 mb-2">
-                        <AtomIcon className="mr-2 h-5 w-5" />
-                        Academic Rigor
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Verified experts bring scholarly depth to complex topics, helping you understand difficult theological and scientific concepts.
-                      </p>
-                    </div>
-                  </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Results */}
+        {postsLoading ? (
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardContent className="p-6">
+                  <div className="h-6 bg-muted rounded mb-3 w-3/4"></div>
+                  <div className="h-4 bg-muted rounded mb-2 w-1/4"></div>
+                  <div className="h-4 bg-muted rounded mb-2"></div>
+                  <div className="h-4 bg-muted rounded mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-5/6"></div>
                 </CardContent>
               </Card>
-              
-              <h3 className="text-lg font-semibold mb-3">Featured Expert Answers</h3>
-              
-              <div className="space-y-4">
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex items-start">
-                      <div className="bg-primary-100 p-2 rounded-full mr-4">
-                        <UserCheckIcon className="h-6 w-6 text-primary-600" />
+            ))}
+          </div>
+        ) : posts.length > 0 ? (
+          <div className="space-y-4">
+            {posts.map((post) => (
+              <Link key={post.id} href={`/apologetics/${post.id}`}>
+                <Card className="hover:border-primary transition-colors cursor-pointer">
+                  <CardContent className="p-6">
+                    {/* Title */}
+                    <h3 className="text-xl font-semibold text-foreground mb-2 line-clamp-2">
+                      {post.title}
+                    </h3>
+
+                    {/* Breadcrumb */}
+                    {(post.area || post.tag) && (
+                      <div className="text-sm text-muted-foreground mb-4">
+                        {post.area?.name}
+                        {post.tag && ` • ${post.tag.name}`}
                       </div>
-                      <div>
-                        <div className="flex items-center mb-1">
-                          <h4 className="font-medium text-lg">How do we understand the days of creation in Genesis?</h4>
-                          <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Science and Faith</span>
+                    )}
+
+                    {/* TL;DR */}
+                    {post.tldr && (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                          <span className="text-xs font-semibold text-primary uppercase tracking-wide">
+                            Quick Answer
+                          </span>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          Christians hold various views on the creation days in Genesis, including literal 24-hour days, day-age theory (where each "day" represents an age or epoch), and the framework interpretation (viewing the days as a literary framework rather than strictly chronological). All these views can be faithful to Scripture while interpreting the text differently...
+                        <p className="text-base text-foreground mb-4 line-clamp-3">
+                          {post.tldr}
                         </p>
-                        <div className="flex items-center text-sm">
-                          <span className="font-medium">Answered by Dr. Thomas Williams</span>
-                          <span className="mx-1">•</span>
-                          <span className="text-muted-foreground">Biblical Studies Professor</span>
-                        </div>
+                      </>
+                    )}
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                        <span>Verified Sources</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {post.authorDisplayName}
                       </div>
                     </div>
+
+                    {/* Perspectives badge */}
+                    {post.perspectives.length > 1 && (
+                      <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span>{post.perspectives.length} perspectives included</span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
-                
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex items-start">
-                      <div className="bg-primary-100 p-2 rounded-full mr-4">
-                        <UserCheckIcon className="h-6 w-6 text-primary-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center mb-1">
-                          <h4 className="font-medium text-lg">What evidence supports the reliability of the Gospels?</h4>
-                          <span className="ml-2 bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded">Infallibility of Scripture</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          The Gospels demonstrate historical reliability through multiple lines of evidence, including their early composition (within the lifetime of eyewitnesses), archaeological confirmations of places and customs they describe, internal consistency despite being written by different authors, and extra-biblical historical references that confirm key events...
-                        </p>
-                        <div className="flex items-center text-sm">
-                          <span className="font-medium">Answered by Sarah Johnson</span>
-                          <span className="mx-1">•</span>
-                          <span className="text-muted-foreground">New Testament Scholar</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <div className="text-center mt-6">
-                  <Button variant="outline">View More Expert Answers</Button>
-                </div>
+              </Link>
+            ))}
+          </div>
+        ) : !showSuggestedSearches ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Search className="h-8 w-8 text-muted-foreground" />
               </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+              <h3 className="text-lg font-semibold mb-2">No results found</h3>
+              <p className="text-muted-foreground mb-6">
+                Try different keywords, or explore our suggested searches above.
+              </p>
+              <Button asChild>
+                <Link href="/questions/ask">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Ask the Connection Research Team
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {/* CTA Footer */}
+        {posts.length > 0 && (
+          <Card className="mt-8 border-2 border-primary">
+            <CardContent className="p-8 text-center">
+              <h3 className="text-xl font-semibold mb-2">Have a question?</h3>
+              <p className="text-muted-foreground mb-6">
+                Submit your apologetics question and get answers from the Connection Research Team.
+              </p>
+              <Button asChild size="lg">
+                <Link href="/questions/ask">
+                  <Mail className="mr-2 h-5 w-5" />
+                  Ask the Connection Research Team
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </MainLayout>
   );
