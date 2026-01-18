@@ -22,14 +22,17 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  Alert,
+  Share as RNShare,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme";
 import { AppHeader } from "./AppHeader";
 import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../lib/apiClient";
+import { useApologeticsBookmarks } from "../hooks/useApologeticsBookmarks";
 
 type Domain = "apologetics" | "polemics";
 
@@ -82,6 +85,10 @@ export default function ApologeticsScreen() {
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
 
   const styles = useMemo(() => getStyles(colors), [colors]);
+  const queryClient = useQueryClient();
+
+  // Use bookmarks hook with AsyncStorage caching
+  const { bookmarkedIds, addBookmark, removeBookmark } = useApologeticsBookmarks();
 
   const areasQ = useQuery({
     queryKey: ["qa-areas", domain],
@@ -134,6 +141,49 @@ export default function ApologeticsScreen() {
   function onSelectTag(tagId: string) {
     setSelectedTagId((prev) => (prev === tagId ? null : tagId));
   }
+
+  // Share Q&A to feed - creates a microblog post referencing the Q&A
+  const handleShareToFeed = async (item: QAItem) => {
+    try {
+      const shareText = `📖 Check out this insightful Q&A from Connection Research Team:\n\n"${item.question}"\n\nRead the full answer: https://app.theconnection.app/apologetics/${item.id}\n\n#Apologetics #${item.areaName.replace(/\s+/g, '')}`;
+
+      await apiClient.post('/api/microblogs', {
+        content: shareText,
+      });
+
+      Alert.alert(
+        'Shared to Feed',
+        'The Q&A has been shared to your feed!',
+        [{ text: 'OK' }]
+      );
+
+      // Invalidate feed to show the new post
+      queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
+    } catch (error) {
+      console.error('Error sharing to feed:', error);
+      Alert.alert(
+        'Share Failed',
+        'Could not share to feed. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Toggle bookmark - uses backend API with AsyncStorage caching
+  const handleToggleBookmark = async (itemId: string) => {
+    try {
+      if (bookmarkedIds.has(itemId)) {
+        await removeBookmark(itemId);
+        Alert.alert('Bookmark Removed', 'Removed from your saved items');
+      } else {
+        await addBookmark(itemId);
+        Alert.alert('Bookmarked', 'Saved to your bookmarks');
+      }
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+      Alert.alert('Error', 'Could not update bookmark. Please try again.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -255,6 +305,9 @@ export default function ApologeticsScreen() {
             item={item}
             colors={colors}
             onPress={() => router.push({ pathname: "/apologetics/[id]" as any, params: { id: item.id } })}
+            onShare={() => handleShareToFeed(item)}
+            onBookmark={() => handleToggleBookmark(item.id)}
+            isBookmarked={bookmarkedIds.has(item.id)}
           />
         )}
       />
@@ -362,23 +415,45 @@ function AnswerCard({
   item,
   colors,
   onPress,
+  onShare,
+  onBookmark,
+  isBookmarked,
 }: {
   item: QAItem;
   colors: any;
   onPress: () => void;
+  onShare: () => void;
+  onBookmark: () => void;
+  isBookmarked: boolean;
 }) {
+  const handleCopyLink = async () => {
+    try {
+      await RNShare.share({
+        message: `Check out this apologetics Q&A: ${item.question}\n\nhttps://app.theconnection.app/apologetics/${item.id}`,
+        title: item.question,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
   return (
-    <Pressable
-      onPress={onPress}
+    <View
       style={{
         backgroundColor: colors.backgroundSoft,
         borderColor: colors.borderSubtle,
         borderWidth: 1,
         borderRadius: 16,
-        padding: 14,
         marginBottom: 12,
+        overflow: 'hidden',
       }}
     >
+      <Pressable
+        onPress={onPress}
+        style={{
+          padding: 14,
+        }}
+      >
       {/* Question */}
       <Text
         style={{
@@ -470,7 +545,79 @@ function AnswerCard({
           ))}
         </View>
       ) : null}
-    </Pressable>
+      </Pressable>
+
+      {/* Action Buttons */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-around',
+          borderTopWidth: 1,
+          borderTopColor: colors.borderSubtle,
+          paddingVertical: 10,
+          paddingHorizontal: 8,
+        }}
+      >
+        <Pressable
+          onPress={onShare}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Ionicons name="share-social-outline" size={18} color={colors.primary} />
+          <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+            Share to Feed
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={onBookmark}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Ionicons
+            name={isBookmarked ? "bookmark" : "bookmark-outline"}
+            size={18}
+            color={isBookmarked ? colors.primary : colors.textSecondary}
+          />
+          <Text
+            style={{
+              color: isBookmarked ? colors.primary : colors.textSecondary,
+              fontSize: 13,
+              fontWeight: '600',
+            }}
+          >
+            {isBookmarked ? 'Saved' : 'Save'}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleCopyLink}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Ionicons name="link-outline" size={18} color={colors.textSecondary} />
+          <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600' }}>
+            Copy Link
+          </Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
