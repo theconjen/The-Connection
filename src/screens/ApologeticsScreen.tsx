@@ -399,7 +399,7 @@ function Chip({
     >
       <Text
         style={{
-          color: active ? colors.buttonPrimaryText : colors.textSecondary,
+          color: active ? colors.buttonPrimaryText : '#1F2937',
           fontSize: 13,
           fontWeight: '600',
         }}
