@@ -11,25 +11,55 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, ArrowLeft, Shield, Flame, ExternalLink, Edit, Calendar } from 'lucide-react';
-import { apiClient } from '@shared/api/client';
-import { queryKeys } from '@shared/api/queryKeys';
-import type { LibraryPost } from '@shared/api/types';
+
+type LibraryPost = {
+  id: number;
+  domain: 'apologetics' | 'polemics';
+  title: string;
+  summary: string | null;
+  tldr: string | null;
+  keyPoints: string[];
+  scriptureRefs: string[];
+  bodyMarkdown: string;
+  perspectives: string[];
+  sources: Array<{
+    title: string;
+    author?: string;
+    url?: string;
+  }>;
+  authorUserId: number;
+  authorDisplayName: string;
+  publishedAt: string | null;
+  area?: { id: number; name: string };
+  tag?: { id: number; name: string };
+};
 
 export default function LibraryPostPage() {
   const [, params] = useRoute('/library/:id');
   const postId = params?.id ? parseInt(params.id, 10) : undefined;
 
   // Fetch current user capabilities
-  const { data: meData } = useQuery({
-    queryKey: queryKeys.me(),
-    queryFn: () => apiClient.getMe(),
+  const { data: meData } = useQuery<{
+    user: any;
+    capabilities: {
+      canAuthorApologeticsPosts: boolean;
+    };
+  }>({
+    queryKey: ['/api/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/me');
+      if (!res.ok) throw new Error('Failed to fetch user data');
+      return res.json();
+    },
   });
 
   // Fetch library post
   const { data: post, isLoading } = useQuery<LibraryPost>({
-    queryKey: queryKeys.libraryPosts.detail(postId!),
+    queryKey: ['/api/library/posts', postId],
     queryFn: async () => {
-      return await apiClient.getLibraryPost(postId!);
+      const res = await fetch(`/api/library/posts/${postId}`);
+      if (!res.ok) throw new Error('Failed to fetch library post');
+      return res.json();
     },
     enabled: !isNaN(postId!),
   });

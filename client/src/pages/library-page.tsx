@@ -10,29 +10,56 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Shield, Flame, Plus, BookOpen } from 'lucide-react';
-import { apiClient } from '@shared/api/client';
-import { queryKeys } from '@shared/api/queryKeys';
-import type { LibraryPost, Domain } from '@shared/api/types';
+
+type Domain = 'apologetics' | 'polemics';
+
+type LibraryPost = {
+  id: number;
+  domain: Domain;
+  title: string;
+  summary: string | null;
+  tldr: string | null;
+  authorDisplayName: string;
+  publishedAt: string | null;
+  area?: { id: number; name: string };
+  tag?: { id: number; name: string };
+};
 
 export default function LibraryPage() {
   const [selectedDomain, setSelectedDomain] = useState<Domain | undefined>(undefined);
 
   // Fetch current user capabilities
-  const { data: meData } = useQuery({
-    queryKey: queryKeys.me(),
-    queryFn: () => apiClient.getMe(),
+  const { data: meData } = useQuery<{
+    user: any;
+    capabilities: {
+      canAuthorApologeticsPosts: boolean;
+    };
+  }>({
+    queryKey: ['/api/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/me');
+      if (!res.ok) throw new Error('Failed to fetch user data');
+      return res.json();
+    },
   });
 
-  const canAuthor = meData?.capabilities.canAuthorApologeticsPosts || false;
+  const canAuthor = meData?.capabilities?.canAuthorApologeticsPosts || false;
 
   // Fetch library posts
   const { data, isLoading } = useQuery<{
     posts: LibraryPost[];
     pagination: { limit: number; offset: number };
   }>({
-    queryKey: queryKeys.libraryPosts.list({ domain: selectedDomain, status: 'published' }),
+    queryKey: ['/api/library/posts', { domain: selectedDomain, status: 'published' }],
     queryFn: async () => {
-      return await apiClient.listLibraryPosts({ domain: selectedDomain, status: 'published' });
+      const params = new URLSearchParams();
+      if (selectedDomain) params.set('domain', selectedDomain);
+      params.set('status', 'published');
+      params.set('limit', '50');
+
+      const res = await fetch(`/api/library/posts?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch library posts');
+      return res.json();
     },
   });
 

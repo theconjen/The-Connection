@@ -16,9 +16,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Save, Upload, Shield, Flame } from 'lucide-react';
-import { apiClient } from '@shared/api/client';
-import { queryKeys } from '@shared/api/queryKeys';
-import type { Domain, CreateLibraryPostRequest } from '@shared/api/types';
+
+type Domain = 'apologetics' | 'polemics';
 
 const formSchema = z.object({
   domain: z.enum(['apologetics', 'polemics']),
@@ -42,18 +41,29 @@ export default function LibraryCreatePage() {
   const queryClient = useQueryClient();
 
   // Fetch current user capabilities
-  const { data: meData, isLoading: isLoadingMe } = useQuery({
-    queryKey: queryKeys.me(),
-    queryFn: () => apiClient.getMe(),
+  const { data: meData, isLoading: isLoadingMe } = useQuery<{
+    user: any;
+    capabilities: {
+      canAuthorApologeticsPosts: boolean;
+    };
+  }>({
+    queryKey: ['/api/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/me');
+      if (!res.ok) throw new Error('Failed to fetch user data');
+      return res.json();
+    },
   });
 
-  const canAuthor = meData?.capabilities.canAuthorApologeticsPosts || false;
+  const canAuthor = meData?.capabilities?.canAuthorApologeticsPosts || false;
 
   // Fetch existing post if editing
   const { data: existingPost, isLoading: isLoadingPost } = useQuery({
-    queryKey: queryKeys.libraryPosts.detail(postId!),
+    queryKey: ['/api/library/posts', postId],
     queryFn: async () => {
-      return await apiClient.getLibraryPost(postId!);
+      const res = await fetch(`/api/library/posts/${postId}`);
+      if (!res.ok) throw new Error('Failed to fetch post');
+      return res.json();
     },
     enabled: isEdit && !isNaN(postId!),
   });
@@ -89,11 +99,17 @@ export default function LibraryCreatePage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: async (data: CreateLibraryPostRequest) => {
-      return await apiClient.createLibraryPost(data);
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/library/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to create post');
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.libraryPosts.all() });
+      queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
       toast({
         title: 'Success',
         description: 'Library post created successfully!',
@@ -111,12 +127,17 @@ export default function LibraryCreatePage() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: Partial<CreateLibraryPostRequest>) => {
-      return await apiClient.updateLibraryPost(postId!, data);
+    mutationFn: async (data: any) => {
+      const res = await fetch(`/api/library/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update post');
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.libraryPosts.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.libraryPosts.detail(postId!) });
+      queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
       toast({
         title: 'Success',
         description: 'Library post updated successfully!',
@@ -135,11 +156,15 @@ export default function LibraryCreatePage() {
   // Publish mutation
   const publishMutation = useMutation({
     mutationFn: async () => {
-      return await apiClient.publishLibraryPost(postId!);
+      const res = await fetch(`/api/library/posts/${postId}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Failed to publish post');
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.libraryPosts.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.libraryPosts.detail(postId!) });
+      queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
       toast({
         title: 'Success',
         description: 'Library post published successfully!',
