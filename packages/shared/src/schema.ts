@@ -590,6 +590,24 @@ export const insertApologeticsAnswerSchema = createInsertSchema(apologeticsAnswe
   isVerifiedAnswer: true,
 } as any);
 
+// Apologetics Bookmarks - User saved Q&A items
+export const apologeticsBookmarks = pgTable("apologetics_bookmarks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  questionId: integer("question_id").references(() => apologeticsQuestions.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any, (table) => [
+  uniqueIndex("idx_apologetics_bookmarks_user_question").on(table.userId, table.questionId),
+]);
+
+export const insertApologeticsBookmarkSchema = createInsertSchema(apologeticsBookmarks).pick({
+  userId: true,
+  questionId: true,
+} as any);
+
+export type InsertApologeticsBookmark = typeof apologeticsBookmarks.$inferInsert;
+export type ApologeticsBookmark = typeof apologeticsBookmarks.$inferSelect;
+
 // Remove these duplicate type definitions - they're already defined earlier
 
 export type InsertGroup = typeof groups.$inferInsert;
@@ -1042,7 +1060,7 @@ export const events = pgTable("events", {
   imageUrl: text("image_url"),
   latitude: text("latitude"), // For map integration
   longitude: text("longitude"), // For map integration
-  communityId: integer("community_id").references(() => communities.id),
+  communityId: integer("community_id").notNull().references(() => communities.id), // Events must belong to a community
   groupId: integer("group_id").references(() => groups.id),
   creatorId: integer("creator_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),

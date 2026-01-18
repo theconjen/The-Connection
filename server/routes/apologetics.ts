@@ -1,9 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
-import { isAdmin } from '../auth';
+import { isAdmin, isAuthenticated } from '../auth';
 import { storage } from '../storage-optimized';
 import { buildErrorResponse } from '../utils/errors';
-import { insertApologeticsTopicSchema } from '@shared/schema';
+import { insertApologeticsTopicSchema, insertApologeticsBookmarkSchema } from '@shared/schema';
 
 // Set up rate limiter for /apologetics: max 100 requests per 15 minutes per IP
 const apologeticsLimiter = rateLimit({
@@ -204,6 +204,149 @@ router.get('/apologetics/questions/:id', apologeticsLimiter, async (req, res) =>
   } catch (err) {
     console.error('Error serving apologetics question:', err);
     return res.status(500).json(buildErrorResponse('Error loading question', err));
+  }
+});
+
+// ============================================================================
+// BOOKMARK ENDPOINTS - User saved Q&A items
+// ============================================================================
+
+// GET /apologetics/bookmarks - Get all bookmarks for current user
+router.get('/apologetics/bookmarks', isAuthenticated, apologeticsLimiter, async (req, res) => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { db } = await import('../db');
+    const { apologeticsBookmarks, userQuestions, qaAreas, qaTags } = await import('@shared/schema');
+    const { eq, desc } = await import('drizzle-orm');
+
+    // Get all bookmarked question IDs for this user
+    const bookmarks = await db
+      .select()
+      .from(apologeticsBookmarks)
+      .where(eq(apologeticsBookmarks.userId, userId))
+      .orderBy(desc(apologeticsBookmarks.createdAt));
+
+    const questionIds = bookmarks.map(b => b.questionId);
+
+    if (questionIds.length === 0) {
+      return res.json([]);
+    }
+
+    // Return just the question IDs for the mobile app
+    return res.json(questionIds.map(id => id.toString()));
+  } catch (err) {
+    console.error('Error getting bookmarks:', err);
+    return res.status(500).json(buildErrorResponse('Error loading bookmarks', err));
+  }
+});
+
+// POST /apologetics/bookmarks - Add a bookmark
+router.post('/apologetics/bookmarks', isAuthenticated, apologeticsLimiter, async (req, res) => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { questionId } = req.body;
+    if (!questionId) {
+      return res.status(400).json({ message: 'questionId is required' });
+    }
+
+    const parsedQuestionId = parseInt(questionId, 10);
+    if (Number.isNaN(parsedQuestionId)) {
+      return res.status(400).json({ message: 'Invalid questionId' });
+    }
+
+    const { db } = await import('../db');
+    const { apologeticsBookmarks } = await import('@shared/schema');
+
+    // Insert bookmark (unique constraint will prevent duplicates)
+    await db
+      .insert(apologeticsBookmarks)
+      .values({
+        userId,
+        questionId: parsedQuestionId,
+      } as any)
+      .onConflictDoNothing();
+
+    return res.status(201).json({ ok: true, questionId: parsedQuestionId });
+  } catch (err) {
+    console.error('Error adding bookmark:', err);
+    return res.status(500).json(buildErrorResponse('Error adding bookmark', err));
+  }
+});
+
+// DELETE /apologetics/bookmarks/:questionId - Remove a bookmark
+router.delete('/apologetics/bookmarks/:questionId', isAuthenticated, apologeticsLimiter, async (req, res) => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const questionId = parseInt(req.params.questionId, 10);
+    if (Number.isNaN(questionId)) {
+      return res.status(400).json({ message: 'Invalid questionId' });
+    }
+
+    const { db } = await import('../db');
+    const { apologeticsBookmarks } = await import('@shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+
+    // Delete the bookmark
+    await db
+      .delete(apologeticsBookmarks)
+      .where(
+        and(
+          eq(apologeticsBookmarks.userId, userId),
+          eq(apologeticsBookmarks.questionId, questionId)
+        )
+      );
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Error removing bookmark:', err);
+    return res.status(500).json(buildErrorResponse('Error removing bookmark', err));
+  }
+});
+
+// GET /apologetics/bookmarks/check/:questionId - Check if question is bookmarked
+router.get('/apologetics/bookmarks/check/:questionId', isAuthenticated, apologeticsLimiter, async (req, res) => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const questionId = parseInt(req.params.questionId, 10);
+    if (Number.isNaN(questionId)) {
+      return res.status(400).json({ message: 'Invalid questionId' });
+    }
+
+    const { db } = await import('../db');
+    const { apologeticsBookmarks } = await import('@shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+
+    const [bookmark] = await db
+      .select()
+      .from(apologeticsBookmarks)
+      .where(
+        and(
+          eq(apologeticsBookmarks.userId, userId),
+          eq(apologeticsBookmarks.questionId, questionId)
+        )
+      )
+      .limit(1);
+
+    return res.json({ isBookmarked: !!bookmark });
+  } catch (err) {
+    console.error('Error checking bookmark:', err);
+    return res.status(500).json(buildErrorResponse('Error checking bookmark', err));
   }
 });
 
