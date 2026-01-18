@@ -74,7 +74,21 @@ function buildFeedUrl(params: {
   return `/api/apologetics/feed?${qs.toString()}`;
 }
 
-export default function ApologeticsScreen() {
+interface ApologeticsScreenProps {
+  onProfilePress?: () => void;
+  onMessagesPress?: () => void;
+  onMenuPress?: () => void;
+  userName?: string;
+  userAvatar?: string | null;
+}
+
+export default function ApologeticsScreen({
+  onProfilePress,
+  onMessagesPress,
+  onMenuPress,
+  userName,
+  userAvatar,
+}: ApologeticsScreenProps = {}) {
   const router = useRouter();
   const { colors } = useTheme();
   const { user } = useAuth();
@@ -192,13 +206,13 @@ export default function ApologeticsScreen() {
       {/* Header */}
       <AppHeader
         showCenteredLogo={true}
-        userName={user?.displayName || user?.username}
-        userAvatar={user?.profileImageUrl}
-        onProfilePress={() => router.push("/profile" as any)}
+        userName={userName || user?.displayName || user?.username}
+        userAvatar={userAvatar || user?.profileImageUrl}
+        onProfilePress={onProfilePress}
         showMessages={true}
-        onMessagesPress={() => router.push("/messages" as any)}
+        onMessagesPress={onMessagesPress}
         showMenu={true}
-        onMenuPress={() => router.push("/menu" as any)}
+        onMenuPress={onMenuPress}
       />
 
       <View style={styles.screen}>
