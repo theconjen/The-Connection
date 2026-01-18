@@ -894,10 +894,12 @@ The New Testament documents are historically reliable. The question then becomes
 }
 
 // Run the seed if called directly
-if (require.main === module) {
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+
+if (isMainModule) {
   seedLibraryPosts()
     .then(() => {
-      console.log('Seed completed successfully');
+      console.error('Seed completed successfully');
       process.exit(0);
     })
     .catch((error) => {

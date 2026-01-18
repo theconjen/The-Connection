@@ -45,6 +45,11 @@ const OrganizationInvitePage = lazy(() => import("./pages/organization-invite-pa
 const AcceptInvitationPage = lazy(() => import("./pages/accept-invitation-page"));
 const SupportPage = lazy(() => import("./pages/support-page"));
 const ApologistDashboard = lazy(() => import("./pages/apologist-dashboard"));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsOfServicePage = lazy(() => import("./pages/TermsOfServicePage"));
+const LibraryPage = lazy(() => import("./pages/library-page"));
+const LibraryPostPage = lazy(() => import("./pages/library-post-page"));
+const LibraryCreatePage = lazy(() => import("./pages/library-create-page"));
 
 // Analytics tracking component with event tracking
 function AnalyticsTracker() {
@@ -104,7 +109,10 @@ function App() {
           <Route path="/prayer-requests" component={PrayerRequestsPage} />
           <Route path="/livestreams" component={LivestreamsPage} />
           <Route path="/apologetics" component={ApologeticsPage} />
-          
+          <Route path="/library" component={LibraryPage} />
+          <Route path="/library/create" component={LibraryCreatePage} />
+          <Route path="/library/:id" component={LibraryPostPage} />
+
           {/* User Actions */}
           <Route path="/submit" component={SubmitPostPage} />
           <Route path="/submit-post" component={SubmitPostPage} />
@@ -116,7 +124,11 @@ function App() {
           <Route path="/dms" component={DMsPage} />
           <Route path="/settings" component={SettingsPage} />
           <Route path="/support" component={SupportPage} />
-          
+
+          {/* Legal Pages */}
+          <Route path="/privacy" component={PrivacyPolicyPage} />
+          <Route path="/terms" component={TermsOfServicePage} />
+
           {/* Organization */}
           <Route path="/church-signup" component={ChurchSignupPage} />
           <Route path="/organization-dashboard" component={OrganizationDashboardPage} />
