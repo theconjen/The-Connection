@@ -387,21 +387,25 @@ function Chip({
   return (
     <Pressable
       onPress={onPress}
-      style={{
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+      style={({ pressed }) => ({
+        height: 32,
+        paddingHorizontal: 14,
         borderRadius: 999,
-        borderWidth: 1,
-        borderColor: active ? colors.buttonPrimaryBg : colors.borderSubtle,
-        backgroundColor: active ? colors.buttonPrimaryBg : colors.surfaceMuted,
+        backgroundColor: active ? colors.primary : colors.surface,
+        borderWidth: active ? 0 : 1,
+        borderColor: colors.borderSubtle,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         marginRight: 8,
-      }}
+        opacity: pressed ? 0.8 : 1,
+      })}
     >
       <Text
         style={{
-          color: active ? colors.buttonPrimaryText : '#1F2937',
+          color: active ? colors.primaryForeground : colors.textMuted,
           fontSize: 13,
-          fontWeight: '600',
+          fontWeight: '500',
         }}
         numberOfLines={1}
       >
