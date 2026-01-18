@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS apologetics_bookmarks (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  question_id INTEGER NOT NULL REFERENCES apologetics_questions(id) ON DELETE CASCADE,
+  question_id INTEGER NOT NULL REFERENCES user_questions(id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT NOW()
 );
 

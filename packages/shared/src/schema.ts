@@ -594,7 +594,7 @@ export const insertApologeticsAnswerSchema = createInsertSchema(apologeticsAnswe
 export const apologeticsBookmarks = pgTable("apologetics_bookmarks", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  questionId: integer("question_id").references(() => apologeticsQuestions.id, { onDelete: 'cascade' }).notNull(),
+  questionId: integer("question_id").references(() => userQuestions.id, { onDelete: 'cascade' }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 } as any, (table) => [
   uniqueIndex("idx_apologetics_bookmarks_user_question").on(table.userId, table.questionId),
