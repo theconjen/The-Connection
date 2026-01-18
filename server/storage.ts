@@ -132,7 +132,7 @@ class StorageSafety {
     'getApologeticsAnswererPermissions', 'setApologeticsAnswererPermissions',
     'getApologeticsAnswersByQuestion', 'createApologeticsAnswer', 'getAllEvents',
     'getEvent', 'getUserEvents', 'getNearbyEvents', 'createEvent', 'updateEvent', 'deleteEvent',
-    'createEventRSVP', 'getEventRSVPs', 'getUserEventRSVP', 'upsertEventRSVP',
+    'createEventRSVP', 'getEventRSVPs', 'getUserEventRSVP', 'getUserRSVPs', 'upsertEventRSVP',
     'deleteEventRSVP', 'getAllMicroblogs', 'getMicroblog', 'getUserMicroblogs',
     'createMicroblog', 'updateMicroblog', 'deleteMicroblog', 'likeMicroblog',
     'unlikeMicroblog', 'getUserLikedMicroblogs', 'hasUserLikedMicroblog',
@@ -336,6 +336,7 @@ export interface IStorage {
   createEventRSVP(rsvp: InsertEventRsvp): Promise<EventRsvp>;
   getEventRSVPs(eventId: number): Promise<EventRsvp[]>;
   getUserEventRSVP(eventId: number, userId: number): Promise<EventRsvp | undefined>;
+  getUserRSVPs(userId: number): Promise<EventRsvp[]>;
   upsertEventRSVP(eventId: number, userId: number, status: string): Promise<EventRsvp>;
   deleteEventRSVP(id: number): Promise<boolean>;
   
@@ -1707,7 +1708,11 @@ export class MemStorage implements IStorage {
   async getUserEventRSVP(eventId: number, userId: number): Promise<EventRsvp | undefined> {
     return this.data.eventRsvps.find(r => r.eventId === eventId && r.userId === userId);
   }
-  
+
+  async getUserRSVPs(userId: number): Promise<EventRsvp[]> {
+    return this.data.eventRsvps.filter(r => r.userId === userId);
+  }
+
   async upsertEventRSVP(eventId: number, userId: number, status: string): Promise<EventRsvp> {
     let rsvp = this.data.eventRsvps.find(r => r.eventId === eventId && r.userId === userId);
     if (rsvp) {
@@ -3731,6 +3736,14 @@ export class DbStorage implements IStorage {
     return rsvp as EventRsvp | undefined;
   }
 
+  async getUserRSVPs(userId: number): Promise<EventRsvp[]> {
+    const rsvps = await db
+      .select()
+      .from(eventRsvps)
+      .where(eq(eventRsvps.userId, userId));
+    return rsvps as EventRsvp[];
+  }
+
   async upsertEventRSVP(eventId: number, userId: number, status: string): Promise<EventRsvp> {
     const values = { eventId, userId, status } as InsertEventRsvp;
     const [row] = await db.insert(eventRsvps).values(values as any).onConflictDoUpdate({
@@ -4812,6 +4825,19 @@ export class DbStorage implements IStorage {
   // ============================================================================
 
   /**
+   * Get all permissions for a user
+   */
+  async getUserPermissions(userId: number): Promise<any[]> {
+    const { userPermissions } = await import('@shared/schema');
+    const results = await db
+      .select()
+      .from(userPermissions)
+      .where(eq(userPermissions.userId, userId));
+
+    return results;
+  }
+
+  /**
    * Check if user has a specific permission
    */
   async userHasPermission(userId: number, permission: string): Promise<boolean> {
@@ -5212,6 +5238,279 @@ export class DbStorage implements IStorage {
       .where(eq(userPermissions.permission, 'inbox_access'));
 
     return responders;
+  }
+
+  // ============================================================================
+  // LIBRARY POSTS (APOLOGETICS/POLEMICS WIKI ENTRIES)
+  // ============================================================================
+
+  /**
+   * List library posts with filtering and pagination
+   */
+  async listLibraryPosts(params: {
+    domain?: string;
+    areaId?: number;
+    tagId?: number;
+    q?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+    viewerUserId?: number;
+  }): Promise<{ items: any[]; total: number }> {
+    const { qaLibraryPosts, qaAreas, qaTags } = await import('@shared/schema');
+    const { limit = 20, offset = 0, viewerUserId, domain, areaId, tagId, q, status } = params;
+
+    let query = db
+      .select({
+        post: qaLibraryPosts,
+        area: qaAreas,
+        tag: qaTags,
+      })
+      .from(qaLibraryPosts)
+      .leftJoin(qaAreas, eq(qaLibraryPosts.areaId, qaAreas.id))
+      .leftJoin(qaTags, eq(qaLibraryPosts.tagId, qaTags.id))
+      .$dynamic();
+
+    const conditions: any[] = [];
+
+    // Domain filter
+    if (domain) {
+      conditions.push(eq(qaLibraryPosts.domain, domain));
+    }
+
+    // Area filter
+    if (areaId) {
+      conditions.push(eq(qaLibraryPosts.areaId, areaId));
+    }
+
+    // Tag filter
+    if (tagId) {
+      conditions.push(eq(qaLibraryPosts.tagId, tagId));
+    }
+
+    // Status filter - default to published only unless viewer is author
+    if (status) {
+      conditions.push(eq(qaLibraryPosts.status, status));
+    } else if (!viewerUserId) {
+      // No viewer = public only
+      conditions.push(eq(qaLibraryPosts.status, 'published'));
+    } else {
+      // Viewer can see published + their own drafts
+      conditions.push(
+        or(
+          eq(qaLibraryPosts.status, 'published'),
+          and(
+            eq(qaLibraryPosts.authorUserId, viewerUserId),
+            eq(qaLibraryPosts.status, 'draft')
+          )
+        )
+      );
+    }
+
+    // Search query
+    if (q && q.trim()) {
+      const searchTerm = `%${q.trim()}%`;
+      conditions.push(
+        or(
+          sql`${qaLibraryPosts.title} ILIKE ${searchTerm}`,
+          sql`${qaLibraryPosts.bodyMarkdown} ILIKE ${searchTerm}`
+        )
+      );
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    // Count total
+    const countQuery = db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(qaLibraryPosts)
+      .$dynamic();
+
+    if (conditions.length > 0) {
+      countQuery.where(and(...conditions));
+    }
+
+    const [countResult] = await countQuery;
+    const total = countResult?.count || 0;
+
+    // Get items with ordering
+    const items = await query
+      .orderBy(desc(qaLibraryPosts.publishedAt), desc(qaLibraryPosts.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      items: items.map(row => ({
+        ...row.post,
+        area: row.area,
+        tag: row.tag,
+      })),
+      total,
+    };
+  }
+
+  /**
+   * Get single library post by ID
+   */
+  async getLibraryPost(id: number, viewerUserId?: number): Promise<any> {
+    const { qaLibraryPosts, qaAreas, qaTags } = await import('@shared/schema');
+
+    const [result] = await db
+      .select({
+        post: qaLibraryPosts,
+        area: qaAreas,
+        tag: qaTags,
+      })
+      .from(qaLibraryPosts)
+      .leftJoin(qaAreas, eq(qaLibraryPosts.areaId, qaAreas.id))
+      .leftJoin(qaTags, eq(qaLibraryPosts.tagId, qaTags.id))
+      .where(eq(qaLibraryPosts.id, id))
+      .limit(1);
+
+    if (!result) return null;
+
+    const post = result.post;
+
+    // If draft, only author can view
+    if (post.status === 'draft' && (!viewerUserId || post.authorUserId !== viewerUserId)) {
+      return null;
+    }
+
+    return {
+      ...post,
+      area: result.area,
+      tag: result.tag,
+    };
+  }
+
+  /**
+   * Create library post
+   */
+  async createLibraryPost(data: any, authorUserId: number): Promise<any> {
+    const { qaLibraryPosts } = await import('@shared/schema');
+
+    const postData: any = {
+      ...data,
+      authorUserId,
+      authorDisplayName: 'Connection Research Team',
+      status: data.status || 'draft',
+      publishedAt: data.status === 'published' ? new Date() : null,
+    };
+
+    const [created] = await db
+      .insert(qaLibraryPosts)
+      .values(postData)
+      .returning();
+
+    return created;
+  }
+
+  /**
+   * Update library post
+   */
+  async updateLibraryPost(id: number, data: any, authorUserId: number): Promise<any> {
+    const { qaLibraryPosts } = await import('@shared/schema');
+
+    // Get post to check ownership
+    const [existing] = await db
+      .select()
+      .from(qaLibraryPosts)
+      .where(eq(qaLibraryPosts.id, id))
+      .limit(1);
+
+    if (!existing) return null;
+    if (existing.authorUserId !== authorUserId && authorUserId !== 19) {
+      throw new Error('Unauthorized: only author can update post');
+    }
+
+    const updateData: any = {
+      ...data,
+      updatedAt: new Date(),
+    };
+
+    const [updated] = await db
+      .update(qaLibraryPosts)
+      .set(updateData)
+      .where(eq(qaLibraryPosts.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  /**
+   * Publish library post
+   */
+  async publishLibraryPost(id: number, authorUserId: number): Promise<any> {
+    const { qaLibraryPosts } = await import('@shared/schema');
+
+    // Get post to check ownership
+    const [existing] = await db
+      .select()
+      .from(qaLibraryPosts)
+      .where(eq(qaLibraryPosts.id, id))
+      .limit(1);
+
+    if (!existing) return null;
+    if (existing.authorUserId !== authorUserId && authorUserId !== 19) {
+      throw new Error('Unauthorized: only author can publish post');
+    }
+
+    const [published] = await db
+      .update(qaLibraryPosts)
+      .set({
+        status: 'published',
+        publishedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(qaLibraryPosts.id, id))
+      .returning();
+
+    return published;
+  }
+
+  /**
+   * Delete library post (soft delete via archived status)
+   */
+  async deleteLibraryPost(id: number, authorUserId: number): Promise<boolean> {
+    const { qaLibraryPosts } = await import('@shared/schema');
+
+    // Get post to check ownership
+    const [existing] = await db
+      .select()
+      .from(qaLibraryPosts)
+      .where(eq(qaLibraryPosts.id, id))
+      .limit(1);
+
+    if (!existing) return false;
+    if (existing.authorUserId !== authorUserId && authorUserId !== 19) {
+      throw new Error('Unauthorized: only author can delete post');
+    }
+
+    // Soft delete
+    await db
+      .update(qaLibraryPosts)
+      .set({
+        status: 'archived',
+        updatedAt: new Date(),
+      })
+      .where(eq(qaLibraryPosts.id, id));
+
+    return true;
+  }
+
+  /**
+   * Check if user can author library posts
+   */
+  async canAuthorLibraryPosts(userId: number): Promise<boolean> {
+    if (userId === 19) return true;
+
+    const user = await this.getUser(userId);
+    if (user?.isVerifiedApologeticsAnswerer) return true;
+
+    const hasPermission = await this.userHasPermission(userId, 'apologetics_post_access');
+    return hasPermission;
   }
 }
 

@@ -1873,6 +1873,59 @@ export const insertQaTagSchema = createInsertSchema(qaTags).pick({
   order: true,
 } as any);
 
+// Q&A Library Posts - Wikipedia-style curated articles/entries
+// Author access restricted to verified apologists and user 19
+export const qaLibraryPosts = pgTable("qa_library_posts", {
+  id: serial("id").primaryKey(),
+  domain: text("domain").notNull(), // 'apologetics' or 'polemics'
+  areaId: integer("area_id").references(() => qaAreas.id, { onDelete: 'set null' }),
+  tagId: integer("tag_id").references(() => qaTags.id, { onDelete: 'set null' }),
+  title: text("title").notNull(),
+  summary: text("summary"),
+  bodyMarkdown: text("body_markdown").notNull(),
+  perspectives: text("perspectives").array().default(sql`'{}'::text[]`),
+  sources: jsonb("sources").default(sql`'[]'::jsonb`),
+  authorUserId: integer("author_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  authorDisplayName: text("author_display_name").notNull().default("Connection Research Team"),
+  status: text("status").notNull().default("draft"), // draft, published, archived
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  publishedAt: timestamp("published_at"),
+} as any, (table) => ({
+  domainAreaTagIdx: index("qa_library_posts_domain_area_tag_idx").on(table.domain, table.areaId, table.tagId),
+  statusPublishedIdx: index("qa_library_posts_status_published_idx").on(table.status, table.publishedAt),
+  authorIdx: index("qa_library_posts_author_idx").on(table.authorUserId),
+  domainIdx: index("qa_library_posts_domain_idx").on(table.domain),
+}));
+
+export const insertQaLibraryPostSchema = createInsertSchema(qaLibraryPosts).pick({
+  domain: true,
+  areaId: true,
+  tagId: true,
+  title: true,
+  summary: true,
+  bodyMarkdown: true,
+  perspectives: true,
+  sources: true,
+  authorUserId: true,
+  authorDisplayName: true,
+  status: true,
+} as any);
+
+export const updateQaLibraryPostSchema = createInsertSchema(qaLibraryPosts).pick({
+  areaId: true,
+  tagId: true,
+  title: true,
+  summary: true,
+  bodyMarkdown: true,
+  perspectives: true,
+  sources: true,
+  status: true,
+} as any).partial();
+
+export type QaLibraryPost = typeof qaLibraryPosts.$inferSelect;
+export type InsertQaLibraryPost = typeof qaLibraryPosts.$inferInsert;
+
 // Apologist Profiles - expert profiles for both public Q&A and private inbox
 // NOTE: Verification status comes from users.isVerifiedApologeticsAnswerer (canonical)
 export const apologistProfiles = pgTable("apologist_profiles", {

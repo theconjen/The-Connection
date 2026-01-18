@@ -74,6 +74,7 @@ const generateToken = () => crypto.randomBytes(32).toString('hex');
 // import authRoutes from './routes/api/auth'; // removed, now using modular './routes/auth'
 import adminRoutes from './routes/api/admin';
 import userRoutes from './routes/api/user';
+import meRoutes from './routes/me';
 import userSettingsRoutes from './routes/userSettingsRoutes';
 import dmRoutes from './routes/dmRoutes';
 import pushTokenRoutes from './routes/pushTokens';
@@ -97,6 +98,7 @@ import communitiesRoutes from './routes/communities';
 import eventsRoutes from './routes/events';
 import apologeticsRoutes from './routes/apologetics';
 import questionsRoutes from './routes/questions';
+import libraryRoutes from './routes/library';
 import moderationRoutes from './routes/moderation';
 import followRoutes from './routes/follow';
 import searchRoutes from './routes/search';
@@ -460,12 +462,13 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   if (FEATURES.APOLOGETICS) {
     app.use('/api', apologeticsRoutes);
     app.use('/api', questionsRoutes); // Q&A Inbox System
+    app.use('/api/library', libraryRoutes); // Library Posts System
   }
   
   // CRITICAL: This MUST execute for mobile app to get permissions
   // DO NOT add any routes before this that could shadow it
   app.get('/api/user', async (req, res) => {
-    console.log('ROUTES.TS /api/user HANDLER CALLED');
+    console.error('ROUTES.TS /api/user HANDLER CALLED');
     try {
       const userId = getSessionUserId(req);
       if (!userId) {
@@ -488,7 +491,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         .where(eq(userPermissions.userId, userId));
 
       const permissions = permissionsResult.map(p => p.permission);
-      console.log('Returning permissions:', permissions, 'for user:', user.username);
+      console.error('Returning permissions:', permissions, 'for user:', user.username);
 
       // Remove password, add permissions, map avatarUrl for mobile compatibility
       const { password, avatarUrl, ...userData } = user;
@@ -499,7 +502,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         permissions,                  // CRITICAL: Include permissions array
       };
 
-      console.log('Response includes permissions:', 'permissions' in response);
+      console.error('Response includes permissions:', 'permissions' in response);
       res.json(response);
     } catch (error) {
       console.error('Error in /api/user:', error);
@@ -509,6 +512,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   
   if (FEATURES.AUTH) {
     app.use('/api/user', userRoutes);
+    app.use('/api/me', meRoutes); // Single source of truth for capabilities
     app.use('/api/user', userSettingsRoutes);
     registerOnboardingRoutes(app); // Register onboarding completion endpoint
     app.use('/api/dms', dmRoutes);
