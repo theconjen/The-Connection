@@ -4,7 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
-import { notifyCommunityMembers, notifyEventAttendees, truncateText } from '../services/notificationHelper';
+import { notifyCommunityMembers, notifyEventAttendees, notifyNearbyUsers, truncateText } from '../services/notificationHelper';
 
 const router = Router();
 
@@ -12,14 +12,84 @@ router.get('/api/events', async (req, res) => {
   try {
     const filter = req.query.filter as string;
     const userId = getSessionUserId(req);
-    let events = await storage.getAllEvents();
+    const rsvpStatus = req.query.rsvpStatus as string; // 'going', 'maybe', 'not_going'
+
+    // Distance filtering parameters
+    const latitude = req.query.latitude ? parseFloat(req.query.latitude as string) : undefined;
+    const longitude = req.query.longitude ? parseFloat(req.query.longitude as string) : undefined;
+    const distance = req.query.distance ? parseFloat(req.query.distance as string) : undefined;
+
+    let events;
+
+    // If distance filtering is requested with valid coordinates
+    if (latitude !== undefined && longitude !== undefined && distance !== undefined &&
+        Number.isFinite(latitude) && Number.isFinite(longitude) && Number.isFinite(distance)) {
+      // Use distance-based filtering
+      events = await storage.getEventsNearLocation(latitude, longitude, distance);
+
+      // Calculate and attach distance to each event
+      events = events.map((event: any) => {
+        const eventLat = event.latitude ? parseFloat(String(event.latitude)) : null;
+        const eventLng = event.longitude ? parseFloat(String(event.longitude)) : null;
+
+        if (eventLat !== null && eventLng !== null && Number.isFinite(eventLat) && Number.isFinite(eventLng)) {
+          const haversineDistanceMiles = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+            const toRadians = (deg: number) => (deg * Math.PI) / 180;
+            const earthRadiusMiles = 3958.8;
+            const dLat = toRadians(lat2 - lat1);
+            const dLon = toRadians(lon2 - lon1);
+            const a =
+              Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return earthRadiusMiles * c;
+          };
+
+          const distanceMiles = haversineDistanceMiles(latitude, longitude, eventLat, eventLng);
+          return {
+            ...event,
+            distanceMiles: parseFloat(distanceMiles.toFixed(1)),
+          };
+        }
+
+        return event;
+      });
+    } else {
+      // No distance filtering - get all events
+      events = await storage.getAllEvents();
+    }
+
+    // Filter out events from blocked users
     if (userId) {
       const blockedIds = await storage.getBlockedUserIdsFor(userId);
       if (blockedIds && blockedIds.length > 0) {
         events = events.filter((e: any) => !blockedIds.includes(e.creatorId));
       }
     }
-    res.json(events);
+
+    // Filter by RSVP status if requested
+    if (rsvpStatus && userId) {
+      // Map frontend status values to backend values for compatibility
+      // Frontend may send: 'going', 'maybe', 'not_going'
+      // Backend stores: 'attending', 'maybe', 'declined'
+      const backendStatus =
+        rsvpStatus === 'going' ? 'attending' :
+        rsvpStatus === 'not_going' ? 'declined' :
+        rsvpStatus; // 'maybe' or already correct values pass through
+
+      // Get all RSVPs for the user
+      const userRsvps = await storage.getUserRSVPs(userId);
+
+      // Get event IDs that match the requested status
+      const eventIdsWithStatus = userRsvps
+        .filter((rsvp: any) => rsvp.status === backendStatus)
+        .map((rsvp: any) => rsvp.eventId);
+
+      // Filter events to only include those with matching RSVP status
+      events = events.filter((e: any) => eventIdsWithStatus.includes(e.id));
+    }
+
+    res.json({ events });
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json(buildErrorResponse('Error fetching events', error));
@@ -294,8 +364,68 @@ router.post('/api/events/:id/rsvp', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Event not found' });
     }
 
+    // Get count before RSVP to detect threshold crossing
+    const rsvpsBefore = await storage.getEventRSVPs(eventId);
+    const attendingCountBefore = rsvpsBefore.filter(
+      r => r.status === 'going' || r.status === 'maybe' || r.status === 'interested'
+    ).length;
+
     // Upsert RSVP (creates or updates)
     const rsvp = await storage.upsertEventRSVP(eventId, userId, status);
+
+    // Check if we just crossed the 25 RSVP threshold
+    const rsvpsAfter = await storage.getEventRSVPs(eventId);
+    const attendingCountAfter = rsvpsAfter.filter(
+      r => r.status === 'going' || r.status === 'maybe' || r.status === 'interested'
+    ).length;
+
+    // If we just hit 25 RSVPs and event has location, notify nearby users
+    if (attendingCountBefore < 25 && attendingCountAfter >= 25) {
+      console.info(`[Events] Event ${eventId} reached 25 RSVPs! Notifying nearby users...`);
+
+      // Check if event has location data
+      if (event.latitude && event.longitude) {
+        const eventLat = parseFloat(String(event.latitude));
+        const eventLon = parseFloat(String(event.longitude));
+
+        if (!isNaN(eventLat) && !isNaN(eventLon)) {
+          try {
+            // Get all users who already RSVP'd to exclude them
+            const rsvpedUserIds = rsvpsAfter.map(r => r.userId);
+
+            const eventLocation = event.isVirtual ? 'Virtual Event' : (event.location || event.city || 'TBD');
+            const eventTime = `${event.eventDate} at ${event.startTime}`;
+
+            // Notify users within 20 miles (async, don't block response)
+            notifyNearbyUsers(
+              eventId,
+              eventLat,
+              eventLon,
+              20, // 20 miles radius
+              {
+                title: `🔥 Popular event near you!`,
+                body: `${truncateText(event.title, 50)} - ${attendingCountAfter} attending - ${eventTime}`,
+                data: {
+                  type: 'popular_event',
+                  eventId: event.id,
+                  rsvpCount: attendingCountAfter,
+                },
+                category: 'event',
+              },
+              rsvpedUserIds // Exclude users who already RSVP'd
+            ).catch(error => {
+              console.error('[Events] Error notifying nearby users:', error);
+            });
+          } catch (error) {
+            console.error('[Events] Error processing nearby notifications:', error);
+          }
+        } else {
+          console.warn(`[Events] Event ${eventId} has invalid coordinates`);
+        }
+      } else {
+        console.info(`[Events] Event ${eventId} has no location data, skipping nearby notifications`);
+      }
+    }
 
     res.json(rsvp);
   } catch (error) {
