@@ -307,3 +307,96 @@ export async function getUserDisplayName(userId: number): Promise<string> {
     return 'Someone';
   }
 }
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * @returns Distance in miles
+ */
+function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const toRadians = (deg: number) => (deg * Math.PI) / 180;
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMiles * c;
+}
+
+/**
+ * Notify users within a certain radius of an event location
+ * Used for popular events (25+ RSVPs) to notify nearby users
+ *
+ * @param eventId - Event ID
+ * @param eventLatitude - Event latitude
+ * @param eventLongitude - Event longitude
+ * @param radiusMiles - Radius in miles (default 20)
+ * @param notification - Notification data
+ * @param excludeUserIds - User IDs to exclude (e.g., already RSVPed)
+ */
+export async function notifyNearbyUsers(
+  eventId: number,
+  eventLatitude: number,
+  eventLongitude: number,
+  radiusMiles: number = 20,
+  notification: {
+    title: string;
+    body: string;
+    data: any;
+    category: 'event';
+  },
+  excludeUserIds: number[] = []
+): Promise<void> {
+  try {
+    console.info(`[NotificationHelper] Finding users within ${radiusMiles} miles of event ${eventId}`);
+
+    // Get all users with location data
+    const allUsers = await storage.getAllUsers();
+
+    // Filter users who are within the radius and have location data
+    const nearbyUserIds = allUsers
+      .filter(user => {
+        // Exclude users who are already excluded (e.g., already RSVPed)
+        if (excludeUserIds.includes(user.id)) return false;
+
+        // User must have location data
+        if (!user.latitude || !user.longitude) return false;
+
+        const userLat = parseFloat(String(user.latitude));
+        const userLon = parseFloat(String(user.longitude));
+
+        // Validate coordinates
+        if (isNaN(userLat) || isNaN(userLon)) return false;
+
+        // Calculate distance
+        const distance = calculateDistance(
+          eventLatitude,
+          eventLongitude,
+          userLat,
+          userLon
+        );
+
+        return distance <= radiusMiles;
+      })
+      .map(user => user.id);
+
+    console.info(`[NotificationHelper] Found ${nearbyUserIds.length} nearby users within ${radiusMiles} miles`);
+
+    if (nearbyUserIds.length === 0) {
+      console.info('[NotificationHelper] No nearby users to notify');
+      return;
+    }
+
+    // Batch notify nearby users
+    await notifyMultipleUsers(nearbyUserIds, notification);
+  } catch (error) {
+    console.error('[NotificationHelper] Error in notifyNearbyUsers:', error);
+    throw error;
+  }
+}
