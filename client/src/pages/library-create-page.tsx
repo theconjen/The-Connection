@@ -16,9 +16,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Save, Upload, Shield, Flame } from 'lucide-react';
-import { apiClient } from '../../../../../packages/shared/src/api/client';
-import { queryKeys } from '../../../../../packages/shared/src/api/queryKeys';
-import type { Domain, CreateLibraryPostRequest } from '../../../../../packages/shared/src/api/types';
+import { apiClient } from '@shared/api/client';
+import { queryKeys } from '@shared/api/queryKeys';
+import type { Domain, CreateLibraryPostRequest } from '@shared/api/types';
 
 const formSchema = z.object({
   domain: z.enum(['apologetics', 'polemics']),

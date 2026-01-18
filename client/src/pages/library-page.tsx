@@ -10,9 +10,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Shield, Flame, Plus, BookOpen } from 'lucide-react';
-import { apiClient } from '../../../../../packages/shared/src/api/client';
-import { queryKeys } from '../../../../../packages/shared/src/api/queryKeys';
-import type { LibraryPost, Domain } from '../../../../../packages/shared/src/api/types';
+import { apiClient } from '@shared/api/client';
+import { queryKeys } from '@shared/api/queryKeys';
+import type { LibraryPost, Domain } from '@shared/api/types';
 
 export default function LibraryPage() {
   const [selectedDomain, setSelectedDomain] = useState<Domain | undefined>(undefined);

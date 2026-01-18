@@ -11,9 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, ArrowLeft, Shield, Flame, ExternalLink, Edit, Calendar } from 'lucide-react';
-import { apiClient } from '../../../../../packages/shared/src/api/client';
-import { queryKeys } from '../../../../../packages/shared/src/api/queryKeys';
-import type { LibraryPost } from '../../../../../packages/shared/src/api/types';
+import { apiClient } from '@shared/api/client';
+import { queryKeys } from '@shared/api/queryKeys';
+import type { LibraryPost } from '@shared/api/types';
 
 export default function LibraryPostPage() {
   const [, params] = useRoute('/library/:id');
