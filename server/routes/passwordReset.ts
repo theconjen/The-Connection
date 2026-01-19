@@ -44,12 +44,20 @@ const resetPasswordSchema = z.object({
  * Request a password reset email
  */
 router.post('/request', resetRequestLimiter, async (req, res) => {
+  console.info('[PASSWORD_RESET_ROUTE] HIT', new Date().toISOString());
+  console.info('[PASSWORD_RESET_ROUTE] Request body:', req.body);
+
   try {
     // Validate input
     const { email } = requestResetSchema.parse(req.body);
 
+    // Normalize email
+    const normalizedEmail = email.trim().toLowerCase();
+    console.info('[PASSWORD_RESET_ROUTE] Normalized email:', normalizedEmail);
+
     // Create reset token and send email
-    await createPasswordResetToken(email);
+    const result = await createPasswordResetToken(normalizedEmail);
+    console.info('[PASSWORD_RESET_ROUTE] createPasswordResetToken result:', result);
 
     // Always return success to prevent email enumeration
     res.json({
@@ -57,13 +65,14 @@ router.post('/request', resetRequestLimiter, async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.info('[PASSWORD_RESET_ROUTE] Validation error:', error.errors);
       return res.status(400).json({
         error: 'Invalid input',
         details: error.errors,
       });
     }
 
-    console.error('Error requesting password reset:', error);
+    console.error('[PASSWORD_RESET_ROUTE] Error requesting password reset:', error);
     res.status(500).json({
       error: 'Failed to process password reset request',
     });

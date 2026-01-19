@@ -27,32 +27,54 @@ export function generateResetToken(): string {
  */
 export async function createPasswordResetToken(email: string): Promise<boolean> {
   try {
+    // Normalize email for consistent lookup
+    const normalizedEmail = email.trim().toLowerCase();
+    console.info('[PASSWORD_RESET] Request received for email:', normalizedEmail);
+
     // Find user by email
-    const user = await storage.getUserByEmail(email);
-    
+    console.info('[PASSWORD_RESET] Calling storage.getUserByEmail...');
+    const user = await storage.getUserByEmail(normalizedEmail);
+
     if (!user) {
       // We don't want to reveal if an email exists in the database
       // So we'll still return success but won't actually send an email
+      console.info('[PASSWORD_RESET] ⚠️ No user found for email:', normalizedEmail);
+      console.info('[PASSWORD_RESET] (This means the email is not registered in the database)');
       return true;
     }
-    
+
+    console.info('[PASSWORD_RESET] ✅ User found:', {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      emailVerified: (user as any).emailVerified
+    });
+
     // Generate a token
     const token = generateResetToken();
-  const expires = Date.now() + TOKEN_EXPIRY;
-    
+    const expires = Date.now() + TOKEN_EXPIRY;
+
     // Store the token
     passwordResetTokens.set(token, {
       userId: user.id,
       email: user.email,
       expires
     });
-    
+
+    console.info('[PASSWORD_RESET] Token generated, attempting to send email...');
+
     // Send email with reset link
-    await sendPasswordResetEmail(user.email, user.username, token);
-    
+    const emailSent = await sendPasswordResetEmail(user.email, user.username, token);
+
+    console.info('[PASSWORD_RESET] Email send result:', emailSent ? '✅ SUCCESS' : '❌ FAILED');
+
+    if (!emailSent) {
+      console.error('[PASSWORD_RESET] Email failed to send! Check email provider configuration.');
+    }
+
     return true;
   } catch (error) {
-    console.error('Error creating password reset token:', error);
+    console.error('[PASSWORD_RESET] ❌ Error creating password reset token:', error);
     return false;
   }
 }

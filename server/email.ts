@@ -33,20 +33,37 @@ const ENABLE_REAL_EMAIL =
   enableRealEmailEnv === 'true' ||
   (enableRealEmailEnv !== 'false' && (hasResend || hasSendGrid || hasAwsCredentials));
 
+// Startup logging for email configuration
+console.info('[EMAIL_STARTUP] Configuration:', {
+  forceMockMode,
+  ENABLE_REAL_EMAIL,
+  hasResend,
+  hasSendGrid,
+  hasAwsCredentials,
+  RESEND_API_KEY_SET: !!RESEND_API_KEY,
+  RESEND_API_KEY_LENGTH: RESEND_API_KEY.length,
+  EMAIL_FROM
+});
+
 if (forceMockMode) {
-  // We don't enable real email functionality in mock mode
+  console.warn('[EMAIL_STARTUP] FORCE_EMAIL_MOCK_MODE=true - all emails will be mocked');
 } else if (!ENABLE_REAL_EMAIL) {
+  console.warn('[EMAIL_STARTUP] ENABLE_REAL_EMAIL is false - emails disabled');
 } else if (!hasAwsCredentials && !hasResend && !hasSendGrid) {
-  console.warn("⚠️ No email provider credentials set (AWS, SendGrid, or Resend). Email functionality will be disabled.");
-  console.warn("⚠️ Users can still register but won't receive actual emails.");
+  console.warn("[EMAIL_STARTUP] ⚠️ No email provider credentials set (AWS, SendGrid, or Resend). Email functionality will be disabled.");
+  console.warn("[EMAIL_STARTUP] ⚠️ Users can still register but won't receive actual emails.");
 } else {
   emailFunctionalityEnabled = true;
+  console.info('[EMAIL_STARTUP] Email functionality ENABLED');
   if (hasAwsCredentials) {
     sesAvailable = true;
+    console.info('[EMAIL_STARTUP] AWS SES available');
   }
   if (hasSendGrid) {
+    console.info('[EMAIL_STARTUP] SendGrid available');
   }
   if (hasResend) {
+    console.info('[EMAIL_STARTUP] Resend available');
   }
 }
 
@@ -75,8 +92,9 @@ if (RESEND_API_KEY) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { Resend } = require('resend');
     resendClient = new Resend(RESEND_API_KEY);
+    console.info('[EMAIL_STARTUP] ✅ Resend client initialized successfully');
   } catch (err) {
-    console.warn('📧 Resend package not available or failed to initialize; falling back to SES if enabled');
+    console.error('[EMAIL_STARTUP] ❌ Resend package not available or failed to initialize:', err);
     resendClient = null;
   }
 }
@@ -96,54 +114,70 @@ interface EmailParams {
 }
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
+  console.info('[EMAIL] sendEmail called:', {
+    to: params.to,
+    from: params.from,
+    subject: params.subject,
+    emailFunctionalityEnabled,
+    forceMockMode,
+    hasResendClient: !!resendClient,
+    hasSendGridClient: !!sendGridClient,
+    sesAvailable
+  });
+
   if (forceMockMode || !emailFunctionalityEnabled) {
-    // Log more detailed information in development mode
-    if (process.env.NODE_ENV !== 'production') {
-      console.info('[EMAIL] Mock mode - email not sent:', {
-        to: params.to,
-        subject: params.subject,
-        hasText: !!params.text,
-        hasHtml: !!params.html
-      });
-    }
+    // Log in ALL environments so we can see this in Render
+    console.warn('[EMAIL] MOCK MODE - email NOT actually sent:', {
+      to: params.to,
+      subject: params.subject,
+      reason: forceMockMode ? 'FORCE_EMAIL_MOCK_MODE=true' : 'emailFunctionalityEnabled=false'
+    });
     return true; // Return true in mock mode to simulate success
   }
-  
+
   try {
     // If Resend is configured, prefer using it for simple email sends
     if (resendClient) {
+      console.info('[EMAIL] Attempting to send via Resend...');
       try {
-        await resendClient.emails.send({
+        const resendResponse = await resendClient.emails.send({
           from: params.from || EMAIL_FROM,
           to: params.to,
           subject: params.subject,
           html: params.html,
           text: params.text
         });
+        console.info('[EMAIL] Resend SUCCESS:', resendResponse);
         return true;
-      } catch (resendErr) {
-        console.error('Resend send error, falling back to SES:', resendErr);
+      } catch (resendErr: any) {
+        console.error('[EMAIL] Resend FAILED:', {
+          error: resendErr?.message || resendErr,
+          statusCode: resendErr?.statusCode,
+          name: resendErr?.name
+        });
         // fall through to SES below
       }
     }
 
     if (sendGridClient) {
+      console.info('[EMAIL] Attempting to send via SendGrid...');
       try {
-        await sendGridClient.send({
+        const sgResponse = await sendGridClient.send({
           to: params.to,
           from: params.from || EMAIL_FROM,
           subject: params.subject,
           html: params.html,
           text: params.text
         });
+        console.info('[EMAIL] SendGrid SUCCESS:', sgResponse);
         return true;
-      } catch (sendGridErr) {
-        console.warn('SendGrid send failed; falling back to SES if configured', sendGridErr);
+      } catch (sendGridErr: any) {
+        console.error('[EMAIL] SendGrid FAILED:', sendGridErr?.message || sendGridErr);
       }
     }
 
     if (!sesAvailable) {
-      console.warn('Email sending failed via configured providers and no SES credentials are available.');
+      console.error('[EMAIL] ALL PROVIDERS FAILED - no SES fallback available');
       return false;
     }
 
@@ -682,14 +716,24 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
 }
 
 export async function sendPasswordResetEmail(email: string, displayName: string = "", resetToken: string): Promise<boolean> {
+  console.info('[PASSWORD_RESET_EMAIL] Starting sendPasswordResetEmail:', {
+    email,
+    displayName,
+    tokenLength: resetToken?.length
+  });
+
   const name = displayName || email.split('@')[0];
   const from = EMAIL_FROM;
   const resetLink = `${APP_URLS.RESET_PASSWORD}?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+  console.info('[PASSWORD_RESET_EMAIL] Reset link generated:', resetLink);
+  console.info('[PASSWORD_RESET_EMAIL] From address:', from);
 
   // Check if we have templates enabled and available
   const template = await getEmailTemplate(DEFAULT_TEMPLATES.PASSWORD_RESET);
 
   if (template) {
+    console.info('[PASSWORD_RESET_EMAIL] Using templated email');
     // Send using template
     return sendTemplatedEmail({
       to: email,
@@ -702,6 +746,7 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
       }
     });
   } else {
+    console.info('[PASSWORD_RESET_EMAIL] Using inline HTML email (no template)');
     // Fall back to branded email template
     return sendEmail({
       to: email,
