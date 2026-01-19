@@ -180,7 +180,7 @@ router.post('/api/events', requireAuth, async (req, res) => {
     // Check if user is the app owner (unique privilege for "The Connection" events)
     const user = await storage.getUser(userId);
     const isAppAdmin = user?.isAdmin === true;
-    const isAppOwner = user?.id === 19; // Only Janelle (user 19) can create events without a community
+    const isAppOwner = user?.id === 19 && user?.username === 'Janelle'; // Only Janelle (user 19) can create events without a community
 
     // Only app owner can create events without a community (hosted by "The Connection")
     // All other users must specify a communityId
