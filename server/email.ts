@@ -731,9 +731,14 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
 
   const name = displayName || email.split('@')[0];
   const from = EMAIL_FROM;
-  const resetLink = `${APP_URLS.RESET_PASSWORD}?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
-  console.info('[PASSWORD_RESET_EMAIL] Reset link generated:', resetLink);
+  // Primary: Deep link for mobile app
+  const appDeepLink = `theconnection://reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+  // Fallback: Web link (for users who don't have the app installed)
+  const webFallbackLink = `${APP_URLS.RESET_PASSWORD}?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+  console.info('[PASSWORD_RESET_EMAIL] App deep link generated:', appDeepLink);
+  console.info('[PASSWORD_RESET_EMAIL] Web fallback link:', webFallbackLink);
   console.info('[PASSWORD_RESET_EMAIL] From address:', from);
 
   // Check if we have templates enabled and available
@@ -761,10 +766,13 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
       subject: 'Reset Your Password - The Connection',
       text: `We received a request to reset your password. If you didn't make this request, you can safely ignore this email.
 
-To reset your password, click the link below:
-${resetLink}
+To reset your password in the app, tap this link:
+${appDeepLink}
 
-This link will expire in 24 hours.
+If the link above doesn't work, use this web link:
+${webFallbackLink}
+
+This link will expire in 1 hour.
 
 For security reasons, please do not share this link with anyone.
 
@@ -801,23 +809,29 @@ If you did not request a password reset, please contact our support team immedia
                     </tr>
                     <tr>
                       <td style="padding-bottom:16px;">
-                        To reset your password, click the button below:
+                        <strong>Tap the button below to reset your password in the app:</strong>
                       </td>
                     </tr>
                     <tr>
                       <td style="padding:20px 0;">
-                        <a href="${resetLink}" style="display:inline-block;background-color:#1a2a4a;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Reset Password</a>
+                        <a href="${appDeepLink}" style="display:inline-block;background-color:#1a2a4a;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open App & Reset Password</a>
                       </td>
                     </tr>
                     <tr>
-                      <td style="padding:12px 0 20px 0;color:#666;font-size:13px;">
-                        Or copy this link:<br>
-                        <a href="${resetLink}" style="color:#1a2477;word-break:break-all;font-size:12px;">${resetLink}</a>
+                      <td style="padding:16px 0;color:#666;font-size:14px;border-top:1px solid #ddd;margin-top:16px;">
+                        <strong>Don't have the app installed?</strong><br>
+                        <a href="${webFallbackLink}" style="color:#1a2477;text-decoration:underline;font-size:14px;">Reset password on the web instead</a>
                       </td>
                     </tr>
                     <tr>
-                      <td style="padding-bottom:16px;">
-                        This link will expire in 24 hours.
+                      <td style="padding:12px 0 20px 0;color:#888;font-size:12px;">
+                        Or copy your reset token manually:<br>
+                        <code style="background:#e8e8e8;padding:4px 8px;border-radius:4px;font-family:monospace;font-size:11px;word-break:break-all;">${resetToken}</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding-bottom:16px;color:#d9534f;">
+                        ⏱ This link will expire in <strong>1 hour</strong>.
                       </td>
                     </tr>
                     <tr>

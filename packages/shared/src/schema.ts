@@ -14,6 +14,25 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Password reset tokens table - stores hashed tokens for security
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(), // SHA-256 hash of the actual token
+    email: text("email").notNull(), // Email at time of request (for audit)
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+    usedAt: timestamp("used_at"), // Set when token is used (single-use enforcement)
+  },
+  (table) => [
+    index("IDX_password_reset_token_hash").on(table.tokenHash),
+    index("IDX_password_reset_user_id").on(table.userId),
+    index("IDX_password_reset_expires_at").on(table.expiresAt),
+  ],
+);
+
 // Users table schema
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),

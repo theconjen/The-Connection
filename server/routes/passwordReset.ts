@@ -93,7 +93,8 @@ router.get('/verify/:token', async (req, res) => {
       });
     }
 
-    const isValid = verifyResetToken(token);
+    // verifyResetToken is now async (uses database)
+    const isValid = await verifyResetToken(token);
 
     if (!isValid) {
       return res.status(400).json({
