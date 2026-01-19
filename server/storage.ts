@@ -197,9 +197,12 @@ export interface IStorage {
   getUserFollowers(userId: number): Promise<any[]>;
   getUserFollowing(userId: number): Promise<any[]>;
   getUserFollow(followerId: number, followingId: number): Promise<any | undefined>;
-  createUserFollow(follow: { followerId: number; followingId: number }): Promise<any>;
+  createUserFollow(follow: { followerId: number; followingId: number; status?: string }): Promise<any>;
+  updateFollowStatus(followerId: number, followingId: number, status: 'pending' | 'accepted'): Promise<any | undefined>;
   deleteUserFollow(followerId: number, followingId: number): Promise<boolean>;
   isUserFollowing(followerId: number, followingId: number): Promise<boolean>;
+  getPendingFollowRequests(userId: number): Promise<any[]>;
+  getFollowRequestStatus(followerId: number, followingId: number): Promise<'none' | 'pending' | 'accepted'>;
 
   // Community methods
   getAllCommunities(): Promise<Community[]>;
@@ -2361,9 +2364,13 @@ export class DbStorage implements IStorage {
 
   // User Follow methods
   async getUserFollowers(userId: number): Promise<any[]> {
+    // Only return accepted follows (not pending requests)
     const follows = await db.select()
       .from(userFollows)
-      .where(eq(userFollows.followingId, userId));
+      .where(and(
+        eq(userFollows.followingId, userId),
+        eq(userFollows.status, 'accepted')
+      ));
 
     const followerIds = follows.map(f => f.followerId);
     if (followerIds.length === 0) return [];
@@ -2385,9 +2392,13 @@ export class DbStorage implements IStorage {
   }
 
   async getUserFollowing(userId: number): Promise<any[]> {
+    // Only return accepted follows (not pending requests)
     const follows = await db.select()
       .from(userFollows)
-      .where(eq(userFollows.followerId, userId));
+      .where(and(
+        eq(userFollows.followerId, userId),
+        eq(userFollows.status, 'accepted')
+      ));
 
     const followingIds = follows.map(f => f.followingId);
     if (followingIds.length === 0) return [];
@@ -2419,11 +2430,30 @@ export class DbStorage implements IStorage {
     return follow;
   }
 
-  async createUserFollow(follow: { followerId: number; followingId: number }): Promise<any> {
-    const [created] = await db.insert(userFollows)
-      .values(follow)
+  async createUserFollow(follow: { followerId: number; followingId: number; status?: string }): Promise<any> {
+    // Use onConflictDoNothing for idempotency (UNIQUE constraint on follower_id, following_id)
+    const status = follow.status || 'accepted';
+    const inserted = await db.insert(userFollows)
+      .values({ followerId: follow.followerId, followingId: follow.followingId, status })
+      .onConflictDoNothing()
       .returning();
-    return created;
+    if (inserted && inserted.length > 0) {
+      return inserted[0];
+    }
+    // If nothing inserted, the follow already exists - fetch and return it
+    const existing = await this.getUserFollow(follow.followerId, follow.followingId);
+    return existing;
+  }
+
+  async updateFollowStatus(followerId: number, followingId: number, status: 'pending' | 'accepted'): Promise<any | undefined> {
+    const [updated] = await db.update(userFollows)
+      .set({ status })
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.followingId, followingId)
+      ))
+      .returning();
+    return updated;
   }
 
   async deleteUserFollow(followerId: number, followingId: number): Promise<boolean> {
@@ -2437,8 +2467,51 @@ export class DbStorage implements IStorage {
   }
 
   async isUserFollowing(followerId: number, followingId: number): Promise<boolean> {
-    const follow = await this.getUserFollow(followerId, followingId);
+    // Only return true for accepted follows
+    const [follow] = await db.select()
+      .from(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.followingId, followingId),
+        eq(userFollows.status, 'accepted')
+      ))
+      .limit(1);
     return !!follow;
+  }
+
+  async getPendingFollowRequests(userId: number): Promise<any[]> {
+    // Get users who have requested to follow this user (pending status)
+    const requests = await db.select()
+      .from(userFollows)
+      .where(and(
+        eq(userFollows.followingId, userId),
+        eq(userFollows.status, 'pending')
+      ));
+
+    const requesterIds = requests.map(r => r.followerId);
+    if (requesterIds.length === 0) return [];
+
+    const requesters = await db.select()
+      .from(users)
+      .where(inArray(users.id, requesterIds));
+
+    return requests.map(request => {
+      const user = requesters.find(u => u.id === request.followerId);
+      return {
+        id: request.id,
+        userId: user?.id,
+        username: user?.username,
+        displayName: user?.displayName,
+        profileImageUrl: user?.avatarUrl,
+        requestedAt: request.createdAt,
+      };
+    });
+  }
+
+  async getFollowRequestStatus(followerId: number, followingId: number): Promise<'none' | 'pending' | 'accepted'> {
+    const follow = await this.getUserFollow(followerId, followingId);
+    if (!follow) return 'none';
+    return follow.status as 'pending' | 'accepted';
   }
 
   // Community methods - simplified for now

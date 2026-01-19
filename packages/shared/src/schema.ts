@@ -242,10 +242,12 @@ export type CommunityWallPost = typeof communityWallPosts.$inferSelect;
 export type InsertCommunityWallPost = typeof communityWallPosts.$inferInsert;
 
 // User Follows table schema for social graph
+// status: 'pending' for follow requests on private accounts, 'accepted' for confirmed follows
 export const userFollows = pgTable("user_follows", {
   id: serial("id").primaryKey(),
   followerId: integer("follower_id").references(() => users.id).notNull(),
   followingId: integer("following_id").references(() => users.id).notNull(),
+  status: text("status").notNull().default("accepted"), // 'pending' | 'accepted'
   createdAt: timestamp("created_at").defaultNow(),
 } as any);
 
@@ -1795,6 +1797,19 @@ export const userBlocks = pgTable("user_blocks", {
 });
 
 export const insertUserBlockSchema = createInsertSchema(userBlocks).omit({
+  id: true,
+  createdAt: true,
+} as any);
+
+// Hidden suggestions - users dismissed from friend suggestions
+export const hiddenSuggestions = pgTable("hidden_suggestions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  hiddenUserId: integer("hidden_user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertHiddenSuggestionSchema = createInsertSchema(hiddenSuggestions).omit({
   id: true,
   createdAt: true,
 } as any);

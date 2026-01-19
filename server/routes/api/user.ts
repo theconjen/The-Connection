@@ -5,6 +5,7 @@ import { requireAuth } from '../../middleware/auth';
 import { storage } from '../../storage-optimized';
 import { buildErrorResponse } from '../../utils/errors';
 import { getSessionUserId, requireSessionUserId } from '../../utils/session';
+import { clearPreferencesCache } from '../../services/notificationHelper';
 
 const router = Router();
 
@@ -326,6 +327,19 @@ router.put("/settings", async (req, res) => {
     if (typeof notifyFeed === "boolean") updateData.notifyFeed = notifyFeed;
 
     await storage.updateUser(userId, updateData);
+
+    // Clear notification preferences cache if any notification settings were updated
+    const notificationPrefsUpdated =
+      typeof notifyDms === "boolean" ||
+      typeof notifyCommunities === "boolean" ||
+      typeof notifyForums === "boolean" ||
+      typeof notifyFeed === "boolean";
+
+    if (notificationPrefsUpdated) {
+      clearPreferencesCache(userId);
+      console.info(`[API/User] Cleared notification preferences cache for user ${userId}`);
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json(buildErrorResponse('Error updating user settings', error));
@@ -503,14 +517,12 @@ router.get('/suggestions/friends', async (req, res, next) => {
 
     const limit = parseInt(req.query.limit as string) || 5;
 
-    // For now, return empty array to prevent errors
-    // This will be enhanced once deployment is stable
     console.info('[Friend Suggestions] Request from user:', userId);
 
     try {
       const { db } = await import('../../db');
-      const { users, userFollows, communityMembers, userBlocks } = await import('@shared/schema');
-      const { eq, and, sql, ne, notIn } = await import('drizzle-orm');
+      const { users, userFollows, communityMembers, userBlocks, hiddenSuggestions, communities } = await import('@shared/schema');
+      const { eq, and, sql, ne, notIn, isNull, desc } = await import('drizzle-orm');
 
       // Get current user's data
       const currentUser = await storage.getUser(userId);
@@ -525,39 +537,53 @@ router.get('/suggestions/friends', async (req, res, next) => {
         .where(eq(userFollows.followerId, userId));
       const followingIds = following.map(f => f.followingId);
 
-      // Get blocked users
+      // Get blocked users (both directions)
       const blocked = await db
-        .select({ userId: userBlocks.userId, blockedUserId: userBlocks.blockedUserId })
+        .select({ blockerId: userBlocks.blockerId, blockedId: userBlocks.blockedId })
         .from(userBlocks)
         .where(
-          sql`${userBlocks.userId} = ${userId} OR ${userBlocks.blockedUserId} = ${userId}`
+          sql`${userBlocks.blockerId} = ${userId} OR ${userBlocks.blockedId} = ${userId}`
         );
       const blockedIds = [
-        ...blocked.filter(b => b.userId === userId).map(b => b.blockedUserId),
-        ...blocked.filter(b => b.blockedUserId === userId).map(b => b.userId)
+        ...blocked.filter(b => b.blockerId === userId).map(b => b.blockedId),
+        ...blocked.filter(b => b.blockedId === userId).map(b => b.blockerId)
       ];
 
-      // Get current user's communities
-      const userCommunities = await db
-        .select({ communityId: communityMembers.communityId })
+      // Get hidden suggestions
+      const hidden = await db
+        .select({ hiddenUserId: hiddenSuggestions.hiddenUserId })
+        .from(hiddenSuggestions)
+        .where(eq(hiddenSuggestions.userId, userId));
+      const hiddenIds = hidden.map(h => h.hiddenUserId);
+
+      // Get current user's communities with names
+      const userCommunitiesData = await db
+        .select({
+          communityId: communityMembers.communityId,
+          communityName: communities.name
+        })
         .from(communityMembers)
+        .innerJoin(communities, eq(communityMembers.communityId, communities.id))
         .where(eq(communityMembers.userId, userId));
-      const communityIds = userCommunities.map(c => c.communityId);
+      const communityIds = userCommunitiesData.map(c => c.communityId);
+      const communityNames = new Map(userCommunitiesData.map(c => [c.communityId, c.communityName]));
 
-      // Build exclusion list
-      const excludeIds = [userId, ...followingIds, ...blockedIds];
+      // Build exclusion list (self, following, blocked, hidden)
+      const excludeIds = [userId, ...followingIds, ...blockedIds, ...hiddenIds];
 
-      // Get candidate users - build WHERE conditions first
+      // Get candidate users - exclude soft-deleted users (deletedAt IS NOT NULL)
       let whereConditions;
       if (excludeIds.length > 1) {
-        // Exclude current user AND followed/blocked users
         whereConditions = and(
           ne(users.id, userId),
-          notIn(users.id, excludeIds)
+          notIn(users.id, excludeIds),
+          isNull(users.deletedAt)
         );
       } else {
-        // Only exclude current user
-        whereConditions = ne(users.id, userId);
+        whereConditions = and(
+          ne(users.id, userId),
+          isNull(users.deletedAt)
+        );
       }
 
       const allUsers = await db
@@ -570,20 +596,22 @@ router.get('/suggestions/friends', async (req, res, next) => {
           city: users.city,
           state: users.state,
           denomination: users.denomination,
+          createdAt: users.createdAt,
         })
         .from(users)
         .where(whereConditions)
         .limit(100);
 
-      // Score each user
+      // Score each user with new weights and caps
       const scoredUsers = await Promise.all(
         allUsers.map(async (user) => {
-          let mutualFollowsScore = 0;
-          let mutualCommunitiesScore = 0;
+          let mutualFollowsCount = 0;
+          let mutualCommunitiesCount = 0;
+          let sharedCommunityName: string | null = null;
           let locationScore = 0;
 
           try {
-            // Calculate mutual follows score
+            // Calculate mutual follows (capped at 2)
             if (followingIds.length > 0) {
               const mutualFollows = await db
                 .select({ count: sql<number>`count(*)` })
@@ -594,13 +622,13 @@ router.get('/suggestions/friends', async (req, res, next) => {
                     sql`${userFollows.followingId} IN (SELECT following_id FROM user_follows WHERE follower_id = ${userId})`
                   )
                 );
-              mutualFollowsScore = Number(mutualFollows[0]?.count || 0) * 15;
+              mutualFollowsCount = Math.min(Number(mutualFollows[0]?.count || 0), 2); // Cap at 2
             }
 
-            // Calculate mutual communities score
+            // Calculate mutual communities (capped at 2) and get first shared community name
             if (communityIds.length > 0) {
               const mutualCommunities = await db
-                .select({ count: sql<number>`count(*)` })
+                .select({ communityId: communityMembers.communityId })
                 .from(communityMembers)
                 .where(
                   and(
@@ -608,22 +636,46 @@ router.get('/suggestions/friends', async (req, res, next) => {
                     sql`${communityMembers.communityId} IN (${communityIds.join(',')})`
                   )
                 );
-              mutualCommunitiesScore = Number(mutualCommunities[0]?.count || 0) * 10;
+              mutualCommunitiesCount = Math.min(mutualCommunities.length, 2); // Cap at 2
+
+              // Get first shared community name for display
+              if (mutualCommunities.length > 0) {
+                sharedCommunityName = communityNames.get(mutualCommunities[0].communityId) || null;
+              }
             }
 
-            // Calculate location score
+            // Calculate location score (city: 10, state only: 5)
             if (currentUser.city && currentUser.state) {
               if (user.city === currentUser.city && user.state === currentUser.state) {
-                locationScore = 20;
-              } else if (user.state === currentUser.state) {
                 locationScore = 10;
+              } else if (user.state === currentUser.state) {
+                locationScore = 5;
               }
             }
           } catch (scoringError) {
             console.error('[Friend Suggestions] Error scoring user:', user.id, scoringError);
           }
 
+          // New weights: mutualCommunities=20, mutualFollows=15, location as calculated
+          const mutualFollowsScore = mutualFollowsCount * 15;
+          const mutualCommunitiesScore = mutualCommunitiesCount * 20;
           const totalScore = mutualFollowsScore + mutualCommunitiesScore + locationScore;
+
+          // Determine primary reason for display (priority: community > mutual > location)
+          let reason: string | null = null;
+          if (sharedCommunityName) {
+            reason = `From ${sharedCommunityName}`;
+          } else if (mutualFollowsCount > 0) {
+            reason = mutualFollowsCount === 1
+              ? '1 mutual connection'
+              : `${mutualFollowsCount} mutual connections`;
+          } else if (locationScore > 0) {
+            if (user.city === currentUser.city) {
+              reason = `From ${user.city}`;
+            } else if (user.state === currentUser.state) {
+              reason = `From ${user.state}`;
+            }
+          }
 
           return {
             id: user.id,
@@ -634,6 +686,7 @@ router.get('/suggestions/friends', async (req, res, next) => {
             city: user.city,
             state: user.state,
             denomination: user.denomination,
+            reason,
             suggestionScore: {
               total: totalScore,
               mutualFollows: mutualFollowsScore,
@@ -645,22 +698,90 @@ router.get('/suggestions/friends', async (req, res, next) => {
       );
 
       // Filter users with score > 0 and sort by score
-      const suggestions = scoredUsers
+      let suggestions = scoredUsers
         .filter(user => user.suggestionScore.total > 0)
         .sort((a, b) => b.suggestionScore.total - a.suggestionScore.total)
         .slice(0, limit);
+
+      // Cold start fallback: if no scored suggestions, return newest users
+      if (suggestions.length === 0) {
+        console.info('[Friend Suggestions] Cold start - falling back to newest users');
+        const fallbackUsers = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            displayName: users.displayName,
+            avatarUrl: users.avatarUrl,
+            bio: users.bio,
+            city: users.city,
+            state: users.state,
+            denomination: users.denomination,
+          })
+          .from(users)
+          .where(whereConditions)
+          .orderBy(desc(users.createdAt))
+          .limit(limit);
+
+        suggestions = fallbackUsers.map(user => ({
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+          bio: user.bio,
+          city: user.city,
+          state: user.state,
+          denomination: user.denomination,
+          reason: 'New member',
+          suggestionScore: {
+            total: 0,
+            mutualFollows: 0,
+            mutualCommunities: 0,
+            location: 0,
+          },
+        }));
+      }
 
       console.info('[Friend Suggestions] Returning', suggestions.length, 'suggestions');
       res.json(suggestions);
     } catch (innerError) {
       console.error('[Friend Suggestions] Inner error:', innerError);
-      // Return empty array on error instead of 500
       res.json([]);
     }
   } catch (error) {
     console.error('[Friend Suggestions] Outer error:', error);
-    // Return empty array instead of error
     res.json([]);
+  }
+});
+
+// Hide a friend suggestion
+router.post('/suggestions/hide', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const { hiddenUserId } = req.body;
+    if (!hiddenUserId || typeof hiddenUserId !== 'number') {
+      return res.status(400).json({ message: 'hiddenUserId is required' });
+    }
+
+    const { db } = await import('../../db');
+    const { hiddenSuggestions } = await import('@shared/schema');
+    const { sql } = await import('drizzle-orm');
+
+    // Insert with ON CONFLICT DO NOTHING to avoid duplicates
+    await db.execute(sql`
+      INSERT INTO hidden_suggestions (user_id, hidden_user_id)
+      VALUES (${userId}, ${hiddenUserId})
+      ON CONFLICT (user_id, hidden_user_id) DO NOTHING
+    `);
+
+    console.info('[Friend Suggestions] User', userId, 'hid suggestion', hiddenUserId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Friend Suggestions] Error hiding suggestion:', error);
+    res.status(500).json({ message: 'Failed to hide suggestion' });
   }
 });
 

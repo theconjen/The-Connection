@@ -117,12 +117,24 @@ declare module 'express-session' {
   }
 }
 
+// Async version needed to check follow relationship
+async function canViewProfileAsync(target: User, viewerId?: number, viewerIsAdmin?: boolean): Promise<boolean> {
+  if (viewerIsAdmin) return true;
+  if (!target.profileVisibility || target.profileVisibility === 'public') return true;
+  if (!viewerId) return false;
+  if (target.id === viewerId) return true;
+  // For 'friends' or 'private' visibility, check if viewer is an accepted follower
+  const isFollower = await storage.isUserFollowing(viewerId, target.id);
+  return isFollower;
+}
+
+// Sync version for backward compatibility (assumes public if can't check)
 function canViewProfile(target: User, viewerId?: number, viewerIsAdmin?: boolean) {
   if (viewerIsAdmin) return true;
   if (!target.profileVisibility || target.profileVisibility === 'public') return true;
   if (!viewerId) return false;
   if (target.id === viewerId) return true;
-  // Treat 'friends' visibility like private until follow graph is implemented
+  // For sync calls, return false for private accounts (caller should use async version)
   return false;
 }
 
@@ -212,21 +224,48 @@ export function registerSocketHandlers(
 ) {
   const { storage: storageDep, sendPushNotification: pushNotification, logger = console } = deps;
 
-  // SECURITY: Add authentication middleware for Socket.IO
+  // SECURITY: JWT authentication middleware for Socket.IO
+  // PRODUCTION: Requires valid JWT token - no fallback allowed
   io.use((socket, next) => {
     try {
-      // Get userId from handshake auth or query
-      const authUserId = socket.handshake.auth?.userId || socket.handshake.query?.userId;
+      const jwt = require('jsonwebtoken');
+      const jwtSecret = process.env.JWT_SECRET;
+      const isProduction = process.env.NODE_ENV === 'production';
 
-      if (!authUserId) {
-        logger.log('Socket.IO connection rejected: No userId provided');
-        return next(new Error('Authentication required: userId not provided'));
+      const token = socket.handshake.auth?.token;
+
+      // JWT_SECRET must be configured
+      if (!jwtSecret) {
+        logger.error('Socket.IO: JWT_SECRET not configured - rejecting all connections');
+        return next(new Error('Server configuration error'));
       }
 
-      // Store authenticated userId on socket for verification
-      (socket as any).userId = parseInt(authUserId as string);
-      logger.log(`Socket.IO connection authenticated for user ${(socket as any).userId}`);
-      next();
+      // Token is required
+      if (!token) {
+        logger.log('Socket.IO connection rejected: No JWT token provided');
+        return next(new Error('Authentication required: JWT token not provided'));
+      }
+
+      // Verify the JWT token
+      try {
+        const decoded = jwt.verify(token, jwtSecret) as { sub?: number; id?: number; userId?: number };
+        const userId = decoded.sub || decoded.id || decoded.userId;
+
+        if (!userId) {
+          logger.log('Socket.IO connection rejected: JWT token has no user ID');
+          return next(new Error('Invalid token: no user ID'));
+        }
+
+        // Store verified userId on socket - this is the ONLY trusted source
+        (socket as any).userId = userId;
+        if (!isProduction) {
+          logger.log(`Socket.IO JWT authenticated for user ${userId}`);
+        }
+        return next();
+      } catch (jwtError: any) {
+        logger.log(`Socket.IO JWT verification failed: ${jwtError.message}`);
+        return next(new Error('Authentication failed: invalid or expired token'));
+      }
     } catch (error) {
       emitSocketError(socket, logger, 'Socket authentication failed', error, {
         message: 'Failed to authenticate socket connection',

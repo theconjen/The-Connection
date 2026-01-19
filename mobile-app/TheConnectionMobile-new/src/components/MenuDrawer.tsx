@@ -35,6 +35,7 @@ interface FriendSuggestion {
   city?: string;
   state?: string;
   denomination?: string;
+  reason?: string;
   suggestionScore: {
     total: number;
     mutualFollows: number;
@@ -50,6 +51,8 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
   const [showResults, setShowResults] = useState(false);
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
+  const [hidingIds, setHidingIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!visible) {
@@ -73,6 +76,40 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
       setFriendSuggestions([]);
     } finally {
       setIsLoadingSuggestions(false);
+    }
+  };
+
+  const handleFollowSuggestion = async (userId: number) => {
+    // Optimistic update
+    setFollowingIds(prev => new Set(prev).add(userId));
+    try {
+      await apiClient.post(`/api/follow/${userId}`);
+    } catch (error) {
+      // Revert on error
+      setFollowingIds(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+      console.error('Failed to follow user:', error);
+    }
+  };
+
+  const handleHideSuggestion = async (userId: number) => {
+    // Optimistic update - remove from list immediately
+    setHidingIds(prev => new Set(prev).add(userId));
+    setFriendSuggestions(prev => prev.filter(s => s.id !== userId));
+    try {
+      await apiClient.post('/api/user/suggestions/hide', { hiddenUserId: userId });
+    } catch (error) {
+      // Revert on error - re-fetch suggestions
+      setHidingIds(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+      fetchFriendSuggestions();
+      console.error('Failed to hide suggestion:', error);
     }
   };
 
@@ -220,51 +257,66 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                 <Ionicons name="chevron-forward" size={20} color="#536471" />
               </Pressable>
 
-              {/* Suggested Friends Section */}
+              {/* People in Your Communities Section */}
               {friendSuggestions.length > 0 && (
                 <View style={styles.suggestionsSection}>
-                  <Text style={styles.suggestionsHeader}>Suggested Friends</Text>
-                  {friendSuggestions.map((suggestion) => (
-                    <Pressable
-                      key={suggestion.id}
-                      style={styles.suggestionCard}
-                      onPress={() => handleUserPress(suggestion as any)}
-                    >
-                      <Image
-                        source={{
-                          uri: suggestion.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(suggestion.displayName || suggestion.username)}&background=random`
-                        }}
-                        style={styles.suggestionAvatar}
-                      />
-                      <View style={styles.suggestionInfo}>
-                        <Text style={styles.suggestionDisplayName} numberOfLines={1}>
-                          {suggestion.displayName || suggestion.username}
-                        </Text>
-                        <Text style={styles.suggestionUsername} numberOfLines={1}>
-                          @{suggestion.username}
-                        </Text>
-                        {suggestion.suggestionScore.mutualCommunities > 0 && (
-                          <Text style={styles.suggestionReason} numberOfLines={1}>
-                            <Ionicons name="people-outline" size={12} color="#536471" />{' '}
-                            {suggestion.suggestionScore.mutualCommunities} mutual {suggestion.suggestionScore.mutualCommunities === 1 ? 'community' : 'communities'}
-                          </Text>
-                        )}
-                        {suggestion.suggestionScore.mutualFollows > 0 && (
-                          <Text style={styles.suggestionReason} numberOfLines={1}>
-                            <Ionicons name="person-outline" size={12} color="#536471" />{' '}
-                            {suggestion.suggestionScore.mutualFollows} mutual {suggestion.suggestionScore.mutualFollows === 1 ? 'friend' : 'friends'}
-                          </Text>
-                        )}
-                        {suggestion.suggestionScore.location > 0 && suggestion.city && (
-                          <Text style={styles.suggestionReason} numberOfLines={1}>
-                            <Ionicons name="location-outline" size={12} color="#536471" />{' '}
-                            {suggestion.city}, {suggestion.state}
-                          </Text>
-                        )}
+                  <Text style={styles.suggestionsHeader}>People in Your Communities</Text>
+                  <Text style={styles.suggestionsSubheader}>Connect with members</Text>
+                  {friendSuggestions.map((suggestion) => {
+                    const isFollowing = followingIds.has(suggestion.id);
+                    return (
+                      <View key={suggestion.id} style={styles.suggestionCard}>
+                        <Pressable
+                          style={styles.suggestionTouchable}
+                          onPress={() => handleUserPress(suggestion as any)}
+                        >
+                          <Image
+                            source={{
+                              uri: suggestion.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(suggestion.displayName || suggestion.username)}&background=random`
+                            }}
+                            style={styles.suggestionAvatar}
+                          />
+                          <View style={styles.suggestionInfo}>
+                            <Text style={styles.suggestionDisplayName} numberOfLines={1}>
+                              {suggestion.displayName || suggestion.username}
+                            </Text>
+                            <Text style={styles.suggestionUsername} numberOfLines={1}>
+                              @{suggestion.username}
+                            </Text>
+                            {suggestion.reason && (
+                              <Text style={styles.suggestionReason} numberOfLines={1}>
+                                {suggestion.reason}
+                              </Text>
+                            )}
+                          </View>
+                        </Pressable>
+                        <View style={styles.suggestionActions}>
+                          <Pressable
+                            style={[
+                              styles.followButton,
+                              isFollowing && styles.followButtonFollowing
+                            ]}
+                            onPress={() => !isFollowing && handleFollowSuggestion(suggestion.id)}
+                            disabled={isFollowing}
+                          >
+                            <Text style={[
+                              styles.followButtonText,
+                              isFollowing && styles.followButtonTextFollowing
+                            ]}>
+                              {isFollowing ? 'Following' : 'Follow'}
+                            </Text>
+                          </Pressable>
+                          <Pressable
+                            style={styles.hideButton}
+                            onPress={() => handleHideSuggestion(suggestion.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="close" size={18} color="#536471" />
+                          </Pressable>
+                        </View>
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color="#536471" />
-                    </Pressable>
-                  ))}
+                    );
+                  })}
                 </View>
               )}
 
@@ -460,25 +512,36 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0F1419',
     paddingHorizontal: 20,
+    paddingBottom: 4,
+  },
+  suggestionsSubheader: {
+    fontSize: 13,
+    color: '#536471',
+    paddingHorizontal: 20,
     paddingBottom: 12,
   },
   suggestionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 20,
-    gap: 12,
     backgroundColor: '#FFFFFF',
   },
+  suggestionTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   suggestionAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#EFF3F4',
   },
   suggestionInfo: {
     flex: 1,
-    gap: 2,
+    gap: 1,
   },
   suggestionDisplayName: {
     fontSize: 15,
@@ -493,5 +556,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#536471',
     marginTop: 2,
+  },
+  suggestionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 8,
+  },
+  followButton: {
+    backgroundColor: '#0F1419',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  followButtonFollowing: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CFD9DE',
+  },
+  followButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  followButtonTextFollowing: {
+    color: '#0F1419',
+  },
+  hideButton: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
   },
 });
