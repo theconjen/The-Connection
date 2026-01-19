@@ -66,11 +66,14 @@ import {
   livestreamerApplications, apologistScholarApplications,
   userPreferences, messages, userFollows,
   // moderation tables
-    contentReports, userBlocks, pushTokens, notifications
+  contentReports, userBlocks, pushTokens, notifications,
+  // polls tables
+  polls, pollOptions, pollVotes,
+  Poll, InsertPoll, PollOption, InsertPollOption, PollVote, InsertPollVote,
 } from "@shared/schema";
 import { postVotes, commentVotes } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, sql, inArray, like, ilike, isNull } from "drizzle-orm";
+import { eq, and, or, desc, asc, lt, sql, inArray, like, ilike, isNull } from "drizzle-orm";
 import { whereNotDeleted, andNotDeleted } from "./db/helpers";
 import { geocodeAddress } from "./geocoding";
 import softDelete from './db/softDelete';
@@ -468,6 +471,24 @@ export interface IStorage {
   getReports?(filter?: { status?: string; limit?: number }): Promise<ContentReport[]>;
   getReportById?(id: number): Promise<ContentReport | undefined>;
   updateReport?(id: number, update: Partial<ContentReport> & { status?: string; moderatorNotes?: string | null; moderatorId?: number | null; resolvedAt?: Date | null }): Promise<ContentReport>;
+
+  // Poll methods
+  createPoll(poll: { question: string; endsAt?: Date | null; allowMultiple?: boolean }): Promise<any>;
+  getPoll(id: number): Promise<any | undefined>;
+  getPollOptions(pollId: number): Promise<any[]>;
+  createPollOption(option: { pollId: number; text: string; orderIndex?: number }): Promise<any>;
+  getPollWithOptions(pollId: number, userId?: number): Promise<any | null>;
+  castPollVotes(pollId: number, userId: number, optionIds: number[]): Promise<any[]>;
+  removeUserPollVotes(pollId: number, userId: number): Promise<void>;
+  getUserPollVotes(pollId: number, userId: number): Promise<number[]>;
+
+  // Explore feed methods
+  getExploreFeedMicroblogs(options: {
+    topic?: string;
+    postType?: string;
+    cursor?: Date;
+    limit: number;
+  }): Promise<any[]>;
 }
 
 // In-memory storage implementation
@@ -2020,6 +2041,38 @@ export class MemStorage implements IStorage {
   async processPostKeywords(_postId: number, _title: string, _content: string): Promise<void> {}
   async updateTrendingScores(): Promise<void> {}
   async updateKeywordTrendingScores(): Promise<void> {}
+
+  // Poll stubs (not implemented in MemStorage)
+  async createPoll(_poll: { question: string; endsAt?: Date | null; allowMultiple?: boolean }): Promise<any> {
+    throw new Error('Polls not implemented in MemStorage');
+  }
+  async getPoll(_id: number): Promise<any | undefined> {
+    return undefined;
+  }
+  async getPollOptions(_pollId: number): Promise<any[]> {
+    return [];
+  }
+  async createPollOption(_option: { pollId: number; text: string; orderIndex?: number }): Promise<any> {
+    throw new Error('Polls not implemented in MemStorage');
+  }
+  async getPollWithOptions(_pollId: number, _userId?: number): Promise<any | null> {
+    return null;
+  }
+  async castPollVotes(_pollId: number, _userId: number, _optionIds: number[]): Promise<any[]> {
+    throw new Error('Polls not implemented in MemStorage');
+  }
+  async removeUserPollVotes(_pollId: number, _userId: number): Promise<void> {}
+  async getUserPollVotes(_pollId: number, _userId: number): Promise<number[]> {
+    return [];
+  }
+  async getExploreFeedMicroblogs(_options: {
+    topic?: string;
+    postType?: string;
+    cursor?: Date;
+    limit: number;
+  }): Promise<any[]> {
+    return this.data.microblogs;
+  }
 }
 
 // Database-backed storage implementation
@@ -5138,6 +5191,23 @@ export class DbStorage implements IStorage {
   }
 
   /**
+   * Update user question (general update method)
+   */
+  async updateUserQuestion(questionId: number, updates: Partial<{
+    status: string;
+    publishedPostId: number | null;
+  }>): Promise<any> {
+    const { userQuestions } = await import('@shared/schema');
+    const [updated] = await db
+      .update(userQuestions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userQuestions.id, questionId))
+      .returning();
+
+    return updated;
+  }
+
+  /**
    * Update assignment status
    */
   async updateAssignmentStatus(assignmentId: number, status: string): Promise<any> {
@@ -5657,6 +5727,203 @@ export class DbStorage implements IStorage {
 
     const hasPermission = await this.userHasPermission(userId, 'apologetics_post_access');
     return hasPermission;
+  }
+
+  // ============================================================================
+  // POLL METHODS
+  // ============================================================================
+
+  async createPoll(poll: { question: string; endsAt?: Date | null; allowMultiple?: boolean }): Promise<any> {
+    const [created] = await db.insert(polls).values({
+      question: poll.question,
+      endsAt: poll.endsAt || null,
+      allowMultiple: poll.allowMultiple || false,
+    }).returning();
+    return created;
+  }
+
+  async getPoll(id: number): Promise<any | undefined> {
+    const [poll] = await db.select().from(polls).where(eq(polls.id, id));
+    return poll;
+  }
+
+  async getPollOptions(pollId: number): Promise<any[]> {
+    return await db.select()
+      .from(pollOptions)
+      .where(eq(pollOptions.pollId, pollId))
+      .orderBy(asc(pollOptions.orderIndex));
+  }
+
+  async createPollOption(option: { pollId: number; text: string; orderIndex?: number }): Promise<any> {
+    const [created] = await db.insert(pollOptions).values({
+      pollId: option.pollId,
+      text: option.text,
+      orderIndex: option.orderIndex || 0,
+    }).returning();
+    return created;
+  }
+
+  async getPollWithOptions(pollId: number, userId?: number): Promise<any | null> {
+    const poll = await this.getPoll(pollId);
+    if (!poll) return null;
+
+    const options = await this.getPollOptions(pollId);
+
+    // Get user's votes if userId provided
+    let userVotedOptionIds: number[] = [];
+    if (userId) {
+      userVotedOptionIds = await this.getUserPollVotes(pollId, userId);
+    }
+
+    // Calculate total votes
+    const totalVotes = options.reduce((sum, opt) => sum + (opt.voteCount || 0), 0);
+
+    return {
+      ...poll,
+      totalVotes,
+      options: options.map(opt => ({
+        ...opt,
+        percentage: totalVotes > 0 ? Math.round((opt.voteCount / totalVotes) * 100) : 0,
+        isVotedByUser: userVotedOptionIds.includes(opt.id),
+      })),
+      hasVoted: userVotedOptionIds.length > 0,
+      isExpired: poll.endsAt ? new Date(poll.endsAt) < new Date() : false,
+    };
+  }
+
+  async castPollVotes(pollId: number, userId: number, optionIds: number[]): Promise<any[]> {
+    const votes: any[] = [];
+
+    for (const optionId of optionIds) {
+      // Check if already voted for this option
+      const existing = await db.select()
+        .from(pollVotes)
+        .where(and(
+          eq(pollVotes.pollId, pollId),
+          eq(pollVotes.optionId, optionId),
+          eq(pollVotes.userId, userId)
+        ));
+
+      if (existing.length > 0) {
+        continue; // Already voted for this option, skip
+      }
+
+      // Create vote
+      const [vote] = await db.insert(pollVotes).values({
+        pollId,
+        optionId,
+        userId,
+      }).returning();
+      votes.push(vote);
+
+      // Increment vote count on option
+      await db.update(pollOptions)
+        .set({ voteCount: sql`vote_count + 1` })
+        .where(eq(pollOptions.id, optionId));
+    }
+
+    // Update total votes on poll
+    await db.update(polls)
+      .set({ totalVotes: sql`total_votes + ${votes.length}` })
+      .where(eq(polls.id, pollId));
+
+    // Update poll vote count on the associated microblog (for ranking)
+    const [microblogWithPoll] = await db.select()
+      .from(microblogs)
+      .where(eq(microblogs.pollId, pollId));
+
+    if (microblogWithPoll) {
+      // We don't have a pollVoteCount column yet, but this would update it
+      // For now, we'll skip this since we're using poll.totalVotes directly
+    }
+
+    return votes;
+  }
+
+  async removeUserPollVotes(pollId: number, userId: number): Promise<void> {
+    // Get the options the user voted for
+    const userVotes = await db.select()
+      .from(pollVotes)
+      .where(and(
+        eq(pollVotes.pollId, pollId),
+        eq(pollVotes.userId, userId)
+      ));
+
+    // Decrement vote counts for each option
+    for (const vote of userVotes) {
+      await db.update(pollOptions)
+        .set({ voteCount: sql`GREATEST(vote_count - 1, 0)` })
+        .where(eq(pollOptions.id, vote.optionId));
+    }
+
+    // Delete the votes
+    const deletedCount = userVotes.length;
+    await db.delete(pollVotes)
+      .where(and(
+        eq(pollVotes.pollId, pollId),
+        eq(pollVotes.userId, userId)
+      ));
+
+    // Update total votes on poll
+    if (deletedCount > 0) {
+      await db.update(polls)
+        .set({ totalVotes: sql`GREATEST(total_votes - ${deletedCount}, 0)` })
+        .where(eq(polls.id, pollId));
+    }
+  }
+
+  async getUserPollVotes(pollId: number, userId: number): Promise<number[]> {
+    const votes = await db.select({ optionId: pollVotes.optionId })
+      .from(pollVotes)
+      .where(and(
+        eq(pollVotes.pollId, pollId),
+        eq(pollVotes.userId, userId)
+      ));
+    return votes.map(v => v.optionId);
+  }
+
+  // ============================================================================
+  // EXPLORE FEED METHODS
+  // ============================================================================
+
+  async getExploreFeedMicroblogs(options: {
+    topic?: string;
+    postType?: string;
+    cursor?: Date;
+    limit: number;
+  }): Promise<any[]> {
+    const conditions: any[] = [];
+
+    // Filter by topic
+    if (options.topic) {
+      conditions.push(eq(microblogs.topic, options.topic));
+    }
+
+    // Filter by post type
+    if (options.postType) {
+      conditions.push(eq(microblogs.postType, options.postType));
+    }
+
+    // Cursor-based pagination (get posts older than cursor)
+    if (options.cursor) {
+      conditions.push(lt(microblogs.createdAt, options.cursor));
+    }
+
+    // Only get non-deleted posts (if deletedAt exists)
+    // conditions.push(isNull(microblogs.deletedAt));
+
+    // Build query
+    let query = db.select().from(microblogs);
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const results = await query
+      .orderBy(desc(microblogs.createdAt))
+      .limit(options.limit);
+
+    return results;
   }
 }
 

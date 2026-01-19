@@ -8,5 +8,4 @@ import { storage as realStorage } from './storage';
 export { realStorage as storage };
 
 if (process.env.NODE_ENV === 'development') {
-  console.log('Using storage-optimized shim (delegates to ./storage)');
 }

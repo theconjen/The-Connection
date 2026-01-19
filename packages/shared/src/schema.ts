@@ -852,6 +852,24 @@ export type VirtualGift = typeof virtualGifts.$inferSelect;
 export type InsertLivestreamGift = typeof livestreamGifts.$inferInsert;
 export type LivestreamGift = typeof livestreamGifts.$inferSelect;
 
+// Topic categories for microblogs
+export const MICROBLOG_TOPICS = [
+  'OBSERVATION',
+  'QUESTION',
+  'NEWS',
+  'CULTURE',
+  'ENTERTAINMENT',
+  'SCRIPTURE',
+  'TESTIMONY',
+  'PRAYER',
+  'OTHER'
+] as const;
+export type MicroblogTopic = typeof MICROBLOG_TOPICS[number];
+
+// Post types
+export const MICROBLOG_TYPES = ['STANDARD', 'POLL'] as const;
+export type MicroblogType = typeof MICROBLOG_TYPES[number];
+
 // Microblog posts (Twitter-like) schema
 export const microblogs: any = pgTable("microblogs", {
   id: serial("id").primaryKey(),
@@ -866,8 +884,15 @@ export const microblogs: any = pgTable("microblogs", {
   likeCount: integer("like_count").default(0),
   repostCount: integer("repost_count").default(0),
   replyCount: integer("reply_count").default(0),
+  bookmarkCount: integer("bookmark_count").default(0), // Cached bookmark count for ranking
+  uniqueReplierCount: integer("unique_replier_count").default(0), // Cached unique repliers for ranking
   parentId: integer("parent_id").references(() => microblogs.id), // For replies to other microblogs
   detectedLanguage: text("detected_language"), // ISO 639-1 language code (e.g., en, ar, es)
+  // New fields for post types and polls
+  topic: text("topic").default('OTHER'), // OBSERVATION, QUESTION, NEWS, CULTURE, ENTERTAINMENT, SCRIPTURE, TESTIMONY, PRAYER, OTHER
+  postType: text("post_type").default('STANDARD'), // STANDARD or POLL
+  pollId: integer("poll_id"), // FK to polls table (set after poll creation)
+  sourceUrl: text("source_url"), // For NEWS/CULTURE/ENTERTAINMENT posts with external links
   createdAt: timestamp("created_at").defaultNow(),
 } as any);
 
@@ -881,6 +906,10 @@ export const insertMicroblogSchema = createInsertSchema(microblogs).pick({
   communityId: true,
   groupId: true,
   parentId: true,
+  topic: true,
+  postType: true,
+  pollId: true,
+  sourceUrl: true,
 } as any);
 
 // Microblog likes table for tracking user likes
@@ -921,6 +950,80 @@ export const insertMicroblogBookmarkSchema = createInsertSchema(microblogBookmar
   microblogId: true,
   userId: true,
 } as any);
+
+// ============================================================================
+// POLLS SYSTEM
+// ============================================================================
+
+// Polls table - stores poll metadata
+export const polls = pgTable("polls", {
+  id: serial("id").primaryKey(),
+  question: text("question").notNull(), // Poll question/title
+  endsAt: timestamp("ends_at"), // When voting closes (null = no expiration)
+  allowMultiple: boolean("allow_multiple").default(false), // Allow voting for multiple options
+  totalVotes: integer("total_votes").default(0), // Cached total vote count
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_polls_ends_at").on(table.endsAt),
+]);
+
+export const insertPollSchema = createInsertSchema(polls).pick({
+  question: true,
+  endsAt: true,
+  allowMultiple: true,
+} as any);
+
+export type Poll = typeof polls.$inferSelect;
+export type InsertPoll = typeof polls.$inferInsert;
+
+// Poll options table - stores the choices for each poll
+export const pollOptions = pgTable("poll_options", {
+  id: serial("id").primaryKey(),
+  pollId: integer("poll_id").references(() => polls.id, { onDelete: 'cascade' }).notNull(),
+  text: text("text").notNull(), // Option text
+  orderIndex: integer("order_index").default(0), // Display order
+  voteCount: integer("vote_count").default(0), // Cached vote count for this option
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_poll_options_poll").on(table.pollId),
+]);
+
+export const insertPollOptionSchema = createInsertSchema(pollOptions).pick({
+  pollId: true,
+  text: true,
+  orderIndex: true,
+} as any);
+
+export type PollOption = typeof pollOptions.$inferSelect;
+export type InsertPollOption = typeof pollOptions.$inferInsert;
+
+// Poll votes table - tracks who voted for what
+export const pollVotes = pgTable("poll_votes", {
+  id: serial("id").primaryKey(),
+  pollId: integer("poll_id").references(() => polls.id, { onDelete: 'cascade' }).notNull(),
+  optionId: integer("option_id").references(() => pollOptions.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  // For single-vote polls: one vote per user per poll
+  // For multi-vote: one vote per user per option
+  uniqueIndex("idx_poll_votes_user_option").on(table.pollId, table.optionId, table.userId),
+  index("idx_poll_votes_poll").on(table.pollId),
+  index("idx_poll_votes_user").on(table.userId),
+]);
+
+export const insertPollVoteSchema = createInsertSchema(pollVotes).pick({
+  pollId: true,
+  optionId: true,
+  userId: true,
+} as any);
+
+export type PollVote = typeof pollVotes.$inferSelect;
+export type InsertPollVote = typeof pollVotes.$inferInsert;
+
+// ============================================================================
+// END POLLS SYSTEM
+// ============================================================================
 
 // Post bookmarks table for tracking user bookmarks
 export const postBookmarks = pgTable("post_bookmarks", {
@@ -2016,6 +2119,7 @@ export const userQuestions = pgTable("user_questions", {
   tagId: integer("tag_id").notNull().references(() => qaTags.id),
   questionText: text("question_text").notNull(),
   status: text("status").notNull().default("new"), // 'new', 'routed', 'answered', 'closed'
+  publishedPostId: integer("published_post_id").references(() => qaLibraryPosts.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 } as any);

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { insertCommentSchema, insertMicroblogSchema } from '@shared/schema';
+import { insertCommentSchema, insertMicroblogSchema, MICROBLOG_TOPICS, MICROBLOG_TYPES } from '@shared/schema';
 import { requireAuth } from '../middleware/auth';
 import { storage as defaultStorage } from '../storage-optimized';
 import { contentCreationLimiter, messageCreationLimiter } from '../rate-limiters';
@@ -8,6 +8,67 @@ import { buildErrorResponse } from '../utils/errors';
 import { sortByFeedScore } from '../algorithms/christianFeedScoring';
 import { detectLanguage } from '../services/languageDetection';
 import { trackEngagement } from '../services/engagementTracking';
+import { notifyUserWithPreferences, truncateText, getUserDisplayName } from '../services/notificationHelper';
+
+// Ranking configuration for explore feed (easy to tune later)
+const RANKING_CONFIG = {
+  weights: {
+    bookmarks: 5.0,        // Heavy weight on bookmarks
+    uniqueRepliers: 4.0,   // Heavy weight on unique repliers
+    pollVotes: 3.0,        // Heavy weight on poll votes
+    reposts: 2.0,          // Medium weight on reposts
+    likes: 0.5,            // Tiny weight on likes (avoid like farming)
+    comments: 1.5,         // Medium weight on comments
+  },
+  decay: {
+    halfLifeHours: 48,     // Score halves every 48 hours
+  },
+  eligibility: {
+    minPollVotes: 10,      // Polls need 10+ votes to be "popular eligible"
+    minUniqueRepliers: 2,  // OR 2+ unique repliers
+    minBookmarks: 2,       // OR 2+ bookmarks
+    hasSourceUrl: true,    // OR has sourceUrl (NEWS posts)
+  },
+};
+
+// Calculate popularity score with time decay
+function calculatePopularityScore(microblog: any): number {
+  const { weights, decay } = RANKING_CONFIG;
+
+  // Raw engagement score
+  const rawScore =
+    (microblog.bookmarkCount || 0) * weights.bookmarks +
+    (microblog.uniqueReplierCount || 0) * weights.uniqueRepliers +
+    (microblog.pollVoteCount || 0) * weights.pollVotes +
+    (microblog.repostCount || 0) * weights.reposts +
+    (microblog.likeCount || 0) * weights.likes +
+    (microblog.replyCount || 0) * weights.comments;
+
+  // Apply time decay
+  const ageHours = (Date.now() - new Date(microblog.createdAt).getTime()) / (1000 * 60 * 60);
+  const decayFactor = Math.pow(0.5, ageHours / decay.halfLifeHours);
+
+  return rawScore * decayFactor;
+}
+
+// Check if microblog is eligible for "popular" tab
+function isPopularEligible(microblog: any): boolean {
+  const { eligibility } = RANKING_CONFIG;
+
+  // Poll posts eligible if enough votes
+  if (microblog.postType === 'POLL' && (microblog.pollVoteCount || 0) >= eligibility.minPollVotes) {
+    return true;
+  }
+
+  // Check engagement thresholds
+  if ((microblog.uniqueReplierCount || 0) >= eligibility.minUniqueRepliers) return true;
+  if ((microblog.bookmarkCount || 0) >= eligibility.minBookmarks) return true;
+
+  // News/external link posts are eligible
+  if (eligibility.hasSourceUrl && microblog.sourceUrl) return true;
+
+  return false;
+}
 
 export function createMicroblogsRouter(storage = defaultStorage) {
   const router = Router();
@@ -277,9 +338,53 @@ export function createMicroblogsRouter(storage = defaultStorage) {
   router.post('/microblogs', contentCreationLimiter, requireAuth, async (req, res) => {
     try {
       const userId = requireSessionUserId(req);
+      const { poll, ...microblogData } = req.body;
+
+      // Validate topic if provided
+      if (microblogData.topic && !MICROBLOG_TOPICS.includes(microblogData.topic)) {
+        return res.status(400).json({ message: `Invalid topic. Must be one of: ${MICROBLOG_TOPICS.join(', ')}` });
+      }
+
+      // Validate postType if provided
+      if (microblogData.postType && !MICROBLOG_TYPES.includes(microblogData.postType)) {
+        return res.status(400).json({ message: `Invalid postType. Must be one of: ${MICROBLOG_TYPES.join(', ')}` });
+      }
+
+      let pollId: number | null = null;
+
+      // If this is a POLL type post, create the poll first
+      if (microblogData.postType === 'POLL') {
+        if (!poll || !poll.question || !Array.isArray(poll.options) || poll.options.length < 2) {
+          return res.status(400).json({
+            message: 'Poll posts require a poll object with question and at least 2 options',
+          });
+        }
+
+        // Create the poll
+        const createdPoll = await storage.createPoll({
+          question: poll.question,
+          endsAt: poll.endsAt ? new Date(poll.endsAt) : null,
+          allowMultiple: poll.allowMultiple || false,
+        });
+
+        // Create poll options
+        for (let i = 0; i < poll.options.length; i++) {
+          await storage.createPollOption({
+            pollId: createdPoll.id,
+            text: poll.options[i],
+            orderIndex: i,
+          });
+        }
+
+        pollId = createdPoll.id;
+      }
+
       const validatedData = insertMicroblogSchema.parse({
-        ...req.body,
+        ...microblogData,
         authorId: userId,
+        pollId,
+        topic: microblogData.topic || 'OTHER',
+        postType: microblogData.postType || 'STANDARD',
       });
 
       const microblog = await storage.createMicroblog(validatedData);
@@ -303,7 +408,14 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       storage.processMicroblogKeywords(microblog.id, validatedData.content)
         .catch(error => console.error('Error processing keywords:', error));
 
-      res.status(201).json(microblog);
+      // If poll was created, include poll data in response
+      let responseData: any = microblog;
+      if (pollId) {
+        const pollWithOptions = await storage.getPollWithOptions(pollId);
+        responseData = { ...microblog, poll: pollWithOptions };
+      }
+
+      res.status(201).json(responseData);
     } catch (error) {
       console.error('Error creating microblog:', error);
       res.status(500).json(buildErrorResponse('Error creating microblog', error));
@@ -328,6 +440,23 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       // Track engagement for language personalization (asynchronously)
       trackEngagement(userId, microblogId, 'microblog', 'like')
         .catch(error => console.error('Error tracking engagement:', error));
+
+      // Notify author about the like (async, don't block response)
+      const microblog = await storage.getMicroblog(microblogId);
+      if (microblog && microblog.authorId !== userId) {
+        getUserDisplayName(userId).then(async (likerName) => {
+          await notifyUserWithPreferences(microblog.authorId, {
+            title: `${likerName} liked your post`,
+            body: truncateText(microblog.content, 80),
+            data: {
+              type: 'microblog_like',
+              microblogId: microblog.id,
+              userId: userId,
+            },
+            category: 'feed',
+          });
+        }).catch(error => console.error('[Microblogs] Error sending like notification:', error));
+      }
 
       res.status(201).json(like);
     } catch (error) {
@@ -416,6 +545,24 @@ export function createMicroblogsRouter(storage = defaultStorage) {
         authorId: userId,
       });
       const comment = await storage.createComment(validatedData);
+
+      // Notify microblog author about the comment (async, don't block response)
+      if (microblog.authorId !== userId) {
+        getUserDisplayName(userId).then(async (commenterName) => {
+          await notifyUserWithPreferences(microblog.authorId, {
+            title: `${commenterName} commented on your post`,
+            body: truncateText(validatedData.content, 80),
+            data: {
+              type: 'microblog_comment',
+              microblogId: microblog.id,
+              commentId: comment.id,
+              userId: userId,
+            },
+            category: 'feed',
+          });
+        }).catch(error => console.error('[Microblogs] Error sending comment notification:', error));
+      }
+
       res.status(201).json(comment);
     } catch (error) {
       console.error('Error creating microblog comment:', error);
@@ -433,6 +580,23 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       }
 
       const repost = await storage.repostMicroblog(microblogId, userId);
+
+      // Notify microblog author about the repost (async, don't block response)
+      if (microblog.authorId !== userId) {
+        getUserDisplayName(userId).then(async (reposterName) => {
+          await notifyUserWithPreferences(microblog.authorId, {
+            title: `${reposterName} reposted your post`,
+            body: truncateText(microblog.content, 80),
+            data: {
+              type: 'microblog_repost',
+              microblogId: microblog.id,
+              userId: userId,
+            },
+            category: 'feed',
+          });
+        }).catch(error => console.error('[Microblogs] Error sending repost notification:', error));
+      }
+
       res.status(201).json(repost);
     } catch (error: any) {
       if (error.message === 'Already reposted') {
@@ -495,6 +659,211 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     } catch (error) {
       console.error('Error unbookmarking microblog:', error);
       res.status(500).json(buildErrorResponse('Error unbookmarking microblog', error));
+    }
+  });
+
+  // ============================================================================
+  // POLLS ENDPOINTS
+  // ============================================================================
+
+  // Vote on a poll
+  router.post('/polls/:pollId/vote', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const pollId = parseInt(req.params.pollId);
+      const { optionId, optionIds } = req.body;
+
+      if (!Number.isFinite(pollId)) {
+        return res.status(400).json({ message: 'Invalid poll ID' });
+      }
+
+      // Get poll to check if it exists and if voting is allowed
+      const poll = await storage.getPoll(pollId);
+      if (!poll) {
+        return res.status(404).json({ message: 'Poll not found' });
+      }
+
+      // Check if poll has ended
+      if (poll.endsAt && new Date(poll.endsAt) < new Date()) {
+        return res.status(400).json({ message: 'This poll has ended' });
+      }
+
+      // Handle single or multiple option voting
+      let selectedOptionIds: number[] = [];
+      if (poll.allowMultiple && Array.isArray(optionIds)) {
+        selectedOptionIds = optionIds.filter((id: any) => Number.isFinite(id));
+      } else if (Number.isFinite(optionId)) {
+        selectedOptionIds = [optionId];
+      } else {
+        return res.status(400).json({ message: 'Please provide optionId or optionIds' });
+      }
+
+      if (selectedOptionIds.length === 0) {
+        return res.status(400).json({ message: 'At least one option must be selected' });
+      }
+
+      // Validate all options belong to this poll
+      const pollOptions = await storage.getPollOptions(pollId);
+      const validOptionIds = new Set(pollOptions.map(o => o.id));
+      for (const id of selectedOptionIds) {
+        if (!validOptionIds.has(id)) {
+          return res.status(400).json({ message: `Option ${id} does not belong to this poll` });
+        }
+      }
+
+      // For single-vote polls, remove existing votes first
+      if (!poll.allowMultiple) {
+        await storage.removeUserPollVotes(pollId, userId);
+      }
+
+      // Cast votes
+      const votes = await storage.castPollVotes(pollId, userId, selectedOptionIds);
+
+      // Get updated poll with results
+      const updatedPoll = await storage.getPollWithOptions(pollId, userId);
+
+      res.status(201).json({
+        message: 'Vote recorded successfully',
+        poll: updatedPoll,
+      });
+    } catch (error: any) {
+      if (error.message === 'Already voted for this option') {
+        return res.status(400).json({ message: error.message });
+      }
+      console.error('Error voting on poll:', error);
+      res.status(500).json(buildErrorResponse('Error voting on poll', error));
+    }
+  });
+
+  // Get poll results
+  router.get('/polls/:pollId', async (req, res) => {
+    try {
+      const pollId = parseInt(req.params.pollId);
+      const userId = getSessionUserId(req);
+
+      if (!Number.isFinite(pollId)) {
+        return res.status(400).json({ message: 'Invalid poll ID' });
+      }
+
+      const poll = await storage.getPollWithOptions(pollId, userId || undefined);
+      if (!poll) {
+        return res.status(404).json({ message: 'Poll not found' });
+      }
+
+      res.json(poll);
+    } catch (error) {
+      console.error('Error fetching poll:', error);
+      res.status(500).json(buildErrorResponse('Error fetching poll', error));
+    }
+  });
+
+  // ============================================================================
+  // EXPLORE FEED ENDPOINT
+  // ============================================================================
+
+  // GET /api/feed/explore?tab=latest|popular&topic=&type=&cursor=
+  router.get('/feed/explore', async (req, res) => {
+    try {
+      const userId = getSessionUserId(req);
+      const tab = (req.query.tab as string) || 'latest';
+      const topic = req.query.topic as string; // Filter by topic
+      const postType = req.query.type as string; // Filter by post type (STANDARD, POLL)
+      const cursor = req.query.cursor as string; // Pagination cursor (ISO timestamp)
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+
+      // Validate tab
+      if (!['latest', 'popular'].includes(tab)) {
+        return res.status(400).json({ message: 'Invalid tab. Must be "latest" or "popular"' });
+      }
+
+      // Validate topic if provided
+      if (topic && !MICROBLOG_TOPICS.includes(topic as any)) {
+        return res.status(400).json({ message: `Invalid topic. Must be one of: ${MICROBLOG_TOPICS.join(', ')}` });
+      }
+
+      // Validate postType if provided
+      if (postType && !MICROBLOG_TYPES.includes(postType as any)) {
+        return res.status(400).json({ message: `Invalid type. Must be one of: ${MICROBLOG_TYPES.join(', ')}` });
+      }
+
+      // Fetch microblogs with filters
+      let microblogs = await storage.getExploreFeedMicroblogs({
+        topic: topic || undefined,
+        postType: postType || undefined,
+        cursor: cursor ? new Date(cursor) : undefined,
+        limit: limit + 1, // Fetch one extra to determine if there are more
+      });
+
+      // Determine if there's a next page
+      const hasMore = microblogs.length > limit;
+      if (hasMore) {
+        microblogs = microblogs.slice(0, limit);
+      }
+
+      // For popular tab, filter by eligibility and sort by score
+      if (tab === 'popular') {
+        microblogs = microblogs
+          .filter(isPopularEligible)
+          .map(m => ({ ...m, popularityScore: calculatePopularityScore(m) }))
+          .sort((a, b) => (b as any).popularityScore - (a as any).popularityScore);
+      }
+
+      // Enrich microblogs with author data and user engagement status
+      const enrichedMicroblogs = await Promise.all(
+        microblogs.map(async (microblog) => {
+          const author = await storage.getUser(microblog.authorId);
+          const isLiked = userId ? await storage.hasUserLikedMicroblog(microblog.id, userId) : false;
+          const isReposted = userId ? await storage.hasUserRepostedMicroblog(microblog.id, userId) : false;
+          const isBookmarked = userId ? await storage.hasUserBookmarkedMicroblog(microblog.id, userId) : false;
+
+          // Include poll data if this is a poll post
+          let pollData = null;
+          if (microblog.postType === 'POLL' && microblog.pollId) {
+            pollData = await storage.getPollWithOptions(microblog.pollId, userId || undefined);
+          }
+
+          return {
+            ...microblog,
+            author: author ? {
+              id: author.id,
+              username: author.username,
+              displayName: author.displayName,
+              profileImageUrl: author.profileImageUrl,
+            } : undefined,
+            isLiked,
+            isReposted,
+            isBookmarked,
+            poll: pollData,
+          };
+        })
+      );
+
+      // Calculate next cursor
+      const nextCursor = hasMore && enrichedMicroblogs.length > 0
+        ? enrichedMicroblogs[enrichedMicroblogs.length - 1].createdAt
+        : null;
+
+      res.json({
+        microblogs: enrichedMicroblogs,
+        hasMore,
+        nextCursor,
+      });
+    } catch (error) {
+      console.error('Error fetching explore feed:', error);
+      res.status(500).json(buildErrorResponse('Error fetching explore feed', error));
+    }
+  });
+
+  // Get available topics for filtering
+  router.get('/feed/topics', async (_req, res) => {
+    try {
+      res.json({
+        topics: MICROBLOG_TOPICS,
+        types: MICROBLOG_TYPES,
+      });
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+      res.status(500).json(buildErrorResponse('Error fetching topics', error));
     }
   });
 
