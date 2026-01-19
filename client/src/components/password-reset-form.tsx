@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -23,16 +23,16 @@ const requestSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 
-// Reset password schema with stronger validation
+// Reset password schema with stronger validation (must match backend: 12 chars min)
 const resetSchema = z.object({
   token: z.string().min(1, "Token is required"),
   password: z.string()
-    .min(8, "Password must be at least 8 characters long")
+    .min(12, "Password must be at least 12 characters long")
     .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
     .regex(/[0-9]/, "Password must contain at least one number")
     .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
-  confirmPassword: z.string().min(8, "Password must be at least 8 characters long"),
+  confirmPassword: z.string().min(12, "Password must be at least 12 characters long"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -49,7 +49,7 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
   const { toast } = useToast();
   const [step, setStep] = useState<"request" | "reset" | "success">("request");
   const [resetToken, setResetToken] = useState<string>("");
-  
+
   // Form for requesting password reset
   const requestForm = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
@@ -57,7 +57,7 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
       email: "",
     },
   });
-  
+
   // Form for resetting password with token
   const resetForm = useForm<ResetFormValues>({
     resolver: zodResolver(resetSchema),
@@ -67,11 +67,22 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
       confirmPassword: "",
     },
   });
+
+  // Check URL for token on mount (when user clicks email link)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get("token");
+    if (tokenFromUrl) {
+      setResetToken(tokenFromUrl);
+      resetForm.setValue("token", tokenFromUrl);
+      setStep("reset");
+    }
+  }, [resetForm]);
   
   // Request password reset mutation
   const requestMutation = useMutation({
     mutationFn: async (data: RequestFormValues) => {
-      const res = await apiRequest("POST", "/api/request-password-reset", data);
+      const res = await apiRequest("POST", "/api/password-reset/request", data);
       return await res.json();
     },
     onSuccess: () => {
@@ -93,7 +104,11 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
   // Reset password mutation
   const resetMutation = useMutation({
     mutationFn: async (data: ResetFormValues) => {
-      const res = await apiRequest("POST", "/api/reset-password", data);
+      // Backend expects 'newPassword', not 'password'
+      const res = await apiRequest("POST", "/api/password-reset/reset", {
+        token: data.token,
+        newPassword: data.password,
+      });
       return await res.json();
     },
     onSuccess: () => {
@@ -239,7 +254,7 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
                   </FormControl>
                   <FormMessage />
                   <div className="text-xs text-muted-foreground mt-1">
-                    Password must contain at least 8 characters including uppercase, lowercase, number, and special character.
+                    Password must contain at least 12 characters including uppercase, lowercase, number, and special character.
                   </div>
                 </FormItem>
               )}
@@ -279,17 +294,44 @@ export default function PasswordResetForm({ onBack }: PasswordResetFormProps) {
     );
   }
   
-  // Render success message
+  // Render success message - mobile-friendly with app redirect
   return (
-    <div className="text-center py-6">
-      <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-      <h3 className="text-xl font-medium mb-2">Password Reset Successful</h3>
-      <p className="text-muted-foreground mb-6">
-        Your password has been reset successfully. You can now log in with your new password.
+    <div className="text-center py-8 px-4">
+      <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-6" />
+      <h3 className="text-2xl font-semibold mb-3">Password Updated!</h3>
+      <p className="text-muted-foreground mb-8 text-lg">
+        Your password has been successfully reset. You can now sign in with your new password.
       </p>
-      <Button onClick={onBack} className="w-full">
-        Return to Login
+
+      {/* Mobile app button - primary action */}
+      <Button
+        onClick={() => {
+          // Try to open the app via custom scheme
+          window.location.href = 'theconnection://login';
+          // Fallback: after a short delay, show the web login
+          setTimeout(() => {
+            onBack();
+          }, 1500);
+        }}
+        className="w-full mb-3 h-12 text-base"
+        size="lg"
+      >
+        Open The Connection App
       </Button>
+
+      {/* Web login fallback */}
+      <Button
+        variant="outline"
+        onClick={onBack}
+        className="w-full h-12 text-base"
+        size="lg"
+      >
+        Sign In on Web
+      </Button>
+
+      <p className="text-sm text-muted-foreground mt-6">
+        If the app doesn't open automatically, return to The Connection app and sign in.
+      </p>
     </div>
   );
 }
