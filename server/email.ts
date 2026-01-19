@@ -685,10 +685,10 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
   const name = displayName || email.split('@')[0];
   const from = EMAIL_FROM;
   const resetLink = `${APP_URLS.RESET_PASSWORD}?token=${resetToken}&email=${encodeURIComponent(email)}`;
-  
+
   // Check if we have templates enabled and available
   const template = await getEmailTemplate(DEFAULT_TEMPLATES.PASSWORD_RESET);
-  
+
   if (template) {
     // Send using template
     return sendTemplatedEmail({
@@ -702,34 +702,106 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
       }
     });
   } else {
-    // Fall back to regular email
+    // Fall back to branded email template
     return sendEmail({
       to: email,
       from: from,
       subject: 'Reset Your Password - The Connection',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #0B132B; padding: 20px; text-align: center;">
-            <h1 style="color: white; margin: 0;">The Connection</h1>
-          </div>
-          <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
-            <h2>Password Reset Request</h2>
-            <p>Hello ${name},</p>
-            <p>We received a request to reset your password for your account at The Connection. To complete this process, please click the button below.</p>
-            <p>This link will expire in 24 hours.</p>
-            
-            <div style="margin-top: 30px; text-align: center;">
-              <a href="${resetLink}" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a>
-            </div>
-            
-            <p style="margin-top: 20px;">If you did not request a password reset, please ignore this email or contact our support team if you have concerns.</p>
-            
-            <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
-              This email was sent to ${email}. 
-            </p>
-          </div>
-        </div>
-      `
+      text: `We received a request to reset your password. If you didn't make this request, you can safely ignore this email.
+
+To reset your password, click the link below:
+${resetLink}
+
+This link will expire in 24 hours.
+
+For security reasons, please do not share this link with anyone.
+
+If you did not request a password reset, please contact our support team immediately at support@theconnection.app
+
+© The Connection Media Group 2026. All rights reserved.`,
+      html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body style="width:100%;-webkit-text-size-adjust:100%;background-color:#f0f1f5;margin:0;padding:0">
+  <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f0f1f5">
+    <tbody>
+      <tr>
+        <td>
+          <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background-color:#f2eeea">
+            <tbody>
+              <!-- Header with logo placeholder -->
+              <tr>
+                <td style="background-color:#1a2a4a;padding:20px;text-align:center;">
+                  <h1 style="color:white;margin:0;font-family:Helvetica,Arial,sans-serif;">The Connection</h1>
+                </td>
+              </tr>
+              <!-- Main content -->
+              <tr>
+                <td style="padding:30px 20px;">
+                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:Helvetica,Arial,sans-serif;color:#1c1c1e;font-size:16px;line-height:1.5;text-align:center;">
+                    <tr>
+                      <td style="padding-bottom:16px;">
+                        We received a request to reset your password. If you didn't make this request, you can safely ignore this email.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding-bottom:16px;">
+                        To reset your password, click the button below:
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:20px 0;">
+                        <a href="${resetLink}" style="display:inline-block;background-color:#1a2a4a;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Reset Password</a>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:12px 0 20px 0;color:#666;font-size:13px;">
+                        Or copy this link:<br>
+                        <a href="${resetLink}" style="color:#1a2477;word-break:break-all;font-size:12px;">${resetLink}</a>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding-bottom:16px;">
+                        This link will expire in 24 hours.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding-top:16px;font-weight:bold;">
+                        For security reasons, please do not share this link with anyone.
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <!-- Footer -->
+              <tr>
+                <td style="padding:20px;background-color:#f2eeea;border-top:1px solid #ddd;">
+                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#666;text-align:center;line-height:1.4;">
+                    <tr>
+                      <td style="padding-bottom:8px;">
+                        If you did not request a password reset, please contact our support team immediately.
+                        <a href="mailto:support@theconnection.app" style="color:#1a2477;text-decoration:none;">support@theconnection.app</a>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        © The Connection Media Group 2026. All rights reserved.
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>`
     });
   }
 }
