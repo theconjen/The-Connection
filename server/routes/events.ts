@@ -177,29 +177,37 @@ router.post('/api/events', requireAuth, async (req, res) => {
       finalEndTime = endTime || startTime;
     }
 
-    // Require communityId for all events
-    if (!communityId) {
+    // Check if user is the app owner (unique privilege for "The Connection" events)
+    const user = await storage.getUser(userId);
+    const isAppAdmin = user?.isAdmin === true;
+    const isAppOwner = user?.id === 19; // Only Janelle (user 19) can create events without a community
+
+    // Only app owner can create events without a community (hosted by "The Connection")
+    // All other users must specify a communityId
+    if (!communityId && !isAppOwner) {
       return res.status(400).json({ error: 'communityId is required - events must belong to a community' });
     }
 
-    // Verify community exists
-    const community = await storage.getCommunity(communityId);
-    if (!community) {
-      return res.status(404).json({ error: 'Community not found' });
-    }
+    // If communityId is provided, verify it exists and check authorization
+    let community = null;
+    if (communityId) {
+      community = await storage.getCommunity(communityId);
+      if (!community) {
+        return res.status(404).json({ error: 'Community not found' });
+      }
 
-    // Authorization check:
-    // 1. User is app admin (can create events for any community)
-    // 2. OR user is community owner/moderator (can create events for their communities)
-    const user = await storage.getUser(userId);
-    const isAppAdmin = user?.isAdmin === true;
-    const isCommunityAdmin = await storage.isCommunityModerator(communityId, userId);
+      // Authorization check for community events:
+      // 1. User is app admin (can create events for any community)
+      // 2. OR user is community owner/moderator (can create events for their communities)
+      const isCommunityAdmin = await storage.isCommunityModerator(communityId, userId);
 
-    if (!isAppAdmin && !isCommunityAdmin) {
-      return res.status(403).json({
-        error: 'Only community admins can create events for this community'
-      });
+      if (!isAppAdmin && !isCommunityAdmin) {
+        return res.status(403).json({
+          error: 'Only community admins can create events for this community'
+        });
+      }
     }
+    // If no communityId, user must be admin (already checked above)
 
     // Build event payload
     const payload = {

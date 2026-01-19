@@ -1164,7 +1164,7 @@ export const events = pgTable("events", {
   imageUrl: text("image_url"),
   latitude: text("latitude"), // For map integration
   longitude: text("longitude"), // For map integration
-  communityId: integer("community_id").notNull().references(() => communities.id), // Events must belong to a community
+  communityId: integer("community_id").references(() => communities.id), // Nullable - admin can create events for "The Connection" without a community
   groupId: integer("group_id").references(() => groups.id),
   creatorId: integer("creator_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
