@@ -334,8 +334,15 @@ export async function listEmailTemplates(): Promise<string[]> {
  * Gets details of a specific email template from AWS SES
  */
 export async function getEmailTemplate(templateName: string): Promise<Template | null> {
-  if (forceMockMode || !emailFunctionalityEnabled || !sesAvailable) {
-    // Return a mock template in mock mode
+  // Only return a template if SES is actually available
+  // Otherwise return null to fall back to inline email (which uses Resend/SendGrid)
+  if (!sesAvailable) {
+    console.info('[EMAIL] getEmailTemplate: SES not available, returning null to use inline email with Resend/SendGrid');
+    return null;
+  }
+
+  if (forceMockMode || !emailFunctionalityEnabled) {
+    // Return a mock template in mock mode (only when SES would be available)
     return {
       TemplateName: templateName,
       SubjectPart: `Mock subject for ${templateName}`,
