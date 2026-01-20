@@ -15,6 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors } from '../../src/shared/colors';
 import { Ionicons } from '@expo/vector-icons';
+import apiClient from '../../src/lib/apiClient';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -26,6 +27,20 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Email verification state
+  const [showVerificationNeeded, setShowVerificationNeeded] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   // If app was opened from a verification link, refresh session and auto-route if already authenticated
   useEffect(() => {
@@ -51,11 +66,113 @@ export default function LoginScreen() {
       await login(username.trim(), password);
       router.replace('/(tabs)/feed');
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
+      // Handle EMAIL_NOT_VERIFIED error specially
+      if (error.code === 'EMAIL_NOT_VERIFIED' && error.email) {
+        setUnverifiedEmail(error.email);
+        setShowVerificationNeeded(true);
+      } else {
+        Alert.alert('Login Failed', error.message);
+      }
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleResendVerification = async () => {
+    if (!unverifiedEmail || isResending || resendCooldown > 0) return;
+
+    setIsResending(true);
+    try {
+      await apiClient.post('/auth/send-verification', {
+        email: unverifiedEmail,
+      });
+
+      Alert.alert(
+        'Email Sent',
+        'A verification email has been sent. Please check your inbox and spam folder.'
+      );
+
+      // Set cooldown (5 minutes = 300 seconds)
+      setResendCooldown(300);
+    } catch (error: any) {
+      if (error.response?.status === 429) {
+        const retryAfter = error.response?.data?.retryAfterSeconds || 300;
+        setResendCooldown(retryAfter);
+        Alert.alert(
+          'Please Wait',
+          `You can request another verification email in ${Math.ceil(retryAfter / 60)} minutes.`
+        );
+      } else {
+        Alert.alert('Error', 'Failed to send verification email. Please try again.');
+      }
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setShowVerificationNeeded(false);
+    setUnverifiedEmail('');
+    setPassword('');
+  };
+
+  // Show verification needed screen
+  if (showVerificationNeeded) {
+    return (
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.verificationContainer}>
+            <View style={styles.verificationIcon}>
+              <Ionicons name="mail-outline" size={64} color={Colors.primary} />
+            </View>
+            <Text style={styles.verificationTitle}>Verify Your Email</Text>
+            <Text style={styles.verificationSubtitle}>
+              Your email address hasn't been verified yet. Please check your inbox for a verification link.
+            </Text>
+
+            <View style={styles.emailBox}>
+              <Ionicons name="mail" size={20} color="#666" />
+              <Text style={styles.emailBoxText}>{unverifiedEmail}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.button,
+                (isResending || resendCooldown > 0) && styles.buttonDisabled,
+              ]}
+              onPress={handleResendVerification}
+              disabled={isResending || resendCooldown > 0}
+            >
+              {isResending ? (
+                <ActivityIndicator color="#fff" />
+              ) : resendCooldown > 0 ? (
+                <Text style={styles.buttonText}>
+                  Resend in {Math.floor(resendCooldown / 60)}:{(resendCooldown % 60).toString().padStart(2, '0')}
+                </Text>
+              ) : (
+                <Text style={styles.buttonText}>Resend Verification Email</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleBackToLogin}
+            >
+              <Ionicons name="arrow-back" size={20} color={Colors.primary} />
+              <Text style={styles.secondaryButtonText}>Back to Login</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.helpText}>
+              Didn't receive the email? Check your spam folder or try a different email address.
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -262,5 +379,65 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Verification needed styles
+  verificationContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+  },
+  verificationIcon: {
+    marginBottom: 24,
+  },
+  verificationTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  verificationSubtitle: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  emailBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 24,
+    gap: 8,
+  },
+  emailBoxText: {
+    fontSize: 15,
+    color: '#1a1a1a',
+    fontWeight: '500',
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  secondaryButtonText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  helpText: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 32,
+    lineHeight: 20,
   },
 });

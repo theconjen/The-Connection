@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { View, Pressable, TextInput, FlatList } from 'react-native';
-import { Text, Avatar, useTheme } from '../theme';
+import { Text, Avatar,  } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Icons
 const ArrowUpIcon = ({ color }: { color: string }) => (

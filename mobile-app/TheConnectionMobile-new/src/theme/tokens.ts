@@ -16,17 +16,18 @@ export const colors = {
 
     // Borders
     border: '#E5E7EB',
-    borderLight: '#F3F4F6',
+    borderLight: '#475569',
 
     // Status colors
     destructive: '#EF4444',
     destructiveForeground: '#FFFFFF',
     success: '#10B981',
+    successForeground: '#FFFFFF',
     warning: '#F59E0B',
     info: '#3B82F6',
 
     // UI elements
-    card: '#FFFFFF',
+    card: '#1E293B',
     cardForeground: '#111827',
     muted: '#F3F4F6',
     mutedForeground: '#6B7280',
@@ -58,6 +59,7 @@ export const colors = {
     destructive: '#EF4444',
     destructiveForeground: '#FFFFFF',
     success: '#10B981',
+    successForeground: '#FFFFFF',
     warning: '#F59E0B',
     info: '#3B82F6',
 
@@ -87,6 +89,7 @@ export const radii = {
   md: 8,
   lg: 12,
   xl: 16,
+  full: 9999,
 } as const;
 
 export const shadows = {

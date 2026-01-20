@@ -1,5 +1,3 @@
-import LoadingWebView from '../../components/LoadingWebView';
+import ForumsScreen from '../../src/screens/ForumsScreen';
 
-export default function ForumScreen() {
-  return <LoadingWebView uri="https://theconnection.app/forum" />;
-}
+export default ForumsScreen;

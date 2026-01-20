@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { Text, useTheme } from '../theme';
+import { Text,  } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 const CheckIcon = ({ color }: { color: string }) => (
   <Text style={{ fontSize: 10, color }}>✓</Text>
@@ -17,21 +18,29 @@ export interface Channel {
   members: string;
   icon: string;
   isJoined: boolean;
+  communityId?: number; // Link to community for navigation
+  slug?: string; // Community slug
 }
 
 interface ChannelCardProps {
   channel: Channel;
   onToggleJoin?: (joined: boolean) => void;
+  onPress?: (channel: Channel) => void; // Navigate to channel/community
 }
 
-export function ChannelCard({ channel, onToggleJoin }: ChannelCardProps) {
+export function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps) {
   const { colors, spacing, radii, shadows } = useTheme();
   const [isJoined, setIsJoined] = useState(channel.isJoined);
 
   const handlePress = () => {
-    const newJoinedState = !isJoined;
-    setIsJoined(newJoinedState);
-    onToggleJoin?.(newJoinedState);
+    // Navigate to channel if onPress is provided, otherwise toggle join
+    if (onPress) {
+      onPress(channel);
+    } else {
+      const newJoinedState = !isJoined;
+      setIsJoined(newJoinedState);
+      onToggleJoin?.(newJoinedState);
+    }
   };
 
   return (

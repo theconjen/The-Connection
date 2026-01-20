@@ -36,6 +36,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import Constants from 'expo-constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
@@ -136,7 +137,9 @@ function useMicroblogs(filter: 'recent' | 'popular', trendingFilter?: { type: 'h
         // Otherwise, sorted by filter (recent or popular) from API
         return microblogsWithAuthors;
       } catch (error) {
-        console.error('Error fetching microblogs:', error);
+        if (__DEV__) {
+          console.error('Error fetching microblogs:', error);
+        }
         throw error;
       }
     },
@@ -883,8 +886,8 @@ export default function FeedScreen({
     }
   };
 
-  // GIF Picker Functions
-  const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh'; // Free Giphy API key (public beta)
+  // GIF Picker Functions - API key from environment variables
+  const GIPHY_API_KEY = (Constants.expoConfig?.extra as any)?.giphyApiKey || '';
 
   const searchGifs = async (query: string) => {
     if (!query.trim()) {
@@ -896,7 +899,9 @@ export default function FeedScreen({
         const data = await response.json();
         setGifs(data.data || []);
       } catch (error) {
-        console.error('Error loading trending GIFs:', error);
+        if (__DEV__) {
+          console.error('Error loading trending GIFs:', error);
+        }
       }
       return;
     }
@@ -908,7 +913,9 @@ export default function FeedScreen({
       const data = await response.json();
       setGifs(data.data || []);
     } catch (error) {
-      console.error('Error searching GIFs:', error);
+      if (__DEV__) {
+        console.error('Error searching GIFs:', error);
+      }
       Alert.alert('Error', 'Failed to load GIFs. Please try again.');
     }
   };
@@ -976,10 +983,12 @@ export default function FeedScreen({
             Alert.alert('Success', 'Post created successfully!');
           },
           onError: (error: any) => {
-            console.error('Failed to create post - Full error:', JSON.stringify(error, null, 2));
-            console.error('Error response:', error?.response);
-            console.error('Error status:', error?.response?.status);
-            console.error('Error data:', error?.response?.data);
+            if (__DEV__) {
+              console.error('Failed to create post - Full error:', JSON.stringify(error, null, 2));
+              console.error('Error response:', error?.response);
+              console.error('Error status:', error?.response?.status);
+              console.error('Error data:', error?.response?.data);
+            }
 
             const errorMessage = error?.response?.data?.message
               || error?.response?.data?.error
@@ -991,7 +1000,9 @@ export default function FeedScreen({
         }
       );
     } catch (error) {
-      console.error('Error preparing post:', error);
+      if (__DEV__) {
+        console.error('Error preparing post:', error);
+      }
       Alert.alert('Error', 'Failed to prepare media. Please try again.');
     }
   };

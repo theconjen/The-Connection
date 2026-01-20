@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -7,19 +7,39 @@ import {
   ActivityIndicator,
   StyleSheet,
   Image,
+  Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text, useTheme } from '../theme';
+import { Text,  } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../lib/apiClient';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface SearchScreenProps {
   onClose?: () => void;
+  defaultFilter?: SearchFilter;
 }
 
 type SearchFilter = 'all' | 'accounts' | 'communities' | 'events' | 'forms';
+
+interface SavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  filter: SearchFilter;
+  createdAt: string;
+}
+
+interface AdvancedFilters {
+  dateRange?: 'today' | 'week' | 'month' | 'year' | 'all';
+  sortBy?: 'relevance' | 'recent' | 'popular';
+  location?: string;
+  verified?: boolean;
+}
 
 interface SearchResult {
   type: 'user' | 'community' | 'post' | 'event';
@@ -38,21 +58,134 @@ interface SearchResult {
   startTime?: string;
 }
 
-export default function SearchScreen({ onClose }: SearchScreenProps) {
+const SEARCH_HISTORY_KEY = '@search_history';
+const SAVED_SEARCHES_KEY = '@saved_searches';
+const MAX_HISTORY = 10;
+
+export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchScreenProps) {
   const { colors, spacing } = useTheme();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<SearchFilter>('all');
+  const [activeFilter, setActiveFilter] = useState<SearchFilter>(defaultFilter);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    dateRange: 'all',
+    sortBy: 'relevance',
+  });
+
+  // Load search history and saved searches on mount
+  useEffect(() => {
+    loadSearchHistory();
+    loadSavedSearches();
+  }, []);
+
+  const loadSearchHistory = async () => {
+    try {
+      const history = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+      if (history) {
+        setSearchHistory(JSON.parse(history));
+      }
+    } catch (error) {
+      console.error('Error loading search history:', error);
+    }
+  };
+
+  const loadSavedSearches = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(SAVED_SEARCHES_KEY);
+      if (saved) {
+        setSavedSearches(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading saved searches:', error);
+    }
+  };
+
+  const addToSearchHistory = async (query: string) => {
+    if (!query.trim()) return;
+    try {
+      const updatedHistory = [
+        query,
+        ...searchHistory.filter(q => q !== query),
+      ].slice(0, MAX_HISTORY);
+      setSearchHistory(updatedHistory);
+      await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updatedHistory));
+    } catch (error) {
+      console.error('Error saving search history:', error);
+    }
+  };
+
+  const clearSearchHistory = async () => {
+    try {
+      setSearchHistory([]);
+      await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
+    } catch (error) {
+      console.error('Error clearing search history:', error);
+    }
+  };
+
+  const saveCurrentSearch = async () => {
+    if (!saveSearchName.trim() || !searchQuery.trim()) {
+      Alert.alert('Error', 'Please enter a name for this search');
+      return;
+    }
+
+    const newSavedSearch: SavedSearch = {
+      id: Date.now().toString(),
+      name: saveSearchName,
+      query: searchQuery,
+      filter: activeFilter,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const updated = [newSavedSearch, ...savedSearches];
+      setSavedSearches(updated);
+      await AsyncStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(updated));
+      setShowSaveModal(false);
+      setSaveSearchName('');
+      Alert.alert('Success', 'Search saved successfully!');
+    } catch (error) {
+      console.error('Error saving search:', error);
+      Alert.alert('Error', 'Failed to save search');
+    }
+  };
+
+  const deleteSavedSearch = async (id: string) => {
+    try {
+      const updated = savedSearches.filter(s => s.id !== id);
+      setSavedSearches(updated);
+      await AsyncStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error deleting saved search:', error);
+    }
+  };
+
+  const loadSavedSearch = (search: SavedSearch) => {
+    setSearchQuery(search.query);
+    setActiveFilter(search.filter);
+  };
 
   const { data: results = [], isLoading } = useQuery<SearchResult[]>({
-    queryKey: ['/api/search', searchQuery, activeFilter],
+    queryKey: ['/api/search', searchQuery, activeFilter, advancedFilters],
     queryFn: async () => {
       if (!searchQuery || searchQuery.length < 2) return [];
+
+      // Add to search history when performing a search
+      addToSearchHistory(searchQuery);
 
       const response = await apiClient.get('/api/search', {
         params: {
           q: searchQuery,
           filter: activeFilter,
+          dateRange: advancedFilters.dateRange,
+          sortBy: advancedFilters.sortBy,
+          location: advancedFilters.location,
+          verified: advancedFilters.verified,
         },
       });
       return response.data;
@@ -177,7 +310,7 @@ export default function SearchScreen({ onClose }: SearchScreenProps) {
         ]}
       >
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
             {filters.map((filter) => (
               <Pressable
                 key={filter.id}
@@ -205,6 +338,54 @@ export default function SearchScreen({ onClose }: SearchScreenProps) {
                 </Text>
               </Pressable>
             ))}
+
+            {/* Advanced Filters Button */}
+            <Pressable
+              onPress={() => setShowAdvancedFilters(true)}
+              style={({ pressed }) => [
+                styles.filterButton,
+                {
+                  backgroundColor: colors.muted,
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.sm,
+                  borderRadius: spacing.full,
+                  opacity: pressed ? 0.7 : 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                },
+              ]}
+            >
+              <Ionicons name="options-outline" size={16} color={colors.foreground} />
+              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+                Filters
+              </Text>
+            </Pressable>
+
+            {/* Save Search Button */}
+            {searchQuery.length > 0 && (
+              <Pressable
+                onPress={() => setShowSaveModal(true)}
+                style={({ pressed }) => [
+                  styles.filterButton,
+                  {
+                    backgroundColor: colors.muted,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.sm,
+                    borderRadius: spacing.full,
+                    opacity: pressed ? 0.7 : 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.xs,
+                  },
+                ]}
+              >
+                <Ionicons name="bookmark-outline" size={16} color={colors.foreground} />
+                <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+                  Save
+                </Text>
+              </Pressable>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -225,6 +406,115 @@ export default function SearchScreen({ onClose }: SearchScreenProps) {
             >
               Start typing to search communities, posts, and people
             </Text>
+
+            {/* Search History */}
+            {searchHistory.length > 0 && (
+              <View style={{ marginTop: spacing.xl * 2, width: '100%' }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingHorizontal: spacing.lg,
+                    marginBottom: spacing.md,
+                  }}
+                >
+                  <Text variant="title">Recent Searches</Text>
+                  <Pressable onPress={clearSearchHistory}>
+                    <Text variant="caption" style={{ color: colors.primary }}>
+                      Clear All
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {searchHistory.map((query, index) => (
+                  <Pressable
+                    key={index}
+                    onPress={() => setSearchQuery(query)}
+                    style={({ pressed }) => [
+                      {
+                        backgroundColor: pressed ? colors.muted : colors.card,
+                        borderTopWidth: index === 0 ? 1 : 0,
+                        borderBottomWidth: 1,
+                        borderColor: colors.border,
+                        padding: spacing.md,
+                        paddingHorizontal: spacing.lg,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      },
+                    ]}
+                  >
+                    <Ionicons name="time-outline" size={20} color={colors.mutedForeground} />
+                    <Text
+                      variant="body"
+                      style={{ flex: 1, marginLeft: spacing.md }}
+                      numberOfLines={1}
+                    >
+                      {query}
+                    </Text>
+                    <Ionicons name="arrow-up-outline" size={20} color={colors.mutedForeground} />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {/* Saved Searches */}
+            {savedSearches.length > 0 && (
+              <View style={{ marginTop: spacing.xl, width: '100%' }}>
+                <Text variant="title" style={{ marginBottom: spacing.md, paddingHorizontal: spacing.lg }}>
+                  Saved Searches
+                </Text>
+
+                {savedSearches.map((search, index) => (
+                  <Pressable
+                    key={search.id}
+                    onPress={() => loadSavedSearch(search)}
+                    style={({ pressed }) => [
+                      {
+                        backgroundColor: pressed ? colors.muted : colors.card,
+                        borderTopWidth: index === 0 ? 1 : 0,
+                        borderBottomWidth: 1,
+                        borderColor: colors.border,
+                        padding: spacing.md,
+                        paddingHorizontal: spacing.lg,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      },
+                    ]}
+                  >
+                    <Ionicons name="bookmark" size={20} color={colors.primary} />
+                    <View style={{ flex: 1, marginLeft: spacing.md }}>
+                      <Text variant="body" style={{ fontWeight: '600' }}>
+                        {search.name}
+                      </Text>
+                      <Text variant="caption" color="mutedForeground" numberOfLines={1}>
+                        {search.query} • {search.filter}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        Alert.alert(
+                          'Delete Search',
+                          `Delete "${search.name}"?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: () => deleteSavedSearch(search.id),
+                            },
+                          ]
+                        );
+                      }}
+                      style={{ padding: spacing.sm }}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={colors.destructive} />
+                    </Pressable>
+                  </Pressable>
+                ))}
+              </View>
+            )}
 
             {/* Quick Access */}
             <View style={{ marginTop: spacing.xl * 2, width: '100%' }}>
@@ -434,6 +724,347 @@ export default function SearchScreen({ onClose }: SearchScreenProps) {
           </View>
         )}
       </ScrollView>
+
+      {/* Save Search Modal */}
+      <Modal
+        visible={showSaveModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSaveModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowSaveModal(false)}
+        >
+          <Pressable
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.card,
+                borderRadius: spacing.lg,
+                padding: spacing.xl,
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text variant="title" style={{ marginBottom: spacing.lg }}>
+              Save Search
+            </Text>
+
+            <TextInput
+              value={saveSearchName}
+              onChangeText={setSaveSearchName}
+              placeholder="Enter search name..."
+              placeholderTextColor={colors.mutedForeground}
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: colors.muted,
+                  color: colors.foreground,
+                  borderRadius: spacing.md,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  marginBottom: spacing.lg,
+                },
+              ]}
+            />
+
+            <View
+              style={{
+                backgroundColor: colors.muted,
+                borderRadius: spacing.md,
+                padding: spacing.md,
+                marginBottom: spacing.lg,
+              }}
+            >
+              <Text variant="bodySmall" color="mutedForeground">
+                Search Query
+              </Text>
+              <Text variant="body" style={{ marginTop: spacing.xs }}>
+                {searchQuery}
+              </Text>
+              <Text variant="caption" color="mutedForeground" style={{ marginTop: spacing.xs }}>
+                Filter: {activeFilter}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <Pressable
+                onPress={() => {
+                  setShowSaveModal(false);
+                  setSaveSearchName('');
+                }}
+                style={[
+                  styles.modalButton,
+                  {
+                    flex: 1,
+                    backgroundColor: colors.muted,
+                    borderRadius: spacing.md,
+                    paddingVertical: spacing.md,
+                    alignItems: 'center',
+                  },
+                ]}
+              >
+                <Text variant="body" style={{ fontWeight: '600' }}>
+                  Cancel
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={saveCurrentSearch}
+                style={[
+                  styles.modalButton,
+                  {
+                    flex: 1,
+                    backgroundColor: colors.primary,
+                    borderRadius: spacing.md,
+                    paddingVertical: spacing.md,
+                    alignItems: 'center',
+                  },
+                ]}
+              >
+                <Text
+                  variant="body"
+                  style={{ fontWeight: '600', color: colors.primaryForeground }}
+                >
+                  Save
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Advanced Filters Modal */}
+      <Modal
+        visible={showAdvancedFilters}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAdvancedFilters(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowAdvancedFilters(false)}
+        >
+          <Pressable
+            style={[
+              styles.advancedFiltersModal,
+              {
+                backgroundColor: colors.card,
+                borderTopLeftRadius: spacing.xl,
+                borderTopRightRadius: spacing.xl,
+                padding: spacing.xl,
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: spacing.xl,
+              }}
+            >
+              <Text variant="title">Advanced Filters</Text>
+              <Pressable
+                onPress={() => setShowAdvancedFilters(false)}
+                style={{ padding: spacing.sm }}
+              >
+                <Ionicons name="close" size={24} color={colors.foreground} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Date Range */}
+              <View style={{ marginBottom: spacing.xl }}>
+                <Text variant="body" style={{ fontWeight: '600', marginBottom: spacing.md }}>
+                  Date Range
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                  {(['today', 'week', 'month', 'year', 'all'] as const).map((range) => (
+                    <Pressable
+                      key={range}
+                      onPress={() =>
+                        setAdvancedFilters((prev) => ({ ...prev, dateRange: range }))
+                      }
+                      style={[
+                        styles.filterChip,
+                        {
+                          backgroundColor:
+                            advancedFilters.dateRange === range ? colors.primary : colors.muted,
+                          paddingHorizontal: spacing.lg,
+                          paddingVertical: spacing.sm,
+                          borderRadius: spacing.full,
+                        },
+                      ]}
+                    >
+                      <Text
+                        variant="bodySmall"
+                        style={{
+                          fontWeight: '600',
+                          color:
+                            advancedFilters.dateRange === range
+                              ? colors.primaryForeground
+                              : colors.foreground,
+                        }}
+                      >
+                        {range.charAt(0).toUpperCase() + range.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Sort By */}
+              <View style={{ marginBottom: spacing.xl }}>
+                <Text variant="body" style={{ fontWeight: '600', marginBottom: spacing.md }}>
+                  Sort By
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                  {(['relevance', 'recent', 'popular'] as const).map((sort) => (
+                    <Pressable
+                      key={sort}
+                      onPress={() => setAdvancedFilters((prev) => ({ ...prev, sortBy: sort }))}
+                      style={[
+                        styles.filterChip,
+                        {
+                          backgroundColor:
+                            advancedFilters.sortBy === sort ? colors.primary : colors.muted,
+                          paddingHorizontal: spacing.lg,
+                          paddingVertical: spacing.sm,
+                          borderRadius: spacing.full,
+                        },
+                      ]}
+                    >
+                      <Text
+                        variant="bodySmall"
+                        style={{
+                          fontWeight: '600',
+                          color:
+                            advancedFilters.sortBy === sort
+                              ? colors.primaryForeground
+                              : colors.foreground,
+                        }}
+                      >
+                        {sort.charAt(0).toUpperCase() + sort.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Location */}
+              <View style={{ marginBottom: spacing.xl }}>
+                <Text variant="body" style={{ fontWeight: '600', marginBottom: spacing.md }}>
+                  Location (Optional)
+                </Text>
+                <TextInput
+                  value={advancedFilters.location || ''}
+                  onChangeText={(text) =>
+                    setAdvancedFilters((prev) => ({ ...prev, location: text }))
+                  }
+                  placeholder="Enter location..."
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[
+                    styles.modalInput,
+                    {
+                      backgroundColor: colors.muted,
+                      color: colors.foreground,
+                      borderRadius: spacing.md,
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: spacing.sm,
+                    },
+                  ]}
+                />
+              </View>
+
+              {/* Verified Only */}
+              <Pressable
+                onPress={() =>
+                  setAdvancedFilters((prev) => ({ ...prev, verified: !prev.verified }))
+                }
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  backgroundColor: colors.muted,
+                  borderRadius: spacing.md,
+                  padding: spacing.md,
+                  marginBottom: spacing.xl,
+                }}
+              >
+                <View>
+                  <Text variant="body" style={{ fontWeight: '600' }}>
+                    Verified Accounts Only
+                  </Text>
+                  <Text variant="caption" color="mutedForeground">
+                    Show only verified users and communities
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 4,
+                    backgroundColor: advancedFilters.verified ? colors.primary : colors.border,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {advancedFilters.verified && (
+                    <Ionicons name="checkmark" size={16} color={colors.primaryForeground} />
+                  )}
+                </View>
+              </Pressable>
+
+              {/* Reset and Apply Buttons */}
+              <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                <Pressable
+                  onPress={() =>
+                    setAdvancedFilters({ dateRange: 'all', sortBy: 'relevance' })
+                  }
+                  style={[
+                    styles.modalButton,
+                    {
+                      flex: 1,
+                      backgroundColor: colors.muted,
+                      borderRadius: spacing.md,
+                      paddingVertical: spacing.md,
+                      alignItems: 'center',
+                    },
+                  ]}
+                >
+                  <Text variant="body" style={{ fontWeight: '600' }}>
+                    Reset
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setShowAdvancedFilters(false)}
+                  style={[
+                    styles.modalButton,
+                    {
+                      flex: 1,
+                      backgroundColor: colors.primary,
+                      borderRadius: spacing.md,
+                      paddingVertical: spacing.md,
+                      alignItems: 'center',
+                    },
+                  ]}
+                >
+                  <Text
+                    variant="body"
+                    style={{ fontWeight: '600', color: colors.primaryForeground }}
+                  >
+                    Apply
+                  </Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -478,5 +1109,32 @@ const styles = StyleSheet.create({
   resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalInput: {
+    fontSize: 15,
+    height: 44,
+  },
+  modalButton: {
+    // Styles inline
+  },
+  advancedFiltersModal: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '80%',
+  },
+  filterChip: {
+    // Styles inline
   },
 });

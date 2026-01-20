@@ -1,5 +1,3 @@
-import LoadingWebView from '../../components/LoadingWebView';
+import CommunitiesScreen from '../../src/screens/CommunitiesScreen';
 
-export default function ProfileScreen() {
-  return <LoadingWebView uri="https://theconnection.app/profile" />;
-}
+export default CommunitiesScreen;

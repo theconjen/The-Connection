@@ -2,24 +2,30 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
-// Get API URL from app config (supports production and development)
-// Production: Uses apiBase from app.json extra config
-// Development: Falls back to localhost for local testing
+// Get API URL from app config
+// PRODUCTION: Must use apiBase from app.config.ts - no localhost fallback
 const getApiBaseUrl = () => {
-  // Try to get from app config first (production builds)
   const configApiBase = Constants.expoConfig?.extra?.apiBase;
+
   if (configApiBase) {
-    console.info('[API] Using production API:', configApiBase);
+    if (__DEV__) {
+      console.info('[API] Using API:', configApiBase);
+    }
     return configApiBase;
   }
 
-  // Fallback to localhost for local development
-  console.info('[API] Using local development API: http://localhost:5001');
-  return 'http://localhost:5001';
+  // In development only, allow localhost fallback for local testing
+  if (__DEV__) {
+    console.warn('[API] No apiBase configured - using localhost for development');
+    return 'http://localhost:5001';
+  }
+
+  // PRODUCTION: Fail loudly if not configured
+  // Config validation in app/_layout.tsx should block startup before this is reached
+  throw new Error('[API] CRITICAL: No API URL configured for production build!');
 };
 
 const API_BASE_URL = getApiBaseUrl();
-
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -41,17 +47,23 @@ apiClient.interceptors.request.use(
       const authToken = await SecureStore.getItemAsync('auth_token');
       if (authToken) {
         config.headers['Authorization'] = `Bearer ${authToken}`;
-        console.info('[API] Using JWT token for auth');
-      } else {
+        if (__DEV__) {
+          console.info('[API] Using JWT token for auth');
+        }
+      } else if (__DEV__) {
         console.warn('[API] No JWT token found - user may not be authenticated');
       }
 
       // Do NOT send session cookies - mobile apps use JWT tokens exclusively
       // Session cookies cause the backend to ignore JWT tokens
 
-      console.info('[API Request]', config.method?.toUpperCase(), config.url);
+      if (__DEV__) {
+        console.info('[API Request]', config.method?.toUpperCase(), config.url);
+      }
     } catch (error) {
-      console.error('Error reading auth credentials:', error);
+      if (__DEV__) {
+        console.error('Error reading auth credentials:', error);
+      }
     }
     return config;
   },
@@ -61,7 +73,9 @@ apiClient.interceptors.request.use(
 // Response interceptor for logging and error handling
 apiClient.interceptors.response.use(
   async (response) => {
-    console.info('[API Response]', response.status, response.config.url);
+    if (__DEV__) {
+      console.info('[API Response]', response.status, response.config.url);
+    }
     // Mobile apps use JWT tokens only - do NOT capture session cookies
     return response;
   },
@@ -96,15 +110,24 @@ apiClient.interceptors.response.use(
         }
       );
 
-      if (!shouldSuppress) {
+      if (!shouldSuppress && __DEV__) {
         console.error('[API Error]', status, url, error.response.data);
       }
-    } else {
+    } else if (__DEV__) {
       console.error('[API Error]', error.message);
     }
     return Promise.reject(error);
   }
 );
+
+/**
+ * Clear authentication state from axios defaults
+ * Call this on logout to ensure no stale auth headers remain
+ */
+export function clearAuth() {
+  delete axios.defaults.headers.common.Authorization;
+  delete apiClient.defaults.headers.common.Authorization;
+}
 
 // Posts API (Forum posts - supports anonymous posting)
 export const postsAPI = {
@@ -159,7 +182,9 @@ export const communitiesAPI = {
     return apiClient.post('/api/communities', data).then(res => {
       return res.data;
     }).catch(err => {
-      console.error('API: Create community failed:', err.response?.status, err.response?.data);
+      if (__DEV__) {
+        console.error('API: Create community failed:', err.response?.status, err.response?.data);
+      }
       throw err;
     });
   },

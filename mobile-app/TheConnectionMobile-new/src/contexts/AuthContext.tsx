@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import apiClient from '../lib/apiClient';
+import apiClient, { clearAuth } from '../lib/apiClient';
 
 interface User {
   id: number;
@@ -21,12 +21,19 @@ interface RegisterPayload {
   lastName?: string;
 }
 
+interface RegisterResult {
+  verificationSent: boolean;
+  requiresVerification: boolean;
+  email: string;
+  message?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (data: RegisterPayload) => Promise<{ verificationSent: boolean }>;
+  register: (data: RegisterPayload) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -44,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data);
     } catch (error) {
       const status = (error as any)?.response?.status;
-      if (status !== 401) {
+      if (status !== 401 && __DEV__) {
         console.error('Auth check failed:', error);
       }
       setUser(null);
@@ -75,7 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.data.token) {
         const { saveAuthToken } = await import('../lib/secureStorage');
         await saveAuthToken(response.data.token);
-        console.info('JWT token saved successfully');
+        if (__DEV__) {
+          console.info('JWT token saved successfully');
+        }
       }
 
       // Extract and save the session cookie directly
@@ -102,24 +111,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await checkAuth();
       }
     } catch (error: any) {
-      console.error('Login error:', error);
-      console.error('Login error response:', error.response?.data);
+      if (__DEV__) {
+        console.error('Login error:', error);
+        console.error('Login error response:', error.response?.data);
+      }
+
+      // Special handling for EMAIL_NOT_VERIFIED error
+      if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        const emailNotVerifiedError = new Error('EMAIL_NOT_VERIFIED') as any;
+        emailNotVerifiedError.code = 'EMAIL_NOT_VERIFIED';
+        emailNotVerifiedError.email = error.response.data.email;
+        throw emailNotVerifiedError;
+      }
+
       throw new Error(error.response?.data?.message || 'Login failed');
     }
   };
 
-  const register = async (data: RegisterPayload) => {
+  const register = async (data: RegisterPayload): Promise<RegisterResult> => {
     try {
-      await apiClient.post('/register', data);
-      try {
-        await apiClient.post('/auth/send-verification', { email: data.email });
-        return { verificationSent: true };
-      } catch (sendError) {
-        console.error('Verification email send failed:', sendError);
-        return { verificationSent: false };
+      const response = await apiClient.post('/register', data);
+
+      if (__DEV__) {
+        console.info('[AUTH] Registration successful');
+        console.info('[AUTH] Verification sent:', response.data?.verificationSent);
+        console.info('[AUTH] Requires verification:', response.data?.requiresVerification);
       }
+
+      // NOTE: Server no longer issues JWT until email is verified
+      // Do NOT set user or save token - user must verify email first
+
+      return {
+        verificationSent: response.data?.verificationSent ?? false,
+        requiresVerification: response.data?.requiresVerification ?? true,
+        email: response.data?.email || data.email,
+        message: response.data?.message,
+      };
     } catch (error: any) {
-      console.error('Registration error:', error);
+      if (__DEV__) {
+        console.error('Registration error:', error);
+      }
       throw new Error(error.response?.data?.message || 'Registration failed');
     }
   };
@@ -128,9 +159,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await apiClient.post('/logout');
     } catch (error) {
-      console.error('Logout error:', error);
+      if (__DEV__) {
+        console.error('Logout error:', error);
+      }
     } finally {
+      // SECURITY: Clear all auth data (JWT token, session cookie, user data)
+      const { clearAuthData } = await import('../lib/secureStorage');
+      await clearAuthData();
       await SecureStore.deleteItemAsync('sessionCookie');
+      // Clear in-memory auth headers from axios
+      clearAuth();
       setUser(null);
     }
   };

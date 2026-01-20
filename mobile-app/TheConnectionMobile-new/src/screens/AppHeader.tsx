@@ -1,23 +1,7 @@
 import React, { ReactNode } from 'react';
 import { View, Pressable, StyleSheet, Image } from 'react-native';
 import { Text, useTheme } from '../theme';
-
-// Icons
-const BackIcon = ({ color }: { color: string }) => (
-  <Text style={{ fontSize: 20, color }}>←</Text>
-);
-const SearchIcon = ({ color }: { color: string }) => (
-  <Text style={{ fontSize: 20, color }}>🔍</Text>
-);
-const BellIcon = ({ color }: { color: string }) => (
-  <Text style={{ fontSize: 20, color }}>🔔</Text>
-);
-const MenuIcon = ({ color }: { color: string }) => (
-  <Text style={{ fontSize: 20, color }}>☰</Text>
-);
-const MessageIcon = ({ color }: { color: string }) => (
-  <Text style={{ fontSize: 20, color }}>💬</Text>
-);
+import { Ionicons } from '@expo/vector-icons';
 
 interface AppHeaderProps {
   showLogo?: boolean;
@@ -114,7 +98,7 @@ export function AppHeader({
           {/* Center: Logo */}
           <View style={styles.centerSection}>
             <Image
-              source={require('../../assets/tc-logo-lightmode.png')}
+              source={require('../../assets/Full.png')}
               style={styles.centeredLogo}
               resizeMode="contain"
             />
@@ -133,7 +117,7 @@ export function AppHeader({
                   },
                 ]}
               >
-                <MessageIcon color={colors.foreground} />
+                <Ionicons name="chatbubble-outline" size={20} color={colors.foreground} />
               </Pressable>
             )}
 
@@ -148,7 +132,7 @@ export function AppHeader({
                   },
                 ]}
               >
-                <MenuIcon color={colors.foreground} />
+                <Ionicons name="menu-outline" size={24} color={colors.foreground} />
               </Pressable>
             )}
 
@@ -167,7 +151,7 @@ export function AppHeader({
                   { backgroundColor: pressed ? colors.muted : 'transparent', borderRadius: radii.full },
                 ]}
               >
-                <BackIcon color={colors.foreground} />
+                <Ionicons name="arrow-back" size={24} color={colors.foreground} />
               </Pressable>
             ) : (
               <View style={styles.brandContainer}>
@@ -185,13 +169,13 @@ export function AppHeader({
           <View style={styles.rightSection}>
             {showSearch && (
               <Pressable onPress={onSearchPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? colors.muted : 'transparent' }]}>
-                <SearchIcon color={colors.mutedForeground} />
+                <Ionicons name="search-outline" size={20} color={colors.mutedForeground} />
               </Pressable>
             )}
 
             {showNotifications && (
               <Pressable onPress={onNotificationsPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? colors.muted : 'transparent' }]}>
-                <BellIcon color={colors.mutedForeground} />
+                <Ionicons name="notifications-outline" size={20} color={colors.mutedForeground} />
               </Pressable>
             )}
 
@@ -259,12 +243,14 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: -1, // Place behind left/right sections
+    zIndex: 0,
+    pointerEvents: 'none', // Allow touches to pass through to buttons
   },
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    zIndex: 1,
   },
   brandContainer: {
     flexDirection: 'row',
@@ -277,8 +263,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   centeredLogo: {
-    width: 140,
-    height: 36,
+    width: 180,
+    height: 52,
   },
   brandText: {
     fontSize: 18,
@@ -296,6 +282,7 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   avatar: {
     width: 44,

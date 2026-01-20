@@ -511,7 +511,9 @@ export function EventsScreen({
     },
     onError: (error) => {
       Alert.alert('Error', 'Failed to update RSVP. Please try again.');
-      console.error('RSVP error:', error);
+      if (__DEV__) {
+        console.error('RSVP error:', error);
+      }
       // Revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/events'] });
     },
@@ -560,7 +562,9 @@ export function EventsScreen({
     },
     onError: (error: any) => {
       Alert.alert('Error', error.response?.data?.error || 'Failed to create event');
-      console.error('Create event error:', error);
+      if (__DEV__) {
+        console.error('Create event error:', error);
+      }
     },
   });
 
@@ -614,11 +618,13 @@ export function EventsScreen({
         if (location.city) {
           setLocationFilter(location.city);
         }
-      } else {
+      } else if (__DEV__) {
         console.warn('Location service not available or permission denied');
       }
     } catch (error) {
-      console.error('Error getting location:', error);
+      if (__DEV__) {
+        console.error('Error getting location:', error);
+      }
       // Silently fail - location is optional
     } finally {
       setLoadingLocation(false);
@@ -704,18 +710,7 @@ export function EventsScreen({
       >
         {/* App Header */}
         <AppHeader
-          showCenteredLogo={showCenteredLogo}
-          userName={userName}
-          userAvatar={userAvatar}
-          onProfilePress={onProfilePress}
-          showMessages={showCenteredLogo}
-          onMessagesPress={onMessagesPress}
-          showMenu={showCenteredLogo}
-          onMenuPress={onMenuPress}
-          showLogo={!showCenteredLogo}
-          showBrandText={!showCenteredLogo}
-          showSearch={!showCenteredLogo}
-          onSearchPress={onSearchPress}
+          showBrandText={true}
         />
 
         {/* Search and Filters Section */}

@@ -1,12 +1,14 @@
 /**
  * Socket.IO Service for Real-time Messaging
  * Handles community chat and direct messages
+ *
+ * SECURITY: Uses JWT token authentication instead of userId
  */
 
 import { io, Socket } from 'socket.io-client';
+import { getAuthToken } from './secureStorage';
 
-const SOCKET_URL = 'https://api.theconnection.app'; // Production
-// const SOCKET_URL = 'http://localhost:5000'; // Development
+const SOCKET_URL = 'https://api.theconnection.app';
 
 let socket: Socket | null = null;
 
@@ -34,14 +36,28 @@ export interface DirectMessage {
 }
 
 export const socketService = {
-  connect: (userId: number) => {
+  /**
+   * Connect to Socket.IO with JWT authentication
+   * SECURITY: Sends JWT token for server-side verification
+   */
+  connect: async (userId: number) => {
     if (socket?.connected) {
       return socket;
     }
 
+    // Get JWT token for authentication
+    const token = await getAuthToken();
+
+    if (!token) {
+      if (__DEV__) {
+        console.warn('[Socket] No auth token available - cannot connect');
+      }
+      return null;
+    }
+
     socket = io(SOCKET_URL, {
       auth: {
-        userId: userId.toString(),
+        token, // JWT token only - server extracts userId from token
       },
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -50,19 +66,29 @@ export const socketService = {
     });
 
     socket.on('connect', () => {
+      if (__DEV__) {
+        console.log('[Socket] Connected successfully');
+      }
       // Join user's personal room for DMs
       socket?.emit('join_user_room', userId);
     });
 
     socket.on('disconnect', (reason) => {
+      if (__DEV__) {
+        console.log('[Socket] Disconnected:', reason);
+      }
     });
 
     socket.on('error', (error) => {
-      console.error('Socket error:', error);
+      if (__DEV__) {
+        console.error('[Socket] Error:', error);
+      }
     });
 
     socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+      if (__DEV__) {
+        console.error('[Socket] Connection error:', error.message);
+      }
     });
 
     return socket;

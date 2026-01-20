@@ -113,7 +113,9 @@ export function ForumsScreen({
     },
     onError: (error) => {
       Alert.alert('Error', 'Failed to upvote post. Please try again.');
-      console.error('Upvote error:', error);
+      if (__DEV__) {
+        console.error('Upvote error:', error);
+      }
       // Revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
     },
@@ -150,7 +152,9 @@ export function ForumsScreen({
     },
     onError: (error) => {
       Alert.alert('Error', 'Failed to downvote post. Please try again.');
-      console.error('Downvote error:', error);
+      if (__DEV__) {
+        console.error('Downvote error:', error);
+      }
       // Revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
     },

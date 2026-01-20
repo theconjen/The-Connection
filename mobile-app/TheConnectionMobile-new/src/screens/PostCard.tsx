@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { Text, Badge, Avatar, useTheme } from '../theme';
+import { Text, Badge, Avatar } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Icons - you can replace these with @expo/vector-icons or lucide-react-native
 const ArrowUpIcon = ({ color, filled }: { color: string; filled?: boolean }) => (
@@ -29,6 +30,8 @@ export interface Post {
   channel: string;
   channelIcon: string;
   author: string;
+  authorId?: number;
+  isAnonymous?: boolean;
   timeAgo: string;
   title: string;
   content: string;
@@ -41,16 +44,20 @@ interface PostCardProps {
   post: Post;
   onPress?: () => void;
   onUpvote?: () => void;
+  onDownvote?: () => void;
+  onAuthorPress?: (authorId: number) => void;
 }
 
-export function PostCard({ post, onPress, onUpvote }: PostCardProps) {
+export function PostCard({ post, onPress, onUpvote, onDownvote, onAuthorPress }: PostCardProps) {
   const { colors, spacing, radii } = useTheme();
 
   const handleVote = (type: 'up' | 'down') => {
     if (type === 'up' && onUpvote) {
       onUpvote();
     }
-    // For down votes, we're just using upvote toggle for now
+    if (type === 'down' && onDownvote) {
+      onDownvote();
+    }
   };
 
   const formatVotes = (count: number) => {
@@ -80,7 +87,33 @@ export function PostCard({ post, onPress, onUpvote }: PostCardProps) {
               {post.channel}
             </Text>
             <Text variant="caption" color="mutedForeground">•</Text>
-            <Text variant="caption" color="mutedForeground">u/{post.author}</Text>
+            {post.isAnonymous ? (
+              <Text
+                variant="caption"
+                color="mutedForeground"
+                style={{ fontStyle: 'italic' }}
+              >
+                Anonymous
+              </Text>
+            ) : (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (post.authorId && onAuthorPress) {
+                    onAuthorPress(post.authorId);
+                  }
+                }}
+                disabled={!post.authorId || !onAuthorPress}
+              >
+                <Text
+                  variant="caption"
+                  color="mutedForeground"
+                  style={{ textDecorationLine: onAuthorPress && post.authorId ? 'underline' : 'none' }}
+                >
+                  @{post.author}
+                </Text>
+              </Pressable>
+            )}
             <Text variant="caption" color="mutedForeground">•</Text>
             <Text variant="caption" color="mutedForeground">{post.timeAgo}</Text>
           </View>

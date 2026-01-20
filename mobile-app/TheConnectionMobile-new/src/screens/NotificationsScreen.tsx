@@ -20,7 +20,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text, useTheme } from '../theme';
+import { Text,  } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { PageHeader } from './AppHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

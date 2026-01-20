@@ -9,6 +9,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Text, TextInput, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { initializeNotifications, cleanupNotifications, unregisterPushToken, getCurrentToken } from '../src/services/notificationService';
+import { isConfigValid } from '../src/lib/config';
+import { ConfigErrorScreen } from '../src/components/ConfigErrorScreen';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -127,6 +129,12 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) {
     return null;
+  }
+
+  // PRODUCTION HARDENING: Block app startup if critical config is missing
+  // In production builds, this shows an error screen instead of crashing
+  if (!isConfigValid()) {
+    return <ConfigErrorScreen />;
   }
 
   return (
