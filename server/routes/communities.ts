@@ -1,9 +1,20 @@
 import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { insertCommunitySchema } from '@shared/schema';
 import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
+import { notifyUserWithPreferences, getUserDisplayName } from '../services/notificationHelper';
+import {
+  requestJoin,
+  leaveCommunity,
+  approveRequest,
+  denyRequest,
+  removeMember,
+  getPendingRequests,
+  resolveMembership,
+} from '../services/communityMembership';
 
 const router = Router();
 
@@ -402,8 +413,7 @@ router.post('/communities/:id/join', requireAuth, async (req, res) => {
       const owner = await storage.getCommunityMembers(communityId);
       const ownerMember = owner.find(m => m.role === 'owner');
       if (ownerMember) {
-        await storage.createNotification({
-          userId: ownerMember.userId,
+        await notifyUserWithPreferences(ownerMember.userId, {
           title: 'New Join Request',
           body: `${user.displayName || user.username} wants to join ${community.name}`,
           data: { communityId, userId, type: 'join_request' },
@@ -426,6 +436,20 @@ router.post('/communities/:id/join', requireAuth, async (req, res) => {
 
     console.error(`[JOIN] Adding user ${userId} as ${role} (existing members: ${existingMembers.length}, has owner: ${hasOwner})`);
     await storage.addCommunityMember({ communityId, userId, role });
+
+    // Notify community owner when someone joins (unless they're becoming the owner themselves)
+    if (role !== 'owner') {
+      const ownerMember = existingMembers.find(m => m.role === 'owner');
+      if (ownerMember) {
+        const joiningUser = await storage.getUser(userId);
+        await notifyUserWithPreferences(ownerMember.userId, {
+          title: 'New Member Joined',
+          body: `${joiningUser?.displayName || joiningUser?.username || 'Someone'} joined ${community.name}`,
+          data: { communityId, userId, type: 'member_joined' },
+          category: 'community'
+        });
+      }
+    }
 
     console.error(`[JOIN] Successfully added user ${userId} to community ${communityId} as ${role}`);
     res.json({
@@ -482,9 +506,24 @@ router.post('/communities/:id/leave', requireAuth, async (req, res) => {
       }
     }
 
+    // Get the leaving user's info before removing
+    const leavingUser = await storage.getUser(userId);
+
     // Remove member
     await storage.removeCommunityMember(communityId, userId);
     console.error(`[LEAVE] Successfully removed user ${userId} from community ${communityId}`);
+
+    // Notify community owner when someone leaves (if there's still an owner)
+    const remainingMembers = await storage.getCommunityMembers(communityId);
+    const newOwner = remainingMembers.find(m => m.role === 'owner');
+    if (newOwner && newOwner.userId !== userId) {
+      await notifyUserWithPreferences(newOwner.userId, {
+        title: 'Member Left',
+        body: `${leavingUser?.displayName || leavingUser?.username || 'Someone'} left ${community.name}`,
+        data: { communityId, userId, type: 'member_left' },
+        category: 'community'
+      });
+    }
 
     res.json({
       success: true,
@@ -820,8 +859,7 @@ router.post('/communities/:id/join-requests/:requestId/approve', requireAuth, as
       await storage.updateCommunityInvitationStatus(requestId, 'accepted');
 
       // Notify the user
-      await storage.createNotification({
-        userId: invitation.inviteeUserId,
+      await notifyUserWithPreferences(invitation.inviteeUserId, {
         title: 'Join Request Approved',
         body: `Your request to join ${community.name} has been approved!`,
         data: { communityId, type: 'join_approved' },
@@ -944,10 +982,10 @@ router.post('/communities/:id/invite', requireAuth, async (req, res) => {
 
     // Notify the user if they exist
     if (invitedUser) {
-      await storage.createNotification({
-        userId: invitedUser.id,
+      const inviterName = await getUserDisplayName(userId);
+      await notifyUserWithPreferences(invitedUser.id, {
         title: 'Community Invitation',
-        body: `You've been invited to join ${community.name}`,
+        body: `${inviterName} invited you to join ${community.name}`,
         data: { communityId, invitationId: invitation.id, type: 'community_invite' },
         category: 'community'
       });
@@ -1261,6 +1299,195 @@ router.patch('/communities/:id/prayer-requests/:prayerId/answered', requireAuth,
     console.error('Error marking prayer as answered:', error);
     res.status(500).json(buildErrorResponse('Error marking prayer as answered', error));
   }
+});
+
+// ============================================================================
+// V2 MEMBERSHIP ROUTES (Hardened Service Pattern)
+// These routes use the new communityMembership service for structured results
+// ============================================================================
+
+/**
+ * Helper to get or generate requestId
+ */
+function getRequestId(req: any): string {
+  return req.headers['x-request-id'] as string || uuidv4();
+}
+
+/**
+ * Map service result to HTTP response
+ */
+function mapStatusToHttpCode(status: string): number {
+  switch (status) {
+    case 'OK':
+      return 200;
+    case 'COMMUNITY_NOT_FOUND':
+    case 'USER_NOT_FOUND':
+    case 'NOT_A_MEMBER':
+      return 404;
+    case 'NOT_AUTHORIZED':
+      return 403;
+    case 'ALREADY_MEMBER':
+    case 'ALREADY_PENDING':
+    case 'CANNOT_REMOVE_OWNER':
+    case 'INVALID_STATE':
+    case 'INVALID_INPUT':
+      return 400;
+    case 'RATE_LIMITED':
+      return 429;
+    case 'ERROR':
+    default:
+      return 500;
+  }
+}
+
+// GET /api/communities/:id/membership/v2 - Check user's membership status
+router.get('/communities/:id/membership/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const communityId = parseInt(req.params.id);
+  const userId = requireSessionUserId(req);
+
+  if (isNaN(communityId) || communityId <= 0) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'MEMBERSHIP_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid community ID' },
+    });
+  }
+
+  const result = await resolveMembership(communityId, userId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// POST /api/communities/:id/join/v2 - Request to join (uses service)
+router.post('/communities/:id/join/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const communityId = parseInt(req.params.id);
+  const userId = requireSessionUserId(req);
+
+  if (isNaN(communityId) || communityId <= 0) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'MEMBERSHIP_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid community ID' },
+    });
+  }
+
+  const result = await requestJoin(communityId, userId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// POST /api/communities/:id/leave/v2 - Leave community (uses service)
+router.post('/communities/:id/leave/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const communityId = parseInt(req.params.id);
+  const userId = requireSessionUserId(req);
+
+  if (isNaN(communityId) || communityId <= 0) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'MEMBERSHIP_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid community ID' },
+    });
+  }
+
+  const result = await leaveCommunity(communityId, userId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// GET /api/communities/:id/requests/v2 - Get pending join requests (uses service)
+router.get('/communities/:id/requests/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const communityId = parseInt(req.params.id);
+  const actorId = requireSessionUserId(req);
+
+  if (isNaN(communityId) || communityId <= 0) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'MEMBERSHIP_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid community ID' },
+    });
+  }
+
+  const result = await getPendingRequests(communityId, actorId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// POST /api/communities/:id/requests/:userId/approve/v2 - Approve join request
+router.post('/communities/:id/requests/:userId/approve/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const communityId = parseInt(req.params.id);
+  const targetUserId = parseInt(req.params.userId);
+  const actorId = requireSessionUserId(req);
+
+  if (isNaN(communityId) || isNaN(targetUserId)) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'MEMBERSHIP_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid IDs' },
+    });
+  }
+
+  const result = await approveRequest(communityId, targetUserId, actorId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// POST /api/communities/:id/requests/:userId/deny/v2 - Deny join request
+router.post('/communities/:id/requests/:userId/deny/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const communityId = parseInt(req.params.id);
+  const targetUserId = parseInt(req.params.userId);
+  const actorId = requireSessionUserId(req);
+
+  if (isNaN(communityId) || isNaN(targetUserId)) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'MEMBERSHIP_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid IDs' },
+    });
+  }
+
+  const result = await denyRequest(communityId, targetUserId, actorId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// DELETE /api/communities/:id/members/:userId/v2 - Remove member
+router.delete('/communities/:id/members/:userId/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const communityId = parseInt(req.params.id);
+  const targetUserId = parseInt(req.params.userId);
+  const actorId = requireSessionUserId(req);
+
+  if (isNaN(communityId) || isNaN(targetUserId)) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'MEMBERSHIP_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid IDs' },
+    });
+  }
+
+  const result = await removeMember(communityId, targetUserId, actorId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
 });
 
 export default router;

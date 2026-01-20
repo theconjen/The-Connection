@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { IStorage } from '../storage';
 import { getUserLanguagePreferences } from '../services/engagementTracking';
 import { calculateLanguageMatchScore } from '../services/languageDetection';
+import { getExploreFeed } from '../services/feedExplore';
 
 const DEFAULT_FEED_LIMIT = 25;
 const MAX_FEED_LIMIT = 50;
@@ -124,6 +126,31 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
       console.error('Error fetching feed:', err);
       res.status(500).json({ message: 'Error fetching feed' });
     }
+  });
+
+  // ============================================================================
+  // GET /api/feed/explore - Explore feed with anti-farm scoring (Hardened Service)
+  // ============================================================================
+
+  router.get('/feed/explore', async (req, res) => {
+    const requestId = (req.headers['x-request-id'] as string) || uuidv4();
+    const userId = (req as any).session?.userId;
+
+    const limit = parseLimit(req.query.limit);
+    const cursor = (req.query.cursor as string | undefined) || undefined;
+
+    const result = await getExploreFeed(
+      userId,
+      {
+        limit,
+        cursor,
+        excludeUserId: userId, // Optionally exclude user's own posts
+      },
+      requestId
+    );
+
+    res.setHeader('x-request-id', requestId);
+    res.status(result.success ? 200 : 500).json(result);
   });
 
   return router;

@@ -1,10 +1,18 @@
 import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { insertEventSchema } from '@shared/schema';
 import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { notifyCommunityMembers, notifyEventAttendees, notifyNearbyUsers, truncateText } from '../services/notificationHelper';
+import {
+  createEvent as createEventService,
+  updateEvent as updateEventService,
+  cancelEvent as cancelEventService,
+  listEvents as listEventsService,
+  resolveEventAccess,
+} from '../services/events';
 
 const router = Router();
 
@@ -492,6 +500,176 @@ router.delete('/api/events/:id/rsvp', requireAuth, async (req, res) => {
     console.error('Error deleting RSVP:', error);
     res.status(500).json(buildErrorResponse('Error deleting RSVP', error));
   }
+});
+
+// ============================================================================
+// V2 EVENT ROUTES (Hardened Service Pattern)
+// These routes use the new events service for structured results
+// ============================================================================
+
+/**
+ * Helper to get or generate requestId
+ */
+function getRequestId(req: any): string {
+  return req.headers['x-request-id'] as string || uuidv4();
+}
+
+/**
+ * Map service result to HTTP response
+ */
+function mapStatusToHttpCode(status: string): number {
+  switch (status) {
+    case 'OK':
+      return 200;
+    case 'EVENT_NOT_FOUND':
+    case 'COMMUNITY_NOT_FOUND':
+      return 404;
+    case 'NOT_AUTHORIZED':
+      return 403;
+    case 'EVENT_CANCELED':
+    case 'INVALID_DATE':
+    case 'INVALID_INPUT':
+      return 400;
+    case 'ERROR':
+    default:
+      return 500;
+  }
+}
+
+// GET /api/events/v2 - List events with service
+router.get('/api/events/v2', async (req, res) => {
+  const requestId = getRequestId(req);
+  const userId = getSessionUserId(req);
+
+  const filters = {
+    communityId: req.query.communityId ? parseInt(req.query.communityId as string) : undefined,
+    isPublic: req.query.isPublic === 'true' ? true : req.query.isPublic === 'false' ? false : undefined,
+    status: (req.query.status as any) || 'ACTIVE',
+    startDate: req.query.startDate as string,
+    endDate: req.query.endDate as string,
+    limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+    cursor: req.query.cursor as string,
+  };
+
+  const result = await listEventsService(filters, userId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// GET /api/events/:id/v2 - Get event with access check
+router.get('/api/events/:id/v2', async (req, res) => {
+  const requestId = getRequestId(req);
+  const eventId = parseInt(req.params.id);
+  const userId = getSessionUserId(req);
+
+  if (isNaN(eventId) || eventId <= 0) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'EVENT_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid event ID' },
+    });
+  }
+
+  const result = await resolveEventAccess(eventId, userId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// POST /api/events/v2 - Create event with service
+router.post('/api/events/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const actorId = requireSessionUserId(req);
+
+  const params = {
+    title: req.body.title,
+    description: req.body.description,
+    eventDate: req.body.eventDate,
+    startTime: req.body.startTime,
+    endTime: req.body.endTime,
+    isVirtual: req.body.isVirtual,
+    location: req.body.location,
+    address: req.body.address,
+    city: req.body.city,
+    state: req.body.state,
+    zipCode: req.body.zipCode,
+    latitude: req.body.latitude,
+    longitude: req.body.longitude,
+    virtualMeetingUrl: req.body.virtualMeetingUrl,
+    isPublic: req.body.isPublic,
+    communityId: req.body.communityId,
+    locationProvider: req.body.locationProvider,
+    placeId: req.body.placeId,
+    locationText: req.body.locationText,
+  };
+
+  const result = await createEventService(params, actorId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(result.success ? 201 : mapStatusToHttpCode(result.status)).json(result);
+});
+
+// PATCH /api/events/:id/v2 - Update event with service
+router.patch('/api/events/:id/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const eventId = parseInt(req.params.id);
+  const actorId = requireSessionUserId(req);
+
+  if (isNaN(eventId) || eventId <= 0) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'EVENT_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid event ID' },
+    });
+  }
+
+  const params = {
+    title: req.body.title,
+    description: req.body.description,
+    eventDate: req.body.eventDate,
+    startTime: req.body.startTime,
+    endTime: req.body.endTime,
+    isVirtual: req.body.isVirtual,
+    location: req.body.location,
+    address: req.body.address,
+    city: req.body.city,
+    state: req.body.state,
+    zipCode: req.body.zipCode,
+    latitude: req.body.latitude,
+    longitude: req.body.longitude,
+    virtualMeetingUrl: req.body.virtualMeetingUrl,
+    isPublic: req.body.isPublic,
+    locationProvider: req.body.locationProvider,
+    placeId: req.body.placeId,
+    locationText: req.body.locationText,
+  };
+
+  const result = await updateEventService(eventId, params, actorId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// DELETE /api/events/:id/v2 - Cancel event (soft delete)
+router.delete('/api/events/:id/v2', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const eventId = parseInt(req.params.id);
+  const actorId = requireSessionUserId(req);
+
+  if (isNaN(eventId) || eventId <= 0) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'EVENT_INVALID_INPUT',
+      requestId,
+      diagnostics: { reason: 'Invalid event ID' },
+    });
+  }
+
+  const result = await cancelEventService(eventId, actorId, requestId);
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
 });
 
 export default router;

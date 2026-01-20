@@ -106,6 +106,7 @@ import passwordResetRoutes from './routes/passwordReset';
 import uploadRoutes from './routes/upload';
 import { chatMessagesQuerySchema } from './routes/chatMessages';
 import messagesRoutes from './routes/messages';
+import notificationsRoutes from './routes/notifications';
 
 declare module 'express-session' {
   interface SessionData {
@@ -503,6 +504,9 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api', questionsRoutes); // Q&A Inbox System
     app.use('/api/library', libraryRoutes); // Library Posts System
   }
+
+  // Notifications (hardened service pattern)
+  app.use('/api/notifications', notificationsRoutes);
   
   // CRITICAL: This MUST execute for mobile app to get permissions
   // DO NOT add any routes before this that could shadow it
@@ -586,6 +590,54 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       }
     });
 
+    // Public user profile lookup by ID (for shared links from mobile app)
+    app.get('/api/users/by-id/:id', async (req, res) => {
+      try {
+        const viewerId = getSessionUserId(req);
+        const viewerIsAdmin = req.session?.isAdmin === true;
+        const userId = parseInt(req.params.id);
+        if (!Number.isFinite(userId)) {
+          return res.status(400).json({ message: 'Invalid user ID' });
+        }
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        const canView = await canViewProfileAsync(user, viewerId, viewerIsAdmin);
+        if (!canView) {
+          return res.status(403).json({ message: 'This profile is private' });
+        }
+        res.json(sanitizeUserForResponse(user, viewerId, viewerIsAdmin));
+      } catch (error) {
+        console.error('Error fetching user by ID:', error);
+        res.status(500).json(buildErrorResponse('Error fetching user', error));
+      }
+    });
+
+    // Public user profile lookup by username (for shared links)
+    app.get('/api/users/profile/:username', async (req, res) => {
+      try {
+        const viewerId = getSessionUserId(req);
+        const viewerIsAdmin = req.session?.isAdmin === true;
+        const username = req.params.username;
+        if (!username || typeof username !== 'string') {
+          return res.status(400).json({ message: 'Invalid username' });
+        }
+        const user = await storage.getUserByUsername(username);
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        const canView = await canViewProfileAsync(user, viewerId, viewerIsAdmin);
+        if (!canView) {
+          return res.status(403).json({ message: 'This profile is private' });
+        }
+        res.json(sanitizeUserForResponse(user, viewerId, viewerIsAdmin));
+      } catch (error) {
+        console.error('Error fetching user by username:', error);
+        res.status(500).json(buildErrorResponse('Error fetching user', error));
+      }
+    });
+
     app.get('/api/users/:id', isAuthenticated, async (req, res) => {
       try {
         const viewerId = requireSessionUserId(req);
@@ -602,6 +654,60 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
       } catch (error) {
         console.error('Error fetching user:', error);
         res.status(500).json(buildErrorResponse('Error fetching user', error));
+      }
+    });
+
+    // Public endpoint to get a user's posts (for profile viewing)
+    app.get('/api/users/:id/posts', async (req, res) => {
+      try {
+        const viewerId = getSessionUserId(req);
+        const viewerIsAdmin = req.session?.isAdmin === true;
+        const userId = parseInt(req.params.id);
+        if (!Number.isFinite(userId)) {
+          return res.status(400).json({ message: 'Invalid user ID' });
+        }
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        const canView = await canViewProfileAsync(user, viewerId, viewerIsAdmin);
+        if (!canView) {
+          return res.json([]); // Return empty for private profiles
+        }
+        const posts = await storage.getUserPosts(userId);
+        res.json(posts);
+      } catch (error) {
+        console.error('Error fetching user posts:', error);
+        res.status(500).json(buildErrorResponse('Error fetching user posts', error));
+      }
+    });
+
+    // Public endpoint to get a user's communities (for profile viewing)
+    app.get('/api/users/:id/communities', async (req, res) => {
+      try {
+        const viewerId = getSessionUserId(req);
+        const viewerIsAdmin = req.session?.isAdmin === true;
+        const userId = parseInt(req.params.id);
+        if (!Number.isFinite(userId)) {
+          return res.status(400).json({ message: 'Invalid user ID' });
+        }
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        const canView = await canViewProfileAsync(user, viewerId, viewerIsAdmin);
+        if (!canView) {
+          return res.json([]); // Return empty for private profiles
+        }
+        const communities = await storage.getUserCommunities(userId);
+        // Only return public communities for non-authenticated viewers
+        const visibleCommunities = communities.filter((c: any) =>
+          viewerId || c.privacySetting === 'public'
+        );
+        res.json(visibleCommunities);
+      } catch (error) {
+        console.error('Error fetching user communities:', error);
+        res.status(500).json(buildErrorResponse('Error fetching user communities', error));
       }
     });
 
