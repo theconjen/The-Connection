@@ -122,7 +122,6 @@ async function postVerse(userId: number, content: string): Promise<void> {
       createdAt: new Date(),
     });
 
-    console.log('✓ Posted verse to feed');
   } catch (error) {
     console.error('Error posting verse:', error);
     throw error;
@@ -133,16 +132,13 @@ async function postVerse(userId: number, content: string): Promise<void> {
  * Main function - Post a Bible verse
  */
 async function main() {
-  console.log('🤖 Bible Verse Bot Starting...\n');
 
   try {
     // Get bot user ID
     const botUserId = await getBotUserId();
-    console.log(`Bot User ID: ${botUserId}`);
 
     // Get random verse reference
     const reference = getRandomVerseReference();
-    console.log(`Fetching verse: ${reference}`);
 
     // Fetch verse from API
     const verse = await fetchBibleVerse(reference);
@@ -151,19 +147,15 @@ async function main() {
       throw new Error(`Failed to fetch verse: ${reference}`);
     }
 
-    console.log(`✓ Fetched: ${verse.reference}`);
 
     // Format post
     const postContent = formatVersePost(verse);
-    console.log('\nPost content:');
-    console.log('─'.repeat(50));
-    console.log(postContent);
-    console.log('─'.repeat(50));
+    );
+    );
 
     // Post to feed
     await postVerse(botUserId, postContent);
 
-    console.log('\n✓ Bible verse posted successfully!');
     process.exit(0);
   } catch (error) {
     console.error('\n✗ Error:', error);

@@ -6,34 +6,28 @@ import { users, communities, communityWallPosts, communityMembers } from "@share
 import { eq } from "drizzle-orm";
 
 export async function seedWallPosts() {
-  console.log("Starting wall posts data seeding...");
   
   try {
     // Check if wall posts already exist
     const existingPosts = await db.select({ count: { count: 'id' }}).from(communityWallPosts);
     if (existingPosts[0]?.count > 0) {
-      console.log("Wall posts already exist, skipping seeding");
       return;
     }
 
     // Get the demo user
     const demoUsers = await db.select().from(users).where(eq(users.username, 'demo'));
     if (demoUsers.length === 0) {
-      console.log("Demo user not found, cannot seed wall posts");
       return;
     }
     
     const demoUser = demoUsers[0];
-    console.log(`Found demo user with ID: ${demoUser.id}, will use as wall post creator`);
     
     // Get communities
     const allCommunities = await db.select().from(communities);
     if (allCommunities.length === 0) {
-      console.log("No communities found, cannot seed wall posts");
       return;
     }
 
-    console.log(`Found ${allCommunities.length} communities for wall post creation`);
 
     // Create wall posts for each community
     const wallPostsData = [];
@@ -145,11 +139,8 @@ export async function seedWallPosts() {
       });
     }
 
-    console.log("Creating wall posts...");
     const insertedPosts = await db.insert(communityWallPosts).values(wallPostsData).returning();
-    console.log(`Created ${insertedPosts.length} wall posts`);
 
-    console.log("Wall posts data seeding completed successfully");
   } catch (error) {
     console.error("Error seeding wall posts:", error);
   }

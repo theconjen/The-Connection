@@ -11,7 +11,6 @@ import argon2 from 'argon2';
 
 async function createAdminUser() {
   try {
-    console.log('=== Creating Admin User ===');
 
     // Get admin credentials from environment variables
     const username = process.env.ADMIN_USERNAME;
@@ -46,7 +45,6 @@ async function createAdminUser() {
       await db.execute(sql`
         ALTER TABLE users ADD COLUMN is_admin boolean DEFAULT false
       `);
-      console.log('Added isAdmin field to users table');
     }
     
     // Check if user already exists
@@ -58,7 +56,6 @@ async function createAdminUser() {
         .set({ isAdmin: true })
         .where(eq(users.username, username));
       
-      console.log(`User ${username} has been updated to admin status`);
     } else {
       // Create new admin user with Argon2id hashing
       const hashedPassword = await argon2.hash(password, {
@@ -75,12 +72,8 @@ async function createAdminUser() {
         isAdmin: true
       });
 
-      console.log(`Admin user ${username} has been created successfully`);
     }
 
-    console.log('Admin credentials:');
-    console.log(`Username: ${username}`);
-    console.log('You can now login with these credentials');
     
   } catch (error) {
     console.error('Error creating/updating admin user:', error);

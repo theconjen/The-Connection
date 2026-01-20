@@ -2,12 +2,10 @@ import { db } from './db';
 import { creatorTiers, virtualGifts } from '@shared/schema';
 
 async function seedCreatorTiersAndGifts() {
-  console.log("Starting to seed creator tiers and virtual gifts...");
   
   // Check if we already have creator tiers
   const existingTiers = await db.select().from(creatorTiers);
   if (existingTiers.length > 0) {
-    console.log("Creator tiers already exist, skipping...");
   } else {
     // Add creator tiers for livestreamer incentives
     await db.insert(creatorTiers).values([
@@ -37,13 +35,11 @@ async function seedCreatorTiersAndGifts() {
       }
     ]);
     
-    console.log("Created creator tiers");
   }
   
   // Check if we already have virtual gifts
   const existingGifts = await db.select().from(virtualGifts);
   if (existingGifts.length > 0) {
-    console.log("Virtual gifts already exist, skipping...");
   } else {
     // Add virtual gifts for livestream support
     await db.insert(virtualGifts).values([
@@ -84,10 +80,8 @@ async function seedCreatorTiersAndGifts() {
       }
     ]);
     
-    console.log("Created virtual gifts");
   }
   
-  console.log("Seeding of creator tiers and virtual gifts completed!");
 }
 
 // Run the seed function if this file is executed directly

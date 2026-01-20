@@ -164,4 +164,66 @@ router.delete('/users/:id', async (req, res, next) => {
   }
 });
 
+// User Reports & Suspension Management
+// Get all suspended users
+router.get('/suspended-users', async (req, res) => {
+  try {
+    const suspendedUsers = await storage.getSuspendedUsers();
+    res.json(suspendedUsers);
+  } catch (error) {
+    res.status(500).json(buildErrorResponse('Error fetching suspended users', error));
+  }
+});
+
+// Get reports for a specific user
+router.get('/user-reports/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    const reports = await storage.getUserReports(userId);
+    res.json(reports);
+  } catch (error) {
+    res.status(500).json(buildErrorResponse('Error fetching user reports', error));
+  }
+});
+
+// Unsuspend a user
+router.post('/users/:userId/unsuspend', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    await storage.unsuspendUser(userId);
+    res.json({ ok: true, message: 'User unsuspended successfully' });
+  } catch (error) {
+    res.status(500).json(buildErrorResponse('Error unsuspending user', error));
+  }
+});
+
+// Manually suspend a user
+router.post('/users/:userId/suspend', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { reason } = req.body;
+
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    if (!reason) {
+      return res.status(400).json({ message: 'Suspension reason is required' });
+    }
+
+    await storage.suspendUser(userId, reason);
+    res.json({ ok: true, message: 'User suspended successfully' });
+  } catch (error) {
+    res.status(500).json(buildErrorResponse('Error suspending user', error));
+  }
+});
+
 export default router;

@@ -8,7 +8,6 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 (async () => {
   try {
     await seedFeed();
-    console.log('seedFeed finished');
     process.exit(0);
   } catch (err) {
     console.error('seedFeed error', err);

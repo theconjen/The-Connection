@@ -2,7 +2,6 @@ import { db } from "./db";
 import { organizations, organizationUsers } from "@shared/schema";
 
 export async function runOrganizationMigrations() {
-  console.log("🏛️ [express] Starting organization schema migrations");
   
   try {
     // Create organizations table
@@ -25,7 +24,6 @@ export async function runOrganizationMigrations() {
       );
     `);
     
-    console.log("✅ Organizations table created/verified");
     
     // Create organization_users table
     await db.execute(`
@@ -38,7 +36,6 @@ export async function runOrganizationMigrations() {
       );
     `);
     
-    console.log("✅ Organization users table created/verified");
     
     // Add indexes for better performance
     await db.execute(`
@@ -49,9 +46,7 @@ export async function runOrganizationMigrations() {
       CREATE INDEX IF NOT EXISTS idx_organization_users_user_id ON organization_users(user_id);
     `);
     
-    console.log("✅ Organization indexes created");
     
-    console.log("🏛️ [express] Organization migrations completed successfully");
   } catch (error) {
     console.error("❌ Organization migration failed:", error);
     throw error;

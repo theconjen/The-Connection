@@ -5,25 +5,21 @@ import { db } from "./db";
 import { pool } from "./db";
 
 export async function seedPrayers() {
-  console.log("Starting prayer request data seeding...");
   
   try {
     // Check if prayer requests already exist
     const prayerRequestsResult = await pool.query(`SELECT COUNT(*) FROM prayer_requests`);
     if (prayerRequestsResult.rows[0].count > 0) {
-      console.log("Prayer requests already exist, skipping seeding");
       return;
     }
 
     // Get the demo user
     const demoUserResult = await pool.query(`SELECT id FROM users WHERE username = 'demo' LIMIT 1`);
     if (demoUserResult.rows.length === 0) {
-      console.log("Demo user not found, cannot seed prayer requests");
       return;
     }
     
     const demoUserId = demoUserResult.rows[0].id;
-    console.log(`Found demo user with ID: ${demoUserId}, will use as prayer request creator`);
     
     // Get prayer community
     const prayerCommunityResult = await pool.query(`
@@ -33,9 +29,7 @@ export async function seedPrayers() {
     let communityId = null;
     if (prayerCommunityResult.rows.length > 0) {
       communityId = prayerCommunityResult.rows[0].id;
-      console.log(`Found prayer community with ID: ${communityId}`);
     } else {
-      console.log("Prayer community not found");
     }
 
     // Create prayer requests
@@ -84,7 +78,6 @@ export async function seedPrayers() {
       }
     ];
 
-    console.log("Creating prayer requests...");
     const insertedPrayers = [];
     
     for (const prayer of prayerRequestData) {
@@ -109,7 +102,6 @@ export async function seedPrayers() {
       });
     }
     
-    console.log(`Created ${insertedPrayers.length} prayer requests`);
 
     // Add prayer responses
     for (const prayer of insertedPrayers) {
@@ -147,8 +139,6 @@ export async function seedPrayers() {
       answeredPrayer.id
     ]);
     
-    console.log("Marked one prayer request as answered");
-    console.log("Prayer request data seeding completed successfully");
   } catch (error) {
     console.error("Error seeding prayer requests:", error);
   }

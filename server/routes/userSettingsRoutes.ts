@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { buildErrorResponse } from "../utils/errors";
 import { requireAuth } from "../middleware/auth";
 import { requireSessionUserId } from "../utils/session";
+import { clearPreferencesCache } from "../services/notificationHelper";
 
 const router = express.Router();
 
@@ -66,6 +67,19 @@ router.put("/settings", async (req, res) => {
     if (typeof notifyFeed === 'boolean') updateData.notifyFeed = notifyFeed;
 
     await storage.updateUser(userId, updateData);
+
+    // Clear notification preferences cache if any notification settings were updated
+    const notificationPrefsUpdated =
+      typeof notifyDms === 'boolean' ||
+      typeof notifyCommunities === 'boolean' ||
+      typeof notifyForums === 'boolean' ||
+      typeof notifyFeed === 'boolean';
+
+    if (notificationPrefsUpdated) {
+      clearPreferencesCache(userId);
+      console.info(`[Settings] Cleared notification preferences cache for user ${userId}`);
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating user settings:', error);

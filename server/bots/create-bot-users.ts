@@ -46,7 +46,7 @@ async function createBotUser(config: BotConfig) {
       .limit(1);
 
     if (existingUser) {
-      console.log(`✓ Bot user "${config.username}" already exists (ID: ${existingUser.id})`);
+      `);
       return existingUser;
     }
 
@@ -69,7 +69,7 @@ async function createBotUser(config: BotConfig) {
       })
       .returning();
 
-    console.log(`✓ Created bot user "${config.username}" (ID: ${newUser.id})`);
+    `);
     return newUser;
   } catch (error) {
     console.error(`✗ Error creating bot "${config.username}":`, error);
@@ -78,18 +78,11 @@ async function createBotUser(config: BotConfig) {
 }
 
 async function main() {
-  console.log('Creating bot users...\n');
 
   for (const config of BOT_CONFIGS) {
     await createBotUser(config);
   }
 
-  console.log('\n✓ All bot users created successfully!');
-  console.log('\nBot Credentials:');
-  console.log('- Username: bibleverse_bot');
-  console.log('- Username: theology_quote_bot');
-  console.log(`- Password: ${process.env.BOT_PASSWORD || 'SecureBot123!@#'}`);
-  console.log('\n⚠️  Remember to set BOT_PASSWORD in your environment variables!');
 
   process.exit(0);
 }

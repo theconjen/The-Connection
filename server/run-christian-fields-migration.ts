@@ -14,25 +14,19 @@ async function runMigration() {
     throw new Error('DATABASE_URL environment variable is not set');
   }
 
-  console.log('[Migration] Connecting to database...');
   const pool = new Pool({ connectionString: databaseUrl });
   const db = drizzle(pool);
 
-  console.log('[Migration] Reading migration file...');
   const __dirname = path.dirname(new URL(import.meta.url).pathname);
   const migrationPath = path.join(__dirname, '../migrations/add_christian_profile_fields.sql');
   const migrationSQL = fs.readFileSync(migrationPath, 'utf-8');
 
-  console.log('[Migration] Running migration...');
-  console.log(migrationSQL);
 
   try {
     // Run the migration
     await pool.query(migrationSQL);
-    console.log('[Migration] ✅ Christian profile fields migration completed successfully!');
 
     // Verify the columns exist
-    console.log('[Migration] Verifying columns...');
     const result = await pool.query(`
       SELECT column_name, data_type
       FROM information_schema.columns
@@ -41,10 +35,8 @@ async function runMigration() {
       ORDER BY column_name;
     `);
 
-    console.log('[Migration] Found columns:', result.rows);
 
     if (result.rows.length === 6) {
-      console.log('[Migration] ✅ All 6 Christian profile fields are present in the database!');
     } else {
       console.warn('[Migration] ⚠️ Warning: Expected 6 columns but found', result.rows.length);
     }

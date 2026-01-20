@@ -37,7 +37,6 @@ async function ensureTables() {
       );
     `);
     
-    console.log("Bible reading plan tables created successfully");
     return true;
   } catch (error) {
     console.error("Error creating Bible reading plan tables:", error);
@@ -55,7 +54,6 @@ async function seedConnectCrewPlan() {
     );
     
     if (existingPlan) {
-      console.log("Connect Crew 2025 Reading Journal plan already exists");
       return;
     }
     
@@ -109,7 +107,6 @@ async function seedConnectCrewPlan() {
       isPublic: true
     });
     
-    console.log("Connect Crew 2025 Reading Journal plan created successfully");
   } catch (error) {
     console.error("Error seeding Connect Crew plan:", error);
   }

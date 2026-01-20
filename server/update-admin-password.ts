@@ -11,7 +11,6 @@ import { hashPassword } from './utils/passwords';
 
 async function updateAdminPassword() {
   try {
-    console.log('=== Updating Admin Password ===');
 
     // Get credentials from environment variables
     const username = process.env.ADMIN_USERNAME;
@@ -40,8 +39,6 @@ async function updateAdminPassword() {
       .set({ password: hashedPassword })
       .where(eq(users.username, username));
 
-    console.log('Admin password updated successfully.');
-    console.log('You can now login with the new credentials at /auth');
     
   } catch (error) {
     console.error('Error updating admin password:', error);

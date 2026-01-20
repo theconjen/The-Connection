@@ -81,8 +81,9 @@ app.use('/api/auth/', authLimiter);
 app.use(cookieParser());
 
 // Limit JSON and form body sizes to mitigate DoS
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+// Increased to 10mb to support base64 image uploads (avatars, post images)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Recursively escape '<' and '>' in strings from req.body, req.query and req.params to neutralise basic XSS
 app.use((req, _res, next) => {

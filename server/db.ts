@@ -27,7 +27,6 @@ let sqlInstance: ReturnType<typeof neon> | undefined;
 let poolInstance: Pool | undefined;
 
 if (isConnected && databaseUrl) {
-  console.log("Attempting to connect to database...");
   sqlInstance = neon(databaseUrl);
   poolInstance = new Pool({ connectionString: databaseUrl });
 }

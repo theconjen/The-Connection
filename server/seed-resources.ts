@@ -6,13 +6,11 @@ import { apologeticsResources } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
 export async function seedResources() {
-  console.log("Starting resources seeding...");
   
   try {
     // Check if resources already exist
     const existingResources = await db.select({ count: sql<number>`count(*)` }).from(apologeticsResources);
     if (existingResources[0]?.count > 0) {
-      console.log("Resources already exist, skipping seeding");
       return;
     }
 
@@ -138,11 +136,8 @@ export async function seedResources() {
       },
     ];
 
-    console.log("Creating apologetics resources...");
     const insertedResources = await db.insert(apologeticsResources).values(resourcesData).returning();
-    console.log(`Created ${insertedResources.length} apologetics resources`);
     
-    console.log("Resources seeding completed successfully");
   } catch (error) {
     console.error("Error seeding resources:", error);
   }

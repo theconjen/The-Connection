@@ -4,200 +4,610 @@ import { sendPasswordResetEmail } from './email';
 import { db } from './db';
 import { passwordResetTokens } from '@shared/schema';
 import { eq, and, gt, isNull } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
 
-// Token expiration time (1 hour)
-const TOKEN_EXPIRY_MS = 60 * 60 * 1000;
+// ============================================================================
+// ENVIRONMENT & CONFIGURATION
+// ============================================================================
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const DEBUG_RESET_VERIFY_INSERT = process.env.DEBUG_RESET_VERIFY_INSERT === 'true';
+
+// SERVER_PEPPER: Required in production for secure hashing
+// MUST be a random 32+ character string
+const SERVER_PEPPER = process.env.PASSWORD_RESET_PEPPER || '';
+
+// Fail fast in production if pepper is missing
+if (IS_PRODUCTION && !SERVER_PEPPER) {
+  console.error('[PASSWORD_RESET][FATAL] PASSWORD_RESET_PEPPER is required in production');
+  throw new Error('PASSWORD_RESET_PEPPER environment variable is required in production');
+}
+
+// DB fingerprint for logging (safe to log - masked)
+const DB_URL = process.env.DATABASE_URL || 'not-set';
+const DB_HOST = DB_URL.match(/@([^:/]+)/)?.[1] || 'unknown';
+const DB_NAME = DB_URL.match(/\/([^?]+)/)?.[1]?.split('?')[0] || 'unknown';
+const DB_FINGERPRINT = `${DB_HOST.substring(0, 8)}.../${DB_NAME}`;
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour (60 minutes)
+const TOKEN_EXPIRY_MINUTES = 60;
+const TOKEN_LENGTH = 64;
+const TOKEN_REGEX = /^[a-f0-9]{64}$/;
+const TABLE_NAME = 'password_reset_tokens';
+
+// ============================================================================
+// TOKEN STATUS ENUM - Single source of truth for all token states
+// ============================================================================
+
+export type TokenStatus = 'OK' | 'NOT_FOUND' | 'EXPIRED' | 'USED' | 'INVALID_FORMAT';
+
+// ============================================================================
+// SHARED HELPERS - Used by BOTH request and confirm endpoints
+// ============================================================================
 
 /**
- * Generate a secure reset token
+ * Normalize token input.
+ * INVARIANT: Server and client MUST use identical normalization.
+ *
+ * Steps:
+ * 1. Extract token from URL if present (token=...)
+ * 2. Strip all whitespace/newlines
+ * 3. Trim
+ * 4. Convert to lowercase
+ */
+export function normalizeToken(input: string): string {
+  if (!input) return '';
+
+  let token = input;
+
+  // Extract token from URL if present
+  if (token.includes('token=')) {
+    const match = token.match(/token=([a-f0-9]+)/i);
+    if (match) token = match[1];
+  } else if (token.includes('://')) {
+    const match = token.match(/[?&]token=([a-f0-9]+)/i);
+    if (match) token = match[1];
+  }
+
+  // Strip all whitespace/newlines, trim, lowercase
+  // MUST match client: token.replace(/\s+/g, '').trim().toLowerCase()
+  token = token.replace(/\s+/g, '').trim().toLowerCase();
+
+  return token;
+}
+
+/**
+ * Validate token format.
+ * @returns true if exactly 64 hex characters
+ */
+export function isValidResetTokenFormat(token: string): boolean {
+  return TOKEN_REGEX.test(token);
+}
+
+/**
+ * Hash a normalized token for secure storage.
+ * Uses SHA-256 with SERVER_PEPPER for added security.
+ *
+ * INVARIANT: Both REQUEST (store) and VERIFY/CONFIRM (lookup) MUST use this function.
+ *
+ * @param normalizedToken - Already normalized token (call normalizeToken first)
+ * @returns 64-char hex hash
+ */
+export function hashResetToken(normalizedToken: string): string {
+  // In production, pepper is required (enforced at startup)
+  // In dev, pepper may be empty (hash will still work, just less secure)
+  const payload = normalizedToken + SERVER_PEPPER;
+  return crypto.createHash('sha256').update(payload).digest('hex');
+}
+
+// Legacy alias for backward compatibility
+export const hashToken = hashResetToken;
+
+// ============================================================================
+// RESOLVE TOKEN RESULT - Returned by resolveResetToken()
+// ============================================================================
+
+export interface ResolveTokenResult {
+  status: TokenStatus;
+  reason: string;
+  userId: number | null;
+  tokenHashSuffix: string;
+  // Diagnostics (always populated for logging)
+  tokenLen: number;
+  tokenIsHex: boolean;
+  tokenPrefix: string;  // Only used in dev logs
+  tokenSuffix: string;  // Only used in dev logs
+  foundRow: boolean;
+  expired: boolean;
+  used: boolean;
+  createdAt: string | null;
+  expiresAt: string | null;
+}
+
+// ============================================================================
+// CORE FUNCTIONS
+// ============================================================================
+
+/**
+ * Generate a secure reset token (64 hex chars)
  */
 export function generateResetToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
-/**
- * Hash a token for secure storage
- */
-export function hashToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex');
-}
+// ============================================================================
+// RESOLVE RESET TOKEN - SINGLE SOURCE OF TRUTH
+// ============================================================================
 
 /**
- * Create a password reset token for a user
- * Stores hashed token in database for security
+ * Resolve a reset token to its status.
  *
- * @param email User's email
+ * THIS IS THE SINGLE SOURCE OF TRUTH FOR ALL TOKEN VALIDATION.
+ * All routes MUST call this function - no duplicated lookup logic allowed.
+ *
+ * Uses shared helpers: normalizeToken() + hashResetToken()
+ *
+ * @param rawToken - Raw token input (will be normalized)
+ * @param requestId - Correlation ID for logging
+ * @param route - Route name for logging (e.g., 'VERIFY', 'RESET')
+ * @returns ResolveTokenResult with status and diagnostics
  */
-export async function createPasswordResetToken(email: string): Promise<boolean> {
-  try {
-    // Normalize email for consistent lookup
-    const normalizedEmail = email.trim().toLowerCase();
-    console.info('[PASSWORD_RESET] Request received for email:', normalizedEmail);
+export async function resolveResetToken(
+  rawToken: string | undefined,
+  requestId: string,
+  route: string
+): Promise<ResolveTokenResult> {
+  const logPrefix = `[RESOLVE_TOKEN][${route}]`;
 
-    // Find user by email
-    console.info('[PASSWORD_RESET] Calling storage.getUserByEmail...');
-    const user = await storage.getUserByEmail(normalizedEmail);
+  // Initialize result with defaults
+  const result: ResolveTokenResult = {
+    status: 'INVALID_FORMAT',
+    reason: 'Token validation not completed',
+    userId: null,
+    tokenHashSuffix: 'none',
+    tokenLen: 0,
+    tokenIsHex: false,
+    tokenPrefix: 'none',
+    tokenSuffix: 'none',
+    foundRow: false,
+    expired: false,
+    used: false,
+    createdAt: null,
+    expiresAt: null,
+  };
 
-    if (!user) {
-      // We don't want to reveal if an email exists in the database
-      // So we'll still return success but won't actually send an email
-      console.info('[PASSWORD_RESET] ⚠️ No user found for email:', normalizedEmail);
-      console.info('[PASSWORD_RESET] (This means the email is not registered in the database)');
-      return true;
-    }
+  console.info(`${logPrefix} stage=START dbFingerprint=${DB_FINGERPRINT} requestId=${requestId}`);
 
-    console.info('[PASSWORD_RESET] ✅ User found:', {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      emailVerified: (user as any).emailVerified
-    });
-
-    // Invalidate any existing unused tokens for this user (optional: security measure)
-    await db.update(passwordResetTokens)
-      .set({ usedAt: new Date() })
-      .where(and(
-        eq(passwordResetTokens.userId, user.id),
-        isNull(passwordResetTokens.usedAt)
-      ));
-
-    // Generate a token (this is what we send to the user)
-    const token = generateResetToken();
-    // Hash the token for storage (we never store the plain token)
-    const tokenHash = hashToken(token);
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MS);
-
-    // Store the hashed token in the database
-    await db.insert(passwordResetTokens).values({
-      userId: user.id,
-      tokenHash,
-      email: user.email,
-      expiresAt,
-    });
-
-    console.info('[PASSWORD_RESET] Token generated and stored in DB, attempting to send email...');
-
-    // Send email with reset link (using the plain token, not the hash)
-    const emailSent = await sendPasswordResetEmail(user.email, user.username, token);
-
-    console.info('[PASSWORD_RESET] Email send result:', emailSent ? '✅ SUCCESS' : '❌ FAILED');
-
-    if (!emailSent) {
-      console.error('[PASSWORD_RESET] Email failed to send! Check email provider configuration.');
-    }
-
-    return true;
-  } catch (error) {
-    console.error('[PASSWORD_RESET] ❌ Error creating password reset token:', error);
-    return false;
+  // Step 1: Check for missing token
+  if (!rawToken) {
+    result.status = 'INVALID_FORMAT';
+    result.reason = 'Token is missing';
+    console.info(`${logPrefix} stage=VALIDATE status=INVALID_FORMAT reason="missing" requestId=${requestId}`);
+    return result;
   }
-}
 
-/**
- * Verify a password reset token
- * Checks if token exists, is not expired, and has not been used
- *
- * @param token Token to verify (plain text from email)
- */
-export async function verifyResetToken(token: string): Promise<boolean> {
+  // Step 2: Normalize token using shared helper
+  const token = normalizeToken(rawToken);
+  result.tokenLen = token.length;
+  result.tokenIsHex = isValidResetTokenFormat(token);
+
+  // Store prefix/suffix for dev diagnostics only (NEVER log in production)
+  result.tokenPrefix = token.length >= 6 ? token.substring(0, 6) : token || 'none';
+  result.tokenSuffix = token.length >= 6 ? token.substring(token.length - 6) : token || 'none';
+
+  // SECURITY: In production, only log tokenLen and isHex, not raw prefix/suffix
+  if (IS_PRODUCTION) {
+    console.info(`${logPrefix} stage=NORMALIZE tokenLen=${result.tokenLen} isHex=${result.tokenIsHex} requestId=${requestId}`);
+  } else {
+    console.info(`${logPrefix} stage=NORMALIZE tokenLen=${result.tokenLen} isHex=${result.tokenIsHex} prefix=${result.tokenPrefix} suffix=${result.tokenSuffix} requestId=${requestId}`);
+  }
+
+  // Step 3: Validate format BEFORE DB query
+  if (!result.tokenIsHex || result.tokenLen !== TOKEN_LENGTH) {
+    result.status = 'INVALID_FORMAT';
+    result.reason = `Invalid format: expected ${TOKEN_LENGTH} hex chars, got ${result.tokenLen} chars, isHex=${result.tokenIsHex}`;
+    console.info(`${logPrefix} stage=VALIDATE status=INVALID_FORMAT reason="${result.reason}" requestId=${requestId}`);
+    return result;
+  }
+
+  // Step 4: Hash using shared helper and lookup
+  // tokenHashSuffix is SAFE to log (it's the hash suffix, not the token)
+  const tokenHash = hashResetToken(token);
+  result.tokenHashSuffix = tokenHash.substring(tokenHash.length - 8);
+
+  console.info(`${logPrefix} stage=LOOKUP tokenHashSuffix=${result.tokenHashSuffix} tableName=${TABLE_NAME} dbFingerprint=${DB_FINGERPRINT} requestId=${requestId}`);
+
   try {
-    const tokenHash = hashToken(token);
-
-    // Find valid token in database
     const [tokenRecord] = await db
       .select()
       .from(passwordResetTokens)
-      .where(and(
-        eq(passwordResetTokens.tokenHash, tokenHash),
-        gt(passwordResetTokens.expiresAt, new Date()),
-        isNull(passwordResetTokens.usedAt)
-      ))
+      .where(eq(passwordResetTokens.tokenHash, tokenHash))
       .limit(1);
 
     if (!tokenRecord) {
-      console.info('[PASSWORD_RESET] Token verification failed: not found, expired, or already used');
-      return false;
+      result.status = 'NOT_FOUND';
+      result.reason = 'Token not found in database';
+      result.foundRow = false;
+      console.info(`${logPrefix} stage=LOOKUP status=NOT_FOUND foundRow=false tokenHashSuffix=${result.tokenHashSuffix} requestId=${requestId}`);
+      return result;
     }
 
-    console.info('[PASSWORD_RESET] Token verified successfully for user:', tokenRecord.userId);
-    return true;
+    // Token found - populate all diagnostics
+    result.foundRow = true;
+    result.userId = tokenRecord.userId;
+    result.createdAt = tokenRecord.createdAt?.toISOString() || null;
+    result.expiresAt = tokenRecord.expiresAt.toISOString();
+
+    const now = new Date();
+    result.expired = tokenRecord.expiresAt < now;
+    result.used = tokenRecord.usedAt !== null;
+
+    console.info(`${logPrefix} stage=FOUND userId=${result.userId} foundRow=true expired=${result.expired} used=${result.used} tokenHashSuffix=${result.tokenHashSuffix} requestId=${requestId}`);
+
+    // Step 5: Check expiry
+    if (result.expired) {
+      result.status = 'EXPIRED';
+      result.reason = `Token expired at ${result.expiresAt}`;
+      console.info(`${logPrefix} stage=CHECK status=EXPIRED expiresAt=${result.expiresAt} requestId=${requestId}`);
+      return result;
+    }
+
+    // Step 6: Check if used
+    if (result.used) {
+      result.status = 'USED';
+      result.reason = 'Token has already been used';
+      console.info(`${logPrefix} stage=CHECK status=USED requestId=${requestId}`);
+      return result;
+    }
+
+    // Token is valid
+    result.status = 'OK';
+    result.reason = 'Token is valid';
+    console.info(`${logPrefix} stage=COMPLETE status=OK userId=${result.userId} tokenHashSuffix=${result.tokenHashSuffix} requestId=${requestId}`);
+    return result;
+
   } catch (error) {
-    console.error('[PASSWORD_RESET] Error verifying token:', error);
-    return false;
+    console.error(`${logPrefix} stage=ERROR dbFingerprint=${DB_FINGERPRINT} requestId=${requestId}:`, error);
+    result.status = 'NOT_FOUND';
+    result.reason = 'Database error during lookup';
+    return result;
   }
 }
 
+// ============================================================================
+// VERIFY RESET TOKEN
+// ============================================================================
+
 /**
- * Reset password using token
- * Validates token, updates password, and marks token as used (single-use)
- *
- * @param token Reset token (plain text from email)
- * @param newPassword New password
+ * Verify a password reset token.
+ * Delegates to resolveResetToken() - no duplicated logic.
  */
-export async function resetPassword(token: string, newPassword: string): Promise<boolean> {
+export async function verifyResetToken(rawToken: string, requestId: string): Promise<boolean> {
+  const result = await resolveResetToken(rawToken, requestId, 'VERIFY');
+  return result.status === 'OK';
+}
+
+// ============================================================================
+// RESET PASSWORD RESULT
+// ============================================================================
+
+export interface ResetPasswordResult {
+  success: boolean;
+  status: TokenStatus | 'MISSING_FIELDS' | 'USER_NOT_FOUND' | 'UPDATE_FAILED' | 'ERROR';
+  reason: string;
+  requestId: string;
+  // From resolveResetToken
+  tokenLen: number;
+  tokenIsHex: boolean;
+  tokenPrefix: string;
+  tokenSuffix: string;
+  tokenHashSuffix: string;
+  foundRow: boolean;
+  expired: boolean;
+  used: boolean;
+  createdAt: string | null;
+  expiresAt: string | null;
+  userId: number | null;
+}
+
+// ============================================================================
+// RESET PASSWORD
+// ============================================================================
+
+/**
+ * Reset password using token.
+ * Delegates token validation to resolveResetToken() - no duplicated logic.
+ * Uses shared helpers: normalizeToken() + hashResetToken()
+ */
+export async function resetPassword(
+  rawToken: string | undefined,
+  newPassword: string | undefined,
+  requestId: string
+): Promise<ResetPasswordResult> {
+  const logPrefix = '[RESET_PASSWORD][EXEC]';
+
+  // Initialize result
+  const result: ResetPasswordResult = {
+    success: false,
+    status: 'ERROR',
+    reason: 'Not completed',
+    requestId,
+    tokenLen: 0,
+    tokenIsHex: false,
+    tokenPrefix: 'none',
+    tokenSuffix: 'none',
+    tokenHashSuffix: 'none',
+    foundRow: false,
+    expired: false,
+    used: false,
+    createdAt: null,
+    expiresAt: null,
+    userId: null,
+  };
+
+  console.info(`${logPrefix} stage=START dbFingerprint=${DB_FINGERPRINT} requestId=${requestId}`);
+
+  // Check for missing fields
+  if (!rawToken || !newPassword) {
+    result.status = 'MISSING_FIELDS';
+    result.reason = `Missing: token=${!!rawToken} password=${!!newPassword}`;
+    console.info(`${logPrefix} stage=VALIDATE status=MISSING_FIELDS reason="${result.reason}" requestId=${requestId}`);
+    return result;
+  }
+
+  // Delegate to resolveResetToken - SINGLE SOURCE OF TRUTH
+  const tokenResult = await resolveResetToken(rawToken, requestId, 'RESET');
+
+  // Copy all diagnostics from tokenResult
+  result.tokenLen = tokenResult.tokenLen;
+  result.tokenIsHex = tokenResult.tokenIsHex;
+  result.tokenPrefix = tokenResult.tokenPrefix;
+  result.tokenSuffix = tokenResult.tokenSuffix;
+  result.tokenHashSuffix = tokenResult.tokenHashSuffix;
+  result.foundRow = tokenResult.foundRow;
+  result.expired = tokenResult.expired;
+  result.used = tokenResult.used;
+  result.createdAt = tokenResult.createdAt;
+  result.expiresAt = tokenResult.expiresAt;
+  result.userId = tokenResult.userId;
+
+  // If token is not OK, return with token status
+  if (tokenResult.status !== 'OK') {
+    result.status = tokenResult.status;
+    result.reason = tokenResult.reason;
+    console.info(`${logPrefix} stage=TOKEN_CHECK status=${result.status} tokenHashSuffix=${result.tokenHashSuffix} requestId=${requestId}`);
+    return result;
+  }
+
+  // Token is valid - proceed with password reset
+  const userId = tokenResult.userId!;
+
   try {
-    const tokenHash = hashToken(token);
-
-    // Find valid token in database
-    const [tokenRecord] = await db
-      .select()
-      .from(passwordResetTokens)
-      .where(and(
-        eq(passwordResetTokens.tokenHash, tokenHash),
-        gt(passwordResetTokens.expiresAt, new Date()),
-        isNull(passwordResetTokens.usedAt)
-      ))
-      .limit(1);
-
-    if (!tokenRecord) {
-      console.info('[PASSWORD_RESET] Reset failed: token not found, expired, or already used');
-      return false;
-    }
-
     // Get user
-    const user = await storage.getUser(tokenRecord.userId);
+    const user = await storage.getUser(userId);
     if (!user) {
-      console.info('[PASSWORD_RESET] Reset failed: user not found');
-      return false;
+      result.status = 'USER_NOT_FOUND';
+      result.reason = `User ${userId} not found`;
+      console.info(`${logPrefix} stage=USER_LOOKUP status=USER_NOT_FOUND userId=${userId} requestId=${requestId}`);
+      return result;
     }
 
-    // Hash and update password
-    const bcrypt = await import('bcrypt');
+    // Hash and update password using bcryptjs (consistent with other server modules)
     const hashedPassword = await bcrypt.hash(newPassword, 12);
     const updatedUser = await storage.updateUserPassword(user.id, hashedPassword);
 
     if (!updatedUser) {
-      console.info('[PASSWORD_RESET] Reset failed: could not update password');
-      return false;
+      result.status = 'UPDATE_FAILED';
+      result.reason = 'Password update failed';
+      console.info(`${logPrefix} stage=UPDATE status=UPDATE_FAILED userId=${userId} requestId=${requestId}`);
+      return result;
     }
 
-    // Mark token as used (single-use enforcement)
+    // Mark token as used - use same hashing as lookup
+    const token = normalizeToken(rawToken);
+    const tokenHash = hashResetToken(token);
     await db.update(passwordResetTokens)
       .set({ usedAt: new Date() })
-      .where(eq(passwordResetTokens.id, tokenRecord.id));
+      .where(eq(passwordResetTokens.tokenHash, tokenHash));
 
-    console.info('[PASSWORD_RESET] ✅ Password reset successful for user:', user.id);
+    result.success = true;
+    result.status = 'OK';
+    result.reason = 'Password reset successful';
+    console.info(`${logPrefix} stage=COMPLETE status=OK userId=${userId} tokenHashSuffix=${result.tokenHashSuffix} requestId=${requestId}`);
+    return result;
 
-    return true;
   } catch (error) {
-    console.error('[PASSWORD_RESET] ❌ Error resetting password:', error);
-    return false;
+    console.error(`${logPrefix} stage=ERROR requestId=${requestId}:`, error);
+    result.status = 'ERROR';
+    result.reason = 'Exception during password update';
+    return result;
   }
+}
+
+// ============================================================================
+// CREATE PASSWORD RESET TOKEN
+// ============================================================================
+
+/**
+ * Result from createPasswordResetToken for structured logging
+ */
+export interface CreateTokenResult {
+  success: boolean;
+  requestId: string;
+  userId: number | null;
+  tokenHashSuffix: string;
+  insertedRowId: number | null;
+  expiresAt: string | null;
+  invalidatedPrevious: boolean;
+  numTokensInvalidated: number;
+  emailSent: boolean;
+  emailMessageId: string | null;
+  // For debug verification
+  verifyInsertFound?: boolean;
+  // DEV ONLY: raw token for testing (NEVER in production)
+  devToken?: string;
 }
 
 /**
- * Clean up expired tokens (can be called periodically)
+ * Create a password reset token for a user.
+ * Stores hashed token in database for security.
+ *
+ * Uses shared helpers: normalizeToken() + hashResetToken()
+ *
+ * Structured logging enables correlation:
+ * "email sent" → "token stored" → "token used"
+ *
+ * POLICY:
+ * - Token TTL: 60 minutes
+ * - Older tokens invalidated on new request: YES
+ * - One-time use: YES
  */
+export async function createPasswordResetToken(
+  email: string,
+  requestId?: string
+): Promise<CreateTokenResult> {
+  const reqId = requestId || crypto.randomUUID();
+  const logPrefix = '[PASSWORD_RESET_REQUEST]';
+
+  const result: CreateTokenResult = {
+    success: false,
+    requestId: reqId,
+    userId: null,
+    tokenHashSuffix: 'none',
+    insertedRowId: null,
+    expiresAt: null,
+    invalidatedPrevious: false,
+    numTokensInvalidated: 0,
+    emailSent: false,
+    emailMessageId: null,
+  };
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    console.info(`${logPrefix} stage=START email=${normalizedEmail} dbFingerprint=${DB_FINGERPRINT} requestId=${reqId}`);
+
+    const user = await storage.getUserByEmail(normalizedEmail);
+
+    if (!user) {
+      // Don't reveal if email exists - silent success
+      console.info(`${logPrefix} stage=NO_USER email=${normalizedEmail} requestId=${reqId}`);
+      result.success = true; // Silent success for security
+      return result;
+    }
+
+    result.userId = user.id;
+    console.info(`${logPrefix} stage=USER_FOUND userId=${user.id} requestId=${reqId}`);
+
+    // Invalidate existing tokens and count how many
+    const invalidateResult = await db.update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(and(
+        eq(passwordResetTokens.userId, user.id),
+        isNull(passwordResetTokens.usedAt)
+      ))
+      .returning({ id: passwordResetTokens.id });
+
+    result.invalidatedPrevious = invalidateResult.length > 0;
+    result.numTokensInvalidated = invalidateResult.length;
+
+    // Generate and store new token using shared helpers
+    const rawToken = generateResetToken();
+    const tokenHash = hashResetToken(rawToken); // Uses normalized token + pepper
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MS);
+
+    result.tokenHashSuffix = tokenHash.substring(tokenHash.length - 8);
+    result.expiresAt = expiresAt.toISOString();
+
+    // DEV ONLY: Include raw token for testing (NEVER in production)
+    if (!IS_PRODUCTION) {
+      result.devToken = rawToken;
+    }
+
+    // Insert and get the row ID
+    const insertResult = await db.insert(passwordResetTokens).values({
+      userId: user.id,
+      tokenHash,
+      email: user.email,
+      expiresAt,
+    }).returning({ id: passwordResetTokens.id });
+
+    result.insertedRowId = insertResult[0]?.id || null;
+
+    // (C) Debug-only verification after insert
+    if (DEBUG_RESET_VERIFY_INSERT || !IS_PRODUCTION) {
+      try {
+        const [verifyRow] = await db
+          .select({ id: passwordResetTokens.id })
+          .from(passwordResetTokens)
+          .where(eq(passwordResetTokens.tokenHash, tokenHash))
+          .limit(1);
+
+        result.verifyInsertFound = !!verifyRow;
+
+        if (!verifyRow) {
+          console.error(`${logPrefix} stage=VERIFY_INSERT_FAILED tokenHashSuffix=${result.tokenHashSuffix} rowId=${result.insertedRowId} dbFingerprint=${DB_FINGERPRINT} requestId=${reqId}`);
+          // In dev, this is a critical error
+          if (!IS_PRODUCTION) {
+            throw new Error(`INSERT_VERIFY_MISMATCH: inserted row ${result.insertedRowId} but SELECT returned nothing`);
+          }
+        } else {
+          console.info(`${logPrefix} stage=VERIFY_INSERT_OK verifyFound=true tokenHashSuffix=${result.tokenHashSuffix} requestId=${reqId}`);
+        }
+      } catch (verifyError) {
+        if (!IS_PRODUCTION) throw verifyError;
+        console.error(`${logPrefix} stage=VERIFY_INSERT_ERROR requestId=${reqId}:`, verifyError);
+      }
+    }
+
+    // Send email - rawToken goes in email (not the hash)
+    const emailResult = await sendPasswordResetEmail(user.email, user.username, rawToken);
+    result.emailSent = !!emailResult;
+
+    // Capture message ID from email service (Resend/SES/SendGrid)
+    if (emailResult && typeof emailResult === 'object' && 'id' in emailResult) {
+      result.emailMessageId = (emailResult as any).id;
+    } else if (typeof emailResult === 'string') {
+      result.emailMessageId = emailResult;
+    }
+
+    // (B) Structured log with all required fields for correlation
+    console.info(`${logPrefix} stage=INSERT_OK requestId=${reqId} env=${IS_PRODUCTION ? 'production' : 'development'} dbFingerprint=${DB_FINGERPRINT} tableName=${TABLE_NAME} userId=${user.id} tokenHashSuffix=${result.tokenHashSuffix} insertedRowId=${result.insertedRowId} expiresAt=${result.expiresAt} invalidatePrevious=${result.invalidatedPrevious} numTokensInvalidated=${result.numTokensInvalidated} resendMessageId=${result.emailMessageId || 'none'}`);
+
+    result.success = true;
+    return result;
+
+  } catch (error) {
+    console.error(`${logPrefix} stage=ERROR dbFingerprint=${DB_FINGERPRINT} requestId=${reqId}:`, error);
+    return result;
+  }
+}
+
+// ============================================================================
+// CLEANUP
+// ============================================================================
+
 export async function cleanupExpiredTokens(): Promise<number> {
   try {
-    const result = await db.delete(passwordResetTokens)
+    await db.delete(passwordResetTokens)
       .where(gt(new Date(), passwordResetTokens.expiresAt));
-
-    // Note: Drizzle doesn't return count directly, but the query runs successfully
-    console.info('[PASSWORD_RESET] Expired tokens cleaned up');
+    console.info('[PASSWORD_RESET][CLEANUP] Expired tokens cleaned');
     return 0;
   } catch (error) {
-    console.error('[PASSWORD_RESET] Error cleaning up expired tokens:', error);
+    console.error('[PASSWORD_RESET][CLEANUP] Error:', error);
     return 0;
   }
 }
+
+// ============================================================================
+// POLICY DOCUMENTATION (for acceptance criteria)
+// ============================================================================
+//
+// Token TTL: 60 minutes
+// Older tokens invalidated on new request: YES (all unused tokens for user are marked used)
+// One-time use: YES (token marked used after successful password reset)
+//

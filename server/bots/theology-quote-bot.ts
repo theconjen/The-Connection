@@ -256,7 +256,6 @@ async function postQuote(userId: number, content: string): Promise<void> {
       createdAt: new Date(),
     });
 
-    console.log('✓ Posted quote to feed');
   } catch (error) {
     console.error('Error posting quote:', error);
     throw error;
@@ -267,28 +266,22 @@ async function postQuote(userId: number, content: string): Promise<void> {
  * Main function - Post a theology quote
  */
 async function main() {
-  console.log('🤖 Theology Quote Bot Starting...\n');
 
   try {
     // Get bot user ID
     const botUserId = await getBotUserId();
-    console.log(`Bot User ID: ${botUserId}`);
 
     // Get random quote
     const quote = getRandomQuote();
-    console.log(`Selected quote by: ${quote.author}`);
 
     // Format post
     const postContent = formatQuotePost(quote);
-    console.log('\nPost content:');
-    console.log('─'.repeat(50));
-    console.log(postContent);
-    console.log('─'.repeat(50));
+    );
+    );
 
     // Post to feed
     await postQuote(botUserId, postContent);
 
-    console.log('\n✓ Quote posted successfully!');
     process.exit(0);
   } catch (error) {
     console.error('\n✗ Error:', error);

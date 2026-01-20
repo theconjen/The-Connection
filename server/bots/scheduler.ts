@@ -11,6 +11,7 @@
 
 import { postBibleVerse } from './bible-verse-bot';
 import { postTheologyQuote } from './theology-quote-bot';
+import { startTrendingHashtagScheduler } from './trendingHashtagScheduler';
 
 // Schedule intervals (in milliseconds)
 const BIBLE_VERSE_INTERVAL = 8 * 60 * 60 * 1000; // 8 hours
@@ -27,11 +28,9 @@ async function scheduleBibleVerse() {
   const now = Date.now();
 
   if (now - lastBibleVersePost >= BIBLE_VERSE_INTERVAL) {
-    console.log('\n📖 [Bible Verse Bot] Posting...');
     try {
       await postBibleVerse();
       lastBibleVersePost = now;
-      console.log(`✓ [Bible Verse Bot] Next post in 8 hours`);
     } catch (error) {
       console.error('✗ [Bible Verse Bot] Error:', error);
     }
@@ -45,11 +44,9 @@ async function scheduleTheologyQuote() {
   const now = Date.now();
 
   if (now - lastTheologyQuotePost >= THEOLOGY_QUOTE_INTERVAL) {
-    console.log('\n✝️  [Theology Quote Bot] Posting...');
     try {
       await postTheologyQuote();
       lastTheologyQuotePost = now;
-      console.log(`✓ [Theology Quote Bot] Next post in 6 hours`);
     } catch (error) {
       console.error('✗ [Theology Quote Bot] Error:', error);
     }
@@ -60,17 +57,16 @@ async function scheduleTheologyQuote() {
  * Main scheduler loop
  */
 async function startScheduler() {
-  console.log('🤖 Bot Scheduler Starting...');
-  console.log('─'.repeat(50));
-  console.log('📖 Bible Verse Bot: Posts every 8 hours');
-  console.log('✝️  Theology Quote Bot: Posts every 6 hours');
-  console.log('─'.repeat(50));
-  console.log('\nPress Ctrl+C to stop\n');
+  console.log('='.repeat(60));
+  console.log('Starting Bot Scheduler');
+  console.log('='.repeat(60));
 
   // Post immediately on startup
-  console.log('📝 Posting initial content...\n');
   await scheduleBibleVerse();
   await scheduleTheologyQuote();
+
+  // Start trending hashtag scheduler
+  await startTrendingHashtagScheduler();
 
   // Check every minute for scheduled posts
   setInterval(async () => {
@@ -81,14 +77,10 @@ async function startScheduler() {
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n\n🛑 Scheduler stopping...');
-  console.log('✓ Goodbye!');
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n\n🛑 Scheduler stopping...');
-  console.log('✓ Goodbye!');
   process.exit(0);
 });
 

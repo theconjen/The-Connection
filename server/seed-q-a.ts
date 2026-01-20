@@ -5,25 +5,21 @@ import { db } from "./db";
 import { pool } from "./db";
 
 export async function seedQandA() {
-  console.log("Starting apologetics Q&A seeding...");
   
   try {
     // Check if we already have topics
     const topicsResult = await pool.query(`SELECT COUNT(*) FROM apologetics_topics`);
     if (topicsResult.rows[0].count > 0) {
-      console.log("Apologetics topics already exist, skipping seeding");
       return;
     }
 
     // Get demo user
     const demoUserResult = await pool.query(`SELECT id FROM users WHERE username = 'demo' LIMIT 1`);
     if (demoUserResult.rows.length === 0) {
-      console.log("Demo user not found, skipping seeding");
       return;
     }
     
     const demoUserId = demoUserResult.rows[0].id;
-    console.log(`Found demo user with ID: ${demoUserId}`);
 
     // Mark demo user as verified answerer
     await pool.query(`
@@ -31,7 +27,6 @@ export async function seedQandA() {
       SET is_verified_apologetics_answerer = true 
       WHERE id = $1
     `, [demoUserId]);
-    console.log("Marked demo user as verified apologetics answerer");
 
     // Create topics directly with SQL
     const topicsData = [
@@ -67,14 +62,12 @@ export async function seedQandA() {
       }
     ];
 
-    console.log("Creating apologetics topics...");
     for (const topic of topicsData) {
       await pool.query(`
         INSERT INTO apologetics_topics (title, description, slug)
         VALUES ($1, $2, $3)
       `, [topic.title, topic.description, topic.slug]);
     }
-    console.log(`Created ${topicsData.length} apologetics topics`);
 
     // Get the created topics
     const topicsQueryResult = await pool.query(`SELECT id, slug, title FROM apologetics_topics`);
@@ -142,14 +135,12 @@ export async function seedQandA() {
       }
     }
 
-    console.log("Creating apologetics questions...");
     for (const question of questions) {
       await pool.query(`
         INSERT INTO apologetics_questions (title, content, user_id, topic_id, status, view_count)
         VALUES ($1, $2, $3, $4, $5, $6)
       `, [question.title, question.content, question.user_id, question.topic_id, question.status, 0]);
     }
-    console.log(`Created ${questions.length} apologetics questions`);
 
     // Get the created questions
     const questionsQueryResult = await pool.query(`SELECT id, title FROM apologetics_questions`);
@@ -182,7 +173,6 @@ export async function seedQandA() {
       }
     }
 
-    console.log("Creating apologetics answers...");
     for (const answer of answersToCreate) {
       await pool.query(`
         INSERT INTO apologetics_answers (content, question_id, user_id, is_verified_answer)
@@ -196,9 +186,7 @@ export async function seedQandA() {
         WHERE id = $1
       `, [answer.question_id]);
     }
-    console.log(`Created ${answersToCreate.length} apologetics answers`);
     
-    console.log("Apologetics Q&A data seeding completed successfully");
   } catch (error) {
     console.error("Error seeding apologetics Q&A:", error);
   }

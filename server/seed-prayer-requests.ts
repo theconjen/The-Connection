@@ -6,25 +6,21 @@ import { users, prayerRequests, prayers, communities } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function seedPrayerRequests() {
-  console.log("Starting prayer request data seeding...");
   
   try {
     // Check if prayer requests already exist
     const existingPrayers = await db.select({ count: { count: 'id' }}).from(prayerRequests);
     if (existingPrayers[0]?.count > 0) {
-      console.log("Prayer requests already exist, skipping seeding");
       return;
     }
 
     // Get the demo user
     const demoUsers = await db.select().from(users).where(({ eq }) => eq(users.username, 'demo'));
     if (demoUsers.length === 0) {
-      console.log("Demo user not found, cannot seed prayer requests");
       return;
     }
     
     const demoUser = demoUsers[0];
-    console.log(`Found demo user with ID: ${demoUser.id}, will use as prayer request creator`);
     
     // Get prayer community
     const prayerCommunity = await db.select().from(communities)
@@ -32,9 +28,7 @@ export async function seedPrayerRequests() {
     
     const communityId = prayerCommunity[0]?.id;
     if (!communityId) {
-      console.log("Prayer community not found");
     } else {
-      console.log(`Found prayer community with ID: ${communityId}`);
     }
 
     // Create prayer requests
@@ -83,9 +77,7 @@ export async function seedPrayerRequests() {
       }
     ];
 
-    console.log("Creating prayer requests...");
     const insertedPrayers = await db.insert(prayerRequests).values(prayerRequestData).returning();
-    console.log(`Created ${insertedPrayers.length} prayer requests`);
 
     // Add prayer responses
     const prayerResponseData = [];
@@ -117,15 +109,11 @@ export async function seedPrayerRequests() {
         answeredDescription: "Update: I got the job! Thank you all for your prayers. I start next month and am so grateful for God's provision."
       })
       .where(eq(prayerRequests.id, answeredPrayer.id));
-    console.log("Marked one prayer request as answered");
 
-    console.log("Creating prayer responses...");
     if (prayerResponseData.length > 0) {
       const insertedResponses = await db.insert(prayers).values(prayerResponseData).returning();
-      console.log(`Created ${insertedResponses.length} prayer responses`);
     }
     
-    console.log("Prayer request data seeding completed successfully");
   } catch (error) {
     console.error("Error seeding prayer requests:", error);
   }

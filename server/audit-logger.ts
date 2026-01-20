@@ -61,7 +61,6 @@ export async function createAuditLog(params: AuditLogParams): Promise<void> {
     await db.insert(auditLogs).values(logEntry);
 
     // Log to console for monitoring (can be disabled in production)
-    console.log(`[AUDIT] ${params.action} - ${params.status} - User: ${params.userId || params.username || 'unknown'}`);
   } catch (error) {
     // Never let audit logging crash the application
     console.error('[AUDIT] Failed to create audit log:', error);

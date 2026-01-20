@@ -45,25 +45,21 @@ import { eq } from "drizzle-orm";
 // });
 
 export async function seedApologetics() {
-  console.log("Starting apologetics data seeding...");
   
   try {
     // Check if apologetics topics already exist
     const existingTopics = await db.select({ count: sql<number>`count(*)` }).from(apologeticsTopics);
     if (existingTopics[0]?.count > 0) {
-      console.log("Apologetics topics already exist, skipping seeding");
       return;
     }
 
     // Get the demo user
     const demoUsers = await db.select().from(users).where(eq(users.username, 'demo'));
     if (demoUsers.length === 0) {
-      console.log("Demo user not found, cannot seed apologetics");
       return;
     }
     
     const demoUser = demoUsers[0];
-    console.log(`Found demo user with ID: ${demoUser.id}, will use as content creator`);
 
    // Mark the demo user as a verified apologetics answerer
 if (demoUser) {
@@ -71,7 +67,6 @@ if (demoUser) {
     .set({ isVerifiedApologeticsAnswerer: true })
     .where(eq(users.id, demoUser.id));
 
-  console.log("Marked demo user as verified apologetics answerer");
 } else {
   console.warn("Demo user not found, skipping verification flag.");
 }
@@ -117,9 +112,7 @@ if (demoUser) {
       }
     ];
 
-    console.log("Creating apologetics topics...");
     const insertedTopics = await db.insert(apologeticsTopics).values(topicsData).returning();
-    console.log(`Created ${insertedTopics.length} apologetics topics`);
 
     // Create questions for each topic
     const questionsData = [];
@@ -189,9 +182,7 @@ if (demoUser) {
       }
     }
 
-    console.log("Creating apologetics questions...");
     const insertedQuestions = await db.insert(apologeticsQuestions).values(questionsData).returning();
-    console.log(`Created ${insertedQuestions.length} apologetics questions`);
 
     // Create answers for some of the questions
     const answersData = [];
@@ -219,9 +210,7 @@ if (demoUser) {
       }
     }
 
-    console.log("Creating apologetics answers...");
     const insertedAnswers = await db.insert(apologeticsAnswers).values(answersData).returning();
-    console.log(`Created ${insertedAnswers.length} apologetics answers`);
 
     // Update answer counts for questions
     for (const answer of insertedAnswers) {
@@ -233,7 +222,6 @@ if (demoUser) {
       }
     }
     
-    console.log("Apologetics data seeding completed successfully");
   } catch (error) {
     console.error("Error seeding apologetics:", error);
   }

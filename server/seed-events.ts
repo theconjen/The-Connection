@@ -6,34 +6,28 @@ import { users, events, eventRsvps, communities } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function seedEvents() {
-  console.log("Starting events data seeding...");
   
   try {
     // Check if events already exist
     const existingEvents = await db.select({ count: { count: 'id' }}).from(events);
     if (existingEvents[0]?.count > 0) {
-      console.log("Events already exist, skipping seeding");
       return;
     }
 
     // Get the demo user
     const demoUsers = await db.select().from(users).where(eq(users.username, 'demo'));
     if (demoUsers.length === 0) {
-      console.log("Demo user not found, cannot seed events");
       return;
     }
     
     const demoUser = demoUsers[0];
-    console.log(`Found demo user with ID: ${demoUser.id}, will use as event creator`);
     
     // Get communities
     const allCommunities = await db.select().from(communities);
     if (allCommunities.length === 0) {
-      console.log("No communities found, cannot seed community events");
       return;
     }
 
-    console.log(`Found ${allCommunities.length} communities for event creation`);
 
     // Helper function to add days to current date
     const addDays = (days) => {
@@ -140,9 +134,7 @@ export async function seedEvents() {
       }
     ];
 
-    console.log("Creating events...");
     const insertedEvents = await db.insert(events).values(eventsData).returning();
-    console.log(`Created ${insertedEvents.length} events`);
 
     // Add RSVPs for events
     const rsvpData = [];
@@ -164,11 +156,8 @@ export async function seedEvents() {
       }
     }
 
-    console.log("Creating event RSVPs...");
     const insertedRsvps = await db.insert(eventRsvps).values(rsvpData).returning();
-    console.log(`Created ${insertedRsvps.length} event RSVPs`);
     
-    console.log("Events data seeding completed successfully");
   } catch (error) {
     console.error("Error seeding events:", error);
   }

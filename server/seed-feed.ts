@@ -6,7 +6,6 @@ import { users, posts, comments, communities, groups, microblogs } from "@shared
 import { eq, sql } from "drizzle-orm";
 
 export async function seedFeed() {
-  console.log("Starting feed data seeding...");
   
   try {
     // Check if posts already exist
@@ -14,28 +13,23 @@ export async function seedFeed() {
       .select({ count: sql<number>`count(*)` })
       .from(posts);
     if (existingPosts?.count > 0) {
-      console.log("Posts already exist, skipping seeding");
       return;
     }
 
     // Get the demo user
     const demoUsers = await db.select().from(users).where(eq(users.username, 'demo'));
     if (demoUsers.length === 0) {
-      console.log("Demo user not found, cannot seed feed");
       return;
     }
     
     const demoUser = demoUsers[0];
-    console.log(`Found demo user with ID: ${demoUser.id}, will use as content creator`);
     
     // Get communities
     const allCommunities = await db.select().from(communities);
     if (allCommunities.length === 0) {
-      console.log("No communities found, cannot seed community-related content");
       return;
     }
 
-    console.log(`Found ${allCommunities.length} communities for content creation`);
 
     // Create regular posts
     const postData = [
@@ -77,9 +71,7 @@ export async function seedFeed() {
       }
     ];
 
-    console.log("Creating posts...");
     const insertedPosts = await db.insert(posts).values(postData).returning();
-    console.log(`Created ${insertedPosts.length} posts`);
 
     // Add comments to the posts
     const commentData = [];
@@ -97,9 +89,7 @@ export async function seedFeed() {
       });
     }
 
-    console.log("Creating comments...");
     const insertedComments = await db.insert(comments).values(commentData).returning();
-    console.log(`Created ${insertedComments.length} comments`);
     
     // Create microblogs (shorter posts, similar to tweets)
     const microblogData = [
@@ -125,9 +115,7 @@ export async function seedFeed() {
       }
     ];
 
-    console.log("Creating microblogs...");
     const insertedMicroblogs = await db.insert(microblogs).values(microblogData).returning() as any[];
-    console.log(`Created ${insertedMicroblogs.length} microblogs`);
 
     // Update post counts for communities
     for (const community of allCommunities) {
@@ -139,7 +127,6 @@ export async function seedFeed() {
       }
     }
     
-    console.log("Feed data seeding completed successfully");
   } catch (error) {
     console.error("Error seeding feed:", error);
   }

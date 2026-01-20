@@ -25,12 +25,10 @@ async function hashPassword(password: string) {
 }
 
 async function seedDatabase() {
-  console.log("Starting database seeding...");
   
   // Check if we already have data
   const existingUsers = await db.select().from(users);
   if (existingUsers.length > 0) {
-    console.log("Database already has data, skipping seeding");
     return;
   }
 
@@ -44,7 +42,6 @@ async function seedDatabase() {
     avatarUrl: 'https://ui-avatars.com/api/?name=Demo+User&background=6d28d9&color=fff'
   }).returning();
   
-  console.log(`Created demo user with ID: ${demoUser[0].id}`);
   
   // Add communities
   const communities_data = [
@@ -96,7 +93,6 @@ async function seedDatabase() {
 
   const insertedCommunities = await db.insert(communities).values(communities_data).returning();
   
-  console.log("Created communities");
 
   // Add the demo user as a member of each community with the "owner" role
   for (const community of insertedCommunities) {
@@ -107,7 +103,6 @@ async function seedDatabase() {
     });
   }
 
-  console.log("Added demo user as owner of all communities");
 
   // Create chat rooms for each community
   const chatRooms = [];
@@ -144,7 +139,6 @@ async function seedDatabase() {
   }
   
   const insertedChatRooms = await db.insert(communityChatRooms).values(chatRooms).returning();
-  console.log("Created community chat rooms");
   
   // Add a welcome message to each "General" chat room
   const welcomeMessages = [];
@@ -161,7 +155,6 @@ async function seedDatabase() {
   
   if (welcomeMessages.length > 0) {
     await db.insert(chatMessages).values(welcomeMessages);
-    console.log("Added welcome messages to General chat rooms");
   }
   
   // Add apologetics resources
@@ -189,7 +182,6 @@ async function seedDatabase() {
     }
   ]);
   
-  console.log("Created apologetics resources");
   
   // Add livestreams
   const tomorrow = new Date();
@@ -234,7 +226,6 @@ async function seedDatabase() {
     }
   ]);
   
-  console.log("Created livestreams");
   
   // Add creator tiers for livestreamer incentives
   await db.insert(creatorTiers).values([
@@ -264,7 +255,6 @@ async function seedDatabase() {
     }
   ]);
   
-  console.log("Created creator tiers");
   
   // Add virtual gifts for livestream support
   await db.insert(virtualGifts).values([
@@ -305,7 +295,6 @@ async function seedDatabase() {
     }
   ]);
   
-  console.log("Created virtual gifts");
   
   // Add Bible reading plans
   await db.insert(bibleReadingPlans).values([
@@ -353,7 +342,6 @@ async function seedDatabase() {
     }
   ]);
   
-  console.log("Created Bible reading plans");
   
   // Add Bible study notes
   await db.insert(bibleStudyNotes).values([
@@ -380,7 +368,6 @@ async function seedDatabase() {
     }
   ]);
   
-  console.log("Created Bible study notes");
   
   // Add verse memorization
   await db.insert(verseMemorization).values([
@@ -407,8 +394,6 @@ async function seedDatabase() {
     }
   ]);
   
-  console.log("Created verse memorization entries");
-  console.log("Database seeding completed successfully!");
 }
 
 // Export the function so it can be called from other files

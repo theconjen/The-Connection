@@ -6,7 +6,6 @@ import { sql } from 'drizzle-orm';
 
 async function runMigration() {
   try {
-    console.log('Adding isAdmin field to users table...');
     
     // Check if the column already exists
     const checkColumn = await db.execute(sql`
@@ -20,12 +19,9 @@ async function runMigration() {
       await db.execute(sql`
         ALTER TABLE users ADD COLUMN is_admin boolean DEFAULT false
       `);
-      console.log('Successfully added isAdmin field to users table');
     } else {
-      console.log('isAdmin field already exists in users table');
     }
     
-    console.log('Migration completed successfully');
   } catch (error) {
     console.error('Migration failed:', error);
   }

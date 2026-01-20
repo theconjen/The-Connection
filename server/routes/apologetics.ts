@@ -34,6 +34,37 @@ router.get('/apologetics', apologeticsLimiter, async (_req, res) => {
   }
 });
 
+// GET /qa-areas - Get all QA areas for a domain
+router.get('/qa-areas', apologeticsLimiter, async (req, res) => {
+  try {
+    const { domain = 'apologetics' } = req.query;
+
+    // Validate domain
+    if (domain !== 'apologetics' && domain !== 'polemics') {
+      return res.status(400).json({ message: 'Invalid domain. Must be "apologetics" or "polemics"' });
+    }
+
+    const { db } = await import('../db');
+    const { qaAreas } = await import('@shared/schema');
+    const { eq, asc } = await import('drizzle-orm');
+
+    const areas = await db
+      .select({
+        id: qaAreas.id,
+        name: qaAreas.name,
+        domain: qaAreas.domain,
+      })
+      .from(qaAreas)
+      .where(eq(qaAreas.domain, domain as string))
+      .orderBy(asc(qaAreas.name));
+
+    return res.json(areas);
+  } catch (err) {
+    console.error('Error serving qa-areas:', err);
+    return res.status(500).json(buildErrorResponse('Error loading QA areas', err));
+  }
+});
+
 // GET /apologetics/feed - Get Q&A feed with filtering
 router.get('/apologetics/feed', apologeticsLimiter, async (req, res) => {
   try {

@@ -113,6 +113,16 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ message: "Invalid username or password" });
     }
 
+    // SECURITY: Block login for unverified users
+    if (!user.emailVerified) {
+      console.info('[LOGIN] Blocked unverified user:', user.email);
+      return res.status(403).json({
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Please verify your email address before logging in.',
+        email: user.email,
+      });
+    }
+
     // Return user data (excluding password)
     const { password: _, ...userData } = user;
 
@@ -190,18 +200,28 @@ router.post('/auth/logout', (req, res) => {
 // Removing this endpoint allows the correct handlers to execute.
 
 // Send (or resend) verification email for a user's email address
+// SECURITY: Always returns 200 to prevent email enumeration
 router.post('/auth/send-verification', async (req, res) => {
   try {
     const { email } = req.body || {};
     if (!email) return res.status(400).json({ message: 'email required' });
 
+    const COOLDOWN_MS = 5 * 60 * 1000;
+    const genericResponse = {
+      ok: true,
+      message: 'If an account with that email exists and is not yet verified, a verification email has been sent.',
+    };
+
     const user = await storage.getUserByEmail(String(email));
-    if (!user) return res.status(404).json({ message: 'user not found' });
-    if (user.emailVerified) return res.status(400).json({ message: 'already verified' });
+
+    // SECURITY: Don't reveal if user exists or is already verified
+    if (!user || user.emailVerified) {
+      console.info('[SEND-VERIFICATION] No action needed for:', email, user ? '(already verified)' : '(not found)');
+      return res.json(genericResponse);
+    }
 
     // Rate limit resend at application level: allow once per 5 minutes
     const lastSent = (user as any).emailVerificationLastSentAt ? new Date((user as any).emailVerificationLastSentAt) : null;
-    const COOLDOWN_MS = 5 * 60 * 1000;
     if (lastSent) {
       const delta = Date.now() - lastSent.getTime();
       if (delta < COOLDOWN_MS) {
@@ -213,13 +233,17 @@ router.post('/auth/send-verification', async (req, res) => {
     }
 
     const apiBase = process.env.API_BASE_URL || 'https://theconnection.app';
-    const { expiresAt } = await createAndSendVerification(user.id, user.email, apiBase);
-    // Inform client when they can resend next (5 minute cooldown)
-    const nextAllowedAt = new Date(Date.now() + COOLDOWN_MS).toISOString();
-    return res.json({ ok: true, expiresAt, nextAllowedAt });
+    await createAndSendVerification(user.id, user.email, apiBase);
+    console.info('[SEND-VERIFICATION] Email sent to:', email);
+
+    return res.json(genericResponse);
   } catch (error) {
     console.error('send-verification error', error);
-    res.status(500).json(buildErrorResponse('Error sending verification', error));
+    // SECURITY: Don't reveal internal errors - return generic response
+    res.json({
+      ok: true,
+      message: 'If an account with that email exists and is not yet verified, a verification email has been sent.',
+    });
   }
 });
 
@@ -413,42 +437,15 @@ router.post('/auth/register', async (req, res) => {
       // Don't fail registration if email fails - user can resend later
     }
 
-    // Generate JWT token for mobile apps
-    const jwtSecret = process.env.JWT_SECRET;
-    if (jwtSecret) {
-      const token = jwt.sign(
-        { sub: user.id, email: user.email, username: user.username },
-        jwtSecret,
-        { expiresIn: '7d' }
-      );
-
-      // Return user and token
-      const { password: _, ...userData } = user;
-      return res.status(201).json({
-        ...userData,
-        token,
-        verificationSent
-      });
-    }
-
-    // Fallback: Create session for web
-    if (req.session) {
-      setSessionUserId(req, user.id);
-      req.session.username = user.username;
-      req.session.isAdmin = false;
-
-      req.session.save(err => {
-        if (err) {
-          console.error('Session save error:', err);
-          return res.status(500).json(buildErrorResponse('Error saving session', err));
-        }
-        const { password: _, ...userData } = user;
-        res.status(201).json({ ...userData, verificationSent });
-      });
-    } else {
-      const { password: _, ...userData } = user;
-      res.status(201).json({ ...userData, verificationSent });
-    }
+    // SECURITY: Do NOT issue JWT/session until email is verified
+    // Return success with requiresVerification flag - NO token
+    const { password: _, ...userData } = user;
+    return res.status(201).json({
+      ...userData,
+      verificationSent,
+      requiresVerification: true,
+      message: 'Account created! Please check your email to verify your account before logging in.',
+    });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json(buildErrorResponse('Server error during registration', error));

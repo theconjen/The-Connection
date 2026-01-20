@@ -12,24 +12,20 @@ import {
  * Seeds the community features and related data
  */
 export async function seedCommunities() {
-  console.log("Starting community data seeding...");
   
   // Check if we already have community data
   const existingCommunities = await db.select().from(communities);
   if (existingCommunities.length > 0) {
-    console.log("Communities already exist, skipping seeding");
     return;
   }
 
   // Get the demo user to use as creator
   const demoUsers = await db.select().from(users).where(eq(users.username, 'demo'));
   if (demoUsers.length === 0) {
-    console.log("Demo user not found, cannot seed communities");
     return;
   }
   
   const demoUser = demoUsers[0];
-  console.log(`Found demo user with ID: ${demoUser.id}, will use as community creator`);
 
   // Add communities
   const communities_data = [
@@ -81,7 +77,6 @@ export async function seedCommunities() {
 
   const insertedCommunities = await db.insert(communities).values(communities_data).returning();
   
-  console.log("Created communities");
 
   // Add the demo user as a member of each community with the "owner" role
   for (const community of insertedCommunities) {
@@ -92,7 +87,6 @@ export async function seedCommunities() {
     });
   }
 
-  console.log("Added demo user as owner of all communities");
 
   // Create chat rooms for each community
   const chatRooms = [];
@@ -129,7 +123,6 @@ export async function seedCommunities() {
   }
   
   const insertedChatRooms = await db.insert(communityChatRooms).values(chatRooms).returning();
-  console.log("Created community chat rooms");
   
   // Add a welcome message to each "General" chat room
   const welcomeMessages = [];
@@ -146,16 +139,13 @@ export async function seedCommunities() {
   
   if (welcomeMessages.length > 0) {
     await db.insert(chatMessages).values(welcomeMessages);
-    console.log("Added welcome messages to General chat rooms");
   }
   
-  console.log("Community seeding complete!");
 }
 
 // Execute the seeding when this file is run directly
 seedCommunities()
   .then(() => {
-    console.log("Community seeding script complete");
     process.exit(0);
   })
   .catch(err => {

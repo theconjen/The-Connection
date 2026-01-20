@@ -14,13 +14,11 @@ async function testDirectUpdate() {
     throw new Error('DATABASE_URL environment variable is not set');
   }
 
-  console.log('[Test] Connecting to database...');
   const pool = new Pool({ connectionString: databaseUrl });
   const db = drizzle(pool);
 
   try {
     // Test update using Drizzle ORM
-    console.log('[Test] Updating user 19 with Drizzle ORM...');
     const testData = {
       location: 'Shelby Township, MI',
       denomination: 'Baptist',
@@ -30,20 +28,17 @@ async function testDirectUpdate() {
       interests: 'Jesus'
     };
 
-    console.log('[Test] Data to update:', testData);
 
     const result = await db.update(users)
       .set(testData)
       .where(eq(users.id, 19))
       .returning();
 
-    console.log('[Test] ✅ Update result:', JSON.stringify(result[0], null, 2));
+    );
 
     // Verify by reading back
-    console.log('\n[Test] Reading back user 19...');
     const readResult = await db.select().from(users).where(eq(users.id, 19));
 
-    console.log('[Test] Christian fields from DB:');
     console.log({
       location: readResult[0].location,
       denomination: readResult[0].denomination,

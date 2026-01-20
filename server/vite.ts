@@ -11,10 +11,15 @@ export function log(message: string, source = "express") {
     hour12: true,
   });
 
-  console.log(`${formattedTime} [${source}] ${message}`);
 }
 
 export async function setupVite(app: Express, server: Server) {
+  // API_ONLY mode skips Vite middleware (for testing API endpoints)
+  if (process.env.API_ONLY === 'true') {
+    console.info('[VITE] API_ONLY=true - skipping Vite middleware');
+    return;
+  }
+
   const webRoot = path.resolve(process.cwd(), "../client");
   const configFile = path.resolve(webRoot, "vite.config.ts");
 
@@ -92,7 +97,6 @@ export function serveStatic(app: Express) {
     );
   }
 
-  console.log(`📁 Serving static files from: ${distPath}`);
 
   app.use(express.static(distPath));
 

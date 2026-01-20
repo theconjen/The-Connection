@@ -42,7 +42,6 @@ router.post('/auth/magic', async (req, res) => {
   await sendMagicCode(email, code);
 
   // Also log for easy QA/TestFlight review
-  console.log(`[MVP MAGIC] token=${token} code=${code} email=${email}`);
 
   return res.json({ token, message: 'Magic code sent' });
 });
@@ -87,7 +86,6 @@ router.post('/posts', (req, res) => {
   const post = { id, text: content, createdAt, author, communityId: communityId ? Number(communityId) : undefined };
   feed.push(post);
 
-  console.log('[MVP] New post created:', { id, author });
   res.status(201).json(post);
 });
 
@@ -95,7 +93,6 @@ router.post('/posts', (req, res) => {
 router.post('/metrics', (req, res) => {
   const { name } = req.body || {};
   if (!name) return res.status(400).json({ message: 'name required' });
-  console.log('[METRIC]', name);
   res.json({ ok: true });
 });
 

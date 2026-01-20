@@ -4,6 +4,7 @@ import { sendPushNotification } from "../services/pushService";
 import { ensureCleanText, handleModerationError } from "../utils/moderation";
 import { getSessionUserId } from '../utils/session';
 import { dmSendLimiter } from '../rate-limiters';
+import { notifyUserWithPreferences, truncateText } from '../services/notificationHelper';
 
 const router = express.Router();
 
@@ -166,34 +167,20 @@ router.post("/send", dmSendLimiter, async (req, res) => {
       content: content
     });
 
-    // Send push notification to the receiver
-    try {
-      // Get push tokens for the receiver
-      const pushTokens = await storage.getUserPushTokens(parsedReceiverId);
+    // Notify receiver using dual notification system (async, don't block response)
+    const sender = await storage.getUser(senderId);
+    const senderName = sender?.displayName || sender?.username || 'Someone';
 
-      if (pushTokens && pushTokens.length > 0) {
-        const sender = await storage.getUser(senderId);
-        const senderName = sender?.displayName || sender?.username || 'Someone';
-
-        // Send to all registered devices
-        for (const tokenData of pushTokens) {
-          try {
-            await sendPushNotification(
-              tokenData.token,
-              `New message from ${senderName}`,
-              content,
-              { type: 'dm', senderId, messageId: message.id }
-            );
-          } catch (tokenError) {
-            console.error('Error sending to specific token:', tokenError);
-          }
-        }
-        console.info(`Sent push notification to ${pushTokens.length} device(s)`);
-      }
-    } catch (pushError) {
-      // Don't fail the request if push notification fails
-      console.error('Error sending push notification:', pushError);
-    }
+    notifyUserWithPreferences(parsedReceiverId, {
+      title: `New message from ${senderName}`,
+      body: truncateText(content, 80),
+      data: {
+        type: 'dm',
+        senderId,
+        messageId: message.id,
+      },
+      category: 'dm',
+    }).catch(error => console.error('[DM] Error sending notification:', error));
 
     res.json(message);
   } catch (error) {

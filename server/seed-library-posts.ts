@@ -18,6 +18,15 @@ async function seedLibraryPosts() {
       tagId: null,
       title: 'Historical Evidence for the Resurrection of Jesus Christ',
       summary: 'An examination of the historical evidence supporting the bodily resurrection of Jesus, including eyewitness testimony, empty tomb accounts, and the transformation of the disciples.',
+      tldr: 'The resurrection of Jesus is supported by strong historical evidence: the empty tomb (acknowledged even by opponents), multiple independent eyewitness accounts within years of the event, and the dramatic transformation of the disciples who died for their testimony. Alternative theories fail to adequately explain these facts.',
+      keyPoints: [
+        'The empty tomb is historically well-attested, even acknowledged by Jesus\' opponents',
+        'Multiple independent eyewitnesses reported seeing the risen Jesus, documented in early creeds (1 Cor 15:3-8)',
+        'The disciples transformed from fearful deserters to bold proclaimers willing to die for their testimony',
+        'Alternative explanations (swoon theory, hallucination theory, stolen body) fail to account for all the evidence',
+        'The resurrection is the best explanation for the historical facts and the rapid spread of early Christianity'
+      ],
+      scriptureRefs: ['1 Corinthians 15:3-8', 'Matthew 28:11-15', 'John 20:19', 'Acts 2-4', 'John 19:34', 'Luke 24:39-43', 'Matthew 27:62-66'],
       bodyMarkdown: `# Historical Evidence for the Resurrection
 
 The resurrection of Jesus Christ stands as the cornerstone of Christian faith. But what does the historical evidence tell us?
@@ -135,6 +144,15 @@ While faith ultimately goes beyond historical evidence, the resurrection stands 
       tagId: null,
       title: 'The Problem of Evil: A Christian Response',
       summary: 'Addressing one of the most challenging objections to Christian theism—how can a good and powerful God allow evil and suffering?',
+      tldr: 'The existence of evil doesn\'t logically contradict God\'s existence. The Free Will Defense shows that God may permit evil to preserve genuine human freedom and meaningful relationships. Christianity uniquely addresses suffering through the Cross, where God Himself entered into human pain, and promises ultimate justice and restoration.',
+      keyPoints: [
+        'The Free Will Defense: A world with free creatures who can choose good is more valuable than a world of moral automatons',
+        'Some evils may be necessary preconditions for greater goods (courage requires danger, compassion requires suffering to alleviate)',
+        'Christianity doesn\'t just philosophize about evil—God entered into suffering through the Cross and promises ultimate restoration',
+        'The existence of objective evil actually presupposes moral standards, which are better grounded in theism than atheism',
+        'While philosophical arguments matter, presence and compassion are often more important than explanations when people suffer'
+      ],
+      scriptureRefs: ['Romans 8:28', 'Romans 8:20-22', 'James 1:2-4', 'Revelation 21:4'],
       bodyMarkdown: `# The Problem of Evil: A Christian Response
 
 ## Understanding the Objection
@@ -261,6 +279,15 @@ As C.S. Lewis wrote: "My argument against God was that the universe seemed so cr
       tagId: null,
       title: 'Is Christian Faith Rational? Exploring Reason and Belief',
       summary: 'Examining the relationship between faith and reason, and whether Christian belief can be intellectually justified.',
+      tldr: 'Christian faith is not "blind belief" but trust based on evidence and experience. Throughout history, Christians have seen faith and reason as partners, not enemies. Christianity makes historical claims subject to evidence, and belief in God can be rational through evidential arguments, properly basic belief, or cumulative case reasoning.',
+      keyPoints: [
+        'Biblical faith is trust based on evidence and God\'s character, not blind belief contrary to reason',
+        'Christianity makes historical claims subject to evidence: manuscript evidence, archaeological confirmation, fulfilled prophecy',
+        'Reformed epistemology shows belief in God can be "properly basic"—rational even without argument, like trusting our senses',
+        'Multiple lines of evidence (cosmological, moral, consciousness, resurrection) form a cumulative case for Christianity',
+        'Science and faith address different levels of explanation: science explains how things work, God explains why anything exists'
+      ],
+      scriptureRefs: ['Hebrews 11:1'],
       bodyMarkdown: `# Is Christian Faith Rational?
 
 ## The Modern Challenge
@@ -434,6 +461,15 @@ Faith and reason aren't enemies—they're partners in the pursuit of truth.`,
       tagId: null,
       title: 'The Incoherence of Moral Relativism',
       summary: 'A critical examination of moral relativism and why objective moral values point toward God.',
+      tldr: 'Moral relativism is self-refuting: claiming "there are no objective moral truths" is itself an objective claim. We all live as if some things are objectively wrong (torture, genocide). Objective morality requires grounding beyond human opinion, pointing toward a transcendent moral lawgiver—God.',
+      keyPoints: [
+        'Moral relativism is self-refuting: it claims objective truth while denying objective truth exists',
+        'We all recognize certain acts as objectively wrong (child torture, genocide), not just cultural preferences',
+        'Moral progress (ending slavery, civil rights) only makes sense if there\'s an objective standard to measure against',
+        'Objective moral obligations require authority behind them—naturalism can\'t explain how "matter in motion" generates moral duties',
+        'God\'s nature provides the ground for objective morality: values reflect what God is, duties reflect what God commands'
+      ],
+      scriptureRefs: [],
       bodyMarkdown: `# The Incoherence of Moral Relativism
 
 ## Defining Moral Relativism
@@ -631,6 +667,15 @@ The existence of objective moral values is powerful evidence for God's existence
       tagId: null,
       title: 'The Reliability of the New Testament Documents',
       summary: 'Examining the historical reliability of the New Testament through manuscript evidence, archaeological findings, and scholarly criteria.',
+      tldr: 'The New Testament is the best-attested ancient document in history, with over 25,000 manuscript copies (vs. hundreds for other ancient works), 99.5% textual accuracy, and remarkably early dating. Archaeological discoveries and non-Christian sources confirm core facts. Historical criteria (multiple attestation, embarrassment, enemy attestation) validate its reliability.',
+      keyPoints: [
+        'Over 25,000 New Testament manuscripts exist (vs. 643 for Homer\'s Iliad, the next best-attested ancient work)',
+        '99.5% textual accuracy established, with earliest copies within 30-40 years of originals (vs. 400-1200 years for other ancient works)',
+        'Multiple historical reliability criteria support the Gospels: embarrassing details, enemy attestation, early testimony, coherence with archaeology',
+        'Archaeological discoveries have confirmed dozens of biblical details once questioned (Pool of Bethesda, Pontius Pilate, Caiaphas)',
+        'Non-Christian sources (Josephus, Tacitus, Pliny) confirm Jesus\' existence, crucifixion under Pilate, and early Christian worship'
+      ],
+      scriptureRefs: ['1 Corinthians 15:3-8', 'Matthew 28:11-15', 'John 5:2'],
       bodyMarkdown: `# The Reliability of the New Testament Documents
 
 ## The Stakes
@@ -870,6 +915,9 @@ The New Testament documents are historically reliable. The question then becomes
           tagId: postData.tagId,
           title: postData.title,
           summary: postData.summary,
+          tldr: postData.tldr,
+          keyPoints: postData.keyPoints,
+          scriptureRefs: postData.scriptureRefs,
           bodyMarkdown: postData.bodyMarkdown,
           perspectives: postData.perspectives,
           sources: postData.sources,

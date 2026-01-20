@@ -14,7 +14,6 @@ const rl = readline.createInterface({
 
 async function createAdminUser() {
   try {
-    console.log('=== Create Admin User ===');
     
     // First, run the migration to ensure the isAdmin field exists
     const checkColumn = await db.execute(sql`
@@ -28,7 +27,6 @@ async function createAdminUser() {
       await db.execute(sql`
         ALTER TABLE users ADD COLUMN is_admin boolean DEFAULT false
       `);
-      console.log('Added isAdmin field to users table');
     }
     
     // Ask for admin credentials
@@ -45,7 +43,6 @@ async function createAdminUser() {
                 .set({ isAdmin: true })
                 .where(eq(users.username, username));
               
-              console.log(`User ${username} has been updated to admin status`);
             } else {
               // Create new admin user
               const hashedPassword = await argon2.hash(password, {
@@ -62,7 +59,6 @@ async function createAdminUser() {
                 isAdmin: true
               });
               
-              console.log(`Admin user ${username} has been created successfully`);
             }
             
             rl.close();
