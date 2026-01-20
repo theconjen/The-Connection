@@ -135,8 +135,7 @@ export default function ApologeticsPage() {
 
   // Fetch library posts
   const { data: postsData, isLoading: postsLoading } = useQuery<{
-    posts: LibraryPostListItem[];
-    total: number;
+    posts: { items: LibraryPostListItem[]; total: number };
   }>({
     queryKey: ["library-posts", domain, debouncedQuery, selectedAreaId, selectedTagId],
     queryFn: async () => {
@@ -154,7 +153,8 @@ export default function ApologeticsPage() {
     },
   });
 
-  const posts = postsData?.posts || [];
+  // API returns { posts: { items: [...], total: N } }
+  const posts = postsData?.posts?.items || [];
   const hasInboxAccess = meData?.capabilities?.inboxAccess || false;
 
   function onSelectDomain(next: Domain) {

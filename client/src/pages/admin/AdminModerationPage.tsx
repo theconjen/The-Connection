@@ -8,16 +8,20 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Textarea } from "../../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Clock,
   Flag,
   MessageSquare,
   Users,
-  Eye
+  Eye,
+  Ban,
+  Trash2,
+  Shield
 } from 'lucide-react';
+import AdminLayout from '../../components/layouts/admin-layout';
 
 interface ContentReport {
   id: number;
@@ -32,14 +36,43 @@ interface ContentReport {
     id: number;
     username: string;
     displayName?: string;
+    reputation?: {
+      reputationScore: number;
+      trustLevel: number;
+      helpfulFlags: number;
+      falseReports: number;
+    };
   };
   content?: {
     id: number;
     content: string;
     authorId: number;
     author: {
+      id: number;
       username: string;
       displayName?: string;
+      reputation?: {
+        reputationScore: number;
+        trustLevel: number;
+        totalReports: number;
+        validReports: number;
+        warnings: number;
+        suspensions: number;
+      };
+    };
+  };
+  reportedUser?: {
+    id: number;
+    username: string;
+    displayName?: string;
+    isSuspended?: boolean;
+    reputation?: {
+      reputationScore: number;
+      trustLevel: number;
+      totalReports: number;
+      validReports: number;
+      warnings: number;
+      suspensions: number;
     };
   };
 }
@@ -107,6 +140,92 @@ export default function AdminModerationPage() {
     }
   };
 
+  const handleSuspendUser = async (userId: number, username: string) => {
+    if (!confirm(`Are you sure you want to suspend user "${username}"? This will restrict their access to the platform.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/suspend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: reviewNotes.trim() || 'Content policy violation'
+        }),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        alert(`User "${username}" has been suspended.`);
+        await fetchReports();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to suspend user');
+      }
+    } catch (error) {
+      console.error('Error suspending user:', error);
+      alert('Failed to suspend user. Please try again.');
+    }
+  };
+
+  const handleDeleteAccount = async (userId: number, username: string) => {
+    if (!confirm(`⚠️ PERMANENT ACTION ⚠️\n\nAre you sure you want to DELETE the account for "${username}"?\n\nThis will:\n- Permanently delete their account\n- Remove all their content\n- Cannot be undone\n\nType the username to confirm.`)) {
+      return;
+    }
+
+    const confirmation = prompt(`Type "${username}" to confirm deletion:`);
+    if (confirmation !== username) {
+      alert('Username does not match. Account deletion cancelled.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: reviewNotes.trim() || 'Severe policy violation'
+        }),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        alert(`Account for "${username}" has been permanently deleted.`);
+        await fetchReports();
+        setSelectedReport(null);
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to delete account');
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      alert('Failed to delete account. Please try again.');
+    }
+  };
+
+  const getTrustLevelBadge = (trustLevel: number, score: number) => {
+    const levels: Record<number, { label: string; color: string }> = {
+      5: { label: 'Trusted', color: 'bg-yellow-100 text-yellow-800' },
+      4: { label: 'Respected', color: 'bg-blue-100 text-blue-800' },
+      3: { label: 'Active', color: 'bg-green-100 text-green-800' },
+      2: { label: 'Member', color: 'bg-gray-100 text-gray-800' },
+      1: { label: 'New', color: 'bg-gray-100 text-gray-600' },
+    };
+
+    const level = levels[trustLevel] || levels[1];
+
+    return (
+      <Badge className={level.color}>
+        <Shield className="h-3 w-3 mr-1" />
+        {level.label} ({score})
+      </Badge>
+    );
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
@@ -161,7 +280,7 @@ export default function AdminModerationPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <AdminLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Content Moderation</h1>
         <p className="text-gray-600">
@@ -317,6 +436,81 @@ export default function AdminModerationPage() {
                 </div>
               )}
 
+              {/* Reporter Reputation (Admin Only) */}
+              {selectedReport.reporter.reputation && (
+                <div>
+                  <span className="font-medium text-sm">Reporter Trust Level (Admin View):</span>
+                  <div className="mt-2 flex items-center gap-3">
+                    {getTrustLevelBadge(
+                      selectedReport.reporter.reputation.trustLevel,
+                      selectedReport.reporter.reputation.reputationScore
+                    )}
+                    <div className="text-xs text-gray-600">
+                      ✓ {selectedReport.reporter.reputation.helpfulFlags} helpful reports •
+                      ✗ {selectedReport.reporter.reputation.falseReports} false reports
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Content Author/Reported User Reputation (Admin Only) */}
+              {(selectedReport.content?.author.reputation || selectedReport.reportedUser?.reputation) && (
+                <div className="border-t pt-4">
+                  <span className="font-medium text-sm text-red-600">
+                    Reported User History (Admin View):
+                  </span>
+                  {(() => {
+                    const userRep = selectedReport.content?.author.reputation || selectedReport.reportedUser?.reputation;
+                    const user = selectedReport.content?.author || selectedReport.reportedUser;
+
+                    if (!userRep || !user) return null;
+
+                    return (
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center gap-3">
+                          {getTrustLevelBadge(userRep.trustLevel, userRep.reputationScore)}
+                          {selectedReport.reportedUser?.isSuspended && (
+                            <Badge className="bg-red-100 text-red-800">
+                              <Ban className="h-3 w-3 mr-1" />
+                              Suspended
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 bg-red-50 p-3 rounded">
+                          <div>📊 {userRep.totalReports} total reports</div>
+                          <div>⚠️ {userRep.validReports} confirmed violations</div>
+                          <div>🚫 {userRep.warnings} warnings issued</div>
+                          <div>🔒 {userRep.suspensions} past suspensions</div>
+                        </div>
+
+                        {/* Admin Actions */}
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSuspendUser(user.id, user.username)}
+                            disabled={selectedReport.reportedUser?.isSuspended}
+                            className="flex-1"
+                          >
+                            <Ban className="h-4 w-4 mr-2" />
+                            {selectedReport.reportedUser?.isSuspended ? 'Already Suspended' : 'Suspend User'}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteAccount(user.id, user.username)}
+                            className="flex-1"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Account
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Review notes (optional)
@@ -361,6 +555,6 @@ export default function AdminModerationPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminLayout>
   );
 }

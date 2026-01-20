@@ -1,6 +1,14 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+let lucideResolved: string | undefined;
+try {
+  lucideResolved = require.resolve('lucide-react/dist/esm/lucide-react.js');
+} catch (e) {
+  lucideResolved = undefined;
+}
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
@@ -26,7 +34,19 @@ export default defineConfig({
       "@connection/ui": path.resolve(__dirname, "../packages/ui/src"),
       "@shared": path.resolve(__dirname, "../packages/shared/src"),
       "@assets": path.resolve(__dirname, "src/assets"),
+      // Force lucide-react to its ESM bundle to avoid package entry resolution issues
+      ...(lucideResolved ? { 'lucide-react': lucideResolved } : {}),
     },
+  },
+  optimizeDeps: {
+    include: [
+      'lucide-react'
+    ],
+  },
+  ssr: {
+    noExternal: [
+      'lucide-react'
+    ],
   },
   css: {
     postcss: {

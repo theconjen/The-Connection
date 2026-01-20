@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
@@ -53,10 +53,21 @@ const inputClasses =
 export default function AuthPage() {
   const auth = useAuth() as AuthContextType;
   const { user } = auth;
+  const [location] = useLocation();
   const [activeTab, setActiveTab] = useState<string>("login");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Auto-select reset tab when accessing /reset-password or with token in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasToken = urlParams.get("token");
+    const isResetPath = location === "/reset-password";
+    if (hasToken || isResetPath) {
+      setActiveTab("reset");
+    }
+  }, [location]);
 
   // Login form
   const loginForm = useForm<LoginFormValues>({

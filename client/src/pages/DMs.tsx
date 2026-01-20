@@ -101,7 +101,6 @@ export default function DMs() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Connected to Socket.IO');
       // Join user's room for DMs
       socket.emit('join_user_room', user.id);
     });

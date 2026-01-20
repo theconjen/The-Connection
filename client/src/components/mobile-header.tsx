@@ -53,7 +53,6 @@ export default function MobileHeader({
     e.preventDefault();
     if (searchQuery.trim()) {
       // Implement search navigation logic here
-      console.log("Searching for:", searchQuery);
       setSearchVisible(false);
       setSearchQuery("");
     }

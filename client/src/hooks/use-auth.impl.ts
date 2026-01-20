@@ -70,7 +70,6 @@ export function useAuth(): AuthContextType {
         // If server authentication fails, check if we can use fallback authentication
         // for testing/development purposes
         if (credentials.username === "testuser" && credentials.password === "password123") {
-          console.log("Using fallback authentication for test user");
           return {
             id: 999,
             username: "testuser",
@@ -97,7 +96,6 @@ export function useAuth(): AuthContextType {
       }
     },
     onSuccess: async (user: SelectUser) => {
-      console.log("Login successful, updating auth state:", user);
       
       // Store user info in local storage as fallback if sessions fail
       localStorage.setItem('currentUser', JSON.stringify(user));
@@ -150,7 +148,6 @@ export function useAuth(): AuthContextType {
       }
     },
     onSuccess: (user: SelectUser) => {
-      console.log("Registration successful, setting auth state:", user);
       
       // Set the query data immediately and don't invalidate
       queryClient.setQueryData(["/api/user"], user);

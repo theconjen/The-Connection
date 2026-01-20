@@ -56,11 +56,9 @@ export default function EventsMap({
 
   useEffect(() => {
     // Filter events that have coordinates and should be shown on map
-    console.log('All events:', events);
     
     // First check for events with show on map
     const eventsWithShowOnMap = events.filter(event => (event as any).showOnMap === true);
-    console.log('Events with showOnMap=true:', eventsWithShowOnMap);
     
     // Then filter for those with coordinates
     const eventsWithCoordinates = events.filter(event => 
@@ -69,7 +67,6 @@ export default function EventsMap({
       (event as any).showOnMap === true && 
       (event as any).isVirtual === false
     );
-    console.log('Final filtered events for map:', eventsWithCoordinates);
     
     setMapEvents(eventsWithCoordinates);
   }, [events]);
@@ -106,7 +103,6 @@ export default function EventsMap({
     const mapRef = useRef(null);
     
     // Add logging to debug
-    console.log('Rendering map with events:', mapEvents);
     
     return (
       <Suspense fallback={<div className="h-full w-full flex items-center justify-center">Loading map...</div>}>

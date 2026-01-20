@@ -47,7 +47,7 @@ export default function LibraryPage() {
 
   // Fetch library posts
   const { data, isLoading } = useQuery<{
-    posts: LibraryPost[];
+    posts: { items: LibraryPost[]; total: number };
     pagination: { limit: number; offset: number };
   }>({
     queryKey: ['/api/library/posts', { domain: selectedDomain, status: 'published' }],
@@ -63,7 +63,8 @@ export default function LibraryPage() {
     },
   });
 
-  const posts = data?.posts || [];
+  // API returns { posts: { items: [...], total: N } }
+  const posts = data?.posts?.items || [];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">

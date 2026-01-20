@@ -52,6 +52,14 @@ const LibraryPage = lazy(() => import("./pages/library-page"));
 const LibraryPostPage = lazy(() => import("./pages/library-post-page"));
 const LibraryCreatePage = lazy(() => import("./pages/library-create-page"));
 const QuestionsInbox = lazy(() => import("./pages/questions-inbox"));
+const ForgotPasswordPage = lazy(() => import("./pages/forgot-password-page"));
+const PrayerDetailPage = lazy(() => import("./pages/prayer-detail-page"));
+const BookmarksPage = lazy(() => import("./pages/bookmarks-page"));
+const SearchPage = lazy(() => import("./pages/search-page"));
+const BlockedUsersPage = lazy(() => import("./pages/BlockedUsersPage"));
+const UserProfilePage = lazy(() => import("./pages/user-profile-page"));
+const QuestionDetailPage = lazy(() => import("./pages/question-detail-page"));
+const NotificationsPage = lazy(() => import("./pages/notifications-page"));
 
 // Analytics tracking component with event tracking
 function AnalyticsTracker() {
@@ -93,7 +101,9 @@ function App() {
           <Switch>
           <Route path="/" component={() => <HomePage />} />
           <Route path="/auth" component={AuthPage} />
-          
+          <Route path="/reset-password" component={AuthPage} />
+          <Route path="/forgot-password" component={ForgotPasswordPage} />
+
           {/* Main Content Pages */}
           <Route path="/microblogs" component={MicroblogsPage} />
           <Route path="/microblogs/:id" component={MicroblogDetailPage} />
@@ -109,6 +119,7 @@ function App() {
           <Route path="/events" component={EventsPage} />
           <Route path="/events/:id" component={EventDetailPage} />
           <Route path="/prayer-requests" component={PrayerRequestsPage} />
+          <Route path="/prayers/:id" component={PrayerDetailPage} />
           <Route path="/livestreams" component={LivestreamsPage} />
           <Route path="/apologetics/:id" component={ApologeticsDetail} />
           <Route path="/apologetics" component={ApologeticsPage} />
@@ -116,17 +127,23 @@ function App() {
           <Route path="/library/create" component={LibraryCreatePage} />
           <Route path="/library/:id" component={LibraryPostPage} />
           <Route path="/questions/inbox" component={QuestionsInbox} />
+          <Route path="/questions/:id" component={QuestionDetailPage} />
 
           {/* User Actions */}
           <Route path="/submit" component={SubmitPostPage} />
           <Route path="/submit-post" component={SubmitPostPage} />
           <Route path="/profile" component={ProfilePage} />
-          <Route path="/profile/:username" component={ProfilePage} />
+          <Route path="/profile/:username" component={UserProfilePage} />
+          <Route path="/user/:id">{() => <UserProfilePage byId />}</Route>
           <Route path="/messages/:userId" component={DirectMessageThread} />
           <Route path="/messages" component={DMsPage} />
           <Route path="/dms/:userId" component={DirectMessageThread} />
           <Route path="/dms" component={DMsPage} />
           <Route path="/settings" component={SettingsPage} />
+          <Route path="/bookmarks" component={BookmarksPage} />
+          <Route path="/blocked-users" component={BlockedUsersPage} />
+          <Route path="/search" component={SearchPage} />
+          <Route path="/notifications" component={NotificationsPage} />
           <Route path="/support" component={SupportPage} />
 
           {/* Legal Pages */}

@@ -69,12 +69,10 @@ export function useChatWebsocket(): UseChatWebsocketReturn {
     
     // Handle auth success
     messageHandlersRef.current.set("auth_success", (data) => {
-      console.log("Authentication successful", data);
     });
     
     // Handle room joined
     messageHandlersRef.current.set("room_joined", (data) => {
-      console.log("Joined room", data.roomId);
     });
     
     // Handle message history
@@ -155,7 +153,6 @@ export function useChatWebsocket(): UseChatWebsocketReturn {
     
     // Handle pong (keep alive)
     messageHandlersRef.current.set("pong", () => {
-      console.log("Received pong from server");
     });
     
     return () => {
@@ -172,18 +169,15 @@ export function useChatWebsocket(): UseChatWebsocketReturn {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         
-        console.log("Connecting to WebSocket server:", wsUrl);
         const newSocket = new WebSocket(wsUrl);
         
         newSocket.onopen = () => {
-          console.log("WebSocket connection established");
           setSocket(newSocket);
         };
         
         newSocket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log("WebSocket message received:", data);
             
             const handler = messageHandlersRef.current.get(data.type);
             if (handler) {
@@ -203,7 +197,6 @@ export function useChatWebsocket(): UseChatWebsocketReturn {
         };
         
         newSocket.onclose = () => {
-          console.log("WebSocket connection closed");
           setIsConnected(false);
           setSocket(null);
           setIsConnecting(false);

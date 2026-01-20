@@ -60,7 +60,6 @@ export default function DMsPage() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Connected to Socket.IO');
       socket.emit('join', user.id);
     });
 
