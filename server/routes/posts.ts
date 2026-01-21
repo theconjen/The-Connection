@@ -486,11 +486,13 @@ export function createPostsRouter(storage = defaultStorage) {
           title: `${likerName} liked your post`,
           body: truncateText(result.post.title || result.post.content, 80),
           data: {
-            type: 'post_liked',
+            type: 'post_like',
             postId: result.post.id,
             likerId: userId,
           },
           category: 'feed',
+          type: 'post_like',
+          actorId: userId,
         });
       } catch (notifError) {
         console.error('[Posts] Error sending like notification:', notifError);
@@ -555,6 +557,8 @@ export function createPostsRouter(storage = defaultStorage) {
               replyId: comment.id,
             },
             category: 'forum',
+            type: 'comment_reply',
+            actorId: userId,
           });
         }
       } else {
@@ -571,6 +575,8 @@ export function createPostsRouter(storage = defaultStorage) {
               authorId: userId,
             },
             category: 'forum',
+            type: 'post_comment',
+            actorId: userId,
           });
         }
       }

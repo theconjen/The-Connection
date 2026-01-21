@@ -82,6 +82,8 @@ router.post('/users/:userId/follow', requireAuth, async (req, res) => {
             userId: followerId,
           },
           category: 'feed',
+          type: 'follow_request',
+          actorId: followerId,
         });
       }).catch(error => console.error('[Follow] Error sending follow request notification:', error));
 
@@ -102,10 +104,12 @@ router.post('/users/:userId/follow', requireAuth, async (req, res) => {
         title: `${followerName} started following you`,
         body: 'Check out their profile!',
         data: {
-          type: 'new_follower',
+          type: 'follow',
           userId: followerId,
         },
         category: 'feed',
+        type: 'follow',
+        actorId: followerId,
       });
     }).catch(error => console.error('[Follow] Error sending follower notification:', error));
 
@@ -159,6 +163,8 @@ router.post('/follow-requests/:userId/accept', requireAuth, async (req, res) => 
           userId: currentUserId,
         },
         category: 'feed',
+        type: 'follow_accepted',
+        actorId: currentUserId,
       });
     }).catch(error => console.error('[Follow] Error sending accept notification:', error));
 

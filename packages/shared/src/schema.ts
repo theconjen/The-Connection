@@ -1707,6 +1707,18 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof insertMessageSchema._input;
 
+// Message Reactions table for heart/like reactions on DMs
+export const messageReactions = pgTable("message_reactions", {
+  id: serial("id").primaryKey(),
+  messageId: text("message_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reaction: text("reaction").notNull().default("heart"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type MessageReaction = typeof messageReactions.$inferSelect;
+export type InsertMessageReaction = typeof messageReactions.$inferInsert;
+
 export type ContentRecommendation = typeof contentRecommendations.$inferSelect;
 export type InsertContentRecommendation = typeof contentRecommendations.$inferInsert;
 

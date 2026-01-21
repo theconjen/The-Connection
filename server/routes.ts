@@ -88,6 +88,7 @@ import debugRoutes from './routes/api/debug';
 import accountRoutes from './routes/account';
 import safetyRoutes from './routes/safety';
 import { FEATURES } from './config/features';
+import { setSocketInstance } from './socketInstance';
 
 // Modular route imports
 import authRoutes from './routes/auth';
@@ -458,6 +459,9 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
+  // Make socket instance available to other modules (e.g., dmRoutes)
+  setSocketInstance(io);
+
   registerSocketHandlers(io);
 
   // Use modular route files - mount only if feature flags enable them
@@ -559,6 +563,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api/me', meRoutes); // Single source of truth for capabilities
     registerOnboardingRoutes(app); // Register onboarding completion endpoint
     app.use('/api/dms', dmRoutes);
+    app.use('/api/dm', dmRoutes);       // Alias for mobile app (singular)
     app.use('/api/messages', dmRoutes); // Alias for mobile app compatibility
     app.use('/api', messagesRoutes); // Community chat routes (has /communities/:id/chat/* endpoints)
     app.use('/api/push-tokens', pushTokenRoutes);

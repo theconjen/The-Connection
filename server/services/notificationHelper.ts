@@ -1,5 +1,6 @@
 import { storage } from '../storage';
 import { sendPushNotification } from './pushService';
+import { emitNotification, emitNotificationToMany } from '../socketInstance';
 
 /**
  * Notification Helper Service
@@ -130,6 +131,8 @@ export async function notifyUserWithPreferences(
     body: string;
     data: any;
     category: 'dm' | 'community' | 'forum' | 'feed' | 'event';
+    type?: string; // e.g., 'post_like', 'follow', 'comment'
+    actorId?: number;
   }
 ) {
   try {
@@ -145,21 +148,37 @@ export async function notifyUserWithPreferences(
 
     console.info(`[NotificationHelper] Created in-app notification for user ${userId}: ${notification.title}`);
 
-    // 2. Check if user wants push notifications for this category
+    // 2. EMIT socket event for realtime update
+    // This allows the client to immediately update without polling
+    const actor = notification.actorId ? await storage.getUser(notification.actorId) : null;
+    emitNotification(userId, {
+      id: inAppNotification.id,
+      type: notification.type || notification.category,
+      title: notification.title,
+      body: notification.body,
+      data: notification.data,
+      category: notification.category,
+      actorId: notification.actorId,
+      actorName: actor?.displayName || actor?.username,
+      actorAvatar: actor?.profileImageUrl || undefined,
+      createdAt: inAppNotification.createdAt?.toISOString() || new Date().toISOString(),
+    });
+
+    // 3. Check if user wants push notifications for this category
     const shouldPush = await shouldSendNotification(userId, notification.category);
     if (!shouldPush) {
       console.info(`[NotificationHelper] User ${userId} disabled push for category: ${notification.category}`);
       return inAppNotification;
     }
 
-    // 3. Get user's push tokens
+    // 4. Get user's push tokens
     const pushTokens = await storage.getUserPushTokens(userId);
     if (!pushTokens || pushTokens.length === 0) {
       console.info(`[NotificationHelper] No push tokens for user ${userId}`);
       return inAppNotification;
     }
 
-    // 4. Send push notification to all user's devices
+    // 5. Send push notification to all user's devices
     console.info(`[NotificationHelper] Sending push to ${pushTokens.length} device(s) for user ${userId}`);
 
     for (const tokenRecord of pushTokens) {

@@ -5,6 +5,7 @@ import { ensureCleanText, handleModerationError } from "../utils/moderation";
 import { getSessionUserId } from '../utils/session';
 import { dmSendLimiter } from '../rate-limiters';
 import { notifyUserWithPreferences, truncateText } from '../services/notificationHelper';
+import { emitNewDM, emitToUser, emitDMReaction } from '../socketInstance';
 
 const router = express.Router();
 
@@ -167,6 +168,23 @@ router.post("/send", dmSendLimiter, async (req, res) => {
       content: content
     });
 
+    // CRITICAL: Emit socket event so recipient sees message in realtime
+    // This was missing - HTTP route wasn't emitting socket events
+    const messagePayload = {
+      id: message.id,
+      senderId: senderId,
+      receiverId: parsedReceiverId,
+      content: content,
+      createdAt: message.createdAt || new Date().toISOString(),
+      isRead: false,
+    };
+
+    // Emit to recipient for realtime update
+    emitNewDM(parsedReceiverId, messagePayload);
+    // Also emit to sender so their UI updates immediately
+    emitToUser(senderId, 'dm:new', messagePayload);
+    emitToUser(senderId, 'new_message', messagePayload);
+
     // Notify receiver using dual notification system (async, don't block response)
     const sender = await storage.getUser(senderId);
     const senderName = sender?.displayName || sender?.username || 'Someone';
@@ -241,6 +259,69 @@ router.post("/mark-conversation-read/:userId", async (req, res) => {
   } catch (error) {
     console.error('Error marking conversation as read:', error);
     res.status(500).json({ message: 'Error marking conversation as read' });
+  }
+});
+
+// Toggle reaction on a message (double-tap to heart)
+router.post("/messages/:messageId/reactions", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const messageId = req.params.messageId;
+  const { reaction = 'heart' } = req.body;
+
+  if (!messageId) {
+    return res.status(400).json({ message: 'Invalid message id' });
+  }
+
+  try {
+    // Get the message to verify the user is part of the conversation
+    const message = await storage.getMessageById?.(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    // Only sender or receiver can react
+    if (message.senderId !== currentUserId && message.receiverId !== currentUserId) {
+      return res.status(403).json({ message: 'Not authorized to react to this message' });
+    }
+
+    // Toggle the reaction
+    const result = await storage.toggleMessageReaction(messageId, currentUserId, reaction);
+
+    // Emit socket event to both users for realtime update
+    const otherUserId = message.senderId === currentUserId ? message.receiverId : message.senderId;
+    emitDMReaction(currentUserId, otherUserId, {
+      messageId,
+      reaction,
+      userId: currentUserId,
+      added: result.added,
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error toggling message reaction:', error);
+    res.status(500).json({ message: 'Error toggling reaction' });
+  }
+});
+
+// Get reactions for a message
+router.get("/messages/:messageId/reactions", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const messageId = req.params.messageId;
+
+  try {
+    const reactions = await storage.getMessageReactions?.(messageId) || [];
+    res.json(reactions);
+  } catch (error) {
+    console.error('Error fetching message reactions:', error);
+    res.status(500).json({ message: 'Error fetching reactions' });
   }
 });
 

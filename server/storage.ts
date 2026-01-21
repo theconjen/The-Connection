@@ -49,6 +49,7 @@ import {
 
   // Direct messaging
   Message, InsertMessage,
+  MessageReaction, InsertMessageReaction,
 
   // Moderation types
   ContentReport, InsertContentReport,
@@ -64,7 +65,7 @@ import {
   events, eventRsvps, prayerRequests, prayers,
   bibleReadingPlans, bibleReadingProgress, bibleStudyNotes,
   livestreamerApplications, apologistScholarApplications,
-  userPreferences, messages, userFollows,
+  userPreferences, messages, messageReactions, userFollows,
   // moderation tables
   contentReports, userBlocks, pushTokens, notifications,
   // polls tables
@@ -4743,11 +4744,12 @@ export class DbStorage implements IStorage {
       )
     ).orderBy(messages.createdAt);
 
-    // Enrich messages with sender and receiver user information
+    // Enrich messages with sender and receiver user information + reactions
     const enrichedMessages = [];
     for (const msg of result) {
       const sender = await this.getUser(msg.senderId);
       const receiver = await this.getUser(msg.receiverId);
+      const reactions = await this.getMessageReactions(msg.id);
 
       enrichedMessages.push({
         ...msg,
@@ -4763,6 +4765,7 @@ export class DbStorage implements IStorage {
           displayName: receiver.displayName,
           profileImageUrl: receiver.profileImageUrl,
         } : null,
+        reactions: reactions,
       });
     }
 
@@ -4889,6 +4892,59 @@ export class DbStorage implements IStorage {
       );
 
     return result[0]?.count || 0;
+  }
+
+  // Get a single message by ID
+  async getMessageById(messageId: string): Promise<Message | undefined> {
+    const result = await db.select().from(messages).where(eq(messages.id, messageId));
+    return result[0];
+  }
+
+  // Toggle a reaction on a message (double-tap to heart)
+  async toggleMessageReaction(
+    messageId: string,
+    userId: number,
+    reaction: string = 'heart'
+  ): Promise<{ added: boolean; reaction?: MessageReaction }> {
+    // Check if reaction already exists
+    const existing = await db
+      .select()
+      .from(messageReactions)
+      .where(
+        and(
+          eq(messageReactions.messageId, messageId),
+          eq(messageReactions.userId, userId),
+          eq(messageReactions.reaction, reaction)
+        )
+      );
+
+    if (existing.length > 0) {
+      // Remove the reaction
+      await db
+        .delete(messageReactions)
+        .where(eq(messageReactions.id, existing[0].id));
+      return { added: false };
+    } else {
+      // Add the reaction
+      const [newReaction] = await db
+        .insert(messageReactions)
+        .values({
+          messageId,
+          userId,
+          reaction,
+        })
+        .returning();
+      return { added: true, reaction: newReaction };
+    }
+  }
+
+  // Get all reactions for a message
+  async getMessageReactions(messageId: string): Promise<MessageReaction[]> {
+    return await db
+      .select()
+      .from(messageReactions)
+      .where(eq(messageReactions.messageId, messageId))
+      .orderBy(messageReactions.createdAt);
   }
 
   // Push token + notifications (DB) - stubs until full implementation
