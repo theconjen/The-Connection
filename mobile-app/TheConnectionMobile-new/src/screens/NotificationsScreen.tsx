@@ -57,7 +57,12 @@ function useNotifications() {
     queryKey: ['/api/notifications'],
     queryFn: async () => {
       const response = await apiClient.get('/api/notifications');
-      return response.data;
+      // Handle both old format (array) and new format (structured response)
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      // New hardened API format: { status, data: { notifications: [...] } }
+      return response.data?.data?.notifications || response.data?.notifications || [];
     },
   });
 }
@@ -67,7 +72,7 @@ function useMarkAsRead() {
 
   return useMutation({
     mutationFn: async (notificationId: number) => {
-      const response = await apiClient.patch(`/api/notifications/${notificationId}/read`);
+      const response = await apiClient.post(`/api/notifications/${notificationId}/read`);
       return response.data;
     },
     onSuccess: () => {
@@ -208,9 +213,12 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
   const { user } = useAuth();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
-  const { data: notifications = [], isLoading, refetch } = useNotifications();
+  const { data, isLoading, refetch, error } = useNotifications();
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
+
+  // Ensure notifications is always an array (defensive coding)
+  const notifications = Array.isArray(data) ? data : [];
 
   const handleNotificationPress = (notification: Notification) => {
     if (!notification.isRead) {
@@ -223,7 +231,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
     markAllAsReadMutation.mutate();
   };
 
-  // Filter notifications
+  // Filter notifications (with null-safe access)
   const filteredNotifications = filter === 'unread'
     ? notifications.filter((n) => !n.isRead)
     : notifications;
