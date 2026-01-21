@@ -149,6 +149,7 @@ export default function RootLayout() {
     'Figtree-Medium': require('../assets/fonts/Figtree-Medium.ttf'),
     'Figtree-SemiBold': require('../assets/fonts/Figtree-SemiBold.ttf'),
     'Figtree-Bold': require('../assets/fonts/Figtree-Bold.ttf'),
+    'PlayfairDisplay-Bold': require('../assets/fonts/PlayfairDisplay-Bold.ttf'),
   });
 
   useEffect(() => {

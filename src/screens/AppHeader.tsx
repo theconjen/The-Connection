@@ -127,10 +127,12 @@ export function AppHeader({
           {/* Center: Logo Text */}
           <View style={styles.centerSection}>
             <Text
-              style={[
-                styles.brandText,
-                { color: colorScheme === 'dark' ? colors.headerForeground : '#2D6A4F' }
-              ]}
+              style={{
+                fontFamily: 'PlayfairDisplay-Bold',
+                fontSize: 20,
+                color: colorScheme === 'dark' ? colors.headerForeground : '#1E3A5F',
+                letterSpacing: 0.5,
+              }}
             >
               The Connection
             </Text>
@@ -361,12 +363,12 @@ export function PageHeader({ title, onBackPress, rightElement, showLogo }: { tit
       {showLogo ? (
         <Text
           style={{
-            fontSize: 19,
-            fontWeight: '800',
+            fontFamily: 'PlayfairDisplay-Bold',
+            fontSize: 20,
             flex: 1,
             textAlign: 'center',
-            color: colorScheme === 'dark' ? colors.headerForeground : '#2D6A4F',
-            letterSpacing: -0.5,
+            color: colorScheme === 'dark' ? colors.headerForeground : '#1E3A5F',
+            letterSpacing: 0.5,
           }}
         >
           The Connection
