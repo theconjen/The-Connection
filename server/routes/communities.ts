@@ -1034,6 +1034,8 @@ router.patch('/communities/:id', requireAuth, async (req, res) => {
       interestTags,
       city,
       state,
+      latitude,
+      longitude,
       isPrivate,
       hasPrivateWall,
       hasPublicWall,
@@ -1049,6 +1051,8 @@ router.patch('/communities/:id', requireAuth, async (req, res) => {
     if (interestTags !== undefined) updateData.interestTags = interestTags;
     if (city !== undefined) updateData.city = city;
     if (state !== undefined) updateData.state = state;
+    if (latitude !== undefined) updateData.latitude = latitude;
+    if (longitude !== undefined) updateData.longitude = longitude;
     if (isPrivate !== undefined) updateData.isPrivate = isPrivate;
     if (hasPrivateWall !== undefined) updateData.hasPrivateWall = hasPrivateWall;
     if (hasPublicWall !== undefined) updateData.hasPublicWall = hasPublicWall;
