@@ -827,13 +827,23 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(400).json({ message: 'Already a member of this community' });
       }
 
+      // Check if this is the first member or if there's no owner
+      const existingMembers = await storage.getCommunityMembers(communityId);
+      const hasOwner = existingMembers.some((m: any) => m.role === 'owner');
+      const role = (existingMembers.length === 0 || !hasOwner) ? 'owner' : 'member';
+
+      console.info(`[JOIN] Adding user ${userId} as ${role} (existing members: ${existingMembers.length}, has owner: ${hasOwner})`);
+
       await storage.addCommunityMember({
         communityId: communityId,
         userId: userId,
-        role: 'member'
+        role: role
       });
 
-      res.json({ message: 'Successfully joined community' });
+      res.json({
+        message: role === 'owner' ? 'Joined community as owner' : 'Successfully joined community',
+        role
+      });
     } catch (error) {
       console.error('Error joining community:', error);
       res.status(500).json(buildErrorResponse('Error joining community', error));
@@ -1033,17 +1043,25 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
         return res.status(400).json({ message: 'Already a member of this community' });
       }
 
+      // Check if this is the first member or if there's no owner
+      const existingMembers = await storage.getCommunityMembers(invitation.communityId);
+      const hasOwner = existingMembers.some((m: any) => m.role === 'owner');
+      const role = (existingMembers.length === 0 || !hasOwner) ? 'owner' : 'member';
+
       // Add user to community
       await storage.addCommunityMember({
         communityId: invitation.communityId,
         userId: userId,
-        role: 'member'
+        role: role
       });
 
       // Update invitation status
       await storage.updateCommunityInvitationStatus(invitation.id, 'accepted');
 
-      res.json({ message: 'Successfully joined community' });
+      res.json({
+        message: role === 'owner' ? 'Joined community as owner' : 'Successfully joined community',
+        role
+      });
     } catch (error) {
       console.error('Error accepting invitation:', error);
       res.status(500).json(buildErrorResponse('Error accepting invitation', error));
