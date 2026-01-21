@@ -357,7 +357,9 @@ export async function getExploreFeed(
     let filtered = enrichedPosts;
 
     // Filter out posts with very low scores (likely spam/low quality)
-    filtered = filtered.filter(p => p.exploreScore > 0.05);
+    // Use a very low threshold (0.001) to avoid filtering legitimate posts on new platforms
+    // with low engagement. The scoring already accounts for engagement levels.
+    filtered = filtered.filter(p => p.exploreScore > 0.001);
     const afterAntiFarm = filtered.length;
 
     // Cap posts per user (prevent single user from dominating)
