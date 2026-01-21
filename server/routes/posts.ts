@@ -381,15 +381,35 @@ export function createPostsRouter(storage = defaultStorage) {
 
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
+    // Enrich post with author data
+    const author = await storage.getUser(post.authorId);
+    const enrichedPost = {
+      ...post,
+      author: author ? {
+        id: author.id,
+        username: author.username,
+        displayName: author.displayName,
+        profileImageUrl: author.profileImageUrl,
+        avatarUrl: author.profileImageUrl,
+        profileVisibility: author.profileVisibility,
+      } : {
+        id: post.authorId,
+        username: 'deleted',
+        displayName: 'Deleted User',
+        profileImageUrl: null,
+        avatarUrl: null,
+      },
+    };
+
     // Check privacy: private account posts are only visible to the author
-    if (post.author?.profileVisibility === 'private' && (!userId || post.authorId !== userId)) {
+    if (enrichedPost.author?.profileVisibility === 'private' && (!userId || post.authorId !== userId)) {
       return res.status(403).json({ message: 'This post is not available' });
     }
 
     // Sanitize anonymous posts to hide author information
-    post = sanitizePostForAnonymity(post);
+    const sanitizedPost = sanitizePostForAnonymity(enrichedPost);
 
-    res.json(post);
+    res.json(sanitizedPost);
   } catch (error) {
     console.error('Error fetching post:', error);
     res.status(500).json(buildErrorResponse('Error fetching post', error));
@@ -526,7 +546,31 @@ export function createPostsRouter(storage = defaultStorage) {
   try {
     const postId = parseInt(req.params.id);
     const comments = await storage.getCommentsByPostId(postId);
-    res.json(comments);
+
+    // Enrich comments with author data
+    const enrichedComments = await Promise.all(
+      comments.map(async (comment: any) => {
+        const author = await storage.getUser(comment.authorId);
+        return {
+          ...comment,
+          author: author ? {
+            id: author.id,
+            username: author.username,
+            displayName: author.displayName,
+            profileImageUrl: author.profileImageUrl,
+            avatarUrl: author.profileImageUrl,
+          } : {
+            id: comment.authorId,
+            username: 'deleted',
+            displayName: 'Deleted User',
+            profileImageUrl: null,
+            avatarUrl: null,
+          },
+        };
+      })
+    );
+
+    res.json(enrichedComments);
   } catch (error) {
     console.error('Error fetching comments:', error);
     res.status(500).json(buildErrorResponse('Error fetching comments', error));

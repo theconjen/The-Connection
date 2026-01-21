@@ -1099,13 +1099,13 @@ export default function FeedScreen({
           style={[styles.tab, activeTab === 'recent' && styles.tabActive]}
           onPress={() => setActiveTab('recent')}
         >
-          <Text style={[styles.tabText, activeTab === 'recent' && styles.tabTextActive]}>Latest</Text>
+          <Text style={[styles.tabText, activeTab === 'recent' && styles.tabTextActive]}>Following</Text>
         </Pressable>
         <Pressable
           style={[styles.tab, activeTab === 'popular' && styles.tabActive]}
           onPress={() => setActiveTab('popular')}
         >
-          <Text style={[styles.tabText, activeTab === 'popular' && styles.tabTextActive]}>Popular</Text>
+          <Text style={[styles.tabText, activeTab === 'popular' && styles.tabTextActive]}>For You</Text>
         </Pressable>
       </View>
 
