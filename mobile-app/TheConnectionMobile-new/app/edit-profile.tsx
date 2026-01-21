@@ -68,7 +68,7 @@ export default function EditProfileScreen() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.patch('/user/profile', data);
+      const response = await apiClient.patch('/api/user/profile', data);
       return response.data;
     },
     onSuccess: () => {

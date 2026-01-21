@@ -31,15 +31,16 @@ export default function EditProfileScreen() {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      await apiClient.put('/user/profile', {
+      await apiClient.patch('/api/user/profile', {
         displayName: displayName.trim() || undefined,
         bio: bio.trim() || undefined,
       });
       Alert.alert('Success', 'Profile updated!', [
         { text: 'OK', onPress: () => router.back() },
       ]);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update profile');
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Failed to update profile';
+      Alert.alert('Error', message);
     } finally {
       setIsLoading(false);
     }
