@@ -48,6 +48,7 @@ router.put("/settings", async (req, res) => {
       notifyCommunities,
       notifyForums,
       notifyFeed,
+      dateOfBirth,
     } = req.body;
 
     // Only allow updating specific fields
@@ -65,6 +66,67 @@ router.put("/settings", async (req, res) => {
     if (typeof notifyCommunities === 'boolean') updateData.notifyCommunities = notifyCommunities;
     if (typeof notifyForums === 'boolean') updateData.notifyForums = notifyForums;
     if (typeof notifyFeed === 'boolean') updateData.notifyFeed = notifyFeed;
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
+
+    await storage.updateUser(userId, updateData);
+
+    // Clear notification preferences cache if any notification settings were updated
+    const notificationPrefsUpdated =
+      typeof notifyDms === 'boolean' ||
+      typeof notifyCommunities === 'boolean' ||
+      typeof notifyForums === 'boolean' ||
+      typeof notifyFeed === 'boolean';
+
+    if (notificationPrefsUpdated) {
+      clearPreferencesCache(userId);
+      console.info(`[Settings] Cleared notification preferences cache for user ${userId}`);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating user settings:', error);
+    res.status(500).json(buildErrorResponse('Error updating user settings', error));
+  }
+});
+
+// PATCH user settings (partial update)
+router.patch("/settings", async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+
+    const {
+      displayName,
+      email,
+      bio,
+      city,
+      state,
+      zipCode,
+      profileVisibility,
+      showLocation,
+      showInterests,
+      notifyDms,
+      notifyCommunities,
+      notifyForums,
+      notifyFeed,
+      dateOfBirth,
+    } = req.body;
+
+    // Only allow updating specific fields
+    const updateData: any = {};
+    if (displayName !== undefined) updateData.displayName = displayName;
+    if (email !== undefined) updateData.email = email;
+    if (bio !== undefined) updateData.bio = bio;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (zipCode !== undefined) updateData.zipCode = zipCode;
+    if (profileVisibility !== undefined) updateData.profileVisibility = profileVisibility;
+    if (typeof showLocation === 'boolean') updateData.showLocation = showLocation;
+    if (typeof showInterests === 'boolean') updateData.showInterests = showInterests;
+    if (typeof notifyDms === 'boolean') updateData.notifyDms = notifyDms;
+    if (typeof notifyCommunities === 'boolean') updateData.notifyCommunities = notifyCommunities;
+    if (typeof notifyForums === 'boolean') updateData.notifyForums = notifyForums;
+    if (typeof notifyFeed === 'boolean') updateData.notifyFeed = notifyFeed;
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
 
     await storage.updateUser(userId, updateData);
 

@@ -37,6 +37,7 @@ const loginSchema = z.object({
 const registerSchema = insertUserSchema.extend({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Please enter a valid email address"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string().min(6, "Please confirm your password"),
 }).refine(data => data.password === data.confirmPassword, {
@@ -86,6 +87,7 @@ export default function AuthPage() {
     defaultValues: {
       username: "",
       email: "",
+      dateOfBirth: "",
       displayName: "",
       password: "",
       confirmPassword: "",
@@ -286,6 +288,27 @@ export default function AuthPage() {
                           <FormControl>
                             <Input type="email" placeholder="john@example.com" {...field} className={inputClasses} />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="dateOfBirth"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date of Birth</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              {...field}
+                              className={inputClasses}
+                              max={new Date().toISOString().split('T')[0]}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            You must be 13 or older to use this app
+                          </p>
                           <FormMessage />
                         </FormItem>
                       )}

@@ -77,6 +77,10 @@ export const users = pgTable("users", {
   favoriteBibleVerse: text("favorite_bible_verse"),
   testimony: text("testimony"),
   interests: text("interests"),
+  // Age Assurance fields (Apple App Store requirement)
+  dateOfBirth: date("date_of_birth"),
+  ageGatePassed: boolean("age_gate_passed").default(false),
+  ageVerifiedAt: timestamp("age_verified_at"),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   updatedAt: timestamp("updated_at").defaultNow(),

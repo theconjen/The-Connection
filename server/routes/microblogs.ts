@@ -109,7 +109,12 @@ export function createMicroblogsRouter(storage = defaultStorage) {
               username: author.username,
               displayName: author.displayName,
               profileImageUrl: author.profileImageUrl,
-            } : undefined,
+            } : {
+              id: microblog.authorId,
+              username: 'deleted',
+              displayName: 'Deleted User',
+              profileImageUrl: null,
+            },
             isLiked,
             isReposted,
             isBookmarked,
@@ -160,7 +165,12 @@ export function createMicroblogsRouter(storage = defaultStorage) {
               username: author.username,
               displayName: author.displayName,
               profileImageUrl: author.profileImageUrl,
-            } : undefined,
+            } : {
+              id: microblog.authorId,
+              username: 'deleted',
+              displayName: 'Deleted User',
+              profileImageUrl: null,
+            },
             isLiked,
             isReposted,
             isBookmarked,
@@ -256,7 +266,12 @@ export function createMicroblogsRouter(storage = defaultStorage) {
               username: author.username,
               displayName: author.displayName,
               profileImageUrl: author.profileImageUrl,
-            } : undefined,
+            } : {
+              id: microblog.authorId,
+              username: 'deleted',
+              displayName: 'Deleted User',
+              profileImageUrl: null,
+            },
             isLiked,
             isReposted,
             isBookmarked,
@@ -306,7 +321,12 @@ export function createMicroblogsRouter(storage = defaultStorage) {
               username: author.username,
               displayName: author.displayName,
               profileImageUrl: author.profileImageUrl,
-            } : undefined,
+            } : {
+              id: microblog.authorId,
+              username: 'deleted',
+              displayName: 'Deleted User',
+              profileImageUrl: null,
+            },
             isLiked,
             isReposted,
             isBookmarked: true, // Always true for bookmarked microblogs
@@ -518,7 +538,12 @@ export function createMicroblogsRouter(storage = defaultStorage) {
               username: author.username,
               displayName: author.displayName,
               profileImageUrl: author.profileImageUrl,
-            } : undefined,
+            } : {
+              id: comment.authorId,
+              username: 'deleted',
+              displayName: 'Deleted User',
+              profileImageUrl: null,
+            },
           };
         })
       );
@@ -829,7 +854,12 @@ export function createMicroblogsRouter(storage = defaultStorage) {
               username: author.username,
               displayName: author.displayName,
               profileImageUrl: author.profileImageUrl,
-            } : undefined,
+            } : {
+              id: microblog.authorId,
+              username: 'deleted',
+              displayName: 'Deleted User',
+              profileImageUrl: null,
+            },
             isLiked,
             isReposted,
             isBookmarked,

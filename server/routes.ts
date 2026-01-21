@@ -554,9 +554,9 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
   
   if (FEATURES.AUTH) {
+    app.use('/api/user', userSettingsRoutes); // Must be before userRoutes to avoid /:id catching /settings
     app.use('/api/user', userRoutes);
     app.use('/api/me', meRoutes); // Single source of truth for capabilities
-    app.use('/api/user', userSettingsRoutes);
     registerOnboardingRoutes(app); // Register onboarding completion endpoint
     app.use('/api/dms', dmRoutes);
     app.use('/api/messages', dmRoutes); // Alias for mobile app compatibility

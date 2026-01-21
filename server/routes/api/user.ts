@@ -522,7 +522,7 @@ router.get('/suggestions/friends', async (req, res, next) => {
     try {
       const { db } = await import('../../db');
       const { users, userFollows, communityMembers, userBlocks, hiddenSuggestions, communities } = await import('@shared/schema');
-      const { eq, and, sql, ne, notIn, isNull, desc } = await import('drizzle-orm');
+      const { eq, and, sql, ne, notIn, isNull, desc, or } = await import('drizzle-orm');
 
       // Get current user's data
       const currentUser = await storage.getUser(userId);
@@ -537,17 +537,22 @@ router.get('/suggestions/friends', async (req, res, next) => {
         .where(eq(userFollows.followerId, userId));
       const followingIds = following.map(f => f.followingId);
 
-      // Get blocked users (both directions)
+      // Get blocked users (both directions) - users I blocked OR users who blocked me
       const blocked = await db
         .select({ blockerId: userBlocks.blockerId, blockedId: userBlocks.blockedId })
         .from(userBlocks)
         .where(
-          sql`${userBlocks.blockerId} = ${userId} OR ${userBlocks.blockedId} = ${userId}`
+          or(
+            eq(userBlocks.blockerId, userId),
+            eq(userBlocks.blockedId, userId)
+          )
         );
       const blockedIds = [
         ...blocked.filter(b => b.blockerId === userId).map(b => b.blockedId),
         ...blocked.filter(b => b.blockedId === userId).map(b => b.blockerId)
       ];
+
+      console.info('[Friend Suggestions] Blocked users found:', blockedIds.length, blockedIds);
 
       // Get hidden suggestions
       const hidden = await db
@@ -568,8 +573,24 @@ router.get('/suggestions/friends', async (req, res, next) => {
       const communityIds = userCommunitiesData.map(c => c.communityId);
       const communityNames = new Map(userCommunitiesData.map(c => [c.communityId, c.communityName]));
 
+      // Get total user count for diagnostics
+      const totalUsersResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(isNull(users.deletedAt));
+      const totalUsers = Number(totalUsersResult[0]?.count || 0);
+
       // Build exclusion list (self, following, blocked, hidden)
       const excludeIds = [userId, ...followingIds, ...blockedIds, ...hiddenIds];
+
+      console.info('[Friend Suggestions] User:', userId, '| Total users in system:', totalUsers);
+      console.info('[Friend Suggestions] Exclusions:', {
+        following: followingIds.length,
+        blocked: blockedIds.length,
+        hidden: hiddenIds.length,
+        totalExcluded: excludeIds.length,
+        remainingPool: totalUsers - excludeIds.length
+      });
 
       // Get candidate users - exclude soft-deleted users (deletedAt IS NOT NULL)
       let whereConditions;
@@ -601,6 +622,8 @@ router.get('/suggestions/friends', async (req, res, next) => {
         .from(users)
         .where(whereConditions)
         .limit(100);
+
+      console.info('[Friend Suggestions] Found', allUsers.length, 'candidate users after exclusions');
 
       // Score each user with new weights and caps
       const scoredUsers = await Promise.all(
@@ -698,14 +721,37 @@ router.get('/suggestions/friends', async (req, res, next) => {
       );
 
       // Filter users with score > 0 and sort by score
-      let suggestions = scoredUsers
-        .filter(user => user.suggestionScore.total > 0)
+      const scoredWithPoints = scoredUsers.filter(user => user.suggestionScore.total > 0);
+      console.info('[Friend Suggestions] Users with score > 0:', scoredWithPoints.length);
+
+      let suggestions = scoredWithPoints
         .sort((a, b) => b.suggestionScore.total - a.suggestionScore.total)
         .slice(0, limit);
 
       // Cold start fallback: if no scored suggestions, return newest users
+      // Use less restrictive conditions - only exclude self, blocked, and following (not hidden)
+      // This ensures new users always see SOME suggestions
       if (suggestions.length === 0) {
         console.info('[Friend Suggestions] Cold start - falling back to newest users');
+        console.info('[Friend Suggestions] Following count:', followingIds.length, ', Blocked count:', blockedIds.length);
+
+        // Build fallback exclusion list (only self, following, blocked - NOT hidden)
+        const fallbackExcludeIds = [userId, ...followingIds, ...blockedIds];
+
+        let fallbackConditions;
+        if (fallbackExcludeIds.length > 1) {
+          fallbackConditions = and(
+            ne(users.id, userId),
+            notIn(users.id, fallbackExcludeIds),
+            isNull(users.deletedAt)
+          );
+        } else {
+          fallbackConditions = and(
+            ne(users.id, userId),
+            isNull(users.deletedAt)
+          );
+        }
+
         const fallbackUsers = await db
           .select({
             id: users.id,
@@ -718,9 +764,11 @@ router.get('/suggestions/friends', async (req, res, next) => {
             denomination: users.denomination,
           })
           .from(users)
-          .where(whereConditions)
+          .where(fallbackConditions)
           .orderBy(desc(users.createdAt))
           .limit(limit);
+
+        console.info('[Friend Suggestions] Fallback found', fallbackUsers.length, 'users');
 
         suggestions = fallbackUsers.map(user => ({
           id: user.id,

@@ -83,7 +83,7 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
     // Optimistic update
     setFollowingIds(prev => new Set(prev).add(userId));
     try {
-      await apiClient.post(`/api/follow/${userId}`);
+      await apiClient.post(`/api/users/${userId}/follow`);
     } catch (error) {
       // Revert on error
       setFollowingIds(prev => {

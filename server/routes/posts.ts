@@ -126,7 +126,12 @@ export function createPostsRouter(storage = defaultStorage) {
                 username: author.username,
                 displayName: author.displayName,
                 avatarUrl: author.profileImageUrl,
-              } : undefined,
+              } : {
+                id: post.authorId,
+                username: 'deleted',
+                displayName: 'Deleted User',
+                avatarUrl: null,
+              },
             }),
           };
         })
@@ -180,7 +185,12 @@ export function createPostsRouter(storage = defaultStorage) {
                 username: author.username,
                 displayName: author.displayName,
                 avatarUrl: author.profileImageUrl,
-              } : undefined,
+              } : {
+                id: post.authorId,
+                username: 'deleted',
+                displayName: 'Deleted User',
+                avatarUrl: null,
+              },
             }),
           };
         })
@@ -262,6 +272,28 @@ export function createPostsRouter(storage = defaultStorage) {
         // Not logged in: show all posts
         posts = await storage.getAllPosts(filter);
       }
+
+      // Enrich posts with author data
+      posts = await Promise.all(
+        posts.map(async (post: any) => {
+          const author = await storage.getUser(post.authorId);
+          return {
+            ...post,
+            author: author ? {
+              id: author.id,
+              username: author.username,
+              displayName: author.displayName,
+              avatarUrl: author.profileImageUrl,
+              profileVisibility: author.profileVisibility,
+            } : {
+              id: post.authorId,
+              username: 'deleted',
+              displayName: 'Deleted User',
+              avatarUrl: null,
+            },
+          };
+        })
+      );
 
       // Filter out posts from private accounts (unless it's the user's own post)
       posts = posts.filter((p: any) => {

@@ -138,7 +138,10 @@ export function useAuth(): AuthContextType {
       } catch (error) {
         // Enhance error messages for common registration issues
         if (error instanceof Error) {
-          if (error.message.includes('exists')) {
+          // Handle AGE_RESTRICTED error
+          if (error.message.includes('AGE_RESTRICTED') || error.message.includes('13 or older')) {
+            throw new Error('You must be 13 or older to use this app.');
+          } else if (error.message.includes('exists')) {
             throw new Error('This username or email is already in use. Please try another one.');
           } else if (error.message.includes('validation')) {
             throw new Error('Please check your information and try again.');
