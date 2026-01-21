@@ -5,6 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import apiClient from '../lib/apiClient';
 import { useTheme } from '../contexts/ThemeContext';
+import { useUnreadCount } from '../queries/messages';
+import { useNotificationCount } from '../queries/notifications';
+
+type ThemePreference = 'light' | 'dark' | 'system';
 
 interface MenuDrawerProps {
   visible: boolean;
@@ -12,6 +16,7 @@ interface MenuDrawerProps {
   onSettings: () => void;
   onNotifications: () => void;
   onBookmarks: () => void;
+  onMessages?: () => void;
   onInbox?: () => void;
   hasInboxAccess?: boolean;
   onSearch?: () => void;
@@ -29,57 +34,26 @@ interface SearchResult {
   dmPrivacyReason?: string;
 }
 
-interface FriendSuggestion {
-  id: number;
-  username: string;
-  displayName: string;
-  avatarUrl?: string;
-  bio?: string;
-  city?: string;
-  state?: string;
-  denomination?: string;
-  suggestionScore: {
-    total: number;
-    mutualFollows: number;
-    mutualCommunities: number;
-    location: number;
-  };
-}
-
-export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onInbox, hasInboxAccess, onSearch, onUserPress }: MenuDrawerProps) {
-  const { colors, theme } = useTheme();
+export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onMessages, onInbox, hasInboxAccess, onSearch, onUserPress }: MenuDrawerProps) {
+  const { colors, theme, setTheme } = useTheme();
   const styles = getStyles(colors, theme);
+
+  // Get unread DM count for badge
+  const { data: unreadData } = useUnreadCount();
+  // Get unread notification count for badge
+  const { data: notificationCountData } = useNotificationCount();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     if (!visible) {
       setSearchQuery('');
       setSearchResults([]);
       setShowResults(false);
-    } else {
-      // Fetch friend suggestions when menu opens
-      fetchFriendSuggestions();
     }
   }, [visible]);
-
-  const fetchFriendSuggestions = async () => {
-    setIsLoadingSuggestions(true);
-    try {
-      const response = await apiClient.get('/api/user/suggestions/friends?limit=5');
-      // Ensure we always have an array
-      setFriendSuggestions(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      // Silently fail - friend suggestions are optional
-      setFriendSuggestions([]);
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  };
 
   useEffect(() => {
     const delaySearch = setTimeout(async () => {
@@ -99,14 +73,13 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
         setSearchResults([]);
         setShowResults(false);
       }
-    }, 300); // Debounce search
+    }, 300);
 
     return () => clearTimeout(delaySearch);
   }, [searchQuery]);
 
   const handleUserPress = (user: SearchResult) => {
     onClose();
-    // Navigate to user profile
     if (onUserPress) {
       onUserPress(user.id);
     }
@@ -151,151 +124,194 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
 
             {/* Search Results or Menu Items */}
             <ScrollView style={styles.content}>
-            {showResults ? (
-              <View style={styles.searchResults}>
-                {isSearching ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={styles.loadingText}>Searching...</Text>
-                  </View>
-                ) : searchResults.length > 0 ? (
-                  <>
-                    <Text style={styles.resultsHeader}>People</Text>
-                    {searchResults.map((user) => (
-                      <Pressable
-                        key={user.id}
-                        style={styles.userResult}
-                        onPress={() => handleUserPress(user)}
-                      >
-                        <Image
-                          source={{ uri: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.username)}&background=random` }}
-                          style={styles.userAvatar}
-                        />
-                        <View style={styles.userInfo}>
-                          <Text style={styles.userDisplayName}>{user.displayName || user.username}</Text>
-                          <Text style={styles.userUsername}>@{user.username}</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-                      </Pressable>
-                    ))}
-                  </>
-                ) : (
-                  <View style={styles.emptyContainer}>
-                    <Ionicons name="search-outline" size={48} color={colors.textMuted} />
-                    <Text style={styles.emptyText}>No people found</Text>
-                    <Text style={styles.emptySubtext}>Try a different search term</Text>
-                  </View>
-                )}
-              </View>
-            ) : (
-            <View style={styles.menuItems}>
-              <Pressable
-                style={styles.menuItem}
-                onPress={() => {
-                  onClose();
-                  onSettings();
-                }}
-              >
-                <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
-                <Text style={styles.menuItemText}>Settings</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-              </Pressable>
-
-              <Pressable
-                style={styles.menuItem}
-                onPress={() => {
-                  onClose();
-                  onNotifications();
-                }}
-              >
-                <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
-                <Text style={styles.menuItemText}>Notification Center</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-              </Pressable>
-
-              <Pressable
-                style={styles.menuItem}
-                onPress={() => {
-                  onClose();
-                  onBookmarks();
-                }}
-              >
-                <Ionicons name="bookmark-outline" size={24} color={colors.textPrimary} />
-                <Text style={styles.menuItemText}>Bookmarks</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-              </Pressable>
-
-              {/* Q&A Inbox - Only show if user has inbox_access permission */}
-              {hasInboxAccess && onInbox && (
-                <Pressable
-                  style={styles.menuItem}
-                  onPress={() => {
-                    onClose();
-                    onInbox();
-                  }}
-                >
-                  <Ionicons name="mail-outline" size={24} color={colors.accent} />
-                  <Text style={styles.menuItemText}>Q&A Inbox</Text>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-                </Pressable>
-              )}
-
-              {/* Suggested Friends Section */}
-              {friendSuggestions.length > 0 && (
-                <View style={styles.suggestionsSection}>
-                  <Text style={styles.suggestionsHeader}>Suggested Friends</Text>
-                  {friendSuggestions.map((suggestion) => (
+              {showResults ? (
+                <View style={styles.searchResults}>
+                  {isSearching ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="large" color={colors.primary} />
+                      <Text style={styles.loadingText}>Searching...</Text>
+                    </View>
+                  ) : searchResults.length > 0 ? (
+                    <>
+                      <Text style={styles.resultsHeader}>People</Text>
+                      {searchResults.map((user) => (
+                        <Pressable
+                          key={user.id}
+                          style={styles.userResult}
+                          onPress={() => handleUserPress(user)}
+                        >
+                          <Image
+                            source={{ uri: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.username)}&background=random` }}
+                            style={styles.userAvatar}
+                          />
+                          <View style={styles.userInfo}>
+                            <Text style={styles.userDisplayName}>{user.displayName || user.username}</Text>
+                            <Text style={styles.userUsername}>@{user.username}</Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                        </Pressable>
+                      ))}
+                    </>
+                  ) : (
+                    <View style={styles.emptyContainer}>
+                      <Ionicons name="search-outline" size={48} color={colors.textMuted} />
+                      <Text style={styles.emptyText}>No people found</Text>
+                      <Text style={styles.emptySubtext}>Try a different search term</Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.menuItems}>
+                  {/* Messages with unread badge */}
+                  {onMessages && (
                     <Pressable
-                      key={suggestion.id}
-                      style={styles.suggestionCard}
-                      onPress={() => handleUserPress(suggestion as any)}
+                      style={styles.menuItem}
+                      onPress={() => {
+                        onClose();
+                        onMessages();
+                      }}
                     >
-                      <Image
-                        source={{
-                          uri: suggestion.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(suggestion.displayName || suggestion.username)}&background=random`
-                        }}
-                        style={styles.suggestionAvatar}
-                      />
-                      <View style={styles.suggestionInfo}>
-                        <Text style={styles.suggestionDisplayName} numberOfLines={1}>
-                          {suggestion.displayName || suggestion.username}
-                        </Text>
-                        <Text style={styles.suggestionUsername} numberOfLines={1}>
-                          @{suggestion.username}
-                        </Text>
-                        {suggestion.suggestionScore.mutualCommunities > 0 && (
-                          <Text style={styles.suggestionReason} numberOfLines={1}>
-                            <Ionicons name="people-outline" size={12} color={colors.textMuted} />{' '}
-                            {suggestion.suggestionScore.mutualCommunities} mutual {suggestion.suggestionScore.mutualCommunities === 1 ? 'community' : 'communities'}
-                          </Text>
-                        )}
-                        {suggestion.suggestionScore.mutualFollows > 0 && (
-                          <Text style={styles.suggestionReason} numberOfLines={1}>
-                            <Ionicons name="person-outline" size={12} color={colors.textMuted} />{' '}
-                            {suggestion.suggestionScore.mutualFollows} mutual {suggestion.suggestionScore.mutualFollows === 1 ? 'friend' : 'friends'}
-                          </Text>
-                        )}
-                        {suggestion.suggestionScore.location > 0 && suggestion.city && (
-                          <Text style={styles.suggestionReason} numberOfLines={1}>
-                            <Ionicons name="location-outline" size={12} color={colors.textMuted} />{' '}
-                            {suggestion.city}, {suggestion.state}
-                          </Text>
+                      <View style={{ position: 'relative' }}>
+                        <Ionicons name="chatbubbles-outline" size={24} color={colors.textPrimary} />
+                        {(unreadData?.count ?? 0) > 0 && (
+                          <View style={{
+                            position: 'absolute',
+                            top: -4,
+                            right: -6,
+                            backgroundColor: '#EF4444',
+                            borderRadius: 10,
+                            minWidth: 18,
+                            height: 18,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            paddingHorizontal: 4,
+                          }}>
+                            <Text style={{
+                              fontSize: 10,
+                              fontWeight: '700',
+                              color: '#FFFFFF',
+                            }}>
+                              {unreadData.count > 99 ? '99+' : unreadData.count}
+                            </Text>
+                          </View>
                         )}
                       </View>
+                      <Text style={styles.menuItemText}>Messages</Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                     </Pressable>
-                  ))}
-                </View>
-              )}
+                  )}
 
-              {isLoadingSuggestions && friendSuggestions.length === 0 && (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.loadingText}>Loading suggestions...</Text>
+                  <Pressable
+                    style={styles.menuItem}
+                    onPress={() => {
+                      onClose();
+                      onSettings();
+                    }}
+                  >
+                    <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
+                    <Text style={styles.menuItemText}>Settings</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.menuItem}
+                    onPress={() => {
+                      onClose();
+                      onNotifications();
+                    }}
+                  >
+                    <View style={{ position: 'relative' }}>
+                      <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
+                      {(notificationCountData?.count ?? 0) > 0 && (
+                        <View style={{
+                          position: 'absolute',
+                          top: -4,
+                          right: -6,
+                          backgroundColor: '#EF4444',
+                          borderRadius: 10,
+                          minWidth: 18,
+                          height: 18,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          paddingHorizontal: 4,
+                        }}>
+                          <Text style={{
+                            fontSize: 10,
+                            fontWeight: '700',
+                            color: '#FFFFFF',
+                          }}>
+                            {notificationCountData.count > 99 ? '99+' : notificationCountData.count}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.menuItemText}>Notification Center</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.menuItem}
+                    onPress={() => {
+                      onClose();
+                      onBookmarks();
+                    }}
+                  >
+                    <Ionicons name="bookmark-outline" size={24} color={colors.textPrimary} />
+                    <Text style={styles.menuItemText}>Bookmarks</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                  </Pressable>
+
+                  {/* Q&A Inbox - Only show if user has inbox_access permission */}
+                  {hasInboxAccess && onInbox && (
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={() => {
+                        onClose();
+                        onInbox();
+                      }}
+                    >
+                      <Ionicons name="mail-outline" size={24} color={colors.accent} />
+                      <Text style={styles.menuItemText}>Q&A Inbox</Text>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                    </Pressable>
+                  )}
+
+                  {/* Theme Toggle */}
+                  <View style={styles.themeSectionContainer}>
+                    <View style={styles.themeSectionHeader}>
+                      <Ionicons name="contrast-outline" size={24} color={colors.textPrimary} />
+                      <Text style={styles.menuItemText}>Appearance</Text>
+                    </View>
+                    <View style={styles.themeToggleContainer}>
+                      {(['light', 'dark', 'system'] as ThemePreference[]).map((option) => (
+                        <Pressable
+                          key={option}
+                          style={[
+                            styles.themeOption,
+                            theme === option && styles.themeOptionActive,
+                          ]}
+                          onPress={() => setTheme(option)}
+                        >
+                          <Ionicons
+                            name={
+                              option === 'light' ? 'sunny-outline' :
+                              option === 'dark' ? 'moon-outline' : 'phone-portrait-outline'
+                            }
+                            size={18}
+                            color={theme === option ? colors.primary : colors.textSecondary}
+                          />
+                          <Text style={[
+                            styles.themeOptionText,
+                            theme === option && styles.themeOptionTextActive,
+                          ]}>
+                            {option.charAt(0).toUpperCase() + option.slice(1)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
                 </View>
               )}
-            </View>
-            )}
             </ScrollView>
           </SafeAreaView>
         </Pressable>
@@ -391,17 +407,6 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     fontWeight: '500',
     color: colors.textPrimary,
   },
-  comingSoonBadge: {
-    backgroundColor: colors.warning,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  comingSoonText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
   content: {
     flex: 1,
   },
@@ -469,49 +474,51 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-  suggestionsSection: {
-    marginTop: 24,
-    paddingTop: 16,
+  themeSectionContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
+    marginTop: 8,
   },
-  suggestionsHeader: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  suggestionCard: {
+  themeSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    gap: 12,
-    backgroundColor: colors.surface,
+    gap: 16,
+    marginBottom: 12,
   },
-  suggestionAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  themeToggleContainer: {
+    flexDirection: 'row',
     backgroundColor: colors.surfaceMuted,
+    borderRadius: 10,
+    padding: 4,
+    alignSelf: 'center',
   },
-  suggestionInfo: {
+  themeOption: {
     flex: 1,
-    gap: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    gap: 6,
   },
-  suggestionDisplayName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
+  themeOptionActive: {
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  suggestionUsername: {
+  themeOptionText: {
     fontSize: 13,
+    fontWeight: '500',
     color: colors.textSecondary,
   },
-  suggestionReason: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
+  themeOptionTextActive: {
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
 });

@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/Icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "scheme": "theconnection",
     "splash": {
       "image": "./assets/splash.png",
@@ -18,6 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.theconnection.mobile",
+      "buildNumber": "2",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
@@ -27,13 +28,14 @@
         "NSCalendarsUsageDescription": "The Connection needs access to your calendar to add events you're attending.",
         "NSUserNotificationsUsageDescription": "The Connection needs to send you notifications about community posts, events, and messages.",
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true,
+          "NSAllowsArbitraryLoads": false,
           "NSAllowsLocalNetworking": true
         },
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a2a4a"
@@ -49,7 +51,6 @@
         "android.permission.NOTIFICATIONS",
         "android.permission.RECORD_AUDIO"
       ],
-      "googleServicesFile": "./google-services.json",
       "package": "app.theconnection.mobile"
     },
     "plugins": [
@@ -82,7 +83,9 @@
             "deploymentTarget": "15.1"
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-font"
     ],
     "extra": {
       "apiBase": "https://api.theconnection.app",

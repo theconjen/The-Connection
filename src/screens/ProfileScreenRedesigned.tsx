@@ -34,6 +34,9 @@ import {
 } from '../queries/follow';
 import { Colors } from '../shared/colors';
 
+// Custom church icon
+const ChurchIcon = require('../../assets/church-icon.png');
+
 interface ProfileScreenProps {
   onBackPress?: () => void;
   userId?: number; // If provided, show another user's profile; otherwise show current user's
@@ -153,7 +156,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   if (isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <AppHeader
           showCenteredLogo={true}
           showBackInCenteredMode={true}
@@ -169,7 +172,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   if (!profile) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <AppHeader
           showCenteredLogo={true}
           showBackInCenteredMode={true}
@@ -186,7 +189,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <AppHeader
         showCenteredLogo={true}
@@ -196,14 +199,14 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
           viewingOwnProfile ? (
             <Pressable
               onPress={() => {
-                // Navigate to edit profile
+                router.push('/settings');
               }}
               style={({ pressed }) => ({
                 padding: spacing.sm,
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
+              <Ionicons name="settings-outline" size={24} color={colors.headerForeground} />
             </Pressable>
           ) : undefined
         }
@@ -291,7 +294,11 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 )}
                 {user.homeChurch && (
                   <>
-                    <Ionicons name="business" size={12} color={colors.textSecondary} />
+                    <Image
+                      source={ChurchIcon}
+                      style={{ width: 14, height: 14, tintColor: colors.textSecondary }}
+                      resizeMode="contain"
+                    />
                     <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>{user.homeChurch}</Text>
                   </>
                 )}

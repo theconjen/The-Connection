@@ -3,7 +3,7 @@
  * First screen after registration - introduces values and mission
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,15 +11,42 @@ import {
   Pressable,
   StyleSheet,
   Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { useAuth } from '../../src/contexts/AuthContext';
+import apiClient from '../../src/lib/apiClient';
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { refresh } = useAuth();
+  const [isSkipping, setIsSkipping] = useState(false);
+
+  const handleSkip = async () => {
+    setIsSkipping(true);
+    try {
+      // Mark onboarding as completed
+      await apiClient.post('/api/user/onboarding', {
+        onboardingCompleted: true,
+      });
+
+      // Refresh user context to get updated onboardingCompleted status
+      await refresh();
+
+      // Navigate to feed
+      router.replace('/(tabs)/feed');
+    } catch (error) {
+      console.error('Error skipping onboarding:', error);
+      Alert.alert('Error', 'Failed to skip onboarding. Please try again.');
+    } finally {
+      setIsSkipping(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -103,12 +130,17 @@ export default function WelcomeScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => router.replace('/(tabs)/feed')}
+          onPress={handleSkip}
           style={styles.skipButton}
+          disabled={isSkipping}
         >
-          <Text style={[styles.skipText, { color: colors.textSecondary }]}>
-            Skip for now
-          </Text>
+          {isSkipping ? (
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+          ) : (
+            <Text style={[styles.skipText, { color: colors.textSecondary }]}>
+              Skip for now
+            </Text>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>

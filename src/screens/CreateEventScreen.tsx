@@ -182,7 +182,7 @@ export function CreateEventScreen({
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Community Badge */}
         <View style={styles.communityBadge}>
-          <Ionicons name="people" size={16} color="#222D99" />
+          <Ionicons name="people" size={16} color="#5C6B5E" />
           <Text style={styles.communityName}>{communityName}</Text>
         </View>
 
@@ -261,7 +261,7 @@ export function CreateEventScreen({
           <Switch
             value={formData.isVirtual}
             onValueChange={(value) => updateField('isVirtual', value)}
-            trackColor={{ false: colors.surfaceMuted, true: '#222D99' }}
+            trackColor={{ false: colors.surfaceMuted, true: '#5C6B5E' }}
             thumbColor="#fff"
           />
         </View>
@@ -358,7 +358,7 @@ export function CreateEventScreen({
           <Switch
             value={formData.isPublic}
             onValueChange={(value) => updateField('isPublic', value)}
-            trackColor={{ false: colors.surfaceMuted, true: '#222D99' }}
+            trackColor={{ false: colors.surfaceMuted, true: '#5C6B5E' }}
             thumbColor="#fff"
           />
         </View>
@@ -418,7 +418,7 @@ const getStyles = (colors: any) =>
     createText: {
       fontSize: 16,
       fontWeight: '600',
-      color: '#222D99',
+      color: '#5C6B5E',
       textAlign: 'right',
     },
     createTextDisabled: {
@@ -442,7 +442,7 @@ const getStyles = (colors: any) =>
     communityName: {
       fontSize: 14,
       fontWeight: '600',
-      color: '#222D99',
+      color: '#5C6B5E',
     },
     section: {
       marginBottom: 20,

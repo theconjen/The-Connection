@@ -1,8 +1,12 @@
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { Text } from '../src/theme';
 import { Stack } from 'expo-router';
+import { useTheme } from '../src/contexts/ThemeContext';
 
 export default function PrivacyPolicyScreen() {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   return (
     <>
       <Stack.Screen options={{ title: 'Privacy Policy' }} />
@@ -204,10 +208,10 @@ export default function PrivacyPolicyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   content: {
     padding: 20,
@@ -216,12 +220,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   date: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 24,
   },
   section: {
@@ -230,50 +234,50 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   subsectionTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textSecondary,
     marginTop: 12,
     marginBottom: 8,
   },
   paragraph: {
     fontSize: 15,
-    color: '#444',
+    color: colors.textSecondary,
     lineHeight: 24,
     marginBottom: 12,
   },
   bulletPoint: {
     fontSize: 15,
-    color: '#444',
+    color: colors.textSecondary,
     lineHeight: 24,
     marginBottom: 8,
     paddingLeft: 8,
   },
   highlight: {
     fontSize: 15,
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     lineHeight: 24,
     marginTop: 12,
     fontWeight: '600',
-    backgroundColor: '#f0f9ff',
+    backgroundColor: colors.surfaceMuted,
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#3b82f6',
+    borderLeftColor: colors.info,
   },
   footer: {
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: colors.borderSubtle,
     paddingTop: 20,
     marginTop: 20,
   },
   footerText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textMuted,
     lineHeight: 20,
   },
 });

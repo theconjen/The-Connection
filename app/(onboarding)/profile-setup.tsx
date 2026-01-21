@@ -22,11 +22,12 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
+import apiClient from '../../src/lib/apiClient';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
 
   const [formData, setFormData] = useState({
     displayName: '',
@@ -35,6 +36,7 @@ export default function ProfileSetupScreen() {
   });
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSkipping, setIsSkipping] = useState(false);
 
   const pickImage = async () => {
     try {
@@ -61,6 +63,27 @@ export default function ProfileSetupScreen() {
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const handleSkip = async () => {
+    setIsSkipping(true);
+    try {
+      // Mark onboarding as completed
+      await apiClient.post('/api/user/onboarding', {
+        onboardingCompleted: true,
+      });
+
+      // Refresh user context to get updated onboardingCompleted status
+      await refresh();
+
+      // Navigate to feed
+      router.replace('/(tabs)/feed');
+    } catch (error) {
+      console.error('Error skipping onboarding:', error);
+      Alert.alert('Error', 'Failed to skip onboarding. Please try again.');
+    } finally {
+      setIsSkipping(false);
     }
   };
 
@@ -234,12 +257,17 @@ export default function ProfileSetupScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => router.replace('/(tabs)/feed')}
+          onPress={handleSkip}
           style={styles.skipButton}
+          disabled={isSkipping}
         >
-          <Text style={[styles.skipText, { color: colors.textSecondary }]}>
-            Skip for now
-          </Text>
+          {isSkipping ? (
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+          ) : (
+            <Text style={[styles.skipText, { color: colors.textSecondary }]}>
+              Skip for now
+            </Text>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>

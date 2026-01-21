@@ -57,7 +57,11 @@ function useNotifications() {
     queryKey: ['/api/notifications'],
     queryFn: async () => {
       const response = await apiClient.get('/api/notifications');
-      return response.data;
+      // Handle both old format (array) and new format (structured response)
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return response.data?.data?.notifications || response.data?.notifications || [];
     },
   });
 }
@@ -67,11 +71,12 @@ function useMarkAsRead() {
 
   return useMutation({
     mutationFn: async (notificationId: number) => {
-      const response = await apiClient.patch(`/api/notifications/${notificationId}/read`);
+      const response = await apiClient.post(`/api/notifications/${notificationId}/read`);
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notification-count'] });
     },
   });
 }
@@ -81,11 +86,12 @@ function useMarkAllAsRead() {
 
   return useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post('/api/notifications/mark-all-read');
+      const response = await apiClient.post('/api/notifications/read-all');
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notification-count'] });
     },
   });
 }
@@ -223,12 +229,13 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
     markAllAsReadMutation.mutate();
   };
 
-  // Filter notifications
+  // Filter notifications (ensure notifications is an array)
+  const notificationsList = Array.isArray(notifications) ? notifications : [];
   const filteredNotifications = filter === 'unread'
-    ? notifications.filter((n) => !n.isRead)
-    : notifications;
+    ? notificationsList.filter((n) => !n.isRead)
+    : notificationsList;
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = notificationsList.filter((n) => !n.isRead).length;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>

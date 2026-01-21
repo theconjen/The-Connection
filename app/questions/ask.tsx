@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import apiClient from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { useTheme } from '../../src/theme';
 
 interface Area {
   id: number;
@@ -30,9 +31,148 @@ interface Tag {
   areaId: number;
 }
 
+// Styles function - defined before component
+const getStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 16,
+    paddingTop: 70,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  domainButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  domainButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  domainButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  domainButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  domainButtonTextActive: {
+    color: colors.primaryForeground,
+  },
+  picker: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    overflow: 'hidden',
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceMuted,
+  },
+  pickerItemActive: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  pickerItemContent: {
+    flex: 1,
+  },
+  pickerItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  pickerItemTextActive: {
+    color: colors.primary,
+  },
+  pickerItemDescription: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  textInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    color: colors.textPrimary,
+    minHeight: 120,
+  },
+  submitButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  submitButtonDisabled: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primaryForeground,
+  },
+  helpBox: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceMuted,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  helpText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginLeft: 8,
+    lineHeight: 20,
+  },
+});
+
 export default function AskQuestionScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [domain, setDomain] = useState<'apologetics' | 'polemics'>('apologetics');
   const [areas, setAreas] = useState<Area[]>([]);
@@ -86,8 +226,8 @@ export default function AskQuestionScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedArea || !selectedTag || !questionText.trim()) {
-      Alert.alert('Missing Information', 'Please select an area, tag, and enter your question');
+    if (!selectedArea || !questionText.trim()) {
+      Alert.alert('Missing Information', 'Please select an area and enter your question');
       return;
     }
 
@@ -96,7 +236,7 @@ export default function AskQuestionScreen() {
       const response = await apiClient.post('/api/questions', {
         domain,
         areaId: selectedArea.id,
-        tagId: selectedTag.id,
+        tagId: selectedTag?.id || null,
         questionText: questionText.trim(),
       });
 
@@ -127,7 +267,7 @@ export default function AskQuestionScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Ask a Question</Text>
       </View>
@@ -176,7 +316,7 @@ export default function AskQuestionScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>Area *</Text>
           {loading ? (
-            <ActivityIndicator size="small" color="#4A90E2" />
+            <ActivityIndicator size="small" color={colors.sage} />
           ) : (
             <View style={styles.picker}>
               {areas.map((area) => (
@@ -200,7 +340,7 @@ export default function AskQuestionScreen() {
                     <Text style={styles.pickerItemDescription}>{area.description}</Text>
                   </View>
                   {selectedArea?.id === area.id && (
-                    <Ionicons name="checkmark-circle" size={24} color="#4A90E2" />
+                    <Ionicons name="checkmark-circle" size={24} color={colors.sage} />
                   )}
                 </Pressable>
               ))}
@@ -209,9 +349,9 @@ export default function AskQuestionScreen() {
         </View>
 
         {/* Tag Selector */}
-        {selectedArea && (
+        {selectedArea && tags.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.label}>Tag *</Text>
+            <Text style={styles.label}>Tag (optional)</Text>
             <View style={styles.picker}>
               {tags.map((tag) => (
                 <Pressable
@@ -234,7 +374,7 @@ export default function AskQuestionScreen() {
                     <Text style={styles.pickerItemDescription}>{tag.description}</Text>
                   </View>
                   {selectedTag?.id === tag.id && (
-                    <Ionicons name="checkmark-circle" size={24} color="#4A90E2" />
+                    <Ionicons name="checkmark-circle" size={24} color={colors.sage} />
                   )}
                 </Pressable>
               ))}
@@ -250,7 +390,7 @@ export default function AskQuestionScreen() {
             value={questionText}
             onChangeText={setQuestionText}
             placeholder="Describe your question in detail..."
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textMuted}
             multiline
             numberOfLines={8}
             textAlignVertical="top"
@@ -261,14 +401,14 @@ export default function AskQuestionScreen() {
         <Pressable
           style={[
             styles.submitButton,
-            (!selectedArea || !selectedTag || !questionText.trim() || submitting) &&
+            (!selectedArea || !questionText.trim() || submitting) &&
               styles.submitButtonDisabled,
           ]}
           onPress={handleSubmit}
-          disabled={!selectedArea || !selectedTag || !questionText.trim() || submitting}
+          disabled={!selectedArea || !questionText.trim() || submitting}
         >
           {submitting ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={colors.primaryForeground} />
           ) : (
             <Text style={styles.submitButtonText}>Submit Question</Text>
           )}
@@ -276,7 +416,7 @@ export default function AskQuestionScreen() {
 
         {/* Help Text */}
         <View style={styles.helpBox}>
-          <Ionicons name="information-circle-outline" size={20} color="#4A90E2" />
+          <Ionicons name="information-circle-outline" size={20} color={colors.sage} />
           <Text style={styles.helpText}>
             Your question will be privately reviewed by our Connection Research Team. You'll
             receive a notification when they respond.
@@ -286,135 +426,3 @@ export default function AskQuestionScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4A90E2',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  domainButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  domainButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  domainButtonActive: {
-    backgroundColor: '#4A90E2',
-    borderColor: '#4A90E2',
-  },
-  domainButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  domainButtonTextActive: {
-    color: '#fff',
-  },
-  picker: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  pickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  pickerItemActive: {
-    backgroundColor: '#f0f8ff',
-  },
-  pickerItemContent: {
-    flex: 1,
-  },
-  pickerItemText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  pickerItemTextActive: {
-    color: '#4A90E2',
-  },
-  pickerItemDescription: {
-    fontSize: 13,
-    color: '#666',
-  },
-  textInput: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-    minHeight: 120,
-  },
-  submitButton: {
-    backgroundColor: '#4A90E2',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  helpBox: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f8ff',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 24,
-  },
-  helpText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 8,
-    lineHeight: 20,
-  },
-});

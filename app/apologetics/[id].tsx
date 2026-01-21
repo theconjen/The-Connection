@@ -1,9 +1,17 @@
 /**
- * Apologetics Question Detail Screen
- * Shows full Q&A with sources and metadata
+ * Apologetics Library Post Detail Screen - GotQuestions UX
+ * GOAL: User gets a reliable answer in under 60 seconds
+ *
+ * Structured content order:
+ * 1. TL;DR (quick answer at top)
+ * 2. Key Points (3-5 bullets)
+ * 3. Scripture References (if any)
+ * 4. Short Answer (full bodyMarkdown)
+ * 5. Perspectives (collapsed/expandable)
+ * 6. Sources (collapsed/expandable)
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   ScrollView,
@@ -21,14 +29,29 @@ import { useTheme } from "../../src/theme";
 import { AppHeader } from "../../src/screens/AppHeader";
 import { useAuth } from "../../src/contexts/AuthContext";
 import apiClient from "../../src/lib/apiClient";
+import Markdown from "react-native-markdown-display";
 
-type QADetail = {
-  id: string;
-  question: string;
-  areaName: string;
-  tagName?: string;
-  answer: string;
-  sources?: string[];
+type LibraryPostSource = {
+  author: string;
+  title: string;
+  publisher?: string;
+  year?: number;
+  url?: string;
+};
+
+type LibraryPost = {
+  id: number;
+  domain: "apologetics" | "polemics";
+  title: string;
+  tldr: string | null;
+  keyPoints: string[];
+  scriptureRefs: string[];
+  bodyMarkdown: string;
+  perspectives: string[];
+  sources: LibraryPostSource[];
+  authorDisplayName: string;
+  area?: { id: number; name: string };
+  tag?: { id: number; name: string };
 };
 
 async function apiGet<T>(path: string): Promise<T> {
@@ -39,12 +62,15 @@ async function apiGet<T>(path: string): Promise<T> {
 export default function ApologeticsDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { colors } = useTheme();
+  const { colors, colorScheme } = useTheme();
   const { user } = useAuth();
 
+  const [perspectivesExpanded, setPerspectivesExpanded] = useState(false);
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["apologetics-question", id],
-    queryFn: () => apiGet<QADetail>(`/api/apologetics/questions/${id}`),
+    queryKey: ["library-post", id],
+    queryFn: () => apiGet<LibraryPost>(`/api/library/posts/${id}`),
     staleTime: 60_000,
   });
 
@@ -53,7 +79,7 @@ export default function ApologeticsDetailScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <AppHeader
           showCenteredLogo={true}
           userName={user?.displayName || user?.username}
@@ -66,7 +92,7 @@ export default function ApologeticsDetailScreen() {
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading question...</Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
@@ -75,7 +101,7 @@ export default function ApologeticsDetailScreen() {
   if (error || !data) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <AppHeader
           showCenteredLogo={true}
           userName={user?.displayName || user?.username}
@@ -88,9 +114,9 @@ export default function ApologeticsDetailScreen() {
         />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.errorTitle}>Question not found</Text>
+          <Text style={styles.errorTitle}>Article not found</Text>
           <Text style={styles.errorBody}>
-            This question may have been removed or doesn't exist.
+            This article may have been removed or doesn't exist.
           </Text>
           <Pressable
             style={styles.primaryButton}
@@ -105,7 +131,7 @@ export default function ApologeticsDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <AppHeader
@@ -134,67 +160,231 @@ export default function ApologeticsDetailScreen() {
         </Pressable>
 
         {/* Breadcrumb */}
-        <View style={styles.breadcrumb}>
-          <Text style={styles.breadcrumbText}>{data.areaName}</Text>
-          {data.tagName && (
-            <>
-              <Ionicons name="chevron-forward" size={12} color={colors.textMuted} />
-              <Text style={styles.breadcrumbText}>{data.tagName}</Text>
-            </>
-          )}
-        </View>
-
-        {/* Question */}
-        <View style={styles.questionCard}>
-          <Text style={styles.questionLabel}>Question</Text>
-          <Text style={styles.questionText}>{data.question}</Text>
-        </View>
-
-        {/* Answer */}
-        <View style={styles.answerCard}>
-          <View style={styles.answerHeader}>
-            <Text style={styles.answerLabel}>Answer from verified sources</Text>
+        {(data.area || data.tag) && (
+          <View style={styles.breadcrumb}>
+            <Text style={styles.breadcrumbText}>{data.area?.name}</Text>
+            {data.tag && (
+              <>
+                <Ionicons name="chevron-forward" size={12} color={colors.textMuted} />
+                <Text style={styles.breadcrumbText}>{data.tag.name}</Text>
+              </>
+            )}
           </View>
+        )}
 
-          <Text style={styles.answerText}>{data.answer}</Text>
-
-          {/* Author Attribution */}
-          <View style={styles.authorLine}>
-            <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
-            <Text style={styles.authorText}>Connection Research Team</Text>
+        {/* Title */}
+        <View style={styles.titleCard}>
+          <Text style={styles.title}>{data.title}</Text>
+          <View style={styles.authorMeta}>
+            <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
+            <Text style={styles.authorText}>{data.authorDisplayName}</Text>
           </View>
         </View>
 
-        {/* Sources */}
-        {data.sources && data.sources.length > 0 && (
-          <View style={styles.sourcesCard}>
-            <Text style={styles.sourcesTitle}>Sources</Text>
-            {data.sources.map((source, idx) => (
-              <View key={idx} style={styles.sourceItem}>
-                <Text style={styles.sourceBullet}>•</Text>
-                <Text style={styles.sourceText}>{source}</Text>
+        {/* 1. TL;DR (Quick Answer) */}
+        {data.tldr && (
+          <View style={styles.tldrCard}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="flash" size={18} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Quick Answer</Text>
+            </View>
+            <Text style={styles.tldrText}>{data.tldr}</Text>
+          </View>
+        )}
+
+        {/* 2. Key Points */}
+        {data.keyPoints && data.keyPoints.length > 0 && (
+          <View style={styles.keyPointsCard}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="list" size={18} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Key Points</Text>
+            </View>
+            {data.keyPoints.map((point, idx) => (
+              <View key={idx} style={styles.keyPointItem}>
+                <View style={styles.keyPointBullet}>
+                  <Text style={styles.keyPointBulletText}>{idx + 1}</Text>
+                </View>
+                <Text style={styles.keyPointText}>{point}</Text>
               </View>
             ))}
           </View>
         )}
 
+        {/* 3. Scripture References */}
+        {data.scriptureRefs && data.scriptureRefs.length > 0 && (
+          <View style={styles.scriptureCard}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="book" size={18} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Scripture References</Text>
+            </View>
+            <View style={styles.scriptureList}>
+              {data.scriptureRefs.map((ref, idx) => (
+                <View key={idx} style={styles.scriptureBadge}>
+                  <Text style={styles.scriptureText}>{ref}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 4. Short Answer (Full Content) */}
+        <View style={styles.answerCard}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="document-text" size={18} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Detailed Answer</Text>
+          </View>
+          <Markdown style={markdownStyles(colors)}>
+            {data.bodyMarkdown}
+          </Markdown>
+        </View>
+
+        {/* 5. Perspectives (Collapsible) */}
+        {data.perspectives && data.perspectives.length > 0 && (
+          <View style={styles.collapsibleCard}>
+            <Pressable
+              style={styles.collapsibleHeader}
+              onPress={() => setPerspectivesExpanded(!perspectivesExpanded)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="people" size={18} color={colors.primary} />
+                <Text style={styles.sectionTitle}>Perspectives ({data.perspectives.length})</Text>
+              </View>
+              <Ionicons
+                name={perspectivesExpanded ? "chevron-up" : "chevron-down"}
+                size={20}
+                color={colors.textMuted}
+              />
+            </Pressable>
+            {perspectivesExpanded && (
+              <View style={styles.collapsibleContent}>
+                {data.perspectives.map((perspective, idx) => (
+                  <View key={idx} style={styles.perspectiveItem}>
+                    <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+                    <Text style={styles.perspectiveText}>{perspective}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* 6. Sources (Collapsible) */}
+        {data.sources && data.sources.length > 0 && (
+          <View style={styles.collapsibleCard}>
+            <Pressable
+              style={styles.collapsibleHeader}
+              onPress={() => setSourcesExpanded(!sourcesExpanded)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="library" size={18} color={colors.primary} />
+                <Text style={styles.sectionTitle}>Sources ({data.sources.length})</Text>
+              </View>
+              <Ionicons
+                name={sourcesExpanded ? "chevron-up" : "chevron-down"}
+                size={20}
+                color={colors.textMuted}
+              />
+            </Pressable>
+            {sourcesExpanded && (
+              <View style={styles.collapsibleContent}>
+                {data.sources.map((source, idx) => (
+                  <View key={idx} style={styles.sourceItem}>
+                    <View style={styles.sourceBullet}>
+                      <Text style={styles.sourceBulletText}>{idx + 1}</Text>
+                    </View>
+                    <View style={styles.sourceContent}>
+                      <Text style={styles.sourceTitle}>{source.title}</Text>
+                      <Text style={styles.sourceAuthor}>
+                        {source.author}
+                        {source.year && ` (${source.year})`}
+                        {source.publisher && ` • ${source.publisher}`}
+                      </Text>
+                      {source.url && (
+                        <Text style={styles.sourceUrl} numberOfLines={1}>
+                          {source.url}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Ask Question CTA */}
         <View style={styles.ctaCard}>
-          <Ionicons name="help-circle-outline" size={32} color={colors.primary} />
+          <Ionicons name="mail-outline" size={32} color={colors.primary} />
           <Text style={styles.ctaTitle}>Have a question?</Text>
           <Text style={styles.ctaBody}>
-            Submit your apologetics question and get answers from our research team.
+            Submit your apologetics question and get answers from the Connection Research Team.
           </Text>
           <Pressable
             style={styles.primaryButton}
             onPress={() => router.push("/questions/ask" as any)}
           >
-            <Text style={styles.primaryButtonText}>Ask a Question</Text>
+            <Text style={styles.primaryButtonText}>Ask the Connection Research Team</Text>
           </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function markdownStyles(colors: any) {
+  return StyleSheet.create({
+    body: {
+      color: colors.textPrimary,
+      fontSize: 16,
+      lineHeight: 24,
+    },
+    heading1: {
+      color: colors.textPrimary,
+      fontSize: 24,
+      fontWeight: '700',
+      marginTop: 20,
+      marginBottom: 12,
+    },
+    heading2: {
+      color: colors.textPrimary,
+      fontSize: 20,
+      fontWeight: '700',
+      marginTop: 18,
+      marginBottom: 10,
+    },
+    heading3: {
+      color: colors.textPrimary,
+      fontSize: 18,
+      fontWeight: '600',
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    paragraph: {
+      marginBottom: 12,
+    },
+    listUnorderedItemIcon: {
+      color: colors.primary,
+    },
+    listOrderedItemIcon: {
+      color: colors.primary,
+    },
+    strong: {
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    em: {
+      fontStyle: 'italic',
+    },
+    code_inline: {
+      backgroundColor: colors.surfaceMuted,
+      color: colors.primary,
+      fontFamily: 'monospace',
+      fontSize: 14,
+      paddingHorizontal: 4,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+  });
 }
 
 function getStyles(colors: any) {
@@ -255,14 +445,14 @@ function getStyles(colors: any) {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      marginBottom: 20,
+      marginBottom: 16,
     },
     breadcrumbText: {
       fontSize: 12,
       color: colors.textMuted,
       fontWeight: "500",
     },
-    questionCard: {
+    titleCard: {
       backgroundColor: colors.backgroundSoft,
       borderColor: colors.borderSubtle,
       borderWidth: 1,
@@ -270,19 +460,108 @@ function getStyles(colors: any) {
       padding: 20,
       marginBottom: 16,
     },
-    questionLabel: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: colors.textSecondary,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-      marginBottom: 12,
-    },
-    questionText: {
-      fontSize: 22,
+    title: {
+      fontSize: 24,
       fontWeight: "700",
       color: colors.textPrimary,
-      lineHeight: 30,
+      lineHeight: 32,
+      marginBottom: 12,
+    },
+    authorMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    authorText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.textSecondary,
+    },
+    tldrCard: {
+      backgroundColor: colors.backgroundSoft,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.primary,
+      borderColor: colors.borderSubtle,
+      borderWidth: 1,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 16,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 14,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.textPrimary,
+    },
+    tldrText: {
+      fontSize: 16,
+      color: colors.textPrimary,
+      lineHeight: 24,
+    },
+    keyPointsCard: {
+      backgroundColor: colors.backgroundSoft,
+      borderColor: colors.borderSubtle,
+      borderWidth: 1,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 16,
+    },
+    keyPointItem: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      marginBottom: 14,
+    },
+    keyPointBullet: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+      marginTop: 2,
+    },
+    keyPointBulletText: {
+      color: colors.primaryForeground,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    keyPointText: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.textPrimary,
+      lineHeight: 22,
+    },
+    scriptureCard: {
+      backgroundColor: colors.backgroundSoft,
+      borderColor: colors.borderSubtle,
+      borderWidth: 1,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 16,
+    },
+    scriptureList: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    scriptureBadge: {
+      backgroundColor: colors.surface,
+      borderColor: colors.borderSubtle,
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    scriptureText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.textPrimary,
     },
     answerCard: {
       backgroundColor: colors.backgroundSoft,
@@ -292,65 +571,75 @@ function getStyles(colors: any) {
       padding: 20,
       marginBottom: 16,
     },
-    answerHeader: {
-      marginBottom: 16,
-    },
-    answerLabel: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: colors.textSecondary,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-    },
-    answerText: {
-      fontSize: 16,
-      color: colors.textPrimary,
-      lineHeight: 24,
-      marginBottom: 16,
-    },
-    authorLine: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingTop: 16,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderSubtle,
-    },
-    authorText: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: colors.textSecondary,
-    },
-    sourcesCard: {
+    collapsibleCard: {
       backgroundColor: colors.backgroundSoft,
       borderColor: colors.borderSubtle,
       borderWidth: 1,
       borderRadius: 16,
-      padding: 20,
       marginBottom: 16,
+      overflow: "hidden",
     },
-    sourcesTitle: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: colors.textPrimary,
+    collapsibleHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 16,
+    },
+    collapsibleContent: {
+      padding: 16,
+      paddingTop: 0,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSubtle,
+    },
+    perspectiveItem: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
       marginBottom: 12,
+    },
+    perspectiveText: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.textPrimary,
+      lineHeight: 20,
     },
     sourceItem: {
       flexDirection: "row",
       alignItems: "flex-start",
-      marginBottom: 10,
+      marginBottom: 16,
     },
     sourceBullet: {
-      fontSize: 14,
-      color: colors.textMuted,
-      marginRight: 10,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
       marginTop: 2,
     },
-    sourceText: {
+    sourceBulletText: {
+      color: colors.textSecondary,
+      fontSize: 11,
+      fontWeight: "700",
+    },
+    sourceContent: {
       flex: 1,
+    },
+    sourceTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.textPrimary,
+      marginBottom: 4,
+    },
+    sourceAuthor: {
       fontSize: 13,
       color: colors.textSecondary,
-      lineHeight: 20,
+      marginBottom: 4,
+    },
+    sourceUrl: {
+      fontSize: 12,
+      color: colors.primary,
     },
     ctaCard: {
       backgroundColor: colors.backgroundSoft,
@@ -360,6 +649,7 @@ function getStyles(colors: any) {
       padding: 24,
       alignItems: "center",
       gap: 12,
+      marginTop: 8,
     },
     ctaTitle: {
       fontSize: 18,

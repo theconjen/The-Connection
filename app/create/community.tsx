@@ -1,6 +1,7 @@
 /**
  * Create Community Screen
  * Full-page form to create a new community
+ * DARK MODE OPTIMIZED - All colors hardcoded for accessibility
  */
 
 import React, { useState } from 'react';
@@ -20,10 +21,40 @@ import {
 import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI } from '../../src/lib/apiClient';
-import { useTheme } from '../../src/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { geocodeAddress, getCurrentLocation, requestLocationPermission } from '../../src/lib/locationService';
 import * as Location from 'expo-location';
+
+// Dark Mode Color Constants - Single source of truth
+const COLORS = {
+  // Backgrounds
+  background: '#0A0A0C',
+  surface: '#151518',
+  surfaceElevated: '#1A1A1E',
+  surfaceDropdown: '#1E1E24',
+
+  // Text
+  textPrimary: '#FFFFFF',
+  textSecondary: '#E8E4DC',
+  textMuted: '#9A9A9A',
+  textPlaceholder: '#6A6A6A',
+
+  // Borders
+  borderSubtle: '#2A2A30',
+  borderVisible: '#3A3A42',
+  borderFocus: '#D4A860',
+
+  // Accents
+  gold: '#D4A860',
+  goldMuted: '#4A3D28',
+  amber: '#2D2518',
+  success: '#10B981',
+
+  // Interactive
+  chevron: '#8A8A8A',
+  toggleTrackOff: '#3A3A42',
+  toggleThumb: '#FFFFFF',
+};
 
 // Icon options for communities
 const ICON_OPTIONS = [
@@ -50,7 +81,6 @@ const COLOR_OPTIONS = [
 export default function CreateCommunityScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { colors } = useTheme();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -63,8 +93,6 @@ export default function CreateCommunityScreen() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isGeocodingLocation, setIsGeocodingLocation] = useState(false);
   const [geocodedCoordinates, setGeocodedCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
-
-  const styles = getStyles(colors);
 
   // Check if form is valid
   const isFormValid = name.trim().length >= 3 && description.trim().length >= 10;
@@ -89,18 +117,11 @@ export default function CreateCommunityScreen() {
     },
     onError: (error: any) => {
       console.error('Community creation error:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-
       const errorMessage = error.response?.data?.message
         || error.response?.data?.error
         || error.message
         || 'Failed to create community. Please try again.';
-
-      Alert.alert(
-        'Error Creating Community',
-        `${errorMessage}\n\nStatus: ${error.response?.status || 'Unknown'}`
-      );
+      Alert.alert('Error Creating Community', errorMessage);
     },
   });
 
@@ -121,14 +142,9 @@ export default function CreateCommunityScreen() {
         return;
       }
 
-      // Reverse geocode to get address
       const [result] = await Location.reverseGeocodeAsync(coords);
       if (result) {
-        const address = [
-          result.city,
-          result.region,
-        ].filter(Boolean).join(', ');
-
+        const address = [result.city, result.region].filter(Boolean).join(', ');
         setLocation(address || 'Current Location');
         setGeocodedCoordinates(coords);
         Alert.alert('Success', `Location set to: ${address || 'Current Location'}`);
@@ -144,10 +160,10 @@ export default function CreateCommunityScreen() {
     }
   };
 
-  const handleGeocodeLocation = async (autoCreate = false) => {
+  const handleGeocodeLocation = async () => {
     if (!location.trim()) {
       setGeocodedCoordinates(null);
-      return false;
+      return;
     }
 
     setIsGeocodingLocation(true);
@@ -155,58 +171,30 @@ export default function CreateCommunityScreen() {
       const result = await geocodeAddress(location.trim());
       if (result) {
         setGeocodedCoordinates(result.coordinates);
-        if (!autoCreate) {
-          Alert.alert('Location Confirmed', `Your community will be discoverable near: ${location.trim()}`);
-        }
-        return true;
+        Alert.alert('Location Confirmed', `Your community will be discoverable near: ${location.trim()}`);
       } else {
-        if (autoCreate) {
-          // When auto-creating, allow user to proceed without location
-          const shouldProceed = await new Promise((resolve) => {
-            Alert.alert(
-              'Location Not Found',
-              'We couldn\'t find this location. Create community without a discoverable location?',
-              [
-                { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                { text: 'Create Anyway', onPress: () => resolve(true) }
-              ]
-            );
-          });
-          return shouldProceed as boolean;
-        } else {
-          Alert.alert(
-            'Location Not Found',
-            'We couldn\'t find this location. Please check the spelling or try a different location.',
-            [
-              { text: 'Keep Anyway', style: 'cancel' },
-              { text: 'Clear', onPress: () => { setLocation(''); setGeocodedCoordinates(null); } }
-            ]
-          );
-          return false;
-        }
+        Alert.alert(
+          'Location Not Found',
+          'We couldn\'t find this location. Please check the spelling or try a different location.',
+          [
+            { text: 'Keep Anyway', style: 'cancel' },
+            { text: 'Clear', onPress: () => { setLocation(''); setGeocodedCoordinates(null); } }
+          ]
+        );
       }
     } catch (error) {
       console.error('Error geocoding location:', error);
-      if (autoCreate) {
-        Alert.alert('Error', 'Failed to verify location. Your community will still be created.');
-        return true; // Proceed anyway
-      } else {
-        Alert.alert('Error', 'Failed to verify location. Please try again.');
-        return false;
-      }
+      Alert.alert('Error', 'Failed to verify location. Please try again.');
     } finally {
       setIsGeocodingLocation(false);
     }
   };
 
   const handleCreate = async () => {
-    if (!isFormValid) {
-      return;
-    }
+    if (!isFormValid) return;
 
     let finalCoordinates = geocodedCoordinates;
 
-    // If location is provided but not geocoded, try geocoding first
     if (location.trim() && !geocodedCoordinates) {
       setIsGeocodingLocation(true);
       try {
@@ -215,7 +203,6 @@ export default function CreateCommunityScreen() {
           finalCoordinates = result.coordinates;
           setGeocodedCoordinates(result.coordinates);
         } else {
-          // Ask user if they want to proceed without location
           const shouldProceed = await new Promise<boolean>((resolve) => {
             Alert.alert(
               'Location Not Found',
@@ -231,7 +218,6 @@ export default function CreateCommunityScreen() {
             setIsGeocodingLocation(false);
             return;
           }
-          // Clear location if proceeding without coordinates
           setLocation('');
         }
       } catch (error) {
@@ -247,10 +233,8 @@ export default function CreateCommunityScreen() {
       description: description.trim(),
       iconName: selectedIcon,
       iconColor: selectedColor,
-      // Note: Backend might expect different field names
-      // Check if backend needs 'isPrivate' or 'privacySetting'
-      privacySetting: wallSetting, // 'public' or 'private' wall
-      isPrivate: isInviteOnly, // Invite-only community
+      privacySetting: wallSetting,
+      isPrivate: isInviteOnly,
       location: location.trim() || undefined,
       latitude: finalCoordinates?.latitude,
       longitude: finalCoordinates?.longitude,
@@ -266,11 +250,7 @@ export default function CreateCommunityScreen() {
         'Are you sure you want to discard your changes?',
         [
           { text: 'Keep Editing', style: 'cancel' },
-          {
-            text: 'Discard',
-            style: 'destructive',
-            onPress: () => router.back(),
-          },
+          { text: 'Discard', style: 'destructive', onPress: () => router.back() },
         ]
       );
     } else {
@@ -304,7 +284,7 @@ export default function CreateCommunityScreen() {
           style={styles.headerButton}
         >
           {createMutation.isPending ? (
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size="small" color={COLORS.gold} />
           ) : (
             <Text style={[
               styles.createText,
@@ -324,7 +304,7 @@ export default function CreateCommunityScreen() {
       >
         {/* Safety Warning Banner */}
         <View style={styles.warningBanner}>
-          <Ionicons name="warning" size={24} color="#92400E" style={styles.warningIcon} />
+          <Ionicons name="alert-circle" size={22} color={COLORS.gold} style={styles.warningIcon} />
           <Text style={styles.warningText}>
             For safety, avoid listing personal home addresses as meeting locations. Share only public meeting points or general areas.
           </Text>
@@ -338,7 +318,7 @@ export default function CreateCommunityScreen() {
             value={name}
             onChangeText={setName}
             placeholder="Bible Study Group"
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor={COLORS.textPlaceholder}
             maxLength={100}
             editable={!createMutation.isPending}
             autoFocus
@@ -353,7 +333,7 @@ export default function CreateCommunityScreen() {
             value={description}
             onChangeText={setDescription}
             placeholder="A community for those interested in studying the Bible together"
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor={COLORS.textPlaceholder}
             multiline
             numberOfLines={6}
             maxLength={500}
@@ -364,44 +344,44 @@ export default function CreateCommunityScreen() {
 
         {/* Location */}
         <View style={styles.inputGroup}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <View style={styles.locationHeader}>
             <Text style={styles.label}>Location (Optional)</Text>
             {geocodedCoordinates && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                <Text style={{ fontSize: 13, color: '#10B981', fontWeight: '600' }}>Verified</Text>
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+                <Text style={styles.verifiedText}>Verified</Text>
               </View>
             )}
           </View>
 
-          <View style={{ gap: 8 }}>
-            <View style={{ position: 'relative' }}>
+          <View style={styles.locationInputGroup}>
+            <View style={styles.inputWrapper}>
               <TextInput
-                style={[styles.input, geocodedCoordinates && { borderColor: '#10B981', borderWidth: 2 }]}
+                style={[styles.input, geocodedCoordinates && styles.inputVerified]}
                 value={location}
                 onChangeText={(text) => {
                   setLocation(text);
-                  setGeocodedCoordinates(null); // Clear geocoded coords when user types
+                  setGeocodedCoordinates(null);
                 }}
                 placeholder="e.g., Downtown Chicago, IL"
-                placeholderTextColor={colors.mutedForeground}
+                placeholderTextColor={COLORS.textPlaceholder}
                 maxLength={200}
                 editable={!createMutation.isPending && !isGeocodingLocation}
               />
               {isGeocodingLocation && (
-                <View style={{ position: 'absolute', right: 16, top: 0, bottom: 0, justifyContent: 'center' }}>
-                  <ActivityIndicator size="small" color={colors.primary} />
+                <View style={styles.loadingOverlay}>
+                  <ActivityIndicator size="small" color={COLORS.gold} />
                 </View>
               )}
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={styles.locationButtons}>
               <TouchableOpacity
                 style={[styles.locationButton, { flex: 1 }]}
                 onPress={handleUseCurrentLocation}
                 disabled={createMutation.isPending || isGeocodingLocation}
               >
-                <Ionicons name="navigate" size={16} color={colors.primary} />
+                <Ionicons name="navigate" size={16} color={COLORS.gold} />
                 <Text style={styles.locationButtonText}>Use My Location</Text>
               </TouchableOpacity>
 
@@ -411,7 +391,7 @@ export default function CreateCommunityScreen() {
                   onPress={handleGeocodeLocation}
                   disabled={createMutation.isPending || isGeocodingLocation}
                 >
-                  <Ionicons name="location" size={16} color={colors.primary} />
+                  <Ionicons name="location" size={16} color={COLORS.gold} />
                   <Text style={styles.locationButtonText}>Verify Location</Text>
                 </TouchableOpacity>
               )}
@@ -420,7 +400,7 @@ export default function CreateCommunityScreen() {
 
           <Text style={styles.helpText}>
             {geocodedCoordinates
-              ? '✓ Location verified! Your community will be discoverable by nearby users.'
+              ? 'Location verified! Your community will be discoverable by nearby users.'
               : 'Enter a general area or city. This helps people find communities near them.'}
           </Text>
         </View>
@@ -438,11 +418,11 @@ export default function CreateCommunityScreen() {
               <Ionicons
                 name={selectedIconData?.icon as any}
                 size={20}
-                color={colors.foreground}
+                color={COLORS.textPrimary}
                 style={{ marginRight: 8 }}
               />
               <Text style={styles.pickerText}>{selectedIconData?.label}</Text>
-              <Ionicons name="chevron-down" size={20} color={colors.mutedForeground} style={{ marginLeft: 'auto' }} />
+              <Ionicons name="chevron-down" size={20} color={COLORS.chevron} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
             {showIconPicker && (
               <View style={styles.pickerDropdown}>
@@ -455,10 +435,10 @@ export default function CreateCommunityScreen() {
                       setShowIconPicker(false);
                     }}
                   >
-                    <Ionicons name={option.icon as any} size={20} color={colors.foreground} />
+                    <Ionicons name={option.icon as any} size={20} color={COLORS.textPrimary} />
                     <Text style={styles.pickerOptionText}>{option.label}</Text>
                     {selectedIcon === option.value && (
-                      <Ionicons name="checkmark" size={20} color={colors.primary} style={{ marginLeft: 'auto' }} />
+                      <Ionicons name="checkmark" size={20} color={COLORS.gold} style={{ marginLeft: 'auto' }} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -476,7 +456,7 @@ export default function CreateCommunityScreen() {
             >
               <View style={[styles.colorDot, { backgroundColor: selectedColorData?.color }]} />
               <Text style={styles.pickerText}>{selectedColorData?.label}</Text>
-              <Ionicons name="chevron-down" size={20} color={colors.mutedForeground} style={{ marginLeft: 'auto' }} />
+              <Ionicons name="chevron-down" size={20} color={COLORS.chevron} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
             {showColorPicker && (
               <View style={styles.pickerDropdown}>
@@ -492,7 +472,7 @@ export default function CreateCommunityScreen() {
                     <View style={[styles.colorDot, { backgroundColor: option.color }]} />
                     <Text style={styles.pickerOptionText}>{option.label}</Text>
                     {selectedColor === option.value && (
-                      <Ionicons name="checkmark" size={20} color={colors.primary} style={{ marginLeft: 'auto' }} />
+                      <Ionicons name="checkmark" size={20} color={COLORS.gold} style={{ marginLeft: 'auto' }} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -515,8 +495,9 @@ export default function CreateCommunityScreen() {
             <Switch
               value={isInviteOnly}
               onValueChange={setIsInviteOnly}
-              trackColor={{ false: colors.borderSubtle, true: colors.primary }}
-              thumbColor={colors.surface}
+              trackColor={{ false: COLORS.toggleTrackOff, true: COLORS.gold }}
+              thumbColor={COLORS.toggleThumb}
+              ios_backgroundColor={COLORS.toggleTrackOff}
               disabled={createMutation.isPending}
             />
           </View>
@@ -566,44 +547,11 @@ export default function CreateCommunityScreen() {
   );
 }
 
-const getStyles = (colors: any) => StyleSheet.create({
+const styles = StyleSheet.create({
+  // Container & Layout
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
-  headerButton: {
-    minWidth: 60,
-  },
-  cancelText: {
-    fontSize: 17,
-    color: colors.foreground,
-    fontWeight: '500',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.foreground,
-  },
-  createText: {
-    fontSize: 17,
-    color: colors.primary,
-    fontWeight: '600',
-    textAlign: 'right',
-  },
-  createTextDisabled: {
-    color: colors.mutedForeground,
-    opacity: 0.5,
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
@@ -612,14 +560,52 @@ const getStyles = (colors: any) => StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 70,
+    paddingBottom: 16,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderSubtle,
+  },
+  headerButton: {
+    minWidth: 60,
+  },
+  cancelText: {
+    fontSize: 17,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  createText: {
+    fontSize: 17,
+    color: COLORS.gold,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  createTextDisabled: {
+    color: '#5A5A5A',
+    opacity: 0.6,
+  },
+
+  // Safety Warning Banner
   warningBanner: {
     flexDirection: 'row',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: COLORS.amber,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 24,
+    marginBottom: 28,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: COLORS.goldMuted,
   },
   warningIcon: {
     marginRight: 12,
@@ -628,72 +614,138 @@ const getStyles = (colors: any) => StyleSheet.create({
   warningText: {
     flex: 1,
     fontSize: 14,
-    color: '#92400E',
+    color: COLORS.gold,
     lineHeight: 20,
     fontWeight: '500',
   },
+
+  // Form Sections
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   label: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.foreground,
-    marginBottom: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: 10,
+    letterSpacing: 0.2,
   },
+
+  // Input Fields
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: COLORS.surfaceElevated,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: colors.foreground,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    color: COLORS.textPrimary,
+    borderWidth: 1.5,
+    borderColor: COLORS.borderVisible,
+  },
+  inputVerified: {
+    borderColor: COLORS.success,
+    borderWidth: 2,
   },
   textArea: {
     minHeight: 120,
     paddingTop: 16,
   },
+
+  // Helper Text
   helpText: {
     fontSize: 13,
-    color: colors.mutedForeground,
-    marginTop: 8,
+    color: COLORS.textMuted,
+    marginTop: 10,
     lineHeight: 18,
   },
+
+  // Location Section
+  locationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  verifiedText: {
+    fontSize: 13,
+    color: COLORS.success,
+    fontWeight: '600',
+  },
+  locationInputGroup: {
+    gap: 8,
+  },
+  inputWrapper: {
+    position: 'relative',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  locationButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: COLORS.surfaceElevated,
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.gold,
+  },
+  locationButtonText: {
+    fontSize: 14,
+    color: COLORS.gold,
+    fontWeight: '600',
+  },
+
+  // Layout
   row: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 28,
   },
   halfWidth: {
     flex: 1,
     marginBottom: 0,
   },
+
+  // Dropdowns / Pickers
   picker: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: COLORS.surfaceElevated,
     borderRadius: 12,
     padding: 16,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderWidth: 1.5,
+    borderColor: COLORS.borderVisible,
   },
   pickerText: {
     fontSize: 16,
-    color: colors.foreground,
+    color: COLORS.textPrimary,
     fontWeight: '500',
   },
   pickerDropdown: {
-    backgroundColor: colors.surface,
+    backgroundColor: COLORS.surfaceDropdown,
     borderRadius: 12,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: COLORS.borderVisible,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 5,
+    elevation: 8,
   },
   pickerOption: {
     flexDirection: 'row',
@@ -701,11 +753,11 @@ const getStyles = (colors: any) => StyleSheet.create({
     padding: 16,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
+    borderBottomColor: COLORS.borderSubtle,
   },
   pickerOptionText: {
     fontSize: 16,
-    color: colors.foreground,
+    color: COLORS.textSecondary,
   },
   colorDot: {
     width: 20,
@@ -713,13 +765,15 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderRadius: 10,
     marginRight: 8,
   },
+
+  // Toggle Section
   toggleSection: {
-    backgroundColor: colors.surface,
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    padding: 18,
+    marginBottom: 28,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: COLORS.borderSubtle,
   },
   toggleContent: {
     flexDirection: 'row',
@@ -728,58 +782,44 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   toggleInfo: {
     flex: 1,
-    marginRight: 12,
+    marginRight: 16,
   },
   toggleLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.foreground,
-    marginBottom: 4,
+    color: COLORS.textPrimary,
+    marginBottom: 6,
   },
   toggleDescription: {
     fontSize: 14,
-    color: colors.mutedForeground,
+    color: COLORS.textMuted,
     lineHeight: 20,
   },
+
+  // Wall Options
   wallOptions: {
     flexDirection: 'row',
     gap: 12,
   },
   wallOption: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: COLORS.surfaceElevated,
     borderRadius: 12,
     padding: 16,
     borderWidth: 2,
-    borderColor: colors.borderSubtle,
+    borderColor: COLORS.borderVisible,
     alignItems: 'center',
   },
   wallOptionActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: COLORS.gold,
+    borderColor: COLORS.gold,
   },
   wallOptionText: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.foreground,
+    color: COLORS.textPrimary,
   },
   wallOptionTextActive: {
-    color: '#FFFFFF',
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  locationButtonText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '600',
+    color: COLORS.background,
   },
 });

@@ -12,12 +12,17 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { eventsAPI } from '../../src/lib/apiClient';
 import { Colors } from '../../src/shared/colors';
+import { useAuth } from '../../src/contexts/AuthContext';
+
+// API expects these exact values
+type RSVPStatus = 'going' | 'maybe' | 'not_going';
 
 interface Event {
   id: number;
@@ -26,55 +31,108 @@ interface Event {
   location?: string;
   latitude?: number;
   longitude?: number;
-  startTime: string;
-  endTime?: string;
+  eventDate: string;      // "2026-01-12 00:00:00" or "2026-01-12"
+  startTime: string;      // "10:30:00" (time only)
+  endTime?: string;       // "12:00:00" (time only)
   attendeeCount?: number;
-  rsvpStatus?: string;
-  createdBy: number;
+  rsvpStatus?: RSVPStatus; // User's current RSVP status from API
+  creatorId: number;
 }
 
 export default function EventDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams() as { id: string };
   const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
   const eventId = parseInt(id || '0');
   const [showMap, setShowMap] = useState(true);
+  const [currentRsvp, setCurrentRsvp] = useState<RSVPStatus | null>(null);
 
   const { data: event, isLoading } = useQuery<Event>({
     queryKey: ['event', eventId],
     queryFn: async () => {
       const response = await eventsAPI.getAll();
-      return response.find((e: Event) => e.id === eventId);
+      const foundEvent = response.find((e: Event) => e.id === eventId);
+      // Store the user's RSVP status from the event data
+      if (foundEvent?.rsvpStatus) {
+        setCurrentRsvp(foundEvent.rsvpStatus);
+      }
+      return foundEvent;
     },
     enabled: !!eventId,
   });
 
   const rsvpMutation = useMutation({
-    mutationFn: (status: string) => eventsAPI.rsvp(eventId, status),
-    onSuccess: () => {
+    mutationFn: (status: RSVPStatus) => eventsAPI.rsvp(eventId, status),
+    onSuccess: (_data, status) => {
+      // Update local state immediately
+      setCurrentRsvp(status);
+      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['event', eventId] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      Alert.alert('Success', 'RSVP updated!');
     },
-    onError: () => Alert.alert('Error', 'Failed to update RSVP'),
+    onError: (error: any) => {
+      const message = error?.response?.data?.error ||
+                      error?.response?.data?.message ||
+                      error?.message ||
+                      'Failed to update RSVP';
+      const status = error?.response?.status;
+
+      if (status === 401) {
+        Alert.alert('Sign In Required', 'Please sign in to RSVP to events.');
+      } else if (status === 404) {
+        Alert.alert('Event Not Found', 'This event may have been removed.');
+      } else {
+        Alert.alert('Error', message);
+      }
+      console.error('[RSVP Error]', status, message);
+    },
   });
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  // Parse eventDate (handles "2026-01-12 00:00:00" or "2026-01-12" formats)
+  const parseEventDate = (eventDate: string): Date => {
+    if (!eventDate) return new Date();
+    const datePart = eventDate.split(' ')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  // Format time string "10:30:00" to "10:30 AM"
+  const formatTime = (timeStr: string): string => {
+    if (!timeStr) return '';
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const hour = hours % 12 || 12;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    return `${hour}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  const formatDate = (eventDate: string) => {
+    const date = parseEventDate(eventDate);
+    if (isNaN(date.getTime())) return 'Date TBD';
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
     };
     return date.toLocaleDateString('en-US', options);
   };
 
-  const handleRSVP = () => {
-    const newStatus = event?.rsvpStatus === 'going' ? 'not_going' : 'going';
-    rsvpMutation.mutate(newStatus);
+  const handleRSVP = (status: RSVPStatus) => {
+    // Check if user is authenticated first
+    if (!isAuthenticated || !user) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in to RSVP to events.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => router.push('/(auth)/login') }
+        ]
+      );
+      return;
+    }
+
+    rsvpMutation.mutate(status);
   };
 
   const openInMaps = () => {
@@ -90,13 +148,11 @@ export default function EventDetailScreen() {
     );
   };
 
-  // Default coordinates (can be replaced with actual location parsing)
   const getCoordinates = () => {
     if (event?.latitude && event?.longitude) {
       return { latitude: event.latitude, longitude: event.longitude };
     }
-    // Default to a general location if coordinates not available
-    return { latitude: 37.7749, longitude: -122.4194 }; // San Francisco as default
+    return { latitude: 37.7749, longitude: -122.4194 };
   };
 
   if (isLoading) {
@@ -111,17 +167,19 @@ export default function EventDetailScreen() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>Event not found</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(tabs)/events')}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
+  const isButtonActive = (status: RSVPStatus) => currentRsvp === status;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/events')}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Event Details</Text>
@@ -132,25 +190,23 @@ export default function EventDetailScreen() {
         <View style={styles.dateSection}>
           <View style={styles.dateBox}>
             <Text style={styles.dateMonth}>
-              {new Date(event.startTime).toLocaleString('en-US', { month: 'short' })}
+              {parseEventDate(event.eventDate).toLocaleString('en-US', { month: 'short' }).toUpperCase()}
             </Text>
             <Text style={styles.dateDay}>
-              {new Date(event.startTime).getDate()}
+              {parseEventDate(event.eventDate).getDate()}
             </Text>
           </View>
           <View style={styles.dateInfo}>
-            <Text style={styles.dateText}>{formatDate(event.startTime)}</Text>
-            {event.endTime && (
-              <Text style={styles.endTimeText}>
-                Until {new Date(event.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-              </Text>
-            )}
+            <Text style={styles.dateText}>{formatDate(event.eventDate)}</Text>
+            <Text style={styles.endTimeText}>
+              {formatTime(event.startTime)}{event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
+            </Text>
           </View>
         </View>
 
         <View style={styles.detailSection}>
           <Text style={styles.title}>{event.title}</Text>
-          
+
           {event.location && (
             <View>
               <View style={styles.locationSection}>
@@ -164,7 +220,6 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Map View */}
               {showMap && (event.latitude && event.longitude) && (
                 <View style={styles.mapContainer}>
                   <MapView
@@ -203,7 +258,7 @@ export default function EventDetailScreen() {
           )}
 
           <View style={styles.attendeeSection}>
-            <Text style={styles.attendeeIcon}>👥</Text>
+            <Image source={require('../../assets/people.png')} style={styles.attendeeIconImage} />
             <Text style={styles.attendeeText}>
               {event.attendeeCount || 0} {event.attendeeCount === 1 ? 'person' : 'people'} attending
             </Text>
@@ -216,23 +271,93 @@ export default function EventDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* RSVP Footer with 3 buttons */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.rsvpButton,
-            event.rsvpStatus === 'going' && styles.rsvpButtonGoing,
-          ]}
-          onPress={handleRSVP}
-          disabled={rsvpMutation.isPending}
-        >
-          {rsvpMutation.isPending ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.rsvpButtonText}>
-              {event.rsvpStatus === 'going' ? '✓ Going' : 'RSVP'}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {!isAuthenticated ? (
+          <TouchableOpacity
+            style={styles.signInButton}
+            onPress={() => router.push('/(auth)/login')}
+          >
+            <Text style={styles.signInButtonText}>Sign In to RSVP</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.rsvpButtonRow}>
+            <TouchableOpacity
+              style={[
+                styles.rsvpOptionButton,
+                isButtonActive('going') && styles.rsvpOptionActive,
+                isButtonActive('going') && styles.rsvpGoingActive,
+              ]}
+              onPress={() => handleRSVP('going')}
+              disabled={rsvpMutation.isPending}
+            >
+              {rsvpMutation.isPending && rsvpMutation.variables === 'going' ? (
+                <ActivityIndicator size="small" color={isButtonActive('going') ? '#fff' : Colors.primary} />
+              ) : (
+                <>
+                  <Text style={[
+                    styles.rsvpOptionIcon,
+                    isButtonActive('going') && styles.rsvpOptionTextActive
+                  ]}>✓</Text>
+                  <Text style={[
+                    styles.rsvpOptionText,
+                    isButtonActive('going') && styles.rsvpOptionTextActive
+                  ]}>Going</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.rsvpOptionButton,
+                isButtonActive('maybe') && styles.rsvpOptionActive,
+                isButtonActive('maybe') && styles.rsvpMaybeActive,
+              ]}
+              onPress={() => handleRSVP('maybe')}
+              disabled={rsvpMutation.isPending}
+            >
+              {rsvpMutation.isPending && rsvpMutation.variables === 'maybe' ? (
+                <ActivityIndicator size="small" color={isButtonActive('maybe') ? '#fff' : '#f59e0b'} />
+              ) : (
+                <>
+                  <Text style={[
+                    styles.rsvpOptionIcon,
+                    isButtonActive('maybe') && styles.rsvpOptionTextActive
+                  ]}>?</Text>
+                  <Text style={[
+                    styles.rsvpOptionText,
+                    isButtonActive('maybe') && styles.rsvpOptionTextActive
+                  ]}>Maybe</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.rsvpOptionButton,
+                isButtonActive('not_going') && styles.rsvpOptionActive,
+                isButtonActive('not_going') && styles.rsvpNotGoingActive,
+              ]}
+              onPress={() => handleRSVP('not_going')}
+              disabled={rsvpMutation.isPending}
+            >
+              {rsvpMutation.isPending && rsvpMutation.variables === 'not_going' ? (
+                <ActivityIndicator size="small" color={isButtonActive('not_going') ? '#fff' : '#ef4444'} />
+              ) : (
+                <>
+                  <Text style={[
+                    styles.rsvpOptionIcon,
+                    isButtonActive('not_going') && styles.rsvpOptionTextActive
+                  ]}>✗</Text>
+                  <Text style={[
+                    styles.rsvpOptionText,
+                    isButtonActive('not_going') && styles.rsvpOptionTextActive
+                  ]}>Can't Go</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -267,14 +392,57 @@ const styles = StyleSheet.create({
   showMapText: { fontSize: 14, fontWeight: '600', color: Colors.primary },
   attendeeSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, padding: 12, backgroundColor: '#f3f4f6', borderRadius: 8 },
   attendeeIcon: { fontSize: 20, marginRight: 12 },
+  attendeeIconImage: { width: 20, height: 20, marginRight: 12 },
   attendeeText: { fontSize: 15, color: '#1f2937', fontWeight: '600' },
   descriptionSection: { marginTop: 12 },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1f2937', marginBottom: 12 },
   description: { fontSize: 15, color: '#374151', lineHeight: 24 },
-  footer: { backgroundColor: '#fff', padding: 20, borderTopWidth: 1, borderTopColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 5 },
-  rsvpButton: { backgroundColor: Colors.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
-  rsvpButtonGoing: { backgroundColor: '#10b981' },
-  rsvpButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+
+  // Footer styles
+  footer: { backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 5 },
+  signInButton: { backgroundColor: Colors.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
+  signInButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+
+  // RSVP button row
+  rsvpButtonRow: { flexDirection: 'row', gap: 10 },
+  rsvpOptionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#fff',
+    gap: 6,
+  },
+  rsvpOptionActive: {
+    borderColor: 'transparent',
+  },
+  rsvpGoingActive: {
+    backgroundColor: '#10b981',
+  },
+  rsvpMaybeActive: {
+    backgroundColor: '#f59e0b',
+  },
+  rsvpNotGoingActive: {
+    backgroundColor: '#ef4444',
+  },
+  rsvpOptionIcon: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#6b7280',
+  },
+  rsvpOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  rsvpOptionTextActive: {
+    color: '#fff',
+  },
+
   errorText: { fontSize: 18, color: '#ef4444', marginBottom: 16, textAlign: 'center' },
   backButton: { backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
   backButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },

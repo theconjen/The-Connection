@@ -389,6 +389,7 @@ export function EventsScreen({
   const { user } = useAuth();
   const [activeFilters, setActiveFilters] = useState<string[]>(['This Week']);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [rsvpFilter, setRsvpFilter] = useState<'all' | 'attending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -462,7 +463,7 @@ export function EventsScreen({
 
   // Fetch events from API
   const { data: events = [], isLoading, refetch } = useQuery<Event[]>({
-    queryKey: ['/api/events', searchQuery, locationFilter],
+    queryKey: ['/api/events', searchQuery, locationFilter, rsvpFilter],
     queryFn: async () => {
       let endpoint = '/api/events';
       const params = new URLSearchParams();
@@ -473,6 +474,9 @@ export function EventsScreen({
       if (locationFilter) {
         params.append('city', locationFilter);
       }
+      if (rsvpFilter === 'attending') {
+        params.append('rsvpStatus', 'going');
+      }
 
       const queryString = params.toString();
       if (queryString) {
@@ -480,7 +484,7 @@ export function EventsScreen({
       }
 
       const response = await apiClient.get(endpoint);
-      let eventsData = response.data;
+      let eventsData = response.data.events || response.data;
 
       // Filter out virtual events (only show in-person events)
       eventsData = eventsData.filter((event: Event) => !event.isVirtual);
@@ -490,7 +494,7 @@ export function EventsScreen({
         const eventsWithRsvp = await Promise.all(
           eventsData.map(async (event: Event) => {
             try {
-              const rsvpResponse = await apiClient.get(`/api/events/${event.id}/rsvp`);
+              const rsvpResponse = await apiClient.get(`/api/events/${event.id}/my-rsvp`);
               const userRsvp = rsvpResponse.data;
               return {
                 ...event,
@@ -534,22 +538,18 @@ export function EventsScreen({
   // RSVP mutation
   const rsvpMutation = useMutation({
     mutationFn: async ({ eventId, status }: { eventId: number; status: string }) => {
-      // Check if user already has RSVP for this event
-      const event = events.find((e) => e.id === eventId);
+      // Map frontend status values to backend values
+      // Frontend: 'going', 'not_going'
+      // Backend: 'attending', 'maybe', 'declined'
+      const backendStatus = status === 'going' ? 'attending' : 'declined';
 
-      if (event?.userRsvpStatus) {
-        // Update existing RSVP
-        const response = await apiClient.patch(`/api/events/${eventId}/rsvp`, { status });
-        return response.data;
-      } else {
-        // Create new RSVP
-        const response = await apiClient.post(`/api/events/${eventId}/rsvp`, { status });
-        return response.data;
-      }
+      // Backend uses upsert, so POST handles both create and update
+      const response = await apiClient.post(`/api/events/${eventId}/rsvp`, { status: backendStatus });
+      return response.data;
     },
     onMutate: async ({ eventId, status }) => {
-      // Optimistic update
-      queryClient.setQueryData(['/api/events', searchQuery, locationFilter], (oldData: any) => {
+      // Optimistic update - use correct query key matching the useQuery
+      queryClient.setQueryData(['/api/events', searchQuery, locationFilter, rsvpFilter], (oldData: any) => {
         if (!oldData) return oldData;
         return oldData.map((event: Event) =>
           event.id === eventId
@@ -571,8 +571,9 @@ export function EventsScreen({
       // Refresh events after RSVP
       queryClient.invalidateQueries({ queryKey: ['/api/events'] });
     },
-    onError: (error) => {
-      Alert.alert('Error', 'Failed to update RSVP. Please try again.');
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || 'Failed to update RSVP. Please try again.';
+      Alert.alert('Error', errorMessage);
       console.error('RSVP error:', error);
       // Revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/events'] });
@@ -754,7 +755,7 @@ export function EventsScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.surface }}
@@ -876,14 +877,17 @@ export function EventsScreen({
             </View>
           </View>
 
-          {/* List/Map Toggle */}
-          <View
-            style={{
+          {/* List/Map Toggle and RSVP Filter */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
               flexDirection: 'row',
-              justifyContent: 'flex-end',
               gap: spacing.xs,
+              paddingRight: spacing.md,
             }}
           >
+            {/* View Mode Toggle */}
             <Pressable
               onPress={() => setViewMode('list')}
               style={({ pressed }) => ({
@@ -945,7 +949,60 @@ export function EventsScreen({
                 Map
               </Text>
             </Pressable>
-          </View>
+
+            {/* RSVP Filter Pills */}
+            <Pressable
+              onPress={() => setRsvpFilter('all')}
+              style={({ pressed }) => ({
+                height: 28,
+                paddingHorizontal: spacing.md,
+                borderRadius: radii.full,
+                backgroundColor: rsvpFilter === 'all' ? colors.primary : colors.surface,
+                borderWidth: rsvpFilter === 'all' ? 0 : 1,
+                borderColor: colors.borderSubtle,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Text
+                variant="caption"
+                style={{
+                  color: rsvpFilter === 'all' ? colors.primaryForeground : colors.textMuted,
+                  fontWeight: '500',
+                }}
+              >
+                All Events
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setRsvpFilter('attending')}
+              style={({ pressed }) => ({
+                height: 28,
+                paddingHorizontal: spacing.md,
+                borderRadius: radii.full,
+                backgroundColor: rsvpFilter === 'attending' ? colors.primary : colors.surface,
+                borderWidth: rsvpFilter === 'attending' ? 0 : 1,
+                borderColor: colors.borderSubtle,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Text
+                variant="caption"
+                style={{
+                  color: rsvpFilter === 'attending' ? colors.primaryForeground : colors.textMuted,
+                  fontWeight: '500',
+                }}
+              >
+                My RSVPs
+              </Text>
+            </Pressable>
+          </ScrollView>
         </View>
 
         {/* Filter Bar - Sticky */}
@@ -1110,7 +1167,7 @@ export function EventsScreen({
                         }}
                         title={event.title}
                         description={`${new Date(event.eventDate).toLocaleDateString()} at ${event.startTime}`}
-                        pinColor="#4A90E2"
+                        pinColor="#7C8F78"
                       />
                     ))}
 
@@ -1151,7 +1208,7 @@ export function EventsScreen({
                   marginBottom: spacing.sm,
                 }}
               >
-                <Ionicons name="grid-outline" size={16} color="#4A90E2" />
+                <Ionicons name="grid-outline" size={16} color="#7C8F78" />
                 <Text variant="bodySmall" style={{ fontWeight: '700' }}>
                   Event Categories
                 </Text>
@@ -1230,7 +1287,9 @@ export function EventsScreen({
                   color="textMuted"
                   style={{ marginTop: spacing.sm, textAlign: 'center' }}
                 >
-                  {searchQuery || locationFilter
+                  {rsvpFilter === 'attending'
+                    ? "You haven't RSVP'd to any events yet."
+                    : searchQuery || locationFilter
                     ? 'Try adjusting your search or filters.'
                     : 'Check back later for upcoming events.'}
                 </Text>

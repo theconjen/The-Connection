@@ -171,13 +171,13 @@ export default function DeleteAccountScreen() {
               ]
             );
           }}>
-            <Ionicons name="time-outline" size={20} color="#222D99" />
+            <Ionicons name="time-outline" size={20} color="#5C6B5E" />
             <Text style={styles.alternativeText}>Take a break instead</Text>
             <Ionicons name="chevron-forward" size={20} color="#637083" />
           </Pressable>
 
           <Pressable style={styles.alternativeButton} onPress={() => router.push('/settings')}>
-            <Ionicons name="notifications-off-outline" size={20} color="#222D99" />
+            <Ionicons name="notifications-off-outline" size={20} color="#5C6B5E" />
             <Text style={styles.alternativeText}>Adjust notification settings</Text>
             <Ionicons name="chevron-forward" size={20} color="#637083" />
           </Pressable>
@@ -372,8 +372,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   checkboxChecked: {
-    backgroundColor: '#222D99',
-    borderColor: '#222D99',
+    backgroundColor: '#5C6B5E',
+    borderColor: '#5C6B5E',
   },
   checkboxText: {
     flex: 1,
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   supportLink: {
-    color: '#222D99',
+    color: '#5C6B5E',
     fontWeight: '600',
   },
 });

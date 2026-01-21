@@ -629,6 +629,8 @@ interface CommunitiesScreenProps {
   onCategoryPress?: (category: Category) => void;
   selectedCategory?: string | null;
   onClearCategory?: () => void;
+  unreadNotificationCount?: number;
+  unreadMessageCount?: number;
 }
 
 export function CommunitiesScreen({
@@ -644,6 +646,8 @@ export function CommunitiesScreen({
   onCategoryPress,
   selectedCategory,
   onClearCategory,
+  unreadNotificationCount = 0,
+  unreadMessageCount = 0,
 }: CommunitiesScreenProps) {
   const { colors, spacing, radii, colorScheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -800,7 +804,7 @@ export function CommunitiesScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.surface }}
@@ -816,6 +820,8 @@ export function CommunitiesScreen({
           onMessagesPress={onMessagesPress}
           showMenu={true}
           onMenuPress={onMenuPress}
+          unreadNotificationCount={unreadNotificationCount}
+          unreadMessageCount={unreadMessageCount}
         />
 
         {/* Your Communities Section */}

@@ -9,6 +9,7 @@ import {
   Switch,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -16,6 +17,7 @@ import { useAuth } from '../src/contexts/AuthContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../src/lib/apiClient';
 import { useTheme } from '../src/contexts/ThemeContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -26,6 +28,13 @@ export default function SettingsScreen() {
   const [isPrivateAccount, setIsPrivateAccount] = React.useState(
     user?.profileVisibility === 'private'
   );
+
+  // Birthday state
+  const [showDatePicker, setShowDatePicker] = React.useState(false);
+  const [birthday, setBirthday] = React.useState<Date | null>(
+    user?.dateOfBirth ? new Date(user.dateOfBirth) : null
+  );
+  const maxDate = new Date(); // Can't select future dates
 
   const updatePrivacyMutation = useMutation({
     mutationFn: async (isPrivate: boolean) => {
@@ -44,6 +53,47 @@ export default function SettingsScreen() {
       setIsPrivateAccount(!isPrivateAccount);
     },
   });
+
+  const updateBirthdayMutation = useMutation({
+    mutationFn: async (dateOfBirth: string) => {
+      const response = await apiClient.patch('/api/user/settings', {
+        dateOfBirth,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      Alert.alert('Success', 'Your birthday has been updated.');
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to update birthday';
+      Alert.alert('Error', message);
+    },
+  });
+
+  const handleBirthdayChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (event.type === 'set' && selectedDate) {
+      setBirthday(selectedDate);
+      // Format as ISO date string (YYYY-MM-DD)
+      const dobString = selectedDate.toISOString().split('T')[0];
+      updateBirthdayMutation.mutate(dobString);
+    }
+    if (Platform.OS === 'ios' && event.type === 'dismissed') {
+      setShowDatePicker(false);
+    }
+  };
+
+  const formatBirthday = (date: Date | null) => {
+    if (!date) return 'Not set';
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
 
   const handlePrivacyToggle = (value: boolean) => {
     setIsPrivateAccount(value);
@@ -167,7 +217,42 @@ export default function SettingsScreen() {
             label="Change Password"
             onPress={() => router.push('/change-password')}
           />
+          <SettingsItem
+            icon="calendar-outline"
+            label="Birthday"
+            onPress={() => setShowDatePicker(true)}
+            rightElement={
+              <View style={styles.themeValue}>
+                <Text style={[styles.themeValueText, { color: colors.textSecondary }]}>
+                  {formatBirthday(birthday)}
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </View>
+            }
+          />
         </View>
+
+        {/* Birthday Date Picker */}
+        {showDatePicker && (
+          <DateTimePicker
+            value={birthday || new Date(new Date().getFullYear() - 18, 0, 1)}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            maximumDate={maxDate}
+            onChange={handleBirthdayChange}
+            themeVariant={colorScheme}
+          />
+        )}
+        {Platform.OS === 'ios' && showDatePicker && (
+          <View style={[styles.datePickerDoneContainer, { backgroundColor: colors.surface }]}>
+            <TouchableOpacity
+              style={styles.datePickerDoneButton}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={[styles.datePickerDoneText, { color: colors.primary }]}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Appearance Section */}
         <SectionHeader title="APPEARANCE" />
@@ -349,5 +434,18 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
+  },
+  datePickerDoneContainer: {
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  datePickerDoneButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  datePickerDoneText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -14,18 +14,33 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { microblogsAPI } from '../../src/lib/apiClient';
+import { microblogsAPI, MicroblogTopic } from '../../src/lib/apiClient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
+
+// Topic configuration matching the feed filter chips
+const TOPIC_CONFIG: Record<MicroblogTopic, { label: string; icon: string; color: string }> = {
+  OBSERVATION: { label: 'Observation', icon: 'eye', color: '#8B5CF6' },
+  QUESTION: { label: 'Question', icon: 'help-circle', color: '#EC4899' },
+  NEWS: { label: 'News', icon: 'newspaper', color: '#3B82F6' },
+  CULTURE: { label: 'Culture', icon: 'globe', color: '#10B981' },
+  ENTERTAINMENT: { label: 'Entertainment', icon: 'film', color: '#F59E0B' },
+  SCRIPTURE: { label: 'Scripture', icon: 'book', color: '#8B5CF6' },
+  TESTIMONY: { label: 'Testimony', icon: 'heart', color: '#EF4444' },
+  PRAYER: { label: 'Prayer', icon: 'hand-left', color: '#6366F1' },
+  OTHER: { label: 'Other', icon: 'ellipsis-horizontal', color: '#6B7280' },
+};
 
 export default function CreatePostScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { colors, colorScheme } = useTheme();
   const [content, setContent] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState<MicroblogTopic>('OTHER');
 
   const MAX_LENGTH = 280; // Twitter-style character limit
 
@@ -58,7 +73,7 @@ export default function CreatePostScreen() {
       return;
     }
 
-    createMutation.mutate({ content: content.trim() });
+    createMutation.mutate({ content: content.trim(), topic: selectedTopic });
   };
 
   const remainingChars = MAX_LENGTH - content.length;
@@ -90,6 +105,45 @@ export default function CreatePostScreen() {
             Post
           </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Category Picker */}
+      <View style={[styles.topicContainer, { borderBottomColor: colors.borderSubtle }]}>
+        <Text style={[styles.topicLabel, { color: colors.textSecondary }]}>Category</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.topicScroll}
+        >
+          {(Object.entries(TOPIC_CONFIG) as [MicroblogTopic, typeof TOPIC_CONFIG[MicroblogTopic]][]).map(([key, config]) => {
+            const isSelected = selectedTopic === key;
+            return (
+              <Pressable
+                key={key}
+                style={[
+                  styles.topicChip,
+                  {
+                    backgroundColor: isSelected ? config.color + '20' : colors.surfaceMuted || '#F3F4F6',
+                    borderColor: isSelected ? config.color : colors.borderSubtle || '#E5E7EB',
+                  }
+                ]}
+                onPress={() => setSelectedTopic(key)}
+              >
+                <Ionicons
+                  name={config.icon as any}
+                  size={14}
+                  color={isSelected ? config.color : colors.textSecondary}
+                />
+                <Text style={[
+                  styles.topicChipText,
+                  { color: isSelected ? config.color : colors.textSecondary }
+                ]}>
+                  {config.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
@@ -155,7 +209,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    paddingTop: 60,
+    paddingTop: 70,
     borderBottomWidth: 1,
   },
   cancelText: {
@@ -214,5 +268,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  topicContainer: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  topicLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  topicScroll: {
+    gap: 8,
+  },
+  topicChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    gap: 6,
+  },
+  topicChipText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

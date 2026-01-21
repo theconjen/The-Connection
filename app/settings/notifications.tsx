@@ -8,6 +8,7 @@ import {
   Alert,
   Switch,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -150,6 +151,10 @@ export default function NotificationSettingsScreen() {
     settingIconText: {
       fontSize: 20,
     },
+    settingIconImage: {
+      width: 20,
+      height: 20,
+    },
     settingContent: {
       flex: 1,
     },
@@ -237,7 +242,7 @@ export default function NotificationSettingsScreen() {
 
           <View style={styles.settingItem}>
             <View style={styles.settingIcon}>
-              <Text style={styles.settingIconText}>👥</Text>
+              <Image source={require('../../assets/people.png')} style={styles.settingIconImage} />
             </View>
             <View style={styles.settingContent}>
               <Text style={styles.settingTitle}>Communities</Text>

@@ -33,17 +33,27 @@ type DistanceFilter = "all" | "5" | "10" | "20" | "50" | "100";
 type EventItem = {
   id: number | string;
   title: string;
-  startsAt: string; // ISO
+  // API returns these separate fields:
+  eventDate?: string;      // "2026-01-12 00:00:00"
+  startTime?: string;      // "10:30:00"
+  endTime?: string;        // "12:00:00"
+  // Legacy field (may not exist):
+  startsAt?: string;       // ISO datetime
+  // Location fields
+  location?: string | null;
   city?: string | null;
   state?: string | null;
   address?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   isOnline?: boolean;
+  isVirtual?: boolean;
   distanceMiles?: number | null;
   posterUrl?: string | null;
+  imageUrl?: string | null;
   category?: string | null; // "Worship", "Bible Study", "Apologetics"
   isPrivate?: boolean;
+  isPublic?: boolean;
   attendingCount?: number | null;
 };
 
@@ -198,27 +208,57 @@ function ToggleTabs({
   );
 }
 
-function formatWhen(iso: string) {
-  if (!iso) return "Date TBD";
+// Parse eventDate (handles "2026-01-12 00:00:00" or "2026-01-12" formats)
+function parseEventDate(eventDate: string): Date {
+  if (!eventDate) return new Date(NaN);
+  // Handle "2026-01-12 00:00:00" format by taking just the date part
+  const datePart = eventDate.split(' ')[0];
+  // Parse as local date (not UTC)
+  const [year, month, day] = datePart.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
 
-  const d = new Date(iso);
+// Format time string "10:30:00" to "10:30 AM"
+function formatTimeStr(timeStr: string): string {
+  if (!timeStr) return '';
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const hour = hours % 12 || 12;
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  return `${hour}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+}
 
-  // Check if date is valid
-  if (isNaN(d.getTime())) return "Date TBD";
-
-  const opts: Intl.DateTimeFormatOptions = {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  };
-
-  try {
-    return new Intl.DateTimeFormat(undefined, opts).format(d);
-  } catch {
-    return "Date TBD";
+function formatWhen(event: EventItem) {
+  // Try to use eventDate + startTime first (new API format)
+  if (event.eventDate) {
+    const d = parseEventDate(event.eventDate);
+    if (!isNaN(d.getTime())) {
+      const dateOpts: Intl.DateTimeFormatOptions = {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      };
+      const dateStr = new Intl.DateTimeFormat(undefined, dateOpts).format(d);
+      const timeStr = event.startTime ? formatTimeStr(event.startTime) : '';
+      return timeStr ? `${dateStr}, ${timeStr}` : dateStr;
+    }
   }
+
+  // Fallback to startsAt (legacy format)
+  if (event.startsAt) {
+    const d = new Date(event.startsAt);
+    if (!isNaN(d.getTime())) {
+      const opts: Intl.DateTimeFormatOptions = {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      };
+      return new Intl.DateTimeFormat(undefined, opts).format(d);
+    }
+  }
+
+  return "Date TBD";
 }
 
 // Event type icon mapping (Ionicons only, Sunday Service uses custom image)
@@ -257,9 +297,13 @@ function EventCard({
   colors: any;
   onPress: () => void;
 }) {
-  const locationLine = item.isOnline
+  // Handle both isOnline and isVirtual flags
+  const isOnlineEvent = item.isOnline || item.isVirtual;
+
+  // Use location field first, then fall back to city/state
+  const locationLine = isOnlineEvent
     ? "Online"
-    : [item.city, item.state].filter(Boolean).join(", ");
+    : item.location || [item.city, item.state].filter(Boolean).join(", ");
 
   const distance =
     !item.isOnline && typeof item.distanceMiles === "number"
@@ -331,7 +375,7 @@ function EventCard({
       <View style={styles.metaRow}>
         <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
         <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
-          {formatWhen(item.startsAt)}
+          {formatWhen(item)}
         </Text>
       </View>
 
@@ -398,9 +442,23 @@ function EventCard({
   );
 }
 
-export default function EventsScreenNew() {
+interface EventsScreenNewProps {
+  onMenuPress?: () => void;
+  onProfilePress?: () => void;
+  onMessagesPress?: () => void;
+  unreadNotificationCount?: number;
+  unreadMessageCount?: number;
+}
+
+export default function EventsScreenNew({
+  onMenuPress: externalMenuPress,
+  onProfilePress: externalProfilePress,
+  onMessagesPress: externalMessagesPress,
+  unreadNotificationCount = 0,
+  unreadMessageCount = 0,
+}: EventsScreenNewProps = {}) {
   const router = useRouter();
-  const { colors, theme, radii } = useTheme();
+  const { colors, theme, radii, colorScheme } = useTheme();
   const { user } = useAuth();
 
   const [view, setView] = useState<"list" | "map">("list");
@@ -416,15 +474,13 @@ export default function EventsScreenNew() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
 
-  // Navigation handlers
-  const onProfilePress = () => router.push("/(tabs)/profile");
-  const onMessagesPress = () => router.push("/messages");
-  const onMenuPress = () => {
-    // Menu will be handled by parent or context
-  };
+  // Navigation handlers - use external handlers if provided, otherwise use defaults
+  const onProfilePress = externalProfilePress || (() => router.push("/(tabs)/profile"));
+  const onMessagesPress = externalMessagesPress || (() => router.push("/messages"));
+  const onMenuPress = externalMenuPress || (() => {});
 
   const userName = user?.displayName || user?.username || "";
-  const userAvatar = user?.profileImageUrl || null;
+  const userAvatar = user?.profileImageUrl || user?.avatarUrl || null;
 
   // Get user location on mount
   useEffect(() => {
@@ -461,11 +517,44 @@ export default function EventsScreenNew() {
     }
   };
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data: rawData, isLoading, isError, refetch } = useQuery({
     queryKey: ["events", { view, range, mode, distance, q, city, userLocation }],
     queryFn: () => fetchEvents({ range, mode, distance, q, city, userLocation }),
     staleTime: 30_000,
   });
+
+  // Filter out past events and private events - only show upcoming public events
+  const data = useMemo(() => {
+    if (!rawData) return [];
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Start of today
+
+    return rawData.filter((event) => {
+      // Filter out private events - they should only be visible in the community Events tab
+      if (event.isPrivate === true || event.isPublic === false) {
+        return false;
+      }
+
+      // Try to parse the event date - prefer eventDate (new API), fall back to startsAt (legacy)
+      let eventDateParsed: Date | null = null;
+
+      if (event.eventDate) {
+        // Use the same parsing logic as formatWhen
+        eventDateParsed = parseEventDate(event.eventDate);
+      } else if (event.startsAt) {
+        eventDateParsed = new Date(event.startsAt);
+      }
+
+      // If we couldn't parse a valid date, include the event (fail safe)
+      if (!eventDateParsed || isNaN(eventDateParsed.getTime())) {
+        return true;
+      }
+
+      // Only show events that are today or in the future
+      return eventDateParsed >= now;
+    });
+  }, [rawData]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -493,7 +582,7 @@ export default function EventsScreenNew() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* App Header */}
       <AppHeader
@@ -505,6 +594,8 @@ export default function EventsScreenNew() {
         onMessagesPress={onMessagesPress}
         showMenu={true}
         onMenuPress={onMenuPress}
+        unreadNotificationCount={unreadNotificationCount}
+        unreadMessageCount={unreadMessageCount}
         leftElement={
           <Pressable
             onPress={() => router.push("/events/create")}
@@ -863,7 +954,7 @@ export default function EventsScreenNew() {
                     longitude: event.longitude,
                   }}
                   title={event.title}
-                  description={formatWhen(event.startsAt)}
+                  description={formatWhen(event)}
                   pinColor={markerColor}
                   onCalloutPress={() => {
                     router.push({

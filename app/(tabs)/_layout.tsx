@@ -24,12 +24,12 @@ export default function TabsLayout() {
   console.log('[Tab Layout] Permissions:', user?.permissions);
   console.log('[Tab Layout] Has Inbox Access:', hasInboxAccess);
 
-  // Custom icon colors matching the design
+  // Earth-forward icon colors - warm, grounded palette
   const iconColors = {
-    feed: '#4A90E2',        // Blue
-    communities: '#9B59B6', // Purple
-    events: '#5B9BD5',      // Blue
-    apologetics: '#27AE60', // Green
+    feed: '#5C6B5E',        // Sage (was blue)
+    communities: '#7C6B78', // Muted plum
+    events: '#B56A55',      // Terracotta
+    apologetics: '#7C8F78', // Sage green
   };
 
   // Handle create button press
@@ -103,7 +103,7 @@ export default function TabsLayout() {
                   width: 60,
                   height: 60,
                   borderRadius: 30,
-                  backgroundColor: '#222D99',
+                  backgroundColor: '#0B132B', // Ink navy (text-like, not blue fill)
                   justifyContent: 'center',
                   alignItems: 'center',
                   shadowColor: '#000',

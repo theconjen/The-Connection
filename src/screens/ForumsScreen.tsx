@@ -337,7 +337,7 @@ export function ForumsScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
       <FlatList
         style={{ backgroundColor: colors.surface }}
         data={posts}

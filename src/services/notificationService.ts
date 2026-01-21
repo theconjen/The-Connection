@@ -181,10 +181,17 @@ export async function unregisterPushToken(token: string): Promise<void> {
     await apiClient.delete(`/push-tokens/${encodeURIComponent(token)}`);
     console.info('[Notifications] Token unregistered from backend');
   } catch (error: any) {
-    // Suppress 401 (not logged in) and 404 (token doesn't exist) errors - both are expected
+    // Suppress expected errors:
+    // - 401: not logged in
+    // - 404: token doesn't exist
+    // - Network errors: device offline (non-critical for logout)
     const status = error?.response?.status;
-    if (status !== 401 && status !== 404) {
+    const isNetworkError = error?.message === 'Network Error' || !error?.response;
+
+    if (status !== 401 && status !== 404 && !isNetworkError) {
       console.error('[Notifications] Error unregistering token:', error);
+    } else if (isNetworkError) {
+      console.info('[Notifications] Token unregistration skipped (device offline)');
     }
   }
 }

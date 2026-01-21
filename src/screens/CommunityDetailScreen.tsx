@@ -22,6 +22,7 @@ import {
   StyleSheet,
   Alert,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -94,6 +95,15 @@ interface CommunityDetailScreenProps {
   communityId: number;
   onBack?: () => void;
   onCreateEvent?: () => void;
+  onUserPress?: (userId: number) => void;
+}
+
+interface MemberSuggestion {
+  id: number;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  reason?: string;
 }
 
 // ============================================================================
@@ -128,15 +138,18 @@ function getCommunityIconName(iconName?: string): string {
 }
 
 function getCommunityColor(iconColor?: string): string {
+  // Earth-forward palette - no blue defaults
   const colorMap: { [key: string]: string } = {
-    primary: '#222D99',
-    purple: '#9B59B6',
-    blue: '#4A90E2',
-    green: '#27AE60',
-    orange: '#E67E22',
-    red: '#E74C3C',
+    primary: '#5C6B5E',     // Sage (was blue)
+    purple: '#7C6B78',      // Muted purple
+    blue: '#6B7B6E',        // Sage-gray (discouraged)
+    green: '#5C6B5E',       // Sage green
+    orange: '#B56A55',      // Terracotta
+    red: '#A03030',         // Warm red
+    sage: '#7C8F78',        // Sage accent
+    gold: '#C7A45B',        // Warm gold
   };
-  return colorMap[iconColor || 'primary'] || '#222D99';
+  return colorMap[iconColor || 'primary'] || '#5C6B5E';
 }
 
 // ============================================================================
@@ -225,6 +238,24 @@ function useLeaveCommunity() {
   });
 }
 
+function useCommunityMemberSuggestions(communityId: number, enabled: boolean) {
+  return useQuery<MemberSuggestion[]>({
+    queryKey: [`/api/communities/${communityId}/member-suggestions`],
+    queryFn: async () => {
+      try {
+        // Try community-specific suggestions endpoint first
+        const response = await apiClient.get(`/api/user/suggestions/friends?communityId=${communityId}&limit=8`);
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        // Fallback: return empty array if endpoint doesn't support communityId
+        return [];
+      }
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
@@ -299,6 +330,7 @@ export function CommunityDetailScreen({
   communityId,
   onBack,
   onCreateEvent,
+  onUserPress,
 }: CommunityDetailScreenProps) {
   const { user } = useAuth();
   const { colors } = useTheme();
@@ -310,10 +342,16 @@ export function CommunityDetailScreen({
   const [prayerContent, setPrayerContent] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
+  // State for tracking follow actions
+  const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
+
   const { data: community, isLoading: loadingCommunity } = useCommunity(communityId);
   const { data: members = [], isLoading: loadingMembers } = useMembers(communityId);
   const { data: wallPosts = [], isLoading: loadingPosts, refetch: refetchPosts } = useWallPosts(communityId);
   const { data: prayerRequests = [], isLoading: loadingPrayers, refetch: refetchPrayers } = usePrayerRequests(communityId);
+
+  // Fetch community member suggestions
+  const { data: memberSuggestions = [], refetch: refetchSuggestions } = useCommunityMemberSuggestions(communityId, !!user);
 
   const createPostMutation = useCreateWallPost();
   const createPrayerMutation = useCreatePrayerRequest();
@@ -405,13 +443,46 @@ export function CommunityDetailScreen({
     );
   };
 
+  // Handle follow suggestion
+  const handleFollowSuggestion = async (userId: number) => {
+    setFollowingIds(prev => new Set(prev).add(userId));
+    try {
+      await apiClient.post(`/api/users/${userId}/follow`);
+    } catch (error) {
+      // Revert on error
+      setFollowingIds(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+      console.error('Failed to follow user:', error);
+    }
+  };
+
+  // Handle hide suggestion
+  const handleHideSuggestion = async (userId: number) => {
+    try {
+      await apiClient.post('/api/user/suggestions/hide', { hiddenUserId: userId });
+      refetchSuggestions();
+    } catch (error) {
+      console.error('Failed to hide suggestion:', error);
+    }
+  };
+
+  // Handle user press
+  const handleUserPress = (userId: number) => {
+    if (onUserPress) {
+      onUserPress(userId);
+    }
+  };
+
   const styles = getStyles(colors);
 
   if (loadingCommunity) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#222D99" />
+          <ActivityIndicator size="large" color="#5C6B5E" />
           <Text style={styles.loadingText}>Loading community...</Text>
         </View>
       </SafeAreaView>
@@ -488,6 +559,87 @@ export function CommunityDetailScreen({
           </View>
         </View>
 
+        {/* Members to Connect With - Horizontal Carousel */}
+        {user && memberSuggestions.length > 0 && (
+          <View style={styles.membersCarousel}>
+            <View style={styles.carouselHeader}>
+              <Ionicons name="people" size={18} color={colors.primary || '#5C6B5E'} />
+              <Text style={styles.carouselTitle}>Members to Connect With</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselScroll}
+            >
+              {memberSuggestions.map((suggestion) => {
+                const isFollowing = followingIds.has(suggestion.id);
+                return (
+                  <View key={suggestion.id} style={styles.suggestionCard}>
+                    {/* Hide Button */}
+                    <Pressable
+                      style={styles.hideButton}
+                      onPress={() => handleHideSuggestion(suggestion.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="close" size={14} color={colors.textMuted} />
+                    </Pressable>
+
+                    {/* Avatar */}
+                    <Pressable onPress={() => handleUserPress(suggestion.id)}>
+                      <Image
+                        source={{
+                          uri: suggestion.avatarUrl ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(suggestion.displayName || suggestion.username)}&background=random`
+                        }}
+                        style={styles.suggestionAvatar}
+                      />
+                    </Pressable>
+
+                    {/* Name */}
+                    <Text style={styles.suggestionName} numberOfLines={1}>
+                      {suggestion.displayName || suggestion.username}
+                    </Text>
+
+                    {/* Username */}
+                    <Text style={styles.suggestionUsername} numberOfLines={1}>
+                      @{suggestion.username}
+                    </Text>
+
+                    {/* Reason */}
+                    {suggestion.reason && (
+                      <Text style={styles.suggestionReason} numberOfLines={1}>
+                        {suggestion.reason}
+                      </Text>
+                    )}
+
+                    {/* Follow Button */}
+                    <Pressable
+                      style={[
+                        styles.followButton,
+                        isFollowing && styles.followingButton,
+                      ]}
+                      onPress={() => !isFollowing && handleFollowSuggestion(suggestion.id)}
+                      disabled={isFollowing}
+                    >
+                      <Ionicons
+                        name={isFollowing ? 'checkmark' : 'person-add'}
+                        size={14}
+                        color={isFollowing ? '#27AE60' : '#fff'}
+                      />
+                      <Text style={[
+                        styles.followButtonText,
+                        isFollowing && styles.followingButtonText,
+                      ]}>
+                        {isFollowing ? 'Following' : 'Follow'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Tabs */}
         <View style={styles.tabs}>
           <Pressable
@@ -549,7 +701,7 @@ export function CommunityDetailScreen({
             {/* Wall Posts */}
             {loadingPosts ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#222D99" />
+                <ActivityIndicator size="small" color="#5C6B5E" />
               </View>
             ) : wallPosts.length > 0 ? (
               wallPosts.map(post => <WallPostCard key={post.id} post={post} colors={colors} />)
@@ -605,7 +757,7 @@ export function CommunityDetailScreen({
             {/* Prayer Requests List */}
             {loadingPrayers ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#222D99" />
+                <ActivityIndicator size="small" color="#5C6B5E" />
               </View>
             ) : prayerRequests.length > 0 ? (
               prayerRequests.map(prayer => (
@@ -621,7 +773,7 @@ export function CommunityDetailScreen({
                         alignItems: 'center',
                       }}
                     >
-                      <Ionicons name="heart-outline" size={20} color="#222D99" />
+                      <Ionicons name="heart-outline" size={20} color="#5C6B5E" />
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -670,7 +822,7 @@ export function CommunityDetailScreen({
           <View>
             {loadingMembers ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#222D99" />
+                <ActivityIndicator size="small" color="#5C6B5E" />
               </View>
             ) : (
               members.map(member => (
@@ -784,7 +936,7 @@ const getStyles = (colors: any) =>
       marginTop: 24,
       paddingHorizontal: 24,
       paddingVertical: 12,
-      backgroundColor: '#222D99',
+      backgroundColor: '#5C6B5E',
       borderRadius: 20,
     },
     backButtonText: {
@@ -861,7 +1013,7 @@ const getStyles = (colors: any) =>
       gap: 6,
       paddingVertical: 12,
       borderRadius: 20,
-      backgroundColor: '#222D99',
+      backgroundColor: '#5C6B5E',
     },
     createEventButtonText: {
       fontSize: 15,
@@ -882,7 +1034,7 @@ const getStyles = (colors: any) =>
       borderBottomColor: 'transparent',
     },
     tabActive: {
-      borderBottomColor: '#222D99',
+      borderBottomColor: '#5C6B5E',
     },
     tabText: {
       fontSize: 15,
@@ -890,7 +1042,7 @@ const getStyles = (colors: any) =>
       color: colors.textMuted,
     },
     tabTextActive: {
-      color: '#222D99',
+      color: '#5C6B5E',
       fontWeight: '600',
     },
     createPostContainer: {
@@ -910,7 +1062,7 @@ const getStyles = (colors: any) =>
       marginBottom: 12,
     },
     postButton: {
-      backgroundColor: '#222D99',
+      backgroundColor: '#5C6B5E',
       paddingVertical: 12,
       borderRadius: 20,
       alignItems: 'center',
@@ -959,5 +1111,98 @@ const getStyles = (colors: any) =>
       fontSize: 11,
       fontWeight: '600',
       color: '#92400E',
+    },
+    // Members to Connect With carousel styles
+    membersCarousel: {
+      backgroundColor: colors.surface,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    carouselHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      marginBottom: 12,
+    },
+    carouselTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    carouselScroll: {
+      paddingHorizontal: 12,
+      gap: 12,
+    },
+    suggestionCard: {
+      width: 140,
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 16,
+      padding: 16,
+      alignItems: 'center',
+      position: 'relative',
+    },
+    hideButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1,
+    },
+    suggestionAvatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.borderSubtle,
+      marginBottom: 8,
+    },
+    suggestionName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: 2,
+    },
+    suggestionUsername: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginBottom: 4,
+    },
+    suggestionReason: {
+      fontSize: 11,
+      color: colors.textSecondary || colors.textMuted,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    followButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      backgroundColor: '#5C6B5E',
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      marginTop: 4,
+    },
+    followingButton: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: '#27AE60',
+    },
+    followButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#fff',
+    },
+    followingButtonText: {
+      color: '#27AE60',
     },
   });

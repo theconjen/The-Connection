@@ -11,8 +11,10 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  SafeAreaView,
+  Image,
+  Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useConversations } from '../queries/messages';
 import { formatDistanceToNow } from 'date-fns';
@@ -23,16 +25,30 @@ interface MessagesScreenProps {
   onConversationPress?: (userId: number) => void;
   onSettingsPress?: () => void;
   onNewMessagePress?: () => void;
+  onProfilePress?: () => void;
 }
 
 export default function MessagesScreen({
   onConversationPress,
   onSettingsPress,
-  onNewMessagePress
+  onNewMessagePress,
+  onProfilePress,
 }: MessagesScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useAuth();
-  const { colors } = useTheme();
+  const { colors, colorScheme } = useTheme();
+
+  // Get user initials for avatar fallback
+  const getUserInitials = () => {
+    if (!user?.displayName && !user?.username) return '?';
+    const name = user?.displayName || user?.username || '';
+    return name
+      .split(' ')
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
   const { data: conversations, isLoading, error, refetch } = useConversations();
 
   // Log error for debugging and check auth status
@@ -60,6 +76,44 @@ export default function MessagesScreen({
     if (conversation.avatarUrl) return conversation.avatarUrl;
     const name = getConversationName(conversation);
     return name.charAt(0).toUpperCase();
+  };
+
+  // Format last message content - detect media URLs and show friendly labels
+  const formatLastMessage = (content: string | undefined): string => {
+    if (!content) return 'No messages yet';
+
+    const trimmed = content.trim();
+
+    // Check if it's a URL
+    if (/^https?:\/\/[^\s]+$/i.test(trimmed)) {
+      // GIF patterns
+      if (
+        /\.gif(\?|$)/i.test(trimmed) ||
+        /\.gifv(\?|$)/i.test(trimmed) ||
+        /media\.tenor\.com\//i.test(trimmed) ||
+        /giphy\.com\//i.test(trimmed)
+      ) {
+        return 'GIF';
+      }
+
+      // Image patterns
+      if (
+        /\.(jpg|jpeg|png|webp|heic)(\?|$)/i.test(trimmed) ||
+        /storage\.googleapis\.com\/.*\.(jpg|jpeg|png|webp)/i.test(trimmed)
+      ) {
+        return 'Photo';
+      }
+
+      // Video patterns
+      if (/\.(mp4|mov|webm|m4v)(\?|$)/i.test(trimmed)) {
+        return 'Video';
+      }
+
+      // Generic link
+      return 'Link';
+    }
+
+    return content;
   };
 
   // Filter conversations based on search
@@ -107,8 +161,8 @@ export default function MessagesScreen({
             <Text style={{ fontSize: 16, fontWeight: hasUnread ? '700' : '500', color: colors.textPrimary }}>{displayName}</Text>
             <Text style={{ fontSize: 12, color: colors.textSecondary }}>{timeAgo}</Text>
           </View>
-          <Text style={{ fontSize: 14, color: hasUnread ? colors.textPrimary : colors.textSecondary, marginTop: 4 }} numberOfLines={1}>
-            {item.lastMessage?.content || 'No messages yet'}
+          <Text style={{ fontSize: 14, color: hasUnread ? colors.textPrimary : colors.textSecondary, marginTop: 4, fontStyle: formatLastMessage(item.lastMessage?.content) !== item.lastMessage?.content ? 'italic' : 'normal' }} numberOfLines={1}>
+            {formatLastMessage(item.lastMessage?.content)}
           </Text>
         </View>
         {hasUnread && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginLeft: 8 }} />}
@@ -129,26 +183,59 @@ export default function MessagesScreen({
   // Error state
   if (error) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
-          {/* Header */}
+          {/* Header with Profile + Centered Logo */}
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
+            height: 56,
             paddingHorizontal: 16,
-            paddingVertical: 12,
-            backgroundColor: colors.surface,
+            backgroundColor: colors.header,
             borderBottomWidth: 1,
-            borderBottomColor: colors.borderSubtle,
+            borderBottomColor: colors.headerBorder || colors.borderSubtle,
           }}>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: colors.textPrimary }}>Messages</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TouchableOpacity onPress={onNewMessagePress} style={{ padding: 8 }}>
-                <Ionicons name="create-outline" size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onSettingsPress} style={{ padding: 8 }}>
-                <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
+            {/* Left: Profile Avatar */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', zIndex: 1 }}>
+              <Pressable
+                onPress={onProfilePress}
+                style={({ pressed }) => ({
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: user?.avatarUrl ? 'transparent' : colors.surfaceMuted,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                {user?.avatarUrl ? (
+                  <Image source={{ uri: user.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                ) : (
+                  <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '600' }}>
+                    {getUserInitials()}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+
+            {/* Center: Logo */}
+            <View style={{ position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 0, pointerEvents: 'none' }}>
+              <Image
+                source={require('../../assets/tc-logo-hd.png')}
+                style={[
+                  { width: 700, height: 140 },
+                  colorScheme === 'dark' && { tintColor: colors.headerForeground }
+                ]}
+                resizeMode="contain"
+              />
+            </View>
+
+            {/* Right: Action Buttons */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
+              <TouchableOpacity onPress={onNewMessagePress} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="create-outline" size={22} color={colors.headerForeground} />
               </TouchableOpacity>
             </View>
           </View>
@@ -183,26 +270,59 @@ export default function MessagesScreen({
   // Empty state
   if (!conversations || conversations.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
-          {/* Header */}
+          {/* Header with Profile + Centered Logo */}
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
+            height: 56,
             paddingHorizontal: 16,
-            paddingVertical: 12,
-            backgroundColor: colors.surface,
+            backgroundColor: colors.header,
             borderBottomWidth: 1,
-            borderBottomColor: colors.borderSubtle,
+            borderBottomColor: colors.headerBorder || colors.borderSubtle,
           }}>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: colors.textPrimary }}>Messages</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TouchableOpacity onPress={onNewMessagePress} style={{ padding: 8 }}>
-                <Ionicons name="create-outline" size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onSettingsPress} style={{ padding: 8 }}>
-                <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
+            {/* Left: Profile Avatar */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', zIndex: 1 }}>
+              <Pressable
+                onPress={onProfilePress}
+                style={({ pressed }) => ({
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: user?.avatarUrl ? 'transparent' : colors.surfaceMuted,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                {user?.avatarUrl ? (
+                  <Image source={{ uri: user.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                ) : (
+                  <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '600' }}>
+                    {getUserInitials()}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+
+            {/* Center: Logo */}
+            <View style={{ position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 0, pointerEvents: 'none' }}>
+              <Image
+                source={require('../../assets/tc-logo-hd.png')}
+                style={[
+                  { width: 700, height: 140 },
+                  colorScheme === 'dark' && { tintColor: colors.headerForeground }
+                ]}
+                resizeMode="contain"
+              />
+            </View>
+
+            {/* Right: Action Buttons */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
+              <TouchableOpacity onPress={onNewMessagePress} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="create-outline" size={22} color={colors.headerForeground} />
               </TouchableOpacity>
             </View>
           </View>
@@ -237,26 +357,59 @@ export default function MessagesScreen({
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* Header */}
+        {/* Header with Profile + Centered Logo */}
         <View style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
+          height: 56,
           paddingHorizontal: 16,
-          paddingVertical: 12,
-          backgroundColor: colors.surface,
+          backgroundColor: colors.header,
           borderBottomWidth: 1,
-          borderBottomColor: colors.borderSubtle,
+          borderBottomColor: colors.headerBorder || colors.borderSubtle,
         }}>
-          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.textPrimary }}>Messages</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TouchableOpacity onPress={onNewMessagePress} style={{ padding: 8 }}>
-              <Ionicons name="create-outline" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onSettingsPress} style={{ padding: 8 }}>
-              <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
+          {/* Left: Profile Avatar */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', zIndex: 1 }}>
+            <Pressable
+              onPress={onProfilePress}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: user?.avatarUrl ? 'transparent' : colors.surfaceMuted,
+                justifyContent: 'center',
+                alignItems: 'center',
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+              ) : (
+                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '600' }}>
+                  {getUserInitials()}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
+          {/* Center: Logo */}
+          <View style={{ position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 0, pointerEvents: 'none' }}>
+            <Image
+              source={require('../../assets/tc-logo-hd.png')}
+              style={[
+                { width: 700, height: 140 },
+                colorScheme === 'dark' && { tintColor: colors.headerForeground }
+              ]}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* Right: Action Buttons */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
+            <TouchableOpacity onPress={onNewMessagePress} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="create-outline" size={22} color={colors.headerForeground} />
             </TouchableOpacity>
           </View>
         </View>

@@ -86,7 +86,7 @@ export function ProfileScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <PageHeader
         title="Profile"

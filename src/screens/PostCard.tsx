@@ -42,6 +42,10 @@ export interface Post {
   comments: number;
   flair: string;
   isLiked?: boolean;
+  // Media fields
+  imageUrls?: string[];
+  videoUrl?: string;
+  gifUrl?: string;
 }
 
 interface PostCardProps {
@@ -219,6 +223,77 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
               </Pressable>
             )}
           </View>
+
+          {/* Media Content */}
+          {post.gifUrl && (
+            <Image
+              source={{ uri: post.gifUrl }}
+              style={{
+                width: '100%',
+                height: 180,
+                borderRadius: radii.md,
+                marginBottom: spacing.sm,
+                backgroundColor: colors.surfaceMuted,
+              }}
+              resizeMode="contain"
+            />
+          )}
+
+          {post.imageUrls && post.imageUrls.length > 0 && (
+            <View style={{
+              flexDirection: post.imageUrls.length === 1 ? 'column' : 'row',
+              flexWrap: 'wrap',
+              gap: 4,
+              marginBottom: spacing.sm,
+              borderRadius: radii.md,
+              overflow: 'hidden',
+            }}>
+              {post.imageUrls.slice(0, 4).map((url, index) => (
+                <Image
+                  key={index}
+                  source={{ uri: url }}
+                  style={{
+                    width: post.imageUrls!.length === 1 ? '100%' : '48%',
+                    height: post.imageUrls!.length === 1 ? 200 : 120,
+                    backgroundColor: colors.surfaceMuted,
+                    borderRadius: post.imageUrls!.length === 1 ? radii.md : 0,
+                  }}
+                  resizeMode="cover"
+                />
+              ))}
+            </View>
+          )}
+
+          {post.videoUrl && (
+            <View style={{
+              position: 'relative',
+              marginBottom: spacing.sm,
+              borderRadius: radii.md,
+              overflow: 'hidden',
+            }}>
+              <Image
+                source={{ uri: post.videoUrl }}
+                style={{
+                  width: '100%',
+                  height: 180,
+                  backgroundColor: colors.surfaceMuted,
+                }}
+                resizeMode="cover"
+              />
+              <View style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+              }}>
+                <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
+              </View>
+            </View>
+          )}
 
           {/* Flair */}
           <Badge variant="secondary">{post.flair}</Badge>

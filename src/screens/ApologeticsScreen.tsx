@@ -1,17 +1,17 @@
 /* =========================================
-   Apologetics Screen (Layout B)
-   - No custom hero header (uses your standard header)
-   - Search under header
+   Apologetics Screen - GotQuestions UX
+   GOAL: User gets a reliable answer in under 60 seconds
+
+   LIST SCREEN:
+   - Dominant search bar (debounced)
    - Domain toggle: Apologetics | Polemics
-   - Area chips (scroll)
-   - Tag chips (dependent on selected area)
-   - Wikipedia-style Q&A cards
-   - Author line ALWAYS: "Connection Research Team"
-   - Uses useTheme() pattern
-   - Uses TanStack Query
+   - Area chips, Tag chips (conditional on area)
+   - Suggested Searches (8-12 buttons) when empty
+   - Result cards: Title, TL;DR preview, Breadcrumb, "Verified Sources", "Connection Research Team"
+   - "Ask the Connection Research Team" CTA when no results
    ========================================= */
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   TextInput,
@@ -26,52 +26,76 @@ import {
   Share as RNShare,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme";
 import { AppHeader } from "./AppHeader";
 import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../lib/apiClient";
-import { useApologeticsBookmarks } from "../hooks/useApologeticsBookmarks";
 
 type Domain = "apologetics" | "polemics";
 
-type Area = { id: string; name: string; domain: Domain };
-type Tag = { id: string; name: string; areaId: string };
+type QaArea = {
+  id: number;
+  name: string;
+  slug: string;
+  domain: Domain;
+};
 
-type QAItem = {
-  id: string;
-  question: string;
-  areaName: string;
-  tagName: string;
-  answer: string;
-  sources: string[]; // short strings for now
+type QaTag = {
+  id: number;
+  name: string;
+  slug: string;
+  areaId: number;
+};
+
+type LibraryPostListItem = {
+  id: number;
+  domain: Domain;
+  title: string;
+  tldr: string | null;
+  perspectives: string[];
+  authorDisplayName: string;
+  publishedAt: string | null;
+  area?: { id: number; name: string; slug: string };
+  tag?: { id: number; name: string; slug: string };
+};
+
+// Suggested searches for GotQuestions UX
+const SUGGESTED_SEARCHES = {
+  apologetics: [
+    "Evidence for the Resurrection",
+    "Historical reliability of the Bible",
+    "Problem of evil",
+    "Is faith rational?",
+    "Did Jesus claim to be God?",
+    "Trinity explained",
+    "Science and Christianity",
+    "Prophecies fulfilled by Jesus",
+    "Reliability of Gospel accounts",
+    "Archaeological evidence for the Bible",
+    "Moral argument for God",
+    "Near-death experiences",
+  ],
+  polemics: [
+    "Problem of evil",
+    "Moral relativism",
+    "Allah vs Yahweh",
+    "Biblical contradictions",
+    "Crusades and violence",
+    "Old Testament genocide",
+    "Hell and justice",
+    "Exclusivity of Christianity",
+    "Evolution and creation",
+    "Suffering and God's goodness",
+    "Religious pluralism",
+    "Science vs faith",
+  ],
 };
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await apiClient.get(path);
   return res.data as T;
-}
-
-/**
- * Expected endpoints (adjust to match your server):
- * - GET /api/qa/areas?domain=apologetics|polemics  -> Area[]
- * - GET /api/qa/areas/:id/tags                    -> Tag[]
- * - GET /api/apologetics/feed?...                 -> QAItem[]
- */
-function buildFeedUrl(params: {
-  domain: Domain;
-  q: string;
-  areaId?: string | null;
-  tagId?: string | null;
-}) {
-  const qs = new URLSearchParams();
-  qs.set("domain", params.domain);
-  if (params.q.trim()) qs.set("q", params.q.trim());
-  if (params.areaId) qs.set("areaId", params.areaId);
-  // Tags disabled until refined
-  // if (params.tagId) qs.set("tagId", params.tagId);
-  return `/api/apologetics/feed?${qs.toString()}`;
 }
 
 interface ApologeticsScreenProps {
@@ -80,6 +104,8 @@ interface ApologeticsScreenProps {
   onMenuPress?: () => void;
   userName?: string;
   userAvatar?: string | null;
+  unreadNotificationCount?: number;
+  unreadMessageCount?: number;
 }
 
 export default function ApologeticsScreen({
@@ -88,58 +114,88 @@ export default function ApologeticsScreen({
   onMenuPress,
   userName,
   userAvatar,
+  unreadNotificationCount = 0,
+  unreadMessageCount = 0,
 }: ApologeticsScreenProps = {}) {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, colorScheme } = useTheme();
   const { user } = useAuth();
 
   const [domain, setDomain] = useState<Domain>("apologetics");
   const [query, setQuery] = useState("");
-  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
-  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [selectedAreaId, setSelectedAreaId] = useState<number | null>(null);
+  const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
 
   const styles = useMemo(() => getStyles(colors), [colors]);
   const queryClient = useQueryClient();
 
-  // Use bookmarks hook with AsyncStorage caching
-  const { bookmarkedIds, addBookmark, removeBookmark } = useApologeticsBookmarks();
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [query]);
 
+  // Fetch areas (gracefully handle 404 if endpoint not deployed)
   const areasQ = useQuery({
     queryKey: ["qa-areas", domain],
-    queryFn: () => apiGet<Area[]>(`/api/qa/areas?domain=${domain}`),
+    queryFn: async () => {
+      try {
+        return await apiGet<QaArea[]>(`/api/qa-areas?domain=${domain}`);
+      } catch (err: any) {
+        // Silently return empty if endpoint doesn't exist
+        if (err?.response?.status === 404) return [];
+        throw err;
+      }
+    },
     staleTime: 60_000,
+    retry: false,
   });
 
+  // Fetch tags for selected area (gracefully handle 404 if endpoint not deployed)
   const tagsQ = useQuery({
     queryKey: ["qa-tags", selectedAreaId],
-    queryFn: () =>
-      selectedAreaId
-        ? apiGet<Tag[]>(`/api/qa/areas/${selectedAreaId}/tags`)
-        : Promise.resolve([] as Tag[]),
+    queryFn: async () => {
+      if (!selectedAreaId) return [] as QaTag[];
+      try {
+        return await apiGet<QaTag[]>(`/api/qa-tags?areaId=${selectedAreaId}`);
+      } catch (err: any) {
+        // Silently return empty if endpoint doesn't exist
+        if (err?.response?.status === 404) return [];
+        throw err;
+      }
+    },
     enabled: !!selectedAreaId,
     staleTime: 60_000,
+    retry: false,
   });
 
-  const feedUrl = useMemo(
-    () =>
-      buildFeedUrl({
-        domain,
-        q: query,
-        areaId: selectedAreaId,
-        tagId: selectedTagId,
-      }),
-    [domain, query, selectedAreaId, selectedTagId]
-  );
+  // Fetch library posts (GotQuestions data)
+  const postsQ = useQuery({
+    queryKey: ["library-posts", domain, debouncedQuery, selectedAreaId, selectedTagId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("domain", domain);
+      if (debouncedQuery.trim()) params.set("q", debouncedQuery.trim());
+      if (selectedAreaId) params.set("areaId", selectedAreaId.toString());
+      if (selectedTagId) params.set("tagId", selectedTagId.toString());
+      params.set("status", "published");
+      params.set("limit", "50");
 
-  const feedQ = useQuery({
-    queryKey: ["apologetics-feed", feedUrl],
-    queryFn: () => apiGet<QAItem[]>(feedUrl),
+      const result = await apiGet<{ posts: { items: LibraryPostListItem[]; total: number } }>(
+        `/api/library/posts?${params.toString()}`
+      );
+      // API returns { posts: { items: [...], total: N } }
+      return result.posts?.items ?? [];
+    },
     staleTime: 15_000,
   });
 
   const areas = areasQ.data ?? [];
   const tags = tagsQ.data ?? [];
-  const feed = feedQ.data ?? [];
+  const posts = postsQ.data ?? [];
 
   function onSelectDomain(next: Domain) {
     setDomain(next);
@@ -147,200 +203,195 @@ export default function ApologeticsScreen({
     setSelectedTagId(null);
   }
 
-  function onSelectArea(areaId: string) {
+  function onSelectArea(areaId: number) {
     setSelectedAreaId((prev) => (prev === areaId ? null : areaId));
     setSelectedTagId(null);
   }
 
-  function onSelectTag(tagId: string) {
+  function onSelectTag(tagId: number) {
     setSelectedTagId((prev) => (prev === tagId ? null : tagId));
   }
 
-  // Share Q&A to feed - creates a microblog post referencing the Q&A
-  const handleShareToFeed = async (item: QAItem) => {
-    try {
-      const shareText = `📖 Check out this insightful Q&A from Connection Research Team:\n\n"${item.question}"\n\nRead the full answer: https://app.theconnection.app/apologetics/${item.id}\n\n#Apologetics #${item.areaName.replace(/\s+/g, '')}`;
+  function onSuggestedSearch(searchTerm: string) {
+    setQuery(searchTerm);
+    setDebouncedQuery(searchTerm);
+  }
 
-      await apiClient.post('/api/microblogs', {
-        content: shareText,
-      });
-
-      Alert.alert(
-        'Shared to Feed',
-        'The Q&A has been shared to your feed!',
-        [{ text: 'OK' }]
-      );
-
-      // Invalidate feed to show the new post
-      queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
-    } catch (error) {
-      console.error('Error sharing to feed:', error);
-      Alert.alert(
-        'Share Failed',
-        'Could not share to feed. Please try again.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  // Toggle bookmark - uses backend API with AsyncStorage caching
-  const handleToggleBookmark = async (itemId: string) => {
-    try {
-      if (bookmarkedIds.has(itemId)) {
-        await removeBookmark(itemId);
-        Alert.alert('Bookmark Removed', 'Removed from your saved items');
-      } else {
-        await addBookmark(itemId);
-        Alert.alert('Bookmarked', 'Saved to your bookmarks');
-      }
-    } catch (error) {
-      console.error('Error toggling bookmark:', error);
-      Alert.alert('Error', 'Could not update bookmark. Please try again.');
-    }
-  };
+  const showSuggestedSearches = !query.trim() && posts.length === 0 && !postsQ.isLoading;
+  const suggestedSearches = SUGGESTED_SEARCHES[domain];
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <AppHeader
         showCenteredLogo={true}
         userName={userName || user?.displayName || user?.username}
-        userAvatar={userAvatar || user?.profileImageUrl}
+        userAvatar={userAvatar || user?.profileImageUrl || user?.avatarUrl}
         onProfilePress={onProfilePress}
         showMessages={true}
         onMessagesPress={onMessagesPress}
         showMenu={true}
         onMenuPress={onMenuPress}
+        unreadNotificationCount={unreadNotificationCount}
+        unreadMessageCount={unreadMessageCount}
       />
 
       <View style={styles.screen}>
-        {/* Search (first element under header) */}
+        {/* Search */}
         <View style={styles.searchWrap}>
-        <Ionicons name="search-outline" size={16} color={colors.textMuted} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search questions, topics, or passages…"
-          placeholderTextColor={colors.textMuted}
-          style={styles.searchInput}
-          returnKeyType="search"
-        />
-        {!!query && (
-          <Pressable onPress={() => setQuery("")} hitSlop={10}>
-            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-          </Pressable>
-        )}
-      </View>
+          <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search questions, topics, or Scripture passages..."
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {!!query && (
+            <Pressable onPress={() => setQuery("")} hitSlop={10}>
+              <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+            </Pressable>
+          )}
+        </View>
 
-      {/* Domain toggle */}
-      <View style={styles.toggleWrap}>
-        <SegmentButton
-          label="Apologetics"
-          active={domain === "apologetics"}
-          onPress={() => onSelectDomain("apologetics")}
-          colors={colors}
-        />
-        <SegmentButton
-          label="Polemics"
-          active={domain === "polemics"}
-          onPress={() => onSelectDomain("polemics")}
-          colors={colors}
-        />
-      </View>
-
-      {/* Area chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsRow}
-        style={styles.chipsScrollView}
-      >
-        {areas.map((a) => (
-          <Chip
-            key={a.id}
-            label={a.name}
-            active={selectedAreaId === a.id}
-            onPress={() => onSelectArea(a.id)}
+        {/* Domain toggle */}
+        <View style={styles.toggleWrap}>
+          <SegmentButton
+            label="Apologetics"
+            active={domain === "apologetics"}
+            onPress={() => onSelectDomain("apologetics")}
             colors={colors}
           />
-        ))}
-      </ScrollView>
+          <SegmentButton
+            label="Polemics"
+            active={domain === "polemics"}
+            onPress={() => onSelectDomain("polemics")}
+            colors={colors}
+          />
+        </View>
 
-      {/* Tag chips (dependent on area) - HIDDEN UNTIL REFINED */}
-      {/* {selectedAreaId ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}
-        >
-          {tags.map((t) => (
-            <Chip
-              key={t.id}
-              label={t.name}
-              active={selectedTagId === t.id}
-              onPress={() => onSelectTag(t.id)}
+        {/* Area chips */}
+        {areas.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsRow}
+            style={styles.chipsScrollView}
+          >
+            {areas.map((a) => (
+              <Chip
+                key={a.id}
+                label={a.name}
+                active={selectedAreaId === a.id}
+                onPress={() => onSelectArea(a.id)}
+                colors={colors}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Tag chips (conditional on area) */}
+        {selectedAreaId && tags.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsRow}
+            style={styles.chipsScrollViewTags}
+          >
+            {tags.map((t) => (
+              <Chip
+                key={t.id}
+                label={t.name}
+                active={selectedTagId === t.id}
+                onPress={() => onSelectTag(t.id)}
+                colors={colors}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Suggested Searches (when search empty) */}
+        {showSuggestedSearches && (
+          <View style={styles.suggestedWrap}>
+            <Text style={styles.suggestedTitle}>Suggested Searches</Text>
+            <View style={styles.suggestedGrid}>
+              {suggestedSearches.slice(0, 12).map((term, idx) => (
+                <Pressable
+                  key={idx}
+                  style={styles.suggestedButton}
+                  onPress={() => onSuggestedSearch(term)}
+                >
+                  <Text style={styles.suggestedText}>{term}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Results */}
+        <FlatList
+          data={posts}
+          keyExtractor={(it) => it.id.toString()}
+          contentContainerStyle={styles.listContent}
+          refreshing={postsQ.isFetching}
+          onRefresh={() => postsQ.refetch()}
+          ListEmptyComponent={
+            !showSuggestedSearches ? (
+              <View style={styles.empty}>
+                <Ionicons name="help-circle-outline" size={48} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>
+                  {postsQ.error ? "Error loading" : "No results found"}
+                </Text>
+                <Text style={styles.emptyBody}>
+                  {postsQ.error
+                    ? `Failed to load: ${postsQ.error instanceof Error ? postsQ.error.message : 'Unknown error'}`
+                    : "Try different keywords, or explore our suggested searches above."}
+                </Text>
+                <Pressable
+                  style={[styles.primaryButton, { backgroundColor: '#0B132B' }]}
+                  onPress={() => postsQ.error ? postsQ.refetch() : router.push("/questions/ask" as any)}
+                >
+                  <Ionicons name="mail-outline" size={18} color="#FFFFFF" />
+                  <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>
+                    {postsQ.error ? "Retry" : "Ask the Connection Research Team"}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <LibraryPostCard
+              item={item}
               colors={colors}
+              onPress={() => router.push({ pathname: "/apologetics/[id]" as any, params: { id: item.id.toString() } })}
             />
-          ))}
-        </ScrollView>
-      ) : null} */}
+          )}
+        />
 
-      {/* Cards */}
-      <FlatList
-        data={feed}
-        keyExtractor={(it) => it.id}
-        contentContainerStyle={styles.listContent}
-        refreshing={feedQ.isFetching}
-        onRefresh={() => feedQ.refetch()}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>
-              {feedQ.error ? "Error loading" : "No results"}
-            </Text>
-            <Text style={styles.emptyBody}>
-              {feedQ.error
-                ? `Failed to load: ${feedQ.error instanceof Error ? feedQ.error.message : 'Unknown error'}`
-                : "Try different keywords, or pick an Area to narrow your search."}
-            </Text>
+        {/* Sticky CTA */}
+        {posts.length > 0 && (
+          <View style={styles.stickyCtaWrap}>
             <Pressable
-              style={styles.primaryButton}
-              onPress={() => feedQ.error ? feedQ.refetch() : router.push("/questions/ask" as any)}
+              style={[styles.stickyCta, { backgroundColor: '#0B132B' }]}
+              onPress={() => router.push("/questions/ask" as any)}
             >
-              <Text style={styles.primaryButtonText}>
-                {feedQ.error ? "Retry" : "Ask a question"}
+              <Ionicons name="mail-outline" size={18} color="#FFFFFF" />
+              <Text style={[styles.stickyCtaText, { color: '#FFFFFF' }]}>
+                Ask the Connection Research Team
               </Text>
             </Pressable>
           </View>
-        }
-        renderItem={({ item }) => (
-          <AnswerCard
-            item={item}
-            colors={colors}
-            onPress={() => router.push({ pathname: "/apologetics/[id]" as any, params: { id: item.id } })}
-            onShare={() => handleShareToFeed(item)}
-            onBookmark={() => handleToggleBookmark(item.id)}
-            isBookmarked={bookmarkedIds.has(item.id)}
-          />
         )}
-      />
-
-      {/* Sticky CTA */}
-      <View style={styles.stickyCtaWrap}>
-        <Pressable
-          style={styles.stickyCta}
-          onPress={() => router.push("/questions/ask" as any)}
-        >
-          <Ionicons name="help-circle-outline" size={18} color={colors.textInverse} />
-          <Text style={styles.stickyCtaText}>Ask an Apologetics Question</Text>
-        </Pressable>
-      </View>
       </View>
     </SafeAreaView>
   );
 }
 
+// Segment Button Component
 function SegmentButton({
   label,
   active,
@@ -352,21 +403,28 @@ function SegmentButton({
   onPress: () => void;
   colors: any;
 }) {
+  // Active: dark filled, Inactive: white/transparent with border
+  const activeBg = '#0B132B';
+  const activeText = '#FFFFFF';
+  const inactiveBg = '#FFFFFF';
+  const inactiveText = '#0B132B';
+  const inactiveBorder = '#DDD8D0';
+
   return (
     <Pressable
       onPress={onPress}
       style={[
         segStyles.btn,
         {
-          backgroundColor: active ? colors.buttonPrimaryBg : colors.surfaceMuted,
-          borderColor: active ? colors.buttonPrimaryBg : colors.borderSubtle,
+          backgroundColor: active ? activeBg : inactiveBg,
+          borderColor: active ? activeBg : inactiveBorder,
         },
       ]}
     >
       <Text
         style={[
           segStyles.text,
-          { color: active ? colors.buttonPrimaryText : colors.textPrimary },
+          { color: active ? activeText : inactiveText },
         ]}
       >
         {label}
@@ -384,9 +442,10 @@ const segStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  text: { fontSize: 13, fontWeight: '600' },
+  text: { fontSize: 14, fontWeight: '600' },
 });
 
+// Chip Component
 function Chip({
   label,
   active,
@@ -429,50 +488,30 @@ function Chip({
   );
 }
 
-function AnswerCard({
+// Library Post Card (GotQuestions style)
+function LibraryPostCard({
   item,
   colors,
   onPress,
-  onShare,
-  onBookmark,
-  isBookmarked,
 }: {
-  item: QAItem;
+  item: LibraryPostListItem;
   colors: any;
   onPress: () => void;
-  onShare: () => void;
-  onBookmark: () => void;
-  isBookmarked: boolean;
 }) {
-  const handleCopyLink = async () => {
-    try {
-      await RNShare.share({
-        message: `Check out this apologetics Q&A: ${item.question}\n\nhttps://app.theconnection.app/apologetics/${item.id}`,
-        title: item.question,
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
-
   return (
-    <View
-      style={{
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
         backgroundColor: colors.backgroundSoft,
         borderColor: colors.borderSubtle,
         borderWidth: 1,
         borderRadius: 16,
         marginBottom: 12,
-        overflow: 'hidden',
-      }}
+        padding: 16,
+        opacity: pressed ? 0.9 : 1,
+      })}
     >
-      <Pressable
-        onPress={onPress}
-        style={{
-          padding: 14,
-        }}
-      >
-      {/* Question */}
+      {/* Title */}
       <Text
         style={{
           color: colors.textPrimary,
@@ -482,160 +521,77 @@ function AnswerCard({
         }}
         numberOfLines={3}
       >
-        {item.question}
+        {item.title}
       </Text>
 
       {/* Breadcrumb */}
-      <Text
-        style={{
-          marginTop: 6,
-          color: colors.textMuted,
-          fontSize: 12,
-        }}
-        numberOfLines={1}
-      >
-        {item.areaName}
-      </Text>
+      {(item.area || item.tag) && (
+        <Text
+          style={{
+            marginTop: 6,
+            color: colors.textMuted,
+            fontSize: 12,
+          }}
+          numberOfLines={1}
+        >
+          {item.area?.name}
+          {item.tag && ` • ${item.tag.name}`}
+        </Text>
+      )}
 
-      {/* Answer label */}
-      <Text
-        style={{
-          marginTop: 12,
-          color: colors.textSecondary,
-          fontSize: 12,
-          fontWeight: '500',
-          letterSpacing: 0.2,
-        }}
-      >
-        Answer from verified sources
-      </Text>
-
-      {/* Answer preview */}
-      <Text
-        style={{
-          marginTop: 6,
-          color: colors.textPrimary,
-          fontSize: 15,
-          lineHeight: 21,
-        }}
-        numberOfLines={5}
-      >
-        {item.answer}
-      </Text>
-
-      {/* Author line (hardcoded per your requirement) */}
-      <Text
-        style={{
-          marginTop: 10,
-          color: colors.textSecondary,
-          fontSize: 13,
-          fontWeight: '500',
-        }}
-      >
-        — Connection Research Team
-      </Text>
-
-      {/* Sources */}
-      {item.sources?.length ? (
-        <View style={{ marginTop: 10 }}>
-          <Text
-            style={{
-              color: colors.textSecondary,
-              fontSize: 12,
-              fontWeight: '600',
-            }}
-          >
-            Sources
-          </Text>
-          {item.sources.slice(0, 3).map((s, idx) => (
+      {/* TL;DR Preview */}
+      {item.tldr && (
+        <>
+          <View style={{ marginTop: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
             <Text
-              key={`${item.id}-src-${idx}`}
               style={{
-                marginTop: 4,
-                color: colors.textMuted,
+                color: colors.primary,
                 fontSize: 12,
-                lineHeight: 16,
+                fontWeight: '600',
+                letterSpacing: 0.3,
+                textTransform: 'uppercase',
               }}
-              numberOfLines={2}
             >
-              • {s}
+              Quick Answer
             </Text>
-          ))}
-        </View>
-      ) : null}
-      </Pressable>
-
-      {/* Action Buttons */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-around',
-          borderTopWidth: 1,
-          borderTopColor: colors.borderSubtle,
-          paddingVertical: 10,
-          paddingHorizontal: 8,
-        }}
-      >
-        <Pressable
-          onPress={onShare}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-            paddingVertical: 6,
-            paddingHorizontal: 12,
-          }}
-        >
-          <Ionicons name="share-social-outline" size={18} color={colors.primary} />
-          <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
-            Share to Feed
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={onBookmark}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-            paddingVertical: 6,
-            paddingHorizontal: 12,
-          }}
-        >
-          <Ionicons
-            name={isBookmarked ? "bookmark" : "bookmark-outline"}
-            size={18}
-            color={isBookmarked ? colors.primary : colors.textSecondary}
-          />
+          </View>
           <Text
             style={{
-              color: isBookmarked ? colors.primary : colors.textSecondary,
-              fontSize: 13,
-              fontWeight: '600',
+              color: colors.textPrimary,
+              fontSize: 15,
+              lineHeight: 21,
             }}
+            numberOfLines={4}
           >
-            {isBookmarked ? 'Saved' : 'Save'}
+            {item.tldr}
           </Text>
-        </Pressable>
+        </>
+      )}
 
-        <Pressable
-          onPress={handleCopyLink}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-            paddingVertical: 6,
-            paddingHorizontal: 12,
-          }}
-        >
-          <Ionicons name="link-outline" size={18} color={colors.textSecondary} />
-          <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600' }}>
-            Copy Link
+      {/* Footer */}
+      <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
+          <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '500' }}>
+            Verified Sources
           </Text>
-        </Pressable>
+        </View>
+        <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '500' }}>
+          {item.authorDisplayName}
+        </Text>
       </View>
-    </View>
+
+      {/* Perspectives badge (if multiple) */}
+      {item.perspectives.length > 1 && (
+        <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="people-outline" size={14} color={colors.textMuted} />
+          <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+            {item.perspectives.length} perspectives included
+          </Text>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -643,7 +599,7 @@ function getStyles(colors: any) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.header, // Match header color to extend to top of screen
     },
     screen: {
       flex: 1,
@@ -655,40 +611,78 @@ function getStyles(colors: any) {
     searchWrap: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 10,
       backgroundColor: colors.surfaceMuted,
       borderColor: colors.borderSubtle,
       borderWidth: 1,
       borderRadius: 14,
-      paddingHorizontal: 12,
-      height: 44,
+      paddingHorizontal: 14,
+      height: 48,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
     },
     searchInput: {
       flex: 1,
       color: colors.textPrimary,
-      fontSize: 14,
+      fontSize: 15,
     },
 
     toggleWrap: {
       flexDirection: "row",
       gap: 10,
-      marginTop: 12,
-      marginBottom: 6,
+      marginTop: 14,
+      marginBottom: 8,
     },
 
     chipsScrollView: {
-      marginTop: 8,
+      marginTop: 10,
+    },
+    chipsScrollViewTags: {
+      marginTop: 6,
     },
 
     chipsRow: {
-      paddingTop: 12,
-      paddingBottom: 12,
+      paddingTop: 4,
+      paddingBottom: 4,
       paddingRight: 16,
     },
 
+    suggestedWrap: {
+      marginTop: 20,
+      marginBottom: 10,
+    },
+    suggestedTitle: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+      marginBottom: 12,
+      letterSpacing: 0.2,
+    },
+    suggestedGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    suggestedButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+      borderRadius: 12,
+    },
+    suggestedText: {
+      color: colors.textPrimary,
+      fontSize: 13,
+      fontWeight: '500',
+    },
+
     listContent: {
-      paddingTop: 6,
-      paddingBottom: 110, // space for sticky CTA
+      paddingTop: 16,
+      paddingBottom: 120,
     },
 
     empty: {
@@ -696,30 +690,35 @@ function getStyles(colors: any) {
       borderColor: colors.borderSubtle,
       borderWidth: 1,
       borderRadius: 16,
-      padding: 14,
-      marginTop: 12,
+      padding: 24,
+      marginTop: 20,
+      alignItems: 'center',
     },
     emptyTitle: {
+      marginTop: 12,
       color: colors.textPrimary,
-      fontSize: 16,
+      fontSize: 18,
       fontWeight: '600',
+      textAlign: 'center',
     },
     emptyBody: {
-      marginTop: 6,
+      marginTop: 8,
       color: colors.textSecondary,
       fontSize: 14,
       lineHeight: 20,
+      textAlign: 'center',
     },
     primaryButton: {
-      marginTop: 12,
+      marginTop: 16,
       height: 44,
       borderRadius: 12,
-      backgroundColor: colors.buttonPrimaryBg,
       alignItems: "center",
       justifyContent: "center",
+      flexDirection: 'row',
+      gap: 8,
+      paddingHorizontal: 20,
     },
     primaryButtonText: {
-      color: colors.buttonPrimaryText,
       fontSize: 14,
       fontWeight: '600',
     },
@@ -733,16 +732,19 @@ function getStyles(colors: any) {
     stickyCta: {
       height: 52,
       borderRadius: 14,
-      backgroundColor: colors.buttonPrimaryBg,
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
       gap: 10,
       paddingHorizontal: 14,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 6,
     },
     stickyCtaText: {
-      color: colors.textInverse,
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: '600',
     },
   });

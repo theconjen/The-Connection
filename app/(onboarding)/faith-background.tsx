@@ -18,7 +18,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import * as SecureStore from 'expo-secure-store';
+import apiClient from '../../src/lib/apiClient';
 
 const DENOMINATIONS = [
   'Baptist',
@@ -60,12 +62,14 @@ const INTERESTS = [
 export default function FaithBackgroundScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { refresh } = useAuth();
 
   const [denomination, setDenomination] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [homeChurch, setHomeChurch] = useState('');
   const [favoriteBibleVerse, setFavoriteBibleVerse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSkipping, setIsSkipping] = useState(false);
 
   const toggleInterest = (interest: string) => {
     if (selectedInterests.includes(interest)) {
@@ -76,6 +80,27 @@ export default function FaithBackgroundScreen() {
       } else {
         Alert.alert('Limit Reached', 'You can select up to 5 interests');
       }
+    }
+  };
+
+  const handleSkip = async () => {
+    setIsSkipping(true);
+    try {
+      // Mark onboarding as completed
+      await apiClient.post('/api/user/onboarding', {
+        onboardingCompleted: true,
+      });
+
+      // Refresh user context to get updated onboardingCompleted status
+      await refresh();
+
+      // Navigate to feed
+      router.replace('/(tabs)/feed');
+    } catch (error) {
+      console.error('Error skipping onboarding:', error);
+      Alert.alert('Error', 'Failed to skip onboarding. Please try again.');
+    } finally {
+      setIsSkipping(false);
     }
   };
 
@@ -270,12 +295,17 @@ export default function FaithBackgroundScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => router.replace('/(tabs)/feed')}
+          onPress={handleSkip}
           style={styles.skipButton}
+          disabled={isSkipping}
         >
-          <Text style={[styles.skipText, { color: colors.textSecondary }]}>
-            Skip for now
-          </Text>
+          {isSkipping ? (
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+          ) : (
+            <Text style={[styles.skipText, { color: colors.textSecondary }]}>
+              Skip for now
+            </Text>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>

@@ -128,6 +128,25 @@ export default function CommunityDetailScreen() {
     enabled: !!communityId && activeTab === 'prayers' && !!community?.isMember,
   });
 
+  // Fetch join requests (for private community admins)
+  const isPrivateCommunity = community?.privacySetting === 'private' || community?.isPrivate;
+  const canManageRequests = (community?.isAdmin || community?.isModerator) && isPrivateCommunity;
+  const { data: joinRequests = [], isLoading: joinRequestsLoading, refetch: refetchJoinRequests } = useQuery({
+    queryKey: ['join-requests', communityId],
+    queryFn: async () => {
+      try {
+        return await communitiesAPI.getJoinRequests(communityId);
+      } catch (error: any) {
+        // Silently handle 403 - user is not admin/moderator
+        if (error?.response?.status === 403) {
+          return [];
+        }
+        throw error;
+      }
+    },
+    enabled: !!communityId && canManageRequests && activeTab === 'members',
+  });
+
   // Fetch chat room
   const { data: chatRoomData, isLoading: chatRoomLoading } = useQuery({
     queryKey: ['chat-room', communityId],
@@ -338,6 +357,43 @@ export default function CommunityDetailScreen() {
     },
   });
 
+  // Approve join request mutation
+  const approveJoinRequestMutation = useMutation({
+    mutationFn: (requestId: number) => communitiesAPI.approveJoinRequest(communityId, requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['join-requests', communityId] });
+      queryClient.invalidateQueries({ queryKey: ['community-members', communityId] });
+      queryClient.invalidateQueries({ queryKey: ['community', communityId] });
+      Alert.alert('Success', 'Member approved!');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to approve request');
+    },
+  });
+
+  // Deny join request mutation
+  const denyJoinRequestMutation = useMutation({
+    mutationFn: (requestId: number) => communitiesAPI.denyJoinRequest(communityId, requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['join-requests', communityId] });
+      Alert.alert('Denied', 'Request has been denied');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to deny request');
+    },
+  });
+
+  // Request to join mutation (for users wanting to join private communities)
+  const requestToJoinMutation = useMutation({
+    mutationFn: () => communitiesAPI.requestToJoin(communityId),
+    onSuccess: () => {
+      Alert.alert('Request Sent', 'Your request to join has been sent to the community admins.');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to send join request');
+    },
+  });
+
   const handleJoinLeave = () => {
     if (community?.isMember) {
       Alert.alert(
@@ -352,7 +408,11 @@ export default function CommunityDetailScreen() {
           },
         ]
       );
+    } else if (isPrivateCommunity) {
+      // For private communities, send a join request
+      requestToJoinMutation.mutate();
     } else {
+      // For public communities, join directly
       joinMutation.mutate();
     }
   };
@@ -475,22 +535,23 @@ export default function CommunityDetailScreen() {
               style={[
                 styles.joinButton,
                 community.isMember && styles.joinedButton,
+                isPrivate && !community.isMember && styles.requestButton,
               ]}
               onPress={handleJoinLeave}
-              disabled={joinMutation.isPending || leaveMutation.isPending}
+              disabled={joinMutation.isPending || leaveMutation.isPending || requestToJoinMutation.isPending}
             >
-              {joinMutation.isPending || leaveMutation.isPending ? (
+              {joinMutation.isPending || leaveMutation.isPending || requestToJoinMutation.isPending ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
                   <Ionicons
-                    name={community.isMember ? "checkmark" : "person-add"}
+                    name={community.isMember ? "checkmark" : isPrivate ? "lock-closed" : "person-add"}
                     size={18}
                     color="#fff"
                     style={{ marginRight: 6 }}
                   />
                   <Text style={styles.joinButtonText}>
-                    {community.isMember ? 'Joined' : 'Join'}
+                    {community.isMember ? 'Joined' : isPrivate ? 'Request' : 'Join'}
                   </Text>
                 </>
               )}
@@ -718,6 +779,80 @@ export default function CommunityDetailScreen() {
         {/* Members Tab */}
         {activeTab === 'members' && (
           <View style={styles.tabContent}>
+            {/* Pending Join Requests Section (for private community admins) */}
+            {canManageRequests && (
+              <View style={styles.joinRequestsSection}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="person-add-outline" size={20} color={colors.primary} />
+                  <Text style={styles.sectionTitle}>Pending Requests</Text>
+                  {joinRequests.length > 0 && (
+                    <View style={styles.requestCountBadge}>
+                      <Text style={styles.requestCountText}>{joinRequests.length}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {joinRequestsLoading ? (
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 12 }} />
+                ) : joinRequests.length === 0 ? (
+                  <View style={styles.noRequestsContainer}>
+                    <Ionicons name="checkmark-circle-outline" size={24} color={colors.mutedForeground} />
+                    <Text style={styles.noRequestsText}>No pending requests</Text>
+                  </View>
+                ) : (
+                  joinRequests.map((request: any) => {
+                    const userData = request.user || request;
+                    return (
+                      <View key={request.id} style={styles.joinRequestCard}>
+                        <View style={styles.avatar}>
+                          <Text style={styles.avatarText}>
+                            {(userData.displayName || userData.username || 'U').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={styles.requestInfo}>
+                          <Text style={styles.memberName}>
+                            {userData.displayName || userData.username}
+                          </Text>
+                          <Text style={styles.requestTime}>
+                            Requested {formatDate(request.createdAt || request.requestedAt)}
+                          </Text>
+                        </View>
+                        <View style={styles.requestActions}>
+                          <TouchableOpacity
+                            style={styles.approveButton}
+                            onPress={() => approveJoinRequestMutation.mutate(request.id)}
+                            disabled={approveJoinRequestMutation.isPending || denyJoinRequestMutation.isPending}
+                          >
+                            <Ionicons name="checkmark" size={20} color="#fff" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.denyButton}
+                            onPress={() => {
+                              Alert.alert(
+                                'Deny Request',
+                                `Are you sure you want to deny ${userData.displayName || userData.username}'s request?`,
+                                [
+                                  { text: 'Cancel', style: 'cancel' },
+                                  {
+                                    text: 'Deny',
+                                    style: 'destructive',
+                                    onPress: () => denyJoinRequestMutation.mutate(request.id),
+                                  },
+                                ]
+                              );
+                            }}
+                            disabled={approveJoinRequestMutation.isPending || denyJoinRequestMutation.isPending}
+                          >
+                            <Ionicons name="close" size={20} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            )}
+
             {membersLoading ? (
               <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
             ) : members.length === 0 ? (
@@ -800,7 +935,7 @@ export default function CommunityDetailScreen() {
                             isOwner && { color: '#10B981', fontWeight: '600' },
                             member.role === 'moderator' && { color: '#3B82F6', fontWeight: '600' },
                           ]}>
-                            {member.role || 'member'}
+                            {isOwner ? 'Creator' : member.role || 'member'}
                           </Text>
                           {isOwner && (
                             <Ionicons name="shield-checkmark" size={14} color="#10B981" />
@@ -1469,6 +1604,9 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   joinedButton: {
     backgroundColor: '#10b981',
   },
+  requestButton: {
+    backgroundColor: '#F59E0B',
+  },
   joinButtonText: {
     color: '#fff',
     fontSize: 14,
@@ -2063,5 +2201,89 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
+  },
+  // Join Requests Section Styles
+  joinRequestsSection: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.foreground,
+    flex: 1,
+  },
+  requestCountBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  requestCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  noRequestsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  noRequestsText: {
+    fontSize: 14,
+    color: colors.mutedForeground,
+  },
+  joinRequestCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  requestInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  requestTime: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    marginTop: 2,
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  approveButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  denyButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

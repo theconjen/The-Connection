@@ -38,11 +38,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import apiClient from '../lib/apiClient';
+import apiClient, { exploreFeedAPI, MicroblogTopic, MicroblogType } from '../lib/apiClient';
 import { AppHeader } from './AppHeader';
 import { formatDistanceToNow } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
 import { PostCard } from './PostCard';
+import { TopicChips } from '../components/TopicChips';
+import { PollCard } from '../components/PollCard';
 
 // ============================================================================
 // TYPES
@@ -54,6 +56,23 @@ interface User {
   displayName?: string;
   profileImageUrl?: string;
   avatarUrl?: string;
+}
+
+interface Poll {
+  id: number;
+  question: string;
+  options: {
+    id: number;
+    text: string;
+    voteCount: number;
+    percentage: number;
+    isVotedByUser: boolean;
+  }[];
+  totalVotes: number;
+  hasVoted: boolean;
+  isExpired: boolean;
+  endsAt?: string;
+  allowMultiple: boolean;
 }
 
 interface Microblog {
@@ -68,6 +87,14 @@ interface Microblog {
   isLiked?: boolean;
   isReposted?: boolean;
   isBookmarked?: boolean;
+  topic?: MicroblogTopic;
+  postType?: MicroblogType;
+  poll?: Poll;
+  sourceUrl?: string;
+  // Media fields
+  imageUrls?: string[];
+  videoUrl?: string;
+  gifUrl?: string;
 }
 
 interface Post {
@@ -82,6 +109,10 @@ interface Post {
   isAnonymous?: boolean;
   hasUpvoted?: boolean;
   communityId?: number;
+  // Media fields
+  imageUrls?: string[];
+  videoUrl?: string;
+  gifUrl?: string;
 }
 
 interface FeedScreenProps {
@@ -95,6 +126,7 @@ interface FeedScreenProps {
   userName?: string;
   userAvatar?: string;
   unreadNotificationsCount?: number;
+  unreadMessageCount?: number;
 }
 
 // ============================================================================
@@ -116,8 +148,10 @@ function useTrendingHashtags() {
   });
 }
 
-function useMicroblogs(filter: 'recent' | 'popular', trendingFilter?: { type: 'hashtag' | 'keyword', value: string } | null) {
+function useMicroblogs(filter: 'latest' | 'popular', trendingFilter?: { type: 'hashtag' | 'keyword', value: string } | null) {
   const { user } = useAuth();
+  // Map 'latest' to 'recent' for the microblogs API
+  const apiFilter = filter === 'latest' ? 'recent' : filter;
 
   return useQuery<Microblog[]>({
     queryKey: ['/api/microblogs', filter, trendingFilter],
@@ -134,7 +168,7 @@ function useMicroblogs(filter: 'recent' | 'popular', trendingFilter?: { type: 'h
           }
         } else {
           // Fetch all microblogs with sort filter
-          response = await apiClient.get(`/api/microblogs?filter=${filter}`);
+          response = await apiClient.get(`/api/microblogs?filter=${apiFilter}`);
         }
 
         const microblogs = response.data;
@@ -164,14 +198,16 @@ function useMicroblogs(filter: 'recent' | 'popular', trendingFilter?: { type: 'h
   });
 }
 
-function usePosts(filter: 'recent' | 'popular') {
+function usePosts(filter: 'latest' | 'popular') {
   const { user } = useAuth();
+  // Map 'latest' to 'recent' for the posts API (which uses different naming)
+  const apiFilter = filter === 'latest' ? 'recent' : filter;
 
   return useQuery<Post[]>({
     queryKey: ['/api/posts', filter],
     queryFn: async () => {
       try {
-        const response = await apiClient.get(`/api/posts?filter=${filter}`);
+        const response = await apiClient.get(`/api/posts?filter=${apiFilter}`);
         const posts = response.data;
 
         // Debug logging
@@ -198,7 +234,7 @@ function usePosts(filter: 'recent' | 'popular') {
 }
 
 // Combined feed hook that merges microblogs and posts
-function useCombinedFeed(filter: 'recent' | 'popular', trendingFilter?: { type: 'hashtag' | 'keyword', value: string } | null) {
+function useCombinedFeed(filter: 'latest' | 'popular', trendingFilter?: { type: 'hashtag' | 'keyword', value: string } | null) {
   const { data: microblogs = [], isLoading: microblogsLoading, refetch: refetchMicroblogs } = useMicroblogs(filter, trendingFilter);
   const { data: posts = [], isLoading: postsLoading, refetch: refetchPosts } = usePosts(filter);
 
@@ -226,6 +262,94 @@ function useCombinedFeed(filter: 'recent' | 'popular', trendingFilter?: { type: 
     isLoading: microblogsLoading || postsLoading,
     refetch,
   };
+}
+
+// Explore Feed hook with topic/type filtering
+function useExploreFeed(
+  tab: 'latest' | 'popular',
+  topic: MicroblogTopic | 'ALL' | 'POLL' | null,
+  trendingFilter?: { type: 'hashtag' | 'keyword', value: string } | null
+) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['/api/feed/explore', tab, topic, trendingFilter],
+    queryFn: async () => {
+      try {
+        // If there's a trending filter, use the old endpoint
+        if (trendingFilter) {
+          let response;
+          if (trendingFilter.type === 'hashtag') {
+            response = await apiClient.get(`/api/microblogs/hashtags/${trendingFilter.value}`);
+          } else {
+            response = await apiClient.get(`/api/microblogs/keywords/${trendingFilter.value}`);
+          }
+          return {
+            microblogs: response.data.map((m: any) => ({
+              ...m,
+              commentCount: m.replyCount || 0,
+              author: m.author || { id: m.authorId, username: 'Unknown', displayName: 'Unknown User' },
+            })),
+            hasMore: false,
+            nextCursor: null,
+          };
+        }
+
+        // Use the explore feed API with filtering
+        const options: {
+          tab: 'latest' | 'popular';
+          topic?: MicroblogTopic;
+          type?: MicroblogType;
+        } = { tab };
+
+        // Handle topic filter
+        if (topic && topic !== 'ALL' && topic !== 'POLL') {
+          options.topic = topic as MicroblogTopic;
+        }
+
+        // Handle poll filter
+        if (topic === 'POLL') {
+          options.type = 'POLL';
+        }
+
+        const data = await exploreFeedAPI.getFeed(options);
+
+        return {
+          microblogs: (data.microblogs || []).map((m: any) => ({
+            ...m,
+            commentCount: m.replyCount || 0,
+            author: m.author || { id: m.authorId, username: 'Unknown', displayName: 'Unknown User' },
+          })),
+          hasMore: data.hasMore || false,
+          nextCursor: data.nextCursor || null,
+        };
+      } catch (error) {
+        // Fallback to basic microblogs endpoint with client-side filtering
+        const response = await apiClient.get(`/api/microblogs?filter=${tab}`);
+        let microblogs = response.data.map((m: any) => ({
+          ...m,
+          commentCount: m.replyCount || 0,
+          author: m.author || { id: m.authorId, username: 'Unknown', displayName: 'Unknown User' },
+        }));
+
+        // Apply client-side topic filtering (fallback until backend is deployed)
+        if (topic && topic !== 'ALL') {
+          if (topic === 'POLL') {
+            microblogs = microblogs.filter((m: any) => m.postType === 'POLL');
+          } else {
+            microblogs = microblogs.filter((m: any) => m.topic === topic);
+          }
+        }
+
+        return {
+          microblogs,
+          hasMore: false,
+          nextCursor: null,
+        };
+      }
+    },
+    enabled: !!user,
+  });
 }
 
 function useLikeMicroblog() {
@@ -314,14 +438,25 @@ function useCreateMicroblog() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ content }: { content: string }) => {
+    mutationFn: async (data: {
+      content: string;
+      topic?: MicroblogTopic;
+      postType?: MicroblogType;
+      sourceUrl?: string;
+      poll?: {
+        question: string;
+        options: string[];
+        allowMultiple?: boolean;
+      };
+    }) => {
       // Create microblog (feed post - always public, never anonymous)
-      const response = await apiClient.post('/api/microblogs', { content });
+      const response = await apiClient.post('/api/microblogs', data);
       return response.data;
     },
     onSuccess: () => {
       // Invalidate microblogs queries to refetch
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/feed/explore'] });
     },
   });
 }
@@ -529,7 +664,7 @@ function useBookmarkMicroblog() {
 
       // Log the updated data after refetch
       setTimeout(() => {
-        const postsData = queryClient.getQueryData(['/api/posts', 'recent']) as any[];
+        const postsData = queryClient.getQueryData(['/api/posts', 'latest']) as any[];
         if (postsData) {
           const post = postsData.find((p: any) => p.id === variables.postId);
           console.log(`[BOOKMARK] After refetch, ${variables.type} ${variables.postId} isBookmarked:`, post?.isBookmarked);
@@ -592,6 +727,19 @@ function renderContentWithHashtags(
   );
 }
 
+// Topic display configuration for badges
+const TOPIC_BADGE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
+  OBSERVATION: { label: 'Observation', icon: 'eye', color: '#8B5CF6' },
+  QUESTION: { label: 'Question', icon: 'help-circle', color: '#EC4899' },
+  NEWS: { label: 'News', icon: 'newspaper', color: '#3B82F6' },
+  CULTURE: { label: 'Culture', icon: 'globe', color: '#10B981' },
+  ENTERTAINMENT: { label: 'Entertainment', icon: 'film', color: '#F59E0B' },
+  SCRIPTURE: { label: 'Scripture', icon: 'book', color: '#8B5CF6' },
+  TESTIMONY: { label: 'Testimony', icon: 'heart', color: '#EF4444' },
+  PRAYER: { label: 'Prayer', icon: 'hand-left', color: '#6366F1' },
+  OTHER: { label: 'Other', icon: 'ellipsis-horizontal', color: '#6B7280' },
+};
+
 interface PostItemProps {
   post: Microblog;
   onLike: () => void;
@@ -603,6 +751,7 @@ interface PostItemProps {
   onHashtagPress: (tag: string) => void;
   onAuthorPress: (userId: number) => void;
   isAuthenticated: boolean;
+  onPollVoteSuccess?: () => void;
 }
 
 interface Comment {
@@ -614,9 +763,12 @@ interface Comment {
   author?: User;
 }
 
-const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommentPress, onRepostPress, onSharePress, onBookmarkPress, onHashtagPress, onAuthorPress, isAuthenticated }) => {
+const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommentPress, onRepostPress, onSharePress, onBookmarkPress, onHashtagPress, onAuthorPress, isAuthenticated, onPollVoteSuccess }) => {
   const { colors, colorScheme } = useTheme();
   const styles = getStyles(colors, colorScheme);
+
+  // Get topic badge config
+  const topicConfig = post.topic && post.topic !== 'OTHER' ? TOPIC_BADGE_CONFIG[post.topic] : null;
 
   return (
     <View style={styles.postCard}>
@@ -648,8 +800,82 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
             </Pressable>
           </View>
 
+          {/* Topic Badge */}
+          {topicConfig && (
+            <View style={[styles.topicBadge, { borderColor: topicConfig.color + '40' }]}>
+              <Ionicons name={topicConfig.icon as any} size={12} color={topicConfig.color} />
+              <Text style={[styles.topicBadgeText, { color: topicConfig.color }]}>
+                {topicConfig.label}
+              </Text>
+            </View>
+          )}
+
           {/* Post Content */}
           {renderContentWithHashtags(post.content, onHashtagPress, styles)}
+
+          {/* Media Content - Images, Videos, GIFs */}
+          {post.gifUrl && (
+            <Image
+              source={{ uri: post.gifUrl }}
+              style={styles.postMediaGif}
+              resizeMode="contain"
+            />
+          )}
+
+          {post.imageUrls && post.imageUrls.length > 0 && (
+            <View style={post.imageUrls.length === 1 ? styles.postMediaSingle : styles.postMediaGrid}>
+              {post.imageUrls.slice(0, 4).map((url, index) => (
+                <Image
+                  key={index}
+                  source={{ uri: url }}
+                  style={post.imageUrls!.length === 1 ? styles.postMediaImageSingle : styles.postMediaImageGrid}
+                  resizeMode="cover"
+                />
+              ))}
+              {post.imageUrls.length > 4 && (
+                <View style={styles.postMediaOverlay}>
+                  <Text style={styles.postMediaOverlayText}>+{post.imageUrls.length - 4}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {post.videoUrl && (
+            <View style={styles.postMediaVideoContainer}>
+              <Image
+                source={{ uri: post.videoUrl }}
+                style={styles.postMediaVideo}
+                resizeMode="cover"
+              />
+              <View style={styles.postMediaVideoOverlay}>
+                <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
+              </View>
+            </View>
+          )}
+
+          {/* Source URL Link */}
+          {post.sourceUrl && (
+            <Pressable
+              style={styles.sourceUrlContainer}
+              onPress={() => {
+                // Open URL (will implement linking)
+                console.log('Open URL:', post.sourceUrl);
+              }}
+            >
+              <Ionicons name="link" size={14} color={colors.link} />
+              <Text style={styles.sourceUrlText} numberOfLines={1}>
+                {post.sourceUrl.replace(/^https?:\/\//, '').split('/')[0]}
+              </Text>
+            </Pressable>
+          )}
+
+          {/* Poll Card (if post is a poll) */}
+          {post.postType === 'POLL' && post.poll && (
+            <PollCard
+              poll={post.poll}
+              onVoteSuccess={onPollVoteSuccess}
+            />
+          )}
 
           {/* Post Actions */}
           <View style={styles.postActions}>
@@ -726,10 +952,11 @@ export default function FeedScreen({
   userName,
   userAvatar,
   unreadNotificationsCount,
+  unreadMessageCount = 0,
 }: FeedScreenProps) {
   const { user } = useAuth();
   const { colors, colorScheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'recent' | 'popular'>('recent');
+  const [activeTab, setActiveTab] = useState<'latest' | 'popular'>('latest');
   const [showComposer, setShowComposer] = useState(false);
   const [postContent, setPostContent] = useState('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
@@ -744,8 +971,53 @@ export default function FeedScreen({
   const [commentContent, setCommentContent] = useState('');
   const [selectedTrending, setSelectedTrending] = useState<{ type: 'hashtag' | 'keyword', value: string, display: string } | null>(null);
 
+  // Composer state for topic and poll
+  const [composerMode, setComposerMode] = useState<'post' | 'poll'>('post');
+  const [composerTopic, setComposerTopic] = useState<MicroblogTopic>('OTHER');
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+  const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
+  const [showTopicPicker, setShowTopicPicker] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<MicroblogTopic | 'ALL' | 'POLL'>('ALL');
+  const [suggestionsCollapsed, setSuggestionsCollapsed] = useState(false);
+
   const { data: trendingHashtags, isLoading: trendingLoading } = useTrendingHashtags();
-  const { data: feedItems, isLoading, refetch } = useCombinedFeed(activeTab, selectedTrending ? { type: selectedTrending.type, value: selectedTrending.value } : null);
+  // Use explore feed with topic filtering
+  const { data: exploreFeedData, isLoading: exploreLoading, refetch: refetchExplore } = useExploreFeed(
+    activeTab,
+    selectedTopic,
+    selectedTrending ? { type: selectedTrending.type, value: selectedTrending.value } : null
+  );
+  // Get posts separately (forum posts don't have topics)
+  const { data: posts = [], isLoading: postsLoading, refetch: refetchPosts } = usePosts(activeTab);
+
+  // Combine explore feed with posts (only when not filtering by topic/type)
+  const feedItems = React.useMemo(() => {
+    const microblogs = exploreFeedData?.microblogs || [];
+
+    // If filtering by a specific topic or poll, only show microblogs
+    if (selectedTopic !== 'ALL') {
+      return microblogs.map((m: any) => ({ ...m, type: 'microblog' as const }));
+    }
+
+    // Merge microblogs and posts
+    const allItems = [
+      ...microblogs.map((m: any) => ({ ...m, type: 'microblog' as const })),
+      ...posts.map((p: any) => ({ ...p, type: 'post' as const })),
+    ];
+
+    // Sort by timestamp (most recent first)
+    return allItems.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+  }, [exploreFeedData, posts, selectedTopic]);
+
+  const isLoading = exploreLoading || (selectedTopic === 'ALL' && postsLoading);
+  const refetch = React.useCallback(async () => {
+    await Promise.all([refetchExplore(), refetchPosts()]);
+  }, [refetchExplore, refetchPosts]);
   const likeMutation = useLikeMicroblog();
   const createMutation = useCreateMicroblog();
   const deleteMutation = useDeletePost();
@@ -1106,15 +1378,27 @@ export default function FeedScreen({
   };
 
   const handleCreatePost = async () => {
-    if (!postContent.trim()) return;
+    // Validate based on mode
+    if (composerMode === 'post' && !postContent.trim()) return;
+    if (composerMode === 'poll') {
+      if (!pollQuestion.trim()) {
+        Alert.alert('Error', 'Please enter a poll question');
+        return;
+      }
+      const validOptions = pollOptions.filter(opt => opt.trim());
+      if (validOptions.length < 2) {
+        Alert.alert('Error', 'Please add at least 2 poll options');
+        return;
+      }
+    }
 
     try {
       const FileSystem = await import('expo-file-system');
       let mediaUrls: string[] = [];
       let videoUrl: string | null = null;
 
-      // Convert multiple images to base64
-      if (selectedImages.length > 0) {
+      // Convert multiple images to base64 (only for regular posts)
+      if (composerMode === 'post' && selectedImages.length > 0) {
         for (const imageUri of selectedImages) {
           const base64 = await FileSystem.readAsStringAsync(imageUri, {
             encoding: 'base64',
@@ -1126,7 +1410,7 @@ export default function FeedScreen({
       }
 
       // Convert video to base64 if selected
-      if (selectedVideo) {
+      if (composerMode === 'post' && selectedVideo) {
         const base64 = await FileSystem.readAsStringAsync(selectedVideo, {
           encoding: 'base64',
         });
@@ -1135,38 +1419,59 @@ export default function FeedScreen({
         videoUrl = `data:${mimeType};base64,${base64}`;
       }
 
-      createMutation.mutate(
-        {
-          content: postContent,
-          imageUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
-          videoUrl: videoUrl || undefined,
-          gifUrl: selectedGif || undefined,
+      // Build the mutation data based on mode
+      const mutationData: any = {
+        content: composerMode === 'poll' ? pollQuestion : postContent,
+        topic: composerTopic,
+        postType: composerMode === 'poll' ? 'POLL' : 'STANDARD',
+      };
+
+      // Add media for standard posts
+      if (composerMode === 'post') {
+        if (mediaUrls.length > 0) mutationData.imageUrls = mediaUrls;
+        if (videoUrl) mutationData.videoUrl = videoUrl;
+        if (selectedGif) mutationData.gifUrl = selectedGif;
+      }
+
+      // Add poll data for poll posts
+      if (composerMode === 'poll') {
+        mutationData.poll = {
+          question: pollQuestion.trim(),
+          options: pollOptions.filter(opt => opt.trim()),
+          allowMultiple: pollAllowMultiple,
+        };
+      }
+
+      createMutation.mutate(mutationData, {
+        onSuccess: (data) => {
+          // Reset all composer state
+          setPostContent('');
+          setSelectedImages([]);
+          setSelectedVideo(null);
+          setSelectedGif(null);
+          setMediaType(null);
+          setComposerMode('post');
+          setComposerTopic('OTHER');
+          setPollQuestion('');
+          setPollOptions(['', '']);
+          setPollAllowMultiple(false);
+          setShowComposer(false);
+          Alert.alert('Success', composerMode === 'poll' ? 'Poll created successfully!' : 'Post created successfully!');
         },
-        {
-          onSuccess: (data) => {
-            setPostContent('');
-            setSelectedImages([]);
-            setSelectedVideo(null);
-            setSelectedGif(null);
-            setMediaType(null);
-            setShowComposer(false);
-            Alert.alert('Success', 'Post created successfully!');
-          },
-          onError: (error: any) => {
-            console.error('Failed to create post - Full error:', JSON.stringify(error, null, 2));
-            console.error('Error response:', error?.response);
-            console.error('Error status:', error?.response?.status);
-            console.error('Error data:', error?.response?.data);
+        onError: (error: any) => {
+          console.error('Failed to create post - Full error:', JSON.stringify(error, null, 2));
+          console.error('Error response:', error?.response);
+          console.error('Error status:', error?.response?.status);
+          console.error('Error data:', error?.response?.data);
 
-            const errorMessage = error?.response?.data?.message
-              || error?.response?.data?.error
-              || error?.message
-              || 'Failed to create post. Please try again.';
+          const errorMessage = error?.response?.data?.message
+            || error?.response?.data?.error
+            || error?.message
+            || 'Failed to create post. Please try again.';
 
-            Alert.alert('Error', `Failed to create post: ${errorMessage}\n\nStatus: ${error?.response?.status || 'Unknown'}`);
-          },
-        }
-      );
+          Alert.alert('Error', `Failed to create: ${errorMessage}\n\nStatus: ${error?.response?.status || 'Unknown'}`);
+        },
+      });
     } catch (error) {
       console.error('Error preparing post:', error);
       Alert.alert('Error', 'Failed to prepare media. Please try again.');
@@ -1176,8 +1481,48 @@ export default function FeedScreen({
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), refetchSuggestions()]);
     setRefreshing(false);
+  };
+
+  // Suggested friends carousel state
+  const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
+
+  // Fetch friend suggestions for discovery carousel
+  const { data: friendSuggestions = [], refetch: refetchSuggestions } = useQuery<any[]>({
+    queryKey: ['/api/user/suggestions/friends'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/api/user/suggestions/friends?limit=8');
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        return [];
+      }
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const handleFollowSuggestion = async (userId: number) => {
+    setFollowingIds(prev => new Set(prev).add(userId));
+    try {
+      await apiClient.post(`/api/users/${userId}/follow`);
+    } catch (error) {
+      setFollowingIds(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    }
+  };
+
+  const handleHideSuggestion = async (userId: number) => {
+    try {
+      await apiClient.post('/api/user/suggestions/hide', { hiddenUserId: userId });
+      refetchSuggestions();
+    } catch (error) {
+      console.error('Failed to hide suggestion:', error);
+    }
   };
 
   // Dynamic styles based on theme
@@ -1185,7 +1530,7 @@ export default function FeedScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
       {/* Header */}
       <AppHeader
         showCenteredLogo={true}
@@ -1196,6 +1541,8 @@ export default function FeedScreen({
         onMessagesPress={onMessagesPress}
         showMenu={true}
         onMenuPress={onSettingsPress}
+        unreadNotificationCount={unreadNotificationsCount}
+        unreadMessageCount={unreadMessageCount}
       />
 
       {/* Content area with white background */}
@@ -1256,13 +1603,105 @@ export default function FeedScreen({
         </View>
       )}
 
+      {/* Topic Filter Chips */}
+      <TopicChips
+        selectedTopic={selectedTopic}
+        onSelectTopic={(topic) => {
+          setSelectedTopic(topic);
+          // Clear trending filter when changing topic
+          if (selectedTrending) {
+            setSelectedTrending(null);
+          }
+        }}
+        showPollFilter={true}
+      />
+
+      {/* Suggested Friends Carousel - Collapsible */}
+      {user && friendSuggestions.length > 0 && (
+        <View style={styles.suggestionsCarousel}>
+          <Pressable
+            style={styles.suggestionsHeaderTouchable}
+            onPress={() => setSuggestionsCollapsed(!suggestionsCollapsed)}
+          >
+            <View style={styles.suggestionsHeaderLeft}>
+              <Ionicons name="people" size={18} color={colors.primary} />
+              <Text style={styles.suggestionsTitle}>People to Follow</Text>
+            </View>
+            <Ionicons
+              name={suggestionsCollapsed ? 'chevron-down' : 'chevron-up'}
+              size={20}
+              color={colors.textMuted}
+            />
+          </Pressable>
+          {!suggestionsCollapsed && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.suggestionsScroll}
+            >
+              {friendSuggestions.map((suggestion: any) => {
+                const isFollowing = followingIds.has(suggestion.id);
+                return (
+                  <View key={suggestion.id} style={styles.suggestionCard}>
+                    <Pressable
+                      style={styles.hideButtonSmall}
+                      onPress={() => handleHideSuggestion(suggestion.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close" size={14} color={colors.textMuted} />
+                    </Pressable>
+                    <Pressable
+                      style={styles.suggestionCardInner}
+                      onPress={() => onAuthorPress?.(suggestion.id)}
+                    >
+                      <Image
+                        source={{
+                          uri: suggestion.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(suggestion.displayName || suggestion.username)}&background=random`
+                        }}
+                        style={styles.suggestionAvatar}
+                      />
+                      <Text style={styles.suggestionName} numberOfLines={1}>
+                        {suggestion.displayName || suggestion.username}
+                      </Text>
+                      <Text style={styles.suggestionUsername} numberOfLines={1}>
+                        @{suggestion.username}
+                      </Text>
+                      {suggestion.suggestionScore?.mutualCommunities > 0 && (
+                        <Text style={styles.suggestionReason} numberOfLines={1}>
+                          {suggestion.suggestionScore.mutualCommunities} shared {suggestion.suggestionScore.mutualCommunities === 1 ? 'community' : 'communities'}
+                        </Text>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.followButtonSmall,
+                        isFollowing && styles.followButtonFollowing
+                      ]}
+                      onPress={() => !isFollowing && handleFollowSuggestion(suggestion.id)}
+                      disabled={isFollowing}
+                    >
+                      <Text style={[
+                        styles.followButtonText,
+                        isFollowing && styles.followButtonTextFollowing
+                      ]}>
+                        {isFollowing ? 'Following' : 'Follow'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+      )}
+
       {/* Tabs */}
       <View style={styles.tabs}>
         <Pressable
-          style={[styles.tab, activeTab === 'recent' && styles.tabActive]}
-          onPress={() => setActiveTab('recent')}
+          style={[styles.tab, activeTab === 'latest' && styles.tabActive]}
+          onPress={() => setActiveTab('latest')}
         >
-          <Text style={[styles.tabText, activeTab === 'recent' && styles.tabTextActive]}>Latest</Text>
+          <Text style={[styles.tabText, activeTab === 'latest' && styles.tabTextActive]}>Latest</Text>
         </Pressable>
         <Pressable
           style={[styles.tab, activeTab === 'popular' && styles.tabActive]}
@@ -1300,6 +1739,7 @@ export default function FeedScreen({
                   onHashtagPress={(tag) => setSelectedTrending({ type: 'hashtag', value: tag, display: tag })}
                   onAuthorPress={(userId) => onAuthorPress?.(userId)}
                   isAuthenticated={!!user}
+                  onPollVoteSuccess={() => refetch()}
                 />
               );
             } else if (item.type === 'post') {
@@ -1361,37 +1801,173 @@ export default function FeedScreen({
                 setSelectedGif(null);
                 setMediaType(null);
                 setPostContent('');
+                setComposerMode('post');
+                setComposerTopic('OTHER');
+                setPollQuestion('');
+                setPollOptions(['', '']);
+                setPollAllowMultiple(false);
               }} hitSlop={8}>
                 <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
               <Pressable
                 onPress={handleCreatePost}
-                disabled={!postContent.trim() || createMutation.isPending}
+                disabled={
+                  (composerMode === 'post' && !postContent.trim()) ||
+                  (composerMode === 'poll' && (!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2)) ||
+                  createMutation.isPending
+                }
                 style={[
                   styles.postButton,
-                  (!postContent.trim() || createMutation.isPending) && styles.postButtonDisabled,
+                  ((composerMode === 'post' && !postContent.trim()) ||
+                   (composerMode === 'poll' && (!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2)) ||
+                   createMutation.isPending) && styles.postButtonDisabled,
                 ]}
               >
                 <Text style={styles.postButtonText}>
-                  {createMutation.isPending ? 'Posting...' : 'Post'}
+                  {createMutation.isPending ? 'Posting...' : (composerMode === 'poll' ? 'Create Poll' : 'Post')}
                 </Text>
               </Pressable>
             </View>
+
+            {/* Post/Poll Mode Switcher */}
+            <View style={styles.composerModeSwitch}>
+              <Pressable
+                style={[styles.composerModeButton, composerMode === 'post' && styles.composerModeButtonActive]}
+                onPress={() => setComposerMode('post')}
+              >
+                <Ionicons name="create-outline" size={18} color={composerMode === 'post' ? colors.accent : colors.textSecondary} />
+                <Text style={[styles.composerModeText, composerMode === 'post' && styles.composerModeTextActive]}>Post</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.composerModeButton, composerMode === 'poll' && styles.composerModeButtonActive]}
+                onPress={() => setComposerMode('poll')}
+              >
+                <Ionicons name="bar-chart-outline" size={18} color={composerMode === 'poll' ? colors.accent : colors.textSecondary} />
+                <Text style={[styles.composerModeText, composerMode === 'poll' && styles.composerModeTextActive]}>Poll</Text>
+              </Pressable>
+            </View>
+
+            {/* Topic Selector */}
+            <Pressable
+              style={styles.topicSelector}
+              onPress={() => setShowTopicPicker(!showTopicPicker)}
+            >
+              <View style={styles.topicSelectorContent}>
+                <Ionicons name={TOPIC_BADGE_CONFIG[composerTopic]?.icon as any || 'ellipsis-horizontal'} size={16} color={TOPIC_BADGE_CONFIG[composerTopic]?.color || colors.textSecondary} />
+                <Text style={[styles.topicSelectorText, { color: TOPIC_BADGE_CONFIG[composerTopic]?.color || colors.textSecondary }]}>
+                  {TOPIC_BADGE_CONFIG[composerTopic]?.label || 'Other'}
+                </Text>
+              </View>
+              <Ionicons name={showTopicPicker ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
+            </Pressable>
+
+            {/* Topic Picker Dropdown */}
+            {showTopicPicker && (
+              <ScrollView horizontal style={styles.topicPickerContainer} showsHorizontalScrollIndicator={false}>
+                {Object.entries(TOPIC_BADGE_CONFIG).map(([key, config]) => (
+                  <Pressable
+                    key={key}
+                    style={[
+                      styles.topicPickerItem,
+                      composerTopic === key && styles.topicPickerItemActive,
+                      { borderColor: composerTopic === key ? config.color : colors.borderSubtle }
+                    ]}
+                    onPress={() => {
+                      setComposerTopic(key as MicroblogTopic);
+                      setShowTopicPicker(false);
+                    }}
+                  >
+                    <Ionicons name={config.icon as any} size={14} color={config.color} />
+                    <Text style={[styles.topicPickerText, { color: config.color }]}>{config.label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
 
             {/* Composer Body */}
             <ScrollView style={styles.composerScroll} showsVerticalScrollIndicator={false}>
               <View style={styles.composerBody}>
                 <Image source={{ uri: getAvatarUrl(user) }} style={styles.composerAvatar} />
                 <View style={styles.composerContent}>
-                  <TextInput
-                    style={styles.composerInput}
-                    placeholder="What's happening?"
-                    placeholderTextColor={colors.textSecondary}
-                    multiline
-                    value={postContent}
-                    onChangeText={setPostContent}
-                    autoFocus
-                  />
+                  {/* Standard Post Input */}
+                  {composerMode === 'post' && (
+                    <TextInput
+                      style={styles.composerInput}
+                      placeholder="What's happening?"
+                      placeholderTextColor={colors.textSecondary}
+                      multiline
+                      value={postContent}
+                      onChangeText={setPostContent}
+                      autoFocus
+                    />
+                  )}
+
+                  {/* Poll Creation UI */}
+                  {composerMode === 'poll' && (
+                    <View style={styles.pollCreator}>
+                      <TextInput
+                        style={styles.pollQuestionInput}
+                        placeholder="Ask a question..."
+                        placeholderTextColor={colors.textSecondary}
+                        multiline
+                        value={pollQuestion}
+                        onChangeText={setPollQuestion}
+                        autoFocus
+                      />
+
+                      <View style={styles.pollOptionsContainer}>
+                        {pollOptions.map((option, index) => (
+                          <View key={index} style={styles.pollOptionRow}>
+                            <TextInput
+                              style={styles.pollOptionInput}
+                              placeholder={`Option ${index + 1}`}
+                              placeholderTextColor={colors.textSecondary}
+                              value={option}
+                              onChangeText={(text) => {
+                                const newOptions = [...pollOptions];
+                                newOptions[index] = text;
+                                setPollOptions(newOptions);
+                              }}
+                            />
+                            {pollOptions.length > 2 && (
+                              <Pressable
+                                style={styles.pollOptionRemove}
+                                onPress={() => {
+                                  const newOptions = pollOptions.filter((_, i) => i !== index);
+                                  setPollOptions(newOptions);
+                                }}
+                              >
+                                <Ionicons name="close-circle" size={20} color={colors.error || '#EF4444'} />
+                              </Pressable>
+                            )}
+                          </View>
+                        ))}
+
+                        {pollOptions.length < 4 && (
+                          <Pressable
+                            style={styles.addOptionButton}
+                            onPress={() => setPollOptions([...pollOptions, ''])}
+                          >
+                            <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
+                            <Text style={styles.addOptionText}>Add option</Text>
+                          </Pressable>
+                        )}
+                      </View>
+
+                      {/* Allow multiple selection toggle */}
+                      <Pressable
+                        style={styles.pollToggle}
+                        onPress={() => setPollAllowMultiple(!pollAllowMultiple)}
+                      >
+                        <Ionicons
+                          name={pollAllowMultiple ? 'checkbox' : 'square-outline'}
+                          size={22}
+                          color={pollAllowMultiple ? colors.accent : colors.textSecondary}
+                        />
+                        <Text style={styles.pollToggleText}>Allow multiple selections</Text>
+                      </Pressable>
+                    </View>
+                  )}
 
                   {/* Multiple Images Preview - Simple Grid with Reorder Buttons */}
                   {selectedImages.length > 0 && (
@@ -1502,36 +2078,48 @@ export default function FeedScreen({
               </View>
             </ScrollView>
 
-            {/* Media Toolbar - Simplified */}
-            <View style={styles.mediaToolbar}>
-              <View style={styles.mediaButtons}>
-                <Pressable style={styles.mediaButton} onPress={handlePickImage} hitSlop={8}>
-                  <Ionicons name="image-outline" size={22} color={colors.accent} />
-                  <Text style={[styles.mediaButtonLabel, { color: colors.textSecondary }]}>Gallery</Text>
-                </Pressable>
-                <Pressable style={styles.mediaButton} onPress={handleTakePhoto} hitSlop={8}>
-                  <Ionicons name="camera-outline" size={22} color={colors.accent} />
-                  <Text style={[styles.mediaButtonLabel, { color: colors.textSecondary }]}>Camera</Text>
-                </Pressable>
-                <Pressable style={styles.mediaButton} onPress={handleOpenGifPicker} hitSlop={8}>
-                  <Text style={styles.gifButtonText}>GIF</Text>
-                </Pressable>
-              </View>
+            {/* Media Toolbar - Only for standard posts */}
+            {composerMode === 'post' && (
+              <View style={styles.mediaToolbar}>
+                <View style={styles.mediaButtons}>
+                  <Pressable style={styles.mediaButton} onPress={handlePickImage} hitSlop={8}>
+                    <Ionicons name="image-outline" size={22} color={colors.accent} />
+                    <Text style={[styles.mediaButtonLabel, { color: colors.textSecondary }]}>Gallery</Text>
+                  </Pressable>
+                  <Pressable style={styles.mediaButton} onPress={handleTakePhoto} hitSlop={8}>
+                    <Ionicons name="camera-outline" size={22} color={colors.accent} />
+                    <Text style={[styles.mediaButtonLabel, { color: colors.textSecondary }]}>Camera</Text>
+                  </Pressable>
+                  <Pressable style={styles.mediaButton} onPress={handleOpenGifPicker} hitSlop={8}>
+                    <Text style={styles.gifButtonText}>GIF</Text>
+                  </Pressable>
+                </View>
 
-              {/* Media Counter & Character Count */}
-              <View style={styles.charCount}>
-                {selectedImages.length > 0 && (
-                  <Text style={styles.mediaCountText}>{selectedImages.length}/10 📷</Text>
-                )}
-                {selectedVideo && (
-                  <Text style={styles.mediaCountText}>🎥</Text>
-                )}
-                {selectedGif && (
-                  <Text style={styles.mediaCountText}>GIF</Text>
-                )}
-                <Text style={styles.charCountText}>{postContent.length}/280</Text>
+                {/* Media Counter & Character Count */}
+                <View style={styles.charCount}>
+                  {selectedImages.length > 0 && (
+                    <Text style={styles.mediaCountText}>{selectedImages.length}/10 📷</Text>
+                  )}
+                  {selectedVideo && (
+                    <Text style={styles.mediaCountText}>🎥</Text>
+                  )}
+                  {selectedGif && (
+                    <Text style={styles.mediaCountText}>GIF</Text>
+                  )}
+                  <Text style={styles.charCountText}>{postContent.length}/280</Text>
+                </View>
               </View>
-            </View>
+            )}
+
+            {/* Poll Mode Footer */}
+            {composerMode === 'poll' && (
+              <View style={styles.pollFooter}>
+                <Text style={styles.pollFooterText}>
+                  {pollOptions.filter(o => o.trim()).length} of 4 options
+                </Text>
+                <Text style={styles.charCountText}>{pollQuestion.length}/280</Text>
+              </View>
+            )}
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
@@ -1845,6 +2433,120 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     color: colors.textPrimary,
     fontWeight: '600',
   },
+  // Suggestions Carousel Styles
+  suggestionsCarousel: {
+    backgroundColor: colors.surface,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+    overflow: 'hidden', // Apply overflow here, not in animated style
+  },
+  suggestionsHeaderTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 4,
+  },
+  suggestionsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  suggestionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  suggestionsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  suggestionsScroll: {
+    paddingHorizontal: 12,
+    gap: 12,
+  },
+  suggestionCard: {
+    width: 150,
+    minHeight: 180,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 12,
+    padding: 12,
+    paddingBottom: 14,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  suggestionCardInner: {
+    alignItems: 'center',
+    width: '100%',
+    flex: 1,
+  },
+  hideButtonSmall: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  suggestionAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginBottom: 8,
+    backgroundColor: colors.surfaceMuted,
+  },
+  suggestionName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  suggestionUsername: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  suggestionReason: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  followButtonSmall: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 18,
+    marginTop: 8,
+    minWidth: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followButtonFollowing: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  followButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primaryForeground,
+  },
+  followButtonTextFollowing: {
+    color: colors.primary,
+  },
   tabs: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -1871,6 +2573,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   feed: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -1969,6 +2672,76 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     color: colors.accent,
     fontWeight: '600',
   },
+  // Post Media Styles
+  postMediaGif: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: colors.surfaceMuted,
+  },
+  postMediaSingle: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  postMediaImageSingle: {
+    width: '100%',
+    height: 280,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+  },
+  postMediaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  postMediaImageGrid: {
+    width: '48.5%',
+    height: 140,
+    backgroundColor: colors.surfaceMuted,
+  },
+  postMediaOverlay: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: '48.5%',
+    height: 140,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  postMediaOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  postMediaVideoContainer: {
+    position: 'relative',
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  postMediaVideo: {
+    width: '100%',
+    height: 200,
+    backgroundColor: colors.surfaceMuted,
+  },
+  postMediaVideoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
   postActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1993,6 +2766,39 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   },
   postActionReposted: {
     color: colors.repost,
+  },
+  // Topic Badge styles
+  topicBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: colors.surfaceMuted,
+    marginBottom: 6,
+    gap: 4,
+  },
+  topicBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  // Source URL styles
+  sourceUrlContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 4,
+    gap: 6,
+  },
+  sourceUrlText: {
+    fontSize: 13,
+    color: colors.link,
+    flex: 1,
   },
   // Twitter-style Modal
   modalSafeArea: {
@@ -2363,6 +3169,147 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
   giphyText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  // Composer Mode Switch
+  composerModeSwitch: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  composerModeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  composerModeButtonActive: {
+    borderBottomColor: colors.accent,
+  },
+  composerModeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  composerModeTextActive: {
+    color: colors.accent,
+  },
+  // Topic Selector
+  topicSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  topicSelectorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  topicSelectorText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Topic Picker
+  topicPickerContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  topicPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    backgroundColor: colors.surfaceMuted,
+    gap: 4,
+  },
+  topicPickerItemActive: {
+    backgroundColor: colors.surface,
+  },
+  topicPickerText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Poll Creator
+  pollCreator: {
+    flex: 1,
+  },
+  pollQuestionInput: {
+    fontSize: 18,
+    color: colors.textPrimary,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  pollOptionsContainer: {
+    gap: 8,
+  },
+  pollOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pollOptionInput: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  pollOptionRemove: {
+    padding: 4,
+  },
+  addOptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 8,
+  },
+  addOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  pollToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 10,
+    marginTop: 8,
+  },
+  pollToggleText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  pollFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 34,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  pollFooterText: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
 });
 };

@@ -2,11 +2,13 @@ import { Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
-import { ThemeProvider } from '../src/contexts/ThemeContext';
+import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
 import { CreateMenuProvider } from '../src/contexts/CreateMenuContext';
+import { SocketProvider } from '../src/contexts/SocketContext';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { Text, TextInput, Platform } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { initializeNotifications, cleanupNotifications, unregisterPushToken, getCurrentToken } from '../src/services/notificationService';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -126,7 +128,19 @@ function RootLayoutNav() {
     };
   }, [user, isLoading]);
 
-  return <Slot />;
+  return (
+    <>
+      <ThemedStatusBar />
+      <Slot />
+    </>
+  );
+}
+
+// Status bar that responds to theme
+function ThemedStatusBar() {
+  const { colorScheme } = useTheme();
+  // Use dark content (dark icons) on light backgrounds
+  return <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />;
 }
 
 export default function RootLayout() {
@@ -152,9 +166,11 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <AuthProvider>
-            <CreateMenuProvider>
-              <RootLayoutNav />
-            </CreateMenuProvider>
+            <SocketProvider>
+              <CreateMenuProvider>
+                <RootLayoutNav />
+              </CreateMenuProvider>
+            </SocketProvider>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
