@@ -15,6 +15,7 @@ import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { insertUserQuestionSchema, insertQuestionMessageSchema } from '@shared/schema';
+import { notifyUserWithPreferences, truncateText } from '../services/notificationHelper';
 
 const router = Router();
 
@@ -187,6 +188,36 @@ router.post('/questions', requireAuth, async (req, res) => {
     // Auto-assign to responder
     await storage.autoAssignQuestion(question.id);
 
+    // Notify all users with inbox_access about the new question
+    try {
+      const responders = await storage.getAllResponders();
+      const asker = await storage.getUser(userId);
+      const askerName = asker?.displayName || asker?.username || 'Someone';
+
+      for (const responder of responders) {
+        // Don't notify the asker if they happen to have inbox_access
+        if (responder.id === userId) continue;
+
+        await notifyUserWithPreferences(responder.id, {
+          title: `New ${domain} question`,
+          body: truncateText(questionText, 100),
+          data: {
+            type: 'qa_new_question',
+            questionId: question.id,
+            domain,
+            areaId,
+            tagId,
+          },
+          category: 'qa',
+          type: 'qa_new_question',
+          actorId: userId,
+        });
+      }
+    } catch (notifyError) {
+      // Don't fail the request if notifications fail
+      console.error('[Questions] Error notifying responders:', notifyError);
+    }
+
     res.status(201).json(question);
   } catch (error) {
     console.error('[Questions] Error creating question:', error);
@@ -299,6 +330,39 @@ router.post('/questions/:id/messages', requireAuth, async (req, res) => {
     if (assignment && assignment.assignedToUserId === userId && question?.status === 'routed') {
       await storage.updateQuestionStatus(questionId, 'answered');
       await storage.updateAssignmentStatus(assignment.id, 'answered');
+    }
+
+    // Notify the other party in the conversation
+    try {
+      const sender = await storage.getUser(userId);
+      const senderName = sender?.displayName || sender?.username || 'Someone';
+
+      // Determine who to notify (the other party)
+      let recipientId: number | null = null;
+
+      if (question?.askerUserId === userId && assignment?.assignedToUserId) {
+        // Asker sent message -> notify responder
+        recipientId = assignment.assignedToUserId;
+      } else if (assignment?.assignedToUserId === userId && question?.askerUserId) {
+        // Responder sent message -> notify asker
+        recipientId = question.askerUserId;
+      }
+
+      if (recipientId) {
+        await notifyUserWithPreferences(recipientId, {
+          title: `New reply from ${senderName}`,
+          body: truncateText(body, 100),
+          data: {
+            type: 'qa_message',
+            questionId,
+          },
+          category: 'qa',
+          type: 'qa_message',
+          actorId: userId,
+        });
+      }
+    } catch (notifyError) {
+      console.error('[Questions] Error notifying recipient:', notifyError);
     }
 
     res.status(201).json(message);
