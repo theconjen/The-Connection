@@ -139,7 +139,7 @@ function log(
   const detailStr = Object.entries(details)
     .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
     .join(' ');
-  console.log(`[NOTIFICATION][${operation}] stage=${stage} requestId=${requestId} ${detailStr}`);
+  console.info(`[NOTIFICATION][${operation}] stage=${stage} requestId=${requestId} ${detailStr}`);
 }
 
 // ============================================================================
@@ -609,6 +609,104 @@ export async function markAsRead(
       status: 'ERROR',
       success: false,
       code: 'NOTIFICATION_UPDATE_FAILED',
+      requestId,
+      diagnostics: {
+        reason: `Database error: ${(error as Error).message}`,
+        notificationId,
+        userId,
+      },
+    };
+  }
+}
+
+// ============================================================================
+// DELETE NOTIFICATION
+// ============================================================================
+
+export async function deleteNotification(
+  notificationId: number,
+  userId: number,
+  requestId: string
+): Promise<NotificationResult> {
+  log('DELETE', 'START', requestId, { notificationId, userId });
+
+  if (!notificationId || notificationId <= 0 || !userId || userId <= 0) {
+    return {
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'NOTIFICATION_INVALID_INPUT',
+      requestId,
+      diagnostics: {
+        reason: 'Notification ID and User ID are required',
+        notificationId,
+        userId,
+      },
+    };
+  }
+
+  try {
+    const db = getDb();
+    // First check if notification exists and belongs to user
+    const existing = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.id, notificationId))
+      .limit(1);
+
+    if (existing.length === 0) {
+      log('DELETE', 'COMPLETE', requestId, { status: 'NOT_FOUND' });
+      return {
+        status: 'NOT_FOUND',
+        success: false,
+        code: 'NOTIFICATION_NOT_FOUND',
+        requestId,
+        diagnostics: {
+          reason: 'Notification not found',
+          notificationId,
+          userId,
+        },
+      };
+    }
+
+    if (existing[0].userId !== userId) {
+      log('DELETE', 'COMPLETE', requestId, { status: 'NOT_AUTHORIZED' });
+      return {
+        status: 'NOT_AUTHORIZED',
+        success: false,
+        code: 'NOTIFICATION_NOT_AUTHORIZED',
+        requestId,
+        diagnostics: {
+          reason: 'User is not authorized to delete this notification',
+          notificationId,
+          userId,
+        },
+      };
+    }
+
+    // Delete the notification
+    await db
+      .delete(notifications)
+      .where(eq(notifications.id, notificationId));
+
+    log('DELETE', 'COMPLETE', requestId, { status: 'OK', notificationId });
+
+    return {
+      status: 'OK',
+      success: true,
+      code: 'NOTIFICATION_DELETED',
+      requestId,
+      diagnostics: {
+        reason: 'Notification deleted successfully',
+        notificationId,
+        userId,
+      },
+    };
+  } catch (error) {
+    log('DELETE', 'ERROR', requestId, { error: (error as Error).message });
+    return {
+      status: 'ERROR',
+      success: false,
+      code: 'NOTIFICATION_DELETE_FAILED',
       requestId,
       diagnostics: {
         reason: `Database error: ${(error as Error).message}`,

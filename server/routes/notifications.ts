@@ -14,6 +14,7 @@ import {
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  deleteNotification,
 } from '../services/notifications';
 
 const router = Router();
@@ -119,6 +120,33 @@ router.post('/read-all', requireAuth, async (req, res) => {
   const userId = requireSessionUserId(req);
 
   const result = await markAllAsRead(userId, requestId);
+
+  res.setHeader('x-request-id', requestId);
+  res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// ============================================================================
+// DELETE /api/notifications/:id - Delete a notification
+// ============================================================================
+
+router.delete('/:id', requireAuth, async (req, res) => {
+  const requestId = getRequestId(req);
+  const userId = requireSessionUserId(req);
+  const notificationId = parseInt(req.params.id);
+
+  if (isNaN(notificationId) || notificationId <= 0) {
+    return res.status(400).json({
+      status: 'INVALID_INPUT',
+      success: false,
+      code: 'NOTIFICATION_INVALID_ID',
+      requestId,
+      diagnostics: {
+        reason: 'Notification ID must be a positive integer',
+      },
+    });
+  }
+
+  const result = await deleteNotification(notificationId, userId, requestId);
 
   res.setHeader('x-request-id', requestId);
   res.status(mapStatusToHttpCode(result.status)).json(result);
