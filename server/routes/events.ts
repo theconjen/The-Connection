@@ -141,8 +141,13 @@ router.get('/api/events/:id', async (req, res) => {
 
 // Create event - requires community admin or app admin
 router.post('/api/events', requireAuth, async (req, res) => {
+  // DEBUG: Version marker to confirm deployment
+  console.info('[Events] POST /api/events - Handler v2 (with detailed error handling)');
+
   try {
     const userId = requireSessionUserId(req);
+    console.info('[Events] User ID from session:', userId);
+
     const {
       title,
       description,
@@ -189,12 +194,16 @@ router.post('/api/events', requireAuth, async (req, res) => {
 
     // Check if user is the app owner (unique privilege for "The Connection" events)
     const user = await storage.getUser(userId);
+    console.info('[Events] User lookup result:', user ? { id: user.id, username: user.username, isAdmin: user.isAdmin } : 'null');
+
     const isAppAdmin = user?.isAdmin === true;
     const isAppOwner = user?.id === 19 && user?.username === 'Janelle'; // Only Janelle (user 19) can create events without a community
+    console.info('[Events] Auth check:', { isAppAdmin, isAppOwner, communityId });
 
     // Only app owner can create events without a community (hosted by "The Connection")
     // All other users must specify a communityId
     if (!communityId && !isAppOwner) {
+      console.warn('[Events] Rejecting: communityId required but user is not app owner');
       return res.status(400).json({ error: 'communityId is required - events must belong to a community' });
     }
 
