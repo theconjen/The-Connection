@@ -71,3 +71,25 @@ playwright-report/
 .codex/
 .The-Connection/
 registry.json
+
+# Backup and temp files
+*.bak
+*.old
+node_modules.old/
+node_modules 2/
+package-lock.json.old
+
+# Test scripts (local only)
+test-*.js
+test-*.cjs
+test-*.mjs
+
+# Secrets - never commit
+PRODUCTION_SECRETS.md
+
+# Misc junk
+Full.png
+pnpm
+the-connection@1.0.0
+cookies.txt
+mobile-app/TheConnectionMobile/
