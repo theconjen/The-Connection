@@ -16,6 +16,7 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -48,6 +49,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'posts' | 'communities'>('posts');
   const [refreshing, setRefreshing] = useState(false);
+  const [showVerseModal, setShowVerseModal] = useState(false);
 
   // Determine if viewing own profile
   const viewingOwnProfile = !userId || userId === currentUser?.id;
@@ -308,12 +310,22 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Bio */}
             {user.bio && <Text style={[styles.bio, { color: colors.textPrimary }]}>{user.bio}</Text>}
 
-            {/* Bible Verse - Subtle highlight */}
+            {/* Bible Verse - Tappable to show full passage */}
             {user.favoriteBibleVerse && (
-              <View style={[styles.bibleVerseCompact, { backgroundColor: `${colors.surfaceMuted}80`, borderLeftColor: `${colors.primary}60` }]}>
+              <Pressable
+                onPress={() => setShowVerseModal(true)}
+                style={({ pressed }) => [
+                  styles.bibleVerseCompact,
+                  { backgroundColor: `${colors.surfaceMuted}80`, borderLeftColor: `${colors.primary}60` },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
                 <Ionicons name="book-outline" size={12} color={colors.textMuted} style={{ opacity: 0.7 }} />
-                <Text style={[styles.bibleVerseText, { color: colors.textSecondary }]}>{user.favoriteBibleVerse}</Text>
-              </View>
+                <Text style={[styles.bibleVerseText, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {user.favoriteBibleVerse}
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ opacity: 0.5 }} />
+              </Pressable>
             )}
 
             {/* Interests as tags */}
@@ -525,6 +537,42 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
         </View>
       </ScrollView>
+
+      {/* Bible Verse Modal */}
+      <Modal
+        visible={showVerseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowVerseModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowVerseModal(false)}
+        >
+          <View style={[styles.verseModalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.verseModalHeader}>
+              <Ionicons name="book" size={20} color={colors.primary} />
+              <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
+                Favorite Verse
+              </Text>
+              <Pressable
+                onPress={() => setShowVerseModal(false)}
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </Pressable>
+            </View>
+            <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
+                {user?.favoriteBibleVerse}
+              </Text>
+            </ScrollView>
+            <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+              ESV
+            </Text>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -813,6 +861,51 @@ const styles = StyleSheet.create({
   emptyActionButtonText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Bible Verse Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  verseModalContent: {
+    width: '100%',
+    maxWidth: 360,
+    maxHeight: '70%',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  verseModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  verseModalTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  verseModalScroll: {
+    maxHeight: 300,
+  },
+  verseModalText: {
+    fontSize: 16,
+    lineHeight: 26,
+    fontStyle: 'italic',
+  },
+  verseModalAttribution: {
+    fontSize: 12,
+    marginTop: 16,
+    textAlign: 'right',
+    fontWeight: '500',
   },
 });
 
