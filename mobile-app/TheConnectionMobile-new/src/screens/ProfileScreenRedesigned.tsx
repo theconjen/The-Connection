@@ -438,14 +438,51 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="document-outline" size={48} color={colors.textSecondary} style={{ opacity: 0.6 }} />
-                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                    {stats.postsCount > 0 ? 'Some posts may be private' : 'No posts yet'}
-                  </Text>
-                  {stats.postsCount > 0 && (
-                    <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                      {viewingOwnProfile ? 'Your private posts are hidden from this view' : 'This user has posts that aren\'t publicly visible'}
-                    </Text>
+                  <Ionicons name="document-outline" size={40} color={colors.textMuted} style={{ opacity: 0.5, marginBottom: 8 }} />
+
+                  {viewingOwnProfile ? (
+                    // Own profile empty state
+                    <>
+                      <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
+                        {stats.postsCount > 0 ? 'Your posts aren't showing here' : 'Nothing here yet'}
+                      </Text>
+                      <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                        {stats.postsCount > 0
+                          ? 'Check your privacy settings if this seems wrong.'
+                          : 'Share something when you're ready.'}
+                      </Text>
+                      <Pressable
+                        style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
+                        onPress={() => router.push('/create')}
+                      >
+                        <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
+                          Create a post
+                        </Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    // Viewing another user's profile
+                    <>
+                      <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
+                        {stats.postsCount > 0 ? 'Posts aren't visible' : 'Nothing here yet'}
+                      </Text>
+                      <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                        {stats.postsCount > 0
+                          ? 'Follow to see what they share.'
+                          : 'They haven't shared anything publicly.'}
+                      </Text>
+                      {stats.postsCount > 0 && !followStatus?.isFollowing && (
+                        <Pressable
+                          style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
+                          onPress={handleFollow}
+                          disabled={followMutation.isPending}
+                        >
+                          <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
+                            Follow
+                          </Text>
+                        </Pressable>
+                      )}
+                    </>
                   )}
                 </View>
               )}
@@ -747,17 +784,35 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyHeadline: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
+    textAlign: 'center',
   },
   emptyText: {
     fontSize: 16,
     marginTop: 12,
   },
   emptySubtext: {
-    fontSize: 13,
+    fontSize: 14,
     marginTop: 6,
     textAlign: 'center',
-    paddingHorizontal: 32,
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  emptyActionButton: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  emptyActionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
