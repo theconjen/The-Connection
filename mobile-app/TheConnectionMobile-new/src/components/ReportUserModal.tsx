@@ -3,7 +3,7 @@ import { View, Modal, Pressable, ScrollView, TextInput, Alert, StyleSheet } from
 import { Text, useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../lib/apiClient';
+import { safetyAPI } from '../lib/apiClient';
 
 interface ReportUserModalProps {
   visible: boolean;
@@ -28,14 +28,11 @@ export function ReportUserModal({ visible, onClose, userId, username }: ReportUs
   const [description, setDescription] = useState('');
 
   const reportMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.post('/api/user-reports', {
-        userId,
-        reason: selectedReason,
-        description,
-      });
-      return response.data;
-    },
+    mutationFn: () => safetyAPI.reportUser({
+      userId,
+      reason: selectedReason!,
+      description: description || undefined,
+    }),
     onSuccess: () => {
       Alert.alert('Report Submitted', 'Thank you for helping keep our community safe.');
       queryClient.invalidateQueries({ queryKey: ['/api/user-reports'] });

@@ -10,23 +10,101 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Clipboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors } from '../../src/shared/colors';
+import { useTheme } from '../../src/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE_URL } from '../../src/lib/apiClient';
+import apiClient from '../../src/lib/apiClient';
+import { v4 as uuidv4 } from 'uuid';
 
 type Step = 'request' | 'verify' | 'success';
 
+// Token validation helpers
+const TOKEN_REGEX = /^[a-f0-9]{64}$/i;
+const TOKEN_LENGTH = 64;
+
+/**
+ * Extract and normalize token from user input
+ *
+ * INVARIANT: MUST match server normalizeToken() exactly:
+ * 1. Extract from URL if present
+ * 2. Strip whitespace
+ * 3. Convert to lowercase
+ */
+function normalizeToken(input: string): string {
+  if (!input) return '';
+  let token = input;
+  if (token.includes('token=')) {
+    const match = token.match(/token=([a-f0-9]+)/i);
+    if (match) token = match[1];
+  } else if (token.includes('://')) {
+    const match = token.match(/[?&]token=([a-f0-9]+)/i);
+    if (match) token = match[1];
+  }
+  // MUST match server: token.replace(/\s+/g, '').trim().toLowerCase()
+  return token.replace(/\s+/g, '').trim().toLowerCase();
+}
+
+function validateToken(token: string): { valid: boolean; error?: string } {
+  if (!token) return { valid: false, error: 'Please enter the reset token from your email' };
+  if (token.length !== TOKEN_LENGTH) {
+    return { valid: false, error: `Token must be ${TOKEN_LENGTH} characters. Current: ${token.length}` };
+  }
+  if (!TOKEN_REGEX.test(token)) {
+    return { valid: false, error: 'Token contains invalid characters.' };
+  }
+  return { valid: true };
+}
+
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
+
   const [step, setStep] = useState<Step>('request');
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleTokenChange = (input: string) => {
+    const normalized = normalizeToken(input);
+    setToken(normalized);
+    setTokenError(null);
+    if (normalized.length > 0 && normalized.length >= TOKEN_LENGTH) {
+      const validation = validateToken(normalized);
+      if (!validation.valid) setTokenError(validation.error || null);
+    }
+  };
+
+  // Handle pasting from clipboard
+  const handlePasteLink = async () => {
+    try {
+      const clipboardContent = await Clipboard.getString();
+      if (clipboardContent) {
+        const normalized = normalizeToken(clipboardContent);
+        setToken(normalized);
+        setTokenError(null);
+
+        // Validate and show feedback
+        const validation = validateToken(normalized);
+        if (validation.valid) {
+          Alert.alert('Token Extracted', 'Reset token has been extracted from your clipboard.');
+        } else if (normalized.length > 0) {
+          setTokenError(validation.error || 'Invalid token');
+        }
+      } else {
+        Alert.alert('Clipboard Empty', 'Please copy the reset link from your email first.');
+      }
+    } catch (error) {
+      console.info('[FORGOT_PASSWORD] Clipboard error:', error);
+      Alert.alert('Error', 'Could not access clipboard. Please paste the token manually.');
+    }
+  };
 
   const handleRequestReset = async () => {
     if (!email.trim()) {
@@ -43,17 +121,7 @@ export default function ForgotPasswordScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/password-reset/request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to send reset email');
-      }
+      await apiClient.post('/api/password-reset/request', { email: email.trim() });
 
       Alert.alert(
         'Check Your Email',
@@ -73,8 +141,12 @@ export default function ForgotPasswordScreen() {
   };
 
   const handleResetPassword = async () => {
-    if (!token.trim()) {
-      Alert.alert('Error', 'Please enter the reset token from your email');
+    const normalizedToken = normalizeToken(token);
+    const tokenValidation = validateToken(normalizedToken);
+
+    if (!tokenValidation.valid) {
+      setTokenError(tokenValidation.error || 'Invalid token');
+      Alert.alert('Invalid Token', tokenValidation.error || 'Please enter a valid reset token');
       return;
     }
 
@@ -103,22 +175,75 @@ export default function ForgotPasswordScreen() {
     }
 
     setIsLoading(true);
+
+    // Generate correlation ID for this request
+    const requestId = uuidv4();
+    const baseURL = apiClient.defaults.baseURL;
+
+    // Debug logging - ALWAYS log for password reset debugging
+    console.info('[FORGOT_PASSWORD] ========== SUBMIT START ==========');
+    console.info('[FORGOT_PASSWORD] x-request-id:', requestId);
+    console.info('[FORGOT_PASSWORD] baseURL:', baseURL);
+    console.info('[FORGOT_PASSWORD] tokenLen:', normalizedToken.length);
+    console.info('[FORGOT_PASSWORD] tokenIsHex:', TOKEN_REGEX.test(normalizedToken));
+    console.info('[FORGOT_PASSWORD] tokenPrefix:', normalizedToken.substring(0, 6));
+    console.info('[FORGOT_PASSWORD] tokenSuffix:', normalizedToken.substring(normalizedToken.length - 6));
+    console.info('[FORGOT_PASSWORD] ===================================');
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/password-reset/reset`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token.trim(), newPassword }),
+      await apiClient.post('/api/password-reset/reset', {
+        token: normalizedToken,
+        newPassword
+      }, {
+        headers: {
+          'x-request-id': requestId
+        }
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to reset password');
-      }
-
+      console.info('[FORGOT_PASSWORD] ✅ SUCCESS x-request-id:', requestId);
       setStep('success');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Invalid or expired token. Please request a new reset link.');
+      const errorData = error.response?.data;
+      const errorCode = errorData?.code || 'UNKNOWN';
+      const serverRequestId = errorData?.requestId || 'none';
+
+      // Log correlation info for debugging
+      console.info('[FORGOT_PASSWORD] ❌ ERROR');
+      console.info('[FORGOT_PASSWORD] client x-request-id:', requestId);
+      console.info('[FORGOT_PASSWORD] server requestId:', serverRequestId);
+      console.info('[FORGOT_PASSWORD] status:', error?.response?.status);
+      console.info('[FORGOT_PASSWORD] code:', errorCode);
+      console.info('[FORGOT_PASSWORD] error:', errorData?.error);
+
+      // Diagnostics only present in dev/debug mode
+      if (errorData?.diagnostics) {
+        console.info('[FORGOT_PASSWORD] diagnostics:', JSON.stringify(errorData.diagnostics));
+      }
+
+      let message = 'Invalid or expired token. Please request a new reset link.';
+
+      if (errorData?.code) {
+        switch (errorData.code) {
+          case 'TOKEN_INVALID_OR_EXPIRED':
+            message = 'This reset token is invalid or has expired. Please request a new one.';
+            break;
+          case 'TOKEN_USED':
+            message = 'This reset token has already been used. Please request a new one.';
+            break;
+          case 'WEAK_PASSWORD':
+            message = errorData.error || 'Password does not meet requirements.';
+            break;
+          case 'MISSING_FIELDS':
+            message = errorData.error || 'Missing required fields.';
+            break;
+          default:
+            message = errorData.error || message;
+        }
+      } else if (errorData?.error) {
+        message = errorData.error;
+      }
+
+      Alert.alert('Error', message);
     } finally {
       setIsLoading(false);
     }
@@ -128,7 +253,7 @@ export default function ForgotPasswordScreen() {
     <>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Reset Password</Text>
         <Text style={styles.subtitle}>
@@ -144,6 +269,7 @@ export default function ForgotPasswordScreen() {
             value={email}
             onChangeText={setEmail}
             placeholder="Enter your email"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -157,7 +283,7 @@ export default function ForgotPasswordScreen() {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.primaryForeground} />
           ) : (
             <Text style={styles.buttonText}>Send Reset Link</Text>
           )}
@@ -178,7 +304,7 @@ export default function ForgotPasswordScreen() {
     <>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => setStep('request')}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Enter New Password</Text>
         <Text style={styles.subtitle}>
@@ -186,18 +312,42 @@ export default function ForgotPasswordScreen() {
         </Text>
       </View>
 
+      {/* Note about token invalidation */}
+      <View style={styles.infoBanner}>
+        <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+        <Text style={styles.infoBannerText}>
+          Requesting a new token will invalidate any previous tokens.
+        </Text>
+      </View>
+
       <View style={styles.form}>
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Reset Token</Text>
-          <TextInput
-            style={styles.input}
-            value={token}
-            onChangeText={setToken}
-            placeholder="Paste token from email"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!isLoading}
-          />
+          <View style={styles.tokenInputRow}>
+            <TextInput
+              style={[styles.tokenInput, tokenError && styles.inputError]}
+              value={token}
+              onChangeText={handleTokenChange}
+              placeholder="Paste token from email"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoading}
+            />
+            <TouchableOpacity
+              style={styles.pasteButton}
+              onPress={handlePasteLink}
+              disabled={isLoading}
+            >
+              <Ionicons name="clipboard-outline" size={20} color={colors.primary} />
+              <Text style={styles.pasteButtonText}>Paste</Text>
+            </TouchableOpacity>
+          </View>
+          {tokenError && <Text style={styles.errorText}>{tokenError}</Text>}
+          <Text style={styles.hint}>
+            Token is {TOKEN_LENGTH} characters. Paste the link or token from your email.
+            {token.length > 0 && ` Current: ${token.length}`}
+          </Text>
         </View>
 
         <View style={styles.inputGroup}>
@@ -208,6 +358,7 @@ export default function ForgotPasswordScreen() {
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder="Enter new password"
+              placeholderTextColor={colors.textSecondary}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               editable={!isLoading}
@@ -219,7 +370,7 @@ export default function ForgotPasswordScreen() {
               <Ionicons
                 name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                 size={24}
-                color="#666"
+                color={colors.textSecondary}
               />
             </TouchableOpacity>
           </View>
@@ -235,6 +386,7 @@ export default function ForgotPasswordScreen() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder="Confirm new password"
+            placeholderTextColor={colors.textSecondary}
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             editable={!isLoading}
@@ -247,7 +399,7 @@ export default function ForgotPasswordScreen() {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.primaryForeground} />
           ) : (
             <Text style={styles.buttonText}>Reset Password</Text>
           )}
@@ -267,7 +419,7 @@ export default function ForgotPasswordScreen() {
   const renderSuccessStep = () => (
     <View style={styles.successContainer}>
       <View style={styles.successIcon}>
-        <Ionicons name="checkmark-circle" size={80} color="#16a34a" />
+        <Ionicons name="checkmark-circle" size={80} color={colors.success} />
       </View>
       <Text style={styles.successTitle}>Password Reset!</Text>
       <Text style={styles.successText}>
@@ -299,10 +451,10 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, theme: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -321,12 +473,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: '#666',
+    color: colors.textSecondary,
     lineHeight: 22,
   },
   form: {
@@ -338,40 +490,96 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.input,
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.borderSubtle,
+    color: colors.textPrimary,
+  },
+  tokenInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  tokenInput: {
+    flex: 1,
+    backgroundColor: colors.input,
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    color: colors.textPrimary,
+  },
+  pasteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted || '#f5f5f5',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+  },
+  pasteButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  inputError: {
+    borderColor: colors.error || '#EF4444',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: colors.error || '#EF4444',
+    fontSize: 13,
+    marginTop: 6,
+    fontWeight: '500',
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted || '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    gap: 8,
+  },
+  infoBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.input,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.borderSubtle,
   },
   passwordInput: {
     flex: 1,
     padding: 16,
     fontSize: 16,
+    color: colors.textPrimary,
   },
   eyeIcon: {
     padding: 16,
   },
   hint: {
     fontSize: 12,
-    color: '#888',
+    color: colors.textSecondary,
     marginTop: 6,
   },
   button: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -381,7 +589,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#ffffff',
+    color: colors.primaryForeground,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -390,7 +598,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   linkText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 14,
   },
   successContainer: {
@@ -405,12 +613,12 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   successText: {
     fontSize: 15,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,

@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import {
   View,
+  Text,
   ScrollView,
   Pressable,
   FlatList,
@@ -17,7 +18,7 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { Text, Screen,  } from '../theme';
+import { Screen } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { PostCard, Post } from './PostCard';
 import { AppHeader } from './AppHeader';
@@ -48,6 +49,7 @@ function useTrendingItems() {
       return response.data;
     },
     refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
+    retry: 1, // Only retry once if it fails
   });
 }
 
@@ -63,10 +65,13 @@ export function ForumsScreen({
   userName = 'User',
   userAvatar,
 }: ForumsScreenProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, colorScheme } = useTheme();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'home' | 'popular'>('home');
   const [selectedTrending, setSelectedTrending] = useState<{ type: 'hashtag' | 'keyword', value: string, display: string } | null>(null);
+
+  // Get dynamic styles based on theme
+  const styles = getStyles(colors, colorScheme);
 
   // Fetch trending items
   const { data: trendingItems, isLoading: trendingLoading } = useTrendingItems();
@@ -77,11 +82,9 @@ export function ForumsScreen({
     queryKey: ['/api/posts', { filter, selectedTrending }],
     queryFn: async () => {
       if (selectedTrending) {
-        // Fetch posts filtered by hashtag or keyword
-        const endpoint = selectedTrending.type === 'hashtag'
-          ? `/api/posts/hashtags/${selectedTrending.value}`
-          : `/api/posts/keywords/${selectedTrending.value}`;
-        const response = await apiClient.get(endpoint);
+        // Note: Posts don't support hashtag/keyword filtering yet, so just return all posts
+        // In the future, we can add these endpoints to the posts routes
+        const response = await apiClient.get(`/api/posts?filter=${filter}`);
         return response.data;
       } else {
         const response = await apiClient.get(`/api/posts?filter=${filter}`);
@@ -113,9 +116,7 @@ export function ForumsScreen({
     },
     onError: (error) => {
       Alert.alert('Error', 'Failed to upvote post. Please try again.');
-      if (__DEV__) {
-        console.error('Upvote error:', error);
-      }
+      console.error('Upvote error:', error);
       // Revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
     },
@@ -152,9 +153,7 @@ export function ForumsScreen({
     },
     onError: (error) => {
       Alert.alert('Error', 'Failed to downvote post. Please try again.');
-      if (__DEV__) {
-        console.error('Downvote error:', error);
-      }
+      console.error('Downvote error:', error);
       // Revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
     },
@@ -191,8 +190,8 @@ export function ForumsScreen({
       {/* Trending Section (Hashtags + Keywords) */}
       <View style={styles.trendingSection}>
         <View style={styles.trendingHeader}>
-          <Ionicons name="trending-up" size={18} color={colors.accent} />
-          <Text style={styles.trendingTitle}>Trending in Forums</Text>
+          <Ionicons name="trending-up" size={18} color={colors.primary} />
+          <Text style={styles.trendingTitle}>Trending</Text>
           {selectedTrending && (
             <Pressable
               onPress={() => setSelectedTrending(null)}
@@ -208,9 +207,9 @@ export function ForumsScreen({
           contentContainerStyle={styles.trendingTags}
         >
           {trendingLoading ? (
-            <ActivityIndicator size="small" color={colors.accent} />
-          ) : (
-            trendingItems?.map((item) => {
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : trendingItems && trendingItems.length > 0 ? (
+            trendingItems.map((item) => {
               const isHashtag = item.type === 'hashtag';
               const displayText = isHashtag ? item.displayTag : item.displayKeyword;
               const tag = isHashtag ? item.tag : item.keyword;
@@ -235,6 +234,8 @@ export function ForumsScreen({
                 </Pressable>
               );
             })
+          ) : (
+            <Text style={styles.emptyTrending}>No trending topics yet</Text>
           )}
         </ScrollView>
       </View>
@@ -242,7 +243,7 @@ export function ForumsScreen({
       {/* Filter Indicator */}
       {selectedTrending && (
         <View style={styles.filterIndicator}>
-          <Ionicons name="filter" size={16} color={colors.text} />
+          <Ionicons name="filter" size={16} color={colors.textPrimary} />
           <Text style={styles.filterText}>
             Showing {selectedTrending.type === 'hashtag' ? '#' : ''}{selectedTrending.display}
           </Text>
@@ -252,16 +253,16 @@ export function ForumsScreen({
       {/* Tabs */}
       <View
         style={{
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.borderSubtle,
         }}
       >
         <View
           style={{
             flexDirection: 'row',
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
           }}
         >
           <Pressable
@@ -276,7 +277,7 @@ export function ForumsScreen({
             <Text
               variant="bodySmall"
               style={{
-                color: activeTab === 'home' ? colors.accent : colors.mutedForeground,
+                color: activeTab === 'home' ? colors.accent : colors.textMuted,
                 fontWeight: activeTab === 'home' ? '600' : '400',
               }}
             >
@@ -307,7 +308,7 @@ export function ForumsScreen({
             <Text
               variant="bodySmall"
               style={{
-                color: activeTab === 'popular' ? colors.accent : colors.mutedForeground,
+                color: activeTab === 'popular' ? colors.accent : colors.textMuted,
                 fontWeight: activeTab === 'popular' ? '600' : '400',
               }}
             >
@@ -335,11 +336,10 @@ export function ForumsScreen({
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      <StatusBar
-        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
       <FlatList
+        style={{ backgroundColor: colors.surface }}
         data={posts}
         keyExtractor={(item) => item.id.toString()}
         ListHeaderComponent={renderHeader}
@@ -375,7 +375,7 @@ export function ForumsScreen({
               </Text>
               <Text
                 variant="bodySmall"
-                color="mutedForeground"
+                color="textMuted"
                 style={{ marginTop: spacing.sm, textAlign: 'center' }}
               >
                 Check back later for new discussions.
@@ -392,95 +392,108 @@ export function ForumsScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#EFF3F4',
-    marginHorizontal: 12,
-    marginVertical: 8,
-    borderRadius: 20,
-  },
-  searchPlaceholder: {
-    fontSize: 15,
-    color: '#64748B',
-  },
-  trendingSection: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  trendingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-  },
-  trendingTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  clearFilterButton: {
-    marginLeft: 'auto',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  clearFilterText: {
-    fontSize: 13,
-    color: '#2563EB',
-    fontWeight: '600',
-  },
-  trendingTags: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 4,
-  },
-  trendingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  trendingBadgeActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
-  },
-  trendingText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  trendingTextActive: {
-    color: '#FFFFFF',
-  },
-  trendingScore: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    marginLeft: 4,
-  },
-  filterIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#EFF6FF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#DBEAFE',
-  },
-  filterText: {
-    fontSize: 13,
-    color: '#1E40AF',
-    fontWeight: '600',
-  },
-});
+// Dynamic styles based on theme
+const getStyles = (colors: any, theme: 'light' | 'dark') => {
+  const isDark = theme === 'dark';
+
+  return StyleSheet.create({
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.surface,
+      marginHorizontal: 12,
+      marginVertical: 8,
+      borderRadius: 20,
+    },
+    searchPlaceholder: {
+      fontSize: 15,
+      color: colors.textMuted,
+    },
+    trendingSection: {
+      backgroundColor: colors.surface,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    trendingHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 10,
+    },
+    trendingTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    clearFilterButton: {
+      marginLeft: 'auto',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    clearFilterText: {
+      fontSize: 13,
+      color: colors.accent,
+      fontWeight: '600',
+    },
+    trendingTags: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingVertical: 4,
+    },
+    trendingBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: isDark ? '#2563EB' : '#BFDBFE',
+    },
+    trendingBadgeActive: {
+      backgroundColor: isDark ? '#2563EB' : '#3B82F6',
+      borderColor: isDark ? '#3B82F6' : '#2563EB',
+    },
+    trendingText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: isDark ? '#60A5FA' : '#1E40AF',
+    },
+    trendingTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    trendingScore: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: isDark ? '#60A5FA' : '#1E40AF',
+      marginLeft: 4,
+    },
+    filterIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    filterText: {
+      fontSize: 13,
+      color: colors.textPrimary,
+      fontWeight: '600',
+    },
+    emptyTrending: {
+      fontSize: 14,
+      color: colors.textPrimary,
+      opacity: 0.6,
+      paddingHorizontal: 8,
+    },
+  });
+};

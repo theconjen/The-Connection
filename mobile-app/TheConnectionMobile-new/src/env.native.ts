@@ -14,4 +14,3 @@ export const API_BASE =
   process.env.EXPO_PUBLIC_API_BASE ||
   (process.env.NODE_ENV === 'development' ? DEVELOPMENT_API : PRODUCTION_API);
 
-console.log('[env.native] API_BASE:', API_BASE);

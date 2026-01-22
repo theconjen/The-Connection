@@ -34,12 +34,10 @@ export function UpdatesErrorBoundary({ children }: UpdatesErrorBoundaryProps) {
           return;
         }
 
-        console.log('[Updates] Initializing updates...');
 
         // Use safe update checking with timeout
         const updateCheckTimeout = new Promise<void>((resolve) => {
           setTimeout(() => {
-            console.log('[Updates] Update check timed out, continuing with current version');
             resolve();
           }, 5000);
         });
@@ -48,13 +46,10 @@ export function UpdatesErrorBoundary({ children }: UpdatesErrorBoundaryProps) {
           try {
             const isAvailable = await checkForUpdatesSafely();
             if (isAvailable) {
-              console.log('[Updates] Update available, fetching...');
               const fetched = await fetchUpdateSafely();
               if (fetched) {
-                console.log('[Updates] Update fetched successfully');
               }
             } else {
-              console.log('[Updates] No updates available');
             }
           } catch (err) {
             console.error('[Updates] Error during update check:', err);

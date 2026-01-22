@@ -73,9 +73,7 @@ async function setupAndroidChannels() {
         enableVibrate: true,
       });
     }
-    if (__DEV__) {
-      console.info('[Notifications] Android channels configured');
-    }
+    console.info('[Notifications] Android channels configured');
   }
 }
 
@@ -89,9 +87,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   try {
     // Check if we're on a physical device
     if (!Device.isDevice) {
-      if (__DEV__) {
-        console.warn('[Notifications] Must use physical device for push notifications');
-      }
+      console.warn('[Notifications] Must use physical device for push notifications');
       return false;
     }
 
@@ -106,20 +102,14 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     }
 
     if (finalStatus !== 'granted') {
-      if (__DEV__) {
-        console.warn('[Notifications] Permission denied by user');
-      }
+      console.warn('[Notifications] Permission denied by user');
       return false;
     }
 
-    if (__DEV__) {
-      console.info('[Notifications] Permissions granted');
-    }
+    console.info('[Notifications] Permissions granted');
     return true;
   } catch (error) {
-    if (__DEV__) {
-      console.error('[Notifications] Error requesting permissions:', error);
-    }
+    console.error('[Notifications] Error requesting permissions:', error);
     return false;
   }
 }
@@ -143,14 +133,10 @@ export async function getExpoPushToken(): Promise<string | null> {
     });
 
     const token = tokenData.data;
-    if (__DEV__) {
-      console.info('[Notifications] Expo push token obtained');
-    }
+    console.info('[Notifications] Expo push token obtained');
     return token;
   } catch (error) {
-    if (__DEV__) {
-      console.error('[Notifications] Error getting Expo push token:', error);
-    }
+    console.error('[Notifications] Error getting Expo push token:', error);
     return null;
   }
 }
@@ -171,12 +157,13 @@ export async function registerPushToken(token: string): Promise<boolean> {
       platform,
     });
 
-    if (__DEV__) {
-      console.info('[Notifications] Token registered with backend');
-    }
+    console.info('[Notifications] Token registered with backend');
     return true;
-  } catch (error) {
-    if (__DEV__) {
+  } catch (error: any) {
+    // Log error but don't block app startup
+    if (error?.response?.status === 404) {
+      console.warn('[Notifications] Push token endpoint not available (this is normal in development)');
+    } else {
       console.error('[Notifications] Error registering token:', error);
     }
     return false;
@@ -192,12 +179,19 @@ export async function registerPushToken(token: string): Promise<boolean> {
 export async function unregisterPushToken(token: string): Promise<void> {
   try {
     await apiClient.delete(`/push-tokens/${encodeURIComponent(token)}`);
-    if (__DEV__) {
-      console.info('[Notifications] Token unregistered from backend');
-    }
-  } catch (error) {
-    if (__DEV__) {
+    console.info('[Notifications] Token unregistered from backend');
+  } catch (error: any) {
+    // Suppress expected errors:
+    // - 401: not logged in
+    // - 404: token doesn't exist
+    // - Network errors: device offline (non-critical for logout)
+    const status = error?.response?.status;
+    const isNetworkError = error?.message === 'Network Error' || !error?.response;
+
+    if (status !== 401 && status !== 404 && !isNetworkError) {
       console.error('[Notifications] Error unregistering token:', error);
+    } else if (isNetworkError) {
+      console.info('[Notifications] Token unregistration skipped (device offline)');
     }
   }
 }
@@ -210,15 +204,11 @@ export async function unregisterPushToken(token: string): Promise<void> {
  */
 export function handleNotificationNavigation(data: any) {
   if (!data || !data.type) {
-    if (__DEV__) {
-      console.warn('[Notifications] No navigation data in notification');
-    }
+    console.warn('[Notifications] No navigation data in notification');
     return;
   }
 
-  if (__DEV__) {
-    console.info('[Notifications] Navigating from notification:', data.type);
-  }
+  console.info('[Notifications] Navigating from notification:', data.type);
 
   try {
     switch (data.type) {
@@ -261,16 +251,12 @@ export function handleNotificationNavigation(data: any) {
         break;
 
       default:
-        if (__DEV__) {
-          console.warn('[Notifications] Unknown notification type:', data.type);
-        }
+        console.warn('[Notifications] Unknown notification type:', data.type);
         // Fallback to notifications center
         router.push('/notifications');
     }
   } catch (error) {
-    if (__DEV__) {
-      console.error('[Notifications] Navigation error:', error);
-    }
+    console.error('[Notifications] Navigation error:', error);
     // Fallback to notifications center on error
     router.push('/notifications');
   }
@@ -295,27 +281,21 @@ export async function initializeNotifications(
   responseListener: Notifications.Subscription | null;
 } | null> {
   try {
-    if (__DEV__) {
-      console.info('[Notifications] Initializing notification service...');
-    }
+    console.info('[Notifications] Initializing notification service...');
 
     // Set up Android notification channels
     await setupAndroidChannels();
 
     // Don't register token if user not logged in
     if (!isAuthenticated) {
-      if (__DEV__) {
-        console.info('[Notifications] User not authenticated, skipping token registration');
-      }
+      console.info('[Notifications] User not authenticated, skipping token registration');
       return null;
     }
 
     // Request permissions and get token
     const token = await getExpoPushToken();
     if (!token) {
-      if (__DEV__) {
-        console.warn('[Notifications] Could not get push token');
-      }
+      console.warn('[Notifications] Could not get push token');
       return null;
     }
 
@@ -324,29 +304,21 @@ export async function initializeNotifications(
 
     // Set up notification received listener (while app is open)
     const receivedListener = Notifications.addNotificationReceivedListener((notification) => {
-      if (__DEV__) {
-        console.info('[Notifications] Notification received while app open:', notification.request.content.title);
-      }
+      console.info('[Notifications] Notification received while app open:', notification.request.content.title);
       // Notification will be shown automatically due to setNotificationHandler
     });
 
     // Set up notification response listener (when user taps notification)
     const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-      if (__DEV__) {
-        console.info('[Notifications] Notification tapped:', response.notification.request.content.title);
-      }
+      console.info('[Notifications] Notification tapped:', response.notification.request.content.title);
       const data = response.notification.request.content.data;
       handleNotificationNavigation(data);
     });
 
-    if (__DEV__) {
-      console.info('[Notifications] Service initialized successfully');
-    }
+    console.info('[Notifications] Service initialized successfully');
     return { receivedListener, responseListener };
   } catch (error) {
-    if (__DEV__) {
-      console.error('[Notifications] Error initializing notifications:', error);
-    }
+    console.error('[Notifications] Error initializing notifications:', error);
     return null;
   }
 }
@@ -362,14 +334,17 @@ export function cleanupNotifications(
   receivedListener: Notifications.Subscription | null,
   responseListener: Notifications.Subscription | null
 ) {
-  if (receivedListener) {
-    Notifications.removeNotificationSubscription(receivedListener);
-  }
-  if (responseListener) {
-    Notifications.removeNotificationSubscription(responseListener);
-  }
-  if (__DEV__) {
+  try {
+    if (receivedListener) {
+      receivedListener.remove();
+    }
+    if (responseListener) {
+      responseListener.remove();
+    }
     console.info('[Notifications] Listeners cleaned up');
+  } catch (error) {
+    // Silently handle cleanup errors (common when running in Expo Go)
+    console.warn('[Notifications] Error during cleanup (may be running in Expo Go):', error);
   }
 }
 
@@ -384,9 +359,7 @@ export async function getCurrentToken(): Promise<string | null> {
     });
     return tokenData.data;
   } catch (error) {
-    if (__DEV__) {
-      console.error('[Notifications] Error getting current token:', error);
-    }
+    console.error('[Notifications] Error getting current token:', error);
     return null;
   }
 }
@@ -398,9 +371,7 @@ export async function getBadgeCount(): Promise<number> {
   try {
     return await Notifications.getBadgeCountAsync();
   } catch (error) {
-    if (__DEV__) {
-      console.error('[Notifications] Error getting badge count:', error);
-    }
+    console.error('[Notifications] Error getting badge count:', error);
     return 0;
   }
 }
@@ -412,9 +383,7 @@ export async function setBadgeCount(count: number): Promise<void> {
   try {
     await Notifications.setBadgeCountAsync(count);
   } catch (error) {
-    if (__DEV__) {
-      console.error('[Notifications] Error setting badge count:', error);
-    }
+    console.error('[Notifications] Error setting badge count:', error);
   }
 }
 
@@ -424,12 +393,8 @@ export async function setBadgeCount(count: number): Promise<void> {
 export async function clearAllNotifications(): Promise<void> {
   try {
     await Notifications.dismissAllNotificationsAsync();
-    if (__DEV__) {
-      console.info('[Notifications] All notifications cleared');
-    }
+    console.info('[Notifications] All notifications cleared');
   } catch (error) {
-    if (__DEV__) {
-      console.error('[Notifications] Error clearing notifications:', error);
-    }
+    console.error('[Notifications] Error clearing notifications:', error);
   }
 }

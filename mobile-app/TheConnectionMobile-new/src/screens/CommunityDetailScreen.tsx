@@ -22,6 +22,7 @@ import {
   StyleSheet,
   Alert,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,10 +75,35 @@ interface WallPost {
   };
 }
 
+interface PrayerRequest {
+  id: number;
+  communityId?: number;
+  authorId: number;
+  title: string;
+  content: string;
+  isAnonymous: boolean;
+  prayerCount: number;
+  createdAt: string;
+  author?: {
+    id: number;
+    username: string;
+    displayName?: string;
+  };
+}
+
 interface CommunityDetailScreenProps {
   communityId: number;
   onBack?: () => void;
   onCreateEvent?: () => void;
+  onUserPress?: (userId: number) => void;
+}
+
+interface MemberSuggestion {
+  id: number;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  reason?: string;
 }
 
 // ============================================================================
@@ -112,15 +138,18 @@ function getCommunityIconName(iconName?: string): string {
 }
 
 function getCommunityColor(iconColor?: string): string {
+  // Earth-forward palette - no blue defaults
   const colorMap: { [key: string]: string } = {
-    primary: '#222D99',
-    purple: '#9B59B6',
-    blue: '#4A90E2',
-    green: '#27AE60',
-    orange: '#E67E22',
-    red: '#E74C3C',
+    primary: '#5C6B5E',     // Sage (was blue)
+    purple: '#7C6B78',      // Muted purple
+    blue: '#6B7B6E',        // Sage-gray (discouraged)
+    green: '#5C6B5E',       // Sage green
+    orange: '#B56A55',      // Terracotta
+    red: '#A03030',         // Warm red
+    sage: '#7C8F78',        // Sage accent
+    gold: '#C7A45B',        // Warm gold
   };
-  return colorMap[iconColor || 'primary'] || '#222D99';
+  return colorMap[iconColor || 'primary'] || '#5C6B5E';
 }
 
 // ============================================================================
@@ -171,6 +200,30 @@ function useCreateWallPost() {
   });
 }
 
+function usePrayerRequests(communityId: number) {
+  return useQuery<PrayerRequest[]>({
+    queryKey: [`/api/communities/${communityId}/prayer-requests`],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/communities/${communityId}/prayer-requests`);
+      return response.data;
+    },
+  });
+}
+
+function useCreatePrayerRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ communityId, title, content, isAnonymous }: { communityId: number; title: string; content: string; isAnonymous?: boolean }) => {
+      const response = await apiClient.post(`/api/communities/${communityId}/prayer-requests`, { title, content, isAnonymous });
+      return response.data;
+    },
+    onSuccess: (_, { communityId }) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/communities/${communityId}/prayer-requests`] });
+    },
+  });
+}
+
 function useLeaveCommunity() {
   const queryClient = useQueryClient();
 
@@ -182,6 +235,24 @@ function useLeaveCommunity() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/communities'] });
     },
+  });
+}
+
+function useCommunityMemberSuggestions(communityId: number, enabled: boolean) {
+  return useQuery<MemberSuggestion[]>({
+    queryKey: [`/api/communities/${communityId}/member-suggestions`],
+    queryFn: async () => {
+      try {
+        // Try community-specific suggestions endpoint first
+        const response = await apiClient.get(`/api/user/suggestions/friends?communityId=${communityId}&limit=8`);
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        // Fallback: return empty array if endpoint doesn't support communityId
+        return [];
+      }
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -211,14 +282,14 @@ const WallPostCard: React.FC<WallPostCardProps> = ({ post, colors }) => {
   };
 
   return (
-    <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+    <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
         <View
           style={{
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: colors.muted,
+            backgroundColor: colors.surfaceMuted,
             justifyContent: 'center',
             alignItems: 'center',
           }}
@@ -230,19 +301,19 @@ const WallPostCard: React.FC<WallPostCardProps> = ({ post, colors }) => {
 
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary }}>
               {post.author.displayName || post.author.username}
             </Text>
-            <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+            <Text style={{ fontSize: 13, color: colors.textMuted }}>
               @{post.author.username}
             </Text>
-            <Text style={{ fontSize: 13, color: colors.mutedForeground }}>•</Text>
-            <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+            <Text style={{ fontSize: 13, color: colors.textMuted }}>•</Text>
+            <Text style={{ fontSize: 13, color: colors.textMuted }}>
               {formatTime(post.createdAt)}
             </Text>
           </View>
 
-          <Text style={{ fontSize: 15, lineHeight: 20, color: colors.foreground }}>
+          <Text style={{ fontSize: 15, lineHeight: 20, color: colors.textPrimary }}>
             {post.content}
           </Text>
         </View>
@@ -259,20 +330,31 @@ export function CommunityDetailScreen({
   communityId,
   onBack,
   onCreateEvent,
+  onUserPress,
 }: CommunityDetailScreenProps) {
   const { user } = useAuth();
   const { colors } = useTheme();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'wall' | 'members'>('wall');
+  const [activeTab, setActiveTab] = useState<'wall' | 'members' | 'prayers'>('wall');
   const [postContent, setPostContent] = useState('');
+  const [prayerTitle, setPrayerTitle] = useState('');
+  const [prayerContent, setPrayerContent] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+
+  // State for tracking follow actions
+  const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
 
   const { data: community, isLoading: loadingCommunity } = useCommunity(communityId);
   const { data: members = [], isLoading: loadingMembers } = useMembers(communityId);
   const { data: wallPosts = [], isLoading: loadingPosts, refetch: refetchPosts } = useWallPosts(communityId);
+  const { data: prayerRequests = [], isLoading: loadingPrayers, refetch: refetchPrayers } = usePrayerRequests(communityId);
+
+  // Fetch community member suggestions
+  const { data: memberSuggestions = [], refetch: refetchSuggestions } = useCommunityMemberSuggestions(communityId, !!user);
 
   const createPostMutation = useCreateWallPost();
+  const createPrayerMutation = useCreatePrayerRequest();
   const leaveMutation = useLeaveCommunity();
 
   const currentMember = members.find(m => m.userId === user?.id);
@@ -285,6 +367,7 @@ export function CommunityDetailScreen({
       queryClient.invalidateQueries({ queryKey: [`/api/communities/${communityId}`] }),
       queryClient.invalidateQueries({ queryKey: [`/api/communities/${communityId}/members`] }),
       refetchPosts(),
+      refetchPrayers(),
     ]);
     setRefreshing(false);
   };
@@ -304,6 +387,32 @@ export function CommunityDetailScreen({
         },
         onError: (error: any) => {
           Alert.alert('Error', error.message || 'Failed to create post');
+        },
+      }
+    );
+  };
+
+  const handleCreatePrayer = () => {
+    if (!prayerTitle.trim()) {
+      Alert.alert('Error', 'Please enter a title');
+      return;
+    }
+
+    if (!prayerContent.trim()) {
+      Alert.alert('Error', 'Please enter prayer request content');
+      return;
+    }
+
+    createPrayerMutation.mutate(
+      { communityId, title: prayerTitle.trim(), content: prayerContent.trim() },
+      {
+        onSuccess: () => {
+          setPrayerTitle('');
+          setPrayerContent('');
+          Alert.alert('Success', 'Prayer request created successfully!');
+        },
+        onError: (error: any) => {
+          Alert.alert('Error', error.message || 'Failed to create prayer request');
         },
       }
     );
@@ -334,13 +443,46 @@ export function CommunityDetailScreen({
     );
   };
 
+  // Handle follow suggestion
+  const handleFollowSuggestion = async (userId: number) => {
+    setFollowingIds(prev => new Set(prev).add(userId));
+    try {
+      await apiClient.post(`/api/users/${userId}/follow`);
+    } catch (error) {
+      // Revert on error
+      setFollowingIds(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+      console.error('Failed to follow user:', error);
+    }
+  };
+
+  // Handle hide suggestion
+  const handleHideSuggestion = async (userId: number) => {
+    try {
+      await apiClient.post('/api/user/suggestions/hide', { hiddenUserId: userId });
+      refetchSuggestions();
+    } catch (error) {
+      console.error('Failed to hide suggestion:', error);
+    }
+  };
+
+  // Handle user press
+  const handleUserPress = (userId: number) => {
+    if (onUserPress) {
+      onUserPress(userId);
+    }
+  };
+
   const styles = getStyles(colors);
 
   if (loadingCommunity) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#222D99" />
+          <ActivityIndicator size="large" color="#5C6B5E" />
           <Text style={styles.loadingText}>Loading community...</Text>
         </View>
       </SafeAreaView>
@@ -351,7 +493,7 @@ export function CommunityDetailScreen({
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.mutedForeground} />
+          <Ionicons name="alert-circle-outline" size={64} color={colors.textMuted} />
           <Text style={styles.errorText}>Community not found</Text>
           <Pressable style={styles.backButton} onPress={onBack}>
             <Text style={styles.backButtonText}>Go Back</Text>
@@ -369,7 +511,7 @@ export function CommunityDetailScreen({
       {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.headerButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>{community.name}</Text>
         <View style={styles.headerButton} />
@@ -390,12 +532,12 @@ export function CommunityDetailScreen({
 
           <View style={styles.communityMeta}>
             <View style={styles.metaItem}>
-              <Ionicons name="people-outline" size={16} color={colors.mutedForeground} />
+              <Ionicons name="people-outline" size={16} color={colors.textMuted} />
               <Text style={styles.metaText}>{members.length} members</Text>
             </View>
             {community.isPrivate && (
               <View style={styles.metaItem}>
-                <Ionicons name="lock-closed-outline" size={16} color={colors.mutedForeground} />
+                <Ionicons name="lock-closed-outline" size={16} color={colors.textMuted} />
                 <Text style={styles.metaText}>Private</Text>
               </View>
             )}
@@ -417,6 +559,87 @@ export function CommunityDetailScreen({
           </View>
         </View>
 
+        {/* Members to Connect With - Horizontal Carousel */}
+        {user && memberSuggestions.length > 0 && (
+          <View style={styles.membersCarousel}>
+            <View style={styles.carouselHeader}>
+              <Ionicons name="people" size={18} color={colors.primary || '#5C6B5E'} />
+              <Text style={styles.carouselTitle}>Members to Connect With</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselScroll}
+            >
+              {memberSuggestions.map((suggestion) => {
+                const isFollowing = followingIds.has(suggestion.id);
+                return (
+                  <View key={suggestion.id} style={styles.suggestionCard}>
+                    {/* Hide Button */}
+                    <Pressable
+                      style={styles.hideButton}
+                      onPress={() => handleHideSuggestion(suggestion.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="close" size={14} color={colors.textMuted} />
+                    </Pressable>
+
+                    {/* Avatar */}
+                    <Pressable onPress={() => handleUserPress(suggestion.id)}>
+                      <Image
+                        source={{
+                          uri: suggestion.avatarUrl ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(suggestion.displayName || suggestion.username)}&background=random`
+                        }}
+                        style={styles.suggestionAvatar}
+                      />
+                    </Pressable>
+
+                    {/* Name */}
+                    <Text style={styles.suggestionName} numberOfLines={1}>
+                      {suggestion.displayName || suggestion.username}
+                    </Text>
+
+                    {/* Username */}
+                    <Text style={styles.suggestionUsername} numberOfLines={1}>
+                      @{suggestion.username}
+                    </Text>
+
+                    {/* Reason */}
+                    {suggestion.reason && (
+                      <Text style={styles.suggestionReason} numberOfLines={1}>
+                        {suggestion.reason}
+                      </Text>
+                    )}
+
+                    {/* Follow Button */}
+                    <Pressable
+                      style={[
+                        styles.followButton,
+                        isFollowing && styles.followingButton,
+                      ]}
+                      onPress={() => !isFollowing && handleFollowSuggestion(suggestion.id)}
+                      disabled={isFollowing}
+                    >
+                      <Ionicons
+                        name={isFollowing ? 'checkmark' : 'person-add'}
+                        size={14}
+                        color={isFollowing ? '#27AE60' : '#fff'}
+                      />
+                      <Text style={[
+                        styles.followButtonText,
+                        isFollowing && styles.followingButtonText,
+                      ]}>
+                        {isFollowing ? 'Following' : 'Follow'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Tabs */}
         <View style={styles.tabs}>
           <Pressable
@@ -425,6 +648,14 @@ export function CommunityDetailScreen({
           >
             <Text style={[styles.tabText, activeTab === 'wall' && styles.tabTextActive]}>
               Wall
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, activeTab === 'prayers' && styles.tabActive]}
+            onPress={() => setActiveTab('prayers')}
+          >
+            <Text style={[styles.tabText, activeTab === 'prayers' && styles.tabTextActive]}>
+              Prayers
             </Text>
           </Pressable>
           <Pressable
@@ -446,7 +677,7 @@ export function CommunityDetailScreen({
                 <TextInput
                   style={styles.postInput}
                   placeholder="Share something with the community..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   multiline
                   numberOfLines={3}
                   value={postContent}
@@ -470,16 +701,116 @@ export function CommunityDetailScreen({
             {/* Wall Posts */}
             {loadingPosts ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#222D99" />
+                <ActivityIndicator size="small" color="#5C6B5E" />
               </View>
             ) : wallPosts.length > 0 ? (
               wallPosts.map(post => <WallPostCard key={post.id} post={post} colors={colors} />)
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="chatbubbles-outline" size={48} color={colors.mutedForeground} />
+                <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />
                 <Text style={styles.emptyText}>No posts yet</Text>
                 <Text style={styles.emptySubtext}>
                   {isMember ? 'Be the first to post!' : 'Join to see posts'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Prayer Requests Tab */}
+        {activeTab === 'prayers' && (
+          <View>
+            {/* Create Prayer Request (Members Only) */}
+            {isMember && (
+              <View style={styles.createPostContainer}>
+                <TextInput
+                  style={styles.postInput}
+                  placeholder="Prayer request title..."
+                  placeholderTextColor={colors.textMuted}
+                  value={prayerTitle}
+                  onChangeText={setPrayerTitle}
+                />
+                <TextInput
+                  style={styles.postInput}
+                  placeholder="Share your prayer request with the community..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={3}
+                  value={prayerContent}
+                  onChangeText={setPrayerContent}
+                />
+                <Pressable
+                  style={[
+                    styles.postButton,
+                    (!prayerTitle.trim() || !prayerContent.trim()) && styles.postButtonDisabled,
+                  ]}
+                  onPress={handleCreatePrayer}
+                  disabled={!prayerTitle.trim() || !prayerContent.trim() || createPrayerMutation.isPending}
+                >
+                  <Text style={styles.postButtonText}>
+                    {createPrayerMutation.isPending ? 'Posting...' : 'Post Prayer Request'}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Prayer Requests List */}
+            {loadingPrayers ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#5C6B5E" />
+              </View>
+            ) : prayerRequests.length > 0 ? (
+              prayerRequests.map(prayer => (
+                <View key={prayer.id} style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: colors.surfaceMuted,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Ionicons name="heart-outline" size={20} color="#5C6B5E" />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 4 }}>
+                        {prayer.title}
+                      </Text>
+                      <Text style={{ fontSize: 15, lineHeight: 20, color: colors.textPrimary, marginBottom: 8 }}>
+                        {prayer.content}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="heart" size={16} color="#E74C3C" />
+                          <Text style={{ fontSize: 13, color: colors.textMuted }}>
+                            {prayer.prayerCount || 0} prayers
+                          </Text>
+                        </View>
+                        {prayer.author && !prayer.isAnonymous && (
+                          <Text style={{ fontSize: 13, color: colors.textMuted }}>
+                            by {prayer.author.displayName || prayer.author.username}
+                          </Text>
+                        )}
+                        {prayer.isAnonymous && (
+                          <Text style={{ fontSize: 13, color: colors.textMuted }}>
+                            Anonymous
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="heart-outline" size={48} color={colors.textMuted} />
+                <Text style={styles.emptyText}>No prayer requests yet</Text>
+                <Text style={styles.emptySubtext}>
+                  {isMember ? 'Be the first to request prayer!' : 'Join to see prayer requests'}
                 </Text>
               </View>
             )}
@@ -491,7 +822,7 @@ export function CommunityDetailScreen({
           <View>
             {loadingMembers ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#222D99" />
+                <ActivityIndicator size="small" color="#5C6B5E" />
               </View>
             ) : (
               members.map(member => (
@@ -501,7 +832,7 @@ export function CommunityDetailScreen({
                       width: 40,
                       height: 40,
                       borderRadius: 20,
-                      backgroundColor: colors.muted,
+                      backgroundColor: colors.surfaceMuted,
                       justifyContent: 'center',
                       alignItems: 'center',
                     }}
@@ -513,7 +844,7 @@ export function CommunityDetailScreen({
 
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary }}>
                         {member.user.displayName || member.user.username}
                       </Text>
                       {member.role === 'owner' && (
@@ -527,10 +858,10 @@ export function CommunityDetailScreen({
                         </View>
                       )}
                       {member.userId === user?.id && (
-                        <Text style={{ fontSize: 13, color: colors.mutedForeground }}>(You)</Text>
+                        <Text style={{ fontSize: 13, color: colors.textMuted }}>(You)</Text>
                       )}
                     </View>
-                    <Text style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 2 }}>
+                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
                       @{member.user.username}
                     </Text>
                   </View>
@@ -560,9 +891,9 @@ const getStyles = (colors: any) =>
       justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     headerButton: {
       width: 40,
@@ -573,7 +904,7 @@ const getStyles = (colors: any) =>
     headerTitle: {
       fontSize: 17,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     content: {
       flex: 1,
@@ -587,7 +918,7 @@ const getStyles = (colors: any) =>
     loadingText: {
       marginTop: 12,
       fontSize: 16,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     errorContainer: {
       flex: 1,
@@ -599,13 +930,13 @@ const getStyles = (colors: any) =>
       marginTop: 16,
       fontSize: 18,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     backButton: {
       marginTop: 24,
       paddingHorizontal: 24,
       paddingVertical: 12,
-      backgroundColor: '#222D99',
+      backgroundColor: '#5C6B5E',
       borderRadius: 20,
     },
     backButtonText: {
@@ -616,9 +947,9 @@ const getStyles = (colors: any) =>
     communityHeader: {
       alignItems: 'center',
       padding: 24,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     communityIcon: {
       width: 80,
@@ -631,14 +962,14 @@ const getStyles = (colors: any) =>
     communityName: {
       fontSize: 24,
       fontWeight: '700',
-      color: colors.foreground,
+      color: colors.textPrimary,
       marginBottom: 8,
       textAlign: 'center',
     },
     communityDescription: {
       fontSize: 15,
       lineHeight: 20,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
       textAlign: 'center',
       marginBottom: 16,
     },
@@ -654,7 +985,7 @@ const getStyles = (colors: any) =>
     },
     metaText: {
       fontSize: 14,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     actionButtons: {
       flexDirection: 'row',
@@ -666,13 +997,13 @@ const getStyles = (colors: any) =>
       paddingVertical: 12,
       borderRadius: 20,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSubtle,
       alignItems: 'center',
     },
     leaveButtonText: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     createEventButton: {
       flex: 1,
@@ -682,7 +1013,7 @@ const getStyles = (colors: any) =>
       gap: 6,
       paddingVertical: 12,
       borderRadius: 20,
-      backgroundColor: '#222D99',
+      backgroundColor: '#5C6B5E',
     },
     createEventButtonText: {
       fontSize: 15,
@@ -691,9 +1022,9 @@ const getStyles = (colors: any) =>
     },
     tabs: {
       flexDirection: 'row',
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     tab: {
       flex: 1,
@@ -703,41 +1034,41 @@ const getStyles = (colors: any) =>
       borderBottomColor: 'transparent',
     },
     tabActive: {
-      borderBottomColor: '#222D99',
+      borderBottomColor: '#5C6B5E',
     },
     tabText: {
       fontSize: 15,
       fontWeight: '500',
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     tabTextActive: {
-      color: '#222D99',
+      color: '#5C6B5E',
       fontWeight: '600',
     },
     createPostContainer: {
       padding: 16,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     postInput: {
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
       borderRadius: 12,
       padding: 12,
       fontSize: 15,
-      color: colors.foreground,
+      color: colors.textPrimary,
       minHeight: 80,
       textAlignVertical: 'top',
       marginBottom: 12,
     },
     postButton: {
-      backgroundColor: '#222D99',
+      backgroundColor: '#5C6B5E',
       paddingVertical: 12,
       borderRadius: 20,
       alignItems: 'center',
     },
     postButtonDisabled: {
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
     },
     postButtonText: {
       fontSize: 15,
@@ -752,20 +1083,20 @@ const getStyles = (colors: any) =>
       marginTop: 16,
       fontSize: 16,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     emptySubtext: {
       marginTop: 4,
       fontSize: 14,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     memberCard: {
       flexDirection: 'row',
       alignItems: 'center',
       padding: 16,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     roleBadge: {
       paddingHorizontal: 8,
@@ -780,5 +1111,98 @@ const getStyles = (colors: any) =>
       fontSize: 11,
       fontWeight: '600',
       color: '#92400E',
+    },
+    // Members to Connect With carousel styles
+    membersCarousel: {
+      backgroundColor: colors.surface,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    carouselHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      marginBottom: 12,
+    },
+    carouselTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    carouselScroll: {
+      paddingHorizontal: 12,
+      gap: 12,
+    },
+    suggestionCard: {
+      width: 140,
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 16,
+      padding: 16,
+      alignItems: 'center',
+      position: 'relative',
+    },
+    hideButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1,
+    },
+    suggestionAvatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.borderSubtle,
+      marginBottom: 8,
+    },
+    suggestionName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: 2,
+    },
+    suggestionUsername: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginBottom: 4,
+    },
+    suggestionReason: {
+      fontSize: 11,
+      color: colors.textSecondary || colors.textMuted,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    followButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      backgroundColor: '#5C6B5E',
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      marginTop: 4,
+    },
+    followingButton: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: '#27AE60',
+    },
+    followButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#fff',
+    },
+    followingButtonText: {
+      color: '#27AE60',
     },
   });

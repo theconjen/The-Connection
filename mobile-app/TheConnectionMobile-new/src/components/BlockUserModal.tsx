@@ -3,7 +3,7 @@ import { View, Modal, Pressable, ScrollView, Alert, StyleSheet } from 'react-nat
 import { Text, useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../lib/apiClient';
+import { safetyAPI } from '../lib/apiClient';
 
 interface BlockUserModalProps {
   visible: boolean;
@@ -25,13 +25,10 @@ export function BlockUserModal({ visible, onClose, userId, username }: BlockUser
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
   const blockMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.post('/api/blocks', {
-        userId,
-        reason: selectedReason,
-      });
-      return response.data;
-    },
+    mutationFn: () => safetyAPI.blockUser({
+      userId,
+      reason: selectedReason || undefined,
+    }),
     onSuccess: () => {
       Alert.alert('User Blocked', `You have blocked @${username}.`);
       queryClient.invalidateQueries({ queryKey: ['/api/blocked-users'] });

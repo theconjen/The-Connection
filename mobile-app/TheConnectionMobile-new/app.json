@@ -1,16 +1,16 @@
 {
   "expo": {
     "name": "The Connection",
-    "slug": "theconnection",
+    "slug": "the-connection",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "theconnection",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a7a8a"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -18,22 +18,93 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.theconnection.mobile",
-      "buildNumber": "5"
+      "buildNumber": "2",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
+        "NSCameraUsageDescription": "The Connection needs access to your camera to upload photos for your profile and posts.",
+        "NSPhotoLibraryUsageDescription": "The Connection needs access to your photo library to upload photos for your profile and posts.",
+        "NSPhotoLibraryAddUsageDescription": "The Connection needs access to save photos to your library.",
+        "NSCalendarsUsageDescription": "The Connection needs access to your calendar to add events you're attending.",
+        "NSUserNotificationsUsageDescription": "The Connection needs to send you notifications about community posts, events, and messages.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSAllowsLocalNetworking": true
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a2a4a"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "app.theconnection.mobile"
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The Connection needs access to your photos to share images in posts."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "The Connection needs your location to show nearby events and add location to posts.",
+          "locationWhenInUsePermission": "The Connection needs your location to show nearby events and add location to posts."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1a2a4a"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-font"
     ],
     "extra": {
+      "apiBase": "https://api.theconnection.app",
+      "router": {
+        "origin": "https://app.theconnection.app"
+      },
       "eas": {
         "projectId": "c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
-      }
-    }
+      },
+      "sentryDsn": "https://50195a543d2fcd9402cf365144b55262@o4510395566718976.ingest.us.sentry.io/4510395580219392",
+      "sentryOrg": "the-connection",
+      "sentryProject": "the-connection"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c11dcfad-026c-4c8d-8dca-bec9e2bc049a"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "owner": "the-connection-app"
   }
 }

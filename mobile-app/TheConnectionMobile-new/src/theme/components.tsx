@@ -18,7 +18,7 @@ import {
   PressableProps,
   ActivityIndicator,
 } from 'react-native';
-import { useTheme, Theme } from './ThemeProvider';
+import { useTheme, Theme } from '../contexts/ThemeContext';
 
 // ============================================================================
 // TEXT COMPONENT
@@ -43,14 +43,29 @@ const textVariantStyles: Record<TextVariant, (theme: Theme) => TextStyle> = {
   caption: (t) => ({ fontSize: t.typeScale.xs }),
 };
 
-export function Text({ children, variant = 'body', color = 'foreground', style, numberOfLines }: TextProps) {
+export function Text({ children, variant = 'body', color = 'textPrimary', style, numberOfLines }: TextProps) {
   const theme = useTheme();
   const variantStyle = textVariantStyles[variant](theme);
-  
+  const resolvedColor = theme.colors[color] as string;
+
+  // Determine font family based on weight in style (using Figtree instead of Playfair Display)
+  const getFontFamily = (styleObj: any) => {
+    if (!styleObj) return 'Figtree-Regular';
+    const weight = styleObj.fontWeight;
+    if (weight === '700' || weight === 'bold') return 'Figtree-Bold';
+    if (weight === '600') return 'Figtree-SemiBold';
+    if (weight === '500') return 'Figtree-Medium';
+    if (weight === '400' || weight === 'normal') return 'Figtree-Regular';
+    return 'Figtree-Regular';
+  };
+
   return (
     <RNText
       style={[
-        { color: theme.colors[color] as string },
+        {
+          color: resolvedColor,
+          fontFamily: getFontFamily(variantStyle),
+        },
         variantStyle,
         style,
       ]}
@@ -78,7 +93,7 @@ export function Card({ children, style, shadow = 'md' }: CardProps) {
     <View
       style={[
         {
-          backgroundColor: theme.colors.card,
+          backgroundColor: theme.colors.surface,
           borderRadius: theme.radii.lg,
           padding: theme.spacing.lg,
           borderWidth: 1,
@@ -135,9 +150,9 @@ export function Button({
       case 'secondary':
         return { bg: theme.colors.secondary, text: theme.colors.secondaryForeground };
       case 'outline':
-        return { bg: 'transparent', text: theme.colors.primary, border: theme.colors.border };
+        return { bg: 'transparent', text: theme.colors.primary, border: theme.colors.borderSubtle };
       case 'ghost':
-        return { bg: 'transparent', text: theme.colors.foreground };
+        return { bg: 'transparent', text: theme.colors.textPrimary };
       case 'destructive':
         return { bg: theme.colors.destructive, text: theme.colors.destructiveForeground };
       default:
@@ -157,7 +172,7 @@ export function Button({
           paddingVertical: sizeConfig.paddingVertical,
           paddingHorizontal: sizeConfig.paddingHorizontal,
           borderWidth: variantStyles.border ? 1 : 0,
-          borderColor: variantStyles.border,
+          borderColor: variantStyles.border || theme.colors.borderSubtle,
           opacity: isDisabled ? 0.5 : pressed ? 0.8 : 1,
           flexDirection: 'row',
           alignItems: 'center',
@@ -201,7 +216,7 @@ export function Input({ label, error, containerStyle, style, ...props }: InputPr
   return (
     <View style={[{ gap: theme.spacing.xs }, containerStyle]}>
       {label && (
-        <Text variant="label" color="foreground">
+        <Text variant="label" color="textPrimary">
           {label}
         </Text>
       )}
@@ -210,16 +225,16 @@ export function Input({ label, error, containerStyle, style, ...props }: InputPr
           {
             backgroundColor: theme.colors.background,
             borderWidth: 1,
-            borderColor: error ? theme.colors.destructive : theme.colors.border,
+            borderColor: error ? theme.colors.destructive : theme.colors.borderSubtle,
             borderRadius: theme.radii.md,
             paddingVertical: theme.spacing.md,
             paddingHorizontal: theme.spacing.lg,
             fontSize: theme.typeScale.md,
-            color: theme.colors.foreground,
+            color: theme.colors.textPrimary,
           },
           style,
         ]}
-        placeholderTextColor={theme.colors.mutedForeground}
+        placeholderTextColor={theme.colors.textMuted}
         {...props}
       />
       {error && (
@@ -247,7 +262,7 @@ export function Divider({ style }: DividerProps) {
       style={[
         {
           height: 1,
-          backgroundColor: theme.colors.border,
+          backgroundColor: theme.colors.borderSubtle,
           marginVertical: theme.spacing.md,
         },
         style,
@@ -303,7 +318,7 @@ export function Badge({ children, variant = 'default', style }: BadgeProps) {
   const getVariantStyles = (): { bg: string; text: string } => {
     switch (variant) {
       case 'secondary':
-        return { bg: theme.colors.muted, text: theme.colors.mutedForeground };
+        return { bg: theme.colors.muted, text: theme.colors.textMuted };
       case 'success':
         return { bg: theme.colors.success, text: theme.colors.successForeground };
       case 'destructive':

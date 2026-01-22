@@ -20,8 +20,9 @@ export interface UserProfile {
     followersCount: number;
     followingCount: number;
     communitiesCount: number;
-    postsCount: number;
-    microblogsCount: number;
+    postsCount: number; // Total posts (forum + microblogs)
+    forumPostsCount: number; // Just forum posts
+    feedPostsCount: number; // Just microblogs (feed posts)
   };
   communities: any[];
   recentPosts: any[];

@@ -46,13 +46,22 @@ interface Post {
   createdAt: string;
 }
 
+interface ApologeticsQA {
+  id: string;
+  question: string;
+  areaName: string;
+  tagName?: string;
+  answer: string;
+  sources?: string[];
+}
+
 export default function BookmarksScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'feed' | 'forum'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'forum' | 'apologetics'>('feed');
 
   const colors = {
     background: isDark ? '#000000' : '#FFFFFF',
@@ -95,14 +104,40 @@ export default function BookmarksScreen() {
     enabled: !!user && activeTab === 'forum',
   });
 
+  // Fetch bookmarked apologetics Q&A
+  const {
+    data: bookmarkedApologetics = [],
+    isLoading: isLoadingApologetics,
+    refetch: refetchApologetics,
+  } = useQuery<ApologeticsQA[]>({
+    queryKey: ['/api/apologetics/bookmarks/full'],
+    queryFn: async () => {
+      // First get the bookmarked IDs
+      const bookmarksResponse = await apiClient.get<string[]>('/api/apologetics/bookmarks');
+      const bookmarkedIds = bookmarksResponse.data;
+
+      if (bookmarkedIds.length === 0) return [];
+
+      // Then fetch each Q&A detail
+      const qaPromises = bookmarkedIds.map(id =>
+        apiClient.get(`/api/apologetics/questions/${id}`)
+      );
+      const qaResponses = await Promise.all(qaPromises);
+      return qaResponses.map(r => r.data);
+    },
+    enabled: !!user && activeTab === 'apologetics',
+  });
+
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
     if (activeTab === 'feed') {
       await refetchMicroblogs();
-    } else {
+    } else if (activeTab === 'forum') {
       await refetchPosts();
+    } else {
+      await refetchApologetics();
     }
     setRefreshing(false);
   };
@@ -124,6 +159,16 @@ export default function BookmarksScreen() {
       queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
     } catch (error) {
       console.error('Error unbookmarking post:', error);
+    }
+  };
+
+  const handleUnbookmarkApologetics = async (questionId: string) => {
+    try {
+      await apiClient.delete(`/api/apologetics/bookmarks/${questionId}`);
+      queryClient.invalidateQueries({ queryKey: ['/api/apologetics/bookmarks/full'] });
+      queryClient.invalidateQueries({ queryKey: ['apologetics-bookmarks'] });
+    } catch (error) {
+      console.error('Error unbookmarking apologetics Q&A:', error);
     }
   };
 
@@ -208,6 +253,57 @@ export default function BookmarksScreen() {
     </View>
   );
 
+  const renderApologeticsItem = (qa: ApologeticsQA) => (
+    <Pressable
+      key={qa.id}
+      style={styles.postCard}
+      onPress={() => router.push(`/apologetics/${qa.id}` as any)}
+    >
+      <View style={styles.postHeader}>
+        <View style={styles.apologeticsBadge}>
+          <Ionicons name="book" size={14} color={colors.primary} />
+          <Text style={styles.forumBadgeText}>Apologetics</Text>
+        </View>
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            handleUnbookmarkApologetics(qa.id);
+          }}
+          style={styles.unbookmarkButton}
+        >
+          <Ionicons name="bookmark" size={20} color={colors.primary} />
+        </Pressable>
+      </View>
+
+      <Text style={styles.postTitle}>{qa.question}</Text>
+
+      {qa.areaName && (
+        <View style={styles.qaMetadata}>
+          <Text style={styles.qaAreaText}>{qa.areaName}</Text>
+          {qa.tagName && (
+            <>
+              <Text style={styles.qaMetadataDivider}>•</Text>
+              <Text style={styles.qaTagText}>{qa.tagName}</Text>
+            </>
+          )}
+        </View>
+      )}
+
+      <Text style={styles.postContent} numberOfLines={3}>
+        {qa.answer}
+      </Text>
+
+      {qa.sources && qa.sources.length > 0 && (
+        <View style={styles.sourcesIndicator}>
+          <Ionicons name="document-text-outline" size={14} color={colors.textSecondary} />
+          <Text style={styles.sourcesText}>
+            {qa.sources.length} {qa.sources.length === 1 ? 'source' : 'sources'}
+          </Text>
+        </View>
+      )}
+    </Pressable>
+  );
+
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Ionicons name="bookmark-outline" size={64} color={colors.textSecondary} />
@@ -215,13 +311,27 @@ export default function BookmarksScreen() {
       <Text style={styles.emptyStateText}>
         {activeTab === 'feed'
           ? 'Bookmark posts from your feed to save them for later'
-          : 'Bookmark forum posts to save them for later'}
+          : activeTab === 'forum'
+          ? 'Bookmark forum posts to save them for later'
+          : 'Bookmark Q&A entries from Apologetics to save them for later'}
       </Text>
     </View>
   );
 
-  const isLoading = activeTab === 'feed' ? isLoadingMicroblogs : isLoadingPosts;
-  const data = activeTab === 'feed' ? bookmarkedMicroblogs : bookmarkedPosts;
+  const isLoading =
+    activeTab === 'feed'
+      ? isLoadingMicroblogs
+      : activeTab === 'forum'
+      ? isLoadingPosts
+      : isLoadingApologetics;
+
+  const data =
+    activeTab === 'feed'
+      ? bookmarkedMicroblogs
+      : activeTab === 'forum'
+      ? bookmarkedPosts
+      : bookmarkedApologetics;
+
   const isEmpty = !isLoading && data.length === 0;
 
   return (
@@ -232,7 +342,7 @@ export default function BookmarksScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>Bookmarks</Text>
@@ -281,6 +391,25 @@ export default function BookmarksScreen() {
             Forums
           </Text>
         </Pressable>
+
+        <Pressable
+          style={[styles.tab, activeTab === 'apologetics' && styles.tabActive]}
+          onPress={() => setActiveTab('apologetics')}
+        >
+          <Ionicons
+            name="book"
+            size={20}
+            color={activeTab === 'apologetics' ? colors.tabActive : colors.tabInactive}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'apologetics' ? styles.tabTextActive : styles.tabTextInactive,
+            ]}
+          >
+            Q&A
+          </Text>
+        </Pressable>
       </View>
 
       {/* Content */}
@@ -296,8 +425,10 @@ export default function BookmarksScreen() {
           renderEmptyState()
         ) : activeTab === 'feed' ? (
           bookmarkedMicroblogs.map(renderMicroblogItem)
-        ) : (
+        ) : activeTab === 'forum' ? (
           bookmarkedPosts.map(renderPostItem)
+        ) : (
+          bookmarkedApologetics.map(renderApologeticsItem)
         )}
       </ScrollView>
     </SafeAreaView>
@@ -316,7 +447,7 @@ function getStyles(colors: any, isDark: boolean) {
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
       gap: 12,
     },
     backButton: {
@@ -332,7 +463,7 @@ function getStyles(colors: any, isDark: boolean) {
     headerTitle: {
       fontSize: 24,
       fontWeight: '700',
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 4,
     },
     headerSubtitle: {
@@ -342,7 +473,7 @@ function getStyles(colors: any, isDark: boolean) {
     tabs: {
       flexDirection: 'row',
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     tab: {
       flex: 1,
@@ -372,8 +503,8 @@ function getStyles(colors: any, isDark: boolean) {
     postCard: {
       padding: 16,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      backgroundColor: colors.cardBackground,
+      borderBottomColor: colors.borderSubtle,
+      backgroundColor: colors.surfaceBackground,
     },
     postHeader: {
       flexDirection: 'row',
@@ -400,7 +531,7 @@ function getStyles(colors: any, isDark: boolean) {
     authorName: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textPrimary,
     },
     timestamp: {
       fontSize: 13,
@@ -426,13 +557,13 @@ function getStyles(colors: any, isDark: boolean) {
     postTitle: {
       fontSize: 17,
       fontWeight: '700',
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 8,
     },
     postContent: {
       fontSize: 15,
       lineHeight: 20,
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 12,
     },
     postStats: {
@@ -463,13 +594,52 @@ function getStyles(colors: any, isDark: boolean) {
     emptyStateTitle: {
       fontSize: 20,
       fontWeight: '700',
-      color: colors.text,
+      color: colors.textPrimary,
     },
     emptyStateText: {
       fontSize: 15,
       textAlign: 'center',
       color: colors.textSecondary,
       lineHeight: 20,
+    },
+    apologeticsBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
+      borderRadius: 12,
+    },
+    qaMetadata: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 8,
+    },
+    qaAreaText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    qaMetadataDivider: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    qaTagText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      fontWeight: '400',
+    },
+    sourcesIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 8,
+    },
+    sourcesText: {
+      fontSize: 12,
+      color: colors.textSecondary,
     },
   });
 }

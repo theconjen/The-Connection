@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 7.0.0"
+    "version": ">= 7.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -9,18 +10,14 @@
       "ios": {
         "resourceClass": "m-medium"
       },
-      "env": {
-        "APP_ENV": "development"
-      }
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "ios": {
         "simulator": true
       },
-      "env": {
-        "APP_ENV": "preview"
-      }
+      "channel": "preview"
     },
     "production": {
       "ios": {
@@ -29,18 +26,15 @@
       "android": {
         "buildType": "apk"
       },
-      "env": {
-        "APP_ENV": "production",
-        "API_URL": "https://api.theconnection.app/api"
-      }
+      "channel": "production"
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "your-apple-id@email.com",
-        "ascAppId": "your-app-store-connect-app-id",
-        "appleTeamId": "your-team-id"
+        "appleId": "janelleselou2@yahoo.com",
+        "ascAppId": "6755203547",
+        "appleTeamId": "AN976FH68W"
       },
       "android": {
         "serviceAccountKeyPath": "./path-to-service-account.json",

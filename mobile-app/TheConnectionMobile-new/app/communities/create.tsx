@@ -1,7 +1,7 @@
 /**
  * Create Community Screen
  * Full-page form to create a new community
- * DARK MODE OPTIMIZED - All colors hardcoded for accessibility
+ * Uses dynamic theming from ThemeContext
  */
 
 import React, { useState } from 'react';
@@ -24,37 +24,7 @@ import { communitiesAPI } from '../../src/lib/apiClient';
 import { Ionicons } from '@expo/vector-icons';
 import { geocodeAddress, getCurrentLocation, requestLocationPermission } from '../../src/lib/locationService';
 import * as Location from 'expo-location';
-
-// Dark Mode Color Constants - Single source of truth
-const COLORS = {
-  // Backgrounds
-  background: '#0A0A0C',
-  surface: '#151518',
-  surfaceElevated: '#1A1A1E',
-  surfaceDropdown: '#1E1E24',
-
-  // Text
-  textPrimary: '#FFFFFF',
-  textSecondary: '#E8E4DC',
-  textMuted: '#9A9A9A',
-  textPlaceholder: '#6A6A6A',
-
-  // Borders
-  borderSubtle: '#2A2A30',
-  borderVisible: '#3A3A42',
-  borderFocus: '#D4A860',
-
-  // Accents
-  gold: '#D4A860',
-  goldMuted: '#4A3D28',
-  amber: '#2D2518',
-  success: '#10B981',
-
-  // Interactive
-  chevron: '#8A8A8A',
-  toggleTrackOff: '#3A3A42',
-  toggleThumb: '#FFFFFF',
-};
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 // Icon options for communities
 const ICON_OPTIONS = [
@@ -81,6 +51,8 @@ const COLOR_OPTIONS = [
 export default function CreateCommunityScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { colors, colorScheme } = useTheme();
+  const styles = getThemedStyles(colors, colorScheme);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -94,26 +66,15 @@ export default function CreateCommunityScreen() {
   const [isGeocodingLocation, setIsGeocodingLocation] = useState(false);
   const [geocodedCoordinates, setGeocodedCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  // Check if form is valid
   const isFormValid = name.trim().length >= 3 && description.trim().length >= 10;
 
-  // Create community mutation
   const createMutation = useMutation({
-    mutationFn: (data: any) => {
-      return communitiesAPI.create(data);
-    },
+    mutationFn: (data: any) => communitiesAPI.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['communities'] });
-      Alert.alert(
-        'Success',
-        'Your community has been created!',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
-      );
+      Alert.alert('Success', 'Your community has been created!', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
     },
     onError: (error: any) => {
       console.error('Community creation error:', error);
@@ -134,14 +95,12 @@ export default function CreateCommunityScreen() {
         setIsGeocodingLocation(false);
         return;
       }
-
       const coords = await getCurrentLocation();
       if (!coords) {
         Alert.alert('Error', 'Could not get your current location. Please try again.');
         setIsGeocodingLocation(false);
         return;
       }
-
       const [result] = await Location.reverseGeocodeAsync(coords);
       if (result) {
         const address = [result.city, result.region].filter(Boolean).join(', ');
@@ -165,7 +124,6 @@ export default function CreateCommunityScreen() {
       setGeocodedCoordinates(null);
       return;
     }
-
     setIsGeocodingLocation(true);
     try {
       const result = await geocodeAddress(location.trim());
@@ -173,14 +131,10 @@ export default function CreateCommunityScreen() {
         setGeocodedCoordinates(result.coordinates);
         Alert.alert('Location Confirmed', `Your community will be discoverable near: ${location.trim()}`);
       } else {
-        Alert.alert(
-          'Location Not Found',
-          'We couldn\'t find this location. Please check the spelling or try a different location.',
-          [
-            { text: 'Keep Anyway', style: 'cancel' },
-            { text: 'Clear', onPress: () => { setLocation(''); setGeocodedCoordinates(null); } }
-          ]
-        );
+        Alert.alert('Location Not Found', 'We couldn\'t find this location.', [
+          { text: 'Keep Anyway', style: 'cancel' },
+          { text: 'Clear', onPress: () => { setLocation(''); setGeocodedCoordinates(null); } }
+        ]);
       }
     } catch (error) {
       console.error('Error geocoding location:', error);
@@ -192,7 +146,6 @@ export default function CreateCommunityScreen() {
 
   const handleCreate = async () => {
     if (!isFormValid) return;
-
     let finalCoordinates = geocodedCoordinates;
 
     if (location.trim() && !geocodedCoordinates) {
@@ -204,16 +157,11 @@ export default function CreateCommunityScreen() {
           setGeocodedCoordinates(result.coordinates);
         } else {
           const shouldProceed = await new Promise<boolean>((resolve) => {
-            Alert.alert(
-              'Location Not Found',
-              'We couldn\'t find this location. Create community without a discoverable location?',
-              [
-                { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                { text: 'Create Anyway', onPress: () => resolve(true) }
-              ]
-            );
+            Alert.alert('Location Not Found', 'Create community without a discoverable location?', [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Create Anyway', onPress: () => resolve(true) }
+            ]);
           });
-
           if (!shouldProceed) {
             setIsGeocodingLocation(false);
             return;
@@ -228,7 +176,7 @@ export default function CreateCommunityScreen() {
       }
     }
 
-    const communityData = {
+    createMutation.mutate({
       name: name.trim(),
       description: description.trim(),
       iconName: selectedIcon,
@@ -238,21 +186,15 @@ export default function CreateCommunityScreen() {
       location: location.trim() || undefined,
       latitude: finalCoordinates?.latitude,
       longitude: finalCoordinates?.longitude,
-    };
-
-    createMutation.mutate(communityData);
+    });
   };
 
   const handleCancel = () => {
     if (name.trim() || description.trim()) {
-      Alert.alert(
-        'Discard Changes',
-        'Are you sure you want to discard your changes?',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => router.back() },
-        ]
-      );
+      Alert.alert('Discard Changes', 'Are you sure you want to discard your changes?', [
+        { text: 'Keep Editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+      ]);
     } else {
       router.back();
     }
@@ -262,49 +204,28 @@ export default function CreateCommunityScreen() {
   const selectedColorData = COLOR_OPTIONS.find(c => c.value === selectedColor);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={handleCancel}
-          disabled={createMutation.isPending}
-          style={styles.headerButton}
-        >
+        <TouchableOpacity onPress={handleCancel} disabled={createMutation.isPending} style={styles.headerButton}>
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
-
         <Text style={styles.title}>Create Community</Text>
-
-        <TouchableOpacity
-          onPress={handleCreate}
-          disabled={!isFormValid || createMutation.isPending}
-          style={styles.headerButton}
-        >
+        <TouchableOpacity onPress={handleCreate} disabled={!isFormValid || createMutation.isPending} style={styles.headerButton}>
           {createMutation.isPending ? (
-            <ActivityIndicator size="small" color={COLORS.gold} />
+            <ActivityIndicator size="small" color={colors.accent} />
           ) : (
-            <Text style={[
-              styles.createText,
-              (!isFormValid || createMutation.isPending) && styles.createTextDisabled
-            ]}>
+            <Text style={[styles.createText, (!isFormValid || createMutation.isPending) && styles.createTextDisabled]}>
               Create
             </Text>
           )}
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {/* Safety Warning Banner */}
         <View style={styles.warningBanner}>
-          <Ionicons name="alert-circle" size={22} color={COLORS.gold} style={styles.warningIcon} />
+          <Ionicons name="alert-circle" size={22} color={colorScheme === 'dark' ? '#F59E0B' : '#B26A00'} style={styles.warningIcon} />
           <Text style={styles.warningText}>
             For safety, avoid listing personal home addresses as meeting locations. Share only public meeting points or general areas.
           </Text>
@@ -318,7 +239,7 @@ export default function CreateCommunityScreen() {
             value={name}
             onChangeText={setName}
             placeholder="Bible Study Group"
-            placeholderTextColor={COLORS.textPlaceholder}
+            placeholderTextColor={colors.textTertiary}
             maxLength={100}
             editable={!createMutation.isPending}
             autoFocus
@@ -333,7 +254,7 @@ export default function CreateCommunityScreen() {
             value={description}
             onChangeText={setDescription}
             placeholder="A community for those interested in studying the Bible together"
-            placeholderTextColor={COLORS.textPlaceholder}
+            placeholderTextColor={colors.textTertiary}
             multiline
             numberOfLines={6}
             maxLength={500}
@@ -348,132 +269,82 @@ export default function CreateCommunityScreen() {
             <Text style={styles.label}>Location (Optional)</Text>
             {geocodedCoordinates && (
               <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
                 <Text style={styles.verifiedText}>Verified</Text>
               </View>
             )}
           </View>
-
           <View style={styles.locationInputGroup}>
             <View style={styles.inputWrapper}>
               <TextInput
                 style={[styles.input, geocodedCoordinates && styles.inputVerified]}
                 value={location}
-                onChangeText={(text) => {
-                  setLocation(text);
-                  setGeocodedCoordinates(null);
-                }}
+                onChangeText={(text) => { setLocation(text); setGeocodedCoordinates(null); }}
                 placeholder="e.g., Downtown Chicago, IL"
-                placeholderTextColor={COLORS.textPlaceholder}
+                placeholderTextColor={colors.textTertiary}
                 maxLength={200}
                 editable={!createMutation.isPending && !isGeocodingLocation}
               />
               {isGeocodingLocation && (
                 <View style={styles.loadingOverlay}>
-                  <ActivityIndicator size="small" color={COLORS.gold} />
+                  <ActivityIndicator size="small" color={colors.accent} />
                 </View>
               )}
             </View>
-
             <View style={styles.locationButtons}>
-              <TouchableOpacity
-                style={[styles.locationButton, { flex: 1 }]}
-                onPress={handleUseCurrentLocation}
-                disabled={createMutation.isPending || isGeocodingLocation}
-              >
-                <Ionicons name="navigate" size={16} color={COLORS.gold} />
+              <TouchableOpacity style={styles.locationButton} onPress={handleUseCurrentLocation} disabled={createMutation.isPending || isGeocodingLocation}>
+                <Ionicons name="navigate" size={16} color={colors.accent} />
                 <Text style={styles.locationButtonText}>Use My Location</Text>
               </TouchableOpacity>
-
               {location.trim().length > 0 && !geocodedCoordinates && (
-                <TouchableOpacity
-                  style={[styles.locationButton, { flex: 1 }]}
-                  onPress={handleGeocodeLocation}
-                  disabled={createMutation.isPending || isGeocodingLocation}
-                >
-                  <Ionicons name="location" size={16} color={COLORS.gold} />
+                <TouchableOpacity style={styles.locationButton} onPress={handleGeocodeLocation} disabled={createMutation.isPending || isGeocodingLocation}>
+                  <Ionicons name="location" size={16} color={colors.accent} />
                   <Text style={styles.locationButtonText}>Verify Location</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
-
           <Text style={styles.helpText}>
-            {geocodedCoordinates
-              ? 'Location verified! Your community will be discoverable by nearby users.'
-              : 'Enter a general area or city. This helps people find communities near them.'}
+            {geocodedCoordinates ? 'Location verified! Your community will be discoverable by nearby users.' : 'Enter a general area or city. This helps people find communities near them.'}
           </Text>
         </View>
 
         {/* Icon and Color Row */}
         <View style={styles.row}>
-          {/* Community Icon */}
           <View style={[styles.inputGroup, styles.halfWidth]}>
             <Text style={styles.label}>Community Icon</Text>
-            <TouchableOpacity
-              style={styles.picker}
-              onPress={() => setShowIconPicker(!showIconPicker)}
-              disabled={createMutation.isPending}
-            >
-              <Ionicons
-                name={selectedIconData?.icon as any}
-                size={20}
-                color={COLORS.textPrimary}
-                style={{ marginRight: 8 }}
-              />
+            <TouchableOpacity style={styles.picker} onPress={() => setShowIconPicker(!showIconPicker)} disabled={createMutation.isPending}>
+              <Ionicons name={selectedIconData?.icon as any} size={20} color={colors.textPrimary} style={{ marginRight: 8 }} />
               <Text style={styles.pickerText}>{selectedIconData?.label}</Text>
-              <Ionicons name="chevron-down" size={20} color={COLORS.chevron} style={{ marginLeft: 'auto' }} />
+              <Ionicons name="chevron-down" size={20} color={colors.textSecondary} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
             {showIconPicker && (
               <View style={styles.pickerDropdown}>
                 {ICON_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={styles.pickerOption}
-                    onPress={() => {
-                      setSelectedIcon(option.value);
-                      setShowIconPicker(false);
-                    }}
-                  >
-                    <Ionicons name={option.icon as any} size={20} color={COLORS.textPrimary} />
+                  <TouchableOpacity key={option.value} style={styles.pickerOption} onPress={() => { setSelectedIcon(option.value); setShowIconPicker(false); }}>
+                    <Ionicons name={option.icon as any} size={20} color={colors.textPrimary} />
                     <Text style={styles.pickerOptionText}>{option.label}</Text>
-                    {selectedIcon === option.value && (
-                      <Ionicons name="checkmark" size={20} color={COLORS.gold} style={{ marginLeft: 'auto' }} />
-                    )}
+                    {selectedIcon === option.value && <Ionicons name="checkmark" size={20} color={colors.accent} style={{ marginLeft: 'auto' }} />}
                   </TouchableOpacity>
                 ))}
               </View>
             )}
           </View>
 
-          {/* Community Color */}
           <View style={[styles.inputGroup, styles.halfWidth]}>
             <Text style={styles.label}>Community Color</Text>
-            <TouchableOpacity
-              style={styles.picker}
-              onPress={() => setShowColorPicker(!showColorPicker)}
-              disabled={createMutation.isPending}
-            >
+            <TouchableOpacity style={styles.picker} onPress={() => setShowColorPicker(!showColorPicker)} disabled={createMutation.isPending}>
               <View style={[styles.colorDot, { backgroundColor: selectedColorData?.color }]} />
               <Text style={styles.pickerText}>{selectedColorData?.label}</Text>
-              <Ionicons name="chevron-down" size={20} color={COLORS.chevron} style={{ marginLeft: 'auto' }} />
+              <Ionicons name="chevron-down" size={20} color={colors.textSecondary} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
             {showColorPicker && (
               <View style={styles.pickerDropdown}>
                 {COLOR_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={styles.pickerOption}
-                    onPress={() => {
-                      setSelectedColor(option.value);
-                      setShowColorPicker(false);
-                    }}
-                  >
+                  <TouchableOpacity key={option.value} style={styles.pickerOption} onPress={() => { setSelectedColor(option.value); setShowColorPicker(false); }}>
                     <View style={[styles.colorDot, { backgroundColor: option.color }]} />
                     <Text style={styles.pickerOptionText}>{option.label}</Text>
-                    {selectedColor === option.value && (
-                      <Ionicons name="checkmark" size={20} color={COLORS.gold} style={{ marginLeft: 'auto' }} />
-                    )}
+                    {selectedColor === option.value && <Ionicons name="checkmark" size={20} color={colors.accent} style={{ marginLeft: 'auto' }} />}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -487,17 +358,15 @@ export default function CreateCommunityScreen() {
             <View style={styles.toggleInfo}>
               <Text style={styles.toggleLabel}>Invite Only Community</Text>
               <Text style={styles.toggleDescription}>
-                {isInviteOnly
-                  ? 'Only invited members can join this community'
-                  : 'Anyone can discover and join this community freely'}
+                {isInviteOnly ? 'Only invited members can join this community' : 'Anyone can discover and join this community freely'}
               </Text>
             </View>
             <Switch
               value={isInviteOnly}
               onValueChange={setIsInviteOnly}
-              trackColor={{ false: COLORS.toggleTrackOff, true: COLORS.gold }}
-              thumbColor={COLORS.toggleThumb}
-              ios_backgroundColor={COLORS.toggleTrackOff}
+              trackColor={{ false: colors.borderSoft, true: colors.accent }}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor={colors.borderSoft}
               disabled={createMutation.isPending}
             />
           </View>
@@ -507,51 +376,24 @@ export default function CreateCommunityScreen() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Community Wall Settings</Text>
           <View style={styles.wallOptions}>
-            <TouchableOpacity
-              style={[
-                styles.wallOption,
-                wallSetting === 'public' && styles.wallOptionActive
-              ]}
-              onPress={() => setWallSetting('public')}
-              disabled={createMutation.isPending}
-            >
-              <Text style={[
-                styles.wallOptionText,
-                wallSetting === 'public' && styles.wallOptionTextActive
-              ]}>
-                Public Wall
-              </Text>
+            <TouchableOpacity style={[styles.wallOption, wallSetting === 'public' && styles.wallOptionActive]} onPress={() => setWallSetting('public')} disabled={createMutation.isPending}>
+              <Text style={[styles.wallOptionText, wallSetting === 'public' && styles.wallOptionTextActive]}>Public Wall</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.wallOption,
-                wallSetting === 'private' && styles.wallOptionActive
-              ]}
-              onPress={() => setWallSetting('private')}
-              disabled={createMutation.isPending}
-            >
-              <Text style={[
-                styles.wallOptionText,
-                wallSetting === 'private' && styles.wallOptionTextActive
-              ]}>
-                Private Wall
-              </Text>
+            <TouchableOpacity style={[styles.wallOption, wallSetting === 'private' && styles.wallOptionActive]} onPress={() => setWallSetting('private')} disabled={createMutation.isPending}>
+              <Text style={[styles.wallOptionText, wallSetting === 'private' && styles.wallOptionTextActive]}>Private Wall</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.helpText}>
-            Wall settings control where members can post content within the community.
-          </Text>
+          <Text style={styles.helpText}>Wall settings control where members can post content within the community.</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  // Container & Layout
+const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -560,8 +402,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-
-  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -569,43 +409,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderSubtle,
+    borderBottomColor: colors.borderSubtle,
   },
   headerButton: {
     minWidth: 60,
   },
   cancelText: {
     fontSize: 17,
-    color: COLORS.textSecondary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   createText: {
     fontSize: 17,
-    color: COLORS.gold,
+    color: colors.accent,
     fontWeight: '600',
     textAlign: 'right',
   },
   createTextDisabled: {
-    color: '#5A5A5A',
+    color: colors.textTertiary,
     opacity: 0.6,
   },
-
-  // Safety Warning Banner
   warningBanner: {
     flexDirection: 'row',
-    backgroundColor: COLORS.amber,
+    backgroundColor: colorScheme === 'dark' ? '#2D2518' : '#FEF3C7',
     borderRadius: 12,
     padding: 16,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: COLORS.goldMuted,
+    borderColor: colorScheme === 'dark' ? '#4A3C20' : '#FDE68A',
   },
   warningIcon: {
     marginRight: 12,
@@ -614,51 +452,43 @@ const styles = StyleSheet.create({
   warningText: {
     flex: 1,
     fontSize: 14,
-    color: COLORS.gold,
+    color: colorScheme === 'dark' ? '#FCD34D' : '#92400E',
     lineHeight: 20,
     fontWeight: '500',
   },
-
-  // Form Sections
   inputGroup: {
     marginBottom: 28,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 10,
     letterSpacing: 0.2,
   },
-
-  // Input Fields
   input: {
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     borderWidth: 1.5,
-    borderColor: COLORS.borderVisible,
+    borderColor: colors.borderSoft,
   },
   inputVerified: {
-    borderColor: COLORS.success,
+    borderColor: colors.success,
     borderWidth: 2,
   },
   textArea: {
     minHeight: 120,
     paddingTop: 16,
   },
-
-  // Helper Text
   helpText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textSecondary,
     marginTop: 10,
     lineHeight: 18,
   },
-
-  // Location Section
   locationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -672,7 +502,7 @@ const styles = StyleSheet.create({
   },
   verifiedText: {
     fontSize: 13,
-    color: COLORS.success,
+    color: colors.success,
     fontWeight: '600',
   },
   locationInputGroup: {
@@ -693,23 +523,22 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   locationButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 14,
     borderWidth: 1.5,
-    borderColor: COLORS.gold,
+    borderColor: colors.accent,
   },
   locationButtonText: {
     fontSize: 14,
-    color: COLORS.gold,
+    color: colors.accent,
     fontWeight: '600',
   },
-
-  // Layout
   row: {
     flexDirection: 'row',
     gap: 12,
@@ -719,31 +548,29 @@ const styles = StyleSheet.create({
     flex: 1,
     marginBottom: 0,
   },
-
-  // Dropdowns / Pickers
   picker: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1.5,
-    borderColor: COLORS.borderVisible,
+    borderColor: colors.borderSoft,
   },
   pickerText: {
     fontSize: 16,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   pickerDropdown: {
-    backgroundColor: COLORS.surfaceDropdown,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: COLORS.borderVisible,
+    borderColor: colors.borderSoft,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -753,11 +580,11 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderSubtle,
+    borderBottomColor: colors.borderSubtle,
   },
   pickerOptionText: {
     fontSize: 16,
-    color: COLORS.textSecondary,
+    color: colors.textPrimary,
   },
   colorDot: {
     width: 20,
@@ -765,15 +592,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginRight: 8,
   },
-
-  // Toggle Section
   toggleSection: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 18,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
+    borderColor: colors.borderSubtle,
   },
   toggleContent: {
     flexDirection: 'row',
@@ -787,39 +612,38 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 6,
   },
   toggleDescription: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textSecondary,
     lineHeight: 20,
   },
-
-  // Wall Options
   wallOptions: {
     flexDirection: 'row',
     gap: 12,
   },
   wallOption: {
     flex: 1,
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 2,
-    borderColor: COLORS.borderVisible,
+    borderColor: colors.borderSoft,
     alignItems: 'center',
   },
   wallOptionActive: {
-    backgroundColor: COLORS.gold,
-    borderColor: COLORS.gold,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   wallOptionText: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   wallOptionTextActive: {
-    color: COLORS.background,
+    color: '#FFFFFF',
   },
+  success: colors.success,
 });

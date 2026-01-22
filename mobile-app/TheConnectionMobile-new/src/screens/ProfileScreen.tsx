@@ -47,7 +47,7 @@ export function ProfileScreen({
   userDenomination = '',
   onSaveProfile,
 }: ProfileScreenProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, colorScheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
 
   // Edit form state
@@ -85,10 +85,8 @@ export function ProfileScreen({
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar
-        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <PageHeader
         title="Profile"
@@ -109,7 +107,7 @@ export function ProfileScreen({
       />
 
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.surface }}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         {/* Profile Header */}
@@ -117,9 +115,9 @@ export function ProfileScreen({
           style={{
             alignItems: 'center',
             paddingVertical: spacing.xl,
-            backgroundColor: colors.card,
+            backgroundColor: colors.surface,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
           }}
         >
           {/* Avatar */}
@@ -138,7 +136,7 @@ export function ProfileScreen({
                   width: 100,
                   height: 100,
                   borderRadius: 50,
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                 }}
               />
             ) : (
@@ -170,7 +168,7 @@ export function ProfileScreen({
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderWidth: 3,
-                  borderColor: colors.card,
+                  borderColor: colors.surface,
                 }}
               >
                 <Ionicons name="camera" size={16} color={colors.secondaryForeground} />
@@ -187,23 +185,23 @@ export function ProfileScreen({
                 style={{
                   fontSize: 24,
                   fontWeight: '700',
-                  color: colors.foreground,
+                  color: colors.textPrimary,
                   borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
+                  borderBottomColor: colors.borderSubtle,
                   paddingVertical: spacing.xs,
                   paddingHorizontal: spacing.md,
                   textAlign: 'center',
                   minWidth: 200,
                 }}
                 placeholder="Display Name"
-                placeholderTextColor={colors.mutedForeground}
+                placeholderTextColor={colors.textMuted}
               />
             ) : (
-              <Text style={{ fontSize: 24, fontWeight: '700', color: colors.foreground }}>
+              <Text style={{ fontSize: 24, fontWeight: '700', color: colors.textPrimary }}>
                 {displayName}
               </Text>
             )}
-            <Text style={{ fontSize: 14, color: colors.mutedForeground, marginTop: 4 }}>
+            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
               {userEmail}
             </Text>
           </View>
@@ -217,26 +215,26 @@ export function ProfileScreen({
             }}
           >
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.textPrimary }}>
                 42
               </Text>
-              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>
                 Posts
               </Text>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.textPrimary }}>
                 156
               </Text>
-              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>
                 Followers
               </Text>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.textPrimary }}>
                 89
               </Text>
-              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>
                 Following
               </Text>
             </View>
@@ -255,8 +253,8 @@ export function ProfileScreen({
                 marginBottom: spacing.sm,
               }}
             >
-              <Ionicons name="person-outline" size={20} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>
+              <Ionicons name="person-outline" size={20} color={colors.textMuted} />
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>
                 About
               </Text>
             </View>
@@ -267,24 +265,24 @@ export function ProfileScreen({
                 multiline
                 numberOfLines={4}
                 style={{
-                  backgroundColor: colors.card,
+                  backgroundColor: colors.surface,
                   borderRadius: radii.lg,
                   padding: spacing.md,
                   fontSize: 14,
-                  color: colors.foreground,
+                  color: colors.textPrimary,
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: colors.borderSubtle,
                   minHeight: 100,
                   textAlignVertical: 'top',
                 }}
                 placeholder="Tell us about yourself..."
-                placeholderTextColor={colors.mutedForeground}
+                placeholderTextColor={colors.textMuted}
               />
             ) : (
               <Text
                 style={{
                   fontSize: 14,
-                  color: colors.mutedForeground,
+                  color: colors.textMuted,
                   lineHeight: 20,
                 }}
               >
@@ -303,8 +301,8 @@ export function ProfileScreen({
                 marginBottom: spacing.sm,
               }}
             >
-              <Ionicons name="location-outline" size={20} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>
+              <Ionicons name="location-outline" size={20} color={colors.textMuted} />
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>
                 Location
               </Text>
             </View>
@@ -313,19 +311,19 @@ export function ProfileScreen({
                 value={location}
                 onChangeText={setLocation}
                 style={{
-                  backgroundColor: colors.card,
+                  backgroundColor: colors.surface,
                   borderRadius: radii.lg,
                   padding: spacing.md,
                   fontSize: 14,
-                  color: colors.foreground,
+                  color: colors.textPrimary,
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: colors.borderSubtle,
                 }}
                 placeholder="City, State"
-                placeholderTextColor={colors.mutedForeground}
+                placeholderTextColor={colors.textMuted}
               />
             ) : (
-              <Text style={{ fontSize: 14, color: colors.mutedForeground }}>
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>
                 {location || 'Not specified'}
               </Text>
             )}
@@ -341,8 +339,8 @@ export function ProfileScreen({
                 marginBottom: spacing.sm,
               }}
             >
-              <Ionicons name="bookmarks-outline" size={20} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>
+              <Ionicons name="bookmarks-outline" size={20} color={colors.textMuted} />
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>
                 Denomination
               </Text>
             </View>
@@ -351,19 +349,19 @@ export function ProfileScreen({
                 value={denomination}
                 onChangeText={setDenomination}
                 style={{
-                  backgroundColor: colors.card,
+                  backgroundColor: colors.surface,
                   borderRadius: radii.lg,
                   padding: spacing.md,
                   fontSize: 14,
-                  color: colors.foreground,
+                  color: colors.textPrimary,
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: colors.borderSubtle,
                 }}
                 placeholder="e.g., Baptist, Catholic, Non-denominational"
-                placeholderTextColor={colors.mutedForeground}
+                placeholderTextColor={colors.textMuted}
               />
             ) : (
-              <Text style={{ fontSize: 14, color: colors.mutedForeground }}>
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>
                 {denomination || 'Not specified'}
               </Text>
             )}
@@ -374,14 +372,14 @@ export function ProfileScreen({
             <Pressable
               onPress={handleCancel}
               style={({ pressed }) => ({
-                backgroundColor: colors.muted,
+                backgroundColor: colors.surfaceMuted,
                 paddingVertical: spacing.md,
                 borderRadius: radii.lg,
                 alignItems: 'center',
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Text style={{ color: colors.foreground, fontWeight: '600' }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>
                 Cancel
               </Text>
             </Pressable>

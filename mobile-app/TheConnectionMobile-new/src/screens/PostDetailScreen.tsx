@@ -50,7 +50,7 @@ export function PostDetailScreen({
   comments = sampleComments,
   onBack,
 }: PostDetailScreenProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, theme } = useTheme();
   const [votes, setVotes] = useState(post.votes);
   const [voteStatus, setVoteStatus] = useState<'up' | 'down' | null>(null);
 
@@ -90,15 +90,15 @@ Whether you're a seasoned developer or just starting your journey, there's never
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar
-        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
       />
 
       {/* Header */}
       <View
         style={{
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.borderSubtle,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -111,11 +111,11 @@ Whether you're a seasoned developer or just starting your journey, there's never
           style={({ pressed }) => ({
             padding: spacing.sm,
             borderRadius: radii.full,
-            backgroundColor: pressed ? colors.muted : 'transparent',
+            backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
             marginLeft: -spacing.sm,
           })}
         >
-          <BackIcon color={colors.foreground} />
+          <BackIcon color={colors.textPrimary} />
         </Pressable>
         <Text variant="body" style={{ fontWeight: '500' }}>
           {post.channel}
@@ -124,17 +124,17 @@ Whether you're a seasoned developer or just starting your journey, there's never
           style={({ pressed }) => ({
             padding: spacing.sm,
             borderRadius: radii.full,
-            backgroundColor: pressed ? colors.muted : 'transparent',
+            backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
             marginRight: -spacing.sm,
           })}
         >
-          <MoreIcon color={colors.mutedForeground} />
+          <MoreIcon color={colors.textMuted} />
         </Pressable>
       </View>
 
       <ScrollView style={{ flex: 1 }}>
         {/* Post Content Card */}
-        <View style={{ backgroundColor: colors.card }}>
+        <View style={{ backgroundColor: colors.surface }}>
           {/* Post Header */}
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
             <View
@@ -151,14 +151,14 @@ Whether you're a seasoned developer or just starting your journey, there's never
                   <Text variant="bodySmall" style={{ fontWeight: '600' }}>
                     {post.channel}
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     •
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Posted by u/{post.author}
                   </Text>
                 </View>
-                <Text variant="caption" color="mutedForeground">
+                <Text variant="caption" color="textMuted">
                   {post.timeAgo}
                 </Text>
               </View>
@@ -175,7 +175,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 alignSelf: 'flex-start',
                 paddingHorizontal: spacing.sm,
                 paddingVertical: 2,
-                backgroundColor: colors.muted,
+                backgroundColor: colors.surfaceMuted,
                 borderRadius: radii.sm,
                 marginBottom: spacing.md,
               }}
@@ -227,7 +227,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
               style={{
                 marginVertical: spacing.lg,
                 padding: spacing.md,
-                backgroundColor: colors.muted,
+                backgroundColor: colors.surfaceMuted,
                 borderLeftWidth: 2,
                 borderLeftColor: colors.accent,
               }}
@@ -247,7 +247,7 @@ Whether you're a seasoned developer or just starting your journey, there's never
               paddingHorizontal: spacing.sm,
               paddingVertical: spacing.sm,
               borderTopWidth: 1,
-              borderTopColor: colors.border,
+              borderTopColor: colors.borderSubtle,
             }}
           >
             {/* Votes */}
@@ -257,11 +257,11 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 style={({ pressed }) => ({
                   padding: spacing.sm,
                   borderRadius: radii.full,
-                  backgroundColor: pressed ? colors.muted : 'transparent',
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                 })}
               >
                 <ArrowUpIcon
-                  color={voteStatus === 'up' ? colors.accent : colors.mutedForeground}
+                  color={voteStatus === 'up' ? colors.accent : colors.textMuted}
                   filled={voteStatus === 'up'}
                 />
               </Pressable>
@@ -275,8 +275,8 @@ Whether you're a seasoned developer or just starting your journey, there's never
                     voteStatus === 'up'
                       ? colors.accent
                       : voteStatus === 'down'
-                      ? colors.mutedForeground
-                      : colors.foreground,
+                      ? colors.textMuted
+                      : colors.textPrimary,
                 }}
               >
                 {votes}
@@ -286,11 +286,11 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 style={({ pressed }) => ({
                   padding: spacing.sm,
                   borderRadius: radii.full,
-                  backgroundColor: pressed ? colors.muted : 'transparent',
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                 })}
               >
                 <ArrowDownIcon
-                  color={colors.mutedForeground}
+                  color={colors.textMuted}
                   filled={voteStatus === 'down'}
                 />
               </Pressable>
@@ -305,11 +305,11 @@ Whether you're a seasoned developer or just starting your journey, there's never
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.sm,
                 borderRadius: radii.full,
-                backgroundColor: pressed ? colors.muted : 'transparent',
+                backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
               })}
             >
-              <CommentIcon color={colors.mutedForeground} />
-              <Text variant="bodySmall" color="mutedForeground">
+              <CommentIcon color={colors.textMuted} />
+              <Text variant="bodySmall" color="textMuted">
                 {post.comments}
               </Text>
             </Pressable>
@@ -319,10 +319,10 @@ Whether you're a seasoned developer or just starting your journey, there's never
               style={({ pressed }) => ({
                 padding: spacing.sm,
                 borderRadius: radii.full,
-                backgroundColor: pressed ? colors.muted : 'transparent',
+                backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
               })}
             >
-              <ShareIcon color={colors.mutedForeground} />
+              <ShareIcon color={colors.textMuted} />
             </Pressable>
 
             {/* Bookmark */}
@@ -330,10 +330,10 @@ Whether you're a seasoned developer or just starting your journey, there's never
               style={({ pressed }) => ({
                 padding: spacing.sm,
                 borderRadius: radii.full,
-                backgroundColor: pressed ? colors.muted : 'transparent',
+                backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
               })}
             >
-              <BookmarkIcon color={colors.mutedForeground} />
+              <BookmarkIcon color={colors.textMuted} />
             </Pressable>
           </View>
         </View>

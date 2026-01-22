@@ -1,14 +1,15 @@
 /**
  * Socket.IO Service for Real-time Messaging
  * Handles community chat and direct messages
- *
- * SECURITY: Uses JWT token authentication instead of userId
  */
 
 import { io, Socket } from 'socket.io-client';
-import { getAuthToken } from './secureStorage';
 
-const SOCKET_URL = 'https://api.theconnection.app';
+const SOCKET_URL = 'https://api.theconnection.app'; // Production
+// const SOCKET_URL = 'http://localhost:5000'; // Development
+
+// Set to false to disable socket connections entirely
+const SOCKET_ENABLED = true;
 
 let socket: Socket | null = null;
 
@@ -36,62 +37,57 @@ export interface DirectMessage {
 }
 
 export const socketService = {
-  /**
-   * Connect to Socket.IO with JWT authentication
-   * SECURITY: Sends JWT token for server-side verification
-   */
-  connect: async (userId: number) => {
+  connect: (userId: number) => {
+    if (!SOCKET_ENABLED) {
+      console.info('[Socket] Disabled - skipping connection');
+      return null;
+    }
+
     if (socket?.connected) {
       return socket;
     }
 
-    // Get JWT token for authentication
-    const token = await getAuthToken();
+    try {
+      socket = io(SOCKET_URL, {
+        path: '/socket.io/', // Explicit path
+        auth: {
+          userId: userId.toString(),
+        },
+        transports: ['polling', 'websocket'], // Try polling first, then upgrade
+        reconnection: true,
+        reconnectionDelay: 2000,
+        reconnectionAttempts: 3,
+        timeout: 10000,
+        forceNew: true,
+      });
 
-    if (!token) {
-      if (__DEV__) {
-        console.warn('[Socket] No auth token available - cannot connect');
-      }
+      socket.on('connect', () => {
+        console.info('[Socket] Connected successfully');
+        // Join user's personal room for DMs
+        socket?.emit('join_user_room', userId);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.info('[Socket] Disconnected:', reason);
+      });
+
+      socket.on('error', (error) => {
+        // Log quietly - don't throw errors that break the app
+        console.warn('[Socket] Error:', error?.message || error);
+      });
+
+      socket.on('connect_error', (error) => {
+        // Log quietly - WebSocket may not always be available
+        // The app should still work with HTTP-only fallback
+        console.warn('[Socket] Connection failed - chat will use HTTP fallback');
+      });
+
+      return socket;
+    } catch (error) {
+      // Catch any initialization errors
+      console.warn('[Socket] Failed to initialize:', error);
       return null;
     }
-
-    socket = io(SOCKET_URL, {
-      auth: {
-        token, // JWT token only - server extracts userId from token
-      },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-    });
-
-    socket.on('connect', () => {
-      if (__DEV__) {
-        console.log('[Socket] Connected successfully');
-      }
-      // Join user's personal room for DMs
-      socket?.emit('join_user_room', userId);
-    });
-
-    socket.on('disconnect', (reason) => {
-      if (__DEV__) {
-        console.log('[Socket] Disconnected:', reason);
-      }
-    });
-
-    socket.on('error', (error) => {
-      if (__DEV__) {
-        console.error('[Socket] Error:', error);
-      }
-    });
-
-    socket.on('connect_error', (error) => {
-      if (__DEV__) {
-        console.error('[Socket] Connection error:', error.message);
-      }
-    });
-
-    return socket;
   },
 
   disconnect: () => {

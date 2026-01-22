@@ -79,11 +79,9 @@ export async function setupUpdates(): Promise<void> {
 
     // Only run in production builds
     if (__DEV__) {
-      console.log('[Updates] Running in development mode, skipping updates setup');
       return;
     }
 
-    console.log('[Updates] Setting up updates module...');
 
     // Add event listeners for updates. The installed `expo-updates`
     // package may not expose the same TypeScript members across
@@ -93,7 +91,6 @@ export async function setupUpdates(): Promise<void> {
       const addListener = (Updates as any).addListener;
       if (typeof addListener === 'function') {
         addListener((event: any) => {
-          console.log('[Updates] Event:', event);
 
           // Use string comparisons to avoid depending on exported enums
           const t = event?.type;
@@ -101,19 +98,15 @@ export async function setupUpdates(): Promise<void> {
             console.error('[Updates] Update error:', event.message);
             // Don't crash - just log
           } else if (t === 'noUpdateAvailable') {
-            console.log('[Updates] No updates available');
           } else if (t === 'updateAvailable') {
-            console.log('[Updates] Update available');
           }
         });
       } else {
-        console.log('[Updates] updates.addListener not available on this runtime');
       }
     } catch (err) {
       console.warn('[Updates] Failed to attach update listener:', err);
     }
 
-    console.log('[Updates] Updates module configured successfully');
   } catch (error) {
     console.error('[Updates] Error setting up updates:', error);
     // Don't throw - just log and continue
@@ -130,7 +123,6 @@ export async function checkForUpdatesSafely(): Promise<boolean> {
       return false;
     }
 
-    console.log('[Updates] Checking for updates...');
 
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -142,11 +134,9 @@ export async function checkForUpdatesSafely(): Promise<boolean> {
     const result = await Promise.race([checkPromise, timeoutPromise]);
 
     if (result.isAvailable) {
-      console.log('[Updates] Update available');
       return true;
     }
 
-    console.log('[Updates] No update available');
     return false;
   } catch (error) {
     console.error('[Updates] Error checking for updates:', error);
@@ -163,7 +153,6 @@ export async function fetchUpdateSafely(): Promise<boolean> {
       return false;
     }
 
-    console.log('[Updates] Fetching update...');
 
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -175,11 +164,9 @@ export async function fetchUpdateSafely(): Promise<boolean> {
     const result = await Promise.race([fetchPromise, timeoutPromise]);
 
     if (result.isNew) {
-      console.log('[Updates] New update fetched successfully');
       return true;
     }
 
-    console.log('[Updates] No new update fetched');
     return false;
   } catch (error) {
     console.error('[Updates] Error fetching update:', error);

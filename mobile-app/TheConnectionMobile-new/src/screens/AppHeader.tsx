@@ -7,6 +7,7 @@ interface AppHeaderProps {
   showLogo?: boolean;
   showBrandText?: boolean;
   showCenteredLogo?: boolean; // New: Show logo in center instead of left
+  showBackInCenteredMode?: boolean; // New: Show back button instead of profile avatar when using centered logo
   userAvatar?: string | null;
   userName?: string;
   onProfilePress?: () => void;
@@ -21,6 +22,9 @@ interface AppHeaderProps {
   onMessagesPress?: () => void;
   showMenu?: boolean;
   onMenuPress?: () => void;
+  unreadNotificationCount?: number; // Badge count for menu icon (notifications)
+  unreadMessageCount?: number; // Badge count for message icon (DMs)
+  leftElement?: ReactNode; // New: Additional element to show next to avatar/back button
   rightElement?: ReactNode;
   transparent?: boolean;
 }
@@ -29,6 +33,7 @@ export function AppHeader({
   showLogo = true,
   showBrandText = true,
   showCenteredLogo = false,
+  showBackInCenteredMode = false,
   userAvatar,
   userName,
   onProfilePress,
@@ -43,10 +48,13 @@ export function AppHeader({
   onMessagesPress,
   showMenu = false,
   onMenuPress,
+  unreadNotificationCount = 0,
+  unreadMessageCount = 0,
+  leftElement,
   rightElement,
   transparent = false,
 }: AppHeaderProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, colorScheme } = useTheme();
 
   // Get user initials for avatar fallback
   const getUserInitials = () => {
@@ -62,11 +70,14 @@ export function AppHeader({
   return (
     <View
       style={[
-        styles.container,
         {
-          backgroundColor: transparent ? 'transparent' : colors.card,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: 56,
+          backgroundColor: transparent ? 'transparent' : colors.header,
           borderBottomWidth: transparent ? 0 : 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: transparent ? 'transparent' : (colors.headerBorder || colors.borderSubtle),
           paddingHorizontal: spacing.lg,
         },
       ]}
@@ -74,34 +85,57 @@ export function AppHeader({
       {/* Centered Logo Layout */}
       {showCenteredLogo ? (
         <>
-          {/* Left: Profile Avatar */}
-          <Pressable
-            onPress={onProfilePress}
-            style={({ pressed }) => [
-              styles.avatarButton,
-              {
-                backgroundColor: userAvatar ? 'transparent' : colors.primary,
-                borderRadius: radii.full,
-                opacity: pressed ? 0.8 : 1,
-              },
-            ]}
-          >
-            {userAvatar ? (
-              <Image source={{ uri: userAvatar }} style={styles.avatar} />
+          {/* Left: Back Button/Profile Avatar + Optional Left Element */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 1 }}>
+            {showBackInCenteredMode ? (
+              <Pressable
+                onPress={onBackPress}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  {
+                    backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                    borderRadius: radii.full,
+                  },
+                ]}
+              >
+                <Ionicons name="arrow-back" size={24} color={colors.headerForeground} />
+              </Pressable>
             ) : (
-              <Text style={{ color: colors.primaryForeground, fontSize: 16, fontWeight: '600' }}>
-                {getUserInitials()}
-              </Text>
+              <Pressable
+                onPress={onProfilePress}
+                style={({ pressed }) => [
+                  styles.avatarButton,
+                  {
+                    backgroundColor: userAvatar ? 'transparent' : colors.primary,
+                    borderRadius: radii.full,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                {userAvatar ? (
+                  <Image source={{ uri: userAvatar }} style={styles.avatar} />
+                ) : (
+                  <Text style={{ color: colors.headerForeground, fontSize: 16, fontWeight: '600' }}>
+                    {getUserInitials()}
+                  </Text>
+                )}
+              </Pressable>
             )}
-          </Pressable>
+            {leftElement}
+          </View>
 
-          {/* Center: Logo */}
+          {/* Center: Logo Text */}
           <View style={styles.centerSection}>
-            <Image
-              source={require('../../assets/Full.png')}
-              style={styles.centeredLogo}
-              resizeMode="contain"
-            />
+            <Text
+              style={{
+                fontFamily: 'PlayfairDisplay-Bold',
+                fontSize: 20,
+                color: colorScheme === 'dark' ? colors.headerForeground : '#1E3A5F',
+                letterSpacing: 0.5,
+              }}
+            >
+              The Connection
+            </Text>
           </View>
 
           {/* Right: Action Buttons */}
@@ -112,12 +146,32 @@ export function AppHeader({
                 style={({ pressed }) => [
                   styles.iconButton,
                   {
-                    backgroundColor: pressed ? colors.muted : 'transparent',
+                    backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                     borderRadius: radii.full,
                   },
                 ]}
               >
-                <Ionicons name="chatbubble-outline" size={20} color={colors.foreground} />
+                <View style={{ position: 'relative' }}>
+                  <Ionicons name="chatbubble-outline" size={22} color={colors.headerForeground} />
+                  {unreadMessageCount > 0 && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      backgroundColor: '#EF4444',
+                      borderRadius: 8,
+                      minWidth: 16,
+                      height: 16,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 3,
+                    }}>
+                      <Text style={{ fontSize: 9, fontWeight: '700', color: '#FFFFFF' }}>
+                        {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </Pressable>
             )}
 
@@ -127,12 +181,32 @@ export function AppHeader({
                 style={({ pressed }) => [
                   styles.iconButton,
                   {
-                    backgroundColor: pressed ? colors.muted : 'transparent',
+                    backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                     borderRadius: radii.full,
                   },
                 ]}
               >
-                <Ionicons name="menu-outline" size={24} color={colors.foreground} />
+                <View style={{ position: 'relative' }}>
+                  <Ionicons name="menu-outline" size={26} color={colors.headerForeground} />
+                  {unreadNotificationCount > 0 && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      backgroundColor: '#EF4444',
+                      borderRadius: 8,
+                      minWidth: 16,
+                      height: 16,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 3,
+                    }}>
+                      <Text style={{ fontSize: 9, fontWeight: '700', color: '#FFFFFF' }}>
+                        {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </Pressable>
             )}
 
@@ -148,16 +222,16 @@ export function AppHeader({
                 onPress={onBackPress}
                 style={({ pressed }) => [
                   styles.iconButton,
-                  { backgroundColor: pressed ? colors.muted : 'transparent', borderRadius: radii.full },
+                  { backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent', borderRadius: radii.full },
                 ]}
               >
-                <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+                <Ionicons name="arrow-back" size={24} color={colors.headerForeground} />
               </Pressable>
             ) : (
               <View style={styles.brandContainer}>
                 {showLogo && <View style={styles.logo} />}
                 {showBrandText && (
-                  <Text variant="title" style={styles.brandText}>
+                  <Text variant="title" style={[styles.brandText, { color: colors.headerForeground }]}>
                     The Connection
                   </Text>
                 )}
@@ -168,14 +242,84 @@ export function AppHeader({
           {/* Original Layout: Right Section */}
           <View style={styles.rightSection}>
             {showSearch && (
-              <Pressable onPress={onSearchPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? colors.muted : 'transparent' }]}>
-                <Ionicons name="search-outline" size={20} color={colors.mutedForeground} />
+              <Pressable onPress={onSearchPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent' }]}>
+                <Ionicons name="search-outline" size={20} color={colors.headerForeground} />
               </Pressable>
             )}
 
             {showNotifications && (
-              <Pressable onPress={onNotificationsPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? colors.muted : 'transparent' }]}>
-                <Ionicons name="notifications-outline" size={20} color={colors.mutedForeground} />
+              <Pressable onPress={onNotificationsPress} style={({ pressed }) => [{ padding: spacing.sm, borderRadius: radii.full, backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent' }]}>
+                <Ionicons name="notifications-outline" size={20} color={colors.headerForeground} />
+              </Pressable>
+            )}
+
+            {showMessages && (
+              <Pressable
+                onPress={onMessagesPress}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  {
+                    backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                    borderRadius: radii.full,
+                  },
+                ]}
+              >
+                <View style={{ position: 'relative' }}>
+                  <Ionicons name="chatbubble-outline" size={20} color={colors.headerForeground} />
+                  {unreadMessageCount > 0 && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      backgroundColor: '#EF4444',
+                      borderRadius: 8,
+                      minWidth: 16,
+                      height: 16,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 3,
+                    }}>
+                      <Text style={{ fontSize: 9, fontWeight: '700', color: '#FFFFFF' }}>
+                        {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            )}
+
+            {showMenu && (
+              <Pressable
+                onPress={onMenuPress}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  {
+                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                    borderRadius: radii.full,
+                  },
+                ]}
+              >
+                <View style={{ position: 'relative' }}>
+                  <Ionicons name="menu-outline" size={24} color={colors.headerForeground} />
+                  {unreadNotificationCount > 0 && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      backgroundColor: '#EF4444',
+                      borderRadius: 8,
+                      minWidth: 16,
+                      height: 16,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 3,
+                    }}>
+                      <Text style={{ fontSize: 9, fontWeight: '700', color: '#FFFFFF' }}>
+                        {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </Pressable>
             )}
 
@@ -187,17 +331,17 @@ export function AppHeader({
   );
 }
 
-export function PageHeader({ title, onBackPress, rightElement }: { title: string; onBackPress?: () => void; rightElement?: ReactNode }) {
-  const { colors, spacing, radii } = useTheme();
+export function PageHeader({ title, onBackPress, rightElement, showLogo }: { title?: string; onBackPress?: () => void; rightElement?: ReactNode; showLogo?: boolean }) {
+  const { colors, spacing, radii, colorScheme } = useTheme();
 
   return (
     <View
       style={[
         styles.container,
         {
-          backgroundColor: colors.card,
+          backgroundColor: colors.header,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: colors.headerBorder,
           paddingHorizontal: spacing.lg,
         },
       ]}
@@ -207,18 +351,33 @@ export function PageHeader({ title, onBackPress, rightElement }: { title: string
         style={({ pressed }) => [
           styles.iconButton,
           {
-            backgroundColor: pressed ? colors.muted : 'transparent',
+            backgroundColor: pressed ? (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)') : 'transparent',
             borderRadius: radii.full,
             marginLeft: -spacing.sm,
           },
         ]}
       >
-        <BackIcon color={colors.foreground} />
+        <Ionicons name="arrow-back" size={24} color={colors.headerForeground} />
       </Pressable>
 
-      <Text variant="body" style={{ fontWeight: '600', flex: 1, textAlign: 'center' }}>
-        {title}
-      </Text>
+      {showLogo ? (
+        <Text
+          style={{
+            fontFamily: 'PlayfairDisplay-Bold',
+            fontSize: 20,
+            flex: 1,
+            textAlign: 'center',
+            color: colorScheme === 'dark' ? colors.headerForeground : '#1E3A5F',
+            letterSpacing: 0.5,
+          }}
+        >
+          The Connection
+        </Text>
+      ) : (
+        <Text variant="body" style={{ fontWeight: '600', flex: 1, textAlign: 'center', color: colors.headerForeground }}>
+          {title}
+        </Text>
+      )}
 
       {rightElement ?? <View style={{ width: 40 }} />}
     </View>
@@ -263,13 +422,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   centeredLogo: {
-    width: 180,
-    height: 52,
+    width: 800,
+    height: 140,
   },
   brandText: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 19,
+    fontWeight: '800',
     fontFamily: 'System',
+    letterSpacing: -0.5,  // Tighter letter spacing (~2-3%)
   },
   iconButton: {
     width: 40,

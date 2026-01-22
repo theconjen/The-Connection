@@ -1,34 +1,41 @@
 import { Tabs, useRouter } from 'expo-router';
 import { useTheme } from '../../src/contexts/ThemeContext';
-import { useCreateMenu } from '../../src/contexts/CreateMenuContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { FanMenu } from '../../src/components/FanMenu';
+import { CreateHubSheet } from '../../src/components/CreateHubSheet';
+import { useState } from 'react';
+import * as Haptics from 'expo-haptics';
 
 export default function TabsLayout() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { isMenuOpen, openMenu, closeMenu } = useCreateMenu();
+  const { user } = useAuth();
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
 
+  // Check if user is admin
+  const isAdmin = user?.role === 'admin';
 
-  // Custom icon colors matching the design
+  // Check if user has inbox access permission
+  const hasInboxAccess = user?.permissions?.includes('inbox_access') || false;
+
+  // Debug logging for inbox access
+  console.info('[Tab Layout] User:', user?.username);
+  console.info('[Tab Layout] Permissions:', user?.permissions);
+  console.info('[Tab Layout] Has Inbox Access:', hasInboxAccess);
+
+  // Earth-forward icon colors - warm, grounded palette
   const iconColors = {
-    feed: '#4A90E2',        // Blue
-    communities: '#9B59B6', // Purple
-    events: '#5B9BD5',      // Blue
-    forum: '#E67E22',       // Orange
+    feed: '#5C6B5E',        // Sage (was blue)
+    communities: '#7C6B78', // Muted plum
+    events: '#B56A55',      // Terracotta
+    apologetics: '#7C8F78', // Sage green
   };
 
-  const handleCreateFeed = () => {
-    router.push('/create-post');
-  };
-
-  const handleCreateCommunity = () => {
-    router.push('/communities/create');
-  };
-
-  const handleCreateForum = () => {
-    router.push('/create-post');
+  // Handle create button press
+  const handleCreatePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsCreateSheetOpen(true);
   };
 
   return (
@@ -36,10 +43,10 @@ export default function TabsLayout() {
       <Tabs screenOptions={{
       headerShown: false,
       tabBarActiveTintColor: colors.primary,
-      tabBarInactiveTintColor: '#94A3B8', // Muted gray for inactive
+      tabBarInactiveTintColor: colors.textSecondary,
       tabBarStyle: {
         backgroundColor: colors.surface,
-        borderTopColor: colors.border,
+        borderTopColor: colors.borderSubtle,
         paddingBottom: 34, // Safe area for iPhone home indicator (34px standard)
         paddingTop: 8,
         height: 90, // Increased height to accommodate elevated button
@@ -58,7 +65,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? "chatbubble" : "chatbubble-outline"}
               size={size}
-              color={focused ? iconColors.feed : '#94A3B8'}
+              color={focused ? iconColors.feed : colors.textSecondary}
             />
           ),
           tabBarActiveTintColor: iconColors.feed,
@@ -72,7 +79,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? "people" : "people-outline"}
               size={size}
-              color={focused ? iconColors.communities : '#94A3B8'}
+              color={focused ? iconColors.communities : colors.textSecondary}
             />
           ),
           tabBarActiveTintColor: iconColors.communities,
@@ -84,9 +91,7 @@ export default function TabsLayout() {
           title: '',
           tabBarButton: () => (
             <Pressable
-              onPress={() => {
-                openMenu();
-              }}
+              onPress={handleCreatePress}
               style={{
                 top: -20,
                 justifyContent: 'center',
@@ -98,7 +103,7 @@ export default function TabsLayout() {
                   width: 60,
                   height: 60,
                   borderRadius: 30,
-                  backgroundColor: '#222D99',
+                  backgroundColor: '#0B132B', // Ink navy (text-like, not blue fill)
                   justifyContent: 'center',
                   alignItems: 'center',
                   shadowColor: '#000',
@@ -122,24 +127,30 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? "calendar" : "calendar-outline"}
               size={size}
-              color={focused ? iconColors.events : '#94A3B8'}
+              color={focused ? iconColors.events : colors.textSecondary}
             />
           ),
           tabBarActiveTintColor: iconColors.events,
         }}
       />
       <Tabs.Screen
-        name="forum"
+        name="apologetics"
         options={{
-          title: 'Forum',
+          title: 'Apologetics',
           tabBarIcon: ({ focused, size }) => (
             <Ionicons
-              name={focused ? "chatbubbles" : "chatbubbles-outline"}
+              name={focused ? "book" : "book-outline"}
               size={size}
-              color={focused ? iconColors.forum : '#94A3B8'}
+              color={focused ? iconColors.apologetics : colors.textSecondary}
             />
           ),
-          tabBarActiveTintColor: iconColors.forum,
+          tabBarActiveTintColor: iconColors.apologetics,
+        }}
+      />
+      <Tabs.Screen
+        name="inbox"
+        options={{
+          href: null, // Hidden from tab bar, accessible only through Menu drawer
         }}
       />
       <Tabs.Screen
@@ -148,14 +159,17 @@ export default function TabsLayout() {
           href: null, // Hide from tab bar, but keep route accessible
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null, // Hide from tab bar, but keep route accessible
+        }}
+      />
     </Tabs>
 
-      <FanMenu
-        visible={isMenuOpen}
-        onClose={closeMenu}
-        onCreateFeed={handleCreateFeed}
-        onCreateCommunity={handleCreateCommunity}
-        onCreateForum={handleCreateForum}
+      <CreateHubSheet
+        open={isCreateSheetOpen}
+        onClose={() => setIsCreateSheetOpen(false)}
       />
     </View>
   );

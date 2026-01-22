@@ -286,9 +286,9 @@ const getStyles = (colors: any) =>
       justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     headerButton: {
       padding: 4,
@@ -334,10 +334,10 @@ const getStyles = (colors: any) =>
     passwordContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSubtle,
     },
     passwordInput: {
       flex: 1,
@@ -350,12 +350,12 @@ const getStyles = (colors: any) =>
       padding: 12,
     },
     requirementsBox: {
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
       padding: 16,
       borderRadius: 10,
       marginBottom: 20,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSubtle,
     },
     requirementsTitle: {
       fontSize: 14,

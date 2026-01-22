@@ -68,7 +68,7 @@ export default function EditProfileScreen() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.patch('/api/user/profile', data);
+      const response = await apiClient.patch('/user/profile', data);
       return response.data;
     },
     onSuccess: () => {
@@ -131,7 +131,7 @@ export default function EditProfileScreen() {
           <View style={styles.headerButton} />
         </View>
         <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="large" color="#222D99" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.hint, { marginTop: 16 }]}>Loading profile...</Text>
         </View>
       </SafeAreaView>
@@ -165,7 +165,7 @@ export default function EditProfileScreen() {
               <Image source={{ uri: profileImage }} style={styles.photo} />
             ) : (
               <View style={styles.photoPlaceholder}>
-                <Ionicons name="person" size={48} color={colors.mutedForeground} />
+                <Ionicons name="person" size={48} color={colors.textMuted} />
               </View>
             )}
             <View style={styles.photoOverlay}>
@@ -184,7 +184,7 @@ export default function EditProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="Your name"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={formData.displayName}
               onChangeText={(text) => updateField('displayName', text)}
             />
@@ -195,7 +195,7 @@ export default function EditProfileScreen() {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Tell us about yourself..."
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={4}
               value={formData.bio}
@@ -210,7 +210,7 @@ export default function EditProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="City, State"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={formData.location}
               onChangeText={(text) => updateField('location', text)}
             />
@@ -227,7 +227,7 @@ export default function EditProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g., Baptist, Presbyterian, Non-denominational"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={formData.denomination}
               onChangeText={(text) => updateField('denomination', text)}
             />
@@ -238,7 +238,7 @@ export default function EditProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="Your local church"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={formData.homeChurch}
               onChangeText={(text) => updateField('homeChurch', text)}
             />
@@ -249,7 +249,7 @@ export default function EditProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g., John 3:16"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={formData.favoriteBibleVerse}
               onChangeText={(text) => updateField('favoriteBibleVerse', text)}
             />
@@ -260,7 +260,7 @@ export default function EditProfileScreen() {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Share your faith journey..."
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={4}
               value={formData.testimony}
@@ -280,7 +280,7 @@ export default function EditProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g., Bible study, worship, missions, hiking"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               value={formData.interests}
               onChangeText={(text) => updateField('interests', text)}
             />
@@ -290,7 +290,7 @@ export default function EditProfileScreen() {
 
         {/* Info Box */}
         <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={20} color="#2563EB" />
+          <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
           <Text style={styles.infoText}>
             Your profile helps other believers find and connect with you for fellowship, prayer, and service.
             All fields except Display Name are optional.
@@ -315,9 +315,9 @@ const getStyles = (colors: any) =>
       justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle,
     },
     headerButton: {
       minWidth: 60,
@@ -325,20 +325,20 @@ const getStyles = (colors: any) =>
     headerTitle: {
       fontSize: 17,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
     },
     cancelText: {
       fontSize: 16,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     saveText: {
       fontSize: 16,
       fontWeight: '600',
-      color: '#222D99',
+      color: colors.primary,
       textAlign: 'right',
     },
     saveTextDisabled: {
-      color: colors.mutedForeground,
+      color: colors.textMuted,
     },
     content: {
       flex: 1,
@@ -360,7 +360,7 @@ const getStyles = (colors: any) =>
       width: 100,
       height: 100,
       borderRadius: 50,
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -371,7 +371,7 @@ const getStyles = (colors: any) =>
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: '#222D99',
+      backgroundColor: colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
       borderWidth: 3,
@@ -380,7 +380,7 @@ const getStyles = (colors: any) =>
     photoLabel: {
       marginTop: 8,
       fontSize: 14,
-      color: '#222D99',
+      color: colors.primary,
       fontWeight: '600',
     },
     section: {
@@ -389,7 +389,7 @@ const getStyles = (colors: any) =>
     sectionTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: colors.foreground,
+      color: colors.textPrimary,
       marginBottom: 16,
     },
     field: {
@@ -398,18 +398,18 @@ const getStyles = (colors: any) =>
     label: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.textPrimary,
       marginBottom: 8,
     },
     input: {
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted,
       borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 12,
       fontSize: 15,
-      color: colors.foreground,
+      color: colors.textPrimary,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSubtle,
     },
     textArea: {
       minHeight: 100,
@@ -417,23 +417,23 @@ const getStyles = (colors: any) =>
     },
     hint: {
       fontSize: 12,
-      color: colors.mutedForeground,
+      color: colors.textMuted,
       marginTop: 4,
     },
     infoBox: {
       flexDirection: 'row',
       gap: 10,
-      backgroundColor: '#EFF6FF',
+      backgroundColor: colors.surfaceMuted,
       padding: 12,
       borderRadius: 8,
       marginTop: 8,
       borderWidth: 1,
-      borderColor: '#BFDBFE',
+      borderColor: colors.borderSubtle,
     },
     infoText: {
       flex: 1,
       fontSize: 13,
-      color: '#1E40AF',
+      color: colors.textSecondary,
       lineHeight: 18,
     },
   });

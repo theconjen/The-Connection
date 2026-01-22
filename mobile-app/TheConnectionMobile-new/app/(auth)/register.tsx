@@ -10,16 +10,21 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { Colors } from '../../src/shared/colors';
+import { useTheme } from '../../src/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import apiClient from '../../src/lib/apiClient';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { register } = useAuth();
+  const { colors, colorScheme } = useTheme();
+  const styles = getStyles(colors);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -28,10 +33,17 @@ export default function RegisterScreen() {
     lastName: '',
     password: '',
     confirmPassword: '',
+    dateOfBirth: null as Date | null,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Calculate max date (today) and default date (18 years ago for better UX)
+  const today = new Date();
+  const maxDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const defaultPickerDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
 
   // Verification pending state
   const [showVerificationPending, setShowVerificationPending] = useState(false);
@@ -54,6 +66,12 @@ export default function RegisterScreen() {
       return;
     }
 
+    // Age Assurance: DOB is required
+    if (!formData.dateOfBirth) {
+      Alert.alert('Date of Birth Required', 'Please enter your date of birth to continue.');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return;
@@ -66,19 +84,32 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     try {
+      // Format DOB as ISO date string (YYYY-MM-DD) to avoid timezone issues
+      const dobString = formData.dateOfBirth.toISOString().split('T')[0];
+
       const result = await register({
         email: formData.email.trim(),
         username: formData.username.trim(),
         password: formData.password,
         firstName: formData.firstName.trim() || undefined,
         lastName: formData.lastName.trim() || undefined,
+        dob: dobString,
       });
 
       // Registration successful - show verification pending screen
       setRegisteredEmail(result.email || formData.email.trim());
       setShowVerificationPending(true);
     } catch (error: any) {
-      Alert.alert('Registration Failed', error.message || 'Please try again');
+      // Handle AGE_RESTRICTED error specially
+      if (error.code === 'AGE_RESTRICTED' || error.message?.includes('13 or older')) {
+        Alert.alert(
+          'Age Restriction',
+          'You must be 13 or older to use this app.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Registration Failed', error.message || 'Please try again');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +120,7 @@ export default function RegisterScreen() {
 
     setIsResending(true);
     try {
-      await apiClient.post('/auth/send-verification', {
+      await apiClient.post('/api/auth/send-verification', {
         email: registeredEmail,
       });
 
@@ -130,7 +161,7 @@ export default function RegisterScreen() {
         >
           <View style={styles.verificationContainer}>
             <View style={styles.verificationIcon}>
-              <Ionicons name="mail-unread-outline" size={80} color={Colors.primary} />
+              <Ionicons name="mail-unread-outline" size={80} color={colors.primary} />
             </View>
 
             <Text style={styles.verificationTitle}>Check Your Email</Text>
@@ -140,7 +171,7 @@ export default function RegisterScreen() {
             </Text>
 
             <View style={styles.emailBox}>
-              <Ionicons name="mail" size={20} color="#666" />
+              <Ionicons name="mail" size={20} color={colors.textSecondary} />
               <Text style={styles.emailBoxText}>{registeredEmail}</Text>
             </View>
 
@@ -157,7 +188,7 @@ export default function RegisterScreen() {
               disabled={isResending || resendCooldown > 0}
             >
               {isResending ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.primaryForeground} />
               ) : resendCooldown > 0 ? (
                 <Text style={styles.buttonText}>
                   Resend in {Math.floor(resendCooldown / 60)}:{(resendCooldown % 60).toString().padStart(2, '0')}
@@ -175,7 +206,7 @@ export default function RegisterScreen() {
             </TouchableOpacity>
 
             <View style={styles.helpContainer}>
-              <Ionicons name="help-circle-outline" size={20} color="#666" />
+              <Ionicons name="help-circle-outline" size={20} color={colors.textSecondary} />
               <Text style={styles.helpText}>
                 Didn't receive the email? Check your spam folder, or try resending.
               </Text>
@@ -196,6 +227,14 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
+          <Image
+            source={require('../../assets/tc-logo-hd.png')}
+            style={[
+              styles.logo,
+              colorScheme === 'dark' && { tintColor: colors.textPrimary }
+            ]}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Join The Connection community</Text>
         </View>
@@ -254,6 +293,63 @@ export default function RegisterScreen() {
             </View>
           </View>
 
+          {/* Date of Birth - Required for Age Assurance */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Date of Birth *</Text>
+            <TouchableOpacity
+              style={styles.datePickerButton}
+              onPress={() => setShowDatePicker(true)}
+              disabled={isLoading}
+            >
+              <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
+              <Text style={[
+                styles.datePickerText,
+                !formData.dateOfBirth && styles.datePickerPlaceholder
+              ]}>
+                {formData.dateOfBirth
+                  ? formData.dateOfBirth.toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })
+                  : 'Select your date of birth'
+                }
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.ageHint}>You must be 13 or older to use this app</Text>
+          </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={formData.dateOfBirth || defaultPickerDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              maximumDate={maxDate}
+              onChange={(event, selectedDate) => {
+                if (Platform.OS === 'android') {
+                  setShowDatePicker(false);
+                }
+                if (event.type === 'set' && selectedDate) {
+                  setFormData({ ...formData, dateOfBirth: selectedDate });
+                }
+                if (Platform.OS === 'ios' && event.type === 'dismissed') {
+                  setShowDatePicker(false);
+                }
+              }}
+              themeVariant={colorScheme}
+            />
+          )}
+
+          {/* iOS: Show done button for date picker */}
+          {Platform.OS === 'ios' && showDatePicker && (
+            <TouchableOpacity
+              style={styles.datePickerDoneButton}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.datePickerDoneText}>Done</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password *</Text>
             <View style={styles.passwordContainer}>
@@ -273,7 +369,7 @@ export default function RegisterScreen() {
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={24}
-                  color="#666"
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -298,7 +394,7 @@ export default function RegisterScreen() {
                 <Ionicons
                   name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={24}
-                  color="#666"
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -310,11 +406,28 @@ export default function RegisterScreen() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.primaryForeground} />
             ) : (
               <Text style={styles.buttonText}>Create Account</Text>
             )}
           </TouchableOpacity>
+
+          <View style={styles.termsContainer}>
+            <Text style={styles.termsText}>By creating an account, you agree to our </Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://theconnection.app/terms')}
+              disabled={isLoading}
+            >
+              <Text style={styles.termsLink}>Terms of Service</Text>
+            </TouchableOpacity>
+            <Text style={styles.termsText}> and </Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://theconnection.app/privacy')}
+              disabled={isLoading}
+            >
+              <Text style={styles.termsLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
@@ -331,29 +444,34 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     padding: 24,
-    paddingTop: 60,
+    paddingTop: 80,
   },
   header: {
     marginBottom: 40,
     alignItems: 'center',
   },
+  logo: {
+    width: 700,
+    height: 150,
+    marginBottom: 32,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
   },
   form: {
     width: '100%',
@@ -371,35 +489,72 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.input,
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.borderSubtle,
+    color: colors.textPrimary,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.input,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.borderSubtle,
   },
   passwordInput: {
     flex: 1,
     padding: 16,
     fontSize: 16,
+    color: colors.textPrimary,
   },
   eyeIcon: {
     padding: 16,
   },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.input,
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    gap: 12,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  datePickerPlaceholder: {
+    color: colors.textSecondary,
+  },
+  ageHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  datePickerDoneButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  datePickerDoneText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
   button: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -409,21 +564,40 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#ffffff',
+    color: colors.primaryForeground,
     fontSize: 16,
     fontWeight: '600',
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingHorizontal: 20,
+  },
+  termsText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+    lineHeight: 18,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 32,
+    marginTop: 24,
   },
   footerText: {
-    color: '#666',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   link: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -445,20 +619,20 @@ const styles = StyleSheet.create({
   verificationTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     marginBottom: 12,
     textAlign: 'center',
   },
   verificationSubtitle: {
     fontSize: 15,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 12,
   },
   emailBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.surfaceMuted,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -467,12 +641,12 @@ const styles = StyleSheet.create({
   },
   emailBoxText: {
     fontSize: 15,
-    color: '#1a1a1a',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   verificationInstructions: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 32,
@@ -484,7 +658,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   secondaryButtonText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -498,7 +672,7 @@ const styles = StyleSheet.create({
   helpText: {
     flex: 1,
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
     lineHeight: 20,
   },
 });

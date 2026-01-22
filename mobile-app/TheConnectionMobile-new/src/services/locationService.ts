@@ -162,7 +162,7 @@ export async function getCurrentLocationWithAddress(): Promise<UserLocation | nu
 }
 
 /**
- * Calculate distance between two coordinates (in kilometers)
+ * Calculate distance between two coordinates (in miles)
  * Uses Haversine formula
  */
 export function calculateDistance(
@@ -171,7 +171,7 @@ export function calculateDistance(
   lat2: number,
   lon2: number
 ): number {
-  const R = 6371; // Earth's radius in km
+  const R = 3959; // Earth's radius in miles
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
 
@@ -191,14 +191,16 @@ function toRad(degrees: number): number {
 }
 
 /**
- * Format distance for display
+ * Format distance for display (in miles)
  */
-export function formatDistance(km: number): string {
-  if (km < 1) {
-    return `${Math.round(km * 1000)}m away`;
-  } else if (km < 10) {
-    return `${km.toFixed(1)}km away`;
+export function formatDistance(miles: number): string {
+  if (miles < 0.1) {
+    return `${Math.round(miles * 5280)}ft away`;
+  } else if (miles < 1) {
+    return `${miles.toFixed(1)}mi away`;
+  } else if (miles < 10) {
+    return `${miles.toFixed(1)}mi away`;
   } else {
-    return `${Math.round(km)}km away`;
+    return `${Math.round(miles)}mi away`;
   }
 }

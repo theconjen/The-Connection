@@ -1,75 +1,80 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../lib/apiClient';
+import { messagesAPI } from '../lib/apiClient';
 
 export interface Message {
   id: number;
-  conversationId: number;
   senderId: number;
+  receiverId: number;
   content: string;
-  messageType: string;
-  mediaUrl?: string;
   createdAt: string;
+  isRead: boolean;
   sender?: {
     id: number;
     username: string;
     displayName?: string;
-    avatarUrl?: string;
+    profileImageUrl?: string;
   };
 }
 
 export interface Conversation {
   id: number;
-  name?: string;
-  isGroup: boolean;
-  avatarUrl?: string;
-  updatedAt: string;
-  participants: any[];
+  otherUser: {
+    id: number;
+    username: string;
+    displayName?: string;
+    profileImageUrl?: string;
+  };
   lastMessage?: {
     content: string;
     createdAt: string;
+    senderId: number;
   };
   unreadCount: number;
+  // Legacy fields for compatibility
+  name?: string;
+  isGroup?: boolean;
+  avatarUrl?: string;
+  updatedAt?: string;
+  participants?: any[];
 }
 
 export const useConversations = () => {
   return useQuery({
     queryKey: ['conversations'],
     queryFn: async () => {
-      const response = await apiClient.get<Conversation[]>('/api/messages/conversations');
-      return response.data;
+      try {
+        const conversations = await messagesAPI.getConversations();
+        return conversations;
+      } catch (error: any) {
+        console.error('[Messages] Error loading conversations:', {
+          status: error?.response?.status,
+          message: error?.response?.data?.message || error?.message,
+          url: error?.config?.url,
+        });
+        throw error;
+      }
     },
+    refetchInterval: 10000, // Poll every 10 seconds for new messages
+    retry: 2, // Retry twice on failure
   });
 };
 
-export const useConversationMessages = (conversationId: number) => {
+export const useConversationMessages = (otherUserId: number) => {
   return useQuery({
-    queryKey: ['messages', conversationId],
-    queryFn: async () => {
-      const response = await apiClient.get<Message[]>(`/api/messages/conversations/${conversationId}/messages`);
-      return response.data;
-    },
-    enabled: !!conversationId,
+    queryKey: ['messages', otherUserId],
+    queryFn: () => messagesAPI.getMessages(otherUserId),
+    enabled: !!otherUserId,
   });
 };
 
 export const useSendMessage = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ conversationId, content, messageType = 'text', mediaUrl }: { 
-      conversationId: number; 
-      content: string; 
-      messageType?: string; 
-      mediaUrl?: string 
-    }) => {
-      const response = await apiClient.post<Message>(`/api/messages/conversations/${conversationId}/messages`, {
-        content,
-        messageType,
-        mediaUrl,
-      });
-      return response.data;
-    },
-    onSuccess: (newMessage) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', newMessage.conversationId] });
+    mutationFn: ({ receiverId, content }: { receiverId: number; content: string }) =>
+      messagesAPI.sendMessage(receiverId, content),
+    onSuccess: (_, variables) => {
+      // Invalidate messages query to refetch
+      queryClient.invalidateQueries({ queryKey: ['messages', variables.receiverId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
@@ -78,11 +83,17 @@ export const useSendMessage = () => {
 export const useMarkAsRead = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (conversationId: number) => {
-      await apiClient.post(`/api/messages/conversations/${conversationId}/read`);
-    },
-    onSuccess: (_, conversationId) => {
+    mutationFn: (otherUserId: number) => messagesAPI.markConversationRead(otherUserId),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
+  });
+};
+
+export const useUnreadCount = () => {
+  return useQuery({
+    queryKey: ['unread-count'],
+    queryFn: messagesAPI.getUnreadCount,
+    refetchInterval: 30000, // Poll every 30 seconds
   });
 };

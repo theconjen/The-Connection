@@ -17,12 +17,13 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { Colors } from '../../src/shared/colors';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 export default function PrayerDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams() as { id: string };
   const { user } = useAuth();
+  const { colors } = useTheme();
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState('');
 
@@ -31,7 +32,7 @@ export default function PrayerDetailScreen() {
   const { data: prayer, isLoading: prayerLoading } = useQuery({
     queryKey: ['prayer', prayerId],
     queryFn: async () => {
-      const response = await apiClient.get(`/prayer-requests/${prayerId}`);
+      const response = await apiClient.get(`/api/prayer-requests/${prayerId}`);
       return response.data;
     },
   });
@@ -39,13 +40,18 @@ export default function PrayerDetailScreen() {
   const { data: comments = [], isLoading: commentsLoading } = useQuery({
     queryKey: ['prayer-comments', prayerId],
     queryFn: async () => {
-      const response = await apiClient.get(`/prayer-requests/${prayerId}/comments`);
-      return response.data;
+      try {
+        const response = await apiClient.get(`/api/prayer-requests/${prayerId}/comments`);
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+        return [];
+      }
     },
   });
 
   const prayMutation = useMutation({
-    mutationFn: () => apiClient.post(`/prayer-requests/${prayerId}/pray`),
+    mutationFn: () => apiClient.post(`/api/prayer-requests/${prayerId}/pray`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prayer', prayerId] });
       queryClient.invalidateQueries({ queryKey: ['prayer-requests'] });
@@ -54,7 +60,7 @@ export default function PrayerDetailScreen() {
 
   const commentMutation = useMutation({
     mutationFn: async (content: string) => {
-      const response = await apiClient.post(`/prayer-requests/${prayerId}/comments`, { content });
+      const response = await apiClient.post(`/api/prayer-requests/${prayerId}/comments`, { content });
       return response.data;
     },
     onSuccess: () => {
@@ -81,10 +87,12 @@ export default function PrayerDetailScreen() {
     return date.toLocaleDateString();
   };
 
+  const styles = getStyles(colors);
+
   if (prayerLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -133,14 +141,14 @@ export default function PrayerDetailScreen() {
         )}
 
         <View style={styles.commentsSection}>
-          <Text style={styles.commentsTitle}>Prayer Updates & Encouragement ({comments.length})</Text>
+          <Text style={styles.commentsTitle}>Prayer Updates & Encouragement ({comments?.length || 0})</Text>
 
           {commentsLoading ? (
-            <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
-          ) : comments.length === 0 ? (
+            <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
+          ) : !comments || comments.length === 0 ? (
             <Text style={styles.noComments}>No comments yet. Be the first to encourage!</Text>
           ) : (
-            comments.map((comment: any) => (
+            Array.isArray(comments) && comments.map((comment: any) => (
               <View key={comment.id} style={styles.commentCard}>
                 <View style={styles.commentHeader}>
                   <View style={styles.smallAvatar}>
@@ -185,38 +193,38 @@ export default function PrayerDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backIcon: { fontSize: 24, color: Colors.primary },
-  title: { fontSize: 18, fontWeight: '600', color: '#1f2937' },
+const getStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
+  backIcon: { fontSize: 24, color: colors.primary },
+  title: { fontSize: 18, fontWeight: '600', color: colors.textPrimary },
   content: { flex: 1 },
-  prayerSection: { backgroundColor: '#fff', padding: 20, borderBottomWidth: 8, borderBottomColor: '#f3f4f6' },
+  prayerSection: { backgroundColor: colors.surface, padding: 20, borderBottomWidth: 8, borderBottomColor: colors.surfaceMuted },
   prayerHeader: { flexDirection: 'row', marginBottom: 16 },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  avatarText: { color: '#fff', fontSize: 20, fontWeight: '600' },
-  authorName: { fontSize: 16, fontWeight: '600', color: '#1f2937' },
-  date: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
-  prayerContent: { fontSize: 16, color: '#374151', lineHeight: 24, marginBottom: 20 },
-  prayButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, padding: 14, borderRadius: 8, marginBottom: 12 },
-  prayButtonPrayed: { backgroundColor: '#10b981' },
+  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatarText: { color: colors.primaryForeground, fontSize: 20, fontWeight: '600' },
+  authorName: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  date: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  prayerContent: { fontSize: 16, color: colors.textSecondary, lineHeight: 24, marginBottom: 20 },
+  prayButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, padding: 14, borderRadius: 8, marginBottom: 12 },
+  prayButtonPrayed: { backgroundColor: colors.success },
   prayButtonIcon: { fontSize: 20, marginRight: 8 },
-  prayButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  prayCount: { fontSize: 14, color: '#6b7280', textAlign: 'center' },
+  prayButtonText: { color: colors.primaryForeground, fontSize: 16, fontWeight: '600' },
+  prayCount: { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
   commentsSection: { padding: 16 },
-  commentsTitle: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 16 },
-  noComments: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginTop: 20, fontStyle: 'italic' },
-  commentCard: { backgroundColor: '#fff', padding: 14, borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: '#e5e7eb' },
+  commentsTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 16 },
+  noComments: { fontSize: 14, color: colors.textMuted, textAlign: 'center', marginTop: 20, fontStyle: 'italic' },
+  commentCard: { backgroundColor: colors.surface, padding: 14, borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: colors.borderSubtle },
   commentHeader: { flexDirection: 'row', marginBottom: 10 },
-  smallAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  smallAvatarText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  commentAuthor: { fontSize: 14, fontWeight: '600', color: '#1f2937' },
-  commentDate: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  commentContent: { fontSize: 14, color: '#374151', lineHeight: 20 },
-  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb', alignItems: 'center' },
-  input: { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, maxHeight: 80, marginRight: 8 },
-  postButton: { backgroundColor: Colors.primary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  smallAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  smallAvatarText: { color: colors.primaryForeground, fontSize: 14, fontWeight: '600' },
+  commentAuthor: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  commentDate: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  commentContent: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSubtle, alignItems: 'center' },
+  input: { flex: 1, backgroundColor: colors.surfaceMuted, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, maxHeight: 80, marginRight: 8, color: colors.textPrimary },
+  postButton: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
   postButtonDisabled: { opacity: 0.5 },
-  postButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  postButtonText: { color: colors.primaryForeground, fontSize: 14, fontWeight: '600' },
 });

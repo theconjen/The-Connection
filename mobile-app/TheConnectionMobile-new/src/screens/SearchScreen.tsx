@@ -254,9 +254,9 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
         style={[
           styles.header,
           {
-            backgroundColor: colors.card,
+            backgroundColor: colors.surface,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
           },
         ]}
       >
@@ -264,35 +264,35 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
           style={[
             styles.searchContainer,
             {
-              backgroundColor: colors.muted,
+              backgroundColor: colors.surfaceMuted,
               borderRadius: spacing.md,
             },
           ]}
         >
-          <Ionicons name="search" size={20} color={colors.mutedForeground} style={{ marginLeft: spacing.md }} />
+          <Ionicons name="search" size={20} color={colors.textMuted} style={{ marginLeft: spacing.md }} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search communities, posts, people, and more..."
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor={colors.textMuted}
             autoFocus
             style={[
               styles.searchInput,
               {
-                color: colors.foreground,
+                color: colors.textPrimary,
                 paddingHorizontal: spacing.md,
               },
             ]}
           />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery('')} style={{ padding: spacing.sm }}>
-              <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
+              <Ionicons name="close-circle" size={20} color={colors.textMuted} />
             </Pressable>
           )}
         </View>
 
         <Pressable onPress={onClose} style={{ padding: spacing.sm }}>
-          <Ionicons name="close" size={24} color={colors.foreground} />
+          <Ionicons name="close" size={24} color={colors.textPrimary} />
         </Pressable>
       </View>
 
@@ -301,9 +301,9 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
         style={[
           styles.filtersContainer,
           {
-            backgroundColor: colors.card,
+            backgroundColor: colors.surface,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
             paddingHorizontal: spacing.lg,
             paddingVertical: spacing.md,
           },
@@ -319,7 +319,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   styles.filterButton,
                   {
                     backgroundColor:
-                      activeFilter === filter.id ? colors.primary : colors.muted,
+                      activeFilter === filter.id ? colors.primary : colors.surfaceMuted,
                     paddingHorizontal: spacing.lg,
                     paddingVertical: spacing.sm,
                     borderRadius: spacing.full,
@@ -331,7 +331,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   variant="bodySmall"
                   style={{
                     fontWeight: '600',
-                    color: activeFilter === filter.id ? colors.primaryForeground : colors.foreground,
+                    color: activeFilter === filter.id ? colors.primaryForeground : colors.textPrimary,
                   }}
                 >
                   {filter.label}
@@ -345,7 +345,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
               style={({ pressed }) => [
                 styles.filterButton,
                 {
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                   paddingHorizontal: spacing.lg,
                   paddingVertical: spacing.sm,
                   borderRadius: spacing.full,
@@ -356,7 +356,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 },
               ]}
             >
-              <Ionicons name="options-outline" size={16} color={colors.foreground} />
+              <Ionicons name="options-outline" size={16} color={colors.textPrimary} />
               <Text variant="bodySmall" style={{ fontWeight: '600' }}>
                 Filters
               </Text>
@@ -369,7 +369,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.filterButton,
                   {
-                    backgroundColor: colors.muted,
+                    backgroundColor: colors.surfaceMuted,
                     paddingHorizontal: spacing.lg,
                     paddingVertical: spacing.sm,
                     borderRadius: spacing.full,
@@ -380,7 +380,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   },
                 ]}
               >
-                <Ionicons name="bookmark-outline" size={16} color={colors.foreground} />
+                <Ionicons name="bookmark-outline" size={16} color={colors.textPrimary} />
                 <Text variant="bodySmall" style={{ fontWeight: '600' }}>
                   Save
                 </Text>
@@ -395,13 +395,13 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
         {searchQuery.length === 0 ? (
           // Empty state
           <View style={styles.emptyState}>
-            <Ionicons name="arrow-up-outline" size={64} color={colors.mutedForeground} />
+            <Ionicons name="arrow-up-outline" size={64} color={colors.textMuted} />
             <Text
               variant="body"
               style={{
                 fontWeight: '600',
                 marginTop: spacing.md,
-                color: colors.mutedForeground,
+                color: colors.textMuted,
               }}
             >
               Start typing to search communities, posts, and people
@@ -433,10 +433,10 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     onPress={() => setSearchQuery(query)}
                     style={({ pressed }) => [
                       {
-                        backgroundColor: pressed ? colors.muted : colors.card,
+                        backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                         borderTopWidth: index === 0 ? 1 : 0,
                         borderBottomWidth: 1,
-                        borderColor: colors.border,
+                        borderColor: colors.borderSubtle,
                         padding: spacing.md,
                         paddingHorizontal: spacing.lg,
                         flexDirection: 'row',
@@ -444,7 +444,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                       },
                     ]}
                   >
-                    <Ionicons name="time-outline" size={20} color={colors.mutedForeground} />
+                    <Ionicons name="time-outline" size={20} color={colors.textMuted} />
                     <Text
                       variant="body"
                       style={{ flex: 1, marginLeft: spacing.md }}
@@ -452,7 +452,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     >
                       {query}
                     </Text>
-                    <Ionicons name="arrow-up-outline" size={20} color={colors.mutedForeground} />
+                    <Ionicons name="arrow-up-outline" size={20} color={colors.textMuted} />
                   </Pressable>
                 ))}
               </View>
@@ -471,10 +471,10 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     onPress={() => loadSavedSearch(search)}
                     style={({ pressed }) => [
                       {
-                        backgroundColor: pressed ? colors.muted : colors.card,
+                        backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                         borderTopWidth: index === 0 ? 1 : 0,
                         borderBottomWidth: 1,
-                        borderColor: colors.border,
+                        borderColor: colors.borderSubtle,
                         padding: spacing.md,
                         paddingHorizontal: spacing.lg,
                         flexDirection: 'row',
@@ -487,7 +487,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                       <Text variant="body" style={{ fontWeight: '600' }}>
                         {search.name}
                       </Text>
-                      <Text variant="caption" color="mutedForeground" numberOfLines={1}>
+                      <Text variant="caption" color="textMuted" numberOfLines={1}>
                         {search.query} • {search.filter}
                       </Text>
                     </View>
@@ -527,10 +527,10 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.quickAccessItem,
                   {
-                    backgroundColor: pressed ? colors.muted : colors.card,
+                    backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                     borderTopWidth: 1,
                     borderBottomWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     padding: spacing.md,
                     paddingHorizontal: spacing.lg,
                   },
@@ -552,11 +552,11 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     Communities
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Find groups
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               </Pressable>
 
               <Pressable
@@ -564,9 +564,9 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.quickAccessItem,
                   {
-                    backgroundColor: pressed ? colors.muted : colors.card,
+                    backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                     borderBottomWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     padding: spacing.md,
                     paddingHorizontal: spacing.lg,
                   },
@@ -588,11 +588,11 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     Feed
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Latest posts
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               </Pressable>
 
               <Pressable
@@ -600,9 +600,9 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.quickAccessItem,
                   {
-                    backgroundColor: pressed ? colors.muted : colors.card,
+                    backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                     borderBottomWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     padding: spacing.md,
                     paddingHorizontal: spacing.lg,
                   },
@@ -624,40 +624,40 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     Events
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Upcoming events
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               </Pressable>
             </View>
           </View>
         ) : isLoading ? (
           <View style={[styles.emptyState, { paddingVertical: spacing.xl * 2 }]}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text variant="bodySmall" color="mutedForeground" style={{ marginTop: spacing.md }}>
+            <Text variant="bodySmall" color="textMuted" style={{ marginTop: spacing.md }}>
               Searching...
             </Text>
           </View>
         ) : results.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={64} color={colors.mutedForeground} />
+            <Ionicons name="search-outline" size={64} color={colors.textMuted} />
             <Text
               variant="body"
               style={{
                 fontWeight: '600',
                 marginTop: spacing.md,
-                color: colors.mutedForeground,
+                color: colors.textMuted,
               }}
             >
               No results found
             </Text>
-            <Text variant="caption" color="mutedForeground" style={{ marginTop: spacing.sm }}>
+            <Text variant="caption" color="textMuted" style={{ marginTop: spacing.sm }}>
               Try different keywords
             </Text>
           </View>
         ) : (
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
             {results.map((result, index) => (
               <Pressable
                 key={`${result.type}-${result.id}`}
@@ -665,9 +665,9 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 style={({ pressed }) => [
                   styles.resultItem,
                   {
-                    backgroundColor: pressed ? colors.muted : colors.card,
+                    backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
                     borderBottomWidth: index < results.length - 1 ? 1 : 0,
-                    borderBottomColor: colors.border,
+                    borderBottomColor: colors.borderSubtle,
                     padding: spacing.md,
                     paddingHorizontal: spacing.lg,
                   },
@@ -681,7 +681,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                       width: 48,
                       height: 48,
                       borderRadius: 24,
-                      backgroundColor: colors.muted,
+                      backgroundColor: colors.surfaceMuted,
                     }}
                   />
                 ) : (
@@ -710,7 +710,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   </Text>
                   <Text
                     variant="caption"
-                    color="mutedForeground"
+                    color="textMuted"
                     numberOfLines={2}
                     style={{ marginTop: 2 }}
                   >
@@ -718,7 +718,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   </Text>
                 </View>
 
-                <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               </Pressable>
             ))}
           </View>
@@ -740,7 +740,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
             style={[
               styles.modalContent,
               {
-                backgroundColor: colors.card,
+                backgroundColor: colors.surface,
                 borderRadius: spacing.lg,
                 padding: spacing.xl,
               },
@@ -755,12 +755,12 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
               value={saveSearchName}
               onChangeText={setSaveSearchName}
               placeholder="Enter search name..."
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.textMuted}
               style={[
                 styles.modalInput,
                 {
-                  backgroundColor: colors.muted,
-                  color: colors.foreground,
+                  backgroundColor: colors.surfaceMuted,
+                  color: colors.textPrimary,
                   borderRadius: spacing.md,
                   paddingHorizontal: spacing.md,
                   paddingVertical: spacing.sm,
@@ -771,19 +771,19 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
 
             <View
               style={{
-                backgroundColor: colors.muted,
+                backgroundColor: colors.surfaceMuted,
                 borderRadius: spacing.md,
                 padding: spacing.md,
                 marginBottom: spacing.lg,
               }}
             >
-              <Text variant="bodySmall" color="mutedForeground">
+              <Text variant="bodySmall" color="textMuted">
                 Search Query
               </Text>
               <Text variant="body" style={{ marginTop: spacing.xs }}>
                 {searchQuery}
               </Text>
-              <Text variant="caption" color="mutedForeground" style={{ marginTop: spacing.xs }}>
+              <Text variant="caption" color="textMuted" style={{ marginTop: spacing.xs }}>
                 Filter: {activeFilter}
               </Text>
             </View>
@@ -798,7 +798,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   styles.modalButton,
                   {
                     flex: 1,
-                    backgroundColor: colors.muted,
+                    backgroundColor: colors.surfaceMuted,
                     borderRadius: spacing.md,
                     paddingVertical: spacing.md,
                     alignItems: 'center',
@@ -850,7 +850,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
             style={[
               styles.advancedFiltersModal,
               {
-                backgroundColor: colors.card,
+                backgroundColor: colors.surface,
                 borderTopLeftRadius: spacing.xl,
                 borderTopRightRadius: spacing.xl,
                 padding: spacing.xl,
@@ -871,7 +871,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                 onPress={() => setShowAdvancedFilters(false)}
                 style={{ padding: spacing.sm }}
               >
-                <Ionicons name="close" size={24} color={colors.foreground} />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
             </View>
 
@@ -892,7 +892,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                         styles.filterChip,
                         {
                           backgroundColor:
-                            advancedFilters.dateRange === range ? colors.primary : colors.muted,
+                            advancedFilters.dateRange === range ? colors.primary : colors.surfaceMuted,
                           paddingHorizontal: spacing.lg,
                           paddingVertical: spacing.sm,
                           borderRadius: spacing.full,
@@ -906,7 +906,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                           color:
                             advancedFilters.dateRange === range
                               ? colors.primaryForeground
-                              : colors.foreground,
+                              : colors.textPrimary,
                         }}
                       >
                         {range.charAt(0).toUpperCase() + range.slice(1)}
@@ -930,7 +930,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                         styles.filterChip,
                         {
                           backgroundColor:
-                            advancedFilters.sortBy === sort ? colors.primary : colors.muted,
+                            advancedFilters.sortBy === sort ? colors.primary : colors.surfaceMuted,
                           paddingHorizontal: spacing.lg,
                           paddingVertical: spacing.sm,
                           borderRadius: spacing.full,
@@ -944,7 +944,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                           color:
                             advancedFilters.sortBy === sort
                               ? colors.primaryForeground
-                              : colors.foreground,
+                              : colors.textPrimary,
                         }}
                       >
                         {sort.charAt(0).toUpperCase() + sort.slice(1)}
@@ -965,12 +965,12 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     setAdvancedFilters((prev) => ({ ...prev, location: text }))
                   }
                   placeholder="Enter location..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   style={[
                     styles.modalInput,
                     {
-                      backgroundColor: colors.muted,
-                      color: colors.foreground,
+                      backgroundColor: colors.surfaceMuted,
+                      color: colors.textPrimary,
                       borderRadius: spacing.md,
                       paddingHorizontal: spacing.md,
                       paddingVertical: spacing.sm,
@@ -988,7 +988,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                   borderRadius: spacing.md,
                   padding: spacing.md,
                   marginBottom: spacing.xl,
@@ -998,7 +998,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     Verified Accounts Only
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Show only verified users and communities
                   </Text>
                 </View>
@@ -1007,7 +1007,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     width: 24,
                     height: 24,
                     borderRadius: 4,
-                    backgroundColor: advancedFilters.verified ? colors.primary : colors.border,
+                    backgroundColor: advancedFilters.verified ? colors.primary : colors.borderSubtle,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
@@ -1028,7 +1028,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     styles.modalButton,
                     {
                       flex: 1,
-                      backgroundColor: colors.muted,
+                      backgroundColor: colors.surfaceMuted,
                       borderRadius: spacing.md,
                       paddingVertical: spacing.md,
                       alignItems: 'center',

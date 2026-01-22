@@ -1,60 +1,72 @@
-import { EventsScreen } from "../../src/screens/EventsScreen";
+import EventsScreenNew from "../../src/screens/EventsScreenNew";
 import { useRouter } from "expo-router";
-import { useAuth } from "../../src/contexts/AuthContext";
 import { useState } from "react";
+import { useAuth } from "../../src/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "../../src/lib/apiClient";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
-import { Alert } from "react-native";
 
 export default function EventsTab() {
   const router = useRouter();
   const { user } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
+
+  // Check if user has inbox access permission
+  const hasInboxAccess = user?.permissions?.includes('inbox_access') || false;
+
+  // Fetch unread notifications count (for hamburger menu badge)
+  const { data: unreadNotificationCount = 0 } = useQuery<number>({
+    queryKey: ['notification-count'],
+    queryFn: async () => {
+      if (!user) return 0;
+      try {
+        const response = await apiClient.get('/api/notifications/unread-count');
+        return response.data?.data?.count ?? response.data?.count ?? 0;
+      } catch (error) {
+        return 0;
+      }
+    },
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
+  // Fetch unread DM count (for message icon badge)
+  const { data: unreadMessageCount = 0 } = useQuery<number>({
+    queryKey: ['unread-count'],
+    queryFn: async () => {
+      if (!user) return 0;
+      try {
+        const response = await apiClient.get('/api/messages/unread-count');
+        return response.data?.count ?? 0;
+      } catch (error) {
+        return 0;
+      }
+    },
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
 
   return (
     <>
-      <EventsScreen
-      userName={user?.displayName || user?.username || "User"}
-      userAvatar={user?.profileImageUrl}
-      onProfilePress={() => {
-        router.push("/profile");
-      }}
-      onSearchPress={() => {
-        router.push("/search");
-      }}
-      onNotificationsPress={() => {
-        router.push("/notifications");
-      }}
-      onSettingsPress={() => {
-        router.push("/settings");
-      }}
-      onMessagesPress={() => {
-        router.push("/(tabs)/messages");
-      }}
-      onMenuPress={() => setMenuVisible(true)}
-      onEventPress={(event) => {
-        router.push(`/events/${event.id}`);
-      }}
-      onCategoryPress={(category) => {
-        setSelectedCategory(category.id);
-      }}
-      selectedCategory={selectedCategory}
-      onClearCategory={() => setSelectedCategory(null)}
-    />
-    <MenuDrawer
-      visible={menuVisible}
-      onClose={() => setMenuVisible(false)}
-      onSettings={() => router.push("/settings")}
-      onNotifications={() => router.push("/notifications")}
-      onBookmarks={() => router.push("/bookmarks")}
-      onApologetics={() => {
-        Alert.alert(
-          "Coming Soon",
-          "The Apologetics feature is currently under development. Stay tuned. If you are interested in becoming a verified Apologist email: hello@theconnection.app",
-          [{ text: "OK" }]
-        );
-      }}
-    />
-  </>
+      <EventsScreenNew
+        onProfilePress={() => router.push("/(tabs)/profile")}
+        onMessagesPress={() => router.push("/(tabs)/messages")}
+        onMenuPress={() => setMenuVisible(true)}
+        unreadNotificationCount={unreadNotificationCount}
+        unreadMessageCount={unreadMessageCount}
+      />
+
+      <MenuDrawer
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        onSettings={() => router.push("/settings")}
+        onNotifications={() => router.push("/notifications")}
+        onBookmarks={() => router.push("/bookmarks")}
+        onInbox={() => router.push("/questions/inbox")}
+        hasInboxAccess={hasInboxAccess}
+        onSearch={() => router.push("/search")}
+        onUserPress={(userId) => router.push(`/(tabs)/profile?userId=${userId}`)}
+      />
+    </>
   );
 }

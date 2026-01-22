@@ -23,7 +23,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const queryClient = useQueryClient();
-  const { theme, setTheme, colorScheme } = useTheme();
+  const { theme, setTheme, colorScheme, colors } = useTheme();
   const [emailNotifications, setEmailNotifications] = React.useState(true);
   const [isPrivateAccount, setIsPrivateAccount] = React.useState(
     user?.profileVisibility === 'private'
@@ -38,7 +38,7 @@ export default function SettingsScreen() {
 
   const updatePrivacyMutation = useMutation({
     mutationFn: async (isPrivate: boolean) => {
-      const response = await apiClient.patch('/api/user/profile-visibility', {
+      const response = await apiClient.patch('/user/profile-visibility', {
         visibility: isPrivate ? 'private' : 'public',
       });
       return response.data;
@@ -53,11 +53,6 @@ export default function SettingsScreen() {
       setIsPrivateAccount(!isPrivateAccount);
     },
   });
-
-  const handlePrivacyToggle = (value: boolean) => {
-    setIsPrivateAccount(value);
-    updatePrivacyMutation.mutate(value);
-  };
 
   const updateBirthdayMutation = useMutation({
     mutationFn: async (dateOfBirth: string) => {
@@ -98,6 +93,11 @@ export default function SettingsScreen() {
       day: 'numeric',
       year: 'numeric',
     });
+  };
+
+  const handlePrivacyToggle = (value: boolean) => {
+    setIsPrivateAccount(value);
+    updatePrivacyMutation.mutate(value);
   };
 
   const handleThemePress = () => {
@@ -141,10 +141,10 @@ export default function SettingsScreen() {
     );
   };
 
-  const SettingsItem = ({ 
-    icon, 
-    label, 
-    onPress, 
+  const SettingsItem = ({
+    icon,
+    label,
+    onPress,
     showArrow = true,
     rightElement,
     danger = false,
@@ -156,43 +156,52 @@ export default function SettingsScreen() {
     rightElement?: React.ReactNode;
     danger?: boolean;
   }) => (
-    <TouchableOpacity 
-      style={styles.settingsItem}
+    <TouchableOpacity
+      style={[
+        styles.settingsItem,
+        {
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.borderSubtle,
+        }
+      ]}
       onPress={onPress}
       disabled={!onPress && !rightElement}
     >
-      <Ionicons 
-        name={icon as any} 
-        size={22} 
-        color={danger ? '#DC2626' : '#0B132B'} 
+      <Ionicons
+        name={icon as any}
+        size={22}
+        color={danger ? colors.destructive : colors.textPrimary}
       />
-      <Text style={[styles.settingsLabel, danger && styles.dangerText]}>
+      <Text style={[
+        styles.settingsLabel,
+        { color: danger ? colors.destructive : colors.textPrimary }
+      ]}>
         {label}
       </Text>
       {rightElement ? rightElement : (
-        showArrow && <Ionicons name="chevron-forward" size={20} color="#637083" />
+        showArrow && <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
       )}
     </TouchableOpacity>
   );
 
   const SectionHeader = ({ title }: { title: string }) => (
-    <Text style={styles.sectionHeader}>{title}</Text>
+    <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{title}</Text>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#0B132B" />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Settings</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Account Section */}
         <SectionHeader title="ACCOUNT" />
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="person-outline"
             label="Edit Profile"
@@ -206,7 +215,7 @@ export default function SettingsScreen() {
           <SettingsItem
             icon="lock-closed-outline"
             label="Change Password"
-            onPress={() => Alert.alert('Coming Soon', 'Password change will be available soon.')}
+            onPress={() => router.push('/change-password')}
           />
           <SettingsItem
             icon="calendar-outline"
@@ -214,8 +223,10 @@ export default function SettingsScreen() {
             onPress={() => setShowDatePicker(true)}
             rightElement={
               <View style={styles.themeValue}>
-                <Text style={styles.themeValueText}>{formatBirthday(birthday)}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#637083" />
+                <Text style={[styles.themeValueText, { color: colors.textSecondary }]}>
+                  {formatBirthday(birthday)}
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </View>
             }
           />
@@ -233,27 +244,27 @@ export default function SettingsScreen() {
           />
         )}
         {Platform.OS === 'ios' && showDatePicker && (
-          <View style={styles.datePickerDoneContainer}>
+          <View style={[styles.datePickerDoneContainer, { backgroundColor: colors.surface }]}>
             <TouchableOpacity
               style={styles.datePickerDoneButton}
               onPress={() => setShowDatePicker(false)}
             >
-              <Text style={styles.datePickerDoneText}>Done</Text>
+              <Text style={[styles.datePickerDoneText, { color: colors.primary }]}>Done</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {/* Appearance Section */}
         <SectionHeader title="APPEARANCE" />
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="moon-outline"
             label="Dark Mode"
             onPress={handleThemePress}
             rightElement={
               <View style={styles.themeValue}>
-                <Text style={styles.themeValueText}>{getThemeLabel()}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#637083" />
+                <Text style={[styles.themeValueText, { color: colors.textSecondary }]}>{getThemeLabel()}</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </View>
             }
           />
@@ -261,7 +272,7 @@ export default function SettingsScreen() {
 
         {/* Notifications Section */}
         <SectionHeader title="NOTIFICATIONS" />
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="notifications-outline"
             label="Notification Preferences"
@@ -275,7 +286,7 @@ export default function SettingsScreen() {
               <Switch
                 value={emailNotifications}
                 onValueChange={setEmailNotifications}
-                trackColor={{ false: '#D1D8DE', true: '#222D99' }}
+                trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
               />
             }
           />
@@ -283,7 +294,7 @@ export default function SettingsScreen() {
 
         {/* Privacy Section */}
         <SectionHeader title="PRIVACY" />
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="eye-off-outline"
             label="Private Account"
@@ -292,7 +303,7 @@ export default function SettingsScreen() {
               <Switch
                 value={isPrivateAccount}
                 onValueChange={handlePrivacyToggle}
-                trackColor={{ false: '#D1D8DE', true: '#222D99' }}
+                trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
                 disabled={updatePrivacyMutation.isPending}
               />
             }
@@ -302,11 +313,17 @@ export default function SettingsScreen() {
             label="Blocked Users"
             onPress={() => router.push('/blocked-users')}
           />
+          <SettingsItem
+            icon="trash-outline"
+            label="Delete Account"
+            onPress={() => router.push('/delete-account')}
+            danger
+          />
         </View>
 
         {/* Support Section */}
         <SectionHeader title="SUPPORT" />
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="help-circle-outline"
             label="Help Center"
@@ -326,17 +343,17 @@ export default function SettingsScreen() {
 
         {/* About Section */}
         <SectionHeader title="ABOUT" />
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="information-circle-outline"
             label="App Version"
             showArrow={false}
-            rightElement={<Text style={styles.versionText}>1.0.0</Text>}
+            rightElement={<Text style={[styles.versionText, { color: colors.textSecondary }]}>1.0.0</Text>}
           />
         </View>
 
         {/* Logout */}
-        <View style={[styles.section, styles.logoutSection]}>
+        <View style={[styles.section, styles.logoutSection, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
           <SettingsItem
             icon="log-out-outline"
             label="Log Out"
@@ -355,7 +372,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
   },
   header: {
     flexDirection: 'row',
@@ -363,9 +379,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#D1D8DE',
   },
   backButton: {
     padding: 4,
@@ -373,7 +387,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#0B132B',
   },
   placeholder: {
     width: 32,
@@ -384,39 +397,29 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#637083',
     paddingHorizontal: 16,
     paddingTop: 24,
     paddingBottom: 8,
     letterSpacing: 0.5,
   },
   section: {
-    backgroundColor: '#fff',
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#D1D8DE',
   },
   settingsItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   settingsLabel: {
     flex: 1,
     fontSize: 16,
-    color: '#0B132B',
     marginLeft: 12,
-  },
-  dangerText: {
-    color: '#DC2626',
   },
   versionText: {
     fontSize: 16,
-    color: '#637083',
   },
   themeValue: {
     flexDirection: 'row',
@@ -425,7 +428,6 @@ const styles = StyleSheet.create({
   },
   themeValueText: {
     fontSize: 16,
-    color: '#637083',
   },
   logoutSection: {
     marginTop: 24,
@@ -437,7 +439,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#fff',
   },
   datePickerDoneButton: {
     paddingVertical: 8,
@@ -446,6 +447,5 @@ const styles = StyleSheet.create({
   datePickerDoneText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222D99',
   },
 });

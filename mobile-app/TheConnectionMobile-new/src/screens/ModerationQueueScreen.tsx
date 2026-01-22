@@ -433,7 +433,7 @@ export default function ModerationQueueScreen() {
       {/* Reports List */}
       {isLoading ? (
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#222D99" />
+          <ActivityIndicator size="large" color="#5C6B5E" />
           <Text style={styles.loadingText}>Loading reports...</Text>
         </View>
       ) : reports.length === 0 ? (
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   filterTabActive: {
-    backgroundColor: '#222D99',
+    backgroundColor: '#5C6B5E',
   },
   filterTabText: {
     fontSize: 14,

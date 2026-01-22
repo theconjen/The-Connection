@@ -3,17 +3,19 @@ import { View, StyleSheet, SafeAreaView, TouchableOpacity, Text } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { NotificationSettingsScreen } from '../src/screens/NotificationSettingsScreen';
+import { useTheme } from '../src/contexts/ThemeContext';
 
 export default function NotificationSettingsRoute() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#0B132B" />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Notifications</Text>
         <View style={styles.placeholder} />
       </View>
       <NotificationSettingsScreen />
@@ -24,7 +26,6 @@ export default function NotificationSettingsRoute() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
   },
   header: {
     flexDirection: 'row',
@@ -32,9 +33,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#D1D8DE',
   },
   backButton: {
     padding: 4,
@@ -42,7 +41,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#0B132B',
   },
   placeholder: {
     width: 32,

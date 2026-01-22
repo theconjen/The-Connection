@@ -25,8 +25,11 @@ import { AppHeader } from './AppHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { getCurrentLocationWithAddress, type UserLocation } from '../services/locationService';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiClient, queryClient } from '../lib/apiClient';
+import apiClient, { communitiesAPI } from '../lib/apiClient';
+import { queryClient } from '../../lib/queryClient';
 import { useAuth } from '../contexts/AuthContext';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 
 // No custom icon components needed - using Ionicons directly
 
@@ -88,9 +91,9 @@ function FilterPill({
         height: 28,
         paddingHorizontal: spacing.md,
         borderRadius: radii.full,
-        backgroundColor: isActive ? colors.primary : colors.card,
+        backgroundColor: isActive ? colors.primary : colors.surface,
         borderWidth: isActive ? 0 : 1,
-        borderColor: colors.border,
+        borderColor: colors.borderSubtle,
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.xs,
@@ -101,7 +104,7 @@ function FilterPill({
       <Text
         variant="caption"
         style={{
-          color: isActive ? colors.primaryForeground : colors.mutedForeground,
+          color: isActive ? colors.primaryForeground : colors.textMuted,
           fontWeight: '500',
         }}
       >
@@ -185,7 +188,7 @@ function EventCard({
   const getRsvpColor = () => {
     if (event.userRsvpStatus === 'going') return colors.primary;
     if (event.userRsvpStatus === 'maybe') return '#F59E0B'; // Amber
-    return colors.border;
+    return colors.borderSubtle;
   };
 
   // Get RSVP icon
@@ -203,11 +206,11 @@ function EventCard({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        backgroundColor: colors.card,
+        backgroundColor: colors.surface,
         padding: spacing.md,
         borderRadius: radii.xl,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: colors.borderSubtle,
         marginBottom: spacing.sm,
         shadowColor: '#000',
         shadowOpacity: 0.03,
@@ -248,7 +251,7 @@ function EventCard({
           >
             <Text
               variant="bodySmall"
-              style={{ fontWeight: '700', color: colors.foreground, flex: 1 }}
+              style={{ fontWeight: '700', color: colors.textPrimary, flex: 1 }}
               numberOfLines={1}
             >
               {event.title}
@@ -277,7 +280,7 @@ function EventCard({
 
           <Text
             variant="caption"
-            color="mutedForeground"
+            color="textMuted"
             numberOfLines={2}
             style={{ marginBottom: spacing.xs }}
           >
@@ -287,26 +290,26 @@ function EventCard({
           {/* Event Details */}
           <View style={{ gap: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="calendar-outline" size={12} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+              <Ionicons name="calendar-outline" size={12} color={colors.textMuted} />
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>
                 {formatDate(event.eventDate)}
               </Text>
-              <Ionicons name="time-outline" size={12} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+              <Ionicons name="time-outline" size={12} color={colors.textMuted} />
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>
                 {event.startTime}
               </Text>
             </View>
             {event.location && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="location-outline" size={12} color={colors.mutedForeground} />
-                <Text style={{ fontSize: 11, color: colors.mutedForeground }} numberOfLines={1}>
+                <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+                <Text style={{ fontSize: 11, color: colors.textMuted }} numberOfLines={1}>
                   {event.location}
                 </Text>
               </View>
             )}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="people-outline" size={12} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+              <Ionicons name="people-outline" size={12} color={colors.textMuted} />
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>
                 {event.rsvpCount || 0} attending
               </Text>
             </View>
@@ -335,13 +338,13 @@ function EventCard({
               <Ionicons
                 name={getRsvpIcon()}
                 size={14}
-                color={event.userRsvpStatus ? colors.primaryForeground : colors.mutedForeground}
+                color={event.userRsvpStatus ? colors.primaryForeground : colors.textMuted}
               />
               <Text
                 style={{
                   fontSize: 11,
                   fontWeight: '600',
-                  color: event.userRsvpStatus ? colors.primaryForeground : colors.mutedForeground,
+                  color: event.userRsvpStatus ? colors.primaryForeground : colors.textMuted,
                 }}
               >
                 {event.userRsvpStatus === 'going' ? 'Going' : event.userRsvpStatus === 'maybe' ? 'Maybe' : 'RSVP'}
@@ -382,14 +385,17 @@ export function EventsScreen({
   userName = 'User',
   userAvatar,
 }: EventsScreenProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, colorScheme } = useTheme();
   const { user } = useAuth();
   const [activeFilters, setActiveFilters] = useState<string[]>(['This Week']);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [rsvpFilter, setRsvpFilter] = useState<'all' | 'attending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
+  const [showCommunities, setShowCommunities] = useState(true);
 
   // Create Event Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -423,9 +429,41 @@ export function EventsScreen({
   // Check if user can create events (app admin OR community admin)
   const canCreateEvents = user?.isAdmin || (adminCommunities && adminCommunities.length > 0);
 
+  // Request location permissions when map view is selected
+  useEffect(() => {
+    if (viewMode === 'map') {
+      requestLocationPermission();
+    }
+  }, [viewMode]);
+
+  const requestLocationPermission = async () => {
+    try {
+      setLoadingLocation(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      setLocationPermission(status === 'granted');
+
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          address: '',
+          city: '',
+          state: '',
+          zipCode: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error requesting location permission:', error);
+      setLocationPermission(false);
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
   // Fetch events from API
   const { data: events = [], isLoading, refetch } = useQuery<Event[]>({
-    queryKey: ['/api/events', searchQuery, locationFilter],
+    queryKey: ['/api/events', searchQuery, locationFilter, rsvpFilter],
     queryFn: async () => {
       let endpoint = '/api/events';
       const params = new URLSearchParams();
@@ -436,6 +474,9 @@ export function EventsScreen({
       if (locationFilter) {
         params.append('city', locationFilter);
       }
+      if (rsvpFilter === 'attending') {
+        params.append('rsvpStatus', 'going');
+      }
 
       const queryString = params.toString();
       if (queryString) {
@@ -443,14 +484,17 @@ export function EventsScreen({
       }
 
       const response = await apiClient.get(endpoint);
-      let eventsData = response.data;
+      let eventsData = response.data.events || response.data;
+
+      // Filter out virtual events (only show in-person events)
+      eventsData = eventsData.filter((event: Event) => !event.isVirtual);
 
       // Fetch RSVP status for each event if user is logged in
       if (user) {
         const eventsWithRsvp = await Promise.all(
           eventsData.map(async (event: Event) => {
             try {
-              const rsvpResponse = await apiClient.get(`/api/events/${event.id}/rsvp`);
+              const rsvpResponse = await apiClient.get(`/api/events/${event.id}/my-rsvp`);
               const userRsvp = rsvpResponse.data;
               return {
                 ...event,
@@ -469,25 +513,43 @@ export function EventsScreen({
     },
   });
 
+  // Fetch public communities with locations for the map
+  const { data: communities = [] } = useQuery<any[]>({
+    queryKey: ['/api/communities/map'],
+    queryFn: async () => {
+      try {
+        const allCommunities = await communitiesAPI.getAll();
+        // Only return public communities with latitude/longitude
+        if (!Array.isArray(allCommunities)) {
+          console.error('Communities response is not an array:', allCommunities);
+          return [];
+        }
+        return allCommunities.filter((c: any) =>
+          !c.isPrivate && c.latitude && c.longitude
+        );
+      } catch (error) {
+        console.error('Error fetching communities for map:', error);
+        return [];
+      }
+    },
+    enabled: viewMode === 'map' && showCommunities,
+  });
+
   // RSVP mutation
   const rsvpMutation = useMutation({
     mutationFn: async ({ eventId, status }: { eventId: number; status: string }) => {
-      // Check if user already has RSVP for this event
-      const event = events.find((e) => e.id === eventId);
+      // Map frontend status values to backend values
+      // Frontend: 'going', 'not_going'
+      // Backend: 'attending', 'maybe', 'declined'
+      const backendStatus = status === 'going' ? 'attending' : 'declined';
 
-      if (event?.userRsvpStatus) {
-        // Update existing RSVP
-        const response = await apiClient.patch(`/api/events/${eventId}/rsvp`, { status });
-        return response.data;
-      } else {
-        // Create new RSVP
-        const response = await apiClient.post(`/api/events/${eventId}/rsvp`, { status });
-        return response.data;
-      }
+      // Backend uses upsert, so POST handles both create and update
+      const response = await apiClient.post(`/api/events/${eventId}/rsvp`, { status: backendStatus });
+      return response.data;
     },
     onMutate: async ({ eventId, status }) => {
-      // Optimistic update
-      queryClient.setQueryData(['/api/events', searchQuery, locationFilter], (oldData: any) => {
+      // Optimistic update - use correct query key matching the useQuery
+      queryClient.setQueryData(['/api/events', searchQuery, locationFilter, rsvpFilter], (oldData: any) => {
         if (!oldData) return oldData;
         return oldData.map((event: Event) =>
           event.id === eventId
@@ -509,11 +571,10 @@ export function EventsScreen({
       // Refresh events after RSVP
       queryClient.invalidateQueries({ queryKey: ['/api/events'] });
     },
-    onError: (error) => {
-      Alert.alert('Error', 'Failed to update RSVP. Please try again.');
-      if (__DEV__) {
-        console.error('RSVP error:', error);
-      }
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || 'Failed to update RSVP. Please try again.';
+      Alert.alert('Error', errorMessage);
+      console.error('RSVP error:', error);
       // Revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/events'] });
     },
@@ -562,9 +623,7 @@ export function EventsScreen({
     },
     onError: (error: any) => {
       Alert.alert('Error', error.response?.data?.error || 'Failed to create event');
-      if (__DEV__) {
-        console.error('Create event error:', error);
-      }
+      console.error('Create event error:', error);
     },
   });
 
@@ -618,13 +677,11 @@ export function EventsScreen({
         if (location.city) {
           setLocationFilter(location.city);
         }
-      } else if (__DEV__) {
+      } else {
         console.warn('Location service not available or permission denied');
       }
     } catch (error) {
-      if (__DEV__) {
-        console.error('Error getting location:', error);
-      }
+      console.error('Error getting location:', error);
       // Silently fail - location is optional
     } finally {
       setLoadingLocation(false);
@@ -655,53 +712,53 @@ export function EventsScreen({
     'Paid',
   ];
 
+  const isDark = colorScheme === 'dark';
+
   const categories: EventCategory[] = [
     {
       id: 'worship',
       title: 'Worship',
       count: '18',
       iconName: 'musical-notes-outline',
-      bgColor: '#F0F9FF',
-      accentColor: '#0284C7',
-      borderColor: '#E0F2FE',
+      bgColor: isDark ? '#1E3A5F' : '#F0F9FF',
+      accentColor: isDark ? '#60A5FA' : '#0284C7',
+      borderColor: isDark ? '#2563EB' : '#E0F2FE',
     },
     {
       id: 'bible-study',
       title: 'Bible Study',
       count: '24',
       iconName: 'book-outline',
-      bgColor: '#FEF3C7',
-      accentColor: '#D97706',
-      borderColor: '#FDE68A',
+      bgColor: isDark ? '#422006' : '#FEF3C7',
+      accentColor: isDark ? '#FCD34D' : '#D97706',
+      borderColor: isDark ? '#92400E' : '#FDE68A',
     },
     {
       id: 'social',
       title: 'Social',
       count: '32',
       iconName: 'cafe-outline',
-      bgColor: '#ECFDF5',
-      accentColor: '#059669',
-      borderColor: '#D1FAE5',
+      bgColor: isDark ? '#022C22' : '#ECFDF5',
+      accentColor: isDark ? '#34D399' : '#059669',
+      borderColor: isDark ? '#065F46' : '#D1FAE5',
     },
     {
       id: 'outreach',
       title: 'Outreach',
       count: '12',
       iconName: 'heart-outline',
-      bgColor: '#FDF2F8',
-      accentColor: '#DB2777',
-      borderColor: '#FCE7F3',
+      bgColor: isDark ? '#500724' : '#FDF2F8',
+      accentColor: isDark ? '#F472B6' : '#DB2777',
+      borderColor: isDark ? '#9F1239' : '#FCE7F3',
     },
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      <StatusBar
-        barStyle={colors.background === '#F9FAFB' ? 'dark-content' : 'light-content'}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.surface }}
         contentContainerStyle={{ paddingBottom: 80 }}
         stickyHeaderIndices={[1]}
         refreshControl={
@@ -710,17 +767,39 @@ export function EventsScreen({
       >
         {/* App Header */}
         <AppHeader
-          showBrandText={true}
+          showCenteredLogo={true}
+          userName={userName}
+          userAvatar={userAvatar}
+          onProfilePress={onProfilePress}
+          showMessages={true}
+          onMessagesPress={onMessagesPress}
+          showMenu={true}
+          onMenuPress={onMenuPress}
+          rightElement={
+            <Pressable
+              onPress={() => setShowCreateModal(true)}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: pressed ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                borderRadius: radii.full,
+              })}
+            >
+              <Ionicons name="add" size={26} color="#FFFFFF" />
+            </Pressable>
+          }
         />
 
         {/* Search and Filters Section */}
         <View
           style={{
-            backgroundColor: colors.card,
+            backgroundColor: colors.surface,
             paddingHorizontal: spacing.lg,
             paddingVertical: spacing.md,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
             gap: spacing.md,
           }}
         >
@@ -732,24 +811,24 @@ export function EventsScreen({
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                   borderRadius: radii.lg,
                   paddingHorizontal: spacing.md,
                   height: 40,
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: colors.borderSubtle,
                 }}
               >
-                <Ionicons name="search" size={18} color={colors.mutedForeground} />
+                <Ionicons name="search" size={18} color={colors.textMuted} />
                 <TextInput
                   style={{
                     flex: 1,
                     marginLeft: spacing.sm,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                   }}
                   placeholder="Search events..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
@@ -762,12 +841,12 @@ export function EventsScreen({
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.surfaceMuted,
                   borderRadius: radii.lg,
                   paddingHorizontal: spacing.md,
                   height: 40,
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: colors.borderSubtle,
                 }}
               >
                 {loadingLocation ? (
@@ -782,30 +861,33 @@ export function EventsScreen({
                     flex: 1,
                     marginLeft: spacing.sm,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                   }}
                   placeholder="Filter by city..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={locationFilter}
                   onChangeText={setLocationFilter}
                 />
                 {locationFilter.length > 0 && (
                   <Pressable onPress={() => setLocationFilter('')}>
-                    <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                   </Pressable>
                 )}
               </View>
             </View>
           </View>
 
-          {/* List/Map Toggle */}
-          <View
-            style={{
+          {/* List/Map Toggle and RSVP Filter */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
               flexDirection: 'row',
-              justifyContent: 'flex-end',
               gap: spacing.xs,
+              paddingRight: spacing.md,
             }}
           >
+            {/* View Mode Toggle */}
             <Pressable
               onPress={() => setViewMode('list')}
               style={({ pressed }) => ({
@@ -815,22 +897,22 @@ export function EventsScreen({
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.xs,
                 borderRadius: radii.md,
-                backgroundColor: viewMode === 'list' ? colors.primary : colors.card,
+                backgroundColor: viewMode === 'list' ? colors.primary : colors.surface,
                 borderWidth: 1,
-                borderColor: viewMode === 'list' ? colors.primary : colors.border,
+                borderColor: viewMode === 'list' ? colors.primary : colors.borderSubtle,
                 opacity: pressed ? 0.8 : 1,
               })}
             >
               <Ionicons
                 name="list"
                 size={16}
-                color={viewMode === 'list' ? colors.primaryForeground : colors.foreground}
+                color={viewMode === 'list' ? colors.primaryForeground : colors.textPrimary}
               />
               <Text
                 variant="caption"
                 style={{
                   fontWeight: '600',
-                  color: viewMode === 'list' ? colors.primaryForeground : colors.foreground,
+                  color: viewMode === 'list' ? colors.primaryForeground : colors.textPrimary,
                 }}
               >
                 List
@@ -846,28 +928,81 @@ export function EventsScreen({
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.xs,
                 borderRadius: radii.md,
-                backgroundColor: viewMode === 'map' ? colors.primary : colors.card,
+                backgroundColor: viewMode === 'map' ? colors.primary : colors.surface,
                 borderWidth: 1,
-                borderColor: viewMode === 'map' ? colors.primary : colors.border,
+                borderColor: viewMode === 'map' ? colors.primary : colors.borderSubtle,
                 opacity: pressed ? 0.8 : 1,
               })}
             >
               <Ionicons
                 name="map"
                 size={16}
-                color={viewMode === 'map' ? colors.primaryForeground : colors.foreground}
+                color={viewMode === 'map' ? colors.primaryForeground : colors.textPrimary}
               />
               <Text
                 variant="caption"
                 style={{
                   fontWeight: '600',
-                  color: viewMode === 'map' ? colors.primaryForeground : colors.foreground,
+                  color: viewMode === 'map' ? colors.primaryForeground : colors.textPrimary,
                 }}
               >
                 Map
               </Text>
             </Pressable>
-          </View>
+
+            {/* RSVP Filter Pills */}
+            <Pressable
+              onPress={() => setRsvpFilter('all')}
+              style={({ pressed }) => ({
+                height: 28,
+                paddingHorizontal: spacing.md,
+                borderRadius: radii.full,
+                backgroundColor: rsvpFilter === 'all' ? colors.primary : colors.surface,
+                borderWidth: rsvpFilter === 'all' ? 0 : 1,
+                borderColor: colors.borderSubtle,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Text
+                variant="caption"
+                style={{
+                  color: rsvpFilter === 'all' ? colors.primaryForeground : colors.textMuted,
+                  fontWeight: '500',
+                }}
+              >
+                All Events
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setRsvpFilter('attending')}
+              style={({ pressed }) => ({
+                height: 28,
+                paddingHorizontal: spacing.md,
+                borderRadius: radii.full,
+                backgroundColor: rsvpFilter === 'attending' ? colors.primary : colors.surface,
+                borderWidth: rsvpFilter === 'attending' ? 0 : 1,
+                borderColor: colors.borderSubtle,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Text
+                variant="caption"
+                style={{
+                  color: rsvpFilter === 'attending' ? colors.primaryForeground : colors.textMuted,
+                  fontWeight: '500',
+                }}
+              >
+                My RSVPs
+              </Text>
+            </Pressable>
+          </ScrollView>
         </View>
 
         {/* Filter Bar - Sticky */}
@@ -876,7 +1011,7 @@ export function EventsScreen({
             backgroundColor: colors.background,
             paddingVertical: spacing.sm,
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.borderSubtle,
           }}
         >
           <ScrollView
@@ -894,16 +1029,16 @@ export function EventsScreen({
                 height: 28,
                 paddingHorizontal: spacing.md,
                 borderRadius: radii.full,
-                backgroundColor: colors.card,
+                backgroundColor: colors.surface,
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor: colors.borderSubtle,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: spacing.xs,
                 opacity: pressed ? 0.8 : 1,
               })}
             >
-              <Ionicons name="options-outline" size={14} color={colors.foreground} />
+              <Ionicons name="options-outline" size={14} color={colors.textPrimary} />
               <Text variant="caption" style={{ fontWeight: '500' }}>
                 Filters
               </Text>
@@ -914,7 +1049,7 @@ export function EventsScreen({
               style={{
                 width: 1,
                 height: 16,
-                backgroundColor: colors.border,
+                backgroundColor: colors.borderSubtle,
               }}
             />
 
@@ -936,40 +1071,129 @@ export function EventsScreen({
           <View
             style={{
               flex: 1,
-              backgroundColor: colors.muted,
               marginHorizontal: spacing.lg,
               marginTop: spacing.lg,
               borderRadius: radii.xl,
+              overflow: 'hidden',
               borderWidth: 1,
-              borderColor: colors.border,
+              borderColor: colors.borderSubtle,
               minHeight: 400,
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: spacing.xl,
             }}
           >
-            <Ionicons name="map-outline" size={48} color={colors.mutedForeground} />
-            <Text
-              variant="body"
-              style={{
-                fontWeight: '600',
-                color: colors.foreground,
-                marginTop: spacing.md,
-                textAlign: 'center',
-              }}
-            >
-              Event Map
-            </Text>
-            <Text
-              variant="bodySmall"
-              style={{
-                color: colors.mutedForeground,
-                marginTop: spacing.sm,
-                textAlign: 'center',
-              }}
-            >
-              Events with location coordinates will appear here. Add an event with a specific address to see it on the map.
-            </Text>
+            {loadingLocation ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text variant="body" style={{ marginTop: spacing.md, color: colors.textMuted }}>
+                  Requesting location permissions...
+                </Text>
+              </View>
+            ) : locationPermission === false ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, padding: spacing.xl }}>
+                <Ionicons name="location-outline" size={48} color={colors.textMuted} />
+                <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginTop: spacing.md, textAlign: 'center' }}>
+                  Location Permission Denied
+                </Text>
+                <Text variant="bodySmall" style={{ color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>
+                  Please enable location permissions in your device settings to view events on the map.
+                </Text>
+                <Pressable
+                  onPress={requestLocationPermission}
+                  style={{
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.md,
+                    borderRadius: radii.md,
+                    marginTop: spacing.lg,
+                  }}
+                >
+                  <Text variant="body" style={{ color: colors.primaryForeground, fontWeight: '600' }}>
+                    Request Permission
+                  </Text>
+                </Pressable>
+              </View>
+            ) : userLocation ? (
+              <>
+                {/* Map Toggle for Communities */}
+                <View style={{
+                  position: 'absolute',
+                  top: spacing.md,
+                  right: spacing.md,
+                  zIndex: 10,
+                  backgroundColor: colors.surface,
+                  borderRadius: radii.md,
+                  padding: spacing.md,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  shadowOffset: { width: 0, height: 2 },
+                  elevation: 3,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                }}>
+                  <Ionicons name="people" size={18} color={colors.textPrimary} />
+                  <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+                    Communities
+                  </Text>
+                  <Switch
+                    value={showCommunities}
+                    onValueChange={setShowCommunities}
+                    trackColor={{ false: colors.borderSubtle, true: colors.primary }}
+                    thumbColor={showCommunities ? colors.primaryForeground : colors.textMuted}
+                  />
+                </View>
+
+                <MapView
+                  style={{ flex: 1 }}
+                  provider={PROVIDER_GOOGLE}
+                  initialRegion={{
+                    latitude: userLocation.latitude,
+                    longitude: userLocation.longitude,
+                    latitudeDelta: 0.2,
+                    longitudeDelta: 0.2,
+                  }}
+                  showsUserLocation
+                  showsMyLocationButton
+                >
+                  {/* Event Markers */}
+                  {events
+                    .filter(event => event.latitude && event.longitude)
+                    .map(event => (
+                      <Marker
+                        key={`event-${event.id}`}
+                        coordinate={{
+                          latitude: parseFloat(event.latitude!),
+                          longitude: parseFloat(event.longitude!),
+                        }}
+                        title={event.title}
+                        description={`${new Date(event.eventDate).toLocaleDateString()} at ${event.startTime}`}
+                        pinColor="#7C8F78"
+                      />
+                    ))}
+
+                  {/* Community Markers */}
+                  {showCommunities && communities.map(community => (
+                    <Marker
+                      key={`community-${community.id}`}
+                      coordinate={{
+                        latitude: parseFloat(community.latitude),
+                        longitude: parseFloat(community.longitude),
+                      }}
+                      title={community.name}
+                      description={community.description || 'Community'}
+                      pinColor="#10B981"
+                    />
+                  ))}
+                </MapView>
+              </>
+            ) : (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, padding: spacing.xl }}>
+                <Ionicons name="map-outline" size={48} color={colors.textMuted} />
+                <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginTop: spacing.md, textAlign: 'center' }}>
+                  Loading Map...
+                </Text>
+              </View>
+            )}
           </View>
         ) : (
           /* List View */
@@ -984,7 +1208,7 @@ export function EventsScreen({
                   marginBottom: spacing.sm,
                 }}
               >
-                <Ionicons name="grid-outline" size={16} color="#4A90E2" />
+                <Ionicons name="grid-outline" size={16} color="#7C8F78" />
                 <Text variant="bodySmall" style={{ fontWeight: '700' }}>
                   Event Categories
                 </Text>
@@ -1033,7 +1257,7 @@ export function EventsScreen({
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text
                   variant="bodySmall"
-                  color="mutedForeground"
+                  color="textMuted"
                   style={{ marginTop: spacing.md }}
                 >
                   Loading events...
@@ -1047,7 +1271,7 @@ export function EventsScreen({
                   paddingHorizontal: spacing.lg,
                 }}
               >
-                <Ionicons name="calendar-outline" size={64} color={colors.mutedForeground} />
+                <Ionicons name="calendar-outline" size={64} color={colors.textMuted} />
                 <Text
                   variant="body"
                   style={{
@@ -1060,10 +1284,12 @@ export function EventsScreen({
                 </Text>
                 <Text
                   variant="bodySmall"
-                  color="mutedForeground"
+                  color="textMuted"
                   style={{ marginTop: spacing.sm, textAlign: 'center' }}
                 >
-                  {searchQuery || locationFilter
+                  {rsvpFilter === 'attending'
+                    ? "You haven't RSVP'd to any events yet."
+                    : searchQuery || locationFilter
                     ? 'Try adjusting your search or filters.'
                     : 'Check back later for upcoming events.'}
                 </Text>
@@ -1102,11 +1328,11 @@ export function EventsScreen({
                 paddingHorizontal: spacing.lg,
                 paddingVertical: spacing.md,
                 borderBottomWidth: 1,
-                borderBottomColor: colors.border,
+                borderBottomColor: colors.borderSubtle,
               }}
             >
               <Pressable onPress={() => setShowCreateModal(false)}>
-                <Ionicons name="close" size={24} color={colors.foreground} />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
               <Text variant="body" style={{ fontWeight: '700' }}>
                 Create Event
@@ -1117,7 +1343,7 @@ export function EventsScreen({
               >
                 <Text
                   style={{
-                    color: createEventMutation.isPending ? colors.mutedForeground : colors.primary,
+                    color: createEventMutation.isPending ? colors.textMuted : colors.primary,
                     fontWeight: '600',
                   }}
                 >
@@ -1136,9 +1362,9 @@ export function EventsScreen({
                 <Pressable
                   onPress={() => setShowCommunityPicker(!showCommunityPicker)}
                   style={{
-                    backgroundColor: colors.card,
+                    backgroundColor: colors.surface,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     borderRadius: radii.lg,
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.sm + 2,
@@ -1151,8 +1377,8 @@ export function EventsScreen({
                     style={{
                       fontSize: 14,
                       color: selectedCommunityId
-                        ? colors.foreground
-                        : colors.mutedForeground,
+                        ? colors.textPrimary
+                        : colors.textMuted,
                     }}
                   >
                     {selectedCommunityId
@@ -1162,7 +1388,7 @@ export function EventsScreen({
                   <Ionicons
                     name={showCommunityPicker ? 'chevron-up' : 'chevron-down'}
                     size={20}
-                    color={colors.mutedForeground}
+                    color={colors.textMuted}
                   />
                 </Pressable>
 
@@ -1171,9 +1397,9 @@ export function EventsScreen({
                   <View
                     style={{
                       marginTop: spacing.xs,
-                      backgroundColor: colors.card,
+                      backgroundColor: colors.surface,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.borderSubtle,
                       borderRadius: radii.lg,
                       maxHeight: 200,
                     }}
@@ -1189,9 +1415,9 @@ export function EventsScreen({
                           style={({ pressed }) => ({
                             paddingHorizontal: spacing.md,
                             paddingVertical: spacing.sm + 2,
-                            backgroundColor: pressed ? colors.muted : 'transparent',
+                            backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                             borderBottomWidth: 1,
-                            borderBottomColor: colors.border,
+                            borderBottomColor: colors.borderSubtle,
                           })}
                         >
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -1201,7 +1427,7 @@ export function EventsScreen({
                               </Text>
                               <Text
                                 variant="caption"
-                                color="mutedForeground"
+                                color="textMuted"
                                 style={{ textTransform: 'capitalize' }}
                               >
                                 {community.role}
@@ -1230,17 +1456,17 @@ export function EventsScreen({
                 </Text>
                 <TextInput
                   style={{
-                    backgroundColor: colors.card,
+                    backgroundColor: colors.surface,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     borderRadius: radii.lg,
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.sm + 2,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                   }}
                   placeholder="Enter event title"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={newEventTitle}
                   onChangeText={setNewEventTitle}
                 />
@@ -1253,19 +1479,19 @@ export function EventsScreen({
                 </Text>
                 <TextInput
                   style={{
-                    backgroundColor: colors.card,
+                    backgroundColor: colors.surface,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     borderRadius: radii.lg,
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.sm + 2,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                     minHeight: 100,
                     textAlignVertical: 'top',
                   }}
                   placeholder="Describe your event"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={newEventDescription}
                   onChangeText={setNewEventDescription}
                   multiline
@@ -1280,17 +1506,17 @@ export function EventsScreen({
                 </Text>
                 <TextInput
                   style={{
-                    backgroundColor: colors.card,
+                    backgroundColor: colors.surface,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.borderSubtle,
                     borderRadius: radii.lg,
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.sm + 2,
                     fontSize: 14,
-                    color: colors.foreground,
+                    color: colors.textPrimary,
                   }}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.textMuted}
                   value={newEventDate}
                   onChangeText={setNewEventDate}
                 />
@@ -1304,17 +1530,17 @@ export function EventsScreen({
                   </Text>
                   <TextInput
                     style={{
-                      backgroundColor: colors.card,
+                      backgroundColor: colors.surface,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.borderSubtle,
                       borderRadius: radii.lg,
                       paddingHorizontal: spacing.md,
                       paddingVertical: spacing.sm + 2,
                       fontSize: 14,
-                      color: colors.foreground,
+                      color: colors.textPrimary,
                     }}
                     placeholder="HH:MM"
-                    placeholderTextColor={colors.mutedForeground}
+                    placeholderTextColor={colors.textMuted}
                     value={newEventStartTime}
                     onChangeText={setNewEventStartTime}
                   />
@@ -1325,17 +1551,17 @@ export function EventsScreen({
                   </Text>
                   <TextInput
                     style={{
-                      backgroundColor: colors.card,
+                      backgroundColor: colors.surface,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.borderSubtle,
                       borderRadius: radii.lg,
                       paddingHorizontal: spacing.md,
                       paddingVertical: spacing.sm + 2,
                       fontSize: 14,
-                      color: colors.foreground,
+                      color: colors.textPrimary,
                     }}
                     placeholder="HH:MM"
-                    placeholderTextColor={colors.mutedForeground}
+                    placeholderTextColor={colors.textMuted}
                     value={newEventEndTime}
                     onChangeText={setNewEventEndTime}
                   />
@@ -1356,15 +1582,15 @@ export function EventsScreen({
                   <Text variant="bodySmall" style={{ fontWeight: '600' }}>
                     In-Person Event
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Turn off for virtual events
                   </Text>
                 </View>
                 <Switch
                   value={isInPerson}
                   onValueChange={setIsInPerson}
-                  trackColor={{ false: colors.muted, true: colors.primary }}
-                  thumbColor={colors.card}
+                  trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
+                  thumbColor={colors.surface}
                 />
               </View>
 
@@ -1378,17 +1604,17 @@ export function EventsScreen({
                     </Text>
                     <TextInput
                       style={{
-                        backgroundColor: colors.card,
+                        backgroundColor: colors.surface,
                         borderWidth: 1,
-                        borderColor: colors.border,
+                        borderColor: colors.borderSubtle,
                         borderRadius: radii.lg,
                         paddingHorizontal: spacing.md,
                         paddingVertical: spacing.sm + 2,
                         fontSize: 14,
-                        color: colors.foreground,
+                        color: colors.textPrimary,
                       }}
                       placeholder="e.g., Grace Community Church"
-                      placeholderTextColor={colors.mutedForeground}
+                      placeholderTextColor={colors.textMuted}
                       value={newEventLocation}
                       onChangeText={setNewEventLocation}
                     />
@@ -1401,17 +1627,17 @@ export function EventsScreen({
                     </Text>
                     <TextInput
                       style={{
-                        backgroundColor: colors.card,
+                        backgroundColor: colors.surface,
                         borderWidth: 1,
-                        borderColor: colors.border,
+                        borderColor: colors.borderSubtle,
                         borderRadius: radii.lg,
                         paddingHorizontal: spacing.md,
                         paddingVertical: spacing.sm + 2,
                         fontSize: 14,
-                        color: colors.foreground,
+                        color: colors.textPrimary,
                       }}
                       placeholder="123 Main St"
-                      placeholderTextColor={colors.mutedForeground}
+                      placeholderTextColor={colors.textMuted}
                       value={newEventAddress}
                       onChangeText={setNewEventAddress}
                     />
@@ -1425,17 +1651,17 @@ export function EventsScreen({
                       </Text>
                       <TextInput
                         style={{
-                          backgroundColor: colors.card,
+                          backgroundColor: colors.surface,
                           borderWidth: 1,
-                          borderColor: colors.border,
+                          borderColor: colors.borderSubtle,
                           borderRadius: radii.lg,
                           paddingHorizontal: spacing.md,
                           paddingVertical: spacing.sm + 2,
                           fontSize: 14,
-                          color: colors.foreground,
+                          color: colors.textPrimary,
                         }}
                         placeholder="City"
-                        placeholderTextColor={colors.mutedForeground}
+                        placeholderTextColor={colors.textMuted}
                         value={newEventCity}
                         onChangeText={setNewEventCity}
                       />
@@ -1446,17 +1672,17 @@ export function EventsScreen({
                       </Text>
                       <TextInput
                         style={{
-                          backgroundColor: colors.card,
+                          backgroundColor: colors.surface,
                           borderWidth: 1,
-                          borderColor: colors.border,
+                          borderColor: colors.borderSubtle,
                           borderRadius: radii.lg,
                           paddingHorizontal: spacing.md,
                           paddingVertical: spacing.sm + 2,
                           fontSize: 14,
-                          color: colors.foreground,
+                          color: colors.textPrimary,
                         }}
                         placeholder="ST"
-                        placeholderTextColor={colors.mutedForeground}
+                        placeholderTextColor={colors.textMuted}
                         value={newEventState}
                         onChangeText={setNewEventState}
                         maxLength={2}
@@ -1468,17 +1694,17 @@ export function EventsScreen({
                       </Text>
                       <TextInput
                         style={{
-                          backgroundColor: colors.card,
+                          backgroundColor: colors.surface,
                           borderWidth: 1,
-                          borderColor: colors.border,
+                          borderColor: colors.borderSubtle,
                           borderRadius: radii.lg,
                           paddingHorizontal: spacing.md,
                           paddingVertical: spacing.sm + 2,
                           fontSize: 14,
-                          color: colors.foreground,
+                          color: colors.textPrimary,
                         }}
                         placeholder="12345"
-                        placeholderTextColor={colors.mutedForeground}
+                        placeholderTextColor={colors.textMuted}
                         value={newEventZipCode}
                         onChangeText={setNewEventZipCode}
                         keyboardType="numeric"
@@ -1495,17 +1721,17 @@ export function EventsScreen({
                   </Text>
                   <TextInput
                     style={{
-                      backgroundColor: colors.card,
+                      backgroundColor: colors.surface,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.borderSubtle,
                       borderRadius: radii.lg,
                       paddingHorizontal: spacing.md,
                       paddingVertical: spacing.sm + 2,
                       fontSize: 14,
-                      color: colors.foreground,
+                      color: colors.textPrimary,
                     }}
                     placeholder="https://zoom.us/j/..."
-                    placeholderTextColor={colors.mutedForeground}
+                    placeholderTextColor={colors.textMuted}
                     value={newEventVirtualUrl}
                     onChangeText={setNewEventVirtualUrl}
                     autoCapitalize="none"
@@ -1528,47 +1754,21 @@ export function EventsScreen({
                   <Text variant="bodySmall" style={{ fontWeight: '600' }}>
                     Public Event
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     Anyone can see and join
                   </Text>
                 </View>
                 <Switch
                   value={isPublicEvent}
                   onValueChange={setIsPublicEvent}
-                  trackColor={{ false: colors.muted, true: colors.primary }}
-                  thumbColor={colors.card}
+                  trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
+                  thumbColor={colors.surface}
                 />
               </View>
             </ScrollView>
           </View>
         </SafeAreaView>
       </Modal>
-
-      {/* Floating Action Button - Only show if user can create events */}
-      {canCreateEvents && (
-        <Pressable
-          onPress={onCreatePress || (() => setShowCreateModal(true))}
-          style={({ pressed }) => ({
-            position: 'absolute',
-            bottom: 90,
-            right: spacing.lg,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: colors.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 8,
-            opacity: pressed ? 0.9 : 1,
-          })}
-        >
-          <Ionicons name="add" size={28} color={colors.primaryForeground} />
-        </Pressable>
-      )}
     </SafeAreaView>
   );
 }

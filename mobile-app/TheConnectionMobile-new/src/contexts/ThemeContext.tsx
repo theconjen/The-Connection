@@ -1,93 +1,26 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors, spacing, radii, shadows, typeScale, typography, ColorSet } from '../theme/tokens';
 
-type Theme = 'light' | 'dark' | 'system';
+type ThemePreference = 'light' | 'dark' | 'system';
 
-interface ThemeContextType {
-  theme: Theme;
-  actualTheme: 'light' | 'dark';
-  setTheme: (theme: Theme) => void;
-  colors: typeof lightColors;
+// Theme shape for components (matches old ThemeProvider.Theme)
+export interface Theme {
+  colorScheme: 'light' | 'dark';
+  colors: ColorSet;
+  spacing: typeof spacing;
+  radii: typeof radii;
+  shadows: typeof shadows;
+  typeScale: typeof typeScale;
+  typography: typeof typography;
 }
 
-// Light theme colors
-const lightColors = {
-  // Brand colors
-  primary: '#0B132B',
-  primaryForeground: '#FFFFFF',
-  secondary: '#222D99',
-  secondaryForeground: '#FFFFFF',
-  accent: '#4A90E2',
-  accentForeground: '#FFFFFF',
-
-  // Background colors
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  surfaceSecondary: '#F3F4F6',
-
-  // Text colors
-  text: '#1F2937',
-  textSecondary: '#6B7280',
-  textTertiary: '#9CA3AF',
-
-  // Border colors
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-
-  // Status colors
-  destructive: '#EF4444',
-  destructiveForeground: '#FFFFFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  info: '#3B82F6',
-
-  // UI elements
-  card: '#FFFFFF',
-  cardForeground: '#111827',
-  muted: '#F3F4F6',
-  mutedForeground: '#6B7280',
-  input: '#E5E7EB',
-};
-
-// Dark theme colors
-const darkColors = {
-  // Brand colors (slightly adjusted for dark mode)
-  primary: '#4A90E2',
-  primaryForeground: '#FFFFFF',
-  secondary: '#5B6CC6',
-  secondaryForeground: '#FFFFFF',
-  accent: '#60A5FA',
-  accentForeground: '#FFFFFF',
-
-  // Background colors
-  background: '#0F172A',
-  surface: '#1E293B',
-  surfaceSecondary: '#334155',
-
-  // Text colors
-  text: '#F1F5F9',
-  textSecondary: '#CBD5E1',
-  textTertiary: '#94A3B8',
-
-  // Border colors
-  border: '#334155',
-  borderLight: '#475569',
-
-  // Status colors
-  destructive: '#EF4444',
-  destructiveForeground: '#FFFFFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  info: '#3B82F6',
-
-  // UI elements
-  card: '#1E293B',
-  cardForeground: '#F1F5F9',
-  muted: '#334155',
-  mutedForeground: '#94A3B8',
-  input: '#334155',
-};
+interface ThemeContextType extends Theme {
+  // Theme preference setting
+  theme: ThemePreference;
+  setTheme: (theme: ThemePreference) => void;
+}
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -95,43 +28,66 @@ const THEME_STORAGE_KEY = '@theconnection_theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemColorScheme = useColorScheme();
-  const [theme, setThemeState] = useState<Theme>('system');
+  const [themePreference, setThemePreference] = useState<ThemePreference>('system');
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Determine actual theme based on setting
-  const actualTheme: 'light' | 'dark' =
-    theme === 'system'
+  // Determine actual color scheme based on preference
+  const colorScheme: 'light' | 'dark' =
+    themePreference === 'system'
       ? (systemColorScheme === 'dark' ? 'dark' : 'light')
-      : theme;
+      : themePreference;
 
-  const colors = actualTheme === 'dark' ? darkColors : lightColors;
+  // Get the appropriate color set from tokens
+  const activeColors = colors[colorScheme];
 
-  // Load saved theme on mount
+  // Load saved theme preference on mount
   useEffect(() => {
     loadTheme();
   }, []);
+
+  // Re-render when system color scheme changes (for 'system' mode)
+  useEffect(() => {
+    if (isLoaded && themePreference === 'system') {
+      // Force re-render to pick up system theme changes
+    }
+  }, [systemColorScheme, themePreference, isLoaded]);
 
   const loadTheme = async () => {
     try {
       const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
       if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system')) {
-        setThemeState(savedTheme as Theme);
+        setThemePreference(savedTheme as ThemePreference);
       }
     } catch (error) {
       console.error('Error loading theme:', error);
+    } finally {
+      setIsLoaded(true);
     }
   };
 
-  const setTheme = async (newTheme: Theme) => {
+  const setTheme = async (newTheme: ThemePreference) => {
     try {
       await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
-      setThemeState(newTheme);
+      setThemePreference(newTheme);
     } catch (error) {
       console.error('Error saving theme:', error);
     }
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, actualTheme, setTheme, colors }}>
+    <ThemeContext.Provider
+      value={{
+        theme: themePreference,
+        setTheme,
+        colorScheme,
+        colors: activeColors,
+        spacing,
+        radii,
+        shadows,
+        typeScale,
+        typography,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

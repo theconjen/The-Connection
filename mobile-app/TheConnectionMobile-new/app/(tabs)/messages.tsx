@@ -21,6 +21,9 @@ export default function MessagesTab() {
         // Navigate to new message screen (Instagram-style)
         router.push('/new-message');
       }}
+      onProfilePress={() => {
+        router.push('/(tabs)/profile');
+      }}
     />
   );
 }

@@ -21,15 +21,18 @@ export type {
 } from './tokens';
 
 // Theme Provider & Hooks
+import { useTheme as useThemeFromContext } from '../contexts/ThemeContext';
+
 export {
 	ThemeProvider,
 	useTheme,
-	useColors,
-	useIsDarkMode,
-	useThemedStyles,
-} from './ThemeProvider';
+} from '../contexts/ThemeContext';
 
-export type { Theme } from './ThemeProvider';
+export type { Theme } from '../contexts/ThemeContext';
+
+// Helper hooks
+export const useColors = () => useThemeFromContext().colors;
+export const useIsDarkMode = () => useThemeFromContext().colorScheme === 'dark';
 
 // Themed Components (Text, Card, Button, Input, Divider, Screen, Badge, Avatar)
 export {

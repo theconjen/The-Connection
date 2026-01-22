@@ -6,7 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { PageHeader } from './AppHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../lib/apiClient';
+import { safetyAPI } from '../lib/apiClient';
 
 interface BlockedUsersScreenProps {
   onBackPress?: () => void;
@@ -28,17 +28,11 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
 
   const { data: blockedUsers = [], isLoading } = useQuery<BlockedUser[]>({
     queryKey: ['/api/blocked-users'],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/blocked-users');
-      return response.data;
-    },
+    queryFn: () => safetyAPI.getBlockedUsers(),
   });
 
   const unblockMutation = useMutation({
-    mutationFn: async (userId: number) => {
-      const response = await apiClient.delete(`/api/blocks/${userId}`);
-      return response.data;
-    },
+    mutationFn: (userId: number) => safetyAPI.unblockUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/blocked-users'] });
     },
@@ -63,15 +57,16 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.header }]} edges={['top']}>
       <PageHeader title="Blocked Users" onBackPress={onBackPress} />
 
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
       {isLoading ? (
         <View style={{ alignItems: 'center', paddingVertical: spacing.xl * 2 }}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text
             variant="bodySmall"
-            color="mutedForeground"
+            color="textMuted"
             style={{ marginTop: spacing.md }}
           >
             Loading blocked users...
@@ -85,7 +80,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
             paddingHorizontal: spacing.lg,
           }}
         >
-          <Ionicons name="ban-outline" size={64} color={colors.mutedForeground} />
+          <Ionicons name="ban-outline" size={64} color={colors.textMuted} />
           <Text
             variant="body"
             style={{
@@ -98,7 +93,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
           </Text>
           <Text
             variant="bodySmall"
-            color="mutedForeground"
+            color="textMuted"
             style={{ marginTop: spacing.sm, textAlign: 'center' }}
           >
             You haven't blocked any users yet.
@@ -118,7 +113,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
               borderLeftColor: colors.primary,
             }}
           >
-            <Text variant="caption" color="mutedForeground">
+            <Text variant="caption" color="textMuted">
               Blocked users can't see your posts or send you messages. You can unblock them
               anytime.
             </Text>
@@ -134,7 +129,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
                   alignItems: 'center',
                   paddingVertical: spacing.md,
                   borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
+                  borderBottomColor: colors.borderSubtle,
                 }}
               >
                 {/* Avatar */}
@@ -145,7 +140,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
                       width: 48,
                       height: 48,
                       borderRadius: 24,
-                      backgroundColor: colors.muted,
+                      backgroundColor: colors.surfaceMuted,
                     }}
                   />
                 ) : (
@@ -176,7 +171,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
                   <Text variant="body" style={{ fontWeight: '600' }}>
                     {item.blockedUser.displayName || item.blockedUser.username}
                   </Text>
-                  <Text variant="caption" color="mutedForeground">
+                  <Text variant="caption" color="textMuted">
                     @{item.blockedUser.username}
                   </Text>
                 </View>
@@ -205,6 +200,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
           </View>
         </ScrollView>
       )}
+      </View>
     </SafeAreaView>
   );
 }

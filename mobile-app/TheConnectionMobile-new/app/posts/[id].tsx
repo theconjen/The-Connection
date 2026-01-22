@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -22,6 +21,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
 import apiClient from '../../src/lib/apiClient';
+import { Text } from '../../src/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 
@@ -38,8 +38,8 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams() as { id: string };
   const { user } = useAuth();
-  const { colors, colorScheme } = useTheme();
-  const styles = getStyles(colors, colorScheme);
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState('');
 
@@ -49,6 +49,7 @@ export default function PostDetailScreen() {
     queryKey: ['post', postId],
     queryFn: async () => {
       const response = await apiClient.get(`/api/posts/${postId}`);
+      console.info('[Post Detail] API response:', response.data);
       return response.data;
     },
   });
@@ -100,7 +101,7 @@ export default function PostDetailScreen() {
   };
 
   const getAuthorUsername = (postData: any): string => {
-    return postData?.author?.username || 'unknown';
+    return postData?.author?.username || '';
   };
 
   if (postLoading) {
@@ -141,7 +142,7 @@ export default function PostDetailScreen() {
                     <Text style={styles.postAuthorName}>
                       {getAuthorName(post)}
                     </Text>
-                    {!post.isAnonymous && (
+                    {!post.isAnonymous && getAuthorUsername(post) && (
                       <>
                         <Text style={styles.postUsername}>
                           @{getAuthorUsername(post)}
@@ -174,11 +175,11 @@ export default function PostDetailScreen() {
                   {/* Post Actions */}
                   <View style={styles.postActions}>
                     <TouchableOpacity style={styles.postAction}>
-                      <Ionicons name="heart-outline" size={20} color={colors.icon} />
-                      <Text style={styles.postActionText}>{post.likeCount || 0}</Text>
+                      <Ionicons name="heart-outline" size={20} color={colors.textSecondary} />
+                      <Text style={styles.postActionText}>{post.likeCount || post.upvotes || 0}</Text>
                     </TouchableOpacity>
                     <View style={styles.postAction}>
-                      <Ionicons name="chatbubble-outline" size={18} color={colors.icon} />
+                      <Ionicons name="chatbubble-outline" size={18} color={colors.textSecondary} />
                       <Text style={styles.postActionText}>{comments?.length || 0}</Text>
                     </View>
                   </View>
@@ -195,7 +196,7 @@ export default function PostDetailScreen() {
               <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
             ) : !comments || comments.length === 0 ? (
               <View style={styles.emptyComments}>
-                <Ionicons name="chatbubbles-outline" size={48} color={colors.mutedForeground} />
+                <Ionicons name="chatbubbles-outline" size={48} color={colors.textSecondary} />
                 <Text style={styles.emptyCommentsText}>No comments yet</Text>
                 <Text style={styles.emptyCommentsSubtext}>Be the first to comment!</Text>
               </View>
@@ -264,13 +265,13 @@ const getStyles = (colors: any, theme: string) => {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.surface
+      backgroundColor: colors.surface || colors.background
     },
     centerContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: colors.surface
+      backgroundColor: colors.surface || colors.background
     },
     header: {
       flexDirection: 'row',
@@ -278,9 +279,9 @@ const getStyles = (colors: any, theme: string) => {
       justifyContent: 'space-between',
       padding: 16,
       paddingTop: 60,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surface || colors.background,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border
+      borderBottomColor: colors.borderSubtle || colors.border
     },
     backButton: {
       width: 40,
@@ -291,15 +292,15 @@ const getStyles = (colors: any, theme: string) => {
     headerTitle: {
       fontSize: 18,
       fontWeight: '600',
-      color: colors.text
+      color: colors.textPrimary || colors.text
     },
     content: {
       flex: 1
     },
     postSection: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surface || colors.background,
       borderBottomWidth: 8,
-      borderBottomColor: colors.muted
+      borderBottomColor: colors.surfaceMuted || colors.muted
     },
     postContainer: {
       flexDirection: 'row',
@@ -309,7 +310,7 @@ const getStyles = (colors: any, theme: string) => {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: colors.borderLight,
+      backgroundColor: colors.borderLight || colors.muted,
     },
     postMain: {
       flex: 1,
@@ -324,7 +325,7 @@ const getStyles = (colors: any, theme: string) => {
     postAuthorName: {
       fontSize: 15,
       fontWeight: '700',
-      color: colors.text,
+      color: colors.textPrimary || colors.text,
       marginRight: 4,
     },
     postUsername: {
@@ -344,14 +345,14 @@ const getStyles = (colors: any, theme: string) => {
     postTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: colors.text,
+      color: colors.textPrimary || colors.text,
       marginTop: 8,
       marginBottom: 8,
       lineHeight: 24,
     },
     postContent: {
       fontSize: 15,
-      color: colors.text,
+      color: colors.textPrimary || colors.text,
       lineHeight: 22,
       marginTop: 4,
     },
@@ -377,7 +378,7 @@ const getStyles = (colors: any, theme: string) => {
       marginTop: 16,
       paddingTop: 12,
       borderTopWidth: 1,
-      borderTopColor: colors.border,
+      borderTopColor: colors.borderSubtle || colors.border,
     },
     postAction: {
       flexDirection: 'row',
@@ -391,12 +392,12 @@ const getStyles = (colors: any, theme: string) => {
     },
     commentsSection: {
       padding: 16,
-      backgroundColor: colors.surface
+      backgroundColor: colors.surface || colors.background
     },
     commentsTitle: {
       fontSize: 16,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textPrimary || colors.text,
       marginBottom: 16
     },
     emptyComments: {
@@ -407,7 +408,7 @@ const getStyles = (colors: any, theme: string) => {
       marginTop: 12,
       fontSize: 16,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textPrimary || colors.text,
     },
     emptyCommentsSubtext: {
       marginTop: 4,
@@ -418,13 +419,13 @@ const getStyles = (colors: any, theme: string) => {
       flexDirection: 'row',
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.borderSubtle || colors.border,
     },
     commentAvatar: {
       width: 32,
       height: 32,
       borderRadius: 16,
-      backgroundColor: colors.borderLight,
+      backgroundColor: colors.borderLight || colors.muted,
     },
     commentMain: {
       flex: 1,
@@ -439,40 +440,40 @@ const getStyles = (colors: any, theme: string) => {
     commentAuthorName: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textPrimary || colors.text,
       marginRight: 4,
     },
     commentContent: {
       fontSize: 14,
-      color: colors.text,
+      color: colors.textPrimary || colors.text,
       lineHeight: 20,
     },
     inputContainer: {
       flexDirection: 'row',
       padding: 12,
       paddingBottom: Platform.OS === 'ios' ? 34 : 12,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surface || colors.background,
       borderTopWidth: 1,
-      borderTopColor: colors.border,
+      borderTopColor: colors.borderSubtle || colors.border,
       alignItems: 'flex-end',
     },
     inputAvatar: {
       width: 32,
       height: 32,
       borderRadius: 16,
-      backgroundColor: colors.borderLight,
+      backgroundColor: colors.borderLight || colors.muted,
       marginBottom: 8,
     },
     input: {
       flex: 1,
-      backgroundColor: colors.muted,
+      backgroundColor: colors.surfaceMuted || colors.muted,
       borderRadius: 18,
       paddingHorizontal: 16,
       paddingVertical: 10,
       fontSize: 15,
       maxHeight: 100,
       marginHorizontal: 12,
-      color: colors.text,
+      color: colors.textPrimary || colors.text,
     },
     postButton: {
       backgroundColor: colors.primary,
