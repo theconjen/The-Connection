@@ -34,6 +34,7 @@ import {
   useFollowStatus,
 } from '../queries/follow';
 import { Colors } from '../shared/colors';
+import { fetchBiblePassage, looksLikeBibleReference } from '../lib/bibleApi';
 
 // Custom church icon
 const ChurchIcon = require('../../assets/church-icon.png');
@@ -50,6 +51,8 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const [activeTab, setActiveTab] = useState<'posts' | 'communities'>('posts');
   const [refreshing, setRefreshing] = useState(false);
   const [showVerseModal, setShowVerseModal] = useState(false);
+  const [versePassage, setVersePassage] = useState<{ reference: string; text: string; translation: string } | null>(null);
+  const [verseLoading, setVerseLoading] = useState(false);
 
   // Determine if viewing own profile
   const viewingOwnProfile = !userId || userId === currentUser?.id;
@@ -101,6 +104,33 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
       refreshAuth(),    // Refresh global user state
     ]);
     setRefreshing(false);
+  };
+
+  const handleVersePress = async () => {
+    const verseText = user?.favoriteBibleVerse;
+    if (!verseText) return;
+
+    setShowVerseModal(true);
+    setVerseLoading(true);
+
+    // Check if it looks like a Bible reference (e.g., "John 3:16")
+    if (looksLikeBibleReference(verseText)) {
+      const result = await fetchBiblePassage(verseText);
+      setVersePassage({
+        reference: result.reference,
+        text: result.text,
+        translation: result.translation || 'WEB',
+      });
+    } else {
+      // It's already the full passage text, not a reference
+      setVersePassage({
+        reference: '',
+        text: verseText,
+        translation: '',
+      });
+    }
+
+    setVerseLoading(false);
   };
 
   const handleAvatarChange = async () => {
@@ -313,7 +343,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Bible Verse - Tappable to show full passage */}
             {user.favoriteBibleVerse && (
               <Pressable
-                onPress={() => setShowVerseModal(true)}
+                onPress={handleVersePress}
                 style={({ pressed }) => [
                   styles.bibleVerseCompact,
                   { backgroundColor: `${colors.surfaceMuted}80`, borderLeftColor: `${colors.primary}60` },
@@ -456,12 +486,12 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                     // Own profile empty state
                     <>
                       <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
-                        {stats.postsCount > 0 ? 'Your posts aren't showing here' : 'Nothing here yet'}
+                        {stats.postsCount > 0 ? "Your posts aren't showing here" : 'Nothing here yet'}
                       </Text>
                       <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
                         {stats.postsCount > 0
                           ? 'Check your privacy settings if this seems wrong.'
-                          : 'Share something when you're ready.'}
+                          : "Share something when you're ready."}
                       </Text>
                       <Pressable
                         style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
@@ -476,12 +506,12 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                     // Viewing another user's profile
                     <>
                       <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
-                        {stats.postsCount > 0 ? 'Posts aren't visible' : 'Nothing here yet'}
+                        {stats.postsCount > 0 ? "Posts aren't visible" : 'Nothing here yet'}
                       </Text>
                       <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
                         {stats.postsCount > 0
                           ? 'Follow to see what they share.'
-                          : 'They haven't shared anything publicly.'}
+                          : "They haven't shared anything publicly."}
                       </Text>
                       {stats.postsCount > 0 && !followStatus?.isFollowing && (
                         <Pressable
@@ -549,11 +579,11 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
           style={styles.modalOverlay}
           onPress={() => setShowVerseModal(false)}
         >
-          <View style={[styles.verseModalContent, { backgroundColor: colors.surface }]}>
+          <Pressable style={[styles.verseModalContent, { backgroundColor: colors.surface }]}>
             <View style={styles.verseModalHeader}>
               <Ionicons name="book" size={20} color={colors.primary} />
               <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
-                Favorite Verse
+                {versePassage?.reference || 'Favorite Verse'}
               </Text>
               <Pressable
                 onPress={() => setShowVerseModal(false)}
@@ -562,15 +592,29 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 <Ionicons name="close" size={22} color={colors.textMuted} />
               </Pressable>
             </View>
-            <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={false}>
-              <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
-                {user?.favoriteBibleVerse}
-              </Text>
-            </ScrollView>
-            <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
-              ESV
-            </Text>
-          </View>
+
+            {verseLoading ? (
+              <View style={styles.verseModalLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.verseModalLoadingText, { color: colors.textMuted }]}>
+                  Loading passage...
+                </Text>
+              </View>
+            ) : (
+              <>
+                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={false}>
+                  <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
+                    {versePassage?.text || user?.favoriteBibleVerse}
+                  </Text>
+                </ScrollView>
+                {versePassage?.translation && (
+                  <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+                    {versePassage.translation}
+                  </Text>
+                )}
+              </>
+            )}
+          </Pressable>
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -906,6 +950,14 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'right',
     fontWeight: '500',
+  },
+  verseModalLoading: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  verseModalLoadingText: {
+    fontSize: 14,
   },
 });
 
