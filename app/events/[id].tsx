@@ -18,8 +18,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { eventsAPI } from '../../src/lib/apiClient';
-import { Colors } from '../../src/shared/colors';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 // API expects these exact values
 type RSVPStatus = 'going' | 'maybe' | 'not_going';
@@ -44,6 +44,8 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams() as { id: string };
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuth();
+  const { colors, colorScheme } = useTheme();
+  const styles = getThemedStyles(colors, colorScheme);
   const eventId = parseInt(id || '0');
   const [showMap, setShowMap] = useState(true);
   const [currentRsvp, setCurrentRsvp] = useState<RSVPStatus | null>(null);
@@ -158,7 +160,7 @@ export default function EventDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -292,7 +294,7 @@ export default function EventDetailScreen() {
               disabled={rsvpMutation.isPending}
             >
               {rsvpMutation.isPending && rsvpMutation.variables === 'going' ? (
-                <ActivityIndicator size="small" color={isButtonActive('going') ? '#fff' : Colors.primary} />
+                <ActivityIndicator size="small" color={isButtonActive('going') ? '#fff' : colors.accent} />
               ) : (
                 <>
                   <Text style={[
@@ -363,48 +365,227 @@ export default function EventDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 60, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backIcon: { fontSize: 24, color: Colors.primary },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#1f2937' },
-  content: { flex: 1 },
-  dateSection: { flexDirection: 'row', padding: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  dateBox: { width: 70, height: 70, backgroundColor: Colors.primary, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  dateMonth: { color: '#fff', fontSize: 14, fontWeight: '600', textTransform: 'uppercase' },
-  dateDay: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
-  dateInfo: { flex: 1, justifyContent: 'center' },
-  dateText: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 4 },
-  endTimeText: { fontSize: 14, color: '#6b7280' },
-  detailSection: { padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#1f2937', marginBottom: 20 },
-  locationSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, padding: 12, backgroundColor: '#f3f4f6', borderRadius: 8 },
-  locationIcon: { fontSize: 20, marginRight: 12 },
-  locationText: { flex: 1, fontSize: 15, color: '#1f2937' },
-  directionsButton: { backgroundColor: Colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
-  directionsText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  mapContainer: { marginTop: 12, marginBottom: 12, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e5e7eb' },
-  map: { width: '100%', height: 200 },
-  mapToggle: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
-  mapToggleText: { fontSize: 12, fontWeight: '600', color: '#1f2937' },
-  showMapButton: { backgroundColor: '#f3f4f6', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 12 },
-  showMapText: { fontSize: 14, fontWeight: '600', color: Colors.primary },
-  attendeeSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, padding: 12, backgroundColor: '#f3f4f6', borderRadius: 8 },
-  attendeeIcon: { fontSize: 20, marginRight: 12 },
-  attendeeIconImage: { width: 20, height: 20, marginRight: 12 },
-  attendeeText: { fontSize: 15, color: '#1f2937', fontWeight: '600' },
-  descriptionSection: { marginTop: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1f2937', marginBottom: 12 },
-  description: { fontSize: 15, color: '#374151', lineHeight: 24 },
+const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    paddingTop: 60,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  backIcon: {
+    fontSize: 24,
+    color: colors.accent,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  content: {
+    flex: 1,
+  },
+  dateSection: {
+    flexDirection: 'row',
+    padding: 20,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  dateBox: {
+    width: 70,
+    height: 70,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  dateMonth: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  dateDay: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  dateInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  dateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  endTimeText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  detailSection: {
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    marginBottom: 20,
+  },
+  locationSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: colorScheme === 'dark' ? colors.surfaceRaised : colors.background,
+    borderRadius: 8,
+  },
+  locationIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  locationText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  directionsButton: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  directionsText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  mapContainer: {
+    marginTop: 12,
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  map: {
+    width: '100%',
+    height: 200,
+  },
+  mapToggle: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mapToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  showMapButton: {
+    backgroundColor: colorScheme === 'dark' ? colors.surfaceRaised : colors.background,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  showMapText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  attendeeSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    padding: 12,
+    backgroundColor: colorScheme === 'dark' ? colors.surfaceRaised : colors.background,
+    borderRadius: 8,
+  },
+  attendeeIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  attendeeIconImage: {
+    width: 20,
+    height: 20,
+    marginRight: 12,
+  },
+  attendeeText: {
+    fontSize: 15,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  descriptionSection: {
+    marginTop: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  description: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 24,
+  },
 
   // Footer styles
-  footer: { backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 5 },
-  signInButton: { backgroundColor: Colors.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
-  signInButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  footer: {
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  signInButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  signInButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 
   // RSVP button row
-  rsvpButtonRow: { flexDirection: 'row', gap: 10 },
+  rsvpButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   rsvpOptionButton: {
     flex: 1,
     flexDirection: 'row',
@@ -413,8 +594,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fff',
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surface,
     gap: 6,
   },
   rsvpOptionActive: {
@@ -432,18 +613,32 @@ const styles = StyleSheet.create({
   rsvpOptionIcon: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   rsvpOptionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.textPrimary,
   },
   rsvpOptionTextActive: {
     color: '#fff',
   },
 
-  errorText: { fontSize: 18, color: '#ef4444', marginBottom: 16, textAlign: 'center' },
-  backButton: { backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
-  backButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  errorText: {
+    fontSize: 18,
+    color: '#ef4444',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  backButton: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

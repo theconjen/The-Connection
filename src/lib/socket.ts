@@ -8,6 +8,9 @@ import { io, Socket } from 'socket.io-client';
 const SOCKET_URL = 'https://api.theconnection.app'; // Production
 // const SOCKET_URL = 'http://localhost:5000'; // Development
 
+// Set to false to disable socket connections entirely
+const SOCKET_ENABLED = true;
+
 let socket: Socket | null = null;
 
 export interface ChatMessage {
@@ -35,37 +38,56 @@ export interface DirectMessage {
 
 export const socketService = {
   connect: (userId: number) => {
+    if (!SOCKET_ENABLED) {
+      console.log('[Socket] Disabled - skipping connection');
+      return null;
+    }
+
     if (socket?.connected) {
       return socket;
     }
 
-    socket = io(SOCKET_URL, {
-      auth: {
-        userId: userId.toString(),
-      },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-    });
+    try {
+      socket = io(SOCKET_URL, {
+        path: '/socket.io/', // Explicit path
+        auth: {
+          userId: userId.toString(),
+        },
+        transports: ['polling', 'websocket'], // Try polling first, then upgrade
+        reconnection: true,
+        reconnectionDelay: 2000,
+        reconnectionAttempts: 3,
+        timeout: 10000,
+        forceNew: true,
+      });
 
-    socket.on('connect', () => {
-      // Join user's personal room for DMs
-      socket?.emit('join_user_room', userId);
-    });
+      socket.on('connect', () => {
+        console.log('[Socket] Connected successfully');
+        // Join user's personal room for DMs
+        socket?.emit('join_user_room', userId);
+      });
 
-    socket.on('disconnect', (reason) => {
-    });
+      socket.on('disconnect', (reason) => {
+        console.log('[Socket] Disconnected:', reason);
+      });
 
-    socket.on('error', (error) => {
-      console.error('Socket error:', error);
-    });
+      socket.on('error', (error) => {
+        // Log quietly - don't throw errors that break the app
+        console.warn('[Socket] Error:', error?.message || error);
+      });
 
-    socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-    });
+      socket.on('connect_error', (error) => {
+        // Log quietly - WebSocket may not always be available
+        // The app should still work with HTTP-only fallback
+        console.warn('[Socket] Connection failed - chat will use HTTP fallback');
+      });
 
-    return socket;
+      return socket;
+    } catch (error) {
+      // Catch any initialization errors
+      console.warn('[Socket] Failed to initialize:', error);
+      return null;
+    }
   },
 
   disconnect: () => {

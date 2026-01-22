@@ -15,19 +15,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { MicroblogTopic, MICROBLOG_TOPICS } from '../lib/apiClient';
 
-// Topic display configuration
+// Topic display configuration - Simplified for cleaner UX
 const TOPIC_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
   ALL: { label: 'All', icon: 'apps', color: '#6366F1' },
-  OBSERVATION: { label: 'Observations', icon: 'eye', color: '#8B5CF6' },
+  OBSERVATION: { label: 'Discussions', icon: 'chatbubbles', color: '#8B5CF6' },
   QUESTION: { label: 'Questions', icon: 'help-circle', color: '#EC4899' },
+  POLL: { label: 'Polls', icon: 'bar-chart', color: '#14B8A6' },
+  TESTIMONY: { label: 'Testimony', icon: 'heart', color: '#EF4444' },
+  // Legacy configs kept for compatibility
   NEWS: { label: 'News', icon: 'newspaper', color: '#3B82F6' },
   CULTURE: { label: 'Culture', icon: 'globe', color: '#10B981' },
   ENTERTAINMENT: { label: 'Entertainment', icon: 'film', color: '#F59E0B' },
   SCRIPTURE: { label: 'Scripture', icon: 'book', color: '#8B5CF6' },
-  TESTIMONY: { label: 'Testimony', icon: 'heart', color: '#EF4444' },
   PRAYER: { label: 'Prayer', icon: 'hand-left', color: '#6366F1' },
   OTHER: { label: 'Other', icon: 'ellipsis-horizontal', color: '#6B7280' },
-  POLL: { label: 'Polls', icon: 'bar-chart', color: '#14B8A6' },
 };
 
 interface TopicChipsProps {
@@ -40,11 +41,13 @@ export function TopicChips({ selectedTopic, onSelectTopic, showPollFilter = true
   const { colors } = useTheme();
   const styles = getStyles(colors);
 
-  // Build the list of chips to show
+  // Build the list of chips to show - Simplified to 5 key filters
   const chipItems: (MicroblogTopic | 'ALL' | 'POLL')[] = [
     'ALL',
-    ...MICROBLOG_TOPICS.filter(t => t !== 'OTHER'), // Show all except OTHER
-    ...(showPollFilter ? ['POLL' as const] : []),
+    'OBSERVATION', // Displays as "Discussions"
+    'QUESTION',
+    'POLL',
+    'TESTIMONY',
   ];
 
   return (

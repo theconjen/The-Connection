@@ -1603,7 +1603,7 @@ export default function FeedScreen({
         </View>
       )}
 
-      {/* Topic Filter Chips */}
+      {/* Topic Filter Chips - Simplified: All, Discussions, Questions, Polls, Testimony */}
       <TopicChips
         selectedTopic={selectedTopic}
         onSelectTopic={(topic) => {
@@ -1701,13 +1701,13 @@ export default function FeedScreen({
           style={[styles.tab, activeTab === 'latest' && styles.tabActive]}
           onPress={() => setActiveTab('latest')}
         >
-          <Text style={[styles.tabText, activeTab === 'latest' && styles.tabTextActive]}>Latest</Text>
+          <Text style={[styles.tabText, activeTab === 'latest' && styles.tabTextActive]}>Following</Text>
         </Pressable>
         <Pressable
           style={[styles.tab, activeTab === 'popular' && styles.tabActive]}
           onPress={() => setActiveTab('popular')}
         >
-          <Text style={[styles.tabText, activeTab === 'popular' && styles.tabTextActive]}>Popular</Text>
+          <Text style={[styles.tabText, activeTab === 'popular' && styles.tabTextActive]}>For You</Text>
         </Pressable>
       </View>
 

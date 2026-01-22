@@ -68,7 +68,6 @@ export default function FeedTab() {
         onSettings={() => router.push("/settings")}
         onNotifications={() => router.push("/notifications")}
         onBookmarks={() => router.push("/bookmarks")}
-        onMessages={() => router.push("/(tabs)/messages")}
         onInbox={() => router.push("/questions/inbox")}
         hasInboxAccess={hasInboxAccess}
         onSearch={() => router.push("/search")}

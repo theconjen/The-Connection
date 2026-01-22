@@ -49,6 +49,7 @@ interface Community {
   isModerator?: boolean;
   role?: 'owner' | 'moderator' | 'member' | null;
   privacySetting?: 'public' | 'private';
+  iconColor?: string; // Community brand color
 }
 
 type TabType = 'feed' | 'events' | 'chat' | 'members' | 'prayers';
@@ -75,7 +76,10 @@ export default function CommunityDetailScreen() {
   const [answeredDescription, setAnsweredDescription] = useState('');
 
   const communityId = parseInt(id || '0');
-  const styles = getStyles(colors, colorScheme);
+
+  // Use community's brand color for accents, fallback to app primary
+  const communityColor = community?.iconColor || colors.primary;
+  const styles = getStyles(colors, colorScheme, communityColor);
 
   // Fetch community details
   const { data: community, isLoading: communityLoading, refetch: refetchCommunity } = useQuery<Community>({
@@ -525,9 +529,9 @@ export default function CommunityDetailScreen() {
           {community.isAdmin && (
             <TouchableOpacity
               style={styles.settingsButton}
-              onPress={() => setActiveTab('members')}
+              onPress={() => router.push(`/communities/settings/${community.id}`)}
             >
-              <Ionicons name="settings-outline" size={20} color={colors.primary} />
+              <Ionicons name="settings-outline" size={20} color={communityColor} />
             </TouchableOpacity>
           )}
           {!community.isAdmin && (
@@ -568,6 +572,7 @@ export default function CommunityDetailScreen() {
           active={activeTab === 'feed'}
           onPress={() => setActiveTab('feed')}
           colors={colors}
+          accentColor={communityColor}
         />
         <TabButton
           icon="calendar"
@@ -575,6 +580,7 @@ export default function CommunityDetailScreen() {
           active={activeTab === 'events'}
           onPress={() => setActiveTab('events')}
           colors={colors}
+          accentColor={communityColor}
         />
         <TabButton
           icon="chatbubbles"
@@ -582,6 +588,7 @@ export default function CommunityDetailScreen() {
           active={activeTab === 'chat'}
           onPress={() => setActiveTab('chat')}
           colors={colors}
+          accentColor={communityColor}
         />
         <TabButton
           icon="people"
@@ -589,6 +596,7 @@ export default function CommunityDetailScreen() {
           active={activeTab === 'members'}
           onPress={() => setActiveTab('members')}
           colors={colors}
+          accentColor={communityColor}
         />
         <TabButton
           icon="heart"
@@ -596,6 +604,7 @@ export default function CommunityDetailScreen() {
           active={activeTab === 'prayers'}
           onPress={() => setActiveTab('prayers')}
           colors={colors}
+          accentColor={communityColor}
         />
       </View>
 
@@ -783,7 +792,7 @@ export default function CommunityDetailScreen() {
             {canManageRequests && (
               <View style={styles.joinRequestsSection}>
                 <View style={styles.sectionHeader}>
-                  <Ionicons name="person-add-outline" size={20} color={colors.primary} />
+                  <Ionicons name="person-add-outline" size={20} color={communityColor} />
                   <Text style={styles.sectionTitle}>Pending Requests</Text>
                   {joinRequests.length > 0 && (
                     <View style={styles.requestCountBadge}>
@@ -864,7 +873,7 @@ export default function CommunityDetailScreen() {
               <>
                 {community.isAdmin && (
                   <View style={styles.adminNotice}>
-                    <Ionicons name="information-circle" size={20} color={colors.primary} />
+                    <Ionicons name="information-circle" size={20} color={communityColor} />
                     <Text style={styles.adminNoticeText}>
                       Tap a member to manage their role
                     </Text>
@@ -972,7 +981,7 @@ export default function CommunityDetailScreen() {
                         style={styles.createPostPrompt}
                         onPress={() => setIsPrayerInputVisible(true)}
                       >
-                        <Ionicons name="heart" size={20} color={colors.primary} style={{ marginRight: 8 }} />
+                        <Ionicons name="heart" size={20} color={communityColor} style={{ marginRight: 8 }} />
                         <Text style={styles.createPostPromptText}>
                           Share a prayer request...
                         </Text>
@@ -1425,9 +1434,10 @@ interface TabButtonProps {
   active: boolean;
   onPress: () => void;
   colors: any;
+  accentColor: string; // Community brand color
 }
 
-function TabButton({ icon, label, active, onPress, colors }: TabButtonProps) {
+function TabButton({ icon, label, active, onPress, colors, accentColor }: TabButtonProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -1437,19 +1447,19 @@ function TabButton({ icon, label, active, onPress, colors }: TabButtonProps) {
         alignItems: 'center',
         backgroundColor: active ? colors.surface : 'transparent',
         borderBottomWidth: 2,
-        borderBottomColor: active ? colors.primary : 'transparent',
+        borderBottomColor: active ? accentColor : 'transparent',
       }}
     >
       <Ionicons
         name={icon}
         size={20}
-        color={active ? colors.primary : colors.mutedForeground}
+        color={active ? accentColor : colors.mutedForeground}
       />
       <Text
         style={{
           fontSize: 11,
           marginTop: 4,
-          color: active ? colors.primary : colors.mutedForeground,
+          color: active ? accentColor : colors.mutedForeground,
           fontWeight: active ? '600' : '500',
         }}
       >
@@ -1507,7 +1517,7 @@ function PrivateContentPlaceholder({ title, message, colors }: PrivateContentPla
 }
 
 // Dynamic Styles
-const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.create({
+const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: string = colors.primary) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1594,7 +1604,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     justifyContent: 'center',
   },
   joinButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: communityColor,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -1644,7 +1654,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary,
+    backgroundColor: communityColor,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1721,7 +1731,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.primary,
+    backgroundColor: communityColor,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1892,7 +1902,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     borderColor: colors.borderSubtle,
   },
   roleOptionActive: {
-    borderColor: colors.primary,
+    borderColor: communityColor,
     borderWidth: 2,
   },
   roleOptionTitle: {
@@ -1929,7 +1939,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: communityColor,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -1955,7 +1965,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   },
   chatBubbleOwn: {
     alignSelf: 'flex-end',
-    backgroundColor: colors.primary,
+    backgroundColor: communityColor,
     borderBottomRightRadius: 4,
   },
   chatBubbleOther: {
@@ -1966,7 +1976,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
   chatSenderName: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
+    color: communityColor,
     marginBottom: 4,
   },
   chatMessageText: {
@@ -2010,7 +2020,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary,
+    backgroundColor: communityColor,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2193,7 +2203,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: colors.primary,
+    backgroundColor: communityColor,
     minWidth: 80,
     alignItems: 'center',
   },
@@ -2209,7 +2219,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.primary + '40',
+    borderColor: communityColor + '40',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -2224,7 +2234,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') => StyleSheet.cre
     flex: 1,
   },
   requestCountBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: communityColor,
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,

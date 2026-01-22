@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 interface Question {
   id: number;
@@ -46,6 +47,8 @@ export default function QuestionThreadScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { colors, colorScheme } = useTheme();
+  const styles = getThemedStyles(colors, colorScheme);
   const queryClient = useQueryClient();
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -126,7 +129,7 @@ export default function QuestionThreadScreen() {
           <Text style={styles.headerTitle}>Question Thread</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4A90E2" />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       </View>
     );
@@ -167,7 +170,7 @@ export default function QuestionThreadScreen() {
               >
                 {isFirstMessage && (
                   <View style={styles.questionHeader}>
-                    <Ionicons name="help-circle" size={20} color="#4A90E2" />
+                    <Ionicons name="help-circle" size={20} color={colors.accent} />
                     <Text style={styles.questionLabel}>Original Question</Text>
                   </View>
                 )}
@@ -212,7 +215,7 @@ export default function QuestionThreadScreen() {
           value={replyText}
           onChangeText={setReplyText}
           placeholder="Type your response..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.textTertiary}
           multiline
           maxLength={5000}
         />
@@ -235,15 +238,15 @@ export default function QuestionThreadScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A90E2',
+    backgroundColor: colors.accent,
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
@@ -276,17 +279,17 @@ const styles = StyleSheet.create({
   },
   messageBubbleLeft: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomLeftRadius: 4,
   },
   messageBubbleRight: {
     alignSelf: 'flex-end',
-    backgroundColor: '#4A90E2',
+    backgroundColor: colors.accent,
     borderBottomRightRadius: 4,
   },
   questionBubble: {
     maxWidth: '100%',
-    backgroundColor: '#FFF9E6',
+    backgroundColor: colorScheme === 'dark' ? '#2D2518' : '#FFF9E6',
     borderLeftWidth: 4,
     borderLeftColor: '#FFA500',
     borderRadius: 8,
@@ -299,22 +302,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFD580',
+    borderBottomColor: colorScheme === 'dark' ? '#4A3C20' : '#FFD580',
   },
   questionLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#4A90E2',
+    color: colors.accent,
   },
   senderName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4A90E2',
+    color: colors.accent,
     marginBottom: 4,
   },
   messageText: {
     fontSize: 15,
-    color: '#333',
+    color: colors.textPrimary,
     lineHeight: 20,
   },
   messageTextRight: {
@@ -322,11 +325,11 @@ const styles = StyleSheet.create({
   },
   messageTimestamp: {
     fontSize: 11,
-    color: '#999',
+    color: colors.textTertiary,
     marginTop: 4,
   },
   messageTimestampRight: {
-    color: '#E8F0FF',
+    color: 'rgba(255,255,255,0.7)',
   },
   emptyContainer: {
     flex: 1,
@@ -336,24 +339,24 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#999',
+    color: colors.textTertiary,
   },
   replyContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: colors.borderSubtle,
   },
   replyInput: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#333',
+    color: colors.textPrimary,
     maxHeight: 100,
     marginRight: 8,
   },
@@ -361,11 +364,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#4A90E2',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: colors.textTertiary,
   },
 });

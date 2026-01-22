@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 interface Question {
   id: number;
@@ -46,6 +47,8 @@ const STATUS_FILTERS: StatusFilter[] = [
 export default function InboxScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors, colorScheme } = useTheme();
+  const styles = getThemedStyles(colors, colorScheme);
   const queryClient = useQueryClient();
 
   const [selectedFilter, setSelectedFilter] = useState<string | undefined>(undefined);
@@ -127,13 +130,13 @@ export default function InboxScreen() {
       case 'assigned':
         return '#FFA500';
       case 'accepted':
-        return '#4A90E2';
+        return colors.accent;
       case 'answered':
         return '#2ECC71';
       case 'declined':
         return '#E74C3C';
       default:
-        return '#999';
+        return colors.textTertiary;
     }
   };
 
@@ -195,7 +198,7 @@ export default function InboxScreen() {
       >
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4A90E2" />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         ) : questions && questions.length > 0 ? (
           questions.map((question) => (
@@ -238,7 +241,7 @@ export default function InboxScreen() {
                   style={styles.viewButton}
                   onPress={() => handleViewThread(question.id)}
                 >
-                  <Ionicons name="chatbubbles-outline" size={18} color="#4A90E2" />
+                  <Ionicons name="chatbubbles-outline" size={18} color={colors.accent} />
                   <Text style={styles.viewButtonText}>View Thread</Text>
                 </Pressable>
 
@@ -280,7 +283,7 @@ export default function InboxScreen() {
           ))
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="mail-open-outline" size={64} color="#ccc" />
+            <Ionicons name="mail-open-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.emptyText}>No questions in this category</Text>
           </View>
         )}
@@ -289,15 +292,15 @@ export default function InboxScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A90E2',
+    backgroundColor: colors.accent,
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
@@ -311,25 +314,25 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   filterContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.borderSubtle,
   },
   filterTab: {
     paddingHorizontal: 20,
     paddingVertical: 8,
     marginHorizontal: 4,
     borderRadius: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   filterTabActive: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: colors.accent,
   },
   filterTabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textSecondary,
   },
   filterTabTextActive: {
     color: '#fff',
@@ -345,7 +348,7 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   questionCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -379,22 +382,22 @@ const styles = StyleSheet.create({
   domainBadge: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textSecondary,
     textTransform: 'capitalize',
   },
   timestamp: {
     fontSize: 12,
-    color: '#999',
+    color: colors.textTertiary,
   },
   askerInfo: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 8,
     fontStyle: 'italic',
   },
   questionText: {
     fontSize: 15,
-    color: '#333',
+    color: colors.textPrimary,
     lineHeight: 22,
     marginBottom: 12,
   },
@@ -413,7 +416,7 @@ const styles = StyleSheet.create({
   viewButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4A90E2',
+    color: colors.accent,
   },
   assignmentActions: {
     flexDirection: 'row',
@@ -455,7 +458,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#999',
+    color: colors.textTertiary,
     marginTop: 16,
   },
 });

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 interface Question {
   id: number;
@@ -32,6 +33,8 @@ interface Question {
 export default function MyQuestionsScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors, colorScheme } = useTheme();
+  const styles = getThemedStyles(colors, colorScheme);
 
   // Fetch user's questions
   const { data: questions, isLoading, refetch, isRefetching } = useQuery<Question[]>({
@@ -52,13 +55,13 @@ export default function MyQuestionsScreen() {
       case 'new':
         return '#FFA500';
       case 'routed':
-        return '#4A90E2';
+        return colors.accent;
       case 'answered':
         return '#2ECC71';
       case 'closed':
-        return '#999';
+        return colors.textTertiary;
       default:
-        return '#999';
+        return colors.textTertiary;
     }
   };
 
@@ -115,7 +118,7 @@ export default function MyQuestionsScreen() {
       >
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4A90E2" />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         ) : questions && questions.length > 0 ? (
           questions.map((question) => (
@@ -158,13 +161,13 @@ export default function MyQuestionsScreen() {
                 <Text style={styles.domainBadge}>{question.domain}</Text>
                 {question.areaName && (
                   <>
-                    <Ionicons name="chevron-forward" size={14} color="#999" />
+                    <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
                     <Text style={styles.categoryText}>{question.areaName}</Text>
                   </>
                 )}
                 {question.tagName && (
                   <>
-                    <Ionicons name="chevron-forward" size={14} color="#999" />
+                    <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
                     <Text style={styles.categoryText}>{question.tagName}</Text>
                   </>
                 )}
@@ -178,7 +181,7 @@ export default function MyQuestionsScreen() {
               {/* View Thread Button */}
               <View style={styles.footer}>
                 <View style={styles.viewThreadButton}>
-                  <Ionicons name="arrow-forward" size={16} color="#4A90E2" />
+                  <Ionicons name="arrow-forward" size={16} color={colors.accent} />
                   <Text style={styles.viewThreadText}>View Conversation</Text>
                 </View>
               </View>
@@ -186,7 +189,7 @@ export default function MyQuestionsScreen() {
           ))
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={64} color="#ccc" />
+            <Ionicons name="document-text-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.emptyText}>No questions yet</Text>
             <Text style={styles.emptySubtext}>
               Ask your first question to get started
@@ -205,16 +208,16 @@ export default function MyQuestionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#4A90E2',
+    backgroundColor: colors.accent,
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
@@ -242,7 +245,7 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   questionCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -289,7 +292,7 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 12,
-    color: '#999',
+    color: colors.textTertiary,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -300,22 +303,22 @@ const styles = StyleSheet.create({
   domainBadge: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#4A90E2',
+    color: colors.accent,
     textTransform: 'capitalize',
   },
   categoryText: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
   },
   questionText: {
     fontSize: 15,
-    color: '#333',
+    color: colors.textPrimary,
     lineHeight: 22,
     marginBottom: 12,
   },
   footer: {
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: colors.borderSubtle,
     paddingTop: 12,
   },
   viewThreadButton: {
@@ -326,7 +329,7 @@ const styles = StyleSheet.create({
   viewThreadText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4A90E2',
+    color: colors.accent,
   },
   emptyContainer: {
     flex: 1,
@@ -337,12 +340,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textTertiary,
     marginTop: 8,
     marginBottom: 24,
   },
@@ -350,7 +353,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#4A90E2',
+    backgroundColor: colors.accent,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,

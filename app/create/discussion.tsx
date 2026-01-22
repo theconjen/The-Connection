@@ -24,36 +24,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { postsAPI, communitiesAPI } from '../../src/lib/apiClient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { useTheme } from '../../src/contexts/ThemeContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-
-// Hardcoded dark mode colors - single source of truth
-const COLORS = {
-  background: '#0A0A0C',
-  surface: '#151518',
-  surfaceElevated: '#1A1A1E',
-  surfaceMuted: '#1E1E24',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#E8E4DC',
-  textMuted: '#9A9A9A',
-  textPlaceholder: '#6A6A6A',
-  borderSubtle: '#2A2A30',
-  borderVisible: '#3A3A42',
-  // Primary - gold accent
-  primary: '#D4A860',
-  // Media button backgrounds - muted amber
-  mediaButtonBg: '#2D2518',
-  // For icons
-  icon: '#9A9A9A',
-  // Toggle
-  toggleTrackOff: '#3A3A42',
-  toggleThumb: '#FFFFFF',
-};
 
 export default function CreateForumPostScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { colors, colorScheme } = useTheme();
+  const styles = getThemedStyles(colors, colorScheme);
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -268,15 +249,15 @@ export default function CreateForumPostScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: COLORS.background }]}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: COLORS.borderSubtle }]}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.cancelText, { color: COLORS.textSecondary }]}>Cancel</Text>
+          <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: COLORS.textPrimary }]}>New Forum Post</Text>
+        <Text style={styles.title}>New Forum Post</Text>
         <TouchableOpacity
           onPress={handlePost}
           disabled={createMutation.isPending || !title.trim() || !content.trim()}
@@ -284,7 +265,6 @@ export default function CreateForumPostScreen() {
           <Text
             style={[
               styles.postText,
-              { color: COLORS.primary },
               (createMutation.isPending || !title.trim() || !content.trim()) && styles.postTextDisabled
             ]}
           >
@@ -295,97 +275,83 @@ export default function CreateForumPostScreen() {
 
       <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
         {/* Title Input */}
-        <View style={[styles.inputContainer, { borderBottomColor: COLORS.borderSubtle }]}>
-          <Text style={[styles.label, { color: COLORS.textSecondary }]}>Title</Text>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Title</Text>
           <TextInput
-            style={[
-              styles.titleInput,
-              {
-                backgroundColor: COLORS.surface,
-                borderColor: COLORS.borderVisible,
-                color: COLORS.textPrimary,
-              },
-            ]}
+            style={styles.titleInput}
             value={title}
             onChangeText={setTitle}
             placeholder="Give your post a title..."
-            placeholderTextColor={COLORS.textPlaceholder}
+            placeholderTextColor={colors.textTertiary}
             maxLength={300}
             autoFocus
           />
-          <Text style={[styles.charCount, { color: COLORS.textSecondary }]}>
+          <Text style={styles.charCount}>
             {title.length}/300
           </Text>
         </View>
 
         {/* Content Input */}
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: COLORS.textSecondary }]}>Content</Text>
+          <Text style={styles.label}>Content</Text>
           <TextInput
-            style={[
-              styles.contentInput,
-              {
-                backgroundColor: COLORS.surface,
-                borderColor: COLORS.borderVisible,
-                color: COLORS.textPrimary,
-              },
-            ]}
+            style={styles.contentInput}
             value={content}
             onChangeText={setContent}
             placeholder="What's on your mind?"
-            placeholderTextColor={COLORS.textPlaceholder}
+            placeholderTextColor={colors.textTertiary}
             multiline
             textAlignVertical="top"
           />
-          <Text style={[styles.charCount, { color: COLORS.textSecondary }]}>
+          <Text style={styles.charCount}>
             {content.length} characters
           </Text>
         </View>
 
         {/* Media Upload Section */}
-        <View style={[styles.mediaSection, { borderBottomColor: COLORS.borderSubtle }]}>
-          <Text style={[styles.label, { color: COLORS.textSecondary }]}>Media</Text>
+        <View style={styles.mediaSection}>
+          <Text style={styles.label}>Media</Text>
 
-          {/* Media Buttons Row - Dark mode styled pills */}
+          {/* Media Buttons Row */}
           <View style={styles.mediaButtonsRow}>
             <Pressable
               onPress={handlePickImage}
-              style={[styles.mediaActionButton, { backgroundColor: COLORS.mediaButtonBg }]}
+              style={styles.mediaActionButton}
             >
-              <Ionicons name="image-outline" size={20} color={COLORS.primary} />
-              <Text style={[styles.mediaActionButtonText, { color: COLORS.primary }]}>Gallery</Text>
+              <Ionicons name="image-outline" size={20} color={colors.accent} />
+              <Text style={styles.mediaActionButtonText}>Gallery</Text>
             </Pressable>
             <Pressable
               onPress={handleTakePhoto}
-              style={[styles.mediaActionButton, { backgroundColor: COLORS.mediaButtonBg }]}
+              style={styles.mediaActionButton}
             >
-              <Ionicons name="camera-outline" size={20} color={COLORS.primary} />
-              <Text style={[styles.mediaActionButtonText, { color: COLORS.primary }]}>Camera</Text>
+              <Ionicons name="camera-outline" size={20} color={colors.accent} />
+              <Text style={styles.mediaActionButtonText}>Camera</Text>
             </Pressable>
             <Pressable
               onPress={handlePickVideo}
-              style={[styles.mediaActionButton, { backgroundColor: COLORS.mediaButtonBg }]}
+              style={styles.mediaActionButton}
             >
-              <Ionicons name="videocam-outline" size={20} color={COLORS.primary} />
-              <Text style={[styles.mediaActionButtonText, { color: COLORS.primary }]}>Video</Text>
+              <Ionicons name="videocam-outline" size={20} color={colors.accent} />
+              <Text style={styles.mediaActionButtonText}>Video</Text>
             </Pressable>
             <Pressable
               onPress={handleTakeVideo}
-              style={[styles.mediaActionButton, { backgroundColor: COLORS.mediaButtonBg }]}
+              style={styles.mediaActionButton}
             >
-              <Ionicons name="film-outline" size={20} color={COLORS.primary} />
-              <Text style={[styles.mediaActionButtonText, { color: COLORS.primary }]}>Record</Text>
+              <Ionicons name="film-outline" size={20} color={colors.accent} />
+              <Text style={styles.mediaActionButtonText}>Record</Text>
             </Pressable>
           </View>
 
           {/* Media Counter */}
           {selectedImages.length > 0 && (
-            <Text style={[styles.mediaCounterText, { color: COLORS.textSecondary }]}>
+            <Text style={styles.mediaCounterText}>
               {selectedImages.length}/10 images selected
             </Text>
           )}
           {selectedVideo && (
-            <Text style={[styles.mediaCounterText, { color: COLORS.textSecondary }]}>
+            <Text style={styles.mediaCounterText}>
               1 video selected (max 2 min, 50MB)
             </Text>
           )}
@@ -422,10 +388,10 @@ export default function CreateForumPostScreen() {
 
         {/* Video Preview */}
         {selectedVideo && (
-          <View style={[styles.videoPreviewContainer, { borderBottomColor: COLORS.borderSubtle }]}>
-            <View style={[styles.videoPreview, { backgroundColor: COLORS.surfaceMuted }]}>
-              <Ionicons name="videocam" size={64} color={COLORS.icon} />
-              <Text style={[styles.videoPreviewText, { color: COLORS.textSecondary }]}>
+          <View style={styles.videoPreviewContainer}>
+            <View style={styles.videoPreview}>
+              <Ionicons name="videocam" size={64} color={colors.textTertiary} />
+              <Text style={styles.videoPreviewText}>
                 Video selected
               </Text>
             </View>
@@ -436,39 +402,39 @@ export default function CreateForumPostScreen() {
               }}
               style={styles.removeImageButton}
             >
-              <Ionicons name="close-circle" size={28} color={COLORS.textPrimary} />
+              <Ionicons name="close-circle" size={28} color={colors.textPrimary} />
             </Pressable>
           </View>
         )}
 
         {/* Community Selection */}
-        <View style={[styles.optionContainer, { borderBottomColor: COLORS.borderSubtle }]}>
+        <View style={styles.optionContainer}>
           <View style={styles.optionRow}>
-            <Ionicons name="people-outline" size={20} color={COLORS.textPrimary} />
-            <Text style={[styles.optionLabel, { color: COLORS.textPrimary }]}>Community</Text>
+            <Ionicons name="people-outline" size={20} color={colors.textPrimary} />
+            <Text style={styles.optionLabel}>Community</Text>
           </View>
           <TouchableOpacity
             onPress={() => setShowCommunityPicker(!showCommunityPicker)}
             style={styles.communitySelector}
           >
-            <Text style={[styles.communitySelectorText, { color: selectedCommunity ? COLORS.textPrimary : COLORS.textSecondary }]}>
+            <Text style={[styles.communitySelectorText, { color: selectedCommunity ? colors.textPrimary : colors.textSecondary }]}>
               {selectedCommunity ? selectedCommunity.name : 'None (General)'}
             </Text>
-            <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Community Picker */}
         {showCommunityPicker && (
-          <View style={[styles.communityPicker, { backgroundColor: COLORS.surfaceElevated, borderColor: COLORS.borderVisible }]}>
+          <View style={styles.communityPicker}>
             <TouchableOpacity
               onPress={() => {
                 setSelectedCommunityId(null);
                 setShowCommunityPicker(false);
               }}
-              style={[styles.communityOption, { borderBottomColor: COLORS.borderSubtle }]}
+              style={styles.communityOption}
             >
-              <Text style={[styles.communityOptionText, { color: COLORS.textPrimary }]}>General (No community)</Text>
+              <Text style={styles.communityOptionText}>General (No community)</Text>
             </TouchableOpacity>
             {communities.map((community: any) => (
               <TouchableOpacity
@@ -477,21 +443,21 @@ export default function CreateForumPostScreen() {
                   setSelectedCommunityId(community.id);
                   setShowCommunityPicker(false);
                 }}
-                style={[styles.communityOption, { borderBottomColor: COLORS.borderSubtle }]}
+                style={styles.communityOption}
               >
-                <Text style={[styles.communityOptionText, { color: COLORS.textPrimary }]}>{community.name}</Text>
+                <Text style={styles.communityOptionText}>{community.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
         {/* Anonymous Toggle */}
-        <View style={[styles.optionContainer, { borderBottomColor: COLORS.borderSubtle }]}>
+        <View style={styles.optionContainer}>
           <View style={styles.optionRow}>
-            <Ionicons name="eye-off-outline" size={20} color={COLORS.textPrimary} />
+            <Ionicons name="eye-off-outline" size={20} color={colors.textPrimary} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: COLORS.textPrimary }]}>Post Anonymously</Text>
-              <Text style={[styles.optionDescription, { color: COLORS.textSecondary }]}>
+              <Text style={styles.optionLabel}>Post Anonymously</Text>
+              <Text style={styles.optionDescription}>
                 Your username will not be shown
               </Text>
             </View>
@@ -499,15 +465,15 @@ export default function CreateForumPostScreen() {
           <Switch
             value={isAnonymous}
             onValueChange={setIsAnonymous}
-            trackColor={{ false: COLORS.toggleTrackOff, true: COLORS.primary }}
-            thumbColor={COLORS.toggleThumb}
+            trackColor={{ false: colors.borderSoft, true: colors.accent }}
+            thumbColor="#FFFFFF"
           />
         </View>
 
         {/* Info Box */}
-        <View style={[styles.infoBox, { backgroundColor: COLORS.surfaceMuted, borderColor: COLORS.borderSubtle }]}>
-          <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} />
-          <Text style={[styles.infoText, { color: COLORS.textSecondary }]}>
+        <View style={styles.infoBox}>
+          <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
+          <Text style={styles.infoText}>
             Forum posts support markdown formatting and can be upvoted by the community.
           </Text>
         </View>
@@ -515,8 +481,8 @@ export default function CreateForumPostScreen() {
         {/* Loading indicator */}
         {createMutation.isPending && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={[styles.loadingText, { color: COLORS.textSecondary }]}>Creating post...</Text>
+            <ActivityIndicator size="large" color={colors.accent} />
+            <Text style={styles.loadingText}>Creating post...</Text>
           </View>
         )}
       </ScrollView>
@@ -524,9 +490,10 @@ export default function CreateForumPostScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -536,18 +503,23 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingTop: 70,
     borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
   cancelText: {
     fontSize: 16,
     fontWeight: '500',
+    color: colors.textSecondary,
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
   postText: {
     fontSize: 16,
     fontWeight: '700',
+    color: colors.accent,
   },
   postTextDisabled: {
     opacity: 0.4,
@@ -563,6 +535,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
+    color: colors.textSecondary,
   },
   titleInput: {
     fontSize: 16,
@@ -571,6 +544,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     marginBottom: 4,
+    backgroundColor: colors.surface,
+    borderColor: colors.borderSoft,
+    color: colors.textPrimary,
   },
   contentInput: {
     fontSize: 15,
@@ -579,10 +555,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: 150,
     marginBottom: 4,
+    backgroundColor: colors.surface,
+    borderColor: colors.borderSoft,
+    color: colors.textPrimary,
   },
   charCount: {
     fontSize: 12,
     textAlign: 'right',
+    color: colors.textSecondary,
   },
   optionContainer: {
     flexDirection: 'row',
@@ -590,6 +570,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
   },
   optionRow: {
     flexDirection: 'row',
@@ -600,10 +581,12 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: 15,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   optionDescription: {
     fontSize: 13,
     marginTop: 2,
+    color: colors.textSecondary,
   },
   communitySelector: {
     flexDirection: 'row',
@@ -618,13 +601,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 16,
     overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderColor: colors.borderSoft,
   },
   communityOption: {
     padding: 16,
     borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
   },
   communityOptionText: {
     fontSize: 15,
+    color: colors.textPrimary,
   },
   infoBox: {
     flexDirection: 'row',
@@ -634,11 +621,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     marginTop: 16,
+    backgroundColor: colorScheme === 'dark' ? colors.surfaceRaised : '#F0F4FF',
+    borderColor: colors.borderSubtle,
   },
   infoText: {
     flex: 1,
     fontSize: 13,
     lineHeight: 18,
+    color: colors.textSecondary,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -647,6 +637,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
+    color: colors.textSecondary,
   },
   imageButton: {
     flexDirection: 'row',
@@ -666,6 +657,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     position: 'relative',
+    borderBottomColor: colors.borderSubtle,
   },
   imagePreview: {
     width: '100%',
@@ -679,11 +671,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 14,
   },
-  // New Media Section Styles
+  // Media Section Styles
   mediaSection: {
     marginBottom: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
   },
   mediaButtonsRow: {
     flexDirection: 'row',
@@ -699,15 +692,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderRadius: 8,
+    backgroundColor: colorScheme === 'dark' ? colors.surfaceRaised : colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
   },
   mediaActionButtonText: {
     fontSize: 13,
     fontWeight: '600',
+    color: colors.accent,
   },
   mediaCounterText: {
     fontSize: 12,
     marginTop: 8,
     textAlign: 'center',
+    color: colors.textSecondary,
   },
   // Multiple Images Grid
   imagesGridContainer: {
@@ -719,19 +717,19 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   gridImageWrapper: {
-    width: 'calc(33.33% - 3px)',
+    width: '32%',
     height: 120,
     borderRadius: 8,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#1A1A1E',
+    backgroundColor: colors.surface,
   },
   singleImageWrapper: {
     width: '100%',
     height: 300,
   },
   doubleImageWrapper: {
-    width: 'calc(50% - 2px)',
+    width: '49%',
     height: 200,
   },
   gridImage: {
@@ -765,6 +763,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     position: 'relative',
+    borderBottomColor: colors.borderSubtle,
   },
   videoPreview: {
     width: '100%',
@@ -772,10 +771,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.surface,
   },
   videoPreviewText: {
     marginTop: 12,
     fontSize: 14,
     fontWeight: '600',
+    color: colors.textSecondary,
   },
 });

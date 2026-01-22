@@ -1,5 +1,6 @@
 /**
  * Create Event Screen
+ * Theme-aware - respects light/dark mode
  */
 
 import React, { useState, useEffect } from 'react';
@@ -20,28 +21,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { eventsAPI, communitiesAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { useTheme } from '../../src/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
-// Hardcoded dark mode colors - single source of truth
-const COLORS = {
-  background: '#0A0A0C',
-  surface: '#151518',
-  surfaceElevated: '#1A1A1E',
-  surfaceMuted: '#1E1E24',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#E8E4DC',
-  textMuted: '#9A9A9A',
-  textPlaceholder: '#6A6A6A',
-  borderSubtle: '#2A2A30',
-  borderVisible: '#3A3A42',
-  primary: '#D4A860',
-  primaryForeground: '#1A1A1E',
-  icon: '#9A9A9A',
-  toggleTrackOff: '#3A3A42',
-  toggleThumb: '#FFFFFF',
-  success: '#10B981',
-};
 
 // App owner can create events without a community (The Connection official events)
 const APP_OWNER_USER_ID = 19; // Janelle
@@ -89,6 +71,8 @@ export default function CreateEventScreen() {
   const queryClient = useQueryClient();
   const { communityId: urlCommunityId } = useLocalSearchParams() as { communityId?: string };
   const { user } = useAuth();
+  const { colors, theme } = useTheme();
+  const isDark = theme === 'dark';
 
   // Check if current user is the app owner (Janelle) who can create events without a community
   const isAppOwner = user?.id === APP_OWNER_USER_ID || user?.isAdmin === true;
@@ -101,7 +85,7 @@ export default function CreateEventScreen() {
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [isSearchingLocations, setIsSearchingLocations] = useState(false);
-  const [isPublic, setIsPublic] = useState(true); // New: public/private toggle
+  const [isPublic, setIsPublic] = useState(true);
   const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(
     urlCommunityId ? parseInt(urlCommunityId) : null
   );
@@ -146,7 +130,7 @@ export default function CreateEventScreen() {
   // Handle location text change
   const handleLocationChange = (text: string) => {
     setLocation(text);
-    setSelectedLocation(null); // Clear selected location when user types
+    setSelectedLocation(null);
   };
 
   // Fetch user's communities (only where user is moderator or owner)
@@ -154,7 +138,6 @@ export default function CreateEventScreen() {
     queryKey: ['communities', 'moderator'],
     queryFn: async () => {
       const allCommunities = await communitiesAPI.getAll();
-      // Filter to only communities where user is moderator or owner
       return allCommunities.filter((c: any) => {
         const role = c.role || c.userRole;
         return role === 'moderator' || role === 'owner';
@@ -188,40 +171,30 @@ export default function CreateEventScreen() {
       Alert.alert('Error', 'Description is required');
       return;
     }
-    // App owners can create events without a community
     if (!selectedCommunityId && !isAppOwner) {
       Alert.alert('Error', 'Please select a community');
       return;
     }
 
-    // Format date as YYYY-MM-DD
     const eventDate = selectedDate.toISOString().slice(0, 10);
-
-    // Format time as HH:MM:SS
     const hours = selectedTime.getHours().toString().padStart(2, '0');
     const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
     const startTime = `${hours}:${minutes}:00`;
-    const endTime = startTime; // Default to same as start time
+    const endTime = startTime;
 
-    // Use coordinates from selected location suggestion
     let latitude: number | undefined;
     let longitude: number | undefined;
 
     if (selectedLocation) {
       latitude = parseFloat(selectedLocation.lat);
       longitude = parseFloat(selectedLocation.lon);
-      console.info('[CreateEvent] Using selected location coordinates:', { latitude, longitude });
     } else if (location.trim()) {
-      // Fallback: try to geocode if location text entered but no suggestion selected
       setIsGeocoding(true);
       try {
         const results = await searchLocations(location.trim());
         if (results.length > 0) {
           latitude = parseFloat(results[0].lat);
           longitude = parseFloat(results[0].lon);
-          console.info('[CreateEvent] Geocoded location:', { latitude, longitude });
-        } else {
-          console.warn('[CreateEvent] Could not geocode location, creating event without coordinates');
         }
       } catch (error) {
         console.warn('[CreateEvent] Geocoding error:', error);
@@ -239,8 +212,8 @@ export default function CreateEventScreen() {
       eventDate,
       startTime,
       endTime,
-      communityId: selectedCommunityId || undefined, // undefined for app-level events
-      isPublic, // Send public/private status
+      communityId: selectedCommunityId || undefined,
+      isPublic,
     });
   };
 
@@ -262,25 +235,90 @@ export default function CreateEventScreen() {
   };
 
   const selectedCommunity = communities?.find(c => c.id === selectedCommunityId);
-
   const isDisabled = createMutation.isPending || isGeocoding || !title.trim() || !description.trim();
+
+  // Dynamic styles based on theme
+  const dynamicStyles = {
+    container: {
+      backgroundColor: colors.background,
+    },
+    header: {
+      borderBottomColor: colors.borderSubtle,
+    },
+    cancelText: {
+      color: colors.textSecondary,
+    },
+    title: {
+      color: colors.textPrimary,
+    },
+    createText: {
+      color: colors.primary,
+    },
+    label: {
+      color: colors.textPrimary,
+    },
+    input: {
+      backgroundColor: isDark ? colors.surfaceMuted : colors.surface,
+      borderColor: colors.border,
+      color: colors.textPrimary,
+    },
+    pickerButton: {
+      backgroundColor: isDark ? colors.surfaceMuted : colors.surface,
+      borderColor: colors.border,
+    },
+    pickerText: {
+      color: colors.textPrimary,
+    },
+    placeholderText: {
+      color: colors.textSecondary,
+    },
+    dropdownContainer: {
+      backgroundColor: isDark ? '#1A1A1E' : colors.surface,
+      borderColor: colors.border,
+    },
+    dropdownOptionText: {
+      color: colors.textPrimary,
+    },
+    dropdownOptionSubtext: {
+      color: colors.textSecondary,
+    },
+    helpText: {
+      color: colors.textSecondary,
+    },
+    toggleRow: {
+      backgroundColor: isDark ? colors.surfaceMuted : colors.surface,
+      borderColor: colors.border,
+    },
+    toggleLabel: {
+      color: colors.textPrimary,
+    },
+    toggleDescription: {
+      color: colors.textSecondary,
+    },
+    suggestionItem: {
+      borderBottomColor: colors.borderSubtle,
+    },
+    suggestionText: {
+      color: colors.textPrimary,
+    },
+  };
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, dynamicStyles.container]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Header with Create on right */}
-      <View style={styles.header}>
+      {/* Header */}
+      <View style={[styles.header, dynamicStyles.header]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={[styles.cancelText, dynamicStyles.cancelText]}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Create Event</Text>
+        <Text style={[styles.title, dynamicStyles.title]}>Create Event</Text>
         <TouchableOpacity onPress={handleCreate} disabled={isDisabled}>
           {createMutation.isPending || isGeocoding ? (
-            <ActivityIndicator color={COLORS.primary} size="small" />
+            <ActivityIndicator color={colors.primary} size="small" />
           ) : (
-            <Text style={[styles.createText, isDisabled && styles.createTextDisabled]}>
+            <Text style={[styles.createText, dynamicStyles.createText, isDisabled && styles.createTextDisabled]}>
               Create
             </Text>
           )}
@@ -289,18 +327,19 @@ export default function CreateEventScreen() {
 
       <ScrollView style={styles.content}>
         <View style={styles.form}>
-          {/* Community Selector - Inline Dropdown */}
+          {/* Community Selector */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Community {isAppOwner ? '(Optional)' : '*'}</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Community {isAppOwner ? '(Optional)' : '*'}</Text>
             <TouchableOpacity
               style={[
                 styles.pickerButton,
+                dynamicStyles.pickerButton,
                 showCommunityPicker && styles.pickerButtonActive,
               ]}
               onPress={() => setShowCommunityPicker(!showCommunityPicker)}
               disabled={communitiesLoading || (!isAppOwner && communities && communities.length === 0)}
             >
-              <Text style={[styles.pickerText, !selectedCommunity && !isAppOwner && styles.placeholderText]}>
+              <Text style={[styles.pickerText, dynamicStyles.pickerText, !selectedCommunity && !isAppOwner && dynamicStyles.placeholderText]}>
                 {communitiesLoading
                   ? 'Loading communities...'
                   : selectedCommunity
@@ -314,19 +353,19 @@ export default function CreateEventScreen() {
               <Ionicons
                 name={showCommunityPicker ? "chevron-up" : "chevron-down"}
                 size={20}
-                color={COLORS.textMuted}
+                color={colors.textSecondary}
               />
             </TouchableOpacity>
 
-            {/* Inline Dropdown Options */}
+            {/* Dropdown Options */}
             {showCommunityPicker && (
-              <View style={styles.dropdownContainer}>
-                {/* App Owner: The Connection option */}
+              <View style={[styles.dropdownContainer, dynamicStyles.dropdownContainer]}>
                 {isAppOwner && (
                   <TouchableOpacity
                     style={[
                       styles.dropdownOption,
                       !selectedCommunityId && styles.dropdownOptionSelected,
+                      { borderBottomColor: colors.borderSubtle },
                     ]}
                     onPress={() => {
                       setSelectedCommunityId(null);
@@ -335,28 +374,27 @@ export default function CreateEventScreen() {
                   >
                     <View style={styles.dropdownOptionContent}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Ionicons name="star" size={16} color={COLORS.primary} />
-                        <Text style={[styles.dropdownOptionText, { color: COLORS.primary, fontWeight: '600' }]}>
+                        <Ionicons name="star" size={16} color={colors.primary} />
+                        <Text style={[styles.dropdownOptionText, { color: colors.primary, fontWeight: '600' }]}>
                           The Connection
                         </Text>
                       </View>
-                      <Text style={styles.dropdownOptionSubtext}>
+                      <Text style={[styles.dropdownOptionSubtext, dynamicStyles.dropdownOptionSubtext]}>
                         Official app event
                       </Text>
                     </View>
                     {!selectedCommunityId && (
-                      <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                      <Ionicons name="checkmark" size={20} color={colors.primary} />
                     )}
                   </TouchableOpacity>
                 )}
-                {/* Community options */}
                 {communities?.map((community, index) => (
                   <TouchableOpacity
                     key={community.id}
                     style={[
                       styles.dropdownOption,
                       selectedCommunityId === community.id && styles.dropdownOptionSelected,
-                      index === (communities.length - 1) && !isAppOwner && { borderBottomWidth: 0 }
+                      { borderBottomColor: colors.borderSubtle },
                     ]}
                     onPress={() => {
                       setSelectedCommunityId(community.id);
@@ -364,12 +402,12 @@ export default function CreateEventScreen() {
                     }}
                   >
                     <View style={styles.dropdownOptionContent}>
-                      <Text style={styles.dropdownOptionText}>
+                      <Text style={[styles.dropdownOptionText, dynamicStyles.dropdownOptionText]}>
                         {community.name}
                       </Text>
                     </View>
                     {selectedCommunityId === community.id && (
-                      <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                      <Ionicons name="checkmark" size={20} color={colors.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -377,39 +415,39 @@ export default function CreateEventScreen() {
             )}
 
             {isAppOwner && !showCommunityPicker && (
-              <Text style={styles.helpTextPrimary}>
-                <Ionicons name="star" size={12} color={COLORS.primary} /> You can create official app events without a community.
+              <Text style={[styles.helpTextPrimary, { color: colors.primary }]}>
+                <Ionicons name="star" size={12} color={colors.primary} /> You can create official app events without a community.
               </Text>
             )}
             {!isAppOwner && communities && communities.length === 0 && !communitiesLoading && (
-              <Text style={styles.helpText}>
-                You must be a creator or moderator of a community to create events. Join or create a community first.
+              <Text style={[styles.helpText, dynamicStyles.helpText]}>
+                You must be a creator or moderator of a community to create events.
               </Text>
             )}
           </View>
 
           {/* Title */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Title *</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Title *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, dynamicStyles.input]}
               value={title}
               onChangeText={setTitle}
               placeholder="Event title"
-              placeholderTextColor={COLORS.textPlaceholder}
+              placeholderTextColor={colors.textSecondary}
               maxLength={100}
             />
           </View>
 
           {/* Description */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description *</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Description *</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, dynamicStyles.input]}
               value={description}
               onChangeText={setDescription}
               placeholder="Event description"
-              placeholderTextColor={COLORS.textPlaceholder}
+              placeholderTextColor={colors.textSecondary}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -417,22 +455,22 @@ export default function CreateEventScreen() {
             />
           </View>
 
-          {/* Location with Autocomplete */}
+          {/* Location */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Location</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Location</Text>
             <View style={styles.locationInputContainer}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, dynamicStyles.input]}
                 value={location}
                 onChangeText={handleLocationChange}
                 placeholder="Search for a location..."
-                placeholderTextColor={COLORS.textPlaceholder}
+                placeholderTextColor={colors.textSecondary}
                 maxLength={200}
               />
               {isSearchingLocations && (
                 <ActivityIndicator
                   size="small"
-                  color={COLORS.primary}
+                  color={colors.primary}
                   style={styles.locationSpinner}
                 />
               )}
@@ -444,22 +482,21 @@ export default function CreateEventScreen() {
                     setSelectedLocation(null);
                   }}
                 >
-                  <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                  <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               )}
             </View>
 
-            {/* Location Suggestions */}
             {showLocationSuggestions && locationSuggestions.length > 0 && (
-              <View style={styles.suggestionsContainer}>
+              <View style={[styles.suggestionsContainer, { backgroundColor: isDark ? '#1A1A1E' : colors.surface, borderColor: colors.border }]}>
                 {locationSuggestions.map((suggestion) => (
                   <TouchableOpacity
                     key={suggestion.place_id}
-                    style={styles.suggestionItem}
+                    style={[styles.suggestionItem, dynamicStyles.suggestionItem]}
                     onPress={() => handleSelectLocation(suggestion)}
                   >
-                    <Ionicons name="location-outline" size={18} color={COLORS.primary} />
-                    <Text style={styles.suggestionText} numberOfLines={2}>
+                    <Ionicons name="location-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.suggestionText, dynamicStyles.suggestionText]} numberOfLines={2}>
                       {suggestion.display_name}
                     </Text>
                   </TouchableOpacity>
@@ -468,11 +505,11 @@ export default function CreateEventScreen() {
             )}
 
             {selectedLocation ? (
-              <Text style={styles.locationHintSelected}>
-                <Ionicons name="checkmark-circle" size={12} color={COLORS.success} /> Location selected
+              <Text style={[styles.locationHintSelected, { color: '#10B981' }]}>
+                <Ionicons name="checkmark-circle" size={12} color="#10B981" /> Location selected
               </Text>
             ) : (
-              <Text style={styles.locationHint}>
+              <Text style={[styles.locationHint, dynamicStyles.helpText]}>
                 Start typing to search for a location
               </Text>
             )}
@@ -480,19 +517,19 @@ export default function CreateEventScreen() {
 
           {/* Public/Private Toggle */}
           <View style={styles.inputGroup}>
-            <View style={styles.toggleRow}>
+            <View style={[styles.toggleRow, dynamicStyles.toggleRow]}>
               <View style={styles.toggleInfo}>
                 <View style={styles.toggleHeader}>
                   <Ionicons
                     name={isPublic ? 'globe-outline' : 'lock-closed-outline'}
                     size={20}
-                    color={COLORS.textPrimary}
+                    color={colors.textPrimary}
                   />
-                  <Text style={styles.toggleLabel}>
+                  <Text style={[styles.toggleLabel, dynamicStyles.toggleLabel]}>
                     {isPublic ? 'Public Event' : 'Private Event'}
                   </Text>
                 </View>
-                <Text style={styles.toggleDescription}>
+                <Text style={[styles.toggleDescription, dynamicStyles.toggleDescription]}>
                   {isPublic
                     ? 'Visible on the main Events page to all users'
                     : 'Only visible to community members'}
@@ -501,37 +538,36 @@ export default function CreateEventScreen() {
               <Switch
                 value={isPublic}
                 onValueChange={setIsPublic}
-                trackColor={{ false: COLORS.toggleTrackOff, true: COLORS.primary }}
-                thumbColor={COLORS.toggleThumb}
+                trackColor={{ false: colors.borderSubtle, true: colors.primary }}
+                thumbColor="#fff"
               />
             </View>
           </View>
 
           {/* Date Picker */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date *</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Date *</Text>
             <TouchableOpacity
-              style={styles.pickerButton}
+              style={[styles.pickerButton, dynamicStyles.pickerButton]}
               onPress={() => setShowDatePicker(true)}
             >
-              <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.pickerText}>{formatDate(selectedDate)}</Text>
+              <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatDate(selectedDate)}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Time Picker */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Time *</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Time *</Text>
             <TouchableOpacity
-              style={styles.pickerButton}
+              style={[styles.pickerButton, dynamicStyles.pickerButton]}
               onPress={() => setShowTimePicker(true)}
             >
-              <Ionicons name="time-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.pickerText}>{formatTime(selectedTime)}</Text>
+              <Ionicons name="time-outline" size={20} color={colors.primary} />
+              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatTime(selectedTime)}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Spacer at bottom for scrolling */}
           <View style={{ height: 40 }} />
         </View>
       </ScrollView>
@@ -544,14 +580,10 @@ export default function CreateEventScreen() {
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={(event, date) => {
             setShowDatePicker(Platform.OS === 'ios');
-            if (date) {
-              setSelectedDate(date);
-            }
-            if (Platform.OS === 'android') {
-              setShowDatePicker(false);
-            }
+            if (date) setSelectedDate(date);
+            if (Platform.OS === 'android') setShowDatePicker(false);
           }}
-          themeVariant="dark"
+          themeVariant={isDark ? 'dark' : 'light'}
           minimumDate={new Date()}
         />
       )}
@@ -565,14 +597,10 @@ export default function CreateEventScreen() {
           is24Hour={false}
           onChange={(event, date) => {
             setShowTimePicker(Platform.OS === 'ios');
-            if (date) {
-              setSelectedTime(date);
-            }
-            if (Platform.OS === 'android') {
-              setShowTimePicker(false);
-            }
+            if (date) setSelectedTime(date);
+            if (Platform.OS === 'android') setShowTimePicker(false);
           }}
-          themeVariant="dark"
+          themeVariant={isDark ? 'dark' : 'light'}
         />
       )}
     </KeyboardAvoidingView>
@@ -582,7 +610,6 @@ export default function CreateEventScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -592,20 +619,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingTop: 70,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderSubtle,
   },
   cancelText: {
-    color: COLORS.textSecondary,
     fontSize: 16,
     fontWeight: '500',
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.textPrimary,
   },
   createText: {
-    color: COLORS.primary,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -624,28 +647,22 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textPrimary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: COLORS.surface,
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: COLORS.borderVisible,
-    color: COLORS.textPrimary,
   },
   textArea: {
     minHeight: 100,
     paddingTop: 12,
   },
   pickerButton: {
-    backgroundColor: COLORS.surface,
     borderRadius: 8,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.borderVisible,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -657,17 +674,11 @@ const styles = StyleSheet.create({
   },
   pickerText: {
     fontSize: 16,
-    color: COLORS.textPrimary,
     flex: 1,
   },
-  placeholderText: {
-    color: COLORS.textPlaceholder,
-  },
   dropdownContainer: {
-    backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
     borderTopWidth: 0,
-    borderColor: COLORS.borderVisible,
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
     maxHeight: 200,
@@ -679,10 +690,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderSubtle,
   },
   dropdownOptionSelected: {
-    backgroundColor: 'rgba(212, 168, 96, 0.1)',
+    backgroundColor: 'rgba(37, 99, 235, 0.1)',
   },
   dropdownOptionContent: {
     flex: 1,
@@ -691,33 +701,27 @@ const styles = StyleSheet.create({
   dropdownOptionText: {
     fontSize: 15,
     fontWeight: '500',
-    color: COLORS.textPrimary,
   },
   dropdownOptionSubtext: {
     fontSize: 13,
     marginTop: 2,
-    color: COLORS.textMuted,
   },
   helpText: {
     fontSize: 13,
-    color: COLORS.textMuted,
     lineHeight: 18,
     marginTop: 8,
   },
   helpTextPrimary: {
     fontSize: 13,
-    color: COLORS.primary,
     lineHeight: 18,
     marginTop: 8,
   },
   locationHint: {
     fontSize: 12,
-    color: COLORS.textMuted,
     marginTop: 4,
   },
   locationHintSelected: {
     fontSize: 12,
-    color: COLORS.success,
     marginTop: 4,
   },
   locationInputContainer: {
@@ -738,8 +742,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.borderVisible,
-    backgroundColor: COLORS.surfaceElevated,
     maxHeight: 200,
     overflow: 'hidden',
   },
@@ -749,23 +751,19 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderSubtle,
   },
   suggestionText: {
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-    color: COLORS.textPrimary,
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
     borderRadius: 8,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.borderVisible,
   },
   toggleInfo: {
     flex: 1,
@@ -780,11 +778,9 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.textPrimary,
   },
   toggleDescription: {
     fontSize: 13,
-    color: COLORS.textMuted,
     lineHeight: 18,
   },
 });

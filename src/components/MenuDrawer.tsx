@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import apiClient from '../lib/apiClient';
 import { useTheme } from '../contexts/ThemeContext';
-import { useUnreadCount } from '../queries/messages';
 import { useNotificationCount } from '../queries/notifications';
 
 type ThemePreference = 'light' | 'dark' | 'system';
@@ -16,7 +15,6 @@ interface MenuDrawerProps {
   onSettings: () => void;
   onNotifications: () => void;
   onBookmarks: () => void;
-  onMessages?: () => void;
   onInbox?: () => void;
   hasInboxAccess?: boolean;
   onSearch?: () => void;
@@ -34,12 +32,10 @@ interface SearchResult {
   dmPrivacyReason?: string;
 }
 
-export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onMessages, onInbox, hasInboxAccess, onSearch, onUserPress }: MenuDrawerProps) {
+export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onInbox, hasInboxAccess, onSearch, onUserPress }: MenuDrawerProps) {
   const { colors, theme, setTheme } = useTheme();
   const styles = getStyles(colors, theme);
 
-  // Get unread DM count for badge
-  const { data: unreadData } = useUnreadCount();
   // Get unread notification count for badge
   const { data: notificationCountData } = useNotificationCount();
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,45 +158,6 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                 </View>
               ) : (
                 <View style={styles.menuItems}>
-                  {/* Messages with unread badge */}
-                  {onMessages && (
-                    <Pressable
-                      style={styles.menuItem}
-                      onPress={() => {
-                        onClose();
-                        onMessages();
-                      }}
-                    >
-                      <View style={{ position: 'relative' }}>
-                        <Ionicons name="chatbubbles-outline" size={24} color={colors.textPrimary} />
-                        {(unreadData?.count ?? 0) > 0 && (
-                          <View style={{
-                            position: 'absolute',
-                            top: -4,
-                            right: -6,
-                            backgroundColor: '#EF4444',
-                            borderRadius: 10,
-                            minWidth: 18,
-                            height: 18,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            paddingHorizontal: 4,
-                          }}>
-                            <Text style={{
-                              fontSize: 10,
-                              fontWeight: '700',
-                              color: '#FFFFFF',
-                            }}>
-                              {unreadData.count > 99 ? '99+' : unreadData.count}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.menuItemText}>Messages</Text>
-                      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-                    </Pressable>
-                  )}
-
                   <Pressable
                     style={styles.menuItem}
                     onPress={() => {

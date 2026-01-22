@@ -23,6 +23,27 @@ import { getCurrentLocation, formatDistance } from '../services/locationService'
 import { useQuery } from '@tanstack/react-query';
 import { communitiesAPI } from '../lib/apiClient';
 
+// Helper to create a light/pastel background from a hex color
+function getLightBackground(hexColor: string): string {
+  if (!hexColor) return '#E0E7FF'; // Default pastel indigo
+
+  // Remove # if present
+  const hex = hexColor.replace('#', '');
+
+  // Parse RGB
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // Mix with white (0.85 white, 0.15 original color) for a light pastel
+  const lightR = Math.round(r * 0.15 + 255 * 0.85);
+  const lightG = Math.round(g * 0.15 + 255 * 0.85);
+  const lightB = Math.round(b * 0.15 + 255 * 0.85);
+
+  // Convert back to hex
+  return `#${lightR.toString(16).padStart(2, '0')}${lightG.toString(16).padStart(2, '0')}${lightB.toString(16).padStart(2, '0')}`;
+}
+
 // Category type
 interface Category {
   id: string;
@@ -242,6 +263,8 @@ function FilterModal({
 
   const clearAll = () => {
     setTempFilters({});
+    onApplyFilters({}); // Apply empty filters immediately
+    onClose(); // Close the modal
   };
 
   const applyFilters = () => {
@@ -684,6 +707,7 @@ export function CommunitiesScreen({
         isJoined: true,
         communityId: community.id,
         slug: community.slug,
+        color: community.iconColor, // Use community's brand color
       }));
   }, [userCommunities]);
 
@@ -824,45 +848,46 @@ export function CommunitiesScreen({
           unreadMessageCount={unreadMessageCount}
         />
 
-        {/* Your Communities Section */}
-        {userChannels.length > 0 && (
+        {/* Your Communities Section - always show for Discover button access */}
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            marginTop: spacing.sm,
+            padding: spacing.lg,
+          }}
+        >
           <View
             style={{
-              backgroundColor: colors.surface,
-              marginTop: spacing.sm,
-              padding: spacing.lg,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: spacing.md,
             }}
           >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: spacing.md,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Ionicons name="people" size={14} color={colors.textMuted} />
-                <Text variant="bodySmall" style={{ fontWeight: '600' }}>Your Communities</Text>
-              </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Ionicons name="people" size={14} color={colors.textMuted} />
+              <Text variant="bodySmall" style={{ fontWeight: '600' }}>Your Communities</Text>
             </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: spacing.sm }}
-            >
-              <AddChannelCard onPress={onCreatePress} />
-              {userChannels.map((channel) => (
-                <ChannelCard
-                  key={channel.id}
-                  channel={channel}
-                  onPress={() => onCommunityPress?.({ id: channel.communityId } as any)}
-                />
-              ))}
-            </ScrollView>
           </View>
-        )}
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: spacing.sm }}
+          >
+            <AddChannelCard
+              onPress={() => setShowFilterModal(true)}
+              activeFilterCount={getActiveFilterCount()}
+            />
+            {userChannels.map((channel) => (
+              <ChannelCard
+                key={channel.id}
+                channel={channel}
+                onPress={() => onCommunityPress?.({ id: channel.communityId } as any)}
+              />
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Search Bar */}
         <View
@@ -901,37 +926,6 @@ export function CommunitiesScreen({
               </Pressable>
             )}
           </View>
-        </View>
-
-        {/* Filter Button */}
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            paddingBottom: spacing.md,
-          }}
-        >
-          <Pressable
-            onPress={() => setShowFilterModal(true)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: spacing.sm,
-              backgroundColor: colors.primary,
-              paddingVertical: spacing.sm,
-              paddingHorizontal: spacing.lg,
-              borderRadius: radii.full,
-            }}
-          >
-            <Ionicons name="options" size={20} color={colors.primaryForeground} />
-            <Text
-              variant="bodySmall"
-              style={{ color: colors.primaryForeground, fontWeight: '600' }}
-            >
-              Filters
-              {getActiveFilterCount() > 0 && ` (${getActiveFilterCount()})`}
-            </Text>
-          </Pressable>
         </View>
 
         {/* Suggested Section */}
@@ -1042,8 +1036,8 @@ export function CommunitiesScreen({
                       members: community.memberCount?.toString() || '0',
                       iconName: (community.iconName || 'people') as any,
                       tag: community.isPrivate ? 'Private' : 'Public',
-                      bgColor: '#E0E7FF',
-                      iconColor: '#4F46E5',
+                      bgColor: getLightBackground(community.iconColor),
+                      iconColor: community.iconColor || '#4F46E5',
                       isNew: false,
                       distance: community.distance,
                     }}

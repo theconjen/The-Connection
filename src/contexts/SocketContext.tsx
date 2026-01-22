@@ -10,6 +10,9 @@ import { useAuth } from './AuthContext';
 import { getApiBase } from '../lib/apiClient';
 import * as SecureStore from 'expo-secure-store';
 
+// Set to false to disable socket connections entirely (useful when server doesn't have Socket.IO)
+const SOCKET_ENABLED = true;
+
 interface SocketContextValue {
   isConnected: boolean;
   socket: Socket | null;
@@ -106,6 +109,12 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
 
     const connectSocket = async () => {
+      // Skip socket connection if disabled
+      if (!SOCKET_ENABLED) {
+        console.log('[Socket] Disabled - skipping connection (set SOCKET_ENABLED=true when server is ready)');
+        return;
+      }
+
       try {
         // Get JWT token for socket auth
         const token = await SecureStore.getItemAsync('auth_token');
@@ -119,15 +128,17 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
         // Create socket connection
         const socket = io(socketUrl, {
+          path: '/socket.io/', // Explicit path
           auth: {
             token: token,
             userId: user.id.toString(),
           },
-          transports: ['websocket', 'polling'],
+          transports: ['polling', 'websocket'], // Try polling first, then upgrade to websocket
           reconnection: true,
-          reconnectionDelay: 1000,
-          reconnectionAttempts: 10,
+          reconnectionDelay: 2000,
+          reconnectionAttempts: 5,
           timeout: 20000,
+          forceNew: true,
         });
 
         socketRef.current = socket;
@@ -147,12 +158,15 @@ export function SocketProvider({ children }: SocketProviderProps) {
         });
 
         socket.on('connect_error', (error) => {
-          console.error('[Socket] Connection error:', error.message);
+          // Use warn instead of error to avoid red error dialog in dev mode
+          // WebSocket may not always be available - app works fine with HTTP
+          console.warn('[Socket] Connection error - using HTTP fallback');
           setIsConnected(false);
         });
 
         socket.on('error', (error) => {
-          console.error('[Socket] Error:', error);
+          // Use warn instead of error to avoid red error dialog in dev mode
+          console.warn('[Socket] Error:', error?.message || error);
         });
 
         // DM event handlers - listen for both new and legacy event names
@@ -164,7 +178,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
         socket.on('notif:new', handleNewNotification);
 
       } catch (error) {
-        console.error('[Socket] Error connecting:', error);
+        // Use warn instead of error to avoid red error dialog
+        console.warn('[Socket] Error connecting:', error);
       }
     };
 
