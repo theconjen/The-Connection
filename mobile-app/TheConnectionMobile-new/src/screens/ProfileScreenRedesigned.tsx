@@ -308,11 +308,11 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Bio */}
             {user.bio && <Text style={[styles.bio, { color: colors.textPrimary }]}>{user.bio}</Text>}
 
-            {/* Bible Verse - Compact version */}
+            {/* Bible Verse - Subtle highlight */}
             {user.favoriteBibleVerse && (
-              <View style={[styles.bibleVerseCompact, { backgroundColor: colors.surfaceMuted, borderLeftColor: colors.primary }]}>
-                <Ionicons name="book" size={14} color={colors.primary} />
-                <Text style={[styles.bibleVerseText, { color: colors.textPrimary }]}>{user.favoriteBibleVerse}</Text>
+              <View style={[styles.bibleVerseCompact, { backgroundColor: `${colors.surfaceMuted}80`, borderLeftColor: `${colors.primary}60` }]}>
+                <Ionicons name="book-outline" size={12} color={colors.textMuted} style={{ opacity: 0.7 }} />
+                <Text style={[styles.bibleVerseText, { color: colors.textSecondary }]}>{user.favoriteBibleVerse}</Text>
               </View>
             )}
 
@@ -438,8 +438,15 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="document-outline" size={48} color={colors.textSecondary} />
-                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No posts yet</Text>
+                  <Ionicons name="document-outline" size={48} color={colors.textSecondary} style={{ opacity: 0.6 }} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                    {stats.postsCount > 0 ? 'Some posts may be private' : 'No posts yet'}
+                  </Text>
+                  {stats.postsCount > 0 && (
+                    <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                      {viewingOwnProfile ? 'Your private posts are hidden from this view' : 'This user has posts that aren\'t publicly visible'}
+                    </Text>
+                  )}
                 </View>
               )}
             </View>
@@ -587,19 +594,20 @@ const styles = StyleSheet.create({
   },
   bibleVerseCompact: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    alignItems: 'flex-start',
+    gap: 8,
     marginTop: 10,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 6,
-    borderLeftWidth: 2,
+    borderRadius: 4,
+    borderLeftWidth: 1.5,
   },
   bibleVerseText: {
     flex: 1,
     fontSize: 12,
     fontStyle: 'italic',
-    lineHeight: 16,
+    lineHeight: 17,
+    opacity: 0.85,
   },
   interestTags: {
     flexDirection: 'row',
@@ -744,6 +752,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    marginTop: 6,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
 });
 
