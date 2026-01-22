@@ -33,6 +33,9 @@ import apiClient from "../../src/lib/apiClient";
 import Markdown from "react-native-markdown-display";
 import { fetchBiblePassage, looksLikeBibleReference } from "../../src/lib/bibleApi";
 
+// Regex to detect Bible references in text (e.g., "Romans 8:28", "1 Corinthians 13:4-7", "(John 3:16)")
+const SCRIPTURE_REGEX = /\(?\b((?:1|2|3|I|II|III)\s*)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song\s*of\s*Solomon|Songs?|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s*\d+(?::\d+(?:-\d+)?)?(?:\s*-\s*\d+(?::\d+)?)?\)?/gi;
+
 type LibraryPostSource = {
   author: string;
   title: string;
@@ -59,6 +62,71 @@ type LibraryPost = {
 async function apiGet<T>(path: string): Promise<T> {
   const res = await apiClient.get(path);
   return res.data as T;
+}
+
+// Component to render text with clickable scripture references
+function ScriptureLinkedText({
+  children,
+  style,
+  onScripturePress,
+  linkColor,
+}: {
+  children: string;
+  style?: any;
+  onScripturePress: (ref: string) => void;
+  linkColor: string;
+}) {
+  if (typeof children !== 'string') {
+    return <Text style={style}>{children}</Text>;
+  }
+
+  const parts: Array<{ type: 'text' | 'scripture'; content: string }> = [];
+  let lastIndex = 0;
+  let match;
+
+  // Reset regex lastIndex
+  SCRIPTURE_REGEX.lastIndex = 0;
+
+  while ((match = SCRIPTURE_REGEX.exec(children)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: children.slice(lastIndex, match.index) });
+    }
+    // Add the scripture reference
+    parts.push({ type: 'scripture', content: match[0] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < children.length) {
+    parts.push({ type: 'text', content: children.slice(lastIndex) });
+  }
+
+  // If no scripture references found, return plain text
+  if (parts.length === 0 || (parts.length === 1 && parts[0].type === 'text')) {
+    return <Text style={style}>{children}</Text>;
+  }
+
+  return (
+    <Text style={style}>
+      {parts.map((part, idx) => {
+        if (part.type === 'scripture') {
+          // Clean up the reference (remove parentheses for API call)
+          const cleanRef = part.content.replace(/^\(|\)$/g, '');
+          return (
+            <Text
+              key={idx}
+              style={{ color: linkColor, fontWeight: '600' }}
+              onPress={() => onScripturePress(cleanRef)}
+            >
+              {part.content}
+            </Text>
+          );
+        }
+        return <Text key={idx}>{part.content}</Text>;
+      })}
+    </Text>
+  );
 }
 
 export default function ApologeticsDetailScreen() {
@@ -261,7 +329,34 @@ export default function ApologeticsDetailScreen() {
             <Ionicons name="document-text" size={18} color={colors.primary} />
             <Text style={styles.sectionTitle}>Detailed Answer</Text>
           </View>
-          <Markdown style={markdownStyles(colors)}>
+          <Markdown
+            style={markdownStyles(colors)}
+            rules={{
+              // Custom rule to make scripture references clickable in paragraphs
+              textgroup: (node, children, parent, styles) => {
+                // Get the text content
+                const textContent = node.children?.map((child: any) => child.content).join('') || '';
+
+                // Check if it contains scripture references
+                SCRIPTURE_REGEX.lastIndex = 0;
+                if (SCRIPTURE_REGEX.test(textContent)) {
+                  SCRIPTURE_REGEX.lastIndex = 0;
+                  return (
+                    <ScriptureLinkedText
+                      key={node.key}
+                      style={styles.textgroup}
+                      onScripturePress={handleScripturePress}
+                      linkColor={colors.primary}
+                    >
+                      {textContent}
+                    </ScriptureLinkedText>
+                  );
+                }
+
+                return <Text key={node.key} style={styles.textgroup}>{children}</Text>;
+              },
+            }}
+          >
             {data.bodyMarkdown}
           </Markdown>
         </View>
