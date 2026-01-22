@@ -698,26 +698,71 @@ function formatTime(dateString: string): string {
 // SUB-COMPONENTS
 // ============================================================================
 
-// Helper function to render content with clickable hashtags
+// Helper to extract first sentence from text
+function getFirstSentence(text: string): { firstSentence: string; rest: string } {
+  // Find first sentence-ending punctuation
+  const match = text.match(/^(.*?[.!?])(\s|$)/);
+  if (match) {
+    return {
+      firstSentence: match[1],
+      rest: text.slice(match[1].length).trim(),
+    };
+  }
+  // Fallback: first 120 chars if no punctuation found
+  if (text.length > 120) {
+    const breakPoint = text.lastIndexOf(' ', 120);
+    const cutoff = breakPoint > 60 ? breakPoint : 120;
+    return {
+      firstSentence: text.slice(0, cutoff),
+      rest: text.slice(cutoff).trim(),
+    };
+  }
+  return { firstSentence: text, rest: '' };
+}
+
+// Helper function to render content with clickable hashtags and bold first sentence
 function renderContentWithHashtags(
   content: string,
   onHashtagPress: (tag: string) => void,
-  styles: any
+  styles: any,
+  boldFirstSentence: boolean = true
 ) {
-  const parts = content.split(/(#[a-zA-Z0-9_]+)/g);
+  const { firstSentence, rest } = boldFirstSentence ? getFirstSentence(content) : { firstSentence: '', rest: content };
+  const fullContent = boldFirstSentence && rest ? `${firstSentence} ${rest}` : content;
+  const parts = fullContent.split(/(#[a-zA-Z0-9_]+)/g);
+
+  let charIndex = 0;
+  const firstSentenceLength = firstSentence.length;
 
   return (
     <Text style={styles.postContent}>
       {parts.map((part, index) => {
+        const partStart = charIndex;
+        charIndex += part.length;
+
         if (part.startsWith('#')) {
           const tag = part.slice(1);
+          const isBold = boldFirstSentence && partStart < firstSentenceLength;
           return (
             <Text
               key={index}
-              style={styles.hashtagLink}
+              style={[styles.hashtagLink, isBold && { fontWeight: '700' }]}
               onPress={() => onHashtagPress(tag.toLowerCase())}
             >
               {part}
+            </Text>
+          );
+        }
+
+        // For regular text, bold if within first sentence
+        if (boldFirstSentence && partStart < firstSentenceLength) {
+          const boldEnd = Math.min(part.length, firstSentenceLength - partStart);
+          const boldPart = part.slice(0, boldEnd);
+          const normalPart = part.slice(boldEnd);
+          return (
+            <Text key={index}>
+              <Text style={{ fontWeight: '700' }}>{boldPart}</Text>
+              {normalPart && <Text>{normalPart}</Text>}
             </Text>
           );
         }
@@ -780,20 +825,27 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
 
         {/* Post Content Area */}
         <View style={styles.postMain}>
-          {/* Header: Name, Username, Time, Menu */}
+          {/* Header: Name, Time, Mutuals - Username hidden on feed cards */}
           <View style={styles.postHeader}>
             <Pressable
               style={styles.postHeaderLeft}
               onPress={() => post.author?.id && onAuthorPress(post.author.id)}
             >
-              <Text style={styles.postAuthorName}>
-                {post.author?.displayName || post.author?.username || 'Unknown User'}
-              </Text>
-              <Text style={styles.postUsername}>
-                @{post.author?.username || 'unknown'}
-              </Text>
-              <Text style={styles.postDot}>·</Text>
-              <Text style={styles.postTime}>{formatTime(post.createdAt)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
+                <Text style={styles.postAuthorName}>
+                  {post.author?.displayName || post.author?.username || 'Unknown User'}
+                </Text>
+                {/* Mutual followers badge - only show if > 0 */}
+                {(post.author as any)?.mutualFollowersCount > 0 && (
+                  <View style={styles.mutualBadge}>
+                    <Text style={styles.mutualBadgeText}>
+                      {(post.author as any).mutualFollowersCount} mutual
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.postDot}>·</Text>
+                <Text style={styles.postTime}>{formatTime(post.createdAt)}</Text>
+              </View>
             </Pressable>
             <Pressable style={styles.postMoreButton} onPress={onMorePress} hitSlop={8}>
               <Ionicons name="ellipsis-horizontal" size={18} color={colors.iconDefault} />
@@ -877,19 +929,33 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
             />
           )}
 
-          {/* Post Actions */}
+          {/* Engagement prompt when both counts are zero */}
+          {(post.commentCount || 0) === 0 && (post.likeCount || 0) === 0 && (
+            <Pressable onPress={onCommentPress} style={styles.engagementPrompt}>
+              <Text style={styles.engagementPromptText}>Join the discussion</Text>
+            </Pressable>
+          )}
+
+          {/* Post Actions - icons have reduced opacity when counts are zero */}
           <View style={styles.postActions}>
             <Pressable
-              style={styles.postAction}
+              style={[styles.postAction, (post.commentCount || 0) === 0 && styles.postActionMuted]}
               hitSlop={8}
               onPress={onCommentPress}
             >
-              <Ionicons name="chatbubble-outline" size={18} color={colors.iconDefault} />
-              <Text style={styles.postActionText}>{post.commentCount || 0}</Text>
+              <Ionicons
+                name="chatbubble-outline"
+                size={18}
+                color={colors.iconDefault}
+                style={(post.commentCount || 0) === 0 ? { opacity: 0.5 } : undefined}
+              />
+              {(post.commentCount || 0) > 0 && (
+                <Text style={styles.postActionText}>{post.commentCount}</Text>
+              )}
             </Pressable>
 
             <Pressable
-              style={styles.postAction}
+              style={[styles.postAction, (post.repostCount || 0) === 0 && !post.isReposted && styles.postActionMuted]}
               hitSlop={8}
               onPress={onRepostPress}
             >
@@ -897,14 +963,17 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
                 name={post.isReposted ? 'repeat' : 'repeat-outline'}
                 size={20}
                 color={post.isReposted ? colors.repost : colors.iconDefault}
+                style={(post.repostCount || 0) === 0 && !post.isReposted ? { opacity: 0.5 } : undefined}
               />
-              <Text style={[styles.postActionText, post.isReposted && styles.postActionReposted]}>
-                {post.repostCount || 0}
-              </Text>
+              {(post.repostCount || 0) > 0 && (
+                <Text style={[styles.postActionText, post.isReposted && styles.postActionReposted]}>
+                  {post.repostCount}
+                </Text>
+              )}
             </Pressable>
 
             <Pressable
-              style={styles.postAction}
+              style={[styles.postAction, (post.likeCount || 0) === 0 && !post.isLiked && styles.postActionMuted]}
               onPress={isAuthenticated ? onLike : undefined}
               disabled={!isAuthenticated}
               hitSlop={8}
@@ -913,10 +982,13 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
                 name={post.isLiked ? 'heart' : 'heart-outline'}
                 size={18}
                 color={post.isLiked ? colors.like : colors.iconDefault}
+                style={(post.likeCount || 0) === 0 && !post.isLiked ? { opacity: 0.5 } : undefined}
               />
-              <Text style={[styles.postActionText, post.isLiked && styles.postActionLiked]}>
-                {post.likeCount || 0}
-              </Text>
+              {(post.likeCount || 0) > 0 && (
+                <Text style={[styles.postActionText, post.isLiked && styles.postActionLiked]}>
+                  {post.likeCount}
+                </Text>
+              )}
             </Pressable>
 
             <Pressable style={styles.postAction} onPress={onSharePress} hitSlop={8}>
@@ -1757,7 +1829,7 @@ export default function FeedScreen({
                 content: item.content || '',
                 likes: item.likeCount || 0,
                 comments: item.commentCount || 0,
-                flair: item.isAnonymous ? 'Anonymous' : 'Discussion',
+                flair: item.isAnonymous ? 'Anonymous' : '',
                 isLiked: item.isLiked || false,
               };
 
@@ -2638,7 +2710,7 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     flexWrap: 'wrap',
   },
   postAuthorName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.textPrimary,
     marginRight: 4,
@@ -2648,14 +2720,54 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     color: colors.textSecondary,
     marginRight: 4,
   },
-  postDot: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginRight: 4,
-  },
-  postTime: {
+  postUsernameSecondary: {
     fontSize: 13,
     color: colors.textMuted,
+    marginTop: 1,
+  },
+  mutualBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginRight: 4,
+  },
+  mutualBadgeText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  engagementPrompt: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    marginTop: 8,
+    marginBottom: 4,
+    alignSelf: 'flex-start',
+  },
+  engagementPromptText: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  postDot: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginHorizontal: 4,
+    opacity: 0.6,
+  },
+  postTime: {
+    fontSize: 12,
+    color: colors.textMuted,
+    opacity: 0.7,
+  },
+  postActionMuted: {
+    opacity: 0.7,
   },
   postMoreButton: {
     padding: 4,

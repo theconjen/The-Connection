@@ -3,11 +3,31 @@
  * Matches the Figma design for forum post previews
  */
 
-import React, { useState } from 'react';
-import { View, Pressable, StyleSheet, Image } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Pressable, StyleSheet, Image, Text as RNText } from 'react-native';
 import { Text, Badge, Avatar } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+
+// Helper to extract first sentence from text
+function getFirstSentence(text: string): { firstSentence: string; rest: string } {
+  const match = text.match(/^(.*?[.!?])(\s|$)/);
+  if (match) {
+    return {
+      firstSentence: match[1],
+      rest: text.slice(match[1].length).trim(),
+    };
+  }
+  if (text.length > 120) {
+    const breakPoint = text.lastIndexOf(' ', 120);
+    const cutoff = breakPoint > 60 ? breakPoint : 120;
+    return {
+      firstSentence: text.slice(0, cutoff),
+      rest: text.slice(cutoff).trim(),
+    };
+  }
+  return { firstSentence: text, rest: '' };
+}
 
 // Icons - you can replace these with @expo/vector-icons or lucide-react-native
 const ArrowUpIcon = ({ color, filled }: { color: string; filled?: boolean }) => (
@@ -130,45 +150,49 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
 
         {/* Content Area */}
         <View style={{ flex: 1, marginLeft: spacing.md }}>
-          {/* Header Row: Channel, Author, Time, Actions */}
+          {/* Header Row: Author identity hierarchy */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (!post.isAnonymous && post.authorId && onAuthorPress) {
+                  onAuthorPress(post.authorId);
+                }
+              }}
+              disabled={post.isAnonymous || !post.authorId || !onAuthorPress}
+            >
               {post.isAnonymous ? (
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: '700',
-                    color: colors.textMuted,
-                    fontStyle: 'italic',
-                  }}
-                >
-                  Anonymous
-                </Text>
-              ) : (
-                <Pressable
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    if (post.authorId && onAuthorPress) {
-                      onAuthorPress(post.authorId);
-                    }
-                  }}
-                  disabled={!post.authorId || !onAuthorPress}
-                >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
                   <Text
                     style={{
                       fontSize: 15,
                       fontWeight: '700',
-                      color: colors.textPrimary,
-                      textDecorationLine: onAuthorPress && post.authorId ? 'underline' : 'none',
+                      color: colors.textMuted,
+                      fontStyle: 'italic',
                     }}
                   >
-                    {getDisplayName()}
+                    Anonymous
                   </Text>
-                </Pressable>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, opacity: 0.6, marginHorizontal: 4 }}>·</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, opacity: 0.7 }}>{post.timeAgo}</Text>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: '700',
+                      color: colors.textPrimary,
+                    }}
+                  >
+                    {post.displayName || post.username || post.author}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, opacity: 0.6, marginHorizontal: 4 }}>·</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, opacity: 0.7 }}>{post.timeAgo}</Text>
+                </View>
               )}
-              <Text variant="caption" color="textMuted">•</Text>
-              <Text variant="caption" color="textMuted">{post.timeAgo}</Text>
-            </View>
+            </Pressable>
 
             {/* Top Right Actions */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
@@ -197,14 +221,22 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
             {post.title}
           </Text>
 
-          {/* Post Content Preview with Expand/Collapse */}
+          {/* Post Content Preview with Expand/Collapse - Bold first sentence */}
           <View style={{ marginBottom: spacing.sm }}>
             <Text
               variant="bodySmall"
               color="textMuted"
               numberOfLines={isExpanded ? undefined : 2}
             >
-              {post.content}
+              {(() => {
+                const { firstSentence, rest } = getFirstSentence(post.content);
+                return (
+                  <>
+                    <Text style={{ fontWeight: '700', color: colors.textPrimary }}>{firstSentence}</Text>
+                    {rest ? <Text>{' '}{rest}</Text> : null}
+                  </>
+                );
+              })()}
             </Text>
             {needsExpansion && (
               <Pressable
@@ -218,7 +250,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
                   variant="caption"
                   style={{ color: colors.accent, fontWeight: '600' }}
                 >
-                  {isExpanded ? 'Show less' : 'Read more'}
+                  {isExpanded ? 'Show less' : 'Open discussion'}
                 </Text>
               </Pressable>
             )}
@@ -295,10 +327,33 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
             </View>
           )}
 
-          {/* Flair */}
-          <Badge variant="secondary">{post.flair}</Badge>
+          {/* Flair - hide "Discussion" label since pills already show type */}
+          {post.flair && post.flair !== 'Discussion' && (
+            <Badge variant="secondary">{post.flair}</Badge>
+          )}
 
-          {/* Action Buttons - Match microblog layout */}
+          {/* Engagement prompt when both counts are zero */}
+          {(post.comments || 0) === 0 && (post.likes || 0) === 0 && (
+            <Pressable
+              onPress={onPress}
+              style={{
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.md + 2,
+                backgroundColor: colors.surfaceMuted,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSubtle,
+                marginTop: spacing.sm,
+                alignSelf: 'flex-start',
+              }}
+            >
+              <Text variant="caption" style={{ color: colors.textPrimary, fontWeight: '500' }}>
+                Join the discussion
+              </Text>
+            </Pressable>
+          )}
+
+          {/* Action Buttons - icons have reduced opacity when counts are zero */}
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -307,7 +362,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
           }}>
             {/* Left side: Comments and Like */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-              {/* Comments */}
+              {/* Comments - show icon always, reduced opacity when count is 0 */}
               <Pressable
                 style={({ pressed }) => ({
                   flexDirection: 'row',
@@ -316,15 +371,23 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
                   padding: spacing.sm,
                   borderRadius: radii.full,
                   backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                  opacity: (post.comments || 0) === 0 ? 0.7 : 1,
                 })}
               >
-                <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
-                <Text variant="caption" color="textMuted">
-                  {post.comments}
-                </Text>
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={18}
+                  color={colors.textMuted}
+                  style={(post.comments || 0) === 0 ? { opacity: 0.5 } : undefined}
+                />
+                {(post.comments || 0) > 0 && (
+                  <Text variant="caption" color="textMuted">
+                    {post.comments}
+                  </Text>
+                )}
               </Pressable>
 
-              {/* Like Button */}
+              {/* Like Button - reduced opacity when count is 0 and not liked */}
               <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
@@ -337,19 +400,23 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
                   padding: spacing.sm,
                   borderRadius: radii.full,
                   backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                  opacity: (post.likes || 0) === 0 && !post.isLiked ? 0.7 : 1,
                 })}
               >
                 <Ionicons
                   name={post.isLiked ? 'heart' : 'heart-outline'}
                   size={18}
                   color={post.isLiked ? colors.like : colors.textMuted}
+                  style={(post.likes || 0) === 0 && !post.isLiked ? { opacity: 0.5 } : undefined}
                 />
-                <Text
-                  variant="caption"
-                  style={{ color: post.isLiked ? colors.like : colors.textMuted }}
-                >
-                  {formatCount(post.likes)}
-                </Text>
+                {(post.likes || 0) > 0 && (
+                  <Text
+                    variant="caption"
+                    style={{ color: post.isLiked ? colors.like : colors.textMuted }}
+                  >
+                    {formatCount(post.likes)}
+                  </Text>
+                )}
               </Pressable>
             </View>
 
