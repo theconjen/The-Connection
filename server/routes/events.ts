@@ -306,9 +306,19 @@ router.post('/api/events', requireAuth, async (req, res) => {
     }
 
     res.status(201).json(event);
-  } catch (error) {
-    console.error('Error creating event:', error);
-    res.status(500).json(buildErrorResponse('Error creating event', error));
+  } catch (error: any) {
+    // Always log the full error for debugging
+    console.error('[Events] Unhandled error creating event:', error);
+
+    // Return detailed error info (temporarily for debugging)
+    res.status(500).json({
+      error: 'Error creating event',
+      message: error?.message || 'Unknown error',
+      code: error?.code || 'UNKNOWN',
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
+      // Include error name to help identify the type
+      type: error?.name || error?.constructor?.name || 'Error',
+    });
   }
 });
 
