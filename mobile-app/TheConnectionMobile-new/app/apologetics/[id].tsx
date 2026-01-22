@@ -11,7 +11,7 @@
  * 6. Sources (collapsed/expandable)
  */
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -21,6 +21,7 @@ import {
   Pressable,
   SafeAreaView,
   StatusBar,
+  Modal,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -30,6 +31,7 @@ import { AppHeader } from "../../src/screens/AppHeader";
 import { useAuth } from "../../src/contexts/AuthContext";
 import apiClient from "../../src/lib/apiClient";
 import Markdown from "react-native-markdown-display";
+import { fetchBiblePassage, looksLikeBibleReference } from "../../src/lib/bibleApi";
 
 type LibraryPostSource = {
   author: string;
@@ -67,6 +69,24 @@ export default function ApologeticsDetailScreen() {
 
   const [perspectivesExpanded, setPerspectivesExpanded] = useState(false);
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  const [showVerseModal, setShowVerseModal] = useState(false);
+  const [verseData, setVerseData] = useState<{ reference: string; text: string; translation: string } | null>(null);
+  const [verseLoading, setVerseLoading] = useState(false);
+
+  // Handle scripture reference press
+  const handleScripturePress = useCallback(async (reference: string) => {
+    setShowVerseModal(true);
+    setVerseLoading(true);
+    setVerseData(null);
+
+    const result = await fetchBiblePassage(reference);
+    setVerseData({
+      reference: result.reference,
+      text: result.text,
+      translation: result.translation || 'WEB',
+    });
+    setVerseLoading(false);
+  }, []);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["library-post", id],
@@ -210,7 +230,7 @@ export default function ApologeticsDetailScreen() {
           </View>
         )}
 
-        {/* 3. Scripture References */}
+        {/* 3. Scripture References - Tappable */}
         {data.scriptureRefs && data.scriptureRefs.length > 0 && (
           <View style={styles.scriptureCard}>
             <View style={styles.sectionHeader}>
@@ -219,9 +239,17 @@ export default function ApologeticsDetailScreen() {
             </View>
             <View style={styles.scriptureList}>
               {data.scriptureRefs.map((ref, idx) => (
-                <View key={idx} style={styles.scriptureBadge}>
+                <Pressable
+                  key={idx}
+                  style={({ pressed }) => [
+                    styles.scriptureBadge,
+                    pressed && { opacity: 0.7, backgroundColor: colors.surfaceMuted },
+                  ]}
+                  onPress={() => handleScripturePress(ref)}
+                >
                   <Text style={styles.scriptureText}>{ref}</Text>
-                </View>
+                  <Ionicons name="chevron-forward" size={12} color={colors.textMuted} />
+                </Pressable>
               ))}
             </View>
           </View>
@@ -327,6 +355,56 @@ export default function ApologeticsDetailScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Verse Modal */}
+      <Modal
+        visible={showVerseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowVerseModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowVerseModal(false)}
+        >
+          <Pressable style={[styles.verseModalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.verseModalHeader}>
+              <Ionicons name="book" size={20} color={colors.primary} />
+              <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
+                {verseData?.reference || 'Loading...'}
+              </Text>
+              <Pressable
+                onPress={() => setShowVerseModal(false)}
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            {verseLoading ? (
+              <View style={styles.verseModalLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.verseModalLoadingText, { color: colors.textMuted }]}>
+                  Loading passage...
+                </Text>
+              </View>
+            ) : (
+              <>
+                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={false}>
+                  <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
+                    {verseData?.text}
+                  </Text>
+                </ScrollView>
+                {verseData?.translation && (
+                  <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+                    {verseData.translation}
+                  </Text>
+                )}
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -557,11 +635,14 @@ function getStyles(colors: any) {
       borderRadius: 8,
       paddingHorizontal: 12,
       paddingVertical: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
     },
     scriptureText: {
       fontSize: 13,
       fontWeight: "600",
-      color: colors.textPrimary,
+      color: colors.primary,
     },
     answerCard: {
       backgroundColor: colors.backgroundSoft,
@@ -673,6 +754,59 @@ function getStyles(colors: any) {
       color: colors.buttonPrimaryText,
       fontSize: 14,
       fontWeight: "600",
+    },
+    // Verse Modal Styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    verseModalContent: {
+      width: '100%',
+      maxWidth: 360,
+      maxHeight: '70%',
+      borderRadius: 16,
+      padding: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    verseModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 16,
+    },
+    verseModalTitle: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    verseModalScroll: {
+      maxHeight: 300,
+    },
+    verseModalText: {
+      fontSize: 16,
+      lineHeight: 26,
+      fontStyle: 'italic',
+    },
+    verseModalAttribution: {
+      fontSize: 12,
+      marginTop: 16,
+      textAlign: 'right',
+      fontWeight: '500',
+    },
+    verseModalLoading: {
+      paddingVertical: 40,
+      alignItems: 'center',
+      gap: 12,
+    },
+    verseModalLoadingText: {
+      fontSize: 14,
     },
   });
 }
