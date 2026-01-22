@@ -252,7 +252,22 @@ router.post('/api/events', requireAuth, async (req, res) => {
         payload: { ...payload, creatorId: '[hidden]' }, // Log payload for debugging (hide sensitive data)
       });
     }
-    const event = await storage.createEvent(validated);
+
+    // Log validated payload before database insert
+    console.info('[Events] Creating event with validated payload:', JSON.stringify({ ...validated, creatorId: '[hidden]' }));
+
+    let event;
+    try {
+      event = await storage.createEvent(validated);
+    } catch (dbError: any) {
+      // Surface database errors with details
+      console.error('[Events] Database error creating event:', dbError.message || dbError);
+      return res.status(500).json({
+        error: 'Database error',
+        message: dbError.message || 'Failed to insert event into database',
+        code: dbError.code || 'UNKNOWN',
+      });
+    }
 
     // Notify community members about new event
     if (event.communityId) {
