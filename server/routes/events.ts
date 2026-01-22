@@ -155,6 +155,8 @@ router.post('/api/events', requireAuth, async (req, res) => {
       city,
       state,
       zipCode,
+      latitude,
+      longitude,
       virtualMeetingUrl,
       isPublic,
       communityId,
@@ -230,13 +232,26 @@ router.post('/api/events', requireAuth, async (req, res) => {
       city: city || null,
       state: state || null,
       zipCode: zipCode || null,
+      latitude: latitude || null,
+      longitude: longitude || null,
       virtualMeetingUrl: virtualMeetingUrl || null,
       isPublic: isPublic ?? true,
-      communityId,
+      communityId: communityId || null, // Explicitly null for "The Connection" events
       creatorId: userId,
     };
 
-    const validated = insertEventSchema.parse(payload as any);
+    let validated;
+    try {
+      validated = insertEventSchema.parse(payload as any);
+    } catch (zodError: any) {
+      // Surface Zod validation errors with details
+      console.error('[Events] Zod validation error:', zodError.errors || zodError.message);
+      return res.status(400).json({
+        error: 'Validation error',
+        details: zodError.errors || zodError.message,
+        payload: { ...payload, creatorId: '[hidden]' }, // Log payload for debugging (hide sensitive data)
+      });
+    }
     const event = await storage.createEvent(validated);
 
     // Notify community members about new event
