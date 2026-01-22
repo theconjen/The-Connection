@@ -451,6 +451,17 @@ export default function ApologeticsDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* Sticky Bottom Navigation Bar */}
+      <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.borderSubtle }]}>
+        <Pressable
+          style={styles.bottomBarButton}
+          onPress={() => router.push("/(tabs)/apologetics" as any)}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.primary} />
+          <Text style={[styles.bottomBarButtonText, { color: colors.primary }]}>Back to Apologetics</Text>
+        </Pressable>
+      </View>
+
       {/* Verse Modal */}
       <Modal
         visible={showVerseModal}
@@ -572,7 +583,7 @@ function getStyles(colors: any) {
     },
     scrollContent: {
       padding: 16,
-      paddingBottom: 40,
+      paddingBottom: 80, // Extra padding for sticky bottom bar
     },
     loadingContainer: {
       flex: 1,
@@ -902,6 +913,34 @@ function getStyles(colors: any) {
     },
     verseModalLoadingText: {
       fontSize: 14,
+    },
+    // Bottom Navigation Bar
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      paddingBottom: 28, // Extra padding for home indicator
+      borderTopWidth: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    bottomBarButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    bottomBarButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
     },
   });
 }
