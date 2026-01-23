@@ -63,6 +63,7 @@ type EventItem = {
   attendingCount?: number | null;
   rsvpStatus?: RsvpStatus; // User's RSVP status for this event (legacy)
   userRsvpStatus?: RsvpStatus; // User's RSVP status from API
+  isBookmarked?: boolean; // User's bookmark status from API
 };
 
 // ----- API -----
@@ -603,17 +604,50 @@ export default function EventsScreenNew({
     }
   };
 
+  // Bookmark mutation
+  const bookmarkMutation = useMutation({
+    mutationFn: async ({ eventId, isBookmarked }: { eventId: number; isBookmarked: boolean }) => {
+      if (isBookmarked) {
+        // Unbookmark
+        return apiClient.delete(`/api/events/${eventId}/bookmark`);
+      } else {
+        // Bookmark
+        return apiClient.post(`/api/events/${eventId}/bookmark`);
+      }
+    },
+    onMutate: ({ eventId, isBookmarked }) => {
+      // Optimistic update
+      setBookmarkedEvents(prev => {
+        const newSet = new Set(prev);
+        if (isBookmarked) {
+          newSet.delete(eventId);
+        } else {
+          newSet.add(eventId);
+        }
+        return newSet;
+      });
+    },
+    onError: (error: any, { eventId, isBookmarked }) => {
+      // Rollback on error
+      setBookmarkedEvents(prev => {
+        const newSet = new Set(prev);
+        if (isBookmarked) {
+          newSet.add(eventId); // Re-add if unbookmark failed
+        } else {
+          newSet.delete(eventId); // Remove if bookmark failed
+        }
+        return newSet;
+      });
+
+      const serverMessage = error.response?.data?.error || error.response?.data?.message;
+      Alert.alert('Bookmark Failed', serverMessage || 'Failed to update bookmark. Please try again.');
+    },
+  });
+
   // Handle bookmark press
   const handleBookmarkPress = (eventId: number | string) => {
-    setBookmarkedEvents(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(eventId)) {
-        newSet.delete(eventId);
-      } else {
-        newSet.add(eventId);
-      }
-      return newSet;
-    });
+    const isCurrentlyBookmarked = bookmarkedEvents.has(eventId);
+    bookmarkMutation.mutate({ eventId: Number(eventId), isBookmarked: isCurrentlyBookmarked });
   };
 
   // Navigation handlers - use external handlers if provided, otherwise use defaults
@@ -677,6 +711,22 @@ export default function EventsScreenNew({
       // Only update if we have statuses to set (avoid overwriting user's recent changes)
       if (Object.keys(initialStatuses).length > 0) {
         setRsvpStatuses(prev => ({ ...initialStatuses, ...prev }));
+      }
+    }
+  }, [rawData]);
+
+  // Initialize bookmark statuses from API response (persists across app reloads)
+  useEffect(() => {
+    if (rawData && rawData.length > 0) {
+      const initialBookmarks = new Set<string | number>();
+      rawData.forEach((event) => {
+        if (event.isBookmarked) {
+          initialBookmarks.add(event.id);
+        }
+      });
+      // Only update if we have bookmarks to set (merge with existing to preserve recent changes)
+      if (initialBookmarks.size > 0) {
+        setBookmarkedEvents(prev => new Set([...initialBookmarks, ...prev]));
       }
     }
   }, [rawData]);

@@ -1576,15 +1576,23 @@ export default function FeedScreen({
   });
 
   const handleFollowSuggestion = async (userId: number) => {
+    // Optimistic update - show "Following" immediately
     setFollowingIds(prev => new Set(prev).add(userId));
     try {
       await apiClient.post(`/api/users/${userId}/follow`);
+      // On success, refetch suggestions after a short delay to remove the followed user
+      // The delay allows the user to see the "Following" state briefly
+      setTimeout(() => {
+        refetchSuggestions();
+      }, 1000);
     } catch (error) {
+      // Rollback on error
       setFollowingIds(prev => {
         const next = new Set(prev);
         next.delete(userId);
         return next;
       });
+      console.error('Failed to follow user:', error);
     }
   };
 

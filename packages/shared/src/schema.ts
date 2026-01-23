@@ -1239,6 +1239,24 @@ export const insertEventRsvpSchema = createInsertSchema(eventRsvps).pick({
   status: true,
 } as any);
 
+// Event bookmarks table for tracking user bookmarks on events
+export const eventBookmarks = pgTable("event_bookmarks", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("event_bookmarks_event_user_idx").on(table.eventId, table.userId),
+]);
+
+export const insertEventBookmarkSchema = createInsertSchema(eventBookmarks).pick({
+  eventId: true,
+  userId: true,
+} as any);
+
+export type InsertEventBookmark = typeof eventBookmarks.$inferInsert;
+export type EventBookmark = typeof eventBookmarks.$inferSelect;
+
 // ========================
 // PRAYER REQUESTS
 // ========================

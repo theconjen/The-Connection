@@ -101,12 +101,17 @@ router.get('/api/events', async (req, res) => {
 
     // Get user's RSVPs to attach status to each event
     let userRsvpMap: Record<number, string> = {};
+    let userBookmarkSet: Set<number> = new Set();
     if (userId) {
       const userRsvps = await storage.getUserRSVPs(userId);
       userRsvpMap = userRsvps.reduce((acc: Record<number, string>, rsvp: any) => {
         acc[rsvp.eventId] = rsvp.status;
         return acc;
       }, {});
+
+      // Get user's bookmarked event IDs
+      const bookmarkedIds = await storage.getUserEventBookmarkIds(userId);
+      userBookmarkSet = new Set(bookmarkedIds);
     }
 
     // Filter by RSVP status if requested
@@ -122,13 +127,14 @@ router.get('/api/events', async (req, res) => {
       events = events.filter((e: any) => eventIdsWithStatus.includes(e.id));
     }
 
-    // Attach user's RSVP status to each event
-    const eventsWithRsvp = events.map((event: any) => ({
+    // Attach user's RSVP status and bookmark status to each event
+    const eventsWithUserData = events.map((event: any) => ({
       ...event,
       userRsvpStatus: userRsvpMap[event.id] || null,
+      isBookmarked: userBookmarkSet.has(event.id),
     }));
 
-    res.json({ events: eventsWithRsvp });
+    res.json({ events: eventsWithUserData });
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json(buildErrorResponse('Error fetching events', error));
@@ -615,6 +621,81 @@ router.delete('/api/events/:id/rsvp', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error deleting RSVP:', error);
     res.status(500).json(buildErrorResponse('Error deleting RSVP', error));
+  }
+});
+
+// ============================================================================
+// EVENT BOOKMARK ENDPOINTS
+// ============================================================================
+
+// Bookmark an event
+router.post('/api/events/:id/bookmark', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    // Check if event exists
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const bookmark = await storage.bookmarkEvent(eventId, userId);
+    res.status(201).json({ success: true, bookmark });
+  } catch (error) {
+    console.error('Error bookmarking event:', error);
+    res.status(500).json(buildErrorResponse('Error bookmarking event', error));
+  }
+});
+
+// Unbookmark an event
+router.delete('/api/events/:id/bookmark', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    const success = await storage.unbookmarkEvent(eventId, userId);
+    if (!success) {
+      return res.status(404).json({ error: 'Bookmark not found' });
+    }
+
+    res.json({ success: true, message: 'Event unbookmarked successfully' });
+  } catch (error) {
+    console.error('Error unbookmarking event:', error);
+    res.status(500).json(buildErrorResponse('Error unbookmarking event', error));
+  }
+});
+
+// Get user's bookmarked events
+router.get('/api/events/bookmarks', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    const events = await storage.getUserBookmarkedEvents(userId);
+
+    // Filter out events from blocked users
+    const blockedIds = await storage.getBlockedUserIdsFor(userId);
+    const filteredEvents = blockedIds && blockedIds.length > 0
+      ? events.filter((e: any) => !blockedIds.includes(e.creatorId))
+      : events;
+
+    res.json({ events: filteredEvents });
+  } catch (error) {
+    console.error('Error fetching bookmarked events:', error);
+    res.status(500).json(buildErrorResponse('Error fetching bookmarked events', error));
+  }
+});
+
+// Check if event is bookmarked
+router.get('/api/events/:id/bookmark', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    const isBookmarked = await storage.hasUserBookmarkedEvent(eventId, userId);
+    res.json({ isBookmarked });
+  } catch (error) {
+    console.error('Error checking bookmark status:', error);
+    res.status(500).json(buildErrorResponse('Error checking bookmark status', error));
   }
 });
 

@@ -37,6 +37,7 @@ import {
   // Community Events
   Event, InsertEvent,
   EventRsvp, InsertEventRsvp,
+  EventBookmark, InsertEventBookmark,
 
   // Prayer system
   PrayerRequest, InsertPrayerRequest,
@@ -62,7 +63,7 @@ import {
   hashtags, microblogHashtags, postHashtags,
   keywords, microblogKeywords, postKeywords,
   apologeticsTopics, apologeticsQuestions, apologeticsAnswers,
-  events, eventRsvps, prayerRequests, prayers,
+  events, eventRsvps, eventBookmarks, prayerRequests, prayers,
   bibleReadingPlans, bibleReadingProgress, bibleStudyNotes,
   livestreamerApplications, apologistScholarApplications,
   userPreferences, messages, messageReactions, userFollows,
@@ -381,6 +382,13 @@ export interface IStorage {
   unbookmarkPost(postId: number, userId: number): Promise<boolean>;
   getUserBookmarkedPosts(userId: number): Promise<Post[]>;
   hasUserBookmarkedPost(postId: number, userId: number): Promise<boolean>;
+
+  // Event bookmark methods
+  bookmarkEvent(eventId: number, userId: number): Promise<EventBookmark>;
+  unbookmarkEvent(eventId: number, userId: number): Promise<boolean>;
+  getUserBookmarkedEvents(userId: number): Promise<Event[]>;
+  hasUserBookmarkedEvent(eventId: number, userId: number): Promise<boolean>;
+  getUserEventBookmarkIds(userId: number): Promise<number[]>;
 
   // Hashtag methods
   getOrCreateHashtag(tag: string, displayTag: string): Promise<Hashtag>;
@@ -2002,6 +2010,27 @@ export class MemStorage implements IStorage {
 
   async hasUserBookmarkedPost(_postId: number, _userId: number): Promise<boolean> {
     return false;
+  }
+
+  // Event bookmark stubs
+  async bookmarkEvent(_eventId: number, _userId: number): Promise<EventBookmark> {
+    throw new Error('Not implemented in MemStorage');
+  }
+
+  async unbookmarkEvent(_eventId: number, _userId: number): Promise<boolean> {
+    return false;
+  }
+
+  async getUserBookmarkedEvents(_userId: number): Promise<Event[]> {
+    return [];
+  }
+
+  async hasUserBookmarkedEvent(_eventId: number, _userId: number): Promise<boolean> {
+    return false;
+  }
+
+  async getUserEventBookmarkIds(_userId: number): Promise<number[]> {
+    return [];
   }
 
   async hasUserLikedPost(_postId: number, _userId: number): Promise<boolean> {
@@ -4620,7 +4649,88 @@ export class DbStorage implements IStorage {
 
     return !!bookmark;
   }
-  
+
+  // ============================================================================
+  // EVENT BOOKMARK METHODS
+  // ============================================================================
+
+  async bookmarkEvent(eventId: number, userId: number): Promise<EventBookmark> {
+    // Check if already bookmarked
+    const existing = await db
+      .select()
+      .from(eventBookmarks)
+      .where(and(
+        eq(eventBookmarks.eventId, eventId),
+        eq(eventBookmarks.userId, userId)
+      ));
+
+    if (existing.length > 0) {
+      // Return existing bookmark (idempotent)
+      return existing[0];
+    }
+
+    // Insert bookmark
+    const [newBookmark] = await db
+      .insert(eventBookmarks)
+      .values({ eventId, userId })
+      .returning();
+
+    return newBookmark;
+  }
+
+  async unbookmarkEvent(eventId: number, userId: number): Promise<boolean> {
+    const deleted = await db
+      .delete(eventBookmarks)
+      .where(and(
+        eq(eventBookmarks.eventId, eventId),
+        eq(eventBookmarks.userId, userId)
+      ))
+      .returning();
+
+    return deleted.length > 0;
+  }
+
+  async getUserBookmarkedEvents(userId: number): Promise<Event[]> {
+    const bookmarks = await db
+      .select()
+      .from(eventBookmarks)
+      .where(eq(eventBookmarks.userId, userId));
+
+    const eventIds = bookmarks
+      .map(b => b.eventId)
+      .filter(id => id != null && !isNaN(id));
+
+    if (eventIds.length === 0) return [];
+
+    return await db
+      .select()
+      .from(events)
+      .where(inArray(events.id, eventIds))
+      .orderBy(desc(events.eventDate));
+  }
+
+  async hasUserBookmarkedEvent(eventId: number, userId: number): Promise<boolean> {
+    const [bookmark] = await db
+      .select()
+      .from(eventBookmarks)
+      .where(and(
+        eq(eventBookmarks.eventId, eventId),
+        eq(eventBookmarks.userId, userId)
+      ))
+      .limit(1);
+
+    return !!bookmark;
+  }
+
+  async getUserEventBookmarkIds(userId: number): Promise<number[]> {
+    const bookmarks = await db
+      .select({ eventId: eventBookmarks.eventId })
+      .from(eventBookmarks)
+      .where(eq(eventBookmarks.userId, userId));
+
+    return bookmarks.map(b => b.eventId);
+  }
+
   async createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication> {
     throw new Error('Not implemented');
   }
