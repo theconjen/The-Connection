@@ -33,8 +33,8 @@ type Range = "today" | "week" | "weekend" | "next" | "all";
 type Mode = "all" | "inPerson" | "online";
 type DistanceFilter = "all" | "5" | "10" | "20" | "50" | "100";
 
-// RSVP status type - matches backend values
-type RsvpStatus = 'attending' | 'maybe' | 'declined' | null;
+// RSVP status type - matches backend values: 'going', 'maybe', 'not_going'
+type RsvpStatus = 'going' | 'maybe' | 'not_going' | null;
 
 type EventItem = {
   id: number | string;
@@ -61,7 +61,8 @@ type EventItem = {
   isPrivate?: boolean;
   isPublic?: boolean;
   attendingCount?: number | null;
-  rsvpStatus?: RsvpStatus; // User's RSVP status for this event
+  rsvpStatus?: RsvpStatus; // User's RSVP status for this event (legacy)
+  userRsvpStatus?: RsvpStatus; // User's RSVP status from API
 };
 
 // ----- API -----
@@ -295,11 +296,11 @@ const EVENT_TYPE_GRADIENTS: Record<string, [string, string]> = {
   'Prayer': ['#9F7AEA', '#805AD5'],
 };
 
-// RSVP status colors
-const RSVP_COLORS = {
-  attending: '#22C55E', // Green
+// RSVP status colors - matches backend values
+const RSVP_COLORS: Record<string, string> = {
+  going: '#22C55E',     // Green
   maybe: '#EAB308',     // Yellow
-  declined: '#EF4444',  // Red
+  not_going: '#EF4444', // Red
 };
 
 function EventCard({
@@ -549,13 +550,14 @@ export default function EventsScreenNew({
   });
 
   // Handle RSVP button press - show action sheet
+  // Backend expects: 'going', 'maybe', 'not_going'
   const handleRsvpPress = (eventId: number | string) => {
     const currentStatus = rsvpStatuses[eventId];
     const options = ['Going', 'Maybe', "Can't Go", 'Clear RSVP', 'Cancel'];
     const statusMap: Record<number, RsvpStatus> = {
-      0: 'attending',
+      0: 'going',
       1: 'maybe',
-      2: 'declined',
+      2: 'not_going',
     };
 
     if (Platform.OS === 'ios') {
@@ -585,9 +587,9 @@ export default function EventsScreenNew({
         'Set your RSVP status',
         undefined,
         [
-          { text: 'Going', onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'attending' }) },
+          { text: 'Going', onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'going' }) },
           { text: 'Maybe', onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'maybe' }) },
-          { text: "Can't Go", onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'declined' }) },
+          { text: "Can't Go", onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'not_going' }) },
           { text: 'Clear', style: 'destructive', onPress: () => {
             setRsvpStatuses(prev => {
               const newStatuses = { ...prev };
@@ -663,6 +665,22 @@ export default function EventsScreenNew({
     staleTime: 30_000,
   });
 
+  // Initialize RSVP statuses from API response (persists across app reloads)
+  useEffect(() => {
+    if (rawData && rawData.length > 0) {
+      const initialStatuses: Record<string | number, RsvpStatus> = {};
+      rawData.forEach((event) => {
+        if (event.userRsvpStatus) {
+          initialStatuses[event.id] = event.userRsvpStatus;
+        }
+      });
+      // Only update if we have statuses to set (avoid overwriting user's recent changes)
+      if (Object.keys(initialStatuses).length > 0) {
+        setRsvpStatuses(prev => ({ ...initialStatuses, ...prev }));
+      }
+    }
+  }, [rawData]);
+
   // Filter out past events - only show upcoming events
   // Note: isPublic filter removed since existing events have isPublic=false
   // Events marked as explicitly private (isPrivate=true) are still hidden
@@ -678,11 +696,13 @@ export default function EventsScreenNew({
         return false;
       }
 
-      // "My Events" filter - only show bookmarked or RSVP'd events
+      // "My Events" filter - show bookmarked OR events where user RSVP'd "going" or "maybe"
+      // (not "not_going" - declining an event shouldn't add it to My Events)
       if (showMyEvents) {
         const isBookmarked = bookmarkedEvents.has(event.id);
-        const hasRsvp = !!rsvpStatuses[event.id];
-        if (!isBookmarked && !hasRsvp) {
+        const rsvpStatus = rsvpStatuses[event.id];
+        const isAttending = rsvpStatus === 'going' || rsvpStatus === 'maybe';
+        if (!isBookmarked && !isAttending) {
           return false;
         }
       }

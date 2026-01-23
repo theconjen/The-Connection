@@ -99,29 +99,36 @@ router.get('/api/events', async (req, res) => {
       events = events.filter((e: any) => e.isPrivate !== true);
     }
 
+    // Get user's RSVPs to attach status to each event
+    let userRsvpMap: Record<number, string> = {};
+    if (userId) {
+      const userRsvps = await storage.getUserRSVPs(userId);
+      userRsvpMap = userRsvps.reduce((acc: Record<number, string>, rsvp: any) => {
+        acc[rsvp.eventId] = rsvp.status;
+        return acc;
+      }, {});
+    }
+
     // Filter by RSVP status if requested
     if (rsvpStatus && userId) {
       // Map frontend status values to backend values for compatibility
       // Frontend may send: 'going', 'maybe', 'not_going'
-      // Backend stores: 'attending', 'maybe', 'declined'
-      const backendStatus =
-        rsvpStatus === 'going' ? 'attending' :
-        rsvpStatus === 'not_going' ? 'declined' :
-        rsvpStatus; // 'maybe' or already correct values pass through
-
-      // Get all RSVPs for the user
-      const userRsvps = await storage.getUserRSVPs(userId);
-
-      // Get event IDs that match the requested status
-      const eventIdsWithStatus = userRsvps
-        .filter((rsvp: any) => rsvp.status === backendStatus)
-        .map((rsvp: any) => rsvp.eventId);
+      // Backend stores: 'going', 'maybe', 'not_going' (now aligned)
+      const eventIdsWithStatus = Object.entries(userRsvpMap)
+        .filter(([_, status]) => status === rsvpStatus)
+        .map(([eventId, _]) => parseInt(eventId));
 
       // Filter events to only include those with matching RSVP status
       events = events.filter((e: any) => eventIdsWithStatus.includes(e.id));
     }
 
-    res.json({ events });
+    // Attach user's RSVP status to each event
+    const eventsWithRsvp = events.map((event: any) => ({
+      ...event,
+      userRsvpStatus: userRsvpMap[event.id] || null,
+    }));
+
+    res.json({ events: eventsWithRsvp });
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json(buildErrorResponse('Error fetching events', error));
@@ -468,13 +475,20 @@ router.post('/api/events/:id/rsvp', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
-    const { status } = req.body; // 'attending', 'maybe', 'declined'
+    const { status } = req.body; // 'going', 'maybe', 'not_going'
 
     console.info(`[RSVP][${requestId}] Processing: userId=${userId}, eventId=${eventId}, status=${status}`);
 
-    if (!['attending', 'maybe', 'declined'].includes(status)) {
-      return res.status(400).json({ error: 'Status must be attending, maybe, or declined' });
+    // Accept both old format ('attending', 'maybe', 'declined') and new format ('going', 'maybe', 'not_going')
+    const validStatuses = ['going', 'maybe', 'not_going', 'attending', 'declined'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Status must be going, maybe, or not_going' });
     }
+
+    // Normalize to new format for storage
+    let normalizedStatus = status;
+    if (status === 'attending') normalizedStatus = 'going';
+    if (status === 'declined') normalizedStatus = 'not_going';
 
     // Check if event exists
     const event = await storage.getEvent(eventId);
@@ -489,7 +503,7 @@ router.post('/api/events/:id/rsvp', requireAuth, async (req, res) => {
     ).length;
 
     // Upsert RSVP (creates or updates)
-    const rsvp = await storage.upsertEventRSVP(eventId, userId, status);
+    const rsvp = await storage.upsertEventRSVP(eventId, userId, normalizedStatus);
 
     // Check if we just crossed the 25 RSVP threshold
     const rsvpsAfter = await storage.getEventRSVPs(eventId);
