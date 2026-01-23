@@ -30,7 +30,7 @@ router.get('/.well-known/apple-app-site-association', (req, res) => {
       apps: [],
       details: [
         {
-          appID: "TEAM_ID.app.theconnection.mobile",
+          appID: "AN976FH68W.app.theconnection.mobile",
           paths: [
             "/a/*",
             "/e/*",
@@ -44,7 +44,7 @@ router.get('/.well-known/apple-app-site-association', (req, res) => {
     },
     webcredentials: {
       apps: [
-        "TEAM_ID.app.theconnection.mobile"
+        "AN976FH68W.app.theconnection.mobile"
       ]
     }
   };
@@ -67,9 +67,7 @@ router.get('/.well-known/assetlinks.json', (req, res) => {
         namespace: "android_app",
         package_name: "app.theconnection.mobile",
         sha256_cert_fingerprints: [
-          // TODO: Replace with actual SHA256 fingerprint from your signing key
-          // Get this using: keytool -list -v -keystore your-release-key.keystore
-          "SHA256_FINGERPRINT_HERE"
+          "95:1C:8E:86:12:57:43:72:71:6D:CC:F6:A4:AB:67:1D:58:7D:36:AD:84:2F:B7:FB:35:28:92:7B:AC:44:01:C7"
         ]
       }
     }
