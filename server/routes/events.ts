@@ -197,14 +197,16 @@ router.post('/api/events', requireAuth, async (req, res) => {
     console.info('[Events] User lookup result:', user ? { id: user.id, username: user.username, isAdmin: user.isAdmin } : 'null');
 
     const isAppAdmin = user?.isAdmin === true;
-    const isAppOwner = user?.id === 19 && user?.username === 'Janelle'; // Only Janelle (user 19) can create events without a community
-    console.info('[Events] Auth check:', { isAppAdmin, isAppOwner, communityId });
+    // Only Janelle (app owner) can create events hosted by "The Connection" (no community)
+    // Community admins can create events for their communities (which can be public or private)
+    const isAppOwner = user?.username === 'Janelle';
+    console.info('[Events] Auth check:', { isAppAdmin, isAppOwner, communityId, userId, username: user?.username });
 
-    // Only app owner can create events without a community (hosted by "The Connection")
-    // All other users must specify a communityId
+    // Only app owner (Janelle) can create events without a community (hosted by "The Connection")
+    // All other users must specify a communityId for their community events
     if (!communityId && !isAppOwner) {
-      console.warn('[Events] Rejecting: communityId required but user is not app owner');
-      return res.status(400).json({ error: 'communityId is required - events must belong to a community' });
+      console.warn('[Events] Rejecting: communityId required - only Janelle can create "The Connection" events');
+      return res.status(400).json({ error: 'Please select a community for your event' });
     }
 
     // If communityId is provided, verify it exists and check authorization
@@ -264,19 +266,38 @@ router.post('/api/events', requireAuth, async (req, res) => {
 
     // Log validated payload before database insert
     console.info('[Events] Creating event with validated payload:', JSON.stringify({ ...validated, creatorId: '[hidden]' }));
+    console.info('[Events] communityId value:', validated.communityId, '| type:', typeof validated.communityId);
 
     let event;
     try {
+      console.info('[Events] Calling storage.createEvent...');
       event = await storage.createEvent(validated);
+      console.info('[Events] storage.createEvent returned:', event ? `Event ID ${event.id}` : 'null/undefined');
     } catch (dbError: any) {
       // Surface database errors with details
       console.error('[Events] Database error creating event:', dbError.message || dbError);
+      console.error('[Events] Error code:', dbError.code);
+      console.error('[Events] Error detail:', dbError.detail);
+      console.error('[Events] Error constraint:', dbError.constraint);
       return res.status(500).json({
         error: 'Database error',
         message: dbError.message || 'Failed to insert event into database',
         code: dbError.code || 'UNKNOWN',
+        detail: dbError.detail || null,
+        constraint: dbError.constraint || null,
       });
     }
+
+    // Verify event was actually created
+    if (!event || !event.id) {
+      console.error('[Events] Event creation returned but no event ID! Event:', event);
+      return res.status(500).json({
+        error: 'Event creation failed',
+        message: 'Database insert succeeded but returned no event ID',
+      });
+    }
+
+    console.info('[Events] Event created successfully with ID:', event.id);
 
     // Notify community members about new event
     if (event.communityId) {
