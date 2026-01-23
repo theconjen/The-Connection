@@ -108,6 +108,9 @@ import uploadRoutes from './routes/upload';
 import { chatMessagesQuerySchema } from './routes/chatMessages';
 import messagesRoutes from './routes/messages';
 import notificationsRoutes from './routes/notifications';
+import publicRoutes from './routes/public';
+import wellKnownRoutes from './routes/well-known';
+import { ogMetaMiddleware } from './middleware/og-meta';
 
 declare module 'express-session' {
   interface SessionData {
@@ -427,8 +430,16 @@ export function registerSocketHandlers(
 }
 
 export async function registerRoutes(app: Express, httpServer: HTTPServer) {
+  // .well-known routes for iOS Universal Links and Android App Links
+  // Must be registered FIRST, before any other middleware
+  app.use(wellKnownRoutes);
+
   // Set up authentication
   setupAuth(app);
+
+  // OG meta tag middleware for social media crawlers
+  // Must be early to intercept crawler requests for canonical URLs (/a/, /e/, /p/, /u/)
+  app.use(ogMetaMiddleware());
 
   // Session userId normalization middleware - ensure userId is always a number
   app.use(normalizeSessionUserId);
@@ -489,6 +500,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   // Minimal MVP routes are always available under /api/mvp
   app.use('/api/mvp', mvpRoutes);
+
+  // Public routes for shareable content previews (no authentication required)
+  // These are mounted directly to support canonical URLs: /api/public/*
+  app.use(publicRoutes);
 
   if (FEATURES.FEED) {
     app.use('/api', createFeedRouter(storage));

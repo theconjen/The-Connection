@@ -1,0 +1,24 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "AN976FH68W.app.theconnection.mobile",
+        "paths": [
+          "/a/*",
+          "/e/*",
+          "/p/*",
+          "/u/*",
+          "/reset-password",
+          "/reset-password/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "AN976FH68W.app.theconnection.mobile"
+    ]
+  },
+  "appclips": {}
+}

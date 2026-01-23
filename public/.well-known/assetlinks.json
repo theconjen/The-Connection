@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.theconnection.mobile",
+      "sha256_cert_fingerprints": [
+        "95:1C:8E:86:12:57:43:72:71:6D:CC:F6:A4:AB:67:1D:58:7D:36:AD:84:2F:B7:FB:35:28:92:7B:AC:44:01:C7"
+      ]
+    }
+  }
+]
