@@ -11,10 +11,13 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  ActionSheetIOS,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { eventsAPI } from "../lib/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { useTheme } from "../contexts/ThemeContext";
@@ -29,6 +32,9 @@ const ChurchIcon = require("../../assets/church-icon.png");
 type Range = "today" | "week" | "weekend" | "next" | "all";
 type Mode = "all" | "inPerson" | "online";
 type DistanceFilter = "all" | "5" | "10" | "20" | "50" | "100";
+
+// RSVP status type - matches backend values
+type RsvpStatus = 'attending' | 'maybe' | 'declined' | null;
 
 type EventItem = {
   id: number | string;
@@ -55,6 +61,7 @@ type EventItem = {
   isPrivate?: boolean;
   isPublic?: boolean;
   attendingCount?: number | null;
+  rsvpStatus?: RsvpStatus; // User's RSVP status for this event
 };
 
 // ----- API -----
@@ -288,14 +295,29 @@ const EVENT_TYPE_GRADIENTS: Record<string, [string, string]> = {
   'Prayer': ['#9F7AEA', '#805AD5'],
 };
 
+// RSVP status colors
+const RSVP_COLORS = {
+  attending: '#22C55E', // Green
+  maybe: '#EAB308',     // Yellow
+  declined: '#EF4444',  // Red
+};
+
 function EventCard({
   item,
   colors,
   onPress,
+  rsvpStatus,
+  onRsvpPress,
+  onBookmarkPress,
+  isBookmarked,
 }: {
   item: EventItem;
   colors: any;
   onPress: () => void;
+  rsvpStatus?: RsvpStatus;
+  onRsvpPress?: () => void;
+  onBookmarkPress?: () => void;
+  isBookmarked?: boolean;
 }) {
   // Handle both isOnline and isVirtual flags
   const isOnlineEvent = item.isOnline || item.isVirtual;
@@ -411,30 +433,42 @@ function EventCard({
         </View>
 
         <View style={{ flexDirection: "row", gap: 6 }}>
+          {/* Bookmark button */}
           <Pressable
             hitSlop={10}
-            onPress={() => {
-              // TODO: save action
-            }}
+            onPress={onBookmarkPress}
             style={[
               styles.iconAction,
-              { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
+              {
+                backgroundColor: isBookmarked ? colors.primary : colors.surfaceMuted,
+                borderColor: isBookmarked ? colors.primary : colors.borderSoft
+              },
             ]}
           >
-            <Ionicons name="bookmark-outline" size={15} color={colors.textPrimary} />
+            <Ionicons
+              name={isBookmarked ? "bookmark" : "bookmark-outline"}
+              size={15}
+              color={isBookmarked ? '#FFFFFF' : colors.textPrimary}
+            />
           </Pressable>
 
+          {/* RSVP status button */}
           <Pressable
             hitSlop={10}
-            onPress={() => {
-              // TODO: going action
-            }}
+            onPress={onRsvpPress}
             style={[
               styles.iconAction,
-              { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
+              {
+                backgroundColor: rsvpStatus ? RSVP_COLORS[rsvpStatus] : colors.surfaceMuted,
+                borderColor: rsvpStatus ? RSVP_COLORS[rsvpStatus] : colors.borderSoft
+              },
             ]}
           >
-            <Ionicons name="checkmark-circle-outline" size={15} color={colors.textPrimary} />
+            <Ionicons
+              name={rsvpStatus ? "checkmark-circle" : "checkmark-circle-outline"}
+              size={15}
+              color={rsvpStatus ? '#FFFFFF' : colors.textPrimary}
+            />
           </Pressable>
         </View>
       </View>
@@ -468,11 +502,117 @@ export default function EventsScreenNew({
   const [q, setQ] = useState("");
   const [city, setCity] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [showMyEvents, setShowMyEvents] = useState(false);
 
   // Location state
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+
+  // RSVP and bookmark state - track per event
+  const [rsvpStatuses, setRsvpStatuses] = useState<Record<string | number, RsvpStatus>>({});
+  const [bookmarkedEvents, setBookmarkedEvents] = useState<Set<string | number>>(new Set());
+  const queryClient = useQueryClient();
+
+  // RSVP mutation
+  const rsvpMutation = useMutation({
+    mutationFn: async ({ eventId, status }: { eventId: number; status: string }) => {
+      return eventsAPI.rsvp(eventId, status);
+    },
+    onSuccess: (_, { eventId, status }) => {
+      setRsvpStatuses(prev => ({
+        ...prev,
+        [eventId]: status as RsvpStatus,
+      }));
+    },
+    onError: (error: any) => {
+      // Extract actual server error message from axios response
+      const serverMessage = error.response?.data?.error || error.response?.data?.message;
+      const statusCode = error.response?.status;
+
+      console.error('[RSVP Error]', {
+        statusCode,
+        serverMessage,
+        responseData: error.response?.data,
+        axiosMessage: error.message
+      });
+
+      // Show user-friendly message based on error
+      if (statusCode === 403 && serverMessage?.includes('suspended')) {
+        Alert.alert('Account Issue', serverMessage || 'Your account has been suspended. Please contact support.');
+      } else if (statusCode === 401) {
+        Alert.alert('Login Required', 'Please log in again to RSVP to events.');
+      } else {
+        Alert.alert('RSVP Failed', serverMessage || error.message || 'Failed to update RSVP. Please try again.');
+      }
+    },
+  });
+
+  // Handle RSVP button press - show action sheet
+  const handleRsvpPress = (eventId: number | string) => {
+    const currentStatus = rsvpStatuses[eventId];
+    const options = ['Going', 'Maybe', "Can't Go", 'Clear RSVP', 'Cancel'];
+    const statusMap: Record<number, RsvpStatus> = {
+      0: 'attending',
+      1: 'maybe',
+      2: 'declined',
+    };
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex: 4,
+          destructiveButtonIndex: 3,
+          title: 'Set your RSVP status',
+        },
+        (buttonIndex) => {
+          if (buttonIndex < 3) {
+            rsvpMutation.mutate({ eventId: Number(eventId), status: statusMap[buttonIndex]! });
+          } else if (buttonIndex === 3) {
+            // Clear RSVP
+            setRsvpStatuses(prev => {
+              const newStatuses = { ...prev };
+              delete newStatuses[eventId];
+              return newStatuses;
+            });
+          }
+        }
+      );
+    } else {
+      // Android - use Alert with buttons
+      Alert.alert(
+        'Set your RSVP status',
+        undefined,
+        [
+          { text: 'Going', onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'attending' }) },
+          { text: 'Maybe', onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'maybe' }) },
+          { text: "Can't Go", onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'declined' }) },
+          { text: 'Clear', style: 'destructive', onPress: () => {
+            setRsvpStatuses(prev => {
+              const newStatuses = { ...prev };
+              delete newStatuses[eventId];
+              return newStatuses;
+            });
+          }},
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  };
+
+  // Handle bookmark press
+  const handleBookmarkPress = (eventId: number | string) => {
+    setBookmarkedEvents(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(eventId)) {
+        newSet.delete(eventId);
+      } else {
+        newSet.add(eventId);
+      }
+      return newSet;
+    });
+  };
 
   // Navigation handlers - use external handlers if provided, otherwise use defaults
   const onProfilePress = externalProfilePress || (() => router.push("/(tabs)/profile"));
@@ -523,7 +663,9 @@ export default function EventsScreenNew({
     staleTime: 30_000,
   });
 
-  // Filter out past events and private events - only show upcoming public events
+  // Filter out past events - only show upcoming events
+  // Note: isPublic filter removed since existing events have isPublic=false
+  // Events marked as explicitly private (isPrivate=true) are still hidden
   const data = useMemo(() => {
     if (!rawData) return [];
 
@@ -531,9 +673,18 @@ export default function EventsScreenNew({
     now.setHours(0, 0, 0, 0); // Start of today
 
     return rawData.filter((event) => {
-      // Filter out private events - they should only be visible in the community Events tab
-      if (event.isPrivate === true || event.isPublic === false) {
+      // Only filter out explicitly private events
+      if (event.isPrivate === true) {
         return false;
+      }
+
+      // "My Events" filter - only show bookmarked or RSVP'd events
+      if (showMyEvents) {
+        const isBookmarked = bookmarkedEvents.has(event.id);
+        const hasRsvp = !!rsvpStatuses[event.id];
+        if (!isBookmarked && !hasRsvp) {
+          return false;
+        }
       }
 
       // Try to parse the event date - prefer eventDate (new API), fall back to startsAt (legacy)
@@ -554,7 +705,7 @@ export default function EventsScreenNew({
       // Only show events that are today or in the future
       return eventDateParsed >= now;
     });
-  }, [rawData]);
+  }, [rawData, showMyEvents, bookmarkedEvents, rsvpStatuses]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -596,21 +747,6 @@ export default function EventsScreenNew({
         onMenuPress={onMenuPress}
         unreadNotificationCount={unreadNotificationCount}
         unreadMessageCount={unreadMessageCount}
-        leftElement={
-          <Pressable
-            onPress={() => router.push("/events/create")}
-            style={({ pressed }) => ({
-              width: 40,
-              height: 40,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: pressed ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
-              borderRadius: radii.full,
-            })}
-          >
-            <Ionicons name="add" size={26} color="#FFFFFF" />
-          </Pressable>
-        }
       />
 
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -670,50 +806,51 @@ export default function EventsScreenNew({
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={{ minHeight: 44 }}
             contentContainerStyle={styles.activeFiltersRow}
           >
             {range !== "week" && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
-                <Text style={[styles.activeFilterText, { color: colors.textPrimary }]}>
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
                   {range === "today" ? "Today" : range === "weekend" ? "Weekend" : range === "next" ? "Next Week" : "All"}
                 </Text>
-                <Pressable onPress={() => setRange("week")} hitSlop={4}>
-                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                <Pressable onPress={() => setRange("week")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={colors.primary} />
                 </Pressable>
               </View>
             )}
             {mode !== "all" && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
-                <Text style={[styles.activeFilterText, { color: colors.textPrimary }]}>
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
                   {mode === "inPerson" ? "In-Person" : "Online"}
                 </Text>
-                <Pressable onPress={() => setMode("all")} hitSlop={4}>
-                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                <Pressable onPress={() => setMode("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={colors.primary} />
                 </Pressable>
               </View>
             )}
             {distance !== "all" && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
-                <Ionicons name="navigate-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={[styles.activeFilterText, { color: colors.textPrimary }]}>
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Ionicons name="navigate-outline" size={14} color={colors.primary} style={{ marginRight: 4 }} />
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
                   Within {distance} mi
                 </Text>
-                <Pressable onPress={() => setDistance("all")} hitSlop={4} style={{ marginLeft: 4 }}>
-                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                <Pressable onPress={() => setDistance("all")} hitSlop={8} style={{ marginLeft: 4 }}>
+                  <Ionicons name="close-circle" size={16} color={colors.primary} />
                 </Pressable>
               </View>
             )}
             {city.trim() && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
-                <Ionicons name="location-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={[styles.activeFilterText, { color: colors.textPrimary }]}>{city}</Text>
-                <Pressable onPress={() => setCity("")} hitSlop={4} style={{ marginLeft: 4 }}>
-                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Ionicons name="location-outline" size={14} color={colors.primary} style={{ marginRight: 4 }} />
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>{city}</Text>
+                <Pressable onPress={() => setCity("")} hitSlop={8} style={{ marginLeft: 4 }}>
+                  <Ionicons name="close-circle" size={16} color={colors.primary} />
                 </Pressable>
               </View>
             )}
-            <Pressable onPress={clearAllFilters} style={[styles.clearAllBtn, { borderColor: colors.borderSubtle }]}>
-              <Text style={[styles.clearAllText, { color: colors.textSecondary }]}>Clear All</Text>
+            <Pressable onPress={clearAllFilters} style={[styles.clearAllBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.textMuted }]}>
+              <Text style={[styles.clearAllText, { color: colors.textPrimary }]}>Clear All</Text>
             </Pressable>
           </ScrollView>
         )}
@@ -898,9 +1035,38 @@ export default function EventsScreenNew({
           </View>
         )}
 
-        {/* View Toggle */}
+        {/* View Toggle and My Events filter */}
         <View style={styles.viewToggleRow}>
-          <ToggleTabs value={view} onChange={setView} leftLabel="List" rightLabel="Map" colors={colors} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <ToggleTabs value={view} onChange={setView} leftLabel="List" rightLabel="Map" colors={colors} />
+
+            {/* My Events toggle */}
+            <Pressable
+              onPress={() => setShowMyEvents(!showMyEvents)}
+              style={[
+                styles.myEventsToggle,
+                {
+                  backgroundColor: showMyEvents ? colors.primary : colors.surfaceMuted,
+                  borderColor: showMyEvents ? colors.primary : colors.borderSoft,
+                },
+              ]}
+            >
+              <Ionicons
+                name="bookmark"
+                size={14}
+                color={showMyEvents ? '#FFFFFF' : colors.textSecondary}
+              />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: showMyEvents ? '#FFFFFF' : colors.textSecondary,
+                }}
+              >
+                My Events
+              </Text>
+            </Pressable>
+          </View>
 
           {/* Results count */}
           {!isLoading && data && (
@@ -1021,6 +1187,10 @@ export default function EventsScreenNew({
                 item={item}
                 colors={colors}
                 onPress={() => router.push({ pathname: "/events/[id]", params: { id: String(item.id) } })}
+                rsvpStatus={rsvpStatuses[item.id]}
+                onRsvpPress={() => handleRsvpPress(item.id)}
+                isBookmarked={bookmarkedEvents.has(item.id)}
+                onBookmarkPress={() => handleBookmarkPress(item.id)}
               />
             )}
             refreshing={isLoading}
@@ -1092,9 +1262,11 @@ const styles = StyleSheet.create({
 
   // Active Filters Row (collapsed state)
   activeFiltersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 8,
-    gap: 6,
+    paddingVertical: 8,
+    gap: 8,
   },
   activeFilterPill: {
     flexDirection: 'row',
@@ -1208,6 +1380,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  myEventsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   toggleWrap: {
     width: 120,

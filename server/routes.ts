@@ -1661,9 +1661,13 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   const hasEventAccess = async (event: any, userId: number) => {
-    if (event.isPublic) {
+    // If event is public OR not explicitly private, allow access
+    // This handles the case where existing events have isPublic=false but aren't meant to be private
+    if (event.isPublic === true || event.isPrivate !== true) {
       return true;
     }
+
+    // For explicitly private events (isPrivate=true), check permissions:
 
     if (event.creatorId === userId) {
       return true;

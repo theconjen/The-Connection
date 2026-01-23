@@ -21,6 +21,7 @@ router.get('/api/events', async (req, res) => {
     const filter = req.query.filter as string;
     const userId = getSessionUserId(req);
     const rsvpStatus = req.query.rsvpStatus as string; // 'going', 'maybe', 'not_going'
+    const communityId = req.query.communityId ? parseInt(req.query.communityId as string) : undefined;
 
     // Distance filtering parameters
     const latitude = req.query.latitude ? parseFloat(req.query.latitude as string) : undefined;
@@ -75,6 +76,29 @@ router.get('/api/events', async (req, res) => {
       }
     }
 
+    // Community-specific filtering
+    if (communityId && Number.isFinite(communityId)) {
+      // Filter to only this community's events
+      events = events.filter((e: any) => e.communityId === communityId);
+
+      // For community pages, check if user is a member to show private events
+      if (userId) {
+        const isMember = await storage.isCommunityMember(userId, communityId);
+        if (!isMember) {
+          // Non-members can only see public events from this community
+          events = events.filter((e: any) => e.isPrivate !== true);
+        }
+        // Members can see all events including private ones
+      } else {
+        // Unauthenticated users can only see public events
+        events = events.filter((e: any) => e.isPrivate !== true);
+      }
+    } else {
+      // App-wide listing: filter out private events
+      // Private events (isPrivate=true) should only be visible on the community's event page
+      events = events.filter((e: any) => e.isPrivate !== true);
+    }
+
     // Filter by RSVP status if requested
     if (rsvpStatus && userId) {
       // Map frontend status values to backend values for compatibility
@@ -119,7 +143,10 @@ router.get('/api/events/upcoming', async (_req, res) => {
   try {
     const now = new Date();
     const all = await storage.getAllEvents();
-    const upcoming = all.filter((e: any) => !e.deletedAt && new Date(e.eventDate) >= new Date(now.toDateString())).sort((a: any, b: any) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+    // Filter out private events from app-wide upcoming list
+    const upcoming = all
+      .filter((e: any) => !e.deletedAt && e.isPrivate !== true && new Date(e.eventDate) >= new Date(now.toDateString()))
+      .sort((a: any, b: any) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
     res.json(upcoming);
   } catch (error) {
     console.error('Error fetching upcoming events:', error);
@@ -435,10 +462,15 @@ router.delete('/api/events/:id', requireAuth, async (req, res) => {
 
 // RSVP to an event
 router.post('/api/events/:id/rsvp', requireAuth, async (req, res) => {
+  const requestId = req.headers['x-request-id'] || 'unknown';
+  console.info(`[RSVP][${requestId}] RSVP request received for event ${req.params.id}`);
+
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
     const { status } = req.body; // 'attending', 'maybe', 'declined'
+
+    console.info(`[RSVP][${requestId}] Processing: userId=${userId}, eventId=${eventId}, status=${status}`);
 
     if (!['attending', 'maybe', 'declined'].includes(status)) {
       return res.status(400).json({ error: 'Status must be attending, maybe, or declined' });

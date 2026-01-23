@@ -50,19 +50,26 @@ function getUserIdFromAuth(req: AuthenticatedRequest): number | undefined {
  * Also checks if user is suspended
  */
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const requestId = req.headers['x-request-id'] || 'unknown';
   const userId = getUserIdFromAuth(req);
+
   if (!userId) {
+    console.info(`[AUTH][${requestId}] 401: No userId found in session or JWT`);
     return res.status(401).json({ error: 'Authentication required' });
   }
+
+  console.info(`[AUTH][${requestId}] Checking auth for userId=${userId}, path=${req.path}`);
 
   // Check if user is suspended
   try {
     const user = await storage.getUser(userId);
     if (!user) {
+      console.info(`[AUTH][${requestId}] 401: User ${userId} not found in database`);
       return res.status(401).json({ error: 'User not found' });
     }
 
     if ((user as any).isSuspended) {
+      console.warn(`[AUTH][${requestId}] 403: User ${userId} is suspended`);
       return res.status(403).json({
         error: 'Account suspended',
         message: 'Your account has been suspended. Please contact support for more information.',
