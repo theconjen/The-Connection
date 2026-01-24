@@ -2,7 +2,7 @@
  * Event Detail Screen with Map Integration
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { eventsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { isHost } from '../../src/lib/eventHelpers';
 
 // API expects these exact values
 type RSVPStatus = 'going' | 'maybe' | 'not_going';
@@ -47,6 +48,7 @@ interface Event {
   userRsvpStatus?: RSVPStatus; // User's RSVP status from API
   isBookmarked?: boolean;
   creatorId: number;
+  hostUserId?: number; // Reliable host identifier
   host?: HostUser | null; // Host user info from API
 }
 
@@ -77,6 +79,19 @@ export default function EventDetailScreen() {
     },
     enabled: !!eventId,
   });
+
+  // Debug log for host verification (dev only)
+  useEffect(() => {
+    if (__DEV__ && event) {
+      console.info('[EventDetail] Host check:', {
+        viewerId: user?.id,
+        hostUserId: event.hostUserId,
+        'host.id': event.host?.id,
+        creatorId: event.creatorId,
+        isHost: isHost(event, user?.id),
+      });
+    }
+  }, [event, user?.id]);
 
   const rsvpMutation = useMutation({
     mutationFn: (status: RSVPStatus) => eventsAPI.rsvp(eventId, status),
@@ -337,6 +352,18 @@ export default function EventDetailScreen() {
           rsvpFeedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError
         ]}>
           <Text style={styles.feedbackText}>{rsvpFeedback.message}</Text>
+        </View>
+      )}
+
+      {/* Manage Event Button (host only) */}
+      {event && isHost(event, user?.id) && (
+        <View style={styles.manageEventContainer}>
+          <TouchableOpacity
+            style={[styles.manageEventButton, { backgroundColor: colors.accent }]}
+            onPress={() => router.push({ pathname: '/events/manage/[id]', params: { id: String(eventId) } })}
+          >
+            <Text style={styles.manageEventText}>Manage Event</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -759,5 +786,22 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  manageEventContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  manageEventButton: {
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  manageEventText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

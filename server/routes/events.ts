@@ -151,6 +151,7 @@ router.get('/api/events', async (req, res) => {
     // Attach user's RSVP status, bookmark status, and host info to each event
     const eventsWithUserData = events.map((event: any) => ({
       ...event,
+      hostUserId: event.creatorId, // Reliable host identifier
       userRsvpStatus: userRsvpMap[event.id] || null,
       isBookmarked: userBookmarkSet.has(event.id),
       host: hostUsers[event.creatorId] || null,
@@ -246,6 +247,7 @@ router.get('/api/events/my', requireAuth, async (req, res) => {
       // Enrich event with user data
       const enrichedEvent = {
         ...event,
+        hostUserId: creatorId, // Reliable host identifier
         host: hostUsers[creatorId] || null,
         userRsvpStatus: rsvpStatus || null,
         isBookmarked,
@@ -335,6 +337,7 @@ router.get('/api/events/:id', async (req, res) => {
 
     res.json({
       ...event,
+      hostUserId: (event as any).creatorId, // Reliable host identifier
       host,
       userRsvpStatus,
       isBookmarked,
@@ -343,6 +346,113 @@ router.get('/api/events/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching event:', error);
     res.status(500).json(buildErrorResponse('Error fetching event', error));
+  }
+});
+
+// ============================================================================
+// HOST-ONLY EVENT MANAGEMENT ENDPOINTS
+// ============================================================================
+
+// Get RSVPs for event (host only) - returns attendees grouped by status
+router.get('/api/events/:id/rsvps/manage', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    const event = await storage.getEvent(eventId);
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    // Check if user is the host
+    if ((event as any).creatorId !== userId) {
+      return res.status(403).json({ error: 'Only the event host can view attendee details' });
+    }
+
+    // Get all RSVPs with user info
+    const rsvps = await storage.getEventRSVPs(eventId);
+
+    // Fetch user info for all attendees
+    const attendeesWithInfo = await Promise.all(
+      rsvps.map(async (rsvp: any) => {
+        const user = await storage.getUser(rsvp.userId);
+        return {
+          id: rsvp.id,
+          userId: rsvp.userId,
+          status: rsvp.status,
+          createdAt: rsvp.createdAt,
+          user: user ? {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName || user.username,
+            avatarUrl: user.avatarUrl || null,
+          } : null,
+        };
+      })
+    );
+
+    // Group by status
+    const going = attendeesWithInfo.filter(a => a.status === 'going');
+    const maybe = attendeesWithInfo.filter(a => a.status === 'maybe');
+    const notGoing = attendeesWithInfo.filter(a => a.status === 'not_going');
+
+    res.json({
+      going,
+      maybe,
+      notGoing,
+      counts: {
+        going: going.length,
+        maybe: maybe.length,
+        notGoing: notGoing.length,
+        total: attendeesWithInfo.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching event RSVPs:', error);
+    res.status(500).json(buildErrorResponse('Error fetching event RSVPs', error));
+  }
+});
+
+// Cancel event (host only) - soft delete using deleteEvent
+router.post('/api/events/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    const event = await storage.getEvent(eventId);
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    // Check if user is the host
+    if ((event as any).creatorId !== userId) {
+      return res.status(403).json({ error: 'Only the event host can cancel this event' });
+    }
+
+    // Notify attendees before cancellation
+    try {
+      await notifyEventAttendees(
+        eventId,
+        {
+          title: `Event cancelled: ${truncateText((event as any).title, 40)}`,
+          body: 'This event has been cancelled by the host.',
+          data: {
+            type: 'event_cancelled',
+            eventId,
+          },
+          category: 'event',
+        },
+        [userId] // Exclude the host
+      );
+    } catch (notifError) {
+      console.error('[Events] Error sending cancellation notification:', notifError);
+    }
+
+    // Delete the event (storage handles soft vs hard delete)
+    await storage.deleteEvent(eventId);
+
+    res.json({
+      message: 'Event cancelled successfully',
+    });
+  } catch (error) {
+    console.error('Error cancelling event:', error);
+    res.status(500).json(buildErrorResponse('Error cancelling event', error));
   }
 });
 

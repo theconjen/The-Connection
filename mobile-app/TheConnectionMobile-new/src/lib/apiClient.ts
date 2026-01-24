@@ -368,6 +368,7 @@ export const eventsAPI = {
     eventDate: string;
     startTime: string;
     endTime: string;
+    isPublic?: boolean;
   }>) => apiClient.patch(`/api/events/${id}`, data).then(res => res.data),
   delete: (id: number) => apiClient.delete(`/api/events/${id}`).then(res => res.data),
   rsvp: (id: number, status: string) =>
@@ -377,6 +378,9 @@ export const eventsAPI = {
   // Bookmarks
   bookmark: (id: number) => apiClient.post(`/api/events/${id}/bookmark`).then(res => res.data),
   unbookmark: (id: number) => apiClient.delete(`/api/events/${id}/bookmark`).then(res => res.data),
+  // Host-only management endpoints
+  getRsvpsManage: (id: number) => apiClient.get(`/api/events/${id}/rsvps/manage`).then(res => res.data),
+  cancel: (id: number) => apiClient.post(`/api/events/${id}/cancel`).then(res => res.data),
 };
 
 // Safety & Moderation API

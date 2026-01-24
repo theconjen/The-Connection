@@ -26,6 +26,7 @@ import { AppHeader } from "./AppHeader";
 import apiClient from "../lib/apiClient";
 import { getCurrentLocation, hasLocationPermission, requestLocationPermission, type UserLocation } from "../services/locationService";
 import { shareEvent } from "../lib/shareUrls";
+import { isHost } from "../lib/eventHelpers";
 
 // Custom church icon
 const ChurchIcon = require("../../assets/church-icon.png");
@@ -322,6 +323,8 @@ function EventCard({
   onRsvpPress,
   onBookmarkPress,
   isBookmarked,
+  isUserHost,
+  onManagePress,
 }: {
   item: EventItem;
   colors: any;
@@ -330,6 +333,8 @@ function EventCard({
   onRsvpPress?: () => void;
   onBookmarkPress?: () => void;
   isBookmarked?: boolean;
+  isUserHost?: boolean;
+  onManagePress?: () => void;
 }) {
   // Handle both isOnline and isVirtual flags
   const isOnlineEvent = item.isOnline || item.isVirtual;
@@ -398,6 +403,14 @@ function EventCard({
             </Text>
           </View>
         ) : null}
+
+        {/* Host badge */}
+        {isUserHost && (
+          <View style={[styles.hostBadge, { backgroundColor: colors.primary }]}>
+            <Ionicons name="star" size={10} color="#fff" />
+            <Text style={styles.hostBadgeText}>Host</Text>
+          </View>
+        )}
       </View>
 
       {/* Title */}
@@ -511,6 +524,27 @@ function EventCard({
               color={rsvpStatus ? '#FFFFFF' : colors.textPrimary}
             />
           </Pressable>
+
+          {/* Manage button (host only) */}
+          {isUserHost && onManagePress && (
+            <Pressable
+              hitSlop={10}
+              onPress={onManagePress}
+              style={[
+                styles.iconAction,
+                {
+                  backgroundColor: colors.primary,
+                  borderColor: colors.primary
+                },
+              ]}
+            >
+              <Ionicons
+                name="settings-outline"
+                size={15}
+                color="#FFFFFF"
+              />
+            </Pressable>
+          )}
         </View>
       </View>
     </Pressable>
@@ -1359,6 +1393,8 @@ export default function EventsScreenNew({
                 onRsvpPress={() => handleRsvpPress(item.id)}
                 isBookmarked={bookmarkedEvents.has(item.id)}
                 onBookmarkPress={() => handleBookmarkPress(item.id)}
+                isUserHost={isHost(item, user?.id)}
+                onManagePress={() => router.push({ pathname: "/events/manage/[id]", params: { id: String(item.id) } })}
               />
             )}
             refreshing={isLoading}
@@ -1632,6 +1668,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   badgeText: { fontSize: 10, fontWeight: "900" },
+  hostBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    gap: 4,
+  },
+  hostBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
+  },
   title: {
     marginTop: 10,
     fontSize: 16,
