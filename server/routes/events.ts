@@ -34,7 +34,7 @@ router.get('/api/events', async (req, res) => {
     if (latitude !== undefined && longitude !== undefined && distance !== undefined &&
         Number.isFinite(latitude) && Number.isFinite(longitude) && Number.isFinite(distance)) {
       // Use distance-based filtering
-      events = await storage.getEventsNearLocation(latitude, longitude, distance);
+      events = await storage.getNearbyEvents(latitude, longitude, distance);
 
       // Calculate and attach distance to each event
       events = events.map((event: any) => {
@@ -129,11 +129,31 @@ router.get('/api/events', async (req, res) => {
       events = events.filter((e: any) => eventIdsWithStatus.includes(e.id));
     }
 
-    // Attach user's RSVP status and bookmark status to each event
+    // Fetch host user info for all events
+    const creatorIds = [...new Set(events.map((e: any) => e.creatorId).filter(Boolean))];
+    const hostUsers: Record<number, any> = {};
+    for (const creatorId of creatorIds) {
+      try {
+        const user = await storage.getUser(creatorId);
+        if (user) {
+          hostUsers[creatorId] = {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName || user.username,
+            avatarUrl: user.avatarUrl || null,
+          };
+        }
+      } catch (e) {
+        // Skip if user not found
+      }
+    }
+
+    // Attach user's RSVP status, bookmark status, and host info to each event
     const eventsWithUserData = events.map((event: any) => ({
       ...event,
       userRsvpStatus: userRsvpMap[event.id] || null,
       isBookmarked: userBookmarkSet.has(event.id),
+      host: hostUsers[event.creatorId] || null,
     }));
 
     res.json({ events: eventsWithUserData });
@@ -169,12 +189,157 @@ router.get('/api/events/upcoming', async (_req, res) => {
   }
 });
 
+// My Events - returns events user is hosting, going to, or has marked maybe
+router.get('/api/events/my', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+
+    // Get all events
+    const allEvents = await storage.getAllEvents();
+
+    // Get user's RSVPs
+    const userRsvps = await storage.getUserRSVPs(userId);
+    const rsvpMap: Record<number, string> = {};
+    userRsvps.forEach((rsvp: any) => {
+      rsvpMap[rsvp.eventId] = rsvp.status;
+    });
+
+    // Get user's bookmarks
+    const bookmarkedIds = await storage.getUserEventBookmarkIds(userId);
+    const bookmarkSet = new Set(bookmarkedIds);
+
+    // Categorize events
+    const hosting: any[] = [];
+    const going: any[] = [];
+    const maybe: any[] = [];
+    const saved: any[] = [];
+
+    // Fetch host info for all events we might include
+    const hostUsers: Record<number, any> = {};
+
+    for (const event of allEvents) {
+      const isHosting = (event as any).creatorId === userId;
+      const rsvpStatus = rsvpMap[(event as any).id];
+      const isBookmarked = bookmarkSet.has((event as any).id);
+
+      // Skip if user has no relationship with this event
+      if (!isHosting && !rsvpStatus && !isBookmarked) continue;
+
+      // Get host info if not already cached
+      const creatorId = (event as any).creatorId;
+      if (creatorId && !hostUsers[creatorId]) {
+        try {
+          const user = await storage.getUser(creatorId);
+          if (user) {
+            hostUsers[creatorId] = {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName || user.username,
+              avatarUrl: user.avatarUrl || null,
+            };
+          }
+        } catch (e) {
+          // Skip
+        }
+      }
+
+      // Enrich event with user data
+      const enrichedEvent = {
+        ...event,
+        host: hostUsers[creatorId] || null,
+        userRsvpStatus: rsvpStatus || null,
+        isBookmarked,
+      };
+
+      // Categorize
+      if (isHosting) {
+        hosting.push(enrichedEvent);
+      }
+      if (rsvpStatus === 'going') {
+        going.push(enrichedEvent);
+      } else if (rsvpStatus === 'maybe') {
+        maybe.push(enrichedEvent);
+      }
+      if (isBookmarked && !isHosting && rsvpStatus !== 'going' && rsvpStatus !== 'maybe') {
+        saved.push(enrichedEvent);
+      }
+    }
+
+    // Sort each section by event date
+    const sortByDate = (a: any, b: any) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime();
+    hosting.sort(sortByDate);
+    going.sort(sortByDate);
+    maybe.sort(sortByDate);
+    saved.sort(sortByDate);
+
+    res.json({
+      hosting,
+      going,
+      maybe,
+      saved,
+      counts: {
+        hosting: hosting.length,
+        going: going.length,
+        maybe: maybe.length,
+        saved: saved.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching my events:', error);
+    res.status(500).json(buildErrorResponse('Error fetching my events', error));
+  }
+});
+
 router.get('/api/events/:id', async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
+    const userId = getSessionUserId(req);
     const event = await storage.getEvent(eventId);
     if (!event) return res.status(404).json({ message: 'Event not found' });
-    res.json(event);
+
+    // Get host user info
+    let host = null;
+    if ((event as any).creatorId) {
+      try {
+        const user = await storage.getUser((event as any).creatorId);
+        if (user) {
+          host = {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName || user.username,
+            avatarUrl: user.avatarUrl || null,
+          };
+        }
+      } catch (e) {
+        // Skip if user not found
+      }
+    }
+
+    // Get user's RSVP status and bookmark status if authenticated
+    let userRsvpStatus = null;
+    let isBookmarked = false;
+    let attendeeCount = 0;
+
+    try {
+      const rsvps = await storage.getEventRSVPs(eventId);
+      attendeeCount = rsvps.filter((r: any) => r.status === 'going').length;
+
+      if (userId) {
+        const userRsvp = rsvps.find((r: any) => r.userId === userId);
+        userRsvpStatus = userRsvp?.status || null;
+        isBookmarked = await storage.hasUserBookmarkedEvent(eventId, userId);
+      }
+    } catch (e) {
+      // Continue without RSVP data
+    }
+
+    res.json({
+      ...event,
+      host,
+      userRsvpStatus,
+      isBookmarked,
+      attendeeCount,
+    });
   } catch (error) {
     console.error('Error fetching event:', error);
     res.status(500).json(buildErrorResponse('Error fetching event', error));

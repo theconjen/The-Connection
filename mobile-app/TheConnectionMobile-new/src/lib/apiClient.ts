@@ -372,6 +372,11 @@ export const eventsAPI = {
   delete: (id: number) => apiClient.delete(`/api/events/${id}`).then(res => res.data),
   rsvp: (id: number, status: string) =>
     apiClient.post(`/api/events/${id}/rsvp`, { status }).then(res => res.data),
+  // My Events - returns events user is hosting, going to, or maybe
+  getMy: () => apiClient.get('/api/events/my').then(res => res.data),
+  // Bookmarks
+  bookmark: (id: number) => apiClient.post(`/api/events/${id}/bookmark`).then(res => res.data),
+  unbookmark: (id: number) => apiClient.delete(`/api/events/${id}/bookmark`).then(res => res.data),
 };
 
 // Safety & Moderation API

@@ -24,6 +24,14 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 // API expects these exact values
 type RSVPStatus = 'going' | 'maybe' | 'not_going';
 
+// Host user info type
+interface HostUser {
+  id: number;
+  username: string;
+  displayName: string;
+  avatarUrl?: string | null;
+}
+
 interface Event {
   id: number;
   title: string;
@@ -35,8 +43,11 @@ interface Event {
   startTime: string;      // "10:30:00" (time only)
   endTime?: string;       // "12:00:00" (time only)
   attendeeCount?: number;
-  rsvpStatus?: RSVPStatus; // User's current RSVP status from API
+  rsvpStatus?: RSVPStatus; // User's current RSVP status (legacy)
+  userRsvpStatus?: RSVPStatus; // User's RSVP status from API
+  isBookmarked?: boolean;
   creatorId: number;
+  host?: HostUser | null; // Host user info from API
 }
 
 export default function EventDetailScreen() {
@@ -56,8 +67,10 @@ export default function EventDetailScreen() {
     queryFn: async () => {
       // Use the specific event endpoint to get all fields including coordinates
       const foundEvent = await eventsAPI.getById(eventId);
-      // Store the user's RSVP status from the event data
-      if (foundEvent?.rsvpStatus) {
+      // Store the user's RSVP status from the event data (API returns userRsvpStatus)
+      if (foundEvent?.userRsvpStatus) {
+        setCurrentRsvp(foundEvent.userRsvpStatus);
+      } else if (foundEvent?.rsvpStatus) {
         setCurrentRsvp(foundEvent.rsvpStatus);
       }
       return foundEvent;
@@ -70,9 +83,10 @@ export default function EventDetailScreen() {
     onSuccess: (_data, status) => {
       // Update local state immediately
       setCurrentRsvp(status);
-      // Invalidate queries to refresh data
+      // Invalidate queries to ensure server state is fetched (persists across app restarts)
       queryClient.invalidateQueries({ queryKey: ['event', eventId] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['events', 'my'] });
 
       // Show success feedback
       const messages: Record<RSVPStatus, string> = {
@@ -237,6 +251,20 @@ export default function EventDetailScreen() {
 
         <View style={styles.detailSection}>
           <Text style={styles.title}>{event.title}</Text>
+
+          {/* Host info */}
+          {event.host && (
+            <View style={styles.hostSection}>
+              <View style={styles.hostAvatar}>
+                <Text style={styles.hostAvatarText}>
+                  {(event.host.displayName || event.host.username).charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.hostName}>
+                Hosted by {event.host.displayName || event.host.username}
+              </Text>
+            </View>
+          )}
 
           {event.location && (
             <View>
@@ -486,7 +514,31 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 20,
+    marginBottom: 12,
+  },
+  hostSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 10,
+  },
+  hostAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  hostAvatarText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  hostName: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
   locationSection: {
     flexDirection: 'row',

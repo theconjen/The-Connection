@@ -37,6 +37,14 @@ type DistanceFilter = "all" | "5" | "10" | "20" | "50" | "100";
 // RSVP status type - matches backend values: 'going', 'maybe', 'not_going'
 type RsvpStatus = 'going' | 'maybe' | 'not_going' | null;
 
+// Host user info type
+type HostUser = {
+  id: number;
+  username: string;
+  displayName: string;
+  avatarUrl?: string | null;
+};
+
 type EventItem = {
   id: number | string;
   title: string;
@@ -64,6 +72,8 @@ type EventItem = {
   rsvpStatus?: RsvpStatus; // User's RSVP status for this event (legacy)
   userRsvpStatus?: RsvpStatus; // User's RSVP status from API
   isBookmarked?: boolean; // User's bookmark status from API
+  creatorId?: number; // Event creator ID
+  host?: HostUser | null; // Host user info from API
 };
 
 // ----- API -----
@@ -395,6 +405,16 @@ function EventCard({
         {item.title}
       </Text>
 
+      {/* Host line */}
+      {item.host && (
+        <View style={styles.hostRow}>
+          <Ionicons name="person-circle-outline" size={14} color={colors.textTertiary} />
+          <Text style={[styles.hostText, { color: colors.textTertiary }]} numberOfLines={1}>
+            Hosted by {item.host.displayName || item.host.username}
+          </Text>
+        </View>
+      )}
+
       {/* Meta rows */}
       <View style={styles.metaRow}>
         <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
@@ -541,10 +561,16 @@ export default function EventsScreenNew({
       return eventsAPI.rsvp(eventId, status);
     },
     onSuccess: (_, { eventId, status }) => {
+      // Optimistic update for immediate UI feedback
       setRsvpStatuses(prev => ({
         ...prev,
         [eventId]: status as RsvpStatus,
       }));
+      // Invalidate queries to ensure server state is fetched
+      // This ensures RSVP persists across app restarts
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "my"] });
+      queryClient.invalidateQueries({ queryKey: ["event", eventId] });
     },
     onError: (error: any) => {
       // Extract actual server error message from axios response
@@ -712,11 +738,22 @@ export default function EventsScreenNew({
     }
   };
 
-  const { data: rawData, isLoading, isError, refetch } = useQuery({
+  const { data: rawData, isLoading: isLoadingAll, isError, refetch } = useQuery({
     queryKey: ["events", { view, range, mode, distance, q, city, userLocation }],
     queryFn: () => fetchEvents({ range, mode, distance, q, city, userLocation }),
     staleTime: 30_000,
+    enabled: !showMyEvents, // Only fetch all events when not showing My Events
   });
+
+  // My Events query - fetches hosting, going, maybe events from server
+  const { data: myEventsData, isLoading: isLoadingMy, refetch: refetchMy } = useQuery({
+    queryKey: ["events", "my"],
+    queryFn: () => eventsAPI.getMy(),
+    staleTime: 30_000,
+    enabled: showMyEvents, // Only fetch when showing My Events
+  });
+
+  const isLoading = showMyEvents ? isLoadingMy : isLoadingAll;
 
   // Initialize RSVP statuses from API response (persists across app reloads)
   useEffect(() => {
@@ -754,26 +791,70 @@ export default function EventsScreenNew({
   // Note: isPublic filter removed since existing events have isPublic=false
   // Events marked as explicitly private (isPrivate=true) are still hidden
   const data = useMemo(() => {
-    if (!rawData) return [];
-
     const now = new Date();
     now.setHours(0, 0, 0, 0); // Start of today
 
-    return rawData.filter((event) => {
-      // Backend already filters to only return public events
-      // This is a client-side safety check
+    // For My Events, use the server data which includes hosting events
+    if (showMyEvents && myEventsData) {
+      // Combine hosting, going, maybe into single list (deduplicated)
+      const seenIds = new Set<number | string>();
+      const combined: EventItem[] = [];
 
-      // "My Events" filter - show bookmarked OR events where user RSVP'd "going" or "maybe"
-      // (not "not_going" - declining an event shouldn't add it to My Events)
-      if (showMyEvents) {
-        const isBookmarked = bookmarkedEvents.has(event.id);
-        const rsvpStatus = rsvpStatuses[event.id];
-        const isAttending = rsvpStatus === 'going' || rsvpStatus === 'maybe';
-        if (!isBookmarked && !isAttending) {
-          return false;
+      // Add hosting events first (user's own events)
+      for (const event of (myEventsData.hosting || [])) {
+        if (!seenIds.has(event.id)) {
+          seenIds.add(event.id);
+          combined.push({ ...event, _section: 'hosting' });
         }
       }
 
+      // Add going events
+      for (const event of (myEventsData.going || [])) {
+        if (!seenIds.has(event.id)) {
+          seenIds.add(event.id);
+          combined.push({ ...event, _section: 'going' });
+        }
+      }
+
+      // Add maybe events
+      for (const event of (myEventsData.maybe || [])) {
+        if (!seenIds.has(event.id)) {
+          seenIds.add(event.id);
+          combined.push({ ...event, _section: 'maybe' });
+        }
+      }
+
+      // Add saved/bookmarked events
+      for (const event of (myEventsData.saved || [])) {
+        if (!seenIds.has(event.id)) {
+          seenIds.add(event.id);
+          combined.push({ ...event, _section: 'saved' });
+        }
+      }
+
+      // Filter to upcoming events and sort by date
+      return combined.filter((event) => {
+        let eventDateParsed: Date | null = null;
+        if (event.eventDate) {
+          eventDateParsed = parseEventDate(event.eventDate);
+        } else if (event.startsAt) {
+          eventDateParsed = new Date(event.startsAt);
+        }
+        if (!eventDateParsed || isNaN(eventDateParsed.getTime())) {
+          return true;
+        }
+        return eventDateParsed >= now;
+      }).sort((a, b) => {
+        const dateA = parseEventDate(a.eventDate || '') || new Date(0);
+        const dateB = parseEventDate(b.eventDate || '') || new Date(0);
+        return dateA.getTime() - dateB.getTime();
+      });
+    }
+
+    // Regular events list
+    if (!rawData) return [];
+
+    return rawData.filter((event) => {
       // Try to parse the event date - prefer eventDate (new API), fall back to startsAt (legacy)
       let eventDateParsed: Date | null = null;
 
@@ -792,7 +873,7 @@ export default function EventsScreenNew({
       // Only show events that are today or in the future
       return eventDateParsed >= now;
     });
-  }, [rawData, showMyEvents, bookmarkedEvents, rsvpStatuses]);
+  }, [rawData, myEventsData, showMyEvents]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -1564,6 +1645,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   metaText: { fontSize: 13, fontWeight: "500" },
+  hostRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  hostText: { fontSize: 12, fontWeight: "500" },
   footerRow: {
     marginTop: 8,
     flexDirection: "row",
