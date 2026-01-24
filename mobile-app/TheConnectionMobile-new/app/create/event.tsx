@@ -16,6 +16,8 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
@@ -92,12 +94,18 @@ export default function CreateEventScreen() {
 
   // Date and time state
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedTime, setSelectedTime] = useState(new Date());
+  const [selectedStartTime, setSelectedStartTime] = useState(new Date());
+  const [selectedEndTime, setSelectedEndTime] = useState(() => {
+    const endTime = new Date();
+    endTime.setHours(endTime.getHours() + 1); // Default to 1 hour later
+    return endTime;
+  });
 
   // Modal state
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
   // Debounced location search
@@ -177,10 +185,12 @@ export default function CreateEventScreen() {
     }
 
     const eventDate = selectedDate.toISOString().slice(0, 10);
-    const hours = selectedTime.getHours().toString().padStart(2, '0');
-    const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
-    const startTime = `${hours}:${minutes}:00`;
-    const endTime = startTime;
+    const startHours = selectedStartTime.getHours().toString().padStart(2, '0');
+    const startMinutes = selectedStartTime.getMinutes().toString().padStart(2, '0');
+    const startTime = `${startHours}:${startMinutes}:00`;
+    const endHours = selectedEndTime.getHours().toString().padStart(2, '0');
+    const endMinutes = selectedEndTime.getMinutes().toString().padStart(2, '0');
+    const endTime = `${endHours}:${endMinutes}:00`;
 
     let latitude: number | undefined;
     let longitude: number | undefined;
@@ -556,15 +566,27 @@ export default function CreateEventScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Time Picker */}
+          {/* Start Time Picker */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, dynamicStyles.label]}>Time *</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Start Time *</Text>
             <TouchableOpacity
               style={[styles.pickerButton, dynamicStyles.pickerButton]}
-              onPress={() => setShowTimePicker(true)}
+              onPress={() => setShowStartTimePicker(true)}
             >
               <Ionicons name="time-outline" size={20} color={colors.primary} />
-              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatTime(selectedTime)}</Text>
+              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatTime(selectedStartTime)}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* End Time Picker */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, dynamicStyles.label]}>End Time *</Text>
+            <TouchableOpacity
+              style={[styles.pickerButton, dynamicStyles.pickerButton]}
+              onPress={() => setShowEndTimePicker(true)}
+            >
+              <Ionicons name="time-outline" size={20} color={colors.primary} />
+              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatTime(selectedEndTime)}</Text>
             </TouchableOpacity>
           </View>
 
@@ -572,36 +594,148 @@ export default function CreateEventScreen() {
         </View>
       </ScrollView>
 
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => {
-            setShowDatePicker(Platform.OS === 'ios');
-            if (date) setSelectedDate(date);
-            if (Platform.OS === 'android') setShowDatePicker(false);
-          }}
-          themeVariant={isDark ? 'dark' : 'light'}
-          minimumDate={new Date()}
-        />
+      {/* Date Picker - Modal for iOS */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <Pressable style={styles.pickerModalOverlay} onPress={() => setShowDatePicker(false)}>
+            <View style={[styles.pickerModalContent, { backgroundColor: colors.surface }]}>
+              <View style={[styles.pickerModalHeader, { borderBottomColor: colors.borderSubtle }]}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={[styles.pickerModalCancel, { color: colors.textMuted }]}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={[styles.pickerModalTitle, { color: colors.textPrimary }]}>Select Date</Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={[styles.pickerModalDone, { color: colors.primary }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="spinner"
+                onChange={(event, date) => {
+                  if (date) setSelectedDate(date);
+                }}
+                themeVariant={isDark ? 'dark' : 'light'}
+                minimumDate={new Date()}
+                style={styles.iosPicker}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showDatePicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowDatePicker(false);
+              if (date) setSelectedDate(date);
+            }}
+            minimumDate={new Date()}
+          />
+        )
       )}
 
-      {/* Time Picker */}
-      {showTimePicker && (
-        <DateTimePicker
-          value={selectedTime}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          is24Hour={false}
-          onChange={(event, date) => {
-            setShowTimePicker(Platform.OS === 'ios');
-            if (date) setSelectedTime(date);
-            if (Platform.OS === 'android') setShowTimePicker(false);
-          }}
-          themeVariant={isDark ? 'dark' : 'light'}
-        />
+      {/* Start Time Picker - Modal for iOS */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showStartTimePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowStartTimePicker(false)}
+        >
+          <Pressable style={styles.pickerModalOverlay} onPress={() => setShowStartTimePicker(false)}>
+            <View style={[styles.pickerModalContent, { backgroundColor: colors.surface }]}>
+              <View style={[styles.pickerModalHeader, { borderBottomColor: colors.borderSubtle }]}>
+                <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
+                  <Text style={[styles.pickerModalCancel, { color: colors.textMuted }]}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={[styles.pickerModalTitle, { color: colors.textPrimary }]}>Start Time</Text>
+                <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
+                  <Text style={[styles.pickerModalDone, { color: colors.primary }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedStartTime}
+                mode="time"
+                display="spinner"
+                is24Hour={false}
+                onChange={(event, date) => {
+                  if (date) setSelectedStartTime(date);
+                }}
+                themeVariant={isDark ? 'dark' : 'light'}
+                style={styles.iosPicker}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showStartTimePicker && (
+          <DateTimePicker
+            value={selectedStartTime}
+            mode="time"
+            display="default"
+            is24Hour={false}
+            onChange={(event, date) => {
+              setShowStartTimePicker(false);
+              if (date) setSelectedStartTime(date);
+            }}
+          />
+        )
+      )}
+
+      {/* End Time Picker - Modal for iOS */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showEndTimePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowEndTimePicker(false)}
+        >
+          <Pressable style={styles.pickerModalOverlay} onPress={() => setShowEndTimePicker(false)}>
+            <View style={[styles.pickerModalContent, { backgroundColor: colors.surface }]}>
+              <View style={[styles.pickerModalHeader, { borderBottomColor: colors.borderSubtle }]}>
+                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                  <Text style={[styles.pickerModalCancel, { color: colors.textMuted }]}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={[styles.pickerModalTitle, { color: colors.textPrimary }]}>End Time</Text>
+                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                  <Text style={[styles.pickerModalDone, { color: colors.primary }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedEndTime}
+                mode="time"
+                display="spinner"
+                is24Hour={false}
+                onChange={(event, date) => {
+                  if (date) setSelectedEndTime(date);
+                }}
+                themeVariant={isDark ? 'dark' : 'light'}
+                style={styles.iosPicker}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showEndTimePicker && (
+          <DateTimePicker
+            value={selectedEndTime}
+            mode="time"
+            display="default"
+            is24Hour={false}
+            onChange={(event, date) => {
+              setShowEndTimePicker(false);
+              if (date) setSelectedEndTime(date);
+            }}
+          />
+        )
       )}
     </KeyboardAvoidingView>
   );
@@ -782,5 +916,36 @@ const styles = StyleSheet.create({
   toggleDescription: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  pickerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  pickerModalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  pickerModalCancel: {
+    fontSize: 16,
+  },
+  pickerModalDone: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  iosPicker: {
+    height: 200,
   },
 });
