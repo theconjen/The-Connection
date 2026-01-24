@@ -93,20 +93,47 @@ export default function CreateEventScreen() {
   );
 
   // Date and time state
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedStartTime, setSelectedStartTime] = useState(new Date());
-  const [selectedEndTime, setSelectedEndTime] = useState(() => {
-    const endTime = new Date();
-    endTime.setHours(endTime.getHours() + 1); // Default to 1 hour later
-    return endTime;
+  const [startDate, setStartDate] = useState(new Date());
+  const [startTime, setStartTime] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [endTime, setEndTime] = useState(() => {
+    const et = new Date();
+    et.setHours(et.getHours() + 1); // Default to 1 hour later
+    return et;
   });
 
   // Modal state
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showDateTimeModal, setShowDateTimeModal] = useState(false);
+  const [activePickerTab, setActivePickerTab] = useState<'startDate' | 'startTime' | 'endDate' | 'endTime'>('startDate');
   const [isGeocoding, setIsGeocoding] = useState(false);
+
+  // Auto-adjust end time when start changes (keep end at least 60 min after start)
+  useEffect(() => {
+    const startDateTime = new Date(startDate);
+    startDateTime.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+
+    const endDateTime = new Date(endDate);
+    endDateTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
+    // If end is before or equal to start, adjust end to start + 60 min
+    if (endDateTime <= startDateTime) {
+      const newEndDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+      setEndDate(newEndDateTime);
+      setEndTime(newEndDateTime);
+    }
+  }, [startDate, startTime]);
+
+  // Validate end is after start before submit
+  const validateDateTime = (): boolean => {
+    const startDateTime = new Date(startDate);
+    startDateTime.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+
+    const endDateTime = new Date(endDate);
+    endDateTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
+    return endDateTime > startDateTime;
+  };
 
   // Debounced location search
   useEffect(() => {
@@ -183,14 +210,19 @@ export default function CreateEventScreen() {
       Alert.alert('Error', 'Please select a community');
       return;
     }
+    if (!validateDateTime()) {
+      Alert.alert('Error', 'End time must be after start time');
+      return;
+    }
 
-    const eventDate = selectedDate.toISOString().slice(0, 10);
-    const startHours = selectedStartTime.getHours().toString().padStart(2, '0');
-    const startMinutes = selectedStartTime.getMinutes().toString().padStart(2, '0');
-    const startTime = `${startHours}:${startMinutes}:00`;
-    const endHours = selectedEndTime.getHours().toString().padStart(2, '0');
-    const endMinutes = selectedEndTime.getMinutes().toString().padStart(2, '0');
-    const endTime = `${endHours}:${endMinutes}:00`;
+    const eventDate = startDate.toISOString().slice(0, 10);
+    const eventEndDate = endDate.toISOString().slice(0, 10);
+    const startHours = startTime.getHours().toString().padStart(2, '0');
+    const startMinutes = startTime.getMinutes().toString().padStart(2, '0');
+    const startTimeStr = `${startHours}:${startMinutes}:00`;
+    const endHours = endTime.getHours().toString().padStart(2, '0');
+    const endMinutes = endTime.getMinutes().toString().padStart(2, '0');
+    const endTimeStr = `${endHours}:${endMinutes}:00`;
 
     let latitude: number | undefined;
     let longitude: number | undefined;
@@ -220,8 +252,9 @@ export default function CreateEventScreen() {
       latitude,
       longitude,
       eventDate,
-      startTime,
-      endTime,
+      eventEndDate,
+      startTime: startTimeStr,
+      endTime: endTimeStr,
       communityId: selectedCommunityId || undefined,
       isPublic,
     });
@@ -230,7 +263,13 @@ export default function CreateEventScreen() {
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
-      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const formatDateShort = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
     });
@@ -242,6 +281,16 @@ export default function CreateEventScreen() {
       minute: '2-digit',
       hour12: true,
     });
+  };
+
+  // Compact format: "Jan 15, 2:00 PM - 3:00 PM" or "Jan 15, 2:00 PM - Jan 16, 10:00 AM"
+  const formatDateTimeRange = () => {
+    const sameDay = startDate.toDateString() === endDate.toDateString();
+    if (sameDay) {
+      return `${formatDateShort(startDate)}, ${formatTime(startTime)} - ${formatTime(endTime)}`;
+    } else {
+      return `${formatDateShort(startDate)}, ${formatTime(startTime)} - ${formatDateShort(endDate)}, ${formatTime(endTime)}`;
+    }
   };
 
   const selectedCommunity = communities?.find(c => c.id === selectedCommunityId);
@@ -554,39 +603,21 @@ export default function CreateEventScreen() {
             </View>
           </View>
 
-          {/* Date Picker */}
+          {/* Date & Time Picker - Single button showing range */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, dynamicStyles.label]}>Date *</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Date & Time *</Text>
             <TouchableOpacity
               style={[styles.pickerButton, dynamicStyles.pickerButton]}
-              onPress={() => setShowDatePicker(true)}
+              onPress={() => {
+                setActivePickerTab('startDate');
+                setShowDateTimeModal(true);
+              }}
             >
               <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatDate(selectedDate)}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Start Time Picker */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, dynamicStyles.label]}>Start Time *</Text>
-            <TouchableOpacity
-              style={[styles.pickerButton, dynamicStyles.pickerButton]}
-              onPress={() => setShowStartTimePicker(true)}
-            >
-              <Ionicons name="time-outline" size={20} color={colors.primary} />
-              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatTime(selectedStartTime)}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* End Time Picker */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, dynamicStyles.label]}>End Time *</Text>
-            <TouchableOpacity
-              style={[styles.pickerButton, dynamicStyles.pickerButton]}
-              onPress={() => setShowEndTimePicker(true)}
-            >
-              <Ionicons name="time-outline" size={20} color={colors.primary} />
-              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatTime(selectedEndTime)}</Text>
+              <Text style={[styles.pickerText, dynamicStyles.pickerText, { flex: 1 }]}>
+                {formatDateTimeRange()}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -594,148 +625,268 @@ export default function CreateEventScreen() {
         </View>
       </ScrollView>
 
-      {/* Date Picker - Modal for iOS */}
-      {Platform.OS === 'ios' ? (
-        <Modal
-          visible={showDatePicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowDatePicker(false)}
+      {/* Unified Date & Time Modal */}
+      <Modal
+        visible={showDateTimeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDateTimeModal(false)}
+      >
+        <Pressable
+          style={styles.pickerModalOverlay}
+          onPress={() => setShowDateTimeModal(false)}
         >
-          <Pressable style={styles.pickerModalOverlay} onPress={() => setShowDatePicker(false)}>
-            <View style={[styles.pickerModalContent, { backgroundColor: colors.surface }]}>
-              <View style={[styles.pickerModalHeader, { borderBottomColor: colors.borderSubtle }]}>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={[styles.pickerModalCancel, { color: colors.textMuted }]}>Cancel</Text>
-                </TouchableOpacity>
-                <Text style={[styles.pickerModalTitle, { color: colors.textPrimary }]}>Select Date</Text>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={[styles.pickerModalDone, { color: colors.primary }]}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={selectedDate}
-                mode="date"
-                display="spinner"
-                onChange={(event, date) => {
-                  if (date) setSelectedDate(date);
-                }}
-                themeVariant={isDark ? 'dark' : 'light'}
-                minimumDate={new Date()}
-                style={styles.iosPicker}
-              />
+          <Pressable
+            style={[styles.dateTimeModalContent, { backgroundColor: colors.surface }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Header with Cancel and Done */}
+            <View style={[styles.pickerModalHeader, { borderBottomColor: colors.borderSubtle }]}>
+              <TouchableOpacity onPress={() => setShowDateTimeModal(false)}>
+                <Text style={[styles.pickerModalCancel, { color: colors.textMuted }]}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={[styles.pickerModalTitle, { color: colors.textPrimary }]}>Date & Time</Text>
+              <TouchableOpacity onPress={() => setShowDateTimeModal(false)}>
+                <Text style={[styles.pickerModalDone, { color: colors.primary }]}>Done</Text>
+              </TouchableOpacity>
             </View>
-          </Pressable>
-        </Modal>
-      ) : (
-        showDatePicker && (
-          <DateTimePicker
-            value={selectedDate}
-            mode="date"
-            display="default"
-            onChange={(event, date) => {
-              setShowDatePicker(false);
-              if (date) setSelectedDate(date);
-            }}
-            minimumDate={new Date()}
-          />
-        )
-      )}
 
-      {/* Start Time Picker - Modal for iOS */}
-      {Platform.OS === 'ios' ? (
-        <Modal
-          visible={showStartTimePicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowStartTimePicker(false)}
-        >
-          <Pressable style={styles.pickerModalOverlay} onPress={() => setShowStartTimePicker(false)}>
-            <View style={[styles.pickerModalContent, { backgroundColor: colors.surface }]}>
-              <View style={[styles.pickerModalHeader, { borderBottomColor: colors.borderSubtle }]}>
-                <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
-                  <Text style={[styles.pickerModalCancel, { color: colors.textMuted }]}>Cancel</Text>
-                </TouchableOpacity>
-                <Text style={[styles.pickerModalTitle, { color: colors.textPrimary }]}>Start Time</Text>
-                <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
-                  <Text style={[styles.pickerModalDone, { color: colors.primary }]}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={selectedStartTime}
-                mode="time"
-                display="spinner"
-                is24Hour={false}
-                onChange={(event, date) => {
-                  if (date) setSelectedStartTime(date);
-                }}
-                themeVariant={isDark ? 'dark' : 'light'}
-                style={styles.iosPicker}
-              />
+            {/* Tab Selector */}
+            <View style={[styles.dateTimeTabContainer, { backgroundColor: isDark ? colors.surfaceMuted : '#F3F4F6' }]}>
+              <TouchableOpacity
+                style={[
+                  styles.dateTimeTab,
+                  activePickerTab === 'startDate' && { backgroundColor: colors.surface },
+                ]}
+                onPress={() => setActivePickerTab('startDate')}
+              >
+                <Text style={[
+                  styles.dateTimeTabText,
+                  { color: activePickerTab === 'startDate' ? colors.primary : colors.textSecondary }
+                ]}>Start Date</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.dateTimeTab,
+                  activePickerTab === 'startTime' && { backgroundColor: colors.surface },
+                ]}
+                onPress={() => setActivePickerTab('startTime')}
+              >
+                <Text style={[
+                  styles.dateTimeTabText,
+                  { color: activePickerTab === 'startTime' ? colors.primary : colors.textSecondary }
+                ]}>Start Time</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.dateTimeTab,
+                  activePickerTab === 'endDate' && { backgroundColor: colors.surface },
+                ]}
+                onPress={() => setActivePickerTab('endDate')}
+              >
+                <Text style={[
+                  styles.dateTimeTabText,
+                  { color: activePickerTab === 'endDate' ? colors.primary : colors.textSecondary }
+                ]}>End Date</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.dateTimeTab,
+                  activePickerTab === 'endTime' && { backgroundColor: colors.surface },
+                ]}
+                onPress={() => setActivePickerTab('endTime')}
+              >
+                <Text style={[
+                  styles.dateTimeTabText,
+                  { color: activePickerTab === 'endTime' ? colors.primary : colors.textSecondary }
+                ]}>End Time</Text>
+              </TouchableOpacity>
             </View>
-          </Pressable>
-        </Modal>
-      ) : (
-        showStartTimePicker && (
-          <DateTimePicker
-            value={selectedStartTime}
-            mode="time"
-            display="default"
-            is24Hour={false}
-            onChange={(event, date) => {
-              setShowStartTimePicker(false);
-              if (date) setSelectedStartTime(date);
-            }}
-          />
-        )
-      )}
 
-      {/* End Time Picker - Modal for iOS */}
-      {Platform.OS === 'ios' ? (
-        <Modal
-          visible={showEndTimePicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowEndTimePicker(false)}
-        >
-          <Pressable style={styles.pickerModalOverlay} onPress={() => setShowEndTimePicker(false)}>
-            <View style={[styles.pickerModalContent, { backgroundColor: colors.surface }]}>
-              <View style={[styles.pickerModalHeader, { borderBottomColor: colors.borderSubtle }]}>
-                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
-                  <Text style={[styles.pickerModalCancel, { color: colors.textMuted }]}>Cancel</Text>
+            {/* Current Selection Summary */}
+            <View style={[styles.dateTimeSummary, { borderBottomColor: colors.borderSubtle }]}>
+              <View style={styles.dateTimeSummaryRow}>
+                <Text style={[styles.dateTimeSummaryLabel, { color: colors.textSecondary }]}>Start:</Text>
+                <Text style={[styles.dateTimeSummaryValue, { color: colors.textPrimary }]}>
+                  {formatDateShort(startDate)}, {formatTime(startTime)}
+                </Text>
+              </View>
+              <View style={styles.dateTimeSummaryRow}>
+                <Text style={[styles.dateTimeSummaryLabel, { color: colors.textSecondary }]}>End:</Text>
+                <Text style={[styles.dateTimeSummaryValue, { color: colors.textPrimary }]}>
+                  {formatDateShort(endDate)}, {formatTime(endTime)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Pickers */}
+            {Platform.OS === 'ios' ? (
+              <View style={styles.dateTimePickerContainer}>
+                {activePickerTab === 'startDate' && (
+                  <DateTimePicker
+                    value={startDate}
+                    mode="date"
+                    display="spinner"
+                    onChange={(event, date) => {
+                      if (date) setStartDate(date);
+                    }}
+                    themeVariant={isDark ? 'dark' : 'light'}
+                    minimumDate={new Date()}
+                    style={styles.iosPicker}
+                  />
+                )}
+                {activePickerTab === 'startTime' && (
+                  <DateTimePicker
+                    value={startTime}
+                    mode="time"
+                    display="spinner"
+                    is24Hour={false}
+                    onChange={(event, date) => {
+                      if (date) setStartTime(date);
+                    }}
+                    themeVariant={isDark ? 'dark' : 'light'}
+                    style={styles.iosPicker}
+                  />
+                )}
+                {activePickerTab === 'endDate' && (
+                  <DateTimePicker
+                    value={endDate}
+                    mode="date"
+                    display="spinner"
+                    onChange={(event, date) => {
+                      if (date) setEndDate(date);
+                    }}
+                    themeVariant={isDark ? 'dark' : 'light'}
+                    minimumDate={startDate}
+                    style={styles.iosPicker}
+                  />
+                )}
+                {activePickerTab === 'endTime' && (
+                  <DateTimePicker
+                    value={endTime}
+                    mode="time"
+                    display="spinner"
+                    is24Hour={false}
+                    onChange={(event, date) => {
+                      if (date) setEndTime(date);
+                    }}
+                    themeVariant={isDark ? 'dark' : 'light'}
+                    style={styles.iosPicker}
+                  />
+                )}
+              </View>
+            ) : (
+              <View style={styles.androidPickerButtons}>
+                <TouchableOpacity
+                  style={[styles.androidPickerButton, { backgroundColor: isDark ? colors.surfaceMuted : '#F3F4F6' }]}
+                  onPress={() => setActivePickerTab('startDate')}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                  <View>
+                    <Text style={[styles.androidPickerLabel, { color: colors.textSecondary }]}>Start Date</Text>
+                    <Text style={[styles.androidPickerValue, { color: colors.textPrimary }]}>{formatDate(startDate)}</Text>
+                  </View>
                 </TouchableOpacity>
-                <Text style={[styles.pickerModalTitle, { color: colors.textPrimary }]}>End Time</Text>
-                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
-                  <Text style={[styles.pickerModalDone, { color: colors.primary }]}>Done</Text>
+                <TouchableOpacity
+                  style={[styles.androidPickerButton, { backgroundColor: isDark ? colors.surfaceMuted : '#F3F4F6' }]}
+                  onPress={() => setActivePickerTab('startTime')}
+                >
+                  <Ionicons name="time-outline" size={20} color={colors.primary} />
+                  <View>
+                    <Text style={[styles.androidPickerLabel, { color: colors.textSecondary }]}>Start Time</Text>
+                    <Text style={[styles.androidPickerValue, { color: colors.textPrimary }]}>{formatTime(startTime)}</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.androidPickerButton, { backgroundColor: isDark ? colors.surfaceMuted : '#F3F4F6' }]}
+                  onPress={() => setActivePickerTab('endDate')}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                  <View>
+                    <Text style={[styles.androidPickerLabel, { color: colors.textSecondary }]}>End Date</Text>
+                    <Text style={[styles.androidPickerValue, { color: colors.textPrimary }]}>{formatDate(endDate)}</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.androidPickerButton, { backgroundColor: isDark ? colors.surfaceMuted : '#F3F4F6' }]}
+                  onPress={() => setActivePickerTab('endTime')}
+                >
+                  <Ionicons name="time-outline" size={20} color={colors.primary} />
+                  <View>
+                    <Text style={[styles.androidPickerLabel, { color: colors.textSecondary }]}>End Time</Text>
+                    <Text style={[styles.androidPickerValue, { color: colors.textPrimary }]}>{formatTime(endTime)}</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
-              <DateTimePicker
-                value={selectedEndTime}
-                mode="time"
-                display="spinner"
-                is24Hour={false}
-                onChange={(event, date) => {
-                  if (date) setSelectedEndTime(date);
-                }}
-                themeVariant={isDark ? 'dark' : 'light'}
-                style={styles.iosPicker}
-              />
-            </View>
+            )}
           </Pressable>
-        </Modal>
-      ) : (
-        showEndTimePicker && (
-          <DateTimePicker
-            value={selectedEndTime}
-            mode="time"
-            display="default"
-            is24Hour={false}
-            onChange={(event, date) => {
-              setShowEndTimePicker(false);
-              if (date) setSelectedEndTime(date);
-            }}
-          />
-        )
+        </Pressable>
+      </Modal>
+
+      {/* Android Native Pickers (shown outside modal when tab is active) */}
+      {Platform.OS === 'android' && showDateTimeModal && activePickerTab === 'startDate' && (
+        <DateTimePicker
+          value={startDate}
+          mode="date"
+          display="default"
+          onChange={(event, date) => {
+            if (event.type === 'dismissed') {
+              setActivePickerTab('startDate');
+            } else if (date) {
+              setStartDate(date);
+              setActivePickerTab('startTime');
+            }
+          }}
+          minimumDate={new Date()}
+        />
+      )}
+      {Platform.OS === 'android' && showDateTimeModal && activePickerTab === 'startTime' && (
+        <DateTimePicker
+          value={startTime}
+          mode="time"
+          display="default"
+          is24Hour={false}
+          onChange={(event, date) => {
+            if (event.type === 'dismissed') {
+              setActivePickerTab('startTime');
+            } else if (date) {
+              setStartTime(date);
+              setActivePickerTab('endDate');
+            }
+          }}
+        />
+      )}
+      {Platform.OS === 'android' && showDateTimeModal && activePickerTab === 'endDate' && (
+        <DateTimePicker
+          value={endDate}
+          mode="date"
+          display="default"
+          onChange={(event, date) => {
+            if (event.type === 'dismissed') {
+              setActivePickerTab('endDate');
+            } else if (date) {
+              setEndDate(date);
+              setActivePickerTab('endTime');
+            }
+          }}
+          minimumDate={startDate}
+        />
+      )}
+      {Platform.OS === 'android' && showDateTimeModal && activePickerTab === 'endTime' && (
+        <DateTimePicker
+          value={endTime}
+          mode="time"
+          display="default"
+          is24Hour={false}
+          onChange={(event, date) => {
+            if (event.type === 'dismissed') {
+              setActivePickerTab('endTime');
+            } else if (date) {
+              setEndTime(date);
+              setShowDateTimeModal(false);
+            }
+          }}
+        />
       )}
     </KeyboardAvoidingView>
   );
@@ -947,5 +1098,71 @@ const styles = StyleSheet.create({
   },
   iosPicker: {
     height: 200,
+  },
+  dateTimeModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+    maxHeight: '70%',
+  },
+  dateTimeTabContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 10,
+    padding: 4,
+  },
+  dateTimeTab: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  dateTimeTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dateTimeSummary: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    marginBottom: 8,
+  },
+  dateTimeSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  dateTimeSummaryLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  dateTimeSummaryValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dateTimePickerContainer: {
+    alignItems: 'center',
+  },
+  androidPickerButtons: {
+    padding: 16,
+    gap: 12,
+  },
+  androidPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  androidPickerLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  androidPickerValue: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
