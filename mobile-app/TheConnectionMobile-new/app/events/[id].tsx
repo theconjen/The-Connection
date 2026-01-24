@@ -49,12 +49,13 @@ export default function EventDetailScreen() {
   const eventId = parseInt(id || '0');
   const [showMap, setShowMap] = useState(true);
   const [currentRsvp, setCurrentRsvp] = useState<RSVPStatus | null>(null);
+  const [rsvpFeedback, setRsvpFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const { data: event, isLoading } = useQuery<Event>({
     queryKey: ['event', eventId],
     queryFn: async () => {
-      const response = await eventsAPI.getAll();
-      const foundEvent = response.find((e: Event) => e.id === eventId);
+      // Use the specific event endpoint to get all fields including coordinates
+      const foundEvent = await eventsAPI.getById(eventId);
       // Store the user's RSVP status from the event data
       if (foundEvent?.rsvpStatus) {
         setCurrentRsvp(foundEvent.rsvpStatus);
@@ -72,6 +73,17 @@ export default function EventDetailScreen() {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['event', eventId] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
+
+      // Show success feedback
+      const messages: Record<RSVPStatus, string> = {
+        going: "You're going! 🎉",
+        maybe: "Marked as maybe",
+        not_going: "You're not going",
+      };
+      setRsvpFeedback({ message: messages[status], type: 'success' });
+
+      // Auto-hide feedback after 3 seconds
+      setTimeout(() => setRsvpFeedback(null), 3000);
     },
     onError: (error: any) => {
       const message = error?.response?.data?.error ||
@@ -79,6 +91,10 @@ export default function EventDetailScreen() {
                       error?.message ||
                       'Failed to update RSVP';
       const status = error?.response?.status;
+
+      // Show error feedback
+      setRsvpFeedback({ message: 'Failed to update RSVP', type: 'error' });
+      setTimeout(() => setRsvpFeedback(null), 3000);
 
       if (status === 401) {
         Alert.alert('Sign In Required', 'Please sign in to RSVP to events.');
@@ -152,9 +168,22 @@ export default function EventDetailScreen() {
 
   const getCoordinates = () => {
     if (event?.latitude && event?.longitude) {
-      return { latitude: event.latitude, longitude: event.longitude };
+      // Parse coordinates - database stores as text, MapView needs numbers
+      const lat = typeof event.latitude === 'string' ? parseFloat(event.latitude) : event.latitude;
+      const lng = typeof event.longitude === 'string' ? parseFloat(event.longitude) : event.longitude;
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { latitude: lat, longitude: lng };
+      }
     }
     return { latitude: 37.7749, longitude: -122.4194 };
+  };
+
+  // Check if event has valid coordinates for map display
+  const hasValidCoordinates = () => {
+    if (!event?.latitude || !event?.longitude) return false;
+    const lat = typeof event.latitude === 'string' ? parseFloat(event.latitude) : event.latitude;
+    const lng = typeof event.longitude === 'string' ? parseFloat(event.longitude) : event.longitude;
+    return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
   };
 
   if (isLoading) {
@@ -222,7 +251,7 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
               </View>
 
-              {showMap && (event.latitude && event.longitude) && (
+              {showMap && hasValidCoordinates() && (
                 <View style={styles.mapContainer}>
                   <MapView
                     style={styles.map}
@@ -248,7 +277,7 @@ export default function EventDetailScreen() {
                 </View>
               )}
 
-              {!showMap && (event.latitude && event.longitude) && (
+              {!showMap && hasValidCoordinates() && (
                 <TouchableOpacity
                   style={styles.showMapButton}
                   onPress={() => setShowMap(true)}
@@ -272,6 +301,16 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* RSVP Feedback Toast */}
+      {rsvpFeedback && (
+        <View style={[
+          styles.feedbackToast,
+          rsvpFeedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError
+        ]}>
+          <Text style={styles.feedbackText}>{rsvpFeedback.message}</Text>
+        </View>
+      )}
 
       {/* RSVP Footer with 3 buttons */}
       <View style={styles.footer}>
@@ -640,5 +679,33 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  feedbackToast: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  feedbackSuccess: {
+    backgroundColor: '#10b981',
+  },
+  feedbackError: {
+    backgroundColor: '#ef4444',
+  },
+  feedbackText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
