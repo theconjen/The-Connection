@@ -19,6 +19,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "app.theconnection.mobile",
       "buildNumber": "2",
+      "associatedDomains": [
+        "applinks:theconnection.app",
+        "applinks:www.theconnection.app"
+      ],
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
@@ -51,7 +55,41 @@
         "android.permission.NOTIFICATIONS",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "app.theconnection.mobile"
+      "package": "app.theconnection.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "theconnection.app",
+              "pathPrefix": "/a"
+            },
+            {
+              "scheme": "https",
+              "host": "theconnection.app",
+              "pathPrefix": "/e"
+            },
+            {
+              "scheme": "https",
+              "host": "theconnection.app",
+              "pathPrefix": "/p"
+            },
+            {
+              "scheme": "https",
+              "host": "theconnection.app",
+              "pathPrefix": "/u"
+            },
+            {
+              "scheme": "https",
+              "host": "theconnection.app",
+              "pathPrefix": "/reset-password"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
       "expo-router",
@@ -81,11 +119,19 @@
         {
           "ios": {
             "deploymentTarget": "15.1"
+          },
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
           }
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-font"
+      "expo-font",
+      "./plugins/withRemoveBundleCompression"
     ],
     "extra": {
       "apiBase": "https://api.theconnection.app",

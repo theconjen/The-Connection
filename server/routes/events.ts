@@ -81,22 +81,24 @@ router.get('/api/events', async (req, res) => {
       // Filter to only this community's events
       events = events.filter((e: any) => e.communityId === communityId);
 
-      // For community pages, check if user is a member to show private events
+      // For community pages, check if user is a member to show non-public events
       if (userId) {
         const isMember = await storage.isCommunityMember(userId, communityId);
         if (!isMember) {
           // Non-members can only see public events from this community
-          events = events.filter((e: any) => e.isPrivate !== true);
+          events = events.filter((e: any) => e.isPublic === true);
         }
-        // Members can see all events including private ones
+        // Members can see all events including non-public ones
       } else {
         // Unauthenticated users can only see public events
-        events = events.filter((e: any) => e.isPrivate !== true);
+        events = events.filter((e: any) => e.isPublic === true);
       }
     } else {
-      // App-wide listing: filter out private events
-      // Private events (isPrivate=true) should only be visible on the community's event page
-      events = events.filter((e: any) => e.isPrivate !== true);
+      // App-wide listing: only show public events
+      // Events with isPublic=true should appear on the main Events page
+      // Events without isPublic (or isPublic=false) are community-only events
+      // Exception: Events with no communityId (e.g., "The Connection" events) should always show if public
+      events = events.filter((e: any) => e.isPublic === true);
     }
 
     // Get user's RSVPs to attach status to each event
@@ -156,9 +158,9 @@ router.get('/api/events/upcoming', async (_req, res) => {
   try {
     const now = new Date();
     const all = await storage.getAllEvents();
-    // Filter out private events from app-wide upcoming list
+    // Filter to only show public events in app-wide upcoming list
     const upcoming = all
-      .filter((e: any) => !e.deletedAt && e.isPrivate !== true && new Date(e.eventDate) >= new Date(now.toDateString()))
+      .filter((e: any) => !e.deletedAt && e.isPublic === true && new Date(e.eventDate) >= new Date(now.toDateString()))
       .sort((a: any, b: any) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
     res.json(upcoming);
   } catch (error) {

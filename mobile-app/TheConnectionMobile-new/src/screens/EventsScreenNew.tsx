@@ -25,6 +25,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { AppHeader } from "./AppHeader";
 import apiClient from "../lib/apiClient";
 import { getCurrentLocation, hasLocationPermission, requestLocationPermission, type UserLocation } from "../services/locationService";
+import { shareEvent } from "../lib/shareUrls";
 
 // Custom church icon
 const ChurchIcon = require("../../assets/church-icon.png");
@@ -58,8 +59,7 @@ type EventItem = {
   posterUrl?: string | null;
   imageUrl?: string | null;
   category?: string | null; // "Worship", "Bible Study", "Apologetics"
-  isPrivate?: boolean;
-  isPublic?: boolean;
+  isPublic?: boolean; // true = visible on main Events page
   attendingCount?: number | null;
   rsvpStatus?: RsvpStatus; // User's RSVP status for this event (legacy)
   userRsvpStatus?: RsvpStatus; // User's RSVP status from API
@@ -380,11 +380,11 @@ function EventCard({
           </View>
         )}
 
-        {/* Private badge */}
-        {item.isPrivate ? (
+        {/* Community-only badge (shows when event is not public) */}
+        {item.isPublic === false ? (
           <View style={[styles.badge, { borderColor: colors.borderSubtle, backgroundColor: colors.surface }]}>
             <Text style={[styles.badgeText, { color: colors.textPrimary }]}>
-              Private
+              Community Only
             </Text>
           </View>
         ) : null}
@@ -435,6 +435,25 @@ function EventCard({
         </View>
 
         <View style={{ flexDirection: "row", gap: 6 }}>
+          {/* Share button */}
+          <Pressable
+            hitSlop={10}
+            onPress={() => shareEvent(item.id, item.title)}
+            style={[
+              styles.iconAction,
+              {
+                backgroundColor: colors.surfaceMuted,
+                borderColor: colors.borderSoft
+              },
+            ]}
+          >
+            <Ionicons
+              name="share-outline"
+              size={15}
+              color={colors.textPrimary}
+            />
+          </Pressable>
+
           {/* Bookmark button */}
           <Pressable
             hitSlop={10}
@@ -741,10 +760,8 @@ export default function EventsScreenNew({
     now.setHours(0, 0, 0, 0); // Start of today
 
     return rawData.filter((event) => {
-      // Only filter out explicitly private events
-      if (event.isPrivate === true) {
-        return false;
-      }
+      // Backend already filters to only return public events
+      // This is a client-side safety check
 
       // "My Events" filter - show bookmarked OR events where user RSVP'd "going" or "maybe"
       // (not "not_going" - declining an event shouldn't add it to My Events)

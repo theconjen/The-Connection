@@ -525,44 +525,114 @@ export default function CreateEventScreen() {
         </Pressable>
       </Modal>
 
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => {
-            setShowDatePicker(Platform.OS === 'ios');
-            if (date) {
-              setSelectedDate(date);
-            }
-            if (Platform.OS === 'android') {
+      {/* Date Picker - Modal for iOS, inline for Android */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <Pressable
+            style={styles.pickerModalOverlay}
+            onPress={() => setShowDatePicker(false)}
+          >
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.pickerModalCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerModalTitle}>Select Date</Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.pickerModalDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="spinner"
+                onChange={(event, date) => {
+                  if (date) {
+                    setSelectedDate(date);
+                  }
+                }}
+                themeVariant={colorScheme}
+                minimumDate={new Date()}
+                style={styles.iosPicker}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showDatePicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
               setShowDatePicker(false);
-            }
-          }}
-          themeVariant={colorScheme}
-          minimumDate={new Date()}
-        />
+              if (date) {
+                setSelectedDate(date);
+              }
+            }}
+            minimumDate={new Date()}
+          />
+        )
       )}
 
-      {/* Time Picker */}
-      {showTimePicker && (
-        <DateTimePicker
-          value={selectedTime}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          is24Hour={false}
-          onChange={(event, date) => {
-            setShowTimePicker(Platform.OS === 'ios');
-            if (date) {
-              setSelectedTime(date);
-            }
-            if (Platform.OS === 'android') {
+      {/* Time Picker - Modal for iOS, inline for Android */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showTimePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <Pressable
+            style={styles.pickerModalOverlay}
+            onPress={() => setShowTimePicker(false)}
+          >
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={styles.pickerModalCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerModalTitle}>Select Time</Text>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={styles.pickerModalDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedTime}
+                mode="time"
+                display="spinner"
+                is24Hour={false}
+                onChange={(event, date) => {
+                  if (date) {
+                    setSelectedTime(date);
+                  }
+                }}
+                themeVariant={colorScheme}
+                style={styles.iosPicker}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showTimePicker && (
+          <DateTimePicker
+            value={selectedTime}
+            mode="time"
+            display="default"
+            is24Hour={false}
+            onChange={(event, date) => {
               setShowTimePicker(false);
-            }
-          }}
-          themeVariant={colorScheme}
-        />
+              if (date) {
+                setSelectedTime(date);
+              }
+            }}
+          />
+        )
       )}
     </KeyboardAvoidingView>
   );
@@ -792,5 +862,41 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
     },
     theConnectionName: {
       color: colors.primary,
+    },
+    pickerModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    pickerModalContent: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingBottom: 20,
+    },
+    pickerModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    pickerModalTitle: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    pickerModalCancel: {
+      fontSize: 16,
+      color: colors.textMuted,
+    },
+    pickerModalDone: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    iosPicker: {
+      height: 200,
     },
   });
