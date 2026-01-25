@@ -74,6 +74,7 @@ type EventItem = {
   userRsvpStatus?: RsvpStatus; // User's RSVP status from API
   isBookmarked?: boolean; // User's bookmark status from API
   creatorId?: number; // Event creator ID
+  hostUserId?: number; // Reliable host identifier from API
   host?: HostUser | null; // Host user info from API
 };
 
