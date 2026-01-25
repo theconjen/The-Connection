@@ -867,8 +867,13 @@ export default function EventsScreenNew({
         }
       }
 
-      // Filter to upcoming events and sort by date
-      return combined.filter((event) => {
+      // Filter to upcoming events, but ALWAYS keep hosted events (host can manage past events)
+      return combined.filter((event: any) => {
+        // Always show events the user is hosting
+        if (event._section === 'hosting') {
+          return true;
+        }
+
         let eventDateParsed: Date | null = null;
         if (event.eventDate) {
           eventDateParsed = parseEventDate(event.eventDate);
