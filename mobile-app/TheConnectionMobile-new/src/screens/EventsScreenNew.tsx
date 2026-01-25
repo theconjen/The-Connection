@@ -1014,7 +1014,6 @@ export default function EventsScreenNew({
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={{ minHeight: 44 }}
             contentContainerStyle={styles.activeFiltersRow}
           >
             {range !== "week" && (
@@ -1429,7 +1428,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 4,
   },
   searchInputWrap: {
     flex: 1,
@@ -1475,7 +1474,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingTop: 4,
+    paddingBottom: 4,
     gap: 8,
   },
   activeFilterPill: {
@@ -1589,7 +1589,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
   myEventsToggle: {
     flexDirection: 'row',
