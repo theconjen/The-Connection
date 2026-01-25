@@ -16,7 +16,7 @@ import {
 
 const router = Router();
 
-router.get('/api/events', async (req, res) => {
+router.get('/events', async (req, res) => {
   try {
     const filter = req.query.filter as string;
     const userId = getSessionUserId(req);
@@ -164,7 +164,7 @@ router.get('/api/events', async (req, res) => {
   }
 });
 
-router.get('/api/events/public', async (_req, res) => {
+router.get('/events/public', async (_req, res) => {
   try {
     const allEvents = await storage.getAllEvents();
     const events = allEvents.filter((event: any) => event.isPublic);
@@ -175,7 +175,7 @@ router.get('/api/events/public', async (_req, res) => {
   }
 });
 
-router.get('/api/events/upcoming', async (_req, res) => {
+router.get('/events/upcoming', async (_req, res) => {
   try {
     const now = new Date();
     const all = await storage.getAllEvents();
@@ -191,7 +191,7 @@ router.get('/api/events/upcoming', async (_req, res) => {
 });
 
 // My Events - returns events user is hosting, going to, or has marked maybe
-router.get('/api/events/my', requireAuth, async (req, res) => {
+router.get('/events/my', requireAuth, async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
 
@@ -292,7 +292,7 @@ router.get('/api/events/my', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/api/events/:id', async (req, res) => {
+router.get('/events/:id', async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = getSessionUserId(req);
@@ -354,7 +354,7 @@ router.get('/api/events/:id', async (req, res) => {
 // ============================================================================
 
 // Get RSVPs for event (host only) - returns attendees grouped by status
-router.get('/api/events/:id/rsvps/manage', requireAuth, async (req, res) => {
+router.get('/events/:id/rsvps/manage', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -412,7 +412,7 @@ router.get('/api/events/:id/rsvps/manage', requireAuth, async (req, res) => {
 });
 
 // Cancel event (host only) - soft delete using deleteEvent
-router.post('/api/events/:id/cancel', requireAuth, async (req, res) => {
+router.post('/events/:id/cancel', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -457,7 +457,7 @@ router.post('/api/events/:id/cancel', requireAuth, async (req, res) => {
 });
 
 // Create event - requires community admin or app admin
-router.post('/api/events', requireAuth, async (req, res) => {
+router.post('/events', requireAuth, async (req, res) => {
   // DEBUG: Version marker to confirm deployment
   console.info('[Events] POST /api/events - Handler v2 (with detailed error handling)');
 
@@ -661,7 +661,7 @@ router.post('/api/events', requireAuth, async (req, res) => {
 });
 
 // Update event - requires event creator or community admin
-router.patch('/api/events/:id', requireAuth, async (req, res) => {
+router.patch('/events/:id', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -733,7 +733,7 @@ router.patch('/api/events/:id', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/api/events/:id', requireAuth, async (req, res) => {
+router.delete('/events/:id', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -751,7 +751,7 @@ router.delete('/api/events/:id', requireAuth, async (req, res) => {
 });
 
 // RSVP to an event
-router.post('/api/events/:id/rsvp', requireAuth, async (req, res) => {
+router.post('/events/:id/rsvp', requireAuth, async (req, res) => {
   const requestId = req.headers['x-request-id'] || 'unknown';
   console.info(`[RSVP][${requestId}] RSVP request received for event ${req.params.id}`);
 
@@ -850,7 +850,7 @@ router.post('/api/events/:id/rsvp', requireAuth, async (req, res) => {
 });
 
 // Get RSVPs for an event
-router.get('/api/events/:id/rsvps', async (req, res) => {
+router.get('/events/:id/rsvps', async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
 
@@ -869,7 +869,7 @@ router.get('/api/events/:id/rsvps', async (req, res) => {
 });
 
 // Get current user's RSVP for an event
-router.get('/api/events/:id/my-rsvp', requireAuth, async (req, res) => {
+router.get('/events/:id/my-rsvp', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -883,7 +883,7 @@ router.get('/api/events/:id/my-rsvp', requireAuth, async (req, res) => {
 });
 
 // Delete/cancel RSVP
-router.delete('/api/events/:id/rsvp', requireAuth, async (req, res) => {
+router.delete('/events/:id/rsvp', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -906,7 +906,7 @@ router.delete('/api/events/:id/rsvp', requireAuth, async (req, res) => {
 // ============================================================================
 
 // Bookmark an event
-router.post('/api/events/:id/bookmark', requireAuth, async (req, res) => {
+router.post('/events/:id/bookmark', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -926,7 +926,7 @@ router.post('/api/events/:id/bookmark', requireAuth, async (req, res) => {
 });
 
 // Unbookmark an event
-router.delete('/api/events/:id/bookmark', requireAuth, async (req, res) => {
+router.delete('/events/:id/bookmark', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -944,7 +944,7 @@ router.delete('/api/events/:id/bookmark', requireAuth, async (req, res) => {
 });
 
 // Get user's bookmarked events
-router.get('/api/events/bookmarks', requireAuth, async (req, res) => {
+router.get('/events/bookmarks', requireAuth, async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
     const events = await storage.getUserBookmarkedEvents(userId);
@@ -963,7 +963,7 @@ router.get('/api/events/bookmarks', requireAuth, async (req, res) => {
 });
 
 // Check if event is bookmarked
-router.get('/api/events/:id/bookmark', requireAuth, async (req, res) => {
+router.get('/events/:id/bookmark', requireAuth, async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
@@ -1011,7 +1011,7 @@ function mapStatusToHttpCode(status: string): number {
 }
 
 // GET /api/events/v2 - List events with service
-router.get('/api/events/v2', async (req, res) => {
+router.get('/events/v2', async (req, res) => {
   const requestId = getRequestId(req);
   const userId = getSessionUserId(req);
 
@@ -1031,7 +1031,7 @@ router.get('/api/events/v2', async (req, res) => {
 });
 
 // GET /api/events/:id/v2 - Get event with access check
-router.get('/api/events/:id/v2', async (req, res) => {
+router.get('/events/:id/v2', async (req, res) => {
   const requestId = getRequestId(req);
   const eventId = parseInt(req.params.id);
   const userId = getSessionUserId(req);
@@ -1052,7 +1052,7 @@ router.get('/api/events/:id/v2', async (req, res) => {
 });
 
 // POST /api/events/v2 - Create event with service
-router.post('/api/events/v2', requireAuth, async (req, res) => {
+router.post('/events/v2', requireAuth, async (req, res) => {
   const requestId = getRequestId(req);
   const actorId = requireSessionUserId(req);
 
@@ -1084,7 +1084,7 @@ router.post('/api/events/v2', requireAuth, async (req, res) => {
 });
 
 // PATCH /api/events/:id/v2 - Update event with service
-router.patch('/api/events/:id/v2', requireAuth, async (req, res) => {
+router.patch('/events/:id/v2', requireAuth, async (req, res) => {
   const requestId = getRequestId(req);
   const eventId = parseInt(req.params.id);
   const actorId = requireSessionUserId(req);
@@ -1126,7 +1126,7 @@ router.patch('/api/events/:id/v2', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/events/:id/v2 - Cancel event (soft delete)
-router.delete('/api/events/:id/v2', requireAuth, async (req, res) => {
+router.delete('/events/:id/v2', requireAuth, async (req, res) => {
   const requestId = getRequestId(req);
   const eventId = parseInt(req.params.id);
   const actorId = requireSessionUserId(req);
