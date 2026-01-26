@@ -12,6 +12,7 @@ import { runMigration as addHashtagSystem } from "./migrations/add-hashtag-syste
 import { runMigration as addKeywordSystem } from "./migrations/add-keyword-system";
 import { runMigration as addPostHashtagKeywordSystem } from "./migrations/add-post-hashtag-keyword-system";
 import { runMigration as addQaInboxSystem } from "./migrations/add-qa-inbox-system";
+import { runMigration as addEventsCategory } from "./migrations/add-events-category";
 import { isConnected } from "./db";
 
 /**
@@ -93,6 +94,13 @@ export async function runAllMigrations() {
     const qaInboxSystemResult = await addQaInboxSystem();
     if (!qaInboxSystemResult) {
       log("❌ Add Q&A inbox system migration failed");
+      return false;
+    }
+
+    // Add category column to events table
+    const eventsCategoryResult = await addEventsCategory();
+    if (!eventsCategoryResult) {
+      log("❌ Add events category migration failed");
       return false;
     }
 
