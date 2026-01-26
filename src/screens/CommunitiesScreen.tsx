@@ -19,9 +19,10 @@ import { Text, useTheme } from '../theme';
 import { AppHeader } from './AppHeader';
 import { ChannelCard, AddChannelCard, Channel } from './ChannelCard';
 import { fetchCommunities } from '../services/communitiesService';
-import { getCurrentLocation, formatDistance } from '../services/locationService';
+import { getCurrentLocation, formatDistance, hasLocationPermission } from '../services/locationService';
 import { useQuery } from '@tanstack/react-query';
 import { communitiesAPI } from '../lib/apiClient';
+import { getLocationPermissionGranted, getLastKnownCoords } from '../utils/onboardingPrefs';
 
 // Helper to create a light/pastel background from a hex color
 function getLightBackground(hexColor: string): string {
@@ -55,6 +56,17 @@ interface Category {
   borderColor: string;
 }
 
+// Recommendation reason types
+type RecommendationReason =
+  | 'nearby'
+  | 'popular_with_follows'
+  | 'active_this_week'
+  | 'growing'
+  | null;
+
+// Soft labels for member counts
+type MemberSizeLabel = 'Small group' | 'Active' | 'New' | 'Growing';
+
 // Community type
 interface Community {
   id: number;
@@ -67,6 +79,50 @@ interface Community {
   iconColor: string;
   isNew: boolean;
   distance?: number | null;
+  recommendationReason?: RecommendationReason;
+  memberSizeLabel?: MemberSizeLabel;
+}
+
+// Helper to get soft member count label
+function getMemberSizeLabel(memberCount: number, isNew?: boolean): MemberSizeLabel {
+  if (isNew) return 'New';
+  if (memberCount < 20) return 'Small group';
+  if (memberCount < 100) return 'Active';
+  return 'Growing';
+}
+
+// Helper to get human-readable recommendation reason
+function getRecommendationReasonText(reason: RecommendationReason): string | null {
+  switch (reason) {
+    case 'nearby':
+      return "Because you're nearby";
+    case 'popular_with_follows':
+      return 'Popular with people you follow';
+    case 'active_this_week':
+      return 'Active this week';
+    case 'growing':
+      return 'Growing community';
+    default:
+      return null;
+  }
+}
+
+// Helper to determine recommendation reason based on community data
+function deriveRecommendationReason(community: any): RecommendationReason {
+  // Priority: nearby > popular_with_follows > active > growing
+  if (community.distance !== undefined && community.distance !== null && community.distance < 25) {
+    return 'nearby';
+  }
+  // If we had follow data, we'd check here
+  // For now, use activity and growth indicators
+  const memberCount = parseInt(community.memberCount) || 0;
+  if (memberCount > 50) {
+    return 'growing';
+  }
+  if (community.isActive || memberCount > 10) {
+    return 'active_this_week';
+  }
+  return null;
 }
 
 // Filter category interface
@@ -475,9 +531,13 @@ function CategoryCard({
 function CommunityRow({
   community,
   onPress,
+  recommendationReason,
+  showDistanceChip = true,
 }: {
   community: Community;
   onPress?: () => void;
+  recommendationReason?: RecommendationReason;
+  showDistanceChip?: boolean;
 }) {
   const { colors, spacing, radii } = useTheme();
 
@@ -493,6 +553,16 @@ function CommunityRow({
 
     return (iconMap[iconName] || iconName || 'people') as keyof typeof Ionicons.glyphMap;
   };
+
+  // Get recommendation reason text
+  const reasonText = recommendationReason ? getRecommendationReasonText(recommendationReason) : null;
+
+  // Parse member count for soft label logic
+  const memberCount = parseInt(community.members) || 0;
+  const shouldShowRawCount = memberCount > 100;
+  const memberLabel = shouldShowRawCount
+    ? community.members
+    : getMemberSizeLabel(memberCount, community.isNew);
 
   return (
     <Pressable
@@ -571,15 +641,29 @@ function CommunityRow({
           variant="caption"
           color="textMuted"
           numberOfLines={1}
-          style={{ marginBottom: spacing.xs }}
+          style={{ marginBottom: reasonText ? 2 : spacing.xs }}
         >
           {community.subtitle}
         </Text>
 
+        {/* Recommendation reason - subtle muted text */}
+        {reasonText && (
+          <Text
+            style={{
+              fontSize: 11,
+              color: colors.textMuted,
+              fontStyle: 'italic',
+              marginBottom: spacing.xs,
+            }}
+          >
+            {reasonText}
+          </Text>
+        )}
+
         {/* Tags */}
         <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
-          {/* Distance badge - show first if available */}
-          {community.distance !== undefined && community.distance !== null && (
+          {/* Distance badge - only show if location permission granted AND distance exists */}
+          {showDistanceChip && community.distance !== undefined && community.distance !== null && (
             <View
               style={{
                 flexDirection: 'row',
@@ -597,6 +681,7 @@ function CommunityRow({
               </Text>
             </View>
           )}
+          {/* Member label - soft label or count if >100 */}
           <View
             style={{
               flexDirection: 'row',
@@ -610,7 +695,7 @@ function CommunityRow({
           >
             <Ionicons name="people" size={10} color={colors.textMuted} />
             <Text style={{ fontSize: 10, color: colors.textMuted }}>
-              {community.members}
+              {memberLabel}
             </Text>
           </View>
           <View
@@ -654,6 +739,9 @@ interface CommunitiesScreenProps {
   onClearCategory?: () => void;
   unreadNotificationCount?: number;
   unreadMessageCount?: number;
+  onStartHerePress?: () => void;
+  onNotificationsPress?: () => void;
+  onSettingsPress?: () => void;
 }
 
 export function CommunitiesScreen({
@@ -671,6 +759,7 @@ export function CommunitiesScreen({
   onClearCategory,
   unreadNotificationCount = 0,
   unreadMessageCount = 0,
+  onStartHerePress,
 }: CommunitiesScreenProps) {
   const { colors, spacing, radii, colorScheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -680,6 +769,7 @@ export function CommunitiesScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [hasLocationPerm, setHasLocationPerm] = useState(false);
 
   // Fetch user's communities for "Your Communities" section
   const { data: userCommunities = [], refetch: refetchCommunities } = useQuery({
@@ -702,7 +792,9 @@ export function CommunitiesScreen({
       .map((community: any) => ({
         id: community.id,
         name: community.name,
-        members: community.memberCount ? `${(community.memberCount / 1000).toFixed(1)}k` : '0',
+        members: community.memberCount >= 1000
+          ? `${(community.memberCount / 1000).toFixed(1)}k`
+          : `${community.memberCount || 0}`,
         icon: community.name.charAt(0).toUpperCase(),
         isJoined: true,
         communityId: community.id,
@@ -712,23 +804,46 @@ export function CommunitiesScreen({
   }, [userCommunities]);
 
   const getActiveFilterCount = () => {
-    return Object.values(selectedFilters).reduce((sum, arr) => sum + arr.length, 0);
+    // Exclude distance filters from the count (they're location-based, not user selections)
+    return Object.entries(selectedFilters)
+      .filter(([key]) => key !== 'distance')
+      .reduce((sum, [, arr]) => sum + arr.length, 0);
   };
 
-  // Get user location on mount
+  // Get user location and permission status on mount
   useEffect(() => {
-    const loadLocation = async () => {
+    const loadLocationAndPermission = async () => {
       try {
-        const location = await getCurrentLocation();
-        if (location) {
-          setUserLocation(location);
+        // Check if we have stored location permission from onboarding
+        const storedPermission = await getLocationPermissionGranted();
+
+        // Also check actual system permission
+        const systemPermission = await hasLocationPermission();
+
+        // User has permission if either they granted it during onboarding or system says yes
+        const hasPermission = storedPermission || systemPermission;
+        setHasLocationPerm(hasPermission);
+
+        if (hasPermission) {
+          // Try stored coords first (faster)
+          const storedCoords = await getLastKnownCoords();
+          if (storedCoords) {
+            setUserLocation({ latitude: storedCoords.latitude, longitude: storedCoords.longitude });
+          } else {
+            // Fall back to getting current location
+            const location = await getCurrentLocation();
+            if (location) {
+              setUserLocation(location);
+            }
+          }
         }
       } catch (err) {
         // Non-blocking - continue without location
+        console.log('[CommunitiesScreen] Location check failed:', err);
       }
     };
 
-    loadLocation();
+    loadLocationAndPermission();
   }, []);
 
   // Parse distance filter into miles
@@ -928,20 +1043,109 @@ export function CommunitiesScreen({
           </View>
         </View>
 
-        {/* Suggested Section */}
+        {/* Active Filters Summary - calm, inline row */}
+        {(() => {
+          // Get all filter values excluding distance filters
+          const allFilters = Object.entries(selectedFilters)
+            .filter(([categoryId]) => categoryId !== 'distance')
+            .flatMap(([categoryId, values]) =>
+              values.map((value) => ({ categoryId, value }))
+            );
+
+          if (allFilters.length === 0) return null;
+
+          const visibleFilters = allFilters.slice(0, 2);
+          const remainingCount = allFilters.length - 2;
+
+          return (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.sm,
+                backgroundColor: colors.background,
+                gap: spacing.sm,
+              }}
+            >
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                Filtered by:
+              </Text>
+
+              {/* Show up to 2 filter pills */}
+              {visibleFilters.map(({ categoryId, value }) => (
+                <Pressable
+                  key={`${categoryId}-${value}`}
+                  onPress={() => {
+                    setSelectedFilters((prev) => ({
+                      ...prev,
+                      [categoryId]: prev[categoryId]?.filter((v) => v !== value) || [],
+                    }));
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 3,
+                    backgroundColor: colors.surfaceMuted,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: radii.sm,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                    {value}
+                  </Text>
+                  <Ionicons name="close" size={12} color={colors.textMuted} />
+                </Pressable>
+              ))}
+
+              {/* +N more indicator */}
+              {remainingCount > 0 && (
+                <Pressable
+                  onPress={() => setShowFilterModal(true)}
+                  style={{
+                    paddingHorizontal: 6,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                    +{remainingCount} more
+                  </Text>
+                </Pressable>
+              )}
+
+              {/* Spacer */}
+              <View style={{ flex: 1 }} />
+
+              {/* Clear filters - subtle text action */}
+              <Pressable onPress={() => setSelectedFilters({})}>
+                <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                  Clear filters
+                </Text>
+              </Pressable>
+            </View>
+          );
+        })()}
+
+        {/* Recommended for You Section */}
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}>
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: spacing.sm,
+              marginBottom: spacing.md,
             }}
           >
             <Text variant="bodySmall" style={{ fontWeight: '700' }}>
-              Suggested
+              Recommended for You
             </Text>
-            <Pressable>
+            <Pressable onPress={() => {
+              // Clear filters and search to show all communities sorted by proximity
+              setSearchQuery('');
+              setSelectedFilters({});
+              onClearCategory?.();
+            }}>
               <Text
                 variant="caption"
                 style={{ color: colors.secondary, fontWeight: '500' }}
@@ -951,43 +1155,76 @@ export function CommunitiesScreen({
             </Pressable>
           </View>
 
-          {/* Category Filter Indicator */}
+          {/* Start Here - Pinned Orientation Card - only show for new users (0 joined communities) */}
+          {userChannels.length === 0 && onStartHerePress && (
+            <Pressable
+              onPress={onStartHerePress}
+              style={({ pressed }) => ({
+                backgroundColor: colors.surface,
+                padding: spacing.lg,
+                borderRadius: radii.xl,
+                borderWidth: 1,
+                borderColor: colors.sage || colors.secondary,
+                marginBottom: spacing.md,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.md,
+                opacity: pressed ? 0.95 : 1,
+              })}
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: (colors.sage || colors.secondary) + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="compass-outline" size={24} color={colors.sage || colors.secondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="bodySmall" style={{ fontWeight: '700', color: colors.textPrimary, marginBottom: 2 }}>
+                  Start Here
+                </Text>
+                <Text variant="caption" color="textMuted" numberOfLines={2}>
+                  Set your location, pick your interests, and join some communities
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </Pressable>
+          )}
+
+          {/* Category Filter - subtle inline pill */}
           {selectedCategory && (
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: colors.primary + '15',
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.sm,
-                borderRadius: radii.lg,
-                marginBottom: spacing.md,
-                borderWidth: 1,
-                borderColor: colors.primary + '30',
+                marginBottom: spacing.sm,
+                gap: spacing.sm,
               }}
             >
-              <Ionicons name="funnel" size={14} color={colors.primary} />
-              <Text
-                variant="caption"
-                style={{
-                  marginLeft: spacing.sm,
-                  color: colors.primary,
-                  fontWeight: '600',
-                  flex: 1,
-                }}
-              >
-                Filtering by: {selectedCategory}
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                Category:
               </Text>
               <Pressable
                 onPress={onClearCategory}
                 style={{
-                  paddingHorizontal: spacing.sm,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 3,
+                  backgroundColor: colors.surfaceMuted,
+                  paddingHorizontal: 8,
                   paddingVertical: 4,
-                  backgroundColor: colors.primary,
-                  borderRadius: radii.md,
+                  borderRadius: radii.sm,
                 }}
               >
-                <Ionicons name="close" size={14} color="#FFFFFF" />
+                <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                  {selectedCategory}
+                </Text>
+                <Ionicons name="close" size={12} color={colors.textMuted} />
               </Pressable>
             </View>
           )}
@@ -1026,24 +1263,29 @@ export function CommunitiesScreen({
                   </Text>
                 </View>
               ) : (
-                filteredCommunities.map((community) => (
-                  <CommunityRow
-                    key={community.id}
-                    community={{
-                      id: community.id,
-                      title: community.name,
-                      subtitle: community.description,
-                      members: community.memberCount?.toString() || '0',
-                      iconName: (community.iconName || 'people') as any,
-                      tag: community.isPrivate ? 'Private' : 'Public',
-                      bgColor: getLightBackground(community.iconColor),
-                      iconColor: community.iconColor || '#4F46E5',
-                      isNew: false,
-                      distance: community.distance,
-                    }}
-                    onPress={() => onCommunityPress?.(community as any)}
-                  />
-                ))
+                filteredCommunities.map((community) => {
+                  const reason = deriveRecommendationReason(community);
+                  return (
+                    <CommunityRow
+                      key={community.id}
+                      community={{
+                        id: community.id,
+                        title: community.name,
+                        subtitle: community.description,
+                        members: community.memberCount?.toString() || '0',
+                        iconName: (community.iconName || 'people') as any,
+                        tag: community.isPrivate ? 'Private' : 'Public',
+                        bgColor: getLightBackground(community.iconColor),
+                        iconColor: community.iconColor || '#4F46E5',
+                        isNew: false,
+                        distance: community.distance,
+                      }}
+                      recommendationReason={reason}
+                      showDistanceChip={hasLocationPerm}
+                      onPress={() => onCommunityPress?.(community as any)}
+                    />
+                  );
+                })
               )}
             </View>
           )}

@@ -1,6 +1,6 @@
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
 import { CreateMenuProvider } from '../src/contexts/CreateMenuContext';
@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { initializeNotifications, cleanupNotifications, unregisterPushToken, getCurrentToken } from '../src/services/notificationService';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import apiClient from '../src/lib/apiClient';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -37,16 +38,47 @@ if (Platform.OS !== 'web') {
   };
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Keep data fresh for 2 minutes by default
+      staleTime: 2 * 60 * 1000,
+      // Keep data in cache for 30 minutes even when unused
+      gcTime: 30 * 60 * 1000,
+      // Don't refetch on mount if data exists and is fresh
+      refetchOnMount: 'always',
+      // Don't refetch when window regains focus
+      refetchOnWindowFocus: false,
+      // Retry failed requests once
+      retry: 1,
+    },
+  },
+});
 
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const notificationListeners = useRef<{
     receivedListener: Notifications.Subscription | null;
     responseListener: Notifications.Subscription | null;
   } | null>(null);
+
+  // Prefetch events data when user is authenticated
+  useEffect(() => {
+    if (user && !isLoading) {
+      // Prefetch events in background so they're ready when user navigates to events tab
+      queryClient.prefetchQuery({
+        queryKey: ["events", { view: "list", range: "week", mode: "all", distance: "all", q: "", city: "", userLocation: null }],
+        queryFn: async () => {
+          const res = await apiClient.get('/api/events?range=week&mode=all');
+          return res.data?.events ?? res.data ?? [];
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+      });
+    }
+  }, [user, isLoading, queryClient]);
 
   // Handle authentication routing
   useEffect(() => {

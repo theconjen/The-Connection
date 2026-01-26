@@ -17,6 +17,7 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -25,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { geocodeAddress, getCurrentLocation, requestLocationPermission } from '../../src/lib/locationService';
 import * as Location from 'expo-location';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import * as ImagePicker from 'expo-image-picker';
 
 // Icon options for communities
 const ICON_OPTIONS = [
@@ -65,8 +67,38 @@ export default function CreateCommunityScreen() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isGeocodingLocation, setIsGeocodingLocation] = useState(false);
   const [geocodedCoordinates, setGeocodedCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [coverImage, setCoverImage] = useState<string | null>(null);
 
   const isFormValid = name.trim().length >= 3 && description.trim().length >= 10;
+
+  // Cover image picker
+  const pickCoverImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library to add a cover image.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false, // Full images without forced cropping
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (asset.base64) {
+        const extension = asset.uri.split('.').pop()?.toLowerCase() || 'jpeg';
+        const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+        setCoverImage(`data:${mimeType};base64,${asset.base64}`);
+      }
+    }
+  };
+
+  const removeCoverImage = () => {
+    setCoverImage(null);
+  };
 
   const createMutation = useMutation({
     mutationFn: (data: any) => communitiesAPI.create(data),
@@ -186,6 +218,7 @@ export default function CreateCommunityScreen() {
       location: location.trim() || undefined,
       latitude: finalCoordinates?.latitude,
       longitude: finalCoordinates?.longitude,
+      coverImageUrl: coverImage || undefined,
     });
   };
 
@@ -261,6 +294,34 @@ export default function CreateCommunityScreen() {
             textAlignVertical="top"
             editable={!createMutation.isPending}
           />
+        </View>
+
+        {/* Cover Image */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Cover Image (Optional)</Text>
+          {coverImage ? (
+            <View style={styles.coverImageContainer}>
+              <Image source={{ uri: coverImage }} style={styles.coverImagePreview} resizeMode="cover" />
+              <View style={styles.coverImageOverlay}>
+                <TouchableOpacity style={styles.coverImageAction} onPress={pickCoverImage}>
+                  <Ionicons name="pencil" size={18} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.coverImageAction, styles.coverImageRemove]} onPress={removeCoverImage}>
+                  <Ionicons name="trash" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.coverImageUpload} onPress={pickCoverImage} disabled={createMutation.isPending}>
+              <View style={styles.coverImageUploadContent}>
+                <Ionicons name="image-outline" size={32} color={colors.accent} />
+                <Text style={[styles.coverImageUploadText, { color: colors.textPrimary }]}>Add Cover Image</Text>
+                <Text style={[styles.coverImageUploadHint, { color: colors.textSecondary }]}>
+                  This will be displayed at the top of your community page
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Location */}
@@ -482,6 +543,52 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
   textArea: {
     minHeight: 120,
     paddingTop: 16,
+  },
+  coverImageContainer: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  coverImagePreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+  },
+  coverImageOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  coverImageAction: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  coverImageRemove: {
+    backgroundColor: 'rgba(239,68,68,0.9)',
+  },
+  coverImageUpload: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.borderSoft,
+    borderStyle: 'dashed',
+    paddingVertical: 28,
+    paddingHorizontal: 16,
+  },
+  coverImageUploadContent: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  coverImageUploadText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  coverImageUploadHint: {
+    fontSize: 13,
+    textAlign: 'center',
   },
   helpText: {
     fontSize: 13,

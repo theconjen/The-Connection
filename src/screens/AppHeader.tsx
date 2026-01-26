@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState, useEffect } from 'react';
 import { View, Pressable, StyleSheet, Image } from 'react-native';
 import { Text, useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,6 +55,12 @@ export function AppHeader({
   transparent = false,
 }: AppHeaderProps) {
   const { colors, spacing, radii, colorScheme } = useTheme();
+  const [avatarError, setAvatarError] = useState(false);
+
+  // Reset error state when avatar URL changes
+  useEffect(() => {
+    setAvatarError(false);
+  }, [userAvatar]);
 
   // Get user initials for avatar fallback
   const getUserInitials = () => {
@@ -66,6 +72,9 @@ export function AppHeader({
       .toUpperCase()
       .slice(0, 2);
   };
+
+  // Check if avatar should be shown (has URL and hasn't failed to load)
+  const showAvatarImage = userAvatar && !avatarError;
 
   return (
     <View
@@ -106,16 +115,20 @@ export function AppHeader({
                 style={({ pressed }) => [
                   styles.avatarButton,
                   {
-                    backgroundColor: userAvatar ? 'transparent' : colors.primary,
+                    backgroundColor: showAvatarImage ? 'transparent' : colors.primary,
                     borderRadius: radii.full,
                     opacity: pressed ? 0.8 : 1,
                   },
                 ]}
               >
-                {userAvatar ? (
-                  <Image source={{ uri: userAvatar }} style={styles.avatar} />
+                {showAvatarImage ? (
+                  <Image
+                    source={{ uri: userAvatar }}
+                    style={styles.avatar}
+                    onError={() => setAvatarError(true)}
+                  />
                 ) : (
-                  <Text style={{ color: colors.headerForeground, fontSize: 16, fontWeight: '600' }}>
+                  <Text style={{ color: colors.primaryForeground, fontSize: 16, fontWeight: '600' }}>
                     {getUserInitials()}
                   </Text>
                 )}

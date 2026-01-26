@@ -11,7 +11,7 @@
  * 6. Sources (collapsed/expandable)
  */
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -21,6 +21,7 @@ import {
   Pressable,
   SafeAreaView,
   StatusBar,
+  Modal,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -30,6 +31,10 @@ import { AppHeader } from "../../src/screens/AppHeader";
 import { useAuth } from "../../src/contexts/AuthContext";
 import apiClient from "../../src/lib/apiClient";
 import Markdown from "react-native-markdown-display";
+import { fetchBiblePassage, looksLikeBibleReference } from "../../src/lib/bibleApi";
+
+// Regex to detect Bible references in text (e.g., "Romans 8:28", "1 Corinthians 13:4-7", "(John 3:16)")
+const SCRIPTURE_REGEX = /\(?\b((?:1|2|3|I|II|III)\s*)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song\s*of\s*Solomon|Songs?|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s*\d+(?::\d+(?:-\d+)?)?(?:\s*-\s*\d+(?::\d+)?)?\)?/gi;
 
 type LibraryPostSource = {
   author: string;
@@ -59,6 +64,71 @@ async function apiGet<T>(path: string): Promise<T> {
   return res.data as T;
 }
 
+// Component to render text with clickable scripture references
+function ScriptureLinkedText({
+  children,
+  style,
+  onScripturePress,
+  linkColor,
+}: {
+  children: string;
+  style?: any;
+  onScripturePress: (ref: string) => void;
+  linkColor: string;
+}) {
+  if (typeof children !== 'string') {
+    return <Text style={style}>{children}</Text>;
+  }
+
+  const parts: Array<{ type: 'text' | 'scripture'; content: string }> = [];
+  let lastIndex = 0;
+  let match;
+
+  // Reset regex lastIndex
+  SCRIPTURE_REGEX.lastIndex = 0;
+
+  while ((match = SCRIPTURE_REGEX.exec(children)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: children.slice(lastIndex, match.index) });
+    }
+    // Add the scripture reference
+    parts.push({ type: 'scripture', content: match[0] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < children.length) {
+    parts.push({ type: 'text', content: children.slice(lastIndex) });
+  }
+
+  // If no scripture references found, return plain text
+  if (parts.length === 0 || (parts.length === 1 && parts[0].type === 'text')) {
+    return <Text style={style}>{children}</Text>;
+  }
+
+  return (
+    <Text style={style}>
+      {parts.map((part, idx) => {
+        if (part.type === 'scripture') {
+          // Clean up the reference (remove parentheses for API call)
+          const cleanRef = part.content.replace(/^\(|\)$/g, '');
+          return (
+            <Text
+              key={idx}
+              style={{ color: linkColor, fontWeight: '600' }}
+              onPress={() => onScripturePress(cleanRef)}
+            >
+              {part.content}
+            </Text>
+          );
+        }
+        return <Text key={idx}>{part.content}</Text>;
+      })}
+    </Text>
+  );
+}
+
 export default function ApologeticsDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,6 +137,24 @@ export default function ApologeticsDetailScreen() {
 
   const [perspectivesExpanded, setPerspectivesExpanded] = useState(false);
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  const [showVerseModal, setShowVerseModal] = useState(false);
+  const [verseData, setVerseData] = useState<{ reference: string; text: string; translation: string } | null>(null);
+  const [verseLoading, setVerseLoading] = useState(false);
+
+  // Handle scripture reference press
+  const handleScripturePress = useCallback(async (reference: string) => {
+    setShowVerseModal(true);
+    setVerseLoading(true);
+    setVerseData(null);
+
+    const result = await fetchBiblePassage(reference);
+    setVerseData({
+      reference: result.reference,
+      text: result.text,
+      translation: result.translation || 'WEB',
+    });
+    setVerseLoading(false);
+  }, []);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["library-post", id],
@@ -83,7 +171,7 @@ export default function ApologeticsDetailScreen() {
         <AppHeader
           showCenteredLogo={true}
           userName={user?.displayName || user?.username}
-          userAvatar={user?.profileImageUrl}
+          userAvatar={user?.avatarUrl || user?.profileImageUrl}
           onProfilePress={() => router.push("/profile" as any)}
           showMessages={true}
           onMessagesPress={() => router.push("/messages" as any)}
@@ -105,7 +193,7 @@ export default function ApologeticsDetailScreen() {
         <AppHeader
           showCenteredLogo={true}
           userName={user?.displayName || user?.username}
-          userAvatar={user?.profileImageUrl}
+          userAvatar={user?.avatarUrl || user?.profileImageUrl}
           onProfilePress={() => router.push("/profile" as any)}
           showMessages={true}
           onMessagesPress={() => router.push("/messages" as any)}
@@ -137,7 +225,7 @@ export default function ApologeticsDetailScreen() {
       <AppHeader
         showCenteredLogo={true}
         userName={user?.displayName || user?.username}
-        userAvatar={user?.profileImageUrl}
+        userAvatar={user?.avatarUrl || user?.profileImageUrl}
         onProfilePress={() => router.push("/profile" as any)}
         showMessages={true}
         onMessagesPress={() => router.push("/messages" as any)}
@@ -210,7 +298,7 @@ export default function ApologeticsDetailScreen() {
           </View>
         )}
 
-        {/* 3. Scripture References */}
+        {/* 3. Scripture References - Tappable */}
         {data.scriptureRefs && data.scriptureRefs.length > 0 && (
           <View style={styles.scriptureCard}>
             <View style={styles.sectionHeader}>
@@ -219,9 +307,17 @@ export default function ApologeticsDetailScreen() {
             </View>
             <View style={styles.scriptureList}>
               {data.scriptureRefs.map((ref, idx) => (
-                <View key={idx} style={styles.scriptureBadge}>
+                <Pressable
+                  key={idx}
+                  style={({ pressed }) => [
+                    styles.scriptureBadge,
+                    pressed && { opacity: 0.7, backgroundColor: colors.surfaceMuted },
+                  ]}
+                  onPress={() => handleScripturePress(ref)}
+                >
                   <Text style={styles.scriptureText}>{ref}</Text>
-                </View>
+                  <Ionicons name="chevron-forward" size={12} color={colors.textMuted} />
+                </Pressable>
               ))}
             </View>
           </View>
@@ -233,7 +329,34 @@ export default function ApologeticsDetailScreen() {
             <Ionicons name="document-text" size={18} color={colors.primary} />
             <Text style={styles.sectionTitle}>Detailed Answer</Text>
           </View>
-          <Markdown style={markdownStyles(colors)}>
+          <Markdown
+            style={markdownStyles(colors)}
+            rules={{
+              // Custom rule to make scripture references clickable in paragraphs
+              textgroup: (node, children, parent, styles) => {
+                // Get the text content
+                const textContent = node.children?.map((child: any) => child.content).join('') || '';
+
+                // Check if it contains scripture references
+                SCRIPTURE_REGEX.lastIndex = 0;
+                if (SCRIPTURE_REGEX.test(textContent)) {
+                  SCRIPTURE_REGEX.lastIndex = 0;
+                  return (
+                    <ScriptureLinkedText
+                      key={node.key}
+                      style={styles.textgroup}
+                      onScripturePress={handleScripturePress}
+                      linkColor={colors.primary}
+                    >
+                      {textContent}
+                    </ScriptureLinkedText>
+                  );
+                }
+
+                return <Text key={node.key} style={styles.textgroup}>{children}</Text>;
+              },
+            }}
+          >
             {data.bodyMarkdown}
           </Markdown>
         </View>
@@ -327,6 +450,67 @@ export default function ApologeticsDetailScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Sticky Bottom Navigation Bar */}
+      <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.borderSubtle }]}>
+        <Pressable
+          style={styles.bottomBarButton}
+          onPress={() => router.push("/(tabs)/apologetics" as any)}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.primary} />
+          <Text style={[styles.bottomBarButtonText, { color: colors.primary }]}>Back to Apologetics</Text>
+        </Pressable>
+      </View>
+
+      {/* Verse Modal */}
+      <Modal
+        visible={showVerseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowVerseModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowVerseModal(false)}
+        >
+          <Pressable style={[styles.verseModalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.verseModalHeader}>
+              <Ionicons name="book" size={20} color={colors.primary} />
+              <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
+                {verseData?.reference || 'Loading...'}
+              </Text>
+              <Pressable
+                onPress={() => setShowVerseModal(false)}
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            {verseLoading ? (
+              <View style={styles.verseModalLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.verseModalLoadingText, { color: colors.textMuted }]}>
+                  Loading passage...
+                </Text>
+              </View>
+            ) : (
+              <>
+                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={false}>
+                  <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
+                    {verseData?.text}
+                  </Text>
+                </ScrollView>
+                {verseData?.translation && (
+                  <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+                    {verseData.translation}
+                  </Text>
+                )}
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -399,7 +583,7 @@ function getStyles(colors: any) {
     },
     scrollContent: {
       padding: 16,
-      paddingBottom: 40,
+      paddingBottom: 80, // Extra padding for sticky bottom bar
     },
     loadingContainer: {
       flex: 1,
@@ -557,11 +741,14 @@ function getStyles(colors: any) {
       borderRadius: 8,
       paddingHorizontal: 12,
       paddingVertical: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
     },
     scriptureText: {
       fontSize: 13,
       fontWeight: "600",
-      color: colors.textPrimary,
+      color: colors.primary,
     },
     answerCard: {
       backgroundColor: colors.backgroundSoft,
@@ -673,6 +860,87 @@ function getStyles(colors: any) {
       color: colors.buttonPrimaryText,
       fontSize: 14,
       fontWeight: "600",
+    },
+    // Verse Modal Styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    verseModalContent: {
+      width: '100%',
+      maxWidth: 360,
+      maxHeight: '70%',
+      borderRadius: 16,
+      padding: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    verseModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 16,
+    },
+    verseModalTitle: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    verseModalScroll: {
+      maxHeight: 300,
+    },
+    verseModalText: {
+      fontSize: 16,
+      lineHeight: 26,
+      fontStyle: 'italic',
+    },
+    verseModalAttribution: {
+      fontSize: 12,
+      marginTop: 16,
+      textAlign: 'right',
+      fontWeight: '500',
+    },
+    verseModalLoading: {
+      paddingVertical: 40,
+      alignItems: 'center',
+      gap: 12,
+    },
+    verseModalLoadingText: {
+      fontSize: 14,
+    },
+    // Bottom Navigation Bar
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      paddingBottom: 28, // Extra padding for home indicator
+      borderTopWidth: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    bottomBarButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    bottomBarButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
     },
   });
 }

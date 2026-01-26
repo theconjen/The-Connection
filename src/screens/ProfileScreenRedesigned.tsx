@@ -16,6 +16,7 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -33,6 +34,7 @@ import {
   useFollowStatus,
 } from '../queries/follow';
 import { Colors } from '../shared/colors';
+import { fetchBiblePassage, looksLikeBibleReference } from '../lib/bibleApi';
 
 // Custom church icon
 const ChurchIcon = require('../../assets/church-icon.png');
@@ -48,6 +50,9 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'posts' | 'communities'>('posts');
   const [refreshing, setRefreshing] = useState(false);
+  const [showVerseModal, setShowVerseModal] = useState(false);
+  const [versePassage, setVersePassage] = useState<{ reference: string; text: string; translation: string } | null>(null);
+  const [verseLoading, setVerseLoading] = useState(false);
 
   // Determine if viewing own profile
   const viewingOwnProfile = !userId || userId === currentUser?.id;
@@ -99,6 +104,33 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
       refreshAuth(),    // Refresh global user state
     ]);
     setRefreshing(false);
+  };
+
+  const handleVersePress = async () => {
+    const verseText = user?.favoriteBibleVerse;
+    if (!verseText) return;
+
+    setShowVerseModal(true);
+    setVerseLoading(true);
+
+    // Check if it looks like a Bible reference (e.g., "John 3:16")
+    if (looksLikeBibleReference(verseText)) {
+      const result = await fetchBiblePassage(verseText);
+      setVersePassage({
+        reference: result.reference,
+        text: result.text,
+        translation: result.translation || 'WEB',
+      });
+    } else {
+      // It's already the full passage text, not a reference
+      setVersePassage({
+        reference: '',
+        text: verseText,
+        translation: '',
+      });
+    }
+
+    setVerseLoading(false);
   };
 
   const handleAvatarChange = async () => {
@@ -308,12 +340,22 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Bio */}
             {user.bio && <Text style={[styles.bio, { color: colors.textPrimary }]}>{user.bio}</Text>}
 
-            {/* Bible Verse - Compact version */}
+            {/* Bible Verse - Tappable to show full passage */}
             {user.favoriteBibleVerse && (
-              <View style={[styles.bibleVerseCompact, { backgroundColor: colors.surfaceMuted, borderLeftColor: colors.primary }]}>
-                <Ionicons name="book" size={14} color={colors.primary} />
-                <Text style={[styles.bibleVerseText, { color: colors.textPrimary }]}>{user.favoriteBibleVerse}</Text>
-              </View>
+              <Pressable
+                onPress={handleVersePress}
+                style={({ pressed }) => [
+                  styles.bibleVerseCompact,
+                  { backgroundColor: `${colors.surfaceMuted}80`, borderLeftColor: `${colors.primary}60` },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Ionicons name="book-outline" size={12} color={colors.textMuted} style={{ opacity: 0.7 }} />
+                <Text style={[styles.bibleVerseText, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {user.favoriteBibleVerse}
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ opacity: 0.5 }} />
+              </Pressable>
             )}
 
             {/* Interests as tags */}
@@ -438,8 +480,52 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="document-outline" size={48} color={colors.textSecondary} />
-                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No posts yet</Text>
+                  <Ionicons name="document-outline" size={40} color={colors.textMuted} style={{ opacity: 0.5, marginBottom: 8 }} />
+
+                  {viewingOwnProfile ? (
+                    // Own profile empty state
+                    <>
+                      <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
+                        {stats.postsCount > 0 ? "Your posts aren't showing here" : 'Nothing here yet'}
+                      </Text>
+                      <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                        {stats.postsCount > 0
+                          ? 'Check your privacy settings if this seems wrong.'
+                          : "Share something when you're ready."}
+                      </Text>
+                      <Pressable
+                        style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
+                        onPress={() => router.push('/create')}
+                      >
+                        <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
+                          Create a post
+                        </Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    // Viewing another user's profile
+                    <>
+                      <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
+                        {stats.postsCount > 0 ? "Posts aren't visible" : 'Nothing here yet'}
+                      </Text>
+                      <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                        {stats.postsCount > 0
+                          ? 'Follow to see what they share.'
+                          : "They haven't shared anything publicly."}
+                      </Text>
+                      {stats.postsCount > 0 && !followStatus?.isFollowing && (
+                        <Pressable
+                          style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
+                          onPress={handleFollow}
+                          disabled={followMutation.isPending}
+                        >
+                          <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
+                            Follow
+                          </Text>
+                        </Pressable>
+                      )}
+                    </>
+                  )}
                 </View>
               )}
             </View>
@@ -481,6 +567,56 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
         </View>
       </ScrollView>
+
+      {/* Bible Verse Modal */}
+      <Modal
+        visible={showVerseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowVerseModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowVerseModal(false)}
+        >
+          <Pressable style={[styles.verseModalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.verseModalHeader}>
+              <Ionicons name="book" size={20} color={colors.primary} />
+              <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
+                {versePassage?.reference || 'Favorite Verse'}
+              </Text>
+              <Pressable
+                onPress={() => setShowVerseModal(false)}
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            {verseLoading ? (
+              <View style={styles.verseModalLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.verseModalLoadingText, { color: colors.textMuted }]}>
+                  Loading passage...
+                </Text>
+              </View>
+            ) : (
+              <>
+                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={false}>
+                  <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
+                    {versePassage?.text || user?.favoriteBibleVerse}
+                  </Text>
+                </ScrollView>
+                {versePassage?.translation && (
+                  <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+                    {versePassage.translation}
+                  </Text>
+                )}
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -587,19 +723,20 @@ const styles = StyleSheet.create({
   },
   bibleVerseCompact: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    alignItems: 'flex-start',
+    gap: 8,
     marginTop: 10,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 6,
-    borderLeftWidth: 2,
+    borderRadius: 4,
+    borderLeftWidth: 1.5,
   },
   bibleVerseText: {
     flex: 1,
     fontSize: 12,
     fontStyle: 'italic',
-    lineHeight: 16,
+    lineHeight: 17,
+    opacity: 0.85,
   },
   interestTags: {
     flexDirection: 'row',
@@ -739,11 +876,88 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyHeadline: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
+    textAlign: 'center',
   },
   emptyText: {
     fontSize: 16,
     marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  emptyActionButton: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  emptyActionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Bible Verse Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  verseModalContent: {
+    width: '100%',
+    maxWidth: 360,
+    maxHeight: '70%',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  verseModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  verseModalTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  verseModalScroll: {
+    maxHeight: 300,
+  },
+  verseModalText: {
+    fontSize: 16,
+    lineHeight: 26,
+    fontStyle: 'italic',
+  },
+  verseModalAttribution: {
+    fontSize: 12,
+    marginTop: 16,
+    textAlign: 'right',
+    fontWeight: '500',
+  },
+  verseModalLoading: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  verseModalLoadingText: {
+    fontSize: 14,
   },
 });
 

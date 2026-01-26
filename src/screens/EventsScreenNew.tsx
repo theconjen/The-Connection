@@ -11,10 +11,13 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  ActionSheetIOS,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { eventsAPI } from "../lib/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { useTheme } from "../contexts/ThemeContext";
@@ -28,7 +31,11 @@ const ChurchIcon = require("../../assets/church-icon.png");
 
 type Range = "today" | "week" | "weekend" | "next" | "all";
 type Mode = "all" | "inPerson" | "online";
-type DistanceFilter = "all" | "5" | "10" | "20" | "50" | "100";
+type DistanceFilter = "all" | "5" | "10" | "25" | "50";
+type EventType = "all" | "Sunday Service" | "Worship" | "Bible Study" | "Social" | "Service" | "Prayer";
+
+// RSVP status type - matches backend values: 'going', 'maybe', 'not_going'
+type RsvpStatus = 'going' | 'maybe' | 'not_going' | null;
 
 type EventItem = {
   id: number | string;
@@ -55,6 +62,9 @@ type EventItem = {
   isPrivate?: boolean;
   isPublic?: boolean;
   attendingCount?: number | null;
+  rsvpStatus?: RsvpStatus; // User's RSVP status for this event (legacy)
+  userRsvpStatus?: RsvpStatus; // User's RSVP status from API
+  isBookmarked?: boolean; // User's bookmark status from API
 };
 
 // ----- API -----
@@ -288,14 +298,29 @@ const EVENT_TYPE_GRADIENTS: Record<string, [string, string]> = {
   'Prayer': ['#9F7AEA', '#805AD5'],
 };
 
+// RSVP status colors - matches backend values
+const RSVP_COLORS: Record<string, string> = {
+  going: '#22C55E',     // Green
+  maybe: '#EAB308',     // Yellow
+  not_going: '#EF4444', // Red
+};
+
 function EventCard({
   item,
   colors,
   onPress,
+  rsvpStatus,
+  onRsvpPress,
+  onBookmarkPress,
+  isBookmarked,
 }: {
   item: EventItem;
   colors: any;
   onPress: () => void;
+  rsvpStatus?: RsvpStatus;
+  onRsvpPress?: () => void;
+  onBookmarkPress?: () => void;
+  isBookmarked?: boolean;
 }) {
   // Handle both isOnline and isVirtual flags
   const isOnlineEvent = item.isOnline || item.isVirtual;
@@ -323,21 +348,21 @@ function EventCard({
         { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
       ]}
     >
-      {/* Poster block with default gradient */}
+      {/* Poster block with custom flyer image or default gradient */}
       <View
         style={[
           styles.poster,
-          item.posterUrl
+          (item.imageUrl || item.posterUrl)
             ? { backgroundColor: colors.surfaceNested, borderColor: colors.borderSubtle }
             : { backgroundColor: gradientStart, borderColor: colors.borderSubtle }
         ]}
       >
-        {item.posterUrl ? (
-          <View style={styles.posterImagePlaceholder}>
-            <Text style={{ color: colors.textPrimaryTertiary, fontWeight: "700" }}>
-              Poster
-            </Text>
-          </View>
+        {(item.imageUrl || item.posterUrl) ? (
+          <Image
+            source={{ uri: item.imageUrl || item.posterUrl || '' }}
+            style={styles.posterImage}
+            resizeMode="cover"
+          />
         ) : (
           <View style={styles.posterFallback}>
             {/* Event type icon */}
@@ -411,30 +436,42 @@ function EventCard({
         </View>
 
         <View style={{ flexDirection: "row", gap: 6 }}>
+          {/* Bookmark button */}
           <Pressable
             hitSlop={10}
-            onPress={() => {
-              // TODO: save action
-            }}
+            onPress={onBookmarkPress}
             style={[
               styles.iconAction,
-              { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
+              {
+                backgroundColor: isBookmarked ? colors.primary : colors.surfaceMuted,
+                borderColor: isBookmarked ? colors.primary : colors.borderSoft
+              },
             ]}
           >
-            <Ionicons name="bookmark-outline" size={15} color={colors.textPrimary} />
+            <Ionicons
+              name={isBookmarked ? "bookmark" : "bookmark-outline"}
+              size={15}
+              color={isBookmarked ? '#FFFFFF' : colors.textPrimary}
+            />
           </Pressable>
 
+          {/* RSVP status button */}
           <Pressable
             hitSlop={10}
-            onPress={() => {
-              // TODO: going action
-            }}
+            onPress={onRsvpPress}
             style={[
               styles.iconAction,
-              { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
+              {
+                backgroundColor: rsvpStatus ? RSVP_COLORS[rsvpStatus] : colors.surfaceMuted,
+                borderColor: rsvpStatus ? RSVP_COLORS[rsvpStatus] : colors.borderSoft
+              },
             ]}
           >
-            <Ionicons name="checkmark-circle-outline" size={15} color={colors.textPrimary} />
+            <Ionicons
+              name={rsvpStatus ? "checkmark-circle" : "checkmark-circle-outline"}
+              size={15}
+              color={rsvpStatus ? '#FFFFFF' : colors.textPrimary}
+            />
           </Pressable>
         </View>
       </View>
@@ -465,14 +502,155 @@ export default function EventsScreenNew({
   const [range, setRange] = useState<Range>("week");
   const [mode, setMode] = useState<Mode>("all");
   const [distance, setDistance] = useState<DistanceFilter>("all");
+  const [eventType, setEventType] = useState<EventType>("all");
   const [q, setQ] = useState("");
   const [city, setCity] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [showMyEvents, setShowMyEvents] = useState(false);
 
   // Location state
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+
+  // RSVP and bookmark state - track per event
+  const [rsvpStatuses, setRsvpStatuses] = useState<Record<string | number, RsvpStatus>>({});
+  const [bookmarkedEvents, setBookmarkedEvents] = useState<Set<string | number>>(new Set());
+  const queryClient = useQueryClient();
+
+  // RSVP mutation
+  const rsvpMutation = useMutation({
+    mutationFn: async ({ eventId, status }: { eventId: number; status: string }) => {
+      return eventsAPI.rsvp(eventId, status);
+    },
+    onSuccess: (_, { eventId, status }) => {
+      setRsvpStatuses(prev => ({
+        ...prev,
+        [eventId]: status as RsvpStatus,
+      }));
+    },
+    onError: (error: any) => {
+      // Extract actual server error message from axios response
+      const serverMessage = error.response?.data?.error || error.response?.data?.message;
+      const statusCode = error.response?.status;
+
+      console.error('[RSVP Error]', {
+        statusCode,
+        serverMessage,
+        responseData: error.response?.data,
+        axiosMessage: error.message
+      });
+
+      // Show user-friendly message based on error
+      if (statusCode === 403 && serverMessage?.includes('suspended')) {
+        Alert.alert('Account Issue', serverMessage || 'Your account has been suspended. Please contact support.');
+      } else if (statusCode === 401) {
+        Alert.alert('Login Required', 'Please log in again to RSVP to events.');
+      } else {
+        Alert.alert('RSVP Failed', serverMessage || error.message || 'Failed to update RSVP. Please try again.');
+      }
+    },
+  });
+
+  // Handle RSVP button press - show action sheet
+  // Backend expects: 'going', 'maybe', 'not_going'
+  const handleRsvpPress = (eventId: number | string) => {
+    const currentStatus = rsvpStatuses[eventId];
+    const options = ['Going', 'Maybe', "Can't Go", 'Clear RSVP', 'Cancel'];
+    const statusMap: Record<number, RsvpStatus> = {
+      0: 'going',
+      1: 'maybe',
+      2: 'not_going',
+    };
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex: 4,
+          destructiveButtonIndex: 3,
+          title: 'Set your RSVP status',
+        },
+        (buttonIndex) => {
+          if (buttonIndex < 3) {
+            rsvpMutation.mutate({ eventId: Number(eventId), status: statusMap[buttonIndex]! });
+          } else if (buttonIndex === 3) {
+            // Clear RSVP
+            setRsvpStatuses(prev => {
+              const newStatuses = { ...prev };
+              delete newStatuses[eventId];
+              return newStatuses;
+            });
+          }
+        }
+      );
+    } else {
+      // Android - use Alert with buttons
+      Alert.alert(
+        'Set your RSVP status',
+        undefined,
+        [
+          { text: 'Going', onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'going' }) },
+          { text: 'Maybe', onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'maybe' }) },
+          { text: "Can't Go", onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'not_going' }) },
+          { text: 'Clear', style: 'destructive', onPress: () => {
+            setRsvpStatuses(prev => {
+              const newStatuses = { ...prev };
+              delete newStatuses[eventId];
+              return newStatuses;
+            });
+          }},
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  };
+
+  // Bookmark mutation
+  const bookmarkMutation = useMutation({
+    mutationFn: async ({ eventId, isBookmarked }: { eventId: number; isBookmarked: boolean }) => {
+      if (isBookmarked) {
+        // Unbookmark
+        return apiClient.delete(`/api/events/${eventId}/bookmark`);
+      } else {
+        // Bookmark
+        return apiClient.post(`/api/events/${eventId}/bookmark`);
+      }
+    },
+    onMutate: ({ eventId, isBookmarked }) => {
+      // Optimistic update
+      setBookmarkedEvents(prev => {
+        const newSet = new Set(prev);
+        if (isBookmarked) {
+          newSet.delete(eventId);
+        } else {
+          newSet.add(eventId);
+        }
+        return newSet;
+      });
+    },
+    onError: (error: any, { eventId, isBookmarked }) => {
+      // Rollback on error
+      setBookmarkedEvents(prev => {
+        const newSet = new Set(prev);
+        if (isBookmarked) {
+          newSet.add(eventId); // Re-add if unbookmark failed
+        } else {
+          newSet.delete(eventId); // Remove if bookmark failed
+        }
+        return newSet;
+      });
+
+      const serverMessage = error.response?.data?.error || error.response?.data?.message;
+      Alert.alert('Bookmark Failed', serverMessage || 'Failed to update bookmark. Please try again.');
+    },
+  });
+
+  // Handle bookmark press
+  const handleBookmarkPress = (eventId: number | string) => {
+    const isCurrentlyBookmarked = bookmarkedEvents.has(eventId);
+    bookmarkMutation.mutate({ eventId: Number(eventId), isBookmarked: isCurrentlyBookmarked });
+  };
 
   // Navigation handlers - use external handlers if provided, otherwise use defaults
   const onProfilePress = externalProfilePress || (() => router.push("/(tabs)/profile"));
@@ -517,13 +695,50 @@ export default function EventsScreenNew({
     }
   };
 
-  const { data: rawData, isLoading, isError, refetch } = useQuery({
+  const { data: rawData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ["events", { view, range, mode, distance, q, city, userLocation }],
     queryFn: () => fetchEvents({ range, mode, distance, q, city, userLocation }),
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache longer (formerly cacheTime)
+    refetchOnMount: false, // Don't refetch when component mounts if data exists
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
-  // Filter out past events and private events - only show upcoming public events
+  // Initialize RSVP statuses from API response (persists across app reloads)
+  useEffect(() => {
+    if (rawData && rawData.length > 0) {
+      const initialStatuses: Record<string | number, RsvpStatus> = {};
+      rawData.forEach((event) => {
+        if (event.userRsvpStatus) {
+          initialStatuses[event.id] = event.userRsvpStatus;
+        }
+      });
+      // Only update if we have statuses to set (avoid overwriting user's recent changes)
+      if (Object.keys(initialStatuses).length > 0) {
+        setRsvpStatuses(prev => ({ ...initialStatuses, ...prev }));
+      }
+    }
+  }, [rawData]);
+
+  // Initialize bookmark statuses from API response (persists across app reloads)
+  useEffect(() => {
+    if (rawData && rawData.length > 0) {
+      const initialBookmarks = new Set<string | number>();
+      rawData.forEach((event) => {
+        if (event.isBookmarked) {
+          initialBookmarks.add(event.id);
+        }
+      });
+      // Only update if we have bookmarks to set (merge with existing to preserve recent changes)
+      if (initialBookmarks.size > 0) {
+        setBookmarkedEvents(prev => new Set([...initialBookmarks, ...prev]));
+      }
+    }
+  }, [rawData]);
+
+  // Filter out past events - only show upcoming events
+  // Note: isPublic filter removed since existing events have isPublic=false
+  // Events marked as explicitly private (isPrivate=true) are still hidden
   const data = useMemo(() => {
     if (!rawData) return [];
 
@@ -531,9 +746,28 @@ export default function EventsScreenNew({
     now.setHours(0, 0, 0, 0); // Start of today
 
     return rawData.filter((event) => {
-      // Filter out private events - they should only be visible in the community Events tab
-      if (event.isPrivate === true || event.isPublic === false) {
+      // Only filter out explicitly private events
+      if (event.isPrivate === true) {
         return false;
+      }
+
+      // Event type filter
+      if (eventType !== "all") {
+        const eventCategory = event.category || 'Sunday Service';
+        if (eventCategory !== eventType) {
+          return false;
+        }
+      }
+
+      // "My Events" filter - show bookmarked OR events where user RSVP'd "going" or "maybe"
+      // (not "not_going" - declining an event shouldn't add it to My Events)
+      if (showMyEvents) {
+        const isBookmarked = bookmarkedEvents.has(event.id);
+        const rsvpStatus = rsvpStatuses[event.id];
+        const isAttending = rsvpStatus === 'going' || rsvpStatus === 'maybe';
+        if (!isBookmarked && !isAttending) {
+          return false;
+        }
       }
 
       // Try to parse the event date - prefer eventDate (new API), fall back to startsAt (legacy)
@@ -554,7 +788,7 @@ export default function EventsScreenNew({
       // Only show events that are today or in the future
       return eventDateParsed >= now;
     });
-  }, [rawData]);
+  }, [rawData, showMyEvents, bookmarkedEvents, rsvpStatuses, eventType]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -562,15 +796,17 @@ export default function EventsScreenNew({
     if (range !== "week") count++;
     if (mode !== "all") count++;
     if (distance !== "all") count++;
+    if (eventType !== "all") count++;
     if (q.trim()) count++;
     if (city.trim()) count++;
     return count;
-  }, [range, mode, distance, q, city]);
+  }, [range, mode, distance, eventType, q, city]);
 
   const clearAllFilters = () => {
     setRange("week");
     setMode("all");
     setDistance("all");
+    setEventType("all");
     setQ("");
     setCity("");
   };
@@ -596,21 +832,6 @@ export default function EventsScreenNew({
         onMenuPress={onMenuPress}
         unreadNotificationCount={unreadNotificationCount}
         unreadMessageCount={unreadMessageCount}
-        leftElement={
-          <Pressable
-            onPress={() => router.push("/events/create")}
-            style={({ pressed }) => ({
-              width: 40,
-              height: 40,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: pressed ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
-              borderRadius: radii.full,
-            })}
-          >
-            <Ionicons name="add" size={26} color="#FFFFFF" />
-          </Pressable>
-        }
       />
 
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -670,199 +891,150 @@ export default function EventsScreenNew({
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={{ maxHeight: 40 }}
             contentContainerStyle={styles.activeFiltersRow}
           >
             {range !== "week" && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
-                <Text style={[styles.activeFilterText, { color: colors.textPrimary }]}>
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
                   {range === "today" ? "Today" : range === "weekend" ? "Weekend" : range === "next" ? "Next Week" : "All"}
                 </Text>
-                <Pressable onPress={() => setRange("week")} hitSlop={4}>
-                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                <Pressable onPress={() => setRange("week")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
+                </Pressable>
+              </View>
+            )}
+            {eventType !== "all" && (
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>{eventType}</Text>
+                <Pressable onPress={() => setEventType("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
                 </Pressable>
               </View>
             )}
             {mode !== "all" && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
-                <Text style={[styles.activeFilterText, { color: colors.textPrimary }]}>
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
                   {mode === "inPerson" ? "In-Person" : "Online"}
                 </Text>
-                <Pressable onPress={() => setMode("all")} hitSlop={4}>
-                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                <Pressable onPress={() => setMode("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
                 </Pressable>
               </View>
             )}
             {distance !== "all" && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
-                <Ionicons name="navigate-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={[styles.activeFilterText, { color: colors.textPrimary }]}>
-                  Within {distance} mi
-                </Text>
-                <Pressable onPress={() => setDistance("all")} hitSlop={4} style={{ marginLeft: 4 }}>
-                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>{distance} mi</Text>
+                <Pressable onPress={() => setDistance("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
                 </Pressable>
               </View>
             )}
             {city.trim() && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
-                <Ionicons name="location-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={[styles.activeFilterText, { color: colors.textPrimary }]}>{city}</Text>
-                <Pressable onPress={() => setCity("")} hitSlop={4} style={{ marginLeft: 4 }}>
-                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>{city}</Text>
+                <Pressable onPress={() => setCity("")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
                 </Pressable>
               </View>
             )}
-            <Pressable onPress={clearAllFilters} style={[styles.clearAllBtn, { borderColor: colors.borderSubtle }]}>
-              <Text style={[styles.clearAllText, { color: colors.textSecondary }]}>Clear All</Text>
+            <Pressable onPress={clearAllFilters} style={[styles.clearAllBtn, { borderColor: colors.textMuted }]}>
+              <Text style={[styles.clearAllText, { color: colors.textMuted }]}>Clear</Text>
             </Pressable>
           </ScrollView>
         )}
 
-        {/* Expanded Filters Panel */}
+        {/* Expanded Filters Panel - Compact Layout */}
         {filtersExpanded && (
           <View style={[styles.filtersPanel, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Date Range */}
-              <FilterSection title="DATE RANGE" colors={colors}>
-                <View style={styles.filterGrid}>
-                  <FilterChip
-                    label="Today"
-                    active={range === "today"}
-                    onPress={() => setRange("today")}
-                    icon="today-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="This Week"
-                    active={range === "week"}
-                    onPress={() => setRange("week")}
-                    icon="calendar-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="Weekend"
-                    active={range === "weekend"}
-                    onPress={() => setRange("weekend")}
-                    icon="calendar-number-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="Next Week"
-                    active={range === "next"}
-                    onPress={() => setRange("next")}
-                    icon="arrow-forward-circle-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="All Events"
-                    active={range === "all"}
-                    onPress={() => setRange("all")}
-                    colors={colors}
-                  />
-                </View>
-              </FilterSection>
+              {/* Row 1: Date Range */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>When</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  {[
+                    { key: "today", label: "Today" },
+                    { key: "week", label: "This Week" },
+                    { key: "weekend", label: "Weekend" },
+                    { key: "next", label: "Next Week" },
+                    { key: "all", label: "All" },
+                  ].map((item) => (
+                    <FilterChip
+                      key={item.key}
+                      label={item.label}
+                      active={range === item.key}
+                      onPress={() => setRange(item.key as Range)}
+                      colors={colors}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
 
-              {/* Event Format */}
-              <FilterSection title="EVENT FORMAT" colors={colors}>
-                <View style={styles.filterGrid}>
-                  <FilterChip
-                    label="All"
-                    active={mode === "all"}
-                    onPress={() => setMode("all")}
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="In-Person"
-                    active={mode === "inPerson"}
-                    onPress={() => setMode("inPerson")}
-                    icon="location-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="Online"
-                    active={mode === "online"}
-                    onPress={() => setMode("online")}
-                    icon="videocam-outline"
-                    colors={colors}
-                  />
-                </View>
-              </FilterSection>
+              {/* Row 2: Event Type */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Type</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  {[
+                    { key: "all", label: "All Types" },
+                    { key: "Sunday Service", label: "Sunday Service" },
+                    { key: "Worship", label: "Worship" },
+                    { key: "Bible Study", label: "Bible Study" },
+                    { key: "Social", label: "Social" },
+                    { key: "Service", label: "Service" },
+                    { key: "Prayer", label: "Prayer" },
+                  ].map((item) => (
+                    <FilterChip
+                      key={item.key}
+                      label={item.label}
+                      active={eventType === item.key}
+                      onPress={() => setEventType(item.key as EventType)}
+                      colors={colors}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
 
-              {/* Distance Filter */}
-              <FilterSection
-                title="DISTANCE"
-                subtitle={locationLoading ? "Getting your location..." : !locationPermissionGranted ? "Location permission required" : undefined}
-                colors={colors}
-              >
+              {/* Row 3: Format & Distance combined */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Format</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  <FilterChip label="All" active={mode === "all"} onPress={() => setMode("all")} colors={colors} />
+                  <FilterChip label="In-Person" active={mode === "inPerson"} onPress={() => setMode("inPerson")} icon="location-outline" colors={colors} />
+                  <FilterChip label="Online" active={mode === "online"} onPress={() => setMode("online")} icon="videocam-outline" colors={colors} />
+                </ScrollView>
+              </View>
+
+              {/* Row 4: Distance */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Distance</Text>
                 {locationLoading ? (
-                  <View style={styles.locationLoading}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={[styles.locationLoadingText, { color: colors.textSecondary }]}>
-                      Getting your location...
-                    </Text>
-                  </View>
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 12 }} />
                 ) : (
-                  <View style={styles.filterGrid}>
-                    <FilterChip
-                      label="All Distances"
-                      active={distance === "all"}
-                      onPress={() => setDistance("all")}
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="5 miles"
-                      active={distance === "5"}
-                      onPress={() => handleDistanceFilterChange("5")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="10 miles"
-                      active={distance === "10"}
-                      onPress={() => handleDistanceFilterChange("10")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="20 miles"
-                      active={distance === "20"}
-                      onPress={() => handleDistanceFilterChange("20")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="50 miles"
-                      active={distance === "50"}
-                      onPress={() => handleDistanceFilterChange("50")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="100 miles"
-                      active={distance === "100"}
-                      onPress={() => handleDistanceFilterChange("100")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                    <FilterChip label="Any" active={distance === "all"} onPress={() => setDistance("all")} colors={colors} />
+                    <FilterChip label="5 mi" active={distance === "5"} onPress={() => handleDistanceFilterChange("5")} colors={colors} />
+                    <FilterChip label="10 mi" active={distance === "10"} onPress={() => handleDistanceFilterChange("10")} colors={colors} />
+                    <FilterChip label="25 mi" active={distance === "25"} onPress={() => handleDistanceFilterChange("25")} colors={colors} />
+                    <FilterChip label="50 mi" active={distance === "50"} onPress={() => handleDistanceFilterChange("50")} colors={colors} />
+                  </ScrollView>
                 )}
-              </FilterSection>
+              </View>
 
-              {/* Location */}
-              <FilterSection title="CITY SEARCH" subtitle="Or search by city name" colors={colors}>
+              {/* Row 5: City Search */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>City</Text>
                 <View
                   style={[
-                    styles.locationInputWrap,
+                    styles.compactInputWrap,
                     { backgroundColor: colors.background, borderColor: colors.borderSubtle },
                   ]}
                 >
-                  <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
                   <TextInput
                     value={city}
                     onChangeText={setCity}
-                    placeholder="Enter city name..."
+                    placeholder="Search city..."
                     placeholderTextColor={colors.textMuted}
-                    style={[styles.input, { color: colors.textPrimary }]}
+                    style={[styles.compactInput, { color: colors.textPrimary }]}
                     returnKeyType="done"
                     onSubmitEditing={() => refetch()}
                   />
@@ -872,35 +1044,62 @@ export default function EventsScreenNew({
                     </Pressable>
                   )}
                 </View>
-              </FilterSection>
+              </View>
 
               {/* Action Buttons */}
-              <View style={styles.filterActions}>
+              <View style={styles.filterActionsCompact}>
                 <Pressable
                   onPress={clearAllFilters}
-                  style={[styles.filterActionBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}
+                  style={[styles.filterActionBtnCompact, { borderColor: colors.borderSubtle }]}
                 >
-                  <Text style={[styles.filterActionText, { color: colors.textPrimary }]}>Clear All</Text>
+                  <Text style={[styles.filterActionTextCompact, { color: colors.textSecondary }]}>Clear</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => {
                     setFiltersExpanded(false);
                     refetch();
                   }}
-                  style={[styles.filterActionBtn, styles.filterActionBtnPrimary, { backgroundColor: colors.primary }]}
+                  style={[styles.filterActionBtnCompact, styles.filterActionBtnPrimaryCompact, { backgroundColor: colors.primary }]}
                 >
-                  <Text style={[styles.filterActionText, { color: colors.primaryForeground }]}>
-                    Apply Filters
-                  </Text>
+                  <Text style={[styles.filterActionTextCompact, { color: colors.primaryForeground }]}>Apply</Text>
                 </Pressable>
               </View>
             </ScrollView>
           </View>
         )}
 
-        {/* View Toggle */}
+        {/* View Toggle and My Events filter */}
         <View style={styles.viewToggleRow}>
-          <ToggleTabs value={view} onChange={setView} leftLabel="List" rightLabel="Map" colors={colors} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <ToggleTabs value={view} onChange={setView} leftLabel="List" rightLabel="Map" colors={colors} />
+
+            {/* My Events toggle */}
+            <Pressable
+              onPress={() => setShowMyEvents(!showMyEvents)}
+              style={[
+                styles.myEventsToggle,
+                {
+                  backgroundColor: showMyEvents ? colors.primary : colors.surfaceMuted,
+                  borderColor: showMyEvents ? colors.primary : colors.borderSoft,
+                },
+              ]}
+            >
+              <Ionicons
+                name="bookmark"
+                size={14}
+                color={showMyEvents ? '#FFFFFF' : colors.textSecondary}
+              />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: showMyEvents ? '#FFFFFF' : colors.textSecondary,
+                }}
+              >
+                My Events
+              </Text>
+            </Pressable>
+          </View>
 
           {/* Results count */}
           {!isLoading && data && (
@@ -975,11 +1174,19 @@ export default function EventsScreenNew({
               );
             })}
           </MapView>
+        ) : isLoading && !rawData ? (
+          // Initial loading state - show loading indicator
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Loading events...
+            </Text>
+          </View>
         ) : (
           <FlatList
             data={data ?? []}
             keyExtractor={(it) => String(it.id)}
-            contentContainerStyle={{ paddingBottom: 18 }}
+            contentContainerStyle={{ paddingBottom: 18, flexGrow: 1 }}
             ListEmptyComponent={
               <View
                 style={[
@@ -1021,9 +1228,13 @@ export default function EventsScreenNew({
                 item={item}
                 colors={colors}
                 onPress={() => router.push({ pathname: "/events/[id]", params: { id: String(item.id) } })}
+                rsvpStatus={rsvpStatuses[item.id]}
+                onRsvpPress={() => handleRsvpPress(item.id)}
+                isBookmarked={bookmarkedEvents.has(item.id)}
+                onBookmarkPress={() => handleBookmarkPress(item.id)}
               />
             )}
-            refreshing={isLoading}
+            refreshing={isFetching && !!rawData}
             onRefresh={refetch}
           />
         )}
@@ -1092,41 +1303,108 @@ const styles = StyleSheet.create({
 
   // Active Filters Row (collapsed state)
   activeFiltersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingVertical: 6,
     gap: 6,
   },
   activeFilterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 14,
     borderWidth: 1,
     gap: 4,
   },
   activeFilterText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   clearAllBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
     borderWidth: 1,
     justifyContent: 'center',
   },
   clearAllText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
 
-  // Filters Panel (expanded state)
+  // Filters Panel (expanded state) - Compact Layout
   filtersPanel: {
-    maxHeight: 400,
+    maxHeight: 320,
     borderBottomWidth: 1,
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingLeft: 16,
+  },
+  filterRowLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    width: 56,
+  },
+  filterScrollContent: {
+    paddingRight: 16,
+    gap: 6,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  compactInputWrap: {
+    flex: 1,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  compactInput: {
+    flex: 1,
+    fontSize: 13,
+    paddingVertical: 4,
+  },
+  filterActionsCompact: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  filterActionBtnCompact: {
+    flex: 1,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterActionBtnPrimaryCompact: {
+    borderWidth: 0,
+  },
+  filterActionTextCompact: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  // Legacy styles (kept for compatibility)
   filterSection: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -1148,18 +1426,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   locationLoading: {
     flexDirection: 'row',
@@ -1209,6 +1475,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
+  myEventsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
   toggleWrap: {
     width: 120,
     height: 36,
@@ -1245,10 +1520,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative",
   },
-  posterImagePlaceholder: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+  posterImage: {
+    width: '100%',
+    height: '100%',
   },
   posterFallback: {
     flex: 1,
@@ -1324,6 +1598,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: '500',
   },
 
   // Map & Empty States

@@ -30,6 +30,7 @@ import { queryClient } from '../../lib/queryClient';
 import { useAuth } from '../contexts/AuthContext';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { shareEvent } from '../lib/shareUrls';
 
 // No custom icon components needed - using Ionicons directly
 
@@ -315,42 +316,67 @@ function EventCard({
             </View>
           </View>
 
-          {/* RSVP Button */}
-          {onRsvp && (
+          {/* Action Buttons Row */}
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+            {/* RSVP Button */}
+            {onRsvp && (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  const nextStatus = event.userRsvpStatus === 'going' ? 'not_going' : 'going';
+                  onRsvp(event.id, nextStatus);
+                }}
+                style={{
+                  paddingVertical: 6,
+                  paddingHorizontal: 12,
+                  backgroundColor: getRsvpColor(),
+                  borderRadius: radii.md,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Ionicons
+                  name={getRsvpIcon()}
+                  size={14}
+                  color={event.userRsvpStatus ? colors.primaryForeground : colors.textMuted}
+                />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '600',
+                    color: event.userRsvpStatus ? colors.primaryForeground : colors.textMuted,
+                  }}
+                >
+                  {event.userRsvpStatus === 'going' ? 'Going' : event.userRsvpStatus === 'maybe' ? 'Maybe' : 'RSVP'}
+                </Text>
+              </Pressable>
+            )}
+
+            {/* Share Button */}
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
-                const nextStatus = event.userRsvpStatus === 'going' ? 'not_going' : 'going';
-                onRsvp(event.id, nextStatus);
+                shareEvent(event.id, event.title);
               }}
               style={{
-                marginTop: spacing.sm,
                 paddingVertical: 6,
                 paddingHorizontal: 12,
-                backgroundColor: getRsvpColor(),
+                backgroundColor: colors.surfaceMuted,
                 borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSubtle,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 6,
-                alignSelf: 'flex-start',
               }}
             >
-              <Ionicons
-                name={getRsvpIcon()}
-                size={14}
-                color={event.userRsvpStatus ? colors.primaryForeground : colors.textMuted}
-              />
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: '600',
-                  color: event.userRsvpStatus ? colors.primaryForeground : colors.textMuted,
-                }}
-              >
-                {event.userRsvpStatus === 'going' ? 'Going' : event.userRsvpStatus === 'maybe' ? 'Maybe' : 'RSVP'}
+              <Ionicons name="share-outline" size={14} color={colors.textMuted} />
+              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
+                Share
               </Text>
             </Pressable>
-          )}
+          </View>
         </View>
       </View>
     </Pressable>

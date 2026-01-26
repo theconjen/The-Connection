@@ -17,6 +17,7 @@ import {
   Modal,
   Pressable,
   Switch,
+  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
@@ -25,6 +26,7 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 
 interface Community {
   id: number;
@@ -70,8 +72,9 @@ export default function CreateEventScreen() {
   const { user } = useAuth();
   const styles = getStyles(colors, colorScheme);
 
-  // Check if user is the app owner (can create events for "The Connection")
-  const isAppOwner = user?.id === 19 && user?.username === 'Janelle'; // Only Janelle can create app-wide events
+  // Only Janelle (app owner) can create events hosted by "The Connection" (no community)
+  // Other community admins can create public events for their own communities
+  const isAppOwner = user?.username === 'Janelle';
 
   // Form state
   const [title, setTitle] = useState('');
@@ -85,6 +88,7 @@ export default function CreateEventScreen() {
   const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(
     urlCommunityId ? parseInt(urlCommunityId) : null
   );
+  const [flyerImage, setFlyerImage] = useState<string | null>(null); // Base64 image for event flyer
 
   // Date and time state
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -142,19 +146,80 @@ export default function CreateEventScreen() {
     setSelectedLocation(null); // Clear selected location when user types
   };
 
+  // Handle image picker for event flyer
+  const pickImage = async () => {
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library to add a flyer.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false, // Allow full image without forced cropping
+      quality: 0.8, // Good quality while keeping size reasonable
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (asset.base64) {
+        // Get the file extension
+        const uri = asset.uri;
+        const extension = uri.split('.').pop()?.toLowerCase() || 'jpeg';
+        const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+
+        // Create base64 data URL
+        const base64Image = `data:${mimeType};base64,${asset.base64}`;
+        setFlyerImage(base64Image);
+      }
+    }
+  };
+
+  // Remove selected flyer image
+  const removeImage = () => {
+    setFlyerImage(null);
+  };
+
   const createMutation = useMutation({
-    mutationFn: (data: any) => eventsAPI.create(data),
-    onSuccess: () => {
+    mutationFn: async (data: any) => {
+      // Log the payload for debugging
+      console.info('[CreateEvent] Sending payload:', JSON.stringify(data, null, 2));
+      const response = await eventsAPI.create(data);
+      console.info('[CreateEvent] API Response:', JSON.stringify(response));
+      return response;
+    },
+    onSuccess: (data) => {
+      console.info('[CreateEvent] SUCCESS - Created event:', JSON.stringify(data));
       queryClient.invalidateQueries({ queryKey: ['events'] });
       if (selectedCommunityId) {
         queryClient.invalidateQueries({ queryKey: ['community-events', selectedCommunityId] });
       }
-      Alert.alert('Success', 'Event created!', [
+      Alert.alert('Success', `Event created! (ID: ${data?.id || 'unknown'})`, [
         { text: 'OK', onPress: () => router.back() },
       ]);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.error || 'Failed to create event';
+      // Extract detailed error message from backend
+      const errorData = error.response?.data;
+      let message = 'Failed to create event';
+
+      if (errorData) {
+        // Handle various error response formats
+        if (errorData.error) {
+          message = errorData.error;
+        } else if (errorData.message) {
+          message = errorData.message;
+        } else if (errorData.details) {
+          // Zod validation errors
+          message = Array.isArray(errorData.details)
+            ? errorData.details.map((d: any) => d.message || d).join(', ')
+            : errorData.details;
+        }
+      }
+
+      console.error('[CreateEvent] Error:', error.response?.status, errorData);
       Alert.alert('Error', message);
     },
   });
@@ -210,18 +275,42 @@ export default function CreateEventScreen() {
       }
     }
 
-    createMutation.mutate({
+    // Build payload - use null instead of undefined for optional fields
+    // Zod schemas from Drizzle expect null for nullable fields, not undefined
+    const payload: any = {
       title: title.trim(),
       description: description.trim(),
-      location: location.trim() || undefined,
-      latitude,
-      longitude,
       eventDate,
       startTime,
       endTime,
-      communityId: selectedCommunityId || undefined, // null/undefined for "The Connection" events
-      isPublic, // Send public/private status
-    });
+      isPublic,
+      // IMPORTANT: Always include communityId - use null for "The Connection" events
+      // Backend requires this field to be present (null is valid for app-owner events)
+      communityId: selectedCommunityId,
+    };
+
+    // Add flyer image if selected
+    if (flyerImage) {
+      payload.imageUrl = flyerImage;
+    }
+
+    // Only add optional fields if they have values
+    if (location.trim()) {
+      payload.location = location.trim();
+    }
+    if (latitude !== undefined && longitude !== undefined) {
+      // Backend expects latitude/longitude as strings (text columns)
+      payload.latitude = String(latitude);
+      payload.longitude = String(longitude);
+    }
+
+    // Debug logging - show exactly what's being sent
+    console.info('[CreateEvent] === PAYLOAD DEBUG ===');
+    console.info('[CreateEvent] selectedCommunityId:', selectedCommunityId, '(type:', typeof selectedCommunityId, ')');
+    console.info('[CreateEvent] isAppOwner:', isAppOwner);
+    console.info('[CreateEvent] Full payload:', JSON.stringify(payload));
+
+    createMutation.mutate(payload);
   };
 
   const formatDate = (date: Date) => {
@@ -243,6 +332,22 @@ export default function CreateEventScreen() {
 
   const selectedCommunity = communities?.find(c => c.id === selectedCommunityId);
   const isTheConnectionSelected = selectedCommunityId === null && isAppOwner;
+
+  // Form validation - check all required fields
+  const isFormValid = (() => {
+    // Title and description are required
+    if (!title.trim() || !description.trim()) return false;
+
+    // Community is required unless user is app owner
+    if (!selectedCommunityId && !isAppOwner) return false;
+
+    // Date must be today or in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) return false;
+
+    return true;
+  })();
 
   return (
     <KeyboardAvoidingView
@@ -271,7 +376,7 @@ export default function CreateEventScreen() {
                 {communitiesLoading
                   ? 'Loading communities...'
                   : isTheConnectionSelected
-                  ? '✨ The Connection'
+                  ? 'The Connection'
                   : !isAppOwner && communities && communities.length === 0
                   ? 'No communities available'
                   : selectedCommunity
@@ -316,6 +421,34 @@ export default function CreateEventScreen() {
               textAlignVertical="top"
               maxLength={500}
             />
+          </View>
+
+          {/* Event Flyer Image */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Event Flyer</Text>
+            {flyerImage ? (
+              <View style={styles.flyerPreviewContainer}>
+                <Image source={{ uri: flyerImage }} style={styles.flyerPreview} />
+                <View style={styles.flyerOverlay}>
+                  <TouchableOpacity style={styles.flyerActionButton} onPress={pickImage}>
+                    <Ionicons name="pencil" size={18} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.flyerActionButton, styles.flyerRemoveButton]} onPress={removeImage}>
+                    <Ionicons name="trash" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.flyerUploadButton} onPress={pickImage}>
+                <View style={styles.flyerUploadContent}>
+                  <Ionicons name="image-outline" size={32} color={colors.primary} />
+                  <Text style={[styles.flyerUploadText, { color: colors.textPrimary }]}>Add Event Flyer</Text>
+                  <Text style={[styles.flyerUploadHint, { color: colors.textMuted }]}>
+                    Tap to select an image from your library
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Location with Autocomplete */}
@@ -436,10 +569,22 @@ export default function CreateEventScreen() {
 
       {/* Create Button */}
       <View style={styles.footer}>
+        {/* Validation hint */}
+        {!isFormValid && (
+          <Text style={[styles.validationHint, { color: colors.textMuted }]}>
+            {!title.trim()
+              ? 'Title is required'
+              : !description.trim()
+              ? 'Description is required'
+              : !selectedCommunityId && !isAppOwner
+              ? 'Please select a community'
+              : 'Please fill in all required fields'}
+          </Text>
+        )}
         <TouchableOpacity
-          style={[styles.createButton, (createMutation.isPending || isGeocoding) && styles.createButtonDisabled]}
+          style={[styles.createButton, (!isFormValid || createMutation.isPending || isGeocoding) && styles.createButtonDisabled]}
           onPress={handleCreate}
-          disabled={createMutation.isPending || isGeocoding}
+          disabled={!isFormValid || createMutation.isPending || isGeocoding}
         >
           {createMutation.isPending || isGeocoding ? (
             <View style={styles.buttonLoadingContainer}>
@@ -487,7 +632,7 @@ export default function CreateEventScreen() {
                   }}
                 >
                   <View style={styles.communityInfo}>
-                    <Text style={[styles.communityName, styles.theConnectionName]}>✨ The Connection</Text>
+                    <Text style={[styles.communityName, styles.theConnectionName]}>The Connection</Text>
                     <Text style={styles.communityDescription} numberOfLines={1}>
                       Official app-wide event hosted by The Connection
                     </Text>
@@ -525,44 +670,116 @@ export default function CreateEventScreen() {
         </Pressable>
       </Modal>
 
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => {
-            setShowDatePicker(Platform.OS === 'ios');
-            if (date) {
-              setSelectedDate(date);
-            }
-            if (Platform.OS === 'android') {
+      {/* Date Picker - iOS: wrapped in Modal with Done button */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <Pressable
+            style={styles.pickerModalOverlay}
+            onPress={() => setShowDatePicker(false)}
+          >
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.textMuted }]}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerModalTitle}>Select Date</Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.primary }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="spinner"
+                onChange={(event, date) => {
+                  if (date) {
+                    setSelectedDate(date);
+                  }
+                }}
+                themeVariant={colorScheme}
+                minimumDate={new Date()}
+                style={{ height: 200 }}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showDatePicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
               setShowDatePicker(false);
-            }
-          }}
-          themeVariant={colorScheme}
-          minimumDate={new Date()}
-        />
+              if (date) {
+                setSelectedDate(date);
+              }
+            }}
+            themeVariant={colorScheme}
+            minimumDate={new Date()}
+          />
+        )
       )}
 
-      {/* Time Picker */}
-      {showTimePicker && (
-        <DateTimePicker
-          value={selectedTime}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          is24Hour={false}
-          onChange={(event, date) => {
-            setShowTimePicker(Platform.OS === 'ios');
-            if (date) {
-              setSelectedTime(date);
-            }
-            if (Platform.OS === 'android') {
+      {/* Time Picker - iOS: wrapped in Modal with Done button */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showTimePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <Pressable
+            style={styles.pickerModalOverlay}
+            onPress={() => setShowTimePicker(false)}
+          >
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.textMuted }]}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerModalTitle}>Select Time</Text>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.primary }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedTime}
+                mode="time"
+                display="spinner"
+                is24Hour={false}
+                onChange={(event, date) => {
+                  if (date) {
+                    setSelectedTime(date);
+                  }
+                }}
+                themeVariant={colorScheme}
+                style={{ height: 200 }}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showTimePicker && (
+          <DateTimePicker
+            value={selectedTime}
+            mode="time"
+            display="default"
+            is24Hour={false}
+            onChange={(event, date) => {
               setShowTimePicker(false);
-            }
-          }}
-          themeVariant={colorScheme}
-        />
+              if (date) {
+                setSelectedTime(date);
+              }
+            }}
+            themeVariant={colorScheme}
+          />
+        )
       )}
     </KeyboardAvoidingView>
   );
@@ -622,6 +839,52 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
       minHeight: 100,
       paddingTop: 12,
     },
+    flyerPreviewContainer: {
+      position: 'relative',
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    flyerPreview: {
+      width: '100%',
+      height: 180,
+      borderRadius: 12,
+    },
+    flyerOverlay: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      flexDirection: 'row',
+      gap: 8,
+    },
+    flyerActionButton: {
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      borderRadius: 20,
+      padding: 8,
+    },
+    flyerRemoveButton: {
+      backgroundColor: 'rgba(239,68,68,0.9)',
+    },
+    flyerUploadButton: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.borderSubtle,
+      borderStyle: 'dashed',
+      paddingVertical: 32,
+      paddingHorizontal: 16,
+    },
+    flyerUploadContent: {
+      alignItems: 'center',
+      gap: 8,
+    },
+    flyerUploadText: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    flyerUploadHint: {
+      fontSize: 13,
+      textAlign: 'center',
+    },
     pickerButton: {
       backgroundColor: colors.surface,
       borderRadius: 8,
@@ -654,6 +917,11 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
     },
     createButtonDisabled: {
       opacity: 0.6,
+    },
+    validationHint: {
+      fontSize: 12,
+      textAlign: 'center',
+      marginBottom: 8,
     },
     createButtonText: {
       color: '#fff',
@@ -792,5 +1060,35 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
     },
     theConnectionName: {
       color: colors.primary,
+    },
+    // iOS Date/Time Picker Modal Styles
+    pickerModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+      justifyContent: 'flex-end',
+    },
+    pickerModalContent: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      paddingBottom: 20,
+    },
+    pickerModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    pickerModalTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    pickerModalButton: {
+      fontSize: 16,
+      fontWeight: '600',
     },
   });

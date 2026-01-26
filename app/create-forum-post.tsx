@@ -99,37 +99,31 @@ export default function CreateForumPostScreen() {
     }
   };
 
-  const handleTakePhoto = async () => {
-    if (selectedImages.length >= 10) {
-      Alert.alert('Limit Reached', 'You can only add up to 10 images per post');
-      return;
-    }
-
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Please grant camera permissions');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9] as [number, number],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setSelectedImages(prev => [...prev, result.assets[0].uri].slice(0, 10));
-      setSelectedVideo(null);
-      setMediaType('images');
-    }
-  };
-
   const handleRemoveImage = (index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
     if (selectedImages.length === 1) {
       setMediaType(null);
     }
+  };
+
+  // Move image left (earlier in order)
+  const moveImageLeft = (index: number) => {
+    if (index === 0) return;
+    setSelectedImages(prev => {
+      const newImages = [...prev];
+      [newImages[index - 1], newImages[index]] = [newImages[index], newImages[index - 1]];
+      return newImages;
+    });
+  };
+
+  // Move image right (later in order)
+  const moveImageRight = (index: number) => {
+    if (index === selectedImages.length - 1) return;
+    setSelectedImages(prev => {
+      const newImages = [...prev];
+      [newImages[index], newImages[index + 1]] = [newImages[index + 1], newImages[index]];
+      return newImages;
+    });
   };
 
   const handlePickVideo = async () => {
@@ -140,32 +134,6 @@ export default function CreateForumPostScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      allowsEditing: false,
-      quality: 0.8,
-      videoMaxDuration: 120,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
-        Alert.alert('File Too Large', 'Video must be under 50MB');
-        return;
-      }
-      setSelectedVideo(asset.uri);
-      setSelectedImages([]);
-      setMediaType('video');
-    }
-  };
-
-  const handleTakeVideo = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Please grant camera permissions');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       allowsEditing: false,
       quality: 0.8,
@@ -319,14 +287,7 @@ export default function CreateForumPostScreen() {
               style={styles.mediaActionButton}
             >
               <Ionicons name="image-outline" size={20} color={colors.accent} />
-              <Text style={styles.mediaActionButtonText}>Gallery</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleTakePhoto}
-              style={styles.mediaActionButton}
-            >
-              <Ionicons name="camera-outline" size={20} color={colors.accent} />
-              <Text style={styles.mediaActionButtonText}>Camera</Text>
+              <Text style={styles.mediaActionButtonText}>Photos</Text>
             </Pressable>
             <Pressable
               onPress={handlePickVideo}
@@ -334,13 +295,6 @@ export default function CreateForumPostScreen() {
             >
               <Ionicons name="videocam-outline" size={20} color={colors.accent} />
               <Text style={styles.mediaActionButtonText}>Video</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleTakeVideo}
-              style={styles.mediaActionButton}
-            >
-              <Ionicons name="film-outline" size={20} color={colors.accent} />
-              <Text style={styles.mediaActionButtonText}>Record</Text>
             </Pressable>
           </View>
 
@@ -360,6 +314,11 @@ export default function CreateForumPostScreen() {
         {/* Multiple Images Grid Preview */}
         {selectedImages.length > 0 && (
           <View style={styles.imagesGridContainer}>
+            {selectedImages.length > 1 && (
+              <Text style={[styles.reorderHint, { color: colors.textSecondary }]}>
+                Tap arrows to reorder images
+              </Text>
+            )}
             <View style={styles.imagesGrid}>
               {selectedImages.map((imageUri, index) => (
                 <View key={index} style={[
@@ -378,6 +337,39 @@ export default function CreateForumPostScreen() {
                   {selectedImages.length > 1 && (
                     <View style={styles.gridImageCounter}>
                       <Text style={styles.gridImageCounterText}>{index + 1}/{selectedImages.length}</Text>
+                    </View>
+                  )}
+                  {/* Reorder buttons - only show when multiple images */}
+                  {selectedImages.length > 1 && (
+                    <View style={styles.reorderButtons}>
+                      <Pressable
+                        style={[
+                          styles.reorderButton,
+                          index === 0 && styles.reorderButtonDisabled
+                        ]}
+                        onPress={() => moveImageLeft(index)}
+                        disabled={index === 0}
+                      >
+                        <Ionicons
+                          name="chevron-back"
+                          size={18}
+                          color={index === 0 ? 'rgba(255,255,255,0.3)' : '#fff'}
+                        />
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          styles.reorderButton,
+                          index === selectedImages.length - 1 && styles.reorderButtonDisabled
+                        ]}
+                        onPress={() => moveImageRight(index)}
+                        disabled={index === selectedImages.length - 1}
+                      >
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={index === selectedImages.length - 1 ? 'rgba(255,255,255,0.3)' : '#fff'}
+                        />
+                      </Pressable>
                     </View>
                   )}
                 </View>
@@ -756,6 +748,29 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
+  },
+  reorderHint: {
+    fontSize: 12,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  reorderButtons: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  reorderButton: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reorderButtonDisabled: {
+    opacity: 0.5,
   },
   // Video Preview
   videoPreviewContainer: {

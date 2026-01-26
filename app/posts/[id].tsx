@@ -34,6 +34,43 @@ function getAvatarUrl(author?: any): string {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=222D99&color=fff`;
 }
 
+// Generate contextual prompt for empty comments based on post content
+function getContextualPrompt(post: any): string {
+  const content = (post?.content || post?.title || '').toLowerCase();
+
+  // Check for common themes and return invitational prompts
+  if (content.includes('forgiv') || content.includes('grudge')) {
+    return 'How have you wrestled with forgiveness?';
+  }
+  if (content.includes('pray') || content.includes('prayer')) {
+    return 'How can you encourage?';
+  }
+  if (content.includes('question') || content.includes('?')) {
+    return 'What are your thoughts on this?';
+  }
+  if (content.includes('struggl') || content.includes('challeng') || content.includes('difficult')) {
+    return 'Have you experienced something similar?';
+  }
+  if (content.includes('grateful') || content.includes('thankful') || content.includes('bless')) {
+    return 'What are you grateful for today?';
+  }
+  if (content.includes('sermon') || content.includes('pastor') || content.includes('preach') || content.includes('service')) {
+    return 'What stood out to you from this message?';
+  }
+  if (content.includes('scripture') || content.includes('verse') || content.includes('bible')) {
+    return 'How has this passage spoken to you?';
+  }
+
+  // Default invitational prompts
+  const defaults = [
+    'What thoughts does this bring to mind?',
+    'How does this resonate with you?',
+    'What would you add to this conversation?',
+  ];
+  // Use post id to deterministically pick a default
+  return defaults[(post?.id || 0) % defaults.length];
+}
+
 export default function PostDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams() as { id: string };
@@ -142,14 +179,7 @@ export default function PostDetailScreen() {
                     <Text style={styles.postAuthorName}>
                       {getAuthorName(post)}
                     </Text>
-                    {!post.isAnonymous && getAuthorUsername(post) && (
-                      <>
-                        <Text style={styles.postUsername}>
-                          @{getAuthorUsername(post)}
-                        </Text>
-                        <Text style={styles.postDot}>·</Text>
-                      </>
-                    )}
+                    <Text style={styles.postDot}>·</Text>
                     <Text style={styles.postTime}>
                       {post.createdAt ? formatTime(post.createdAt) : 'Recently'}
                     </Text>
@@ -172,15 +202,19 @@ export default function PostDetailScreen() {
                     </View>
                   )}
 
-                  {/* Post Actions */}
+                  {/* Post Actions - hide zeros */}
                   <View style={styles.postActions}>
-                    <TouchableOpacity style={styles.postAction}>
+                    <TouchableOpacity style={[styles.postAction, (post.likeCount || post.upvotes || 0) === 0 && { opacity: 0.5 }]}>
                       <Ionicons name="heart-outline" size={20} color={colors.textSecondary} />
-                      <Text style={styles.postActionText}>{post.likeCount || post.upvotes || 0}</Text>
+                      {(post.likeCount || post.upvotes || 0) > 0 && (
+                        <Text style={styles.postActionText}>{post.likeCount || post.upvotes}</Text>
+                      )}
                     </TouchableOpacity>
-                    <View style={styles.postAction}>
+                    <View style={[styles.postAction, (comments?.length || 0) === 0 && { opacity: 0.5 }]}>
                       <Ionicons name="chatbubble-outline" size={18} color={colors.textSecondary} />
-                      <Text style={styles.postActionText}>{comments?.length || 0}</Text>
+                      {(comments?.length || 0) > 0 && (
+                        <Text style={styles.postActionText}>{comments?.length}</Text>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -190,15 +224,28 @@ export default function PostDetailScreen() {
 
           {/* Comments Section */}
           <View style={styles.commentsSection}>
-            <Text style={styles.commentsTitle}>Comments ({comments?.length || 0})</Text>
+            <Text style={styles.commentsTitle}>
+              {(comments?.length || 0) > 0 ? `Responses (${comments.length})` : 'Join the discussion'}
+            </Text>
 
             {commentsLoading ? (
               <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
             ) : !comments || comments.length === 0 ? (
               <View style={styles.emptyComments}>
-                <Ionicons name="chatbubbles-outline" size={48} color={colors.textSecondary} />
-                <Text style={styles.emptyCommentsText}>No comments yet</Text>
-                <Text style={styles.emptyCommentsSubtext}>Be the first to comment!</Text>
+                <Ionicons name="chatbubble-ellipses-outline" size={40} color={colors.textMuted || colors.textSecondary} style={{ opacity: 0.6 }} />
+                {/* Author context */}
+                {post && !post.isAnonymous && getAuthorName(post) !== 'Unknown User' && (
+                  <Text style={styles.emptyCommentsAuthor}>
+                    {getAuthorName(post)} shared:
+                  </Text>
+                )}
+                {/* Contextual prompt */}
+                <Text style={styles.emptyCommentsPrompt}>
+                  {getContextualPrompt(post)}
+                </Text>
+                <Text style={styles.emptyCommentsSubtext}>
+                  Your perspective matters here.
+                </Text>
               </View>
             ) : (
               comments.map((comment: any) => (
@@ -212,12 +259,7 @@ export default function PostDetailScreen() {
                       <Text style={styles.commentAuthorName}>
                         {comment.author?.displayName || comment.author?.username || comment.authorName || 'User'}
                       </Text>
-                      {comment.author?.username && (
-                        <>
-                          <Text style={styles.postUsername}>@{comment.author.username}</Text>
-                          <Text style={styles.postDot}>·</Text>
-                        </>
-                      )}
+                      <Text style={styles.postDot}>·</Text>
                       {comment.createdAt && (
                         <Text style={styles.postTime}>{formatTime(comment.createdAt)}</Text>
                       )}
@@ -237,7 +279,7 @@ export default function PostDetailScreen() {
             style={styles.input}
             value={commentText}
             onChangeText={setCommentText}
-            placeholder="Write a comment..."
+            placeholder="Share a thought..."
             placeholderTextColor={colors.textSecondary}
             multiline
             maxLength={300}
@@ -323,7 +365,7 @@ const getStyles = (colors: any, theme: string) => {
       marginBottom: 4,
     },
     postAuthorName: {
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '700',
       color: colors.textPrimary || colors.text,
       marginRight: 4,
@@ -333,14 +375,22 @@ const getStyles = (colors: any, theme: string) => {
       color: colors.textSecondary,
       marginRight: 4,
     },
+    postUsernameSecondary: {
+      fontSize: 13,
+      color: colors.textMuted || colors.textSecondary,
+      marginTop: 2,
+      marginBottom: 4,
+    },
     postDot: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      marginRight: 4,
+      fontSize: 12,
+      color: colors.textMuted || colors.textSecondary,
+      marginHorizontal: 4,
+      opacity: 0.6,
     },
     postTime: {
-      fontSize: 14,
-      color: colors.textSecondary,
+      fontSize: 12,
+      color: colors.textMuted || colors.textSecondary,
+      opacity: 0.7,
     },
     postTitle: {
       fontSize: 18,
@@ -402,18 +452,28 @@ const getStyles = (colors: any, theme: string) => {
     },
     emptyComments: {
       alignItems: 'center',
-      paddingVertical: 40,
+      paddingVertical: 32,
+      paddingHorizontal: 24,
     },
-    emptyCommentsText: {
-      marginTop: 12,
-      fontSize: 16,
+    emptyCommentsAuthor: {
+      marginTop: 16,
+      fontSize: 13,
+      color: colors.textMuted || colors.textSecondary,
+      fontWeight: '500',
+    },
+    emptyCommentsPrompt: {
+      marginTop: 8,
+      fontSize: 17,
       fontWeight: '600',
       color: colors.textPrimary || colors.text,
+      textAlign: 'center',
+      lineHeight: 24,
     },
     emptyCommentsSubtext: {
-      marginTop: 4,
+      marginTop: 8,
       fontSize: 14,
-      color: colors.textSecondary,
+      color: colors.textMuted || colors.textSecondary,
+      fontStyle: 'italic',
     },
     commentCard: {
       flexDirection: 'row',

@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Text,  } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -128,21 +129,16 @@ export function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps
       {/* Channel Name */}
       <Text
         variant="caption"
-        numberOfLines={1}
+        numberOfLines={2}
         style={{ textAlign: 'center', width: '100%' }}
       >
         {channel.name}
-      </Text>
-
-      {/* Member Count */}
-      <Text variant="caption" color="textMuted">
-        {channel.members}
       </Text>
     </Pressable>
   );
 }
 
-// Add Channel Button - for discovering new communities (opens filters)
+// Find Communities Button - for discovering new communities (opens filters)
 export function AddChannelCard({
   onPress,
   activeFilterCount = 0
@@ -159,13 +155,13 @@ export function AddChannelCard({
         {
           width: 96,
           height: 96,
-          borderWidth: 2,
-          borderColor: colors.primary,
+          borderWidth: 1,
+          borderColor: colors.borderSubtle,
           borderRadius: radii.lg,
           alignItems: 'center',
           justifyContent: 'center',
           gap: spacing.xs,
-          backgroundColor: pressed ? colors.primary + '15' : colors.primary + '08',
+          backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
         },
       ]}
     >
@@ -175,37 +171,37 @@ export function AddChannelCard({
             width: 36,
             height: 36,
             borderRadius: 18,
-            backgroundColor: colors.primary,
+            backgroundColor: colors.surfaceMuted,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Text style={{ fontSize: 22, color: colors.primaryForeground, fontWeight: '300' }}>+</Text>
+          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
         </View>
-        {/* Filter count badge */}
+        {/* Filter count badge - subtle neutral style */}
         {activeFilterCount > 0 && (
           <View
             style={{
               position: 'absolute',
-              top: -6,
-              right: -6,
-              minWidth: 18,
-              height: 18,
-              borderRadius: 9,
-              backgroundColor: colors.destructive || '#EF4444',
+              top: -4,
+              right: -4,
+              minWidth: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: colors.textMuted,
               alignItems: 'center',
               justifyContent: 'center',
-              paddingHorizontal: 4,
+              paddingHorizontal: 3,
             }}
           >
-            <Text style={{ fontSize: 10, color: '#FFFFFF', fontWeight: '700' }}>
+            <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: '600' }}>
               {activeFilterCount}
             </Text>
           </View>
         )}
       </View>
-      <Text variant="caption" style={{ color: colors.primary, fontWeight: '600' }}>
-        Discover
+      <Text variant="caption" style={{ color: colors.textSecondary, fontWeight: '500', textAlign: 'center', lineHeight: 14 }}>
+        Find{'\n'}Communities
       </Text>
     </Pressable>
   );

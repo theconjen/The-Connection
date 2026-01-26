@@ -81,6 +81,7 @@ export default function CommunitiesTab() {
       onClearCategory={() => setSelectedCategory(null)}
       unreadNotificationCount={unreadNotificationCount}
       unreadMessageCount={unreadMessageCount}
+      onStartHerePress={() => router.push("/start-here")}
     />
     <MenuDrawer
       visible={menuVisible}
