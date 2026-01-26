@@ -662,15 +662,17 @@ function getStyles(colors: any) {
 
     chipsScrollView: {
       marginTop: 10,
+      marginHorizontal: -16, // Extend to screen edges
     },
     chipsScrollViewTags: {
       marginTop: 6,
+      marginHorizontal: -16, // Extend to screen edges
     },
 
     chipsRow: {
       paddingTop: 4,
       paddingBottom: 4,
-      paddingRight: 16,
+      paddingHorizontal: 16, // Match screen padding
     },
 
     suggestedWrap: {
