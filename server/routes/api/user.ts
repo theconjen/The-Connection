@@ -291,7 +291,45 @@ router.get("/settings", async (req, res) => {
   }
 });
 
-// Update user settings using your approach
+// Helper function to build settings update data
+function buildSettingsUpdateData(body: any): { updateData: any; notificationPrefsUpdated: boolean; visibilityError?: string } {
+  const {
+    displayName, email, bio, city, state, zipCode, birthday,
+    profileVisibility, showLocation, showInterests,
+    notifyDms, notifyCommunities, notifyForums, notifyFeed
+  } = body;
+
+  const updateData: any = {};
+  if (displayName !== undefined) updateData.displayName = displayName;
+  if (email !== undefined) updateData.email = email;
+  if (bio !== undefined) updateData.bio = bio;
+  if (city !== undefined) updateData.city = city;
+  if (state !== undefined) updateData.state = state;
+  if (zipCode !== undefined) updateData.zipCode = zipCode;
+  if (birthday !== undefined) updateData.birthday = birthday;
+  if (profileVisibility !== undefined) {
+    if (!isValidVisibility(profileVisibility)) {
+      return { updateData: {}, notificationPrefsUpdated: false, visibilityError: "Invalid profile visibility option" };
+    }
+    updateData.profileVisibility = profileVisibility;
+  }
+  if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
+  if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
+  if (typeof notifyDms === "boolean") updateData.notifyDms = notifyDms;
+  if (typeof notifyCommunities === "boolean") updateData.notifyCommunities = notifyCommunities;
+  if (typeof notifyForums === "boolean") updateData.notifyForums = notifyForums;
+  if (typeof notifyFeed === "boolean") updateData.notifyFeed = notifyFeed;
+
+  const notificationPrefsUpdated =
+    typeof notifyDms === "boolean" ||
+    typeof notifyCommunities === "boolean" ||
+    typeof notifyForums === "boolean" ||
+    typeof notifyFeed === "boolean";
+
+  return { updateData, notificationPrefsUpdated };
+}
+
+// Update user settings using your approach (PUT)
 router.put("/settings", async (req, res) => {
   try {
     const userId = requireSessionUserId(req);
@@ -299,41 +337,38 @@ router.put("/settings", async (req, res) => {
       return;
     }
 
-    const {
-      displayName, email, bio, city, state, zipCode,
-      profileVisibility, showLocation, showInterests,
-      notifyDms, notifyCommunities, notifyForums, notifyFeed
-    } = req.body;
-
-    // Only allow updating specific fields
-    const updateData: any = {};
-    if (displayName !== undefined) updateData.displayName = displayName;
-    if (email !== undefined) updateData.email = email;
-    if (bio !== undefined) updateData.bio = bio;
-    if (city !== undefined) updateData.city = city;
-    if (state !== undefined) updateData.state = state;
-    if (zipCode !== undefined) updateData.zipCode = zipCode;
-    if (profileVisibility !== undefined) {
-      if (!isValidVisibility(profileVisibility)) {
-        return res.status(400).json({ message: "Invalid profile visibility option" });
-      }
-      updateData.profileVisibility = profileVisibility;
+    const { updateData, notificationPrefsUpdated, visibilityError } = buildSettingsUpdateData(req.body);
+    if (visibilityError) {
+      return res.status(400).json({ message: visibilityError });
     }
-    if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
-    if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
-    if (typeof notifyDms === "boolean") updateData.notifyDms = notifyDms;
-    if (typeof notifyCommunities === "boolean") updateData.notifyCommunities = notifyCommunities;
-    if (typeof notifyForums === "boolean") updateData.notifyForums = notifyForums;
-    if (typeof notifyFeed === "boolean") updateData.notifyFeed = notifyFeed;
 
     await storage.updateUser(userId, updateData);
 
-    // Clear notification preferences cache if any notification settings were updated
-    const notificationPrefsUpdated =
-      typeof notifyDms === "boolean" ||
-      typeof notifyCommunities === "boolean" ||
-      typeof notifyForums === "boolean" ||
-      typeof notifyFeed === "boolean";
+    if (notificationPrefsUpdated) {
+      clearPreferencesCache(userId);
+      console.info(`[API/User] Cleared notification preferences cache for user ${userId}`);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json(buildErrorResponse('Error updating user settings', error));
+  }
+});
+
+// Update user settings (PATCH) - same as PUT but with PATCH method for mobile app compatibility
+router.patch("/settings", async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const { updateData, notificationPrefsUpdated, visibilityError } = buildSettingsUpdateData(req.body);
+    if (visibilityError) {
+      return res.status(400).json({ message: visibilityError });
+    }
+
+    await storage.updateUser(userId, updateData);
 
     if (notificationPrefsUpdated) {
       clearPreferencesCache(userId);
