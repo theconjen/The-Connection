@@ -9,7 +9,7 @@ import { Textarea } from "./ui/textarea";
 import { apiUrl } from "../lib/env";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Label } from "./ui/label";
-import { Image, X } from "lucide-react";
+import { Image, X, ChevronLeft, ChevronRight, Images } from "lucide-react";
 import { getInitials } from "../lib/utils";
 import { apiRequest, queryClient } from "../lib/queryClient";
 
@@ -21,6 +21,12 @@ interface MicroblogData {
   communityId?: number;
   groupId?: number;
   imageUrl?: string;
+  imageUrls?: string[];
+}
+
+interface ImagePreview {
+  file: File;
+  preview: string;
 }
 
 interface MicroblogComposerProps {
@@ -30,77 +36,81 @@ interface MicroblogComposerProps {
   onSuccess?: () => void;
 }
 
-export function MicroblogComposer({ 
-  parentId, 
-  communityId, 
+const MAX_IMAGES = 4;
+
+export function MicroblogComposer({
+  parentId,
+  communityId,
   groupId,
-  onSuccess 
+  onSuccess
 }: MicroblogComposerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [content, setContent] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<ImagePreview[]>([]);
   const [characterCount, setCharacterCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const MAX_CHARS = 280;
-  
+
   const createMicroblogMutation = useMutation({
     mutationFn: async (microblogData: MicroblogData) => {
-      // If there's an image, we need to use FormData
-      if (imageFile) {
+      // If there are images, we need to use FormData
+      if (images.length > 0) {
         const formData = new FormData();
         formData.append('content', microblogData.content);
         if (microblogData.parentId !== undefined) formData.append('parentId', microblogData.parentId.toString());
         if (microblogData.communityId !== undefined) formData.append('communityId', microblogData.communityId.toString());
         if (microblogData.groupId !== undefined) formData.append('groupId', microblogData.groupId.toString());
         formData.append('authorId', microblogData.authorId.toString());
-        formData.append('image', imageFile);
-        
+
+        // Append all images
+        images.forEach((img, index) => {
+          formData.append('images', img.file);
+        });
+
         // Custom fetch for FormData
         const response = await fetch(apiUrl('/api/microblogs'), {
           method: 'POST',
           body: formData,
           credentials: 'include'
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to create microblog');
         }
-        
+
         return await response.json();
       } else {
-        // Regular JSON request if no image
+        // Regular JSON request if no images
         const response = await apiRequest('POST', '/api/microblogs', microblogData);
         return await response.json();
       }
     },
     onSuccess: () => {
       setContent("");
-      setImageFile(null);
-      setImagePreview(null);
+      setImages([]);
       setCharacterCount(0);
-      
+
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
-      
+
       if (parentId) {
         queryClient.invalidateQueries({ queryKey: ['/api/microblogs', parentId, 'replies'] });
       }
-      
+
       if (communityId) {
         queryClient.invalidateQueries({ queryKey: ['/api/communities', communityId, 'microblogs'] });
       }
-      
+
       if (groupId) {
         queryClient.invalidateQueries({ queryKey: ['/api/communities', groupId, 'microblogs'] });
       }
-      
+
       toast({
         title: "Success",
         description: "Your post has been published",
       });
-      
+
       if (onSuccess) {
         onSuccess();
       }
@@ -113,35 +123,66 @@ export function MicroblogComposer({
       });
     }
   });
-  
+
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value;
     setContent(text);
     setCharacterCount(text.length);
   };
-  
+
   const handleImageSelect = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      const remainingSlots = MAX_IMAGES - images.length;
+
+      if (newFiles.length > remainingSlots) {
+        toast({
+          title: "Limit reached",
+          description: `You can only add up to ${MAX_IMAGES} images per post`,
+          variant: "default"
+        });
+      }
+
+      const filesToAdd = newFiles.slice(0, remainingSlots);
+
+      // Create previews for each file
+      filesToAdd.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImages(prev => [...prev, { file, preview: reader.result as string }]);
+        };
+        reader.readAsDataURL(file);
+      });
     }
-  };
-  
-  const handleRemoveImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
+
+    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
-  
+
+  const handleRemoveImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const moveImageLeft = (index: number) => {
+    if (index === 0) return;
+    setImages(prev => {
+      const newImages = [...prev];
+      [newImages[index - 1], newImages[index]] = [newImages[index], newImages[index - 1]];
+      return newImages;
+    });
+  };
+
+  const moveImageRight = (index: number) => {
+    if (index === images.length - 1) return;
+    setImages(prev => {
+      const newImages = [...prev];
+      [newImages[index], newImages[index + 1]] = [newImages[index + 1], newImages[index]];
+      return newImages;
+    });
+  };
+
   const handleSubmit = () => {
     if (!user) {
       toast({
@@ -151,7 +192,7 @@ export function MicroblogComposer({
       });
       return;
     }
-    
+
     if (content.trim() === "") {
       toast({
         title: "Error",
@@ -160,7 +201,7 @@ export function MicroblogComposer({
       });
       return;
     }
-    
+
     if (content.length > MAX_CHARS) {
       toast({
         title: "Error",
@@ -169,7 +210,7 @@ export function MicroblogComposer({
       });
       return;
     }
-    
+
     const microblogData: MicroblogData = {
       content,
       authorId: user.id,
@@ -177,10 +218,10 @@ export function MicroblogComposer({
       ...(communityId && { communityId }),
       ...(groupId && { groupId })
     };
-    
+
     createMicroblogMutation.mutate(microblogData);
   };
-  
+
   if (!user) {
     return (
       <Card className="mb-6">
@@ -192,7 +233,7 @@ export function MicroblogComposer({
       </Card>
     );
   }
-  
+
   return (
     <Card className="mb-6">
       <CardContent className="p-4">
@@ -204,7 +245,7 @@ export function MicroblogComposer({
               <AvatarFallback>{getInitials(user.displayName || "User")}</AvatarFallback>
             )}
           </Avatar>
-          
+
           <div className="flex-1">
             <Textarea
               placeholder={parentId ? "Write your reply..." : "What's on your mind?"}
@@ -212,53 +253,110 @@ export function MicroblogComposer({
               value={content}
               onChange={handleContentChange}
             />
-            
-            {imagePreview && (
-              <div className="relative mt-2 inline-block">
-                <img 
-                  src={imagePreview} 
-                  alt="Preview" 
-                  className="max-h-52 max-w-full object-contain rounded-md border" 
-                />
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-1 right-1 h-7 w-7 rounded-full"
-                  onClick={handleRemoveImage}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+
+            {/* Image Previews */}
+            {images.length > 0 && (
+              <div className="mt-3">
+                {images.length > 1 && (
+                  <p className="text-xs text-muted-foreground mb-2 text-center">
+                    Use arrows to reorder images
+                  </p>
+                )}
+                <div className={`grid gap-2 ${
+                  images.length === 1 ? 'grid-cols-1' :
+                  images.length === 2 ? 'grid-cols-2' :
+                  'grid-cols-2'
+                }`}>
+                  {images.map((img, index) => (
+                    <div
+                      key={index}
+                      className={`relative group rounded-lg overflow-hidden border border-border ${
+                        images.length === 1 ? 'h-52' :
+                        images.length === 2 ? 'h-40' :
+                        'h-32'
+                      }`}
+                    >
+                      <img
+                        src={img.preview}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+
+                      {/* Order badge */}
+                      <div className="absolute top-2 left-2 bg-black/70 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                        {index + 1}
+                      </div>
+
+                      {/* Remove button */}
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleRemoveImage(index)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+
+                      {/* Reorder buttons */}
+                      {images.length > 1 && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className={`h-6 w-6 rounded-full bg-black/70 hover:bg-black/90 text-white ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                            onClick={() => moveImageLeft(index)}
+                            disabled={index === 0}
+                          >
+                            <ChevronLeft className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className={`h-6 w-6 rounded-full bg-black/70 hover:bg-black/90 text-white ${index === images.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                            onClick={() => moveImageRight(index)}
+                            disabled={index === images.length - 1}
+                          >
+                            <ChevronRight className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
       </CardContent>
-      
+
       <CardFooter className="border-t p-3 flex justify-between items-center">
-        <div>
+        <div className="flex items-center gap-2">
           <input
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
             ref={fileInputRef}
             onChange={handleImageSelect}
           />
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="text-primary"
             onClick={() => fileInputRef.current?.click()}
+            disabled={images.length >= MAX_IMAGES}
           >
-            <Image className="h-5 w-5" />
+            <Images className="h-5 w-5 mr-1" />
+            {images.length > 0 ? `${images.length}/${MAX_IMAGES}` : 'Photos'}
           </Button>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <span className={`text-sm ${characterCount > MAX_CHARS ? 'text-red-500' : 'text-muted-foreground'}`}>
             {characterCount}/{MAX_CHARS}
           </span>
-          
-          <Button 
+
+          <Button
             disabled={content.trim() === "" || characterCount > MAX_CHARS || createMicroblogMutation.isPending}
             onClick={handleSubmit}
           >

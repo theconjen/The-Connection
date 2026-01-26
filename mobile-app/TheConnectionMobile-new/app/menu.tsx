@@ -16,6 +16,8 @@ export default function MenuScreen() {
     { title: 'Prayers', icon: 'heart-outline', route: '/(tabs)/prayers' },
     { title: 'Privacy Policy', icon: 'shield-outline', route: '/settings/privacy' },
     { title: 'Community Guidelines', icon: 'book-outline', route: '/settings/guidelines' },
+    // Dev-only debug screen for deep link testing
+    ...(__DEV__ ? [{ title: 'Deep Link Debug', icon: 'bug-outline', route: '/settings/debug-deep-links' }] : []),
   ];
 
   const handleSearch = () => {

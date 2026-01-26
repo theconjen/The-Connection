@@ -45,6 +45,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { PostCard } from './PostCard';
 import { TopicChips } from '../components/TopicChips';
 import { PollCard } from '../components/PollCard';
+import { ImageCarousel } from '../components/ImageCarousel';
 
 // ============================================================================
 // TYPES
@@ -875,20 +876,12 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
           )}
 
           {post.imageUrls && post.imageUrls.length > 0 && (
-            <View style={post.imageUrls.length === 1 ? styles.postMediaSingle : styles.postMediaGrid}>
-              {post.imageUrls.slice(0, 4).map((url, index) => (
-                <Image
-                  key={index}
-                  source={{ uri: url }}
-                  style={post.imageUrls!.length === 1 ? styles.postMediaImageSingle : styles.postMediaImageGrid}
-                  resizeMode="cover"
-                />
-              ))}
-              {post.imageUrls.length > 4 && (
-                <View style={styles.postMediaOverlay}>
-                  <Text style={styles.postMediaOverlayText}>+{post.imageUrls.length - 4}</Text>
-                </View>
-              )}
+            <View style={styles.postMediaCarousel}>
+              <ImageCarousel
+                images={post.imageUrls}
+                height={post.imageUrls.length === 1 ? 220 : 200}
+                borderRadius={12}
+              />
             </View>
           )}
 
@@ -2800,6 +2793,10 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     marginTop: 8,
     marginBottom: 8,
     backgroundColor: colors.surfaceMuted,
+  },
+  postMediaCarousel: {
+    marginTop: 8,
+    marginBottom: 8,
   },
   postMediaSingle: {
     marginTop: 8,

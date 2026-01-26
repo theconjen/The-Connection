@@ -17,11 +17,13 @@ import {
 import ShareButtons from "./share-buttons";
 import { getInitials } from "../lib/utils";
 import { apiRequest } from "../lib/queryClient";
+import { ImageCarousel } from "./ImageCarousel";
 
 interface MicroblogPostProps {
   post: Microblog & {
     author?: User;
     isLiked?: boolean;
+    imageUrls?: string[]; // Support for multiple images from mobile app
   };
   showControls?: boolean;
   isAuthenticated?: boolean;
@@ -269,7 +271,19 @@ export function MicroblogPost({
               ></div>
             </Link>
             
-            {post.imageUrl && (
+            {/* Multiple images - use carousel */}
+            {post.imageUrls && post.imageUrls.length > 0 && (
+              <div className="mt-3">
+                <ImageCarousel
+                  images={post.imageUrls}
+                  height={280}
+                  className="border border-border/40 dark:border-border/60"
+                />
+              </div>
+            )}
+
+            {/* Single image fallback (for backwards compatibility) */}
+            {!post.imageUrls?.length && post.imageUrl && (
               <div className="mt-3 relative overflow-hidden rounded-lg">
                 {!imageLoaded && (
                   <div className="bg-muted animate-pulse rounded-lg w-full h-48 flex items-center justify-center">

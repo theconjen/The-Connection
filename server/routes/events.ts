@@ -101,6 +101,22 @@ router.get('/events', async (req, res) => {
       events = events.filter((e: any) => e.isPublic === true);
     }
 
+    // Filter out past events - only return today and future events
+    // This reduces data sent to clients and improves performance
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+    events = events.filter((e: any) => {
+      if (!e.eventDate) return true; // Keep events without dates (fail-safe)
+
+      // Parse eventDate - handles "2026-01-12" and "2026-01-12 00:00:00" formats
+      const dateStr = String(e.eventDate).split(' ')[0]; // Get just the date part
+      const eventDate = new Date(dateStr + 'T00:00:00'); // Parse as local time
+
+      if (isNaN(eventDate.getTime())) return true; // Keep if can't parse (fail-safe)
+
+      return eventDate >= today;
+    });
+
     // Get user's RSVPs to attach status to each event
     let userRsvpMap: Record<number, string> = {};
     let userBookmarkSet: Set<number> = new Set();
@@ -167,7 +183,22 @@ router.get('/events', async (req, res) => {
 router.get('/events/public', async (_req, res) => {
   try {
     const allEvents = await storage.getAllEvents();
-    const events = allEvents.filter((event: any) => event.isPublic);
+
+    // Filter to public events and exclude past events
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const events = allEvents.filter((event: any) => {
+      if (!event.isPublic) return false;
+
+      // Filter out past events
+      if (!event.eventDate) return true;
+      const dateStr = String(event.eventDate).split(' ')[0];
+      const eventDate = new Date(dateStr + 'T00:00:00');
+      if (isNaN(eventDate.getTime())) return true;
+      return eventDate >= today;
+    });
+
     res.json(events);
   } catch (error) {
     console.error('Error fetching public events:', error);
@@ -267,23 +298,41 @@ router.get('/events/my', requireAuth, async (req, res) => {
       }
     }
 
+    // Filter out past events from going/maybe/saved (but keep ALL hosting events)
+    // This allows hosts to manage past events while hiding them from attendees
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const isUpcoming = (event: any): boolean => {
+      if (!event.eventDate) return true;
+      const dateStr = String(event.eventDate).split(' ')[0];
+      const eventDate = new Date(dateStr + 'T00:00:00');
+      if (isNaN(eventDate.getTime())) return true;
+      return eventDate >= today;
+    };
+
+    const filteredGoing = going.filter(isUpcoming);
+    const filteredMaybe = maybe.filter(isUpcoming);
+    const filteredSaved = saved.filter(isUpcoming);
+    // hosting: Keep all (past and future) so hosts can manage them
+
     // Sort each section by event date
     const sortByDate = (a: any, b: any) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime();
     hosting.sort(sortByDate);
-    going.sort(sortByDate);
-    maybe.sort(sortByDate);
-    saved.sort(sortByDate);
+    filteredGoing.sort(sortByDate);
+    filteredMaybe.sort(sortByDate);
+    filteredSaved.sort(sortByDate);
 
     res.json({
       hosting,
-      going,
-      maybe,
-      saved,
+      going: filteredGoing,
+      maybe: filteredMaybe,
+      saved: filteredSaved,
       counts: {
         hosting: hosting.length,
-        going: going.length,
-        maybe: maybe.length,
-        saved: saved.length,
+        going: filteredGoing.length,
+        maybe: filteredMaybe.length,
+        saved: filteredSaved.length,
       },
     });
   } catch (error) {
@@ -459,15 +508,18 @@ router.post('/events/:id/cancel', requireAuth, async (req, res) => {
 // Create event - requires community admin or app admin
 router.post('/events', requireAuth, async (req, res) => {
   // DEBUG: Version marker to confirm deployment
-  console.info('[Events] POST /api/events - Handler v2 (with detailed error handling)');
+  console.info('[Events] POST /api/events - Handler v3 (hardened hostUserId)');
 
   try {
     const userId = requireSessionUserId(req);
     console.info('[Events] User ID from session:', userId);
 
+    // SECURITY: Extract only allowed fields from body
+    // hostUserId is NEVER accepted from client - always derived from authenticated user
     const {
       title,
       description,
+      category, // Event type: Sunday Service, Worship, Bible Study, etc.
       eventDate,
       startTime,
       endTime,
@@ -482,8 +534,17 @@ router.post('/events', requireAuth, async (req, res) => {
       virtualMeetingUrl,
       isPublic,
       communityId,
-      startsAt // Support legacy format
+      imageUrl, // Event flyer/poster image (base64 or URL)
+      startsAt, // Support legacy format
+      // Explicitly destructure and IGNORE these fields if client sends them
+      hostUserId: _ignoredHostUserId,
+      creatorId: _ignoredCreatorId,
     } = req.body || {};
+
+    // Log if client attempted to set hostUserId (potential security probe)
+    if (req.body?.hostUserId !== undefined) {
+      console.warn('[Events] SECURITY: Client attempted to set hostUserId - ignored. IP:', req.ip);
+    }
 
     // Support both new format (eventDate, startTime, endTime) and legacy format (startsAt)
     let finalEventDate: string;
@@ -551,6 +612,7 @@ router.post('/events', requireAuth, async (req, res) => {
     const payload = {
       title,
       description,
+      category: category || null, // Event type: Sunday Service, Worship, Bible Study, etc.
       eventDate: finalEventDate,
       startTime: finalStartTime,
       endTime: finalEndTime,
@@ -565,6 +627,7 @@ router.post('/events', requireAuth, async (req, res) => {
       virtualMeetingUrl: virtualMeetingUrl || null,
       isPublic: isPublic ?? true,
       communityId: communityId || null, // Explicitly null for "The Connection" events
+      imageUrl: imageUrl || null, // Event flyer/poster image
       creatorId: userId,
     };
 
@@ -616,6 +679,31 @@ router.post('/events', requireAuth, async (req, res) => {
 
     console.info('[Events] Event created successfully with ID:', event.id);
 
+    // DEV-ONLY: Log created event ownership for debugging
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[Events] DEV: Created event ownership:', {
+        eventId: event.id,
+        hostUserId: event.creatorId,
+        title: event.title,
+      });
+    }
+
+    // Build host object for response
+    let host = null;
+    try {
+      const hostUser = await storage.getUser(event.creatorId);
+      if (hostUser) {
+        host = {
+          id: hostUser.id,
+          username: hostUser.username,
+          displayName: hostUser.displayName || hostUser.username,
+          avatarUrl: hostUser.avatarUrl || null,
+        };
+      }
+    } catch (e) {
+      console.warn('[Events] Could not fetch host user for response:', e);
+    }
+
     // Notify community members about new event
     if (event.communityId) {
       try {
@@ -643,7 +731,12 @@ router.post('/events', requireAuth, async (req, res) => {
       }
     }
 
-    res.status(201).json(event);
+    // Return event with hostUserId and host object
+    res.status(201).json({
+      ...event,
+      hostUserId: event.creatorId, // Explicit host identifier
+      host,
+    });
   } catch (error: any) {
     // Always log the full error for debugging
     console.error('[Events] Unhandled error creating event:', error);
@@ -686,8 +779,9 @@ router.patch('/events/:id', requireAuth, async (req, res) => {
 
     // Build update payload (only include fields that are provided)
     const updatePayload: any = {};
-    const allowedFields = ['title', 'description', 'eventDate', 'startTime', 'endTime', 'isVirtual',
-                           'location', 'address', 'city', 'state', 'zipCode', 'virtualMeetingUrl', 'isPublic'];
+    const allowedFields = ['title', 'description', 'category', 'eventDate', 'startTime', 'endTime', 'isVirtual',
+                           'location', 'address', 'city', 'state', 'zipCode', 'latitude', 'longitude',
+                           'virtualMeetingUrl', 'isPublic', 'imageUrl'];
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
@@ -973,6 +1067,92 @@ router.get('/events/:id/bookmark', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error checking bookmark status:', error);
     res.status(500).json(buildErrorResponse('Error checking bookmark status', error));
+  }
+});
+
+// ============================================================================
+// EVENT ANNOUNCEMENTS - Host can message all attendees
+// ============================================================================
+
+// Send announcement to all RSVPed attendees (host only)
+router.post('/events/:id/announce', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const { message } = req.body;
+
+    // Validate message
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (message.length > 500) {
+      return res.status(400).json({ error: 'Message cannot exceed 500 characters' });
+    }
+
+    // Get the event
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Check if user is the host
+    const hostId = (event as any).hostUserId || (event as any).creatorId;
+    if (hostId !== userId) {
+      return res.status(403).json({ error: 'Only the event host can send announcements' });
+    }
+
+    // Get all RSVPs for this event
+    const rsvps = await storage.getEventRSVPs(eventId);
+
+    // Filter to only "going" and "maybe" attendees (not "not_going")
+    const attendeeIds = rsvps
+      .filter((rsvp: any) => rsvp.status === 'going' || rsvp.status === 'maybe')
+      .map((rsvp: any) => rsvp.userId)
+      .filter((id: number) => id !== userId); // Exclude the host
+
+    if (attendeeIds.length === 0) {
+      return res.status(400).json({ error: 'No attendees to notify' });
+    }
+
+    // Get host info for the notification
+    const host = await storage.getUser(userId);
+    const hostName = host?.displayName || host?.username || 'Event Host';
+
+    // Send notification to each attendee
+    const notificationPromises = attendeeIds.map(async (attendeeId: number) => {
+      try {
+        await storage.createNotification({
+          userId: attendeeId,
+          type: 'event_announcement',
+          title: `Update from ${truncateText((event as any).title, 30)}`,
+          body: message.trim(),
+          data: JSON.stringify({
+            eventId,
+            eventTitle: (event as any).title,
+            hostId: userId,
+            hostName,
+            announcementType: 'host_message',
+          }),
+          isRead: false,
+        });
+      } catch (notifError) {
+        console.error(`[Events] Failed to create notification for user ${attendeeId}:`, notifError);
+      }
+    });
+
+    await Promise.all(notificationPromises);
+
+    console.info(`[Events] Host ${userId} sent announcement to ${attendeeIds.length} attendees for event ${eventId}`);
+
+    res.json({
+      success: true,
+      message: 'Announcement sent successfully',
+      recipientCount: attendeeIds.length,
+    });
+  } catch (error) {
+    console.error('Error sending event announcement:', error);
+    res.status(500).json(buildErrorResponse('Error sending announcement', error));
   }
 });
 

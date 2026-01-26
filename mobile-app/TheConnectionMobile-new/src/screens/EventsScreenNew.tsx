@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,13 +13,15 @@ import {
   Image,
   ActionSheetIOS,
   Alert,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { eventsAPI } from "../lib/apiClient";
+import { eventsAPI, getApiBase } from "../lib/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import Constants from "expo-constants";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { AppHeader } from "./AppHeader";
@@ -27,6 +29,19 @@ import apiClient from "../lib/apiClient";
 import { getCurrentLocation, hasLocationPermission, requestLocationPermission, type UserLocation } from "../services/locationService";
 import { shareEvent } from "../lib/shareUrls";
 import { isHost } from "../lib/eventHelpers";
+
+// DEV-ONLY: Get build channel from EAS or fallback
+const getBuildChannel = (): string => {
+  // EAS Update channel
+  const updateChannel = Constants.expoConfig?.extra?.eas?.projectId ? 'eas' : null;
+  // Check releaseChannel (older expo)
+  const releaseChannel = (Constants.manifest as any)?.releaseChannel;
+  // Check if running in development
+  if (__DEV__) return 'dev';
+  if (releaseChannel) return releaseChannel;
+  if (updateChannel) return 'production';
+  return 'unknown';
+};
 
 // Custom church icon
 const ChurchIcon = require("../../assets/church-icon.png");
@@ -316,6 +331,12 @@ const RSVP_COLORS: Record<string, string> = {
   not_going: '#EF4444', // Red
 };
 
+// DEV-ONLY: Viewer type for debug panel
+type ViewerInfo = {
+  id?: number;
+  username?: string;
+} | null;
+
 function EventCard({
   item,
   colors,
@@ -326,6 +347,7 @@ function EventCard({
   isBookmarked,
   isUserHost,
   onManagePress,
+  viewer,
 }: {
   item: EventItem;
   colors: any;
@@ -336,7 +358,26 @@ function EventCard({
   isBookmarked?: boolean;
   isUserHost?: boolean;
   onManagePress?: () => void;
+  viewer?: ViewerInfo;
 }) {
+  // DEV-ONLY: Track if we've logged once for this card
+  const hasLoggedRef = useRef(false);
+
+  // DEV-ONLY: Console.log debug payload once on mount
+  useEffect(() => {
+    if (__DEV__ && viewer && !hasLoggedRef.current) {
+      hasLoggedRef.current = true;
+      console.info('[EventCard DEBUG]', {
+        viewerId: viewer?.id,
+        viewerUsername: viewer?.username,
+        eventId: item.id,
+        'event.hostUserId': item.hostUserId,
+        'event.host?.id': item.host?.id,
+        'event.creatorId': item.creatorId,
+        derivedIsHost: isHost(item, viewer?.id),
+      });
+    }
+  }, [item, viewer]);
   // Handle both isOnline and isVirtual flags
   const isOnlineEvent = item.isOnline || item.isVirtual;
 
@@ -548,6 +589,27 @@ function EventCard({
           )}
         </View>
       </View>
+
+      {/* DEV-ONLY Debug Panel */}
+      {__DEV__ && viewer && (
+        <View style={styles.debugPanelCard}>
+          <Text style={styles.debugTitleCard}>🛠️ DEBUG</Text>
+          <View style={styles.debugRowCard}>
+            <Text style={styles.debugLabelCard}>viewer: {viewer?.id ?? 'null'} (@{viewer?.username ?? 'null'})</Text>
+          </View>
+          <View style={styles.debugRowCard}>
+            <Text style={styles.debugLabelCard}>eventId: {item.id}</Text>
+          </View>
+          <View style={styles.debugRowCard}>
+            <Text style={styles.debugLabelCard}>hostUserId: {item.hostUserId ?? 'undef'} | host?.id: {item.host?.id ?? 'undef'}</Text>
+          </View>
+          <View style={styles.debugRowCard}>
+            <Text style={[styles.debugLabelCard, { color: isHost(item, viewer?.id) ? '#22c55e' : '#ef4444', fontWeight: 'bold' }]}>
+              isHost: {isHost(item, viewer?.id) ? 'TRUE' : 'FALSE'}
+            </Text>
+          </View>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -569,7 +631,23 @@ export default function EventsScreenNew({
 }: EventsScreenNewProps = {}) {
   const router = useRouter();
   const { colors, theme, radii, colorScheme } = useTheme();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+
+  // Auth must be fully initialized before firing event queries
+  // This ensures JWT token is restored and attached to requests
+  const authReady = !authLoading;
+
+  // DEV-ONLY: Log auth readiness state on mount
+  useEffect(() => {
+    if (__DEV__) {
+      console.info('[EventsScreen] Auth state:', {
+        authReady,
+        authLoading,
+        hasUser: !!user,
+        userId: user?.id,
+      });
+    }
+  }, [authReady, authLoading, user]);
 
   const [view, setView] = useState<"list" | "map">("list");
   const [range, setRange] = useState<Range>("week");
@@ -593,9 +671,15 @@ export default function EventsScreenNew({
   // RSVP mutation
   const rsvpMutation = useMutation({
     mutationFn: async ({ eventId, status }: { eventId: number; status: string }) => {
+      if (__DEV__) {
+        console.info('[RSVP] Setting status:', { eventId, status });
+      }
       return eventsAPI.rsvp(eventId, status);
     },
     onSuccess: (_, { eventId, status }) => {
+      if (__DEV__) {
+        console.info('[RSVP] Success - invalidating queries for event:', eventId);
+      }
       // Optimistic update for immediate UI feedback
       setRsvpStatuses(prev => ({
         ...prev,
@@ -630,6 +714,39 @@ export default function EventsScreenNew({
     },
   });
 
+  // Clear RSVP mutation - calls DELETE /api/events/:id/rsvp
+  const clearRsvpMutation = useMutation({
+    mutationFn: async (eventId: number) => {
+      if (__DEV__) {
+        console.info('[RSVP] Clearing RSVP for event:', eventId);
+      }
+      return apiClient.delete(`/api/events/${eventId}/rsvp`);
+    },
+    onSuccess: (_, eventId) => {
+      if (__DEV__) {
+        console.info('[RSVP] Clear success - invalidating queries for event:', eventId);
+      }
+      // Clear local state
+      setRsvpStatuses(prev => {
+        const newStatuses = { ...prev };
+        delete newStatuses[eventId];
+        return newStatuses;
+      });
+      // Invalidate queries to ensure server state is fetched
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "my"] });
+      queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+    },
+    onError: (error: any) => {
+      const serverMessage = error.response?.data?.error || error.response?.data?.message;
+      console.error('[RSVP Clear Error]', {
+        status: error.response?.status,
+        message: serverMessage || error.message,
+      });
+      Alert.alert('Error', serverMessage || 'Failed to clear RSVP. Please try again.');
+    },
+  });
+
   // Handle RSVP button press - show action sheet
   // Backend expects: 'going', 'maybe', 'not_going'
   const handleRsvpPress = (eventId: number | string) => {
@@ -653,12 +770,8 @@ export default function EventsScreenNew({
           if (buttonIndex < 3) {
             rsvpMutation.mutate({ eventId: Number(eventId), status: statusMap[buttonIndex]! });
           } else if (buttonIndex === 3) {
-            // Clear RSVP
-            setRsvpStatuses(prev => {
-              const newStatuses = { ...prev };
-              delete newStatuses[eventId];
-              return newStatuses;
-            });
+            // Clear RSVP - call API to persist deletion
+            clearRsvpMutation.mutate(Number(eventId));
           }
         }
       );
@@ -672,11 +785,8 @@ export default function EventsScreenNew({
           { text: 'Maybe', onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'maybe' }) },
           { text: "Can't Go", onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'not_going' }) },
           { text: 'Clear', style: 'destructive', onPress: () => {
-            setRsvpStatuses(prev => {
-              const newStatuses = { ...prev };
-              delete newStatuses[eventId];
-              return newStatuses;
-            });
+            // Clear RSVP - call API to persist deletion
+            clearRsvpMutation.mutate(Number(eventId));
           }},
           { text: 'Cancel', style: 'cancel' },
         ]
@@ -775,20 +885,81 @@ export default function EventsScreenNew({
 
   const { data: rawData, isLoading: isLoadingAll, isError, refetch } = useQuery({
     queryKey: ["events", { view, range, mode, distance, q, city, userLocation }],
-    queryFn: () => fetchEvents({ range, mode, distance, q, city, userLocation }),
+    queryFn: async () => {
+      if (__DEV__) {
+        console.info('[EventsScreen] Fetching events list...');
+      }
+      try {
+        const data = await fetchEvents({ range, mode, distance, q, city, userLocation });
+        if (__DEV__) {
+          console.info('[EventsScreen] Events fetch success:', {
+            count: data?.length ?? 0,
+            hasUserRsvpStatus: data?.[0]?.userRsvpStatus !== undefined,
+          });
+        }
+        return data;
+      } catch (error: any) {
+        if (__DEV__) {
+          console.error('[EventsScreen] Events fetch error:', {
+            status: error.response?.status,
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+    },
     staleTime: 30_000,
-    enabled: !showMyEvents, // Only fetch all events when not showing My Events
+    // Wait for auth to be ready before fetching (ensures JWT is attached)
+    enabled: authReady && !showMyEvents,
   });
 
   // My Events query - fetches hosting, going, maybe events from server
   const { data: myEventsData, isLoading: isLoadingMy, refetch: refetchMy } = useQuery({
     queryKey: ["events", "my"],
-    queryFn: () => eventsAPI.getMy(),
+    queryFn: async () => {
+      if (__DEV__) {
+        console.info('[EventsScreen] Fetching my events...');
+      }
+      try {
+        const data = await eventsAPI.getMy();
+        if (__DEV__) {
+          console.info('[EventsScreen] My events fetch success:', {
+            hosting: data?.hosting?.length ?? 0,
+            going: data?.going?.length ?? 0,
+            maybe: data?.maybe?.length ?? 0,
+            saved: data?.saved?.length ?? 0,
+          });
+        }
+        return data;
+      } catch (error: any) {
+        if (__DEV__) {
+          console.error('[EventsScreen] My events fetch error:', {
+            status: error.response?.status,
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+    },
     staleTime: 30_000,
-    enabled: showMyEvents, // Only fetch when showing My Events
+    // Wait for auth to be ready AND user to be authenticated
+    enabled: authReady && showMyEvents && !!user,
   });
 
-  const isLoading = showMyEvents ? isLoadingMy : isLoadingAll;
+  // DEV-ONLY: Fetch viewer from /api/user/me for debug panel
+  const { data: viewer } = useQuery<ViewerInfo>({
+    queryKey: ['me'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/user/me');
+      return res.data;
+    },
+    enabled: __DEV__,
+    staleTime: 60_000,
+  });
+
+  // Include authLoading in isLoading to show loading state while auth initializes
+  // This prevents showing "No events" before the query even starts
+  const isLoading = authLoading || (showMyEvents ? isLoadingMy : isLoadingAll);
 
   // Initialize RSVP statuses from API response (persists across app reloads)
   useEffect(() => {
@@ -1285,6 +1456,14 @@ export default function EventsScreenNew({
 
         {/* Body */}
         {view === "map" ? (
+          isLoading ? (
+            <View style={[styles.map, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface }]}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{ color: colors.textSecondary, marginTop: 12, fontSize: 14 }}>
+                Loading events...
+              </Text>
+            </View>
+          ) : (
           <MapView
             style={styles.map}
             provider={PROVIDER_GOOGLE}
@@ -1348,58 +1527,73 @@ export default function EventsScreenNew({
               );
             })}
           </MapView>
+          )
         ) : (
           <FlatList
             data={data ?? []}
             keyExtractor={(it) => String(it.id)}
             contentContainerStyle={{ paddingBottom: 18 }}
             ListEmptyComponent={
-              <View
-                style={[
-                  styles.empty,
-                  { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
-                ]}
-              >
-                <Ionicons name="calendar-outline" size={48} color={colors.textMuted} />
-                <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginTop: 12 }}>
-                  No events found
-                </Text>
-                <Text style={{ color: colors.textSecondary, marginTop: 6, lineHeight: 18, textAlign: 'center' }}>
-                  Try adjusting your filters or search criteria
-                </Text>
-                {activeFiltersCount > 0 && (
-                  <Pressable
-                    onPress={clearAllFilters}
-                    style={[
-                      styles.secondaryBtn,
-                      { backgroundColor: colors.surfaceMuted, marginTop: 12 },
-                    ]}
-                  >
-                    <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>Clear Filters</Text>
-                  </Pressable>
-                )}
-                <Pressable
-                  onPress={() => router.push("/events/create")}
+              isLoading ? (
+                <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={{ color: colors.textSecondary, marginTop: 12, fontSize: 14 }}>
+                    Loading events...
+                  </Text>
+                </View>
+              ) : (
+                <View
                   style={[
-                    styles.primaryBtn,
-                    { backgroundColor: colors.primary, marginTop: 8 },
+                    styles.empty,
+                    { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
                   ]}
                 >
-                  <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>Create an Event</Text>
-                </Pressable>
-              </View>
+                  <Ionicons name="calendar-outline" size={48} color={colors.textMuted} />
+                  <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginTop: 12 }}>
+                    No events found
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, marginTop: 6, lineHeight: 18, textAlign: 'center' }}>
+                    Try adjusting your filters or search criteria
+                  </Text>
+                  {activeFiltersCount > 0 && (
+                    <Pressable
+                      onPress={clearAllFilters}
+                      style={[
+                        styles.secondaryBtn,
+                        { backgroundColor: colors.surfaceMuted, marginTop: 12 },
+                      ]}
+                    >
+                      <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>Clear Filters</Text>
+                    </Pressable>
+                  )}
+                  <Pressable
+                    onPress={() => router.push("/events/create")}
+                    style={[
+                      styles.primaryBtn,
+                      { backgroundColor: colors.primary, marginTop: 8 },
+                    ]}
+                  >
+                    <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>Create an Event</Text>
+                  </Pressable>
+                </View>
+              )
             }
             renderItem={({ item }) => (
               <EventCard
                 item={item}
                 colors={colors}
-                onPress={() => router.push({ pathname: "/events/[id]", params: { id: String(item.id) } })}
+                onPress={() => {
+                  console.info('[EventsScreen] Navigating to event:', item.id, item.title);
+                  Alert.alert('DEBUG', `Navigating to event ${item.id}: ${item.title}`);
+                  router.push({ pathname: "/events/[id]", params: { id: String(item.id) } });
+                }}
                 rsvpStatus={rsvpStatuses[item.id]}
                 onRsvpPress={() => handleRsvpPress(item.id)}
                 isBookmarked={bookmarkedEvents.has(item.id)}
                 onBookmarkPress={() => handleBookmarkPress(item.id)}
                 isUserHost={isHost(item, user?.id)}
                 onManagePress={() => router.push({ pathname: "/events/manage/[id]", params: { id: String(item.id) } })}
+                viewer={__DEV__ ? viewer : undefined}
               />
             )}
             refreshing={isLoading}
@@ -1414,6 +1608,48 @@ export default function EventsScreenNew({
             </Text>
           </View>
         ) : null}
+
+        {/* DEV-ONLY: Debug Footer */}
+        {__DEV__ && (
+          <View style={styles.devFooter}>
+            <View style={styles.devFooterRow}>
+              <Text style={styles.devFooterLabel}>API:</Text>
+              <Text style={styles.devFooterValue} numberOfLines={1}>{getApiBase()}</Text>
+            </View>
+            <View style={styles.devFooterRow}>
+              <Text style={styles.devFooterLabel}>Build:</Text>
+              <Text style={styles.devFooterValue}>{getBuildChannel()}</Text>
+            </View>
+            <View style={styles.devFooterRow}>
+              <Text style={styles.devFooterLabel}>User:</Text>
+              <Text style={styles.devFooterValue}>
+                {user ? `${user.id} (@${user.username})` : 'not logged in'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.devRefreshBtn}
+              onPress={async () => {
+                console.info('[DEV] Hard refresh triggered');
+                await Promise.all([
+                  queryClient.invalidateQueries({ queryKey: ["events"] }),
+                  queryClient.invalidateQueries({ queryKey: ["events", "my"] }),
+                  queryClient.invalidateQueries({ queryKey: ["me"] }),
+                ]);
+                // Also refetch immediately
+                await Promise.all([
+                  queryClient.refetchQueries({ queryKey: ["events"] }),
+                  queryClient.refetchQueries({ queryKey: ["events", "my"] }),
+                  queryClient.refetchQueries({ queryKey: ["me"] }),
+                ]);
+                console.info('[DEV] Hard refresh complete');
+                Alert.alert('Refreshed', 'All queries invalidated and refetched');
+              }}
+            >
+              <Ionicons name="refresh" size={14} color="#fff" />
+              <Text style={styles.devRefreshText}>Hard Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -1786,5 +2022,71 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
+  },
+
+  // DEV-ONLY Debug Panel styles for EventCard
+  debugPanelCard: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  debugTitleCard: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#f59e0b',
+    marginBottom: 6,
+  },
+  debugRowCard: {
+    paddingVertical: 2,
+  },
+  debugLabelCard: {
+    fontSize: 9,
+    color: '#a1a1aa',
+    fontFamily: 'monospace',
+  },
+
+  // DEV-ONLY: Footer styles
+  devFooter: {
+    backgroundColor: '#1e1e2e',
+    borderTopWidth: 2,
+    borderTopColor: '#f59e0b',
+    padding: 12,
+    gap: 6,
+  },
+  devFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  devFooterLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#f59e0b',
+    width: 40,
+  },
+  devFooterValue: {
+    fontSize: 10,
+    color: '#e4e4e7',
+    fontFamily: 'monospace',
+    flex: 1,
+  },
+  devRefreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#f59e0b',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    marginTop: 8,
+  },
+  devRefreshText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#1e1e2e',
   },
 });

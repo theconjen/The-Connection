@@ -99,6 +99,11 @@ export function useAuth(): AuthContextType {
       
       // Store user info in local storage as fallback if sessions fail
       localStorage.setItem('currentUser', JSON.stringify(user));
+
+      // Store JWT token for WebSocket authentication if present
+      if ((user as any).token) {
+        localStorage.setItem('authToken', (user as any).token);
+      }
       
       // First set the query data immediately
       queryClient.setQueryData(["/api/user"], user);
@@ -157,7 +162,12 @@ export function useAuth(): AuthContextType {
       
       // Store user info in local storage as fallback
       localStorage.setItem('currentUser', JSON.stringify(user));
-      
+
+      // Store JWT token for WebSocket authentication if present
+      if ((user as any).token) {
+        localStorage.setItem('authToken', (user as any).token);
+      }
+
       toast({
         title: "Account created!",
         description: `Welcome to The Connection, ${user.username}! Your account has been created.`,
@@ -188,29 +198,37 @@ export function useAuth(): AuthContextType {
     onSuccess: () => {
       // Clear user data from cache
       queryClient.setQueryData(["/api/user"], null);
-      
+
       // Invalidate all queries to ensure fresh data on login
       queryClient.invalidateQueries();
-      
+
+      // Clear stored authentication data
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('authToken');
+
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
         variant: "default",
       });
-      
+
       // Navigate to auth page
       navigate("/auth");
     },
     onError: (error: Error) => {
       // For logout errors, still perform client-side logout
       queryClient.setQueryData(["/api/user"], null);
-      
+
+      // Clear stored authentication data
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('authToken');
+
       toast({
         title: "Logout issue",
         description: "Your session has been cleared but there was a server communication issue.",
         variant: "destructive",
       });
-      
+
       // Navigate to auth page even if there was an error
       navigate("/auth");
     },

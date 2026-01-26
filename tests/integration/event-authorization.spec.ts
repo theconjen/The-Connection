@@ -239,4 +239,102 @@ describe('Event and post authorization', () => {
   it('blocks anonymous post upvotes', async () => {
     await agent.post('/api/posts/20/upvote').expect(401);
   });
+
+  /**
+   * REGRESSION TEST: Event creation hostUserId hardening
+   *
+   * Verifies that:
+   * 1. hostUserId is always set to the authenticated user's ID
+   * 2. Client cannot override hostUserId via request body
+   * 3. GET /api/events/:id returns the correct hostUserId
+   *
+   * Manual QA steps:
+   * 1. Log in as User A
+   * 2. Create an event via POST /api/events
+   * 3. Call GET /api/events/:id on the created event
+   * 4. Verify response contains hostUserId = User A's id
+   * 5. Verify response contains host.id = User A's id
+   * 6. Try creating event with hostUserId in body set to different user
+   * 7. Verify the created event still has hostUserId = User A's id (ignored client value)
+   */
+  describe('Event creation hostUserId hardening', () => {
+    beforeEach(() => {
+      // Add mock for createEvent
+      (storage as any).createEvent = vi.fn(async (data: any) => {
+        const newEvent = {
+          id: 100,
+          ...data,
+          createdAt: new Date().toISOString(),
+        };
+        fixtures.events.push(newEvent as any);
+        return newEvent;
+      });
+
+      // Add mock for getCommunity
+      (storage as any).getCommunity = vi.fn(async (id: number) => {
+        if (id === 1) return { id: 1, name: 'Test Community' };
+        return null;
+      });
+
+      // Add mock for isCommunityModerator
+      (storage as any).isCommunityModerator = vi.fn(async (communityId: number, userId: number) => {
+        // User 1 is a moderator of community 1
+        return communityId === 1 && userId === 1;
+      });
+    });
+
+    it('sets hostUserId to authenticated user, ignoring client-provided value', async () => {
+      // Login as user 1
+      await agent.post('/test/login').send({ userId: 1 }).expect(204);
+
+      // Attempt to create event with a different hostUserId in body
+      const response = await agent
+        .post('/api/events')
+        .send({
+          title: 'Test Event',
+          description: 'Test Description',
+          eventDate: '2026-12-25',
+          startTime: '10:00:00',
+          endTime: '12:00:00',
+          communityId: 1,
+          isPublic: true,
+          // Malicious attempt to set hostUserId to a different user
+          hostUserId: 999,
+          creatorId: 888,
+        })
+        .expect(201);
+
+      // Verify hostUserId is set to the authenticated user (1), not the client value (999)
+      expect(response.body.hostUserId).toBe(1);
+      expect(response.body.creatorId).toBe(1);
+
+      // Verify host object contains correct user
+      expect(response.body.host).toBeDefined();
+      expect(response.body.host.id).toBe(1);
+
+      // Verify storage.createEvent was called with correct creatorId
+      expect((storage as any).createEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          creatorId: 1,
+        })
+      );
+    });
+
+    it('GET /api/events/:id returns correct hostUserId for created event', async () => {
+      // Add an event created by user 1
+      fixtures.events.push({
+        id: 50,
+        title: 'User 1 Event',
+        creatorId: 1,
+        isPublic: true,
+        communityId: 1,
+        groupId: null,
+      } as any);
+
+      const response = await agent.get('/api/events/50').expect(200);
+
+      // Verify hostUserId matches creatorId
+      expect(response.body.hostUserId).toBe(1);
+    });
+  });
 });

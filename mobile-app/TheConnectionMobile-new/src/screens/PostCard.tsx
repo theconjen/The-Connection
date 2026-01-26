@@ -8,6 +8,8 @@ import { View, Pressable, StyleSheet, Image, Text as RNText } from 'react-native
 import { Text, Badge, Avatar } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { sharePost } from '../lib/shareUrls';
+import { ImageCarousel } from '../components/ImageCarousel';
 
 // Helper to extract first sentence from text
 function getFirstSentence(text: string): { firstSentence: string; rest: string } {
@@ -272,27 +274,12 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
           )}
 
           {post.imageUrls && post.imageUrls.length > 0 && (
-            <View style={{
-              flexDirection: post.imageUrls.length === 1 ? 'column' : 'row',
-              flexWrap: 'wrap',
-              gap: 4,
-              marginBottom: spacing.sm,
-              borderRadius: radii.md,
-              overflow: 'hidden',
-            }}>
-              {post.imageUrls.slice(0, 4).map((url, index) => (
-                <Image
-                  key={index}
-                  source={{ uri: url }}
-                  style={{
-                    width: post.imageUrls!.length === 1 ? '100%' : '48%',
-                    height: post.imageUrls!.length === 1 ? 200 : 120,
-                    backgroundColor: colors.surfaceMuted,
-                    borderRadius: post.imageUrls!.length === 1 ? radii.md : 0,
-                  }}
-                  resizeMode="cover"
-                />
-              ))}
+            <View style={{ marginBottom: spacing.sm }}>
+              <ImageCarousel
+                images={post.imageUrls}
+                height={post.imageUrls.length === 1 ? 200 : 180}
+                borderRadius={radii.md}
+              />
             </View>
           )}
 
@@ -420,24 +407,43 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
               </Pressable>
             </View>
 
-            {/* Right side: Bookmark */}
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onBookmarkPress?.();
-              }}
-              style={({ pressed }) => ({
-                padding: spacing.sm,
-                borderRadius: radii.full,
-                backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
-              })}
-            >
-              <Ionicons
-                name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
-                size={18}
-                color={isBookmarked ? colors.bookmark : colors.textMuted}
-              />
-            </Pressable>
+            {/* Right side: Share and Bookmark */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  sharePost(post.id, post.title || 'Post');
+                }}
+                style={({ pressed }) => ({
+                  padding: spacing.sm,
+                  borderRadius: radii.full,
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                })}
+              >
+                <Ionicons
+                  name="share-outline"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onBookmarkPress?.();
+                }}
+                style={({ pressed }) => ({
+                  padding: spacing.sm,
+                  borderRadius: radii.full,
+                  backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                })}
+              >
+                <Ionicons
+                  name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                  size={18}
+                  color={isBookmarked ? colors.bookmark : colors.textMuted}
+                />
+              </Pressable>
+            </View>
           </View>
       </View>
     </View>

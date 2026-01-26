@@ -1174,6 +1174,7 @@ export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
+  category: text("category"), // Event type: Sunday Service, Worship, Bible Study, Prayer Meeting, Activity, etc.
   location: text("location"), // General location name
   address: text("address"), // Full street address
   city: text("city"), // City
@@ -1199,6 +1200,7 @@ export const events = pgTable("events", {
 export const insertEventSchema = createInsertSchema(events).pick({
   title: true,
   description: true,
+  category: true,
   location: true,
   address: true,
   city: true,

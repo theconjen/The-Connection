@@ -21,6 +21,7 @@ const MicroblogDetailPage = lazy(() => import("./pages/microblog-detail-page"));
 const BibleStudyPage = lazy(() => import("./pages/bible-study-page"));
 const EventsPage = lazy(() => import("./pages/events-page"));
 const EventDetailPage = lazy(() => import("./pages/event-detail-page"));
+const EventEditPage = lazy(() => import("./pages/event-edit-page"));
 const PrayerRequestsPage = lazy(() => import("./pages/prayer-requests-page"));
 const SettingsPage = lazy(() => import("./pages/settings-page"));
 const ProfilePage = lazy(() => import("./pages/profile-page"));
@@ -61,6 +62,12 @@ const UserProfilePage = lazy(() => import("./pages/user-profile-page"));
 const QuestionDetailPage = lazy(() => import("./pages/question-detail-page"));
 const NotificationsPage = lazy(() => import("./pages/notifications-page"));
 
+// Public preview pages (no auth required)
+const ApologeticsPreviewPage = lazy(() => import("./pages/public/apologetics-preview-page"));
+const EventPreviewPage = lazy(() => import("./pages/public/event-preview-page"));
+const PostPreviewPage = lazy(() => import("./pages/public/post-preview-page"));
+const ProfilePreviewPage = lazy(() => import("./pages/public/profile-preview-page"));
+
 // Analytics tracking component with event tracking
 function AnalyticsTracker() {
   const [location] = useLocation();
@@ -99,6 +106,12 @@ function App() {
           <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div></div>
         }>
           <Switch>
+          {/* Public canonical share URLs (no auth required) */}
+          <Route path="/a/:slugOrId" component={ApologeticsPreviewPage} />
+          <Route path="/e/:eventId" component={EventPreviewPage} />
+          <Route path="/p/:postId" component={PostPreviewPage} />
+          <Route path="/u/:username" component={ProfilePreviewPage} />
+
           <Route path="/" component={() => <HomePage />} />
           <Route path="/auth" component={AuthPage} />
           <Route path="/reset-password" component={AuthPage} />
@@ -117,6 +130,7 @@ function App() {
           
           {/* Resources */}
           <Route path="/events" component={EventsPage} />
+          <Route path="/events/:id/edit" component={EventEditPage} />
           <Route path="/events/:id" component={EventDetailPage} />
           <Route path="/prayer-requests" component={PrayerRequestsPage} />
           <Route path="/prayers/:id" component={PrayerDetailPage} />

@@ -35,16 +35,17 @@ const listLibraryPostsSchema = z.object({
   offset: z.coerce.number().int().nonnegative().optional().default(0),
 });
 
+// Schema for creating drafts (more lenient - allows partial content)
 const createLibraryPostSchema = z.object({
   domain: z.enum(['apologetics', 'polemics']),
   areaId: z.number().int().positive().nullable().optional(),
   tagId: z.number().int().positive().nullable().optional(),
   title: z.string().min(1).max(500),
   summary: z.string().max(1000).nullable().optional(),
-  tldr: z.string().min(1).max(500), // Required for GotQuestions UX
-  keyPoints: z.array(z.string()).min(3).max(5), // 3-5 bullet points
-  scriptureRefs: z.array(z.string()).optional().default([]), // Scripture references
-  bodyMarkdown: z.string().min(1),
+  tldr: z.string().max(500).nullable().optional(), // Optional for drafts
+  keyPoints: z.array(z.string()).max(5).optional().default([]), // Optional for drafts
+  scriptureRefs: z.array(z.string()).optional().default([]),
+  bodyMarkdown: z.string().optional().default(''), // Optional for drafts
   perspectives: z.array(z.string()).optional().default([]),
   sources: z.array(z.object({
     title: z.string(),
@@ -52,6 +53,13 @@ const createLibraryPostSchema = z.object({
     author: z.string().optional(),
     date: z.string().optional(),
   })).optional().default([]),
+});
+
+// Schema for publishing (strict - requires all fields for GotQuestions UX)
+const publishLibraryPostSchema = z.object({
+  tldr: z.string().min(1, 'Quick answer is required for publishing').max(500),
+  keyPoints: z.array(z.string()).min(3, 'At least 3 key points required').max(5, 'Maximum 5 key points'),
+  bodyMarkdown: z.string().min(1, 'Body content is required for publishing'),
 });
 
 const updateLibraryPostSchema = z.object({
@@ -261,6 +269,28 @@ router.post('/posts/:id/publish', requireAuth, async (req, res) => {
     if (!canAuthor) {
       return res.status(403).json({
         error: 'Insufficient permissions to publish library posts',
+      });
+    }
+
+    // Get the post to validate it has required content for publishing
+    const existingPost = await storage.getLibraryPost(postId, authorUserId);
+    if (!existingPost) {
+      return res.status(404).json({ error: 'Library post not found' });
+    }
+
+    // Validate required fields for publishing (GotQuestions UX requirements)
+    const validationResult = publishLibraryPostSchema.safeParse({
+      tldr: existingPost.tldr,
+      keyPoints: existingPost.keyPoints,
+      bodyMarkdown: existingPost.bodyMarkdown,
+    });
+
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map(e => e.message);
+      return res.status(400).json({
+        error: 'Post is incomplete and cannot be published',
+        details: errors,
+        message: 'Please complete all required fields before publishing: Quick Answer (TL;DR), 3-5 Key Points, and Detailed Answer.',
       });
     }
 

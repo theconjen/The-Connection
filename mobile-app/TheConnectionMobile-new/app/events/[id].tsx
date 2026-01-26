@@ -2,7 +2,7 @@
  * Event Detail Screen with Map Integration
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { eventsAPI } from '../../src/lib/apiClient';
+import apiClient, { eventsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { isHost } from '../../src/lib/eventHelpers';
@@ -37,6 +37,7 @@ interface Event {
   id: number;
   title: string;
   description: string;
+  category?: string; // Event type: Sunday Service, Worship, Bible Study, etc.
   location?: string;
   latitude?: number;
   longitude?: number;
@@ -56,46 +57,111 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams() as { id: string };
   const queryClient = useQueryClient();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { colors, colorScheme } = useTheme();
   const styles = getThemedStyles(colors, colorScheme);
   const eventId = parseInt(id || '0');
+
+  // ALWAYS log on mount to debug routing issues
+  console.info('[EventDetail] MOUNTED - id param:', id, '-> eventId:', eventId);
   const [showMap, setShowMap] = useState(true);
   const [currentRsvp, setCurrentRsvp] = useState<RSVPStatus | null>(null);
   const [rsvpFeedback, setRsvpFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const { data: event, isLoading } = useQuery<Event>({
-    queryKey: ['event', eventId],
-    queryFn: async () => {
-      // Use the specific event endpoint to get all fields including coordinates
-      const foundEvent = await eventsAPI.getById(eventId);
-      // Store the user's RSVP status from the event data (API returns userRsvpStatus)
-      if (foundEvent?.userRsvpStatus) {
-        setCurrentRsvp(foundEvent.userRsvpStatus);
-      } else if (foundEvent?.rsvpStatus) {
-        setCurrentRsvp(foundEvent.rsvpStatus);
-      }
-      return foundEvent;
-    },
-    enabled: !!eventId,
-  });
+  // Auth must be fully initialized before fetching event (ensures JWT is attached)
+  const authReady = !authLoading;
 
-  // Debug log for host verification (dev only)
+  // DEV-ONLY: Log auth readiness state
   useEffect(() => {
-    if (__DEV__ && event) {
-      console.info('[EventDetail] Host check:', {
-        viewerId: user?.id,
-        hostUserId: event.hostUserId,
-        'host.id': event.host?.id,
-        creatorId: event.creatorId,
-        isHost: isHost(event, user?.id),
+    if (__DEV__) {
+      console.info('[EventDetail] Auth state:', {
+        authReady,
+        authLoading,
+        hasUser: !!user,
+        userId: user?.id,
+        eventId,
       });
     }
-  }, [event, user?.id]);
+  }, [authReady, authLoading, user, eventId]);
+
+  const { data: event, isLoading, error: queryError } = useQuery<Event>({
+    queryKey: ['event', eventId],
+    queryFn: async () => {
+      if (__DEV__) {
+        console.info('[EventDetail] Fetching event:', eventId);
+      }
+      try {
+        // Use the specific event endpoint to get all fields including coordinates
+        const foundEvent = await eventsAPI.getById(eventId);
+        if (__DEV__) {
+          console.info('[EventDetail] Event fetch success:', {
+            eventId: foundEvent?.id,
+            userRsvpStatus: foundEvent?.userRsvpStatus,
+            hasHost: !!foundEvent?.host,
+          });
+        }
+        // Store the user's RSVP status from the event data (API returns userRsvpStatus)
+        if (foundEvent?.userRsvpStatus) {
+          setCurrentRsvp(foundEvent.userRsvpStatus);
+        } else if (foundEvent?.rsvpStatus) {
+          setCurrentRsvp(foundEvent.rsvpStatus);
+        }
+        return foundEvent;
+      } catch (error: any) {
+        if (__DEV__) {
+          console.error('[EventDetail] Event fetch error:', {
+            status: error.response?.status,
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+    },
+    // Wait for auth to be ready before fetching (ensures JWT is attached for userRsvpStatus)
+    enabled: !!eventId && authReady,
+  });
+
+  // DEV-ONLY: Fetch viewer from /api/user/me for debug panel
+  const { data: viewer } = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/user/me');
+      return res.data;
+    },
+    enabled: __DEV__,
+  });
+
+  // DEV-ONLY: Track if we've logged once
+  const hasLoggedRef = useRef(false);
+
+  // DEV-ONLY: Console.log debug payload once on mount when data is ready
+  useEffect(() => {
+    if (__DEV__ && event && viewer && !hasLoggedRef.current) {
+      hasLoggedRef.current = true;
+      const debugPayload = {
+        viewerId: viewer?.id,
+        viewerUsername: viewer?.username,
+        eventId: event.id,
+        'event.hostUserId': event.hostUserId,
+        'event.host?.id': event.host?.id,
+        'event.creatorId': event.creatorId,
+        derivedIsHost: isHost(event, viewer?.id),
+      };
+      console.info('[EventDetail DEBUG]', debugPayload);
+    }
+  }, [event, viewer]);
 
   const rsvpMutation = useMutation({
-    mutationFn: (status: RSVPStatus) => eventsAPI.rsvp(eventId, status),
+    mutationFn: (status: RSVPStatus) => {
+      if (__DEV__) {
+        console.info('[EventDetail RSVP] Setting status:', { eventId, status });
+      }
+      return eventsAPI.rsvp(eventId, status);
+    },
     onSuccess: (_data, status) => {
+      if (__DEV__) {
+        console.info('[EventDetail RSVP] Success - invalidating queries for event:', eventId);
+      }
       // Update local state immediately
       setCurrentRsvp(status);
       // Invalidate queries to ensure server state is fetched (persists across app restarts)
@@ -215,18 +281,58 @@ export default function EventDetailScreen() {
     return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
   };
 
-  if (isLoading) {
+  // Check if eventId is valid (not 0, not NaN)
+  const isValidEventId = eventId > 0 && !isNaN(eventId);
+
+  // Show error immediately if eventId is invalid
+  if (!isValidEventId) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={styles.errorText}>Invalid event</Text>
+        {__DEV__ && (
+          <Text style={{ color: colors.textMuted, marginTop: 5, fontSize: 12 }}>
+            id param: "{id}", parsed eventId: {eventId}
+          </Text>
+        )}
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(tabs)/events')}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  if (!event) {
+  // Show loading state while auth is loading OR query is fetching
+  if (isLoading || authLoading) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Event not found</Text>
+        <ActivityIndicator size="large" color={colors.accent} />
+        {__DEV__ && (
+          <Text style={{ color: colors.textMuted, marginTop: 10, fontSize: 12 }}>
+            {authLoading ? 'Loading auth...' : 'Loading event...'}
+          </Text>
+        )}
+      </View>
+    );
+  }
+
+  if (queryError || !event) {
+    // Determine error message
+    const errorStatus = (queryError as any)?.response?.status;
+    const errorMessage = errorStatus === 404
+      ? 'Event not found'
+      : queryError
+        ? 'Failed to load event'
+        : 'Event not found';
+
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>{errorMessage}</Text>
+        {__DEV__ && (
+          <Text style={{ color: colors.textMuted, marginTop: 5, fontSize: 12, textAlign: 'center' }}>
+            eventId: {eventId}, authReady: {String(authReady)}{'\n'}
+            error: {queryError?.message || 'no data'}
+          </Text>
+        )}
         <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(tabs)/events')}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -278,6 +384,13 @@ export default function EventDetailScreen() {
               <Text style={styles.hostName}>
                 Hosted by {event.host.displayName || event.host.username}
               </Text>
+            </View>
+          )}
+
+          {/* Event category/type badge */}
+          {event.category && (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>{event.category}</Text>
             </View>
           )}
 
@@ -342,6 +455,43 @@ export default function EventDetailScreen() {
             <Text style={styles.sectionTitle}>About this event</Text>
             <Text style={styles.description}>{event.description}</Text>
           </View>
+
+          {/* DEV-ONLY Debug Panel */}
+          {__DEV__ && (
+            <View style={styles.debugPanel}>
+              <Text style={styles.debugTitle}>🛠️ DEV DEBUG PANEL</Text>
+              <View style={styles.debugRow}>
+                <Text style={styles.debugLabel}>viewerId:</Text>
+                <Text style={styles.debugValue}>{viewer?.id ?? 'null'}</Text>
+              </View>
+              <View style={styles.debugRow}>
+                <Text style={styles.debugLabel}>viewerUsername:</Text>
+                <Text style={styles.debugValue}>{viewer?.username ?? 'null'}</Text>
+              </View>
+              <View style={styles.debugRow}>
+                <Text style={styles.debugLabel}>eventId:</Text>
+                <Text style={styles.debugValue}>{event.id}</Text>
+              </View>
+              <View style={styles.debugRow}>
+                <Text style={styles.debugLabel}>event.hostUserId:</Text>
+                <Text style={styles.debugValue}>{event.hostUserId ?? 'undefined'}</Text>
+              </View>
+              <View style={styles.debugRow}>
+                <Text style={styles.debugLabel}>event.host?.id:</Text>
+                <Text style={styles.debugValue}>{event.host?.id ?? 'undefined'}</Text>
+              </View>
+              <View style={styles.debugRow}>
+                <Text style={styles.debugLabel}>event.creatorId:</Text>
+                <Text style={styles.debugValue}>{event.creatorId ?? 'undefined'}</Text>
+              </View>
+              <View style={[styles.debugRow, styles.debugHighlight]}>
+                <Text style={styles.debugLabel}>derived isHost:</Text>
+                <Text style={[styles.debugValue, { color: isHost(event, viewer?.id) ? '#22c55e' : '#ef4444', fontWeight: 'bold' }]}>
+                  {isHost(event, viewer?.id) ? 'TRUE' : 'FALSE'}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -566,6 +716,19 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '500',
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary + '20', // 20% opacity
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  categoryBadgeText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   locationSection: {
     flexDirection: 'row',
@@ -803,5 +966,46 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  // DEV-ONLY Debug Panel styles
+  debugPanel: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#f59e0b',
+  },
+  debugTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#f59e0b',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  debugRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  debugLabel: {
+    fontSize: 12,
+    color: '#a1a1aa',
+    fontFamily: 'monospace',
+  },
+  debugValue: {
+    fontSize: 12,
+    color: '#e4e4e7',
+    fontFamily: 'monospace',
+  },
+  debugHighlight: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 2,
+    borderTopColor: '#f59e0b',
+    borderBottomWidth: 0,
   },
 });

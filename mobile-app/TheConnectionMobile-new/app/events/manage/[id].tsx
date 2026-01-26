@@ -20,6 +20,7 @@ import {
   Switch,
   Image,
   FlatList,
+  Keyboard,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -31,6 +32,24 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 type TabType = 'details' | 'rsvps' | 'settings';
+
+// Event type categories
+const EVENT_CATEGORIES = [
+  'Sunday Service',
+  'Worship',
+  'Bible Study',
+  'Prayer Meeting',
+  'Youth Group',
+  'Small Group',
+  'Fellowship',
+  'Outreach',
+  'Conference',
+  'Workshop',
+  'Activity',
+  'Other',
+] as const;
+
+type EventCategory = typeof EVENT_CATEGORIES[number];
 
 interface RsvpUser {
   id: number;
@@ -84,9 +103,12 @@ export default function ManageEventScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams() as { id: string };
-  const eventId = parseInt(id);
+  const eventId = parseInt(id || '0');
   const { colors, colorScheme } = useTheme();
   const { user } = useAuth();
+
+  // Check if eventId is valid
+  const isValidEventId = eventId > 0 && !isNaN(eventId);
   const styles = getStyles(colors, colorScheme);
 
   // Active tab
@@ -109,6 +131,7 @@ export default function ManageEventScreen() {
   // Form state (Details tab)
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<EventCategory>('Sunday Service');
   const [location, setLocation] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
@@ -121,12 +144,14 @@ export default function ManageEventScreen() {
   const [selectedTime, setSelectedTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   // Initialize form with event data
   useEffect(() => {
     if (event) {
       setTitle(event.title || '');
       setDescription(event.description || '');
+      setCategory((event.category as EventCategory) || 'Sunday Service');
       setLocation(event.location || '');
       setIsPublic(event.isPublic !== false);
 
@@ -232,15 +257,16 @@ export default function ManageEventScreen() {
     const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
     const startTime = `${hours}:${minutes}:00`;
 
-    // Use coordinates from selected location suggestion
+    // Use coordinates from selected location suggestion, or preserve existing if location unchanged
     let latitude: number | undefined;
     let longitude: number | undefined;
 
     if (selectedLocation) {
+      // User selected a new location from suggestions
       latitude = parseFloat(selectedLocation.lat);
       longitude = parseFloat(selectedLocation.lon);
     } else if (location.trim() && location !== event?.location) {
-      // Only geocode if location changed and no suggestion selected
+      // Location text changed but no suggestion selected - try to geocode
       try {
         const results = await searchLocations(location.trim());
         if (results.length > 0) {
@@ -250,11 +276,16 @@ export default function ManageEventScreen() {
       } catch (error) {
         console.warn('[ManageEvent] Geocoding error:', error);
       }
+    } else if (location.trim() === event?.location && event?.latitude && event?.longitude) {
+      // Location unchanged - preserve existing coordinates
+      latitude = typeof event.latitude === 'string' ? parseFloat(event.latitude) : event.latitude;
+      longitude = typeof event.longitude === 'string' ? parseFloat(event.longitude) : event.longitude;
     }
 
     updateMutation.mutate({
       title: title.trim(),
       description: description.trim(),
+      category, // Event type: Sunday Service, Worship, Bible Study, etc.
       location: location.trim() || undefined,
       latitude,
       longitude,
@@ -290,6 +321,7 @@ export default function ManageEventScreen() {
     setLocation(suggestion.display_name);
     setShowLocationSuggestions(false);
     setLocationSuggestions([]);
+    Keyboard.dismiss(); // Dismiss keyboard after selecting location
   };
 
   const formatDate = (date: Date) => {
@@ -309,6 +341,24 @@ export default function ManageEventScreen() {
     });
   };
 
+  // Invalid event ID
+  if (!isValidEventId) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Ionicons name="alert-circle-outline" size={48} color={colors.danger} />
+        <Text style={styles.errorText}>Invalid event</Text>
+        {__DEV__ && (
+          <Text style={{ color: colors.textMuted, marginTop: 5, fontSize: 12 }}>
+            id param: "{id}", parsed eventId: {eventId}
+          </Text>
+        )}
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   // Loading state
   if (eventLoading) {
     return (
@@ -325,6 +375,11 @@ export default function ManageEventScreen() {
       <View style={[styles.container, styles.centered]}>
         <Ionicons name="alert-circle-outline" size={48} color={colors.danger} />
         <Text style={styles.errorText}>Event not found</Text>
+        {__DEV__ && (
+          <Text style={{ color: colors.textMuted, marginTop: 5, fontSize: 12 }}>
+            eventId: {eventId}, error: {eventError?.message || 'no data'}
+          </Text>
+        )}
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -476,8 +531,21 @@ export default function ManageEventScreen() {
               />
             </View>
 
-            {/* Location with Autocomplete */}
+            {/* Category/Type Selector */}
             <View style={styles.inputGroup}>
+              <Text style={styles.label}>Event Type</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowCategoryPicker(true)}
+              >
+                <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
+                <Text style={styles.pickerText}>{category}</Text>
+                <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Location with Autocomplete */}
+            <View style={[styles.inputGroup, { zIndex: 1000, elevation: 1000 }]}>
               <Text style={styles.label}>Location</Text>
               <View style={styles.locationInputContainer}>
                 <TextInput
@@ -487,6 +555,8 @@ export default function ManageEventScreen() {
                   placeholder="Search for a location..."
                   placeholderTextColor={colors.textMuted}
                   maxLength={200}
+                  autoCorrect={false}
+                  autoCapitalize="none"
                 />
                 {isSearchingLocations && (
                   <ActivityIndicator
@@ -508,21 +578,43 @@ export default function ManageEventScreen() {
                 )}
               </View>
 
-              {/* Location Suggestions */}
+              {/* Location Suggestions - absolute positioned to overlay other content */}
               {showLocationSuggestions && locationSuggestions.length > 0 && (
-                <View style={[styles.suggestionsContainer, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                  {locationSuggestions.map((suggestion) => (
-                    <TouchableOpacity
-                      key={suggestion.place_id}
-                      style={[styles.suggestionItem, { borderBottomColor: colors.borderSubtle }]}
-                      onPress={() => handleSelectLocation(suggestion)}
-                    >
-                      <Ionicons name="location-outline" size={18} color={colors.primary} />
-                      <Text style={[styles.suggestionText, { color: colors.textPrimary }]} numberOfLines={2}>
-                        {suggestion.display_name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <View style={[
+                  styles.suggestionsContainer,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.borderSubtle,
+                    position: 'absolute',
+                    top: 80, // Below input
+                    left: 0,
+                    right: 0,
+                    zIndex: 2000,
+                    elevation: 10,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 4,
+                  }
+                ]}>
+                  <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled={true}
+                    style={{ maxHeight: 200 }}
+                  >
+                    {locationSuggestions.map((suggestion) => (
+                      <TouchableOpacity
+                        key={suggestion.place_id}
+                        style={[styles.suggestionItem, { borderBottomColor: colors.borderSubtle }]}
+                        onPress={() => handleSelectLocation(suggestion)}
+                      >
+                        <Ionicons name="location-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.suggestionText, { color: colors.textPrimary }]} numberOfLines={2}>
+                          {suggestion.display_name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
             </View>
@@ -757,6 +849,48 @@ export default function ManageEventScreen() {
           />
         )
       )}
+
+      {/* Category Picker Modal */}
+      <Modal
+        visible={showCategoryPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCategoryPicker(false)}
+      >
+        <Pressable
+          style={styles.pickerModalOverlay}
+          onPress={() => setShowCategoryPicker(false)}
+        >
+          <View style={styles.categoryModalContent}>
+            <View style={styles.pickerModalHeader}>
+              <Text style={styles.pickerModalTitle}>Select Event Type</Text>
+              <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.categoryList}>
+              {EVENT_CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.categoryOption,
+                    category === cat && styles.categoryOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setCategory(cat);
+                    setShowCategoryPicker(false);
+                  }}
+                >
+                  <Text style={styles.categoryOptionText}>{cat}</Text>
+                  {category === cat && (
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -1099,6 +1233,33 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
     },
     iosPicker: {
       height: 200,
+    },
+    // Category picker styles
+    categoryModalContent: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '80%',
+      paddingBottom: 20,
+    },
+    categoryList: {
+      maxHeight: 400,
+    },
+    categoryOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    categoryOptionSelected: {
+      backgroundColor: colorScheme === 'dark' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.05)',
+    },
+    categoryOptionText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.textPrimary,
     },
     // Error/Loading states
     loadingText: {

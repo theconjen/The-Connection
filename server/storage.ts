@@ -3829,7 +3829,17 @@ export class DbStorage implements IStorage {
   }
   
   async deleteEvent(id: number): Promise<boolean> {
-    // Events don't have soft delete - use hard delete
+    // First delete all RSVPs for this event (foreign key constraint)
+    await db.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
+
+    // Also delete any bookmarks for this event
+    try {
+      await db.delete(eventBookmarks).where(eq(eventBookmarks.eventId, id));
+    } catch (e) {
+      // eventBookmarks table may not exist in all environments
+    }
+
+    // Then delete the event itself
     const result = await db.delete(events)
       .where(eq(events.id, id));
     return true;

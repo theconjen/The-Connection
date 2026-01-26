@@ -19,16 +19,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { 
-  User, 
-  Bell, 
-  Shield, 
-  Eye, 
-  Mail, 
+import {
+  User,
+  Bell,
+  Shield,
+  Eye,
+  Mail,
   Lock,
   Building,
   Palette,
-  Globe
+  Globe,
+  Church,
+  BookOpen,
+  Heart,
+  Sparkles
 } from "lucide-react";
 
 interface UserProfile {
@@ -45,6 +49,12 @@ interface UserProfile {
   profileVisibility?: 'public' | 'private' | 'friends';
   showLocation?: boolean;
   showInterests?: boolean;
+  // Faith Journey fields
+  denomination: string | null;
+  homeChurch: string | null;
+  favoriteBibleVerse: string | null;
+  testimony: string | null;
+  interests: string | null;
 }
 
 interface UserPreferences {
@@ -70,6 +80,12 @@ export default function SettingsPage() {
     state: "",
     zipCode: "",
     email: "",
+    // Faith Journey fields
+    denomination: "",
+    homeChurch: "",
+    favoriteBibleVerse: "",
+    testimony: "",
+    interests: "",
   });
 
   // Fetch current user settings on component mount
@@ -82,6 +98,12 @@ export default function SettingsPage() {
         state: user.state || "",
         zipCode: user.zipCode || "",
         email: user.email || "",
+        // Faith Journey fields
+        denomination: (user as any).denomination || "",
+        homeChurch: (user as any).homeChurch || "",
+        favoriteBibleVerse: (user as any).favoriteBibleVerse || "",
+        testimony: (user as any).testimony || "",
+        interests: (user as any).interests || "",
       });
       setPreferences(prev => ({
         ...prev,
@@ -463,7 +485,91 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                {/* Faith Journey Section */}
+                <div className="border-t pt-6 mt-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Church className="w-5 h-5 text-primary" />
+                    Faith Journey
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Share your faith background to help others connect with you
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="denomination">Denomination / Tradition</Label>
+                      <Input
+                        id="denomination"
+                        value={profileData.denomination}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, denomination: e.target.value }))}
+                        placeholder="e.g., Baptist, Presbyterian, Non-denominational"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="homeChurch">Home Church</Label>
+                      <Input
+                        id="homeChurch"
+                        value={profileData.homeChurch}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, homeChurch: e.target.value }))}
+                        placeholder="Your local church"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="favoriteBibleVerse" className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      Favorite Bible Verse
+                    </Label>
+                    <Input
+                      id="favoriteBibleVerse"
+                      value={profileData.favoriteBibleVerse}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, favoriteBibleVerse: e.target.value }))}
+                      placeholder="e.g., John 3:16, Philippians 4:13"
+                    />
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="testimony" className="flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Brief Testimony
+                    </Label>
+                    <Textarea
+                      id="testimony"
+                      value={profileData.testimony}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, testimony: e.target.value }))}
+                      placeholder="Share a brief version of your faith journey..."
+                      rows={4}
+                      maxLength={500}
+                    />
+                    <p className="text-xs text-muted-foreground text-right">
+                      {profileData.testimony.length}/500 characters
+                    </p>
+                  </div>
+                </div>
+
+                {/* Interests Section */}
+                <div className="border-t pt-6 mt-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    Interests & Hobbies
+                  </h3>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="interests">Interests</Label>
+                    <Input
+                      id="interests"
+                      value={profileData.interests}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, interests: e.target.value }))}
+                      placeholder="e.g., Music, Hiking, Bible Study, Coffee (comma-separated)"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Separate multiple interests with commas
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-4">
                   <Button type="submit" disabled={loading}>
                     {loading ? "Updating..." : "Update Profile"}
                   </Button>

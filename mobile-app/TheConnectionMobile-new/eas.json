@@ -24,7 +24,7 @@
         "resourceClass": "m-medium"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       },
       "channel": "production"
     }
@@ -37,7 +37,7 @@
         "appleTeamId": "AN976FH68W"
       },
       "android": {
-        "serviceAccountKeyPath": "./path-to-service-account.json",
+        "serviceAccountKeyPath": "./secrets/play-store-service-account.json",
         "track": "internal"
       }
     }

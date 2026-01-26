@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { io, Socket } from "socket.io-client";
 import { useAuth } from "./use-auth";
 
 export interface ChatMessage {
@@ -16,8 +17,6 @@ export interface ChatMessage {
   };
 }
 
-type MessageHandler = (message: any) => void;
-
 interface UseChatWebsocketReturn {
   sendMessage: (content: string, roomId: number) => void;
   joinRoom: (roomId: number) => void;
@@ -32,293 +31,252 @@ interface UseChatWebsocketReturn {
 
 export function useChatWebsocket(): UseChatWebsocketReturn {
   const { user } = useAuth();
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [usersTyping, setUsersTyping] = useState<{ userId: number; username: string; roomId: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Keep track of subscribed rooms
   const subscribedRoomsRef = useRef<Set<number>>(new Set());
-  
-  // Message handlers map
-  const messageHandlersRef = useRef<Map<string, MessageHandler>>(new Map());
-  
+
   // Keep track of typing timeouts to prevent memory leaks
   const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-  
-  // Setup message handlers
+
+  // Connect to the Socket.IO server
   useEffect(() => {
-    // Handle connection confirmation
-    messageHandlersRef.current.set("connected", () => {
-      setIsConnected(true);
-      setIsConnecting(false);
-      setError(null);
-      
-      // If user is authenticated, send auth data
-      if (user) {
-        socket?.send(JSON.stringify({
-          type: "auth",
-          userId: user.id,
-          username: user.username,
-          token: "fake-token" // In a real implementation, use a proper token
-        }));
-      }
-    });
-    
-    // Handle auth success
-    messageHandlersRef.current.set("auth_success", (data) => {
-    });
-    
-    // Handle room joined
-    messageHandlersRef.current.set("room_joined", (data) => {
-    });
-    
-    // Handle message history
-    messageHandlersRef.current.set("message_history", (data) => {
-      setMessages(prevMessages => {
-        // Filter out messages that are already in the history for this room
-        const existingIds = new Set(prevMessages.map(m => m.id));
-        const newMessages = data.messages.filter((m: ChatMessage) => !existingIds.has(m.id));
-        return [...prevMessages, ...newMessages];
-      });
-    });
-    
-    // Handle new messages
-    messageHandlersRef.current.set("new_message", (data) => {
-      setMessages(prevMessages => [...prevMessages, data.message]);
-    });
-    
-    // Handle system messages
-    messageHandlersRef.current.set("system_message", (data) => {
-      // Create a fake system message
-      const systemMessage: ChatMessage = {
-        id: Date.now(), // Use timestamp as a temporary ID
-        chatRoomId: data.roomId,
-        senderId: 0, // System message has senderId 0
-        content: data.message,
-        createdAt: new Date(),
-        isSystemMessage: true,
-        sender: {
-          id: 0,
-          username: "system",
-          displayName: "System",
-          avatarUrl: null
-        }
-      };
-      
-      setMessages(prevMessages => [...prevMessages, systemMessage]);
-    });
-    
-    // Handle user typing
-    messageHandlersRef.current.set("user_typing", (data) => {
-      setUsersTyping(prevTyping => {
-        // Remove previous typing notifications from this user
-        const filtered = prevTyping.filter(u => u.userId !== data.userId || u.roomId !== data.roomId);
-        
-        // Add new typing notification
-        const newTyping = [...filtered, { 
-          userId: data.userId, 
-          username: data.username, 
-          roomId: data.roomId 
-        }];
-        
-        // Clear any existing timeout for this user/room combination
-        const timeoutKey = `${data.userId}-${data.roomId}`;
-        const existingTimeout = typingTimeoutsRef.current.get(timeoutKey);
-        if (existingTimeout) {
-          clearTimeout(existingTimeout);
-        }
-        
-        // Set up automatic removal after 3 seconds
-        const timeout = setTimeout(() => {
-          setUsersTyping(current => 
-            current.filter(u => u.userId !== data.userId || u.roomId !== data.roomId)
-          );
-          typingTimeoutsRef.current.delete(timeoutKey);
-        }, 3000);
-        
-        typingTimeoutsRef.current.set(timeoutKey, timeout);
-        
-        return newTyping;
-      });
-    });
-    
-    // Handle errors
-    messageHandlersRef.current.set("error", (data) => {
-      console.error("WebSocket error:", data.message);
-      setError(data.message);
-    });
-    
-    // Handle pong (keep alive)
-    messageHandlersRef.current.set("pong", () => {
-    });
-    
-    return () => {
-      messageHandlersRef.current.clear();
-    };
-  }, [user, socket]);
-  
-  // Connect to the WebSocket server
-  useEffect(() => {
-    if (!socket && !isConnecting) {
-      setIsConnecting(true);
-      
-      try {
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
-        
-        const newSocket = new WebSocket(wsUrl);
-        
-        newSocket.onopen = () => {
-          setSocket(newSocket);
-        };
-        
-        newSocket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            
-            const handler = messageHandlersRef.current.get(data.type);
-            if (handler) {
-              handler(data);
-            } else {
-              console.warn("No handler for message type:", data.type);
-            }
-          } catch (error) {
-            console.error("Error parsing WebSocket message:", error);
-          }
-        };
-        
-        newSocket.onerror = (event) => {
-          console.error("WebSocket error:", event);
-          setError("WebSocket connection error");
-          setIsConnecting(false);
-        };
-        
-        newSocket.onclose = () => {
-          setIsConnected(false);
-          setSocket(null);
-          setIsConnecting(false);
-          
-          // Clear subscribed rooms
-          subscribedRoomsRef.current.clear();
-          
-          // Try to reconnect after a delay
-          setTimeout(() => {
-            setIsConnecting(false); // Allow reconnection attempt
-          }, 5000);
-        };
-        
-        // Set up ping interval for keeping the connection alive
-        const pingInterval = setInterval(() => {
-          if (newSocket.readyState === WebSocket.OPEN) {
-            newSocket.send(JSON.stringify({ type: "ping" }));
-          }
-        }, 30000); // Send a ping every 30 seconds
-        
-        return () => {
-          clearInterval(pingInterval);
-          newSocket.close();
-        };
-      } catch (error) {
-        console.error("Error setting up WebSocket:", error);
-        setError("Failed to connect to chat server");
-        setIsConnecting(false);
-      }
+    if (!user) {
+      return;
     }
-  }, [socket, isConnecting]);
-  
+
+    // Get JWT token from localStorage
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError("No authentication token available");
+      return;
+    }
+
+    if (socket || isConnecting) {
+      return;
+    }
+
+    setIsConnecting(true);
+    setError(null);
+
+    try {
+      // Create Socket.IO connection with JWT authentication
+      const newSocket = io({
+        auth: {
+          token: token,
+        },
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+      });
+
+      // Connection event handlers
+      newSocket.on('connect', () => {
+        console.info('[Socket.IO] connected:', newSocket.id);
+        setIsConnected(true);
+        setIsConnecting(false);
+        setError(null);
+
+        // Join user's personal room for notifications
+        if (user) {
+          newSocket.emit('join_user_room', user.id);
+        }
+      });
+
+      newSocket.on('disconnect', (reason) => {
+        console.info('[Socket.IO] disconnected:', reason);
+        setIsConnected(false);
+
+        // Clear subscribed rooms on disconnect
+        subscribedRoomsRef.current.clear();
+      });
+
+      newSocket.on('connect_error', (err) => {
+        console.error('Socket.IO connection error:', err.message);
+        setError(`Connection error: ${err.message}`);
+        setIsConnecting(false);
+      });
+
+      // Chat message handlers
+      newSocket.on('message_received', (message: ChatMessage) => {
+        setMessages(prevMessages => {
+          // Avoid duplicate messages
+          if (prevMessages.some(m => m.id === message.id)) {
+            return prevMessages;
+          }
+          return [...prevMessages, message];
+        });
+      });
+
+      newSocket.on('message_history', (data: { messages: ChatMessage[] }) => {
+        setMessages(prevMessages => {
+          const existingIds = new Set(prevMessages.map(m => m.id));
+          const newMessages = data.messages.filter(m => !existingIds.has(m.id));
+          return [...prevMessages, ...newMessages];
+        });
+      });
+
+      // System message handler
+      newSocket.on('system_message', (data: { roomId: number; message: string }) => {
+        const systemMessage: ChatMessage = {
+          id: Date.now(),
+          chatRoomId: data.roomId,
+          senderId: 0,
+          content: data.message,
+          createdAt: new Date(),
+          isSystemMessage: true,
+          sender: {
+            id: 0,
+            username: "system",
+            displayName: "System",
+            avatarUrl: null
+          }
+        };
+        setMessages(prevMessages => [...prevMessages, systemMessage]);
+      });
+
+      // Typing indicator handler
+      newSocket.on('user_typing', (data: { userId: number; username: string; roomId: number }) => {
+        setUsersTyping(prevTyping => {
+          const filtered = prevTyping.filter(u => u.userId !== data.userId || u.roomId !== data.roomId);
+          const newTyping = [...filtered, {
+            userId: data.userId,
+            username: data.username,
+            roomId: data.roomId
+          }];
+
+          // Clear any existing timeout for this user/room
+          const timeoutKey = `${data.userId}-${data.roomId}`;
+          const existingTimeout = typingTimeoutsRef.current.get(timeoutKey);
+          if (existingTimeout) {
+            clearTimeout(existingTimeout);
+          }
+
+          // Auto-remove typing indicator after 3 seconds
+          const timeout = setTimeout(() => {
+            setUsersTyping(current =>
+              current.filter(u => u.userId !== data.userId || u.roomId !== data.roomId)
+            );
+            typingTimeoutsRef.current.delete(timeoutKey);
+          }, 3000);
+
+          typingTimeoutsRef.current.set(timeoutKey, timeout);
+          return newTyping;
+        });
+      });
+
+      // Error handler
+      newSocket.on('error', (data: { message: string; code?: string }) => {
+        console.error('Socket.IO error:', data.message);
+        setError(data.message);
+      });
+
+      setSocket(newSocket);
+
+      // Cleanup function
+      return () => {
+        // Clear all typing timeouts
+        typingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+        typingTimeoutsRef.current.clear();
+
+        newSocket.disconnect();
+        setSocket(null);
+        setIsConnected(false);
+      };
+    } catch (error) {
+      console.error("Error setting up Socket.IO:", error);
+      setError("Failed to connect to chat server");
+      setIsConnecting(false);
+    }
+  }, [user, socket, isConnecting]);
+
   // Send a chat message
   const sendMessage = useCallback((content: string, roomId: number) => {
-    if (!socket || socket.readyState !== WebSocket.OPEN || !user) {
+    if (!socket || !socket.connected || !user) {
       setError("Cannot send message: Not connected or not authenticated");
       return;
     }
-    
+
     if (!subscribedRoomsRef.current.has(roomId)) {
       setError("Cannot send message: Not joined to this room");
       return;
     }
-    
-    socket.send(JSON.stringify({
-      type: "chat_message",
+
+    socket.emit('new_message', {
       roomId,
-      content
-    }));
+      content,
+      senderId: user.id
+    });
   }, [socket, user]);
-  
+
   // Join a chat room
   const joinRoom = useCallback((roomId: number) => {
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
+    if (!socket || !socket.connected) {
       setError("Cannot join room: Not connected");
       return;
     }
-    
+
     // Add to local tracking
     subscribedRoomsRef.current.add(roomId);
-    
-    socket.send(JSON.stringify({
-      type: "join_room",
-      roomId
-    }));
+
+    socket.emit('join_room', roomId);
   }, [socket]);
-  
+
   // Leave a chat room
   const leaveRoom = useCallback((roomId: number) => {
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
+    if (!socket || !socket.connected) {
       return;
     }
-    
+
     // Remove from local tracking
     subscribedRoomsRef.current.delete(roomId);
-    
-    socket.send(JSON.stringify({
-      type: "leave_room",
-      roomId
-    }));
-    
-    // Remove messages from this room from the local state
-    setMessages(prevMessages => 
+
+    socket.emit('leave_room', roomId);
+
+    // Remove messages from this room from local state
+    setMessages(prevMessages =>
       prevMessages.filter(msg => msg.chatRoomId !== roomId)
     );
-    
+
     // Remove typing indicators for this room
-    setUsersTyping(prevTyping => 
-      prevTyping.filter(user => user.roomId !== roomId)
+    setUsersTyping(prevTyping =>
+      prevTyping.filter(u => u.roomId !== roomId)
     );
   }, [socket]);
-  
+
   // Send typing notification
   const sendTyping = useCallback((roomId: number) => {
-    if (!socket || socket.readyState !== WebSocket.OPEN || !user) {
+    if (!socket || !socket.connected || !user) {
       return;
     }
-    
+
     if (!subscribedRoomsRef.current.has(roomId)) {
       return;
     }
-    
-    socket.send(JSON.stringify({
-      type: "typing",
-      roomId
-    }));
+
+    socket.emit('typing', {
+      roomId,
+      userId: user.id,
+      username: user.username
+    });
   }, [socket, user]);
-  
-  // Cleanup effect to prevent memory leaks
+
+  // Cleanup effect
   useEffect(() => {
     return () => {
       // Clear all typing timeouts
       typingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
       typingTimeoutsRef.current.clear();
-      
-      // Close WebSocket connection
-      if (socket) {
-        socket.close();
-      }
     };
-  }, [socket]);
-  
+  }, []);
+
   return {
     sendMessage,
     joinRoom,

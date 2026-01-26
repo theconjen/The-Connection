@@ -17,6 +17,7 @@ import {
   Modal,
   Pressable,
   Switch,
+  Keyboard,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
@@ -31,6 +32,24 @@ interface Community {
   name: string;
   description: string;
 }
+
+// Event type categories
+const EVENT_CATEGORIES = [
+  'Sunday Service',
+  'Worship',
+  'Bible Study',
+  'Prayer Meeting',
+  'Youth Group',
+  'Small Group',
+  'Fellowship',
+  'Outreach',
+  'Conference',
+  'Workshop',
+  'Activity',
+  'Other',
+] as const;
+
+type EventCategory = typeof EVENT_CATEGORIES[number];
 
 // Location suggestion type
 interface LocationSuggestion {
@@ -76,6 +95,7 @@ export default function CreateEventScreen() {
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<EventCategory>('Sunday Service');
   const [location, setLocation] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
@@ -92,6 +112,7 @@ export default function CreateEventScreen() {
 
   // Modal state
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -134,6 +155,7 @@ export default function CreateEventScreen() {
     setLocation(suggestion.display_name);
     setShowLocationSuggestions(false);
     setLocationSuggestions([]);
+    Keyboard.dismiss(); // Dismiss keyboard after selecting location
   };
 
   // Handle location text change
@@ -213,6 +235,7 @@ export default function CreateEventScreen() {
     createMutation.mutate({
       title: title.trim(),
       description: description.trim(),
+      category, // Event type: Sunday Service, Worship, Bible Study, etc.
       location: location.trim() || undefined,
       latitude,
       longitude,
@@ -318,8 +341,21 @@ export default function CreateEventScreen() {
             />
           </View>
 
-          {/* Location with Autocomplete */}
+          {/* Category/Type Selector */}
           <View style={styles.inputGroup}>
+            <Text style={styles.label}>Event Type</Text>
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={() => setShowCategoryPicker(true)}
+            >
+              <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
+              <Text style={styles.pickerText}>{category}</Text>
+              <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Location with Autocomplete */}
+          <View style={[styles.inputGroup, { zIndex: 1000, elevation: 1000 }]}>
             <Text style={styles.label}>Location</Text>
             <View style={styles.locationInputContainer}>
               <TextInput
@@ -329,6 +365,8 @@ export default function CreateEventScreen() {
                 placeholder="Search for a location..."
                 placeholderTextColor={colors.textMuted}
                 maxLength={200}
+                autoCorrect={false}
+                autoCapitalize="none"
               />
               {isSearchingLocations && (
                 <ActivityIndicator
@@ -350,21 +388,43 @@ export default function CreateEventScreen() {
               )}
             </View>
 
-            {/* Location Suggestions */}
+            {/* Location Suggestions - absolute positioned to overlay other content */}
             {showLocationSuggestions && locationSuggestions.length > 0 && (
-              <View style={[styles.suggestionsContainer, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                {locationSuggestions.map((suggestion) => (
-                  <TouchableOpacity
-                    key={suggestion.place_id}
-                    style={[styles.suggestionItem, { borderBottomColor: colors.borderSubtle }]}
-                    onPress={() => handleSelectLocation(suggestion)}
-                  >
-                    <Ionicons name="location-outline" size={18} color={colors.primary} />
-                    <Text style={[styles.suggestionText, { color: colors.textPrimary }]} numberOfLines={2}>
-                      {suggestion.display_name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={[
+                styles.suggestionsContainer,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.borderSubtle,
+                  position: 'absolute',
+                  top: 80, // Below input
+                  left: 0,
+                  right: 0,
+                  zIndex: 2000,
+                  elevation: 10,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 4,
+                }
+              ]}>
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled={true}
+                  style={{ maxHeight: 200 }}
+                >
+                  {locationSuggestions.map((suggestion) => (
+                    <TouchableOpacity
+                      key={suggestion.place_id}
+                      style={[styles.suggestionItem, { borderBottomColor: colors.borderSubtle }]}
+                      onPress={() => handleSelectLocation(suggestion)}
+                    >
+                      <Ionicons name="location-outline" size={18} color={colors.primary} />
+                      <Text style={[styles.suggestionText, { color: colors.textPrimary }]} numberOfLines={2}>
+                        {suggestion.display_name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
 
@@ -374,7 +434,7 @@ export default function CreateEventScreen() {
               </Text>
             ) : (
               <Text style={styles.locationHint}>
-                Start typing to search for a location
+                Start typing to search for a location (at least 3 characters)
               </Text>
             )}
           </View>
@@ -516,6 +576,50 @@ export default function CreateEventScreen() {
                     </Text>
                   </View>
                   {selectedCommunityId === community.id && (
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Category Picker Modal */}
+      <Modal
+        visible={showCategoryPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCategoryPicker(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowCategoryPicker(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Event Type</Text>
+              <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {EVENT_CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.communityOption,
+                    category === cat && styles.communityOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setCategory(cat);
+                    setShowCategoryPicker(false);
+                  }}
+                >
+                  <View style={styles.communityInfo}>
+                    <Text style={styles.communityName}>{cat}</Text>
+                  </View>
+                  {category === cat && (
                     <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
                   )}
                 </TouchableOpacity>

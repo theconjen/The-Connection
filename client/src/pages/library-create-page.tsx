@@ -15,20 +15,37 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Save, Upload, Shield, Flame } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Upload, Shield, Flame, Zap, List, BookOpen, FileText, Users, Library } from 'lucide-react';
 
 type Domain = 'apologetics' | 'polemics';
 
+// Draft schema - only title required, other fields optional
 const formSchema = z.object({
   domain: z.enum(['apologetics', 'polemics']),
   title: z.string().min(1, 'Title is required').max(500),
-  summary: z.string().max(1000).optional(),
-  bodyMarkdown: z.string().min(1, 'Body content is required'),
+  tldr: z.string().max(500).optional(),
+  keyPoints: z.string().optional(),
+  scriptureRefs: z.string().optional(),
+  bodyMarkdown: z.string().optional(),
   perspectives: z.string().optional(),
   sources: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+type CreateLibraryPostRequest = {
+  domain: 'apologetics' | 'polemics';
+  areaId: number | null;
+  tagId: number | null;
+  title: string;
+  tldr: string | null;
+  keyPoints: string[];
+  scriptureRefs: string[];
+  summary: string | null;
+  bodyMarkdown: string;
+  perspectives: string[];
+  sources: { title: string; url: string; author?: string; date?: string }[];
+};
 
 export default function LibraryCreatePage() {
   const [, navigate] = useLocation();
@@ -74,7 +91,9 @@ export default function LibraryCreatePage() {
     defaultValues: {
       domain: 'apologetics',
       title: '',
-      summary: '',
+      tldr: '',
+      keyPoints: '',
+      scriptureRefs: '',
       bodyMarkdown: '',
       perspectives: '',
       sources: '',
@@ -87,11 +106,13 @@ export default function LibraryCreatePage() {
       form.reset({
         domain: existingPost.domain,
         title: existingPost.title,
-        summary: existingPost.summary || '',
+        tldr: existingPost.tldr || '',
+        keyPoints: existingPost.keyPoints?.join('\n') || '',
+        scriptureRefs: existingPost.scriptureRefs?.join(', ') || '',
         bodyMarkdown: existingPost.bodyMarkdown,
         perspectives: existingPost.perspectives?.join(', ') || '',
         sources: existingPost.sources
-          ?.map((s) => `${s.title} | ${s.url} | ${s.author || ''} | ${s.date || ''}`)
+          ?.map((s: any) => `${s.title} | ${s.url} | ${s.author || ''} | ${s.date || ''}`)
           .join('\n') || '',
       });
     }
@@ -181,6 +202,46 @@ export default function LibraryCreatePage() {
   });
 
   const onSubmit = (formData: FormData) => {
+    // Parse key points (line-separated)
+    const keyPoints = formData.keyPoints
+      ?.split('\n')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0) || [];
+
+    // For published posts, validate that required fields aren't being removed
+    if (existingPost?.status === 'published') {
+      const errors: string[] = [];
+
+      if (!formData.tldr || formData.tldr.trim().length === 0) {
+        errors.push('Quick Answer (TL;DR) cannot be empty for published posts');
+      }
+
+      if (keyPoints.length < 3) {
+        errors.push(`Published posts require 3-5 Key Points (you have ${keyPoints.length})`);
+      } else if (keyPoints.length > 5) {
+        errors.push(`Maximum 5 Key Points allowed (you have ${keyPoints.length})`);
+      }
+
+      if (!formData.bodyMarkdown || formData.bodyMarkdown.trim().length === 0) {
+        errors.push('Detailed Answer cannot be empty for published posts');
+      }
+
+      if (errors.length > 0) {
+        toast({
+          title: 'Cannot Save',
+          description: errors.join('. '),
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    // Parse scripture references (comma-separated)
+    const scriptureRefs = formData.scriptureRefs
+      ?.split(',')
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0) || [];
+
     // Parse perspectives (comma-separated)
     const perspectives = formData.perspectives
       ?.split(',')
@@ -204,8 +265,11 @@ export default function LibraryCreatePage() {
       areaId: null,
       tagId: null,
       title: formData.title,
-      summary: formData.summary || null,
-      bodyMarkdown: formData.bodyMarkdown,
+      tldr: formData.tldr || null,
+      keyPoints,
+      scriptureRefs,
+      summary: null,
+      bodyMarkdown: formData.bodyMarkdown || '',
       perspectives,
       sources,
     };
@@ -219,6 +283,38 @@ export default function LibraryCreatePage() {
 
   const handlePublish = () => {
     if (!postId) return;
+
+    // Validate required fields before publishing
+    const currentValues = form.getValues();
+    const keyPoints = currentValues.keyPoints
+      ?.split('\n')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0) || [];
+
+    const errors: string[] = [];
+
+    if (!currentValues.tldr || currentValues.tldr.trim().length === 0) {
+      errors.push('Quick Answer (TL;DR) is required');
+    }
+
+    if (keyPoints.length < 3) {
+      errors.push(`At least 3 Key Points required (you have ${keyPoints.length})`);
+    } else if (keyPoints.length > 5) {
+      errors.push(`Maximum 5 Key Points allowed (you have ${keyPoints.length})`);
+    }
+
+    if (!currentValues.bodyMarkdown || currentValues.bodyMarkdown.trim().length === 0) {
+      errors.push('Detailed Answer is required');
+    }
+
+    if (errors.length > 0) {
+      toast({
+        title: 'Cannot Publish',
+        description: errors.join('. '),
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (window.confirm('Are you sure you want to publish this library post? Published posts are visible to all users.')) {
       publishMutation.mutate();
@@ -275,10 +371,32 @@ export default function LibraryCreatePage() {
         </h1>
       </div>
 
+      {/* Published Post Warning */}
+      {isEdit && existingPost?.status === 'published' && (
+        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-amber-800 font-medium">
+            This post is published and visible to all users.
+          </p>
+          <p className="text-amber-700 text-sm mt-1">
+            Changes you save will be live immediately.
+          </p>
+        </div>
+      )}
+
       {/* Form */}
       <Card>
         <CardHeader>
           <CardTitle>{isEdit ? 'Edit Library Post' : 'Create New Library Post'}</CardTitle>
+          {existingPost?.status === 'published' ? (
+            <p className="text-sm text-muted-foreground mt-2">
+              Update the published article. Changes will be visible immediately after saving.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground mt-2">
+              Save your work as a draft at any time. Only the title is required to save a draft.
+              To publish, you'll need: Quick Answer, 3-5 Key Points, and Detailed Answer.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -309,10 +427,12 @@ export default function LibraryCreatePage() {
 
             {/* Title */}
             <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
+              <Label htmlFor="title">
+                Title <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="title"
-                placeholder="Enter post title"
+                placeholder="Enter post title (e.g., 'What is the Trinity?')"
                 {...form.register('title')}
               />
               {form.formState.errors.title && (
@@ -320,24 +440,69 @@ export default function LibraryCreatePage() {
               )}
             </div>
 
-            {/* Summary */}
-            <div className="space-y-2">
-              <Label htmlFor="summary">Summary</Label>
+            {/* TL;DR / Quick Answer */}
+            <div className="space-y-2 p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <Label htmlFor="tldr" className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-primary" />
+                Quick Answer (TL;DR)
+                <span className="text-xs text-amber-600 font-normal">(required to publish)</span>
+              </Label>
               <Textarea
-                id="summary"
-                placeholder="Brief summary (optional)"
+                id="tldr"
+                placeholder="A brief 1-2 sentence answer that gives readers the key takeaway immediately"
                 rows={3}
-                {...form.register('summary')}
+                {...form.register('tldr')}
               />
+              <p className="text-sm text-gray-600">
+                This appears at the top of the article as a quick summary for readers in a hurry.
+              </p>
+            </div>
+
+            {/* Key Points */}
+            <div className="space-y-2">
+              <Label htmlFor="keyPoints" className="flex items-center gap-2">
+                <List className="h-4 w-4 text-primary" />
+                Key Points (one per line)
+                <span className="text-xs text-amber-600 font-normal">(3-5 required to publish)</span>
+              </Label>
+              <Textarea
+                id="keyPoints"
+                placeholder="The Trinity is one God in three persons&#10;Each person is fully God&#10;The three persons are distinct but not separate&#10;This doctrine is biblical and essential"
+                rows={5}
+                {...form.register('keyPoints')}
+              />
+              <p className="text-sm text-gray-600">
+                Enter 3-5 main points, one per line. These appear as a numbered list.
+              </p>
+            </div>
+
+            {/* Scripture References */}
+            <div className="space-y-2">
+              <Label htmlFor="scriptureRefs" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Scripture References (comma-separated)
+              </Label>
+              <Input
+                id="scriptureRefs"
+                placeholder="Matthew 28:19, John 1:1, Genesis 1:26, 2 Corinthians 13:14"
+                {...form.register('scriptureRefs')}
+              />
+              <p className="text-sm text-gray-600">
+                List relevant Bible verses that support this topic.
+              </p>
             </div>
 
             {/* Body */}
             <div className="space-y-2">
-              <Label htmlFor="bodyMarkdown">Body (Markdown) *</Label>
+              <Label htmlFor="bodyMarkdown" className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                Detailed Answer (Markdown)
+                <span className="text-xs text-amber-600 font-normal">(required to publish)</span>
+              </Label>
               <Textarea
                 id="bodyMarkdown"
-                placeholder="# Markdown content&#10;&#10;Write your article here..."
-                rows={15}
+                placeholder="## Introduction&#10;&#10;Write your detailed explanation here...&#10;&#10;## Historical Background&#10;&#10;Provide context...&#10;&#10;## Biblical Support&#10;&#10;Explain the scriptural basis...&#10;&#10;## Conclusion&#10;&#10;Summarize the key points..."
+                rows={20}
                 className="font-mono text-sm"
                 {...form.register('bodyMarkdown')}
               />
@@ -345,31 +510,40 @@ export default function LibraryCreatePage() {
                 <p className="text-sm text-red-600">{form.formState.errors.bodyMarkdown.message}</p>
               )}
               <p className="text-sm text-gray-600">
-                Use Markdown formatting: # Headings, **bold**, *italic*, [link](url), etc.
+                Use Markdown formatting: ## Headings, **bold**, *italic*, [link](url), - bullet points, etc.
               </p>
             </div>
 
             {/* Perspectives */}
             <div className="space-y-2">
-              <Label htmlFor="perspectives">Perspectives (comma-separated)</Label>
+              <Label htmlFor="perspectives" className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Perspectives (comma-separated)
+              </Label>
               <Input
                 id="perspectives"
-                placeholder="Reformed, Catholic, Orthodox"
+                placeholder="Reformed, Catholic, Orthodox, Evangelical"
                 {...form.register('perspectives')}
               />
+              <p className="text-sm text-gray-600">
+                Different theological perspectives on this topic (shown in collapsible section).
+              </p>
             </div>
 
             {/* Sources */}
             <div className="space-y-2">
-              <Label htmlFor="sources">Sources (one per line)</Label>
+              <Label htmlFor="sources" className="flex items-center gap-2">
+                <Library className="h-4 w-4 text-primary" />
+                Sources (one per line)
+              </Label>
               <Textarea
                 id="sources"
-                placeholder="Title | URL | Author | Date&#10;Example: Book Name | https://example.com | John Doe | 2024"
+                placeholder="Systematic Theology | https://example.com/book | Wayne Grudem | 1994&#10;The Trinity | https://example.com/article | R.C. Sproul | 2020"
                 rows={4}
                 {...form.register('sources')}
               />
               <p className="text-sm text-gray-600">
-                Format: Title | URL | Author (optional) | Date (optional)
+                Format: Title | URL | Author (optional) | Year (optional)
               </p>
             </div>
 
@@ -377,7 +551,7 @@ export default function LibraryCreatePage() {
             <div className="flex gap-3 pt-4">
               <Button
                 type="submit"
-                className="flex-1 gap-2"
+                className={`flex-1 gap-2 ${existingPost?.status === 'published' ? 'bg-amber-600 hover:bg-amber-700' : ''}`}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -385,7 +559,11 @@ export default function LibraryCreatePage() {
                 ) : (
                   <Save className="h-4 w-4" />
                 )}
-                {isEdit ? 'Update' : 'Create'} Draft
+                {existingPost?.status === 'published'
+                  ? 'Save Changes (Live)'
+                  : isEdit
+                    ? 'Update Draft'
+                    : 'Create Draft'}
               </Button>
               {isEdit && existingPost?.status === 'draft' && (
                 <Button

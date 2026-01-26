@@ -423,6 +423,27 @@ export function registerSocketHandlers(
       }
     });
 
+    // Handle typing indicator
+    socket.on('typing', (data: { roomId: number; userId?: number; username?: string }) => {
+      try {
+        const { roomId, userId, username } = data;
+
+        // Use authenticated user ID if provided userId doesn't match
+        const senderId = userId === authenticatedUserId ? userId : authenticatedUserId;
+
+        // Broadcast typing indicator to the room (except sender)
+        socket.to(`room_${roomId}`).emit('user_typing', {
+          userId: senderId,
+          username: username || 'Someone',
+          roomId
+        });
+      } catch (error) {
+        emitSocketError(socket, logger, 'Error handling typing indicator', error, {
+          message: 'Failed to send typing indicator',
+        });
+      }
+    });
+
     socket.on('disconnect', () => {
       logger.log('User disconnected:', socket.id);
     });

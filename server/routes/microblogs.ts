@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { insertCommentSchema, insertMicroblogSchema, MICROBLOG_TOPICS, MICROBLOG_TYPES } from '@shared/schema';
 import { requireAuth } from '../middleware/auth';
 import { storage as defaultStorage } from '../storage-optimized';
@@ -9,6 +10,23 @@ import { sortByFeedScore } from '../algorithms/christianFeedScoring';
 import { detectLanguage } from '../services/languageDetection';
 import { trackEngagement } from '../services/engagementTracking';
 import { notifyUserWithPreferences, truncateText, getUserDisplayName } from '../services/notificationHelper';
+import { uploadFile, UploadCategory, validateMimeType } from '../services/storageService';
+
+// Configure multer for memory storage (we'll upload to GCS directly)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20MB max per file
+    files: 4, // Max 4 images
+  },
+  fileFilter: (req, file, cb) => {
+    if (validateMimeType(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only images are allowed.'));
+    }
+  },
+});
 
 // Ranking configuration for explore feed (easy to tune later)
 const RANKING_CONFIG = {
@@ -355,10 +373,35 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     }
   });
 
-  router.post('/microblogs', contentCreationLimiter, requireAuth, async (req, res) => {
+  // POST /microblogs - supports both JSON and FormData with multiple images
+  router.post('/microblogs', contentCreationLimiter, requireAuth, upload.array('images', 4), async (req, res) => {
     try {
       const userId = requireSessionUserId(req);
-      const { poll, ...microblogData } = req.body;
+
+      // Handle both FormData and JSON requests
+      // FormData fields come as strings, so we need to parse them
+      const isFormData = req.is('multipart/form-data');
+      let microblogData: any;
+      let poll: any;
+
+      if (isFormData) {
+        // Parse FormData fields
+        microblogData = {
+          content: req.body.content,
+          parentId: req.body.parentId ? parseInt(req.body.parentId) : undefined,
+          communityId: req.body.communityId ? parseInt(req.body.communityId) : undefined,
+          groupId: req.body.groupId ? parseInt(req.body.groupId) : undefined,
+          topic: req.body.topic,
+          postType: req.body.postType,
+          sourceUrl: req.body.sourceUrl,
+        };
+        poll = req.body.poll ? JSON.parse(req.body.poll) : undefined;
+      } else {
+        // Regular JSON request
+        const { poll: pollData, ...restData } = req.body;
+        microblogData = restData;
+        poll = pollData;
+      }
 
       // Validate topic if provided
       if (microblogData.topic && !MICROBLOG_TOPICS.includes(microblogData.topic)) {
@@ -399,12 +442,45 @@ export function createMicroblogsRouter(storage = defaultStorage) {
         pollId = createdPoll.id;
       }
 
+      // Handle image uploads if files were provided
+      let imageUrls: string[] = [];
+      const files = req.files as Express.Multer.File[] | undefined;
+
+      if (files && files.length > 0) {
+        console.info(`[Microblogs] Uploading ${files.length} images for user ${userId}`);
+
+        // Upload each image to storage
+        const uploadPromises = files.map(async (file, index) => {
+          try {
+            const url = await uploadFile(
+              file.buffer,
+              UploadCategory.POST_ATTACHMENTS,
+              file.originalname || `image-${index}.jpg`,
+              userId
+            );
+            return url;
+          } catch (error) {
+            console.error(`[Microblogs] Failed to upload image ${index}:`, error);
+            return null;
+          }
+        });
+
+        const uploadResults = await Promise.all(uploadPromises);
+        imageUrls = uploadResults.filter((url): url is string => url !== null);
+
+        console.info(`[Microblogs] Successfully uploaded ${imageUrls.length} images`);
+      }
+
       const validatedData = insertMicroblogSchema.parse({
         ...microblogData,
         authorId: userId,
         pollId,
         topic: microblogData.topic || 'OTHER',
         postType: microblogData.postType || 'STANDARD',
+        // Set imageUrls if we have uploaded images
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        // For backward compatibility, also set imageUrl to first image
+        imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined,
       });
 
       const microblog = await storage.createMicroblog(validatedData);
