@@ -17,8 +17,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Clipboard,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../src/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -133,7 +133,7 @@ export default function ResetPasswordScreen() {
   // Handle pasting from clipboard
   const handlePasteLink = async () => {
     try {
-      const clipboardContent = await Clipboard.getString();
+      const clipboardContent = await Clipboard.getStringAsync();
       if (clipboardContent) {
         const normalized = normalizeToken(clipboardContent);
         setToken(normalized);
