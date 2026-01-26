@@ -77,6 +77,7 @@ router.get('/communities/:id/chat/room', requireAuth, async (req, res) => {
         communityId,
         name: `${community?.name || 'Community'} Chat`,
         isPrivate: false,
+        createdBy: userId,
       });
       console.info(`[Chat Room] Created room with id: ${room.id}`);
       rooms = [room];
