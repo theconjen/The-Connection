@@ -732,13 +732,16 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
   const name = displayName || email.split('@')[0];
   const from = EMAIL_FROM;
 
-  // Primary: Deep link for mobile app
+  // Primary: Universal Link - works in all email clients AND opens app if installed
+  // This is the main link used in buttons (custom schemes are blocked by most email apps)
+  const resetLink = `${APP_URLS.RESET_PASSWORD}?token=${resetToken}&email=${encodeURIComponent(email)}`;
+  // Alias for backwards compatibility
+  const webFallbackLink = resetLink;
+  // Custom scheme (only used in plain text fallback - many email clients block these)
   const appDeepLink = `theconnection://reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
-  // Fallback: Web link (for users who don't have the app installed)
-  const webFallbackLink = `${APP_URLS.RESET_PASSWORD}?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
-  console.info('[PASSWORD_RESET_EMAIL] App deep link generated:', appDeepLink);
-  console.info('[PASSWORD_RESET_EMAIL] Web fallback link:', webFallbackLink);
+  console.info('[PASSWORD_RESET_EMAIL] Primary reset link (Universal Link):', resetLink);
+  console.info('[PASSWORD_RESET_EMAIL] Custom scheme fallback:', appDeepLink);
   console.info('[PASSWORD_RESET_EMAIL] From address:', from);
 
   // Check if we have templates enabled and available
@@ -766,11 +769,10 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
       subject: 'Reset Your Password - The Connection',
       text: `We received a request to reset your password. If you didn't make this request, you can safely ignore this email.
 
-To reset your password in the app, tap this link:
-${appDeepLink}
+To reset your password, tap this link:
+${resetLink}
 
-If the link above doesn't work, use this web link:
-${webFallbackLink}
+This link will open The Connection app if installed, or the website if not.
 
 This link will expire in 1 hour.
 
@@ -814,13 +816,12 @@ If you did not request a password reset, please contact our support team immedia
                     </tr>
                     <tr>
                       <td style="padding:20px 0;">
-                        <a href="${appDeepLink}" style="display:inline-block;background-color:#1a2a4a;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open App & Reset Password</a>
+                        <a href="${resetLink}" style="display:inline-block;background-color:#1a2a4a;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Reset Password</a>
                       </td>
                     </tr>
                     <tr>
-                      <td style="padding:16px 0;color:#666;font-size:14px;border-top:1px solid #ddd;margin-top:16px;">
-                        <strong>Don't have the app installed?</strong><br>
-                        <a href="${webFallbackLink}" style="color:#1a2477;text-decoration:underline;font-size:14px;">Reset password on the web instead</a>
+                      <td style="padding:16px 0;color:#666;font-size:14px;">
+                        This link will open The Connection app if installed, or the website if not.
                       </td>
                     </tr>
                     <tr>
