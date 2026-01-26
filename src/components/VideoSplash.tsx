@@ -28,8 +28,8 @@ export function VideoSplash({ onFinish, minDisplayTime = 0 }: VideoSplashProps) 
   const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
 
-    // Video finished playing
-    if (status.didJustFinish) {
+    // End at 13 second mark (or if video finishes naturally)
+    if (status.positionMillis >= 13000 || status.didJustFinish) {
       const elapsed = Date.now() - startTimeRef.current;
       const remaining = Math.max(0, minDisplayTime - elapsed);
 
@@ -47,7 +47,11 @@ export function VideoSplash({ onFinish, minDisplayTime = 0 }: VideoSplashProps) 
     onFinish();
   };
 
-  const handleLoad = () => {
+  const handleLoad = async () => {
+    // Start video at 6 second mark
+    if (videoRef.current) {
+      await videoRef.current.setPositionAsync(6000);
+    }
     setIsReady(true);
   };
 
@@ -56,7 +60,7 @@ export function VideoSplash({ onFinish, minDisplayTime = 0 }: VideoSplashProps) 
     const fallbackTimeout = setTimeout(() => {
       console.warn('Video splash fallback timeout triggered');
       onFinish();
-    }, 10000); // 10 second max
+    }, 5000); // 5 second max fallback
 
     return () => clearTimeout(fallbackTimeout);
   }, [onFinish]);
@@ -71,6 +75,7 @@ export function VideoSplash({ onFinish, minDisplayTime = 0 }: VideoSplashProps) 
         shouldPlay
         isLooping={false}
         isMuted={true}
+        rate={2.5}
         onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
         onLoad={handleLoad}
         onError={handleError}
