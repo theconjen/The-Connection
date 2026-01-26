@@ -145,6 +145,13 @@ export default function ApologeticsDetailScreen() {
   const [verseData, setVerseData] = useState<{ reference: string; text: string; translation: string } | null>(null);
   const [verseLoading, setVerseLoading] = useState(false);
 
+  // Fetch data first so handlers can use it
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["library-post", id],
+    queryFn: () => apiGet<LibraryPost>(`/api/library/posts/${id}`),
+    staleTime: 60_000,
+  });
+
   // Handle share
   const handleShare = useCallback(async () => {
     if (!data) return;
@@ -182,12 +189,6 @@ export default function ApologeticsDetailScreen() {
     });
     setVerseLoading(false);
   }, []);
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["library-post", id],
-    queryFn: () => apiGet<LibraryPost>(`/api/library/posts/${id}`),
-    staleTime: 60_000,
-  });
 
   const styles = getStyles(colors);
 
