@@ -11,7 +11,7 @@
    - "Ask the Connection Research Team" CTA when no results
    ========================================= */
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import {
   View,
   TextInput,
@@ -23,7 +23,6 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
-  Share as RNShare,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +31,7 @@ import { useTheme } from "../theme";
 import { AppHeader } from "./AppHeader";
 import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../lib/apiClient";
+import { shareApologetics } from "../lib/shareUrls";
 
 type Domain = "apologetics" | "polemics";
 
@@ -368,6 +368,12 @@ export default function ApologeticsScreen({
               item={item}
               colors={colors}
               onPress={() => router.push({ pathname: "/apologetics/[id]" as any, params: { id: item.id.toString() } })}
+              onShare={async () => {
+                const result = await shareApologetics(item.id, item.title, item.tldr || undefined);
+                if (!result.success && result.error && result.error !== 'Share dismissed') {
+                  Alert.alert('Share Failed', result.error);
+                }
+              }}
             />
           )}
         />
@@ -493,10 +499,12 @@ function LibraryPostCard({
   item,
   colors,
   onPress,
+  onShare,
 }: {
   item: LibraryPostListItem;
   colors: any;
   onPress: () => void;
+  onShare: () => void;
 }) {
   return (
     <Pressable
@@ -577,9 +585,24 @@ function LibraryPostCard({
             Verified Sources
           </Text>
         </View>
-        <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '500' }}>
-          {item.authorDisplayName}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '500' }}>
+            {item.authorDisplayName}
+          </Text>
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              onShare();
+            }}
+            hitSlop={8}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.6 : 1,
+              padding: 4,
+            })}
+          >
+            <Ionicons name="share-outline" size={18} color={colors.primary} />
+          </Pressable>
+        </View>
       </View>
 
       {/* Perspectives badge (if multiple) */}

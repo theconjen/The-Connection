@@ -22,6 +22,8 @@ import {
   SafeAreaView,
   StatusBar,
   Modal,
+  Share as RNShare,
+  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +34,8 @@ import { useAuth } from "../../src/contexts/AuthContext";
 import apiClient from "../../src/lib/apiClient";
 import Markdown from "react-native-markdown-display";
 import { fetchBiblePassage, looksLikeBibleReference } from "../../src/lib/bibleApi";
+import { shareApologetics, buildApologeticsShareUrl } from "../../src/lib/shareUrls";
+import * as Clipboard from "expo-clipboard";
 
 // Regex to detect Bible references in text (e.g., "Romans 8:28", "1 Corinthians 13:4-7", "(John 3:16)")
 const SCRIPTURE_REGEX = /\(?\b((?:1|2|3|I|II|III)\s*)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song\s*of\s*Solomon|Songs?|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s*\d+(?::\d+(?:-\d+)?)?(?:\s*-\s*\d+(?::\d+)?)?\)?/gi;
@@ -141,6 +145,29 @@ export default function ApologeticsDetailScreen() {
   const [verseData, setVerseData] = useState<{ reference: string; text: string; translation: string } | null>(null);
   const [verseLoading, setVerseLoading] = useState(false);
 
+  // Handle share
+  const handleShare = useCallback(async () => {
+    if (!data) return;
+
+    const result = await shareApologetics(data.id, data.title, data.tldr || undefined);
+    if (!result.success && result.error && result.error !== 'Share dismissed') {
+      Alert.alert('Share Failed', result.error);
+    }
+  }, [data]);
+
+  // Handle copy link
+  const handleCopyLink = useCallback(async () => {
+    if (!data) return;
+
+    try {
+      const url = buildApologeticsShareUrl(data.id, 'copy_link');
+      await Clipboard.setStringAsync(url);
+      Alert.alert('Link Copied', 'The article link has been copied to your clipboard.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy link');
+    }
+  }, [data]);
+
   // Handle scripture reference press
   const handleScripturePress = useCallback(async (reference: string) => {
     setShowVerseModal(true);
@@ -171,7 +198,7 @@ export default function ApologeticsDetailScreen() {
         <AppHeader
           showCenteredLogo={true}
           userName={user?.displayName || user?.username}
-          userAvatar={user?.avatarUrl || user?.profileImageUrl}
+          userAvatar={user?.profileImageUrl}
           onProfilePress={() => router.push("/profile" as any)}
           showMessages={true}
           onMessagesPress={() => router.push("/messages" as any)}
@@ -193,7 +220,7 @@ export default function ApologeticsDetailScreen() {
         <AppHeader
           showCenteredLogo={true}
           userName={user?.displayName || user?.username}
-          userAvatar={user?.avatarUrl || user?.profileImageUrl}
+          userAvatar={user?.profileImageUrl}
           onProfilePress={() => router.push("/profile" as any)}
           showMessages={true}
           onMessagesPress={() => router.push("/messages" as any)}
@@ -225,7 +252,7 @@ export default function ApologeticsDetailScreen() {
       <AppHeader
         showCenteredLogo={true}
         userName={user?.displayName || user?.username}
-        userAvatar={user?.avatarUrl || user?.profileImageUrl}
+        userAvatar={user?.profileImageUrl}
         onProfilePress={() => router.push("/profile" as any)}
         showMessages={true}
         onMessagesPress={() => router.push("/messages" as any)}
@@ -262,10 +289,28 @@ export default function ApologeticsDetailScreen() {
 
         {/* Title */}
         <View style={styles.titleCard}>
-          <Text style={styles.title}>{data.title}</Text>
-          <View style={styles.authorMeta}>
-            <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
-            <Text style={styles.authorText}>{data.authorDisplayName}</Text>
+          <Text style={styles.title} selectable>{data.title}</Text>
+          <View style={styles.titleMeta}>
+            <View style={styles.authorMeta}>
+              <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
+              <Text style={styles.authorText}>{data.authorDisplayName}</Text>
+            </View>
+            <View style={styles.shareButtons}>
+              <Pressable
+                style={({ pressed }) => [styles.shareIconButton, pressed && { opacity: 0.7 }]}
+                onPress={handleCopyLink}
+                hitSlop={8}
+              >
+                <Ionicons name="link-outline" size={20} color={colors.textSecondary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.shareIconButton, pressed && { opacity: 0.7 }]}
+                onPress={handleShare}
+                hitSlop={8}
+              >
+                <Ionicons name="share-outline" size={20} color={colors.primary} />
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -276,7 +321,7 @@ export default function ApologeticsDetailScreen() {
               <Ionicons name="flash" size={18} color={colors.primary} />
               <Text style={styles.sectionTitle}>Quick Answer</Text>
             </View>
-            <Text style={styles.tldrText}>{data.tldr}</Text>
+            <Text style={styles.tldrText} selectable>{data.tldr}</Text>
           </View>
         )}
 
@@ -292,7 +337,7 @@ export default function ApologeticsDetailScreen() {
                 <View style={styles.keyPointBullet}>
                   <Text style={styles.keyPointBulletText}>{idx + 1}</Text>
                 </View>
-                <Text style={styles.keyPointText}>{point}</Text>
+                <Text style={styles.keyPointText} selectable>{point}</Text>
               </View>
             ))}
           </View>
@@ -383,7 +428,7 @@ export default function ApologeticsDetailScreen() {
                 {data.perspectives.map((perspective, idx) => (
                   <View key={idx} style={styles.perspectiveItem}>
                     <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
-                    <Text style={styles.perspectiveText}>{perspective}</Text>
+                    <Text style={styles.perspectiveText} selectable>{perspective}</Text>
                   </View>
                 ))}
               </View>
@@ -454,11 +499,18 @@ export default function ApologeticsDetailScreen() {
       {/* Sticky Bottom Navigation Bar */}
       <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.borderSubtle }]}>
         <Pressable
-          style={styles.bottomBarButton}
+          style={styles.bottomBarBackButton}
           onPress={() => router.push("/(tabs)/apologetics" as any)}
         >
           <Ionicons name="arrow-back" size={20} color={colors.primary} />
-          <Text style={[styles.bottomBarButtonText, { color: colors.primary }]}>Back to Apologetics</Text>
+          <Text style={[styles.bottomBarButtonText, { color: colors.primary }]}>Back</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.bottomBarShareButton, { backgroundColor: colors.primary }]}
+          onPress={handleShare}
+        >
+          <Ionicons name="share-outline" size={20} color={colors.primaryForeground || '#FFFFFF'} />
+          <Text style={[styles.bottomBarButtonText, { color: colors.primaryForeground || '#FFFFFF' }]}>Share Article</Text>
         </Pressable>
       </View>
 
@@ -651,6 +703,11 @@ function getStyles(colors: any) {
       lineHeight: 32,
       marginBottom: 12,
     },
+    titleMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
     authorMeta: {
       flexDirection: "row",
       alignItems: "center",
@@ -660,6 +717,15 @@ function getStyles(colors: any) {
       fontSize: 13,
       fontWeight: "600",
       color: colors.textSecondary,
+    },
+    shareButtons: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    shareIconButton: {
+      padding: 8,
+      borderRadius: 8,
     },
     tldrCard: {
       backgroundColor: colors.backgroundSoft,
@@ -920,6 +986,9 @@ function getStyles(colors: any) {
       bottom: 0,
       left: 0,
       right: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
       paddingVertical: 12,
       paddingHorizontal: 16,
       paddingBottom: 28, // Extra padding for home indicator
@@ -930,7 +999,19 @@ function getStyles(colors: any) {
       shadowRadius: 4,
       elevation: 4,
     },
-    bottomBarButton: {
+    bottomBarBackButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+    },
+    bottomBarShareButton: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
