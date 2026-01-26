@@ -28,8 +28,8 @@ export function VideoSplash({ onFinish, minDisplayTime = 0 }: VideoSplashProps) 
   const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
 
-    // End at 13 second mark (or if video finishes naturally)
-    if (status.positionMillis >= 13000 || status.didJustFinish) {
+    // End at 11 second mark (or if video finishes naturally)
+    if (status.positionMillis >= 11000 || status.didJustFinish) {
       const elapsed = Date.now() - startTimeRef.current;
       const remaining = Math.max(0, minDisplayTime - elapsed);
 
@@ -48,9 +48,9 @@ export function VideoSplash({ onFinish, minDisplayTime = 0 }: VideoSplashProps) 
   };
 
   const handleLoad = async () => {
-    // Start video at 6 second mark
+    // Start video at 9 second mark
     if (videoRef.current) {
-      await videoRef.current.setPositionAsync(6000);
+      await videoRef.current.setPositionAsync(9000);
     }
     setIsReady(true);
   };
@@ -75,7 +75,7 @@ export function VideoSplash({ onFinish, minDisplayTime = 0 }: VideoSplashProps) 
         shouldPlay
         isLooping={false}
         isMuted={true}
-        rate={2.5}
+        rate={1}
         onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
         onLoad={handleLoad}
         onError={handleError}
