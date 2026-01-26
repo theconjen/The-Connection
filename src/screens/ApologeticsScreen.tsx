@@ -672,7 +672,8 @@ function getStyles(colors: any) {
     chipsRow: {
       paddingTop: 4,
       paddingBottom: 4,
-      paddingHorizontal: 16, // Match screen padding
+      paddingLeft: 16,
+      paddingRight: 24, // Extra padding to ensure last chip is fully visible
     },
 
     suggestedWrap: {
