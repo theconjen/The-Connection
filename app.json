@@ -9,8 +9,8 @@
     "scheme": "theconnection",
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1a7a8a"
+      "resizeMode": "cover",
+      "backgroundColor": "#EDE8DF"
     },
     "assetBundlePatterns": [
       "**/*"

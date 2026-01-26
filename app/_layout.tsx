@@ -1,5 +1,5 @@
 import { Slot, useRouter, useSegments } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
@@ -7,12 +7,13 @@ import { CreateMenuProvider } from '../src/contexts/CreateMenuContext';
 import { SocketProvider } from '../src/contexts/SocketContext';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { Text, TextInput, Platform } from 'react-native';
+import { Text, TextInput, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { initializeNotifications, cleanupNotifications, unregisterPushToken, getCurrentToken } from '../src/services/notificationService';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import apiClient from '../src/lib/apiClient';
+import { VideoSplash } from '../src/components/VideoSplash';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -184,14 +185,32 @@ export default function RootLayout() {
     'PlayfairDisplay-Bold': require('../assets/fonts/PlayfairDisplay-Bold.ttf'),
   });
 
+  // Track if video splash has finished
+  const [showVideoSplash, setShowVideoSplash] = useState(true);
+
+  // Hide native splash when fonts are loaded (video splash will still show)
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
 
+  const handleVideoSplashFinish = useCallback(() => {
+    setShowVideoSplash(false);
+  }, []);
+
+  // Wait for fonts before showing anything
   if (!fontsLoaded && !fontError) {
     return null;
+  }
+
+  // Show video splash after native splash hides
+  if (showVideoSplash) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#EDE8DF' }}>
+        <VideoSplash onFinish={handleVideoSplashFinish} />
+      </View>
+    );
   }
 
   return (
