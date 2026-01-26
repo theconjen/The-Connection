@@ -33,23 +33,9 @@ interface CreateHubSheetProps {
 
 const CREATE_OPTIONS: CreateOption[] = [
   {
-    id: 'post',
-    title: 'Write a Post',
-    subtitle: 'Share a thought, verse, or reflection',
-    route: '/create/post',
-    icon: 'create-outline',
-  },
-  {
-    id: 'discussion',
-    title: 'Start a Discussion',
-    subtitle: 'Ask a question or invite conversation',
-    route: '/create/discussion',
-    icon: 'chatbubbles-outline',
-  },
-  {
     id: 'community',
     title: 'Create a Community',
-    subtitle: 'Build a space around a topic',
+    subtitle: 'Build a space around a topic or interest',
     route: '/create/community',
     icon: 'people-outline',
   },
@@ -61,6 +47,9 @@ const CREATE_OPTIONS: CreateOption[] = [
     icon: 'calendar-outline',
   },
 ];
+
+// Note: Posts and discussions can only be created within a community.
+// Navigate to a community first to create content.
 
 export function CreateHubSheet({ open, onClose }: CreateHubSheetProps) {
   const router = useRouter();
