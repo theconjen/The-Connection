@@ -671,9 +671,9 @@ function getStyles(colors: any) {
 
     chipsRow: {
       paddingTop: 4,
-      paddingBottom: 4,
+      paddingBottom: 8, // Increased to show full chip border
       paddingLeft: 16,
-      paddingRight: 24, // Extra padding to ensure last chip is fully visible
+      paddingRight: 24,
     },
 
     suggestedWrap: {
