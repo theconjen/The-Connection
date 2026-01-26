@@ -129,6 +129,74 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
   });
 
   // ============================================================================
+  // GET /api/feed/home - Home feed showing posts from joined communities only
+  // ============================================================================
+
+  router.get('/feed/home', async (req, res) => {
+    try {
+      const userId = (req as any).session?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      const limit = parseLimit(req.query.limit);
+
+      // Get user's joined communities
+      const userCommunities = await storage.getUserCommunities(userId);
+      const joinedCommunityIds = userCommunities.map((c: any) => c.id);
+
+      if (joinedCommunityIds.length === 0) {
+        // User hasn't joined any communities
+        return res.json({ posts: [], message: 'Join communities to see posts' });
+      }
+
+      // Get posts from joined communities
+      // We need to fetch posts and filter by communityId
+      let allPosts = await storage.getAllPosts();
+
+      // Filter to only posts from joined communities
+      let communityPosts = allPosts.filter((post: any) =>
+        post.communityId && joinedCommunityIds.includes(post.communityId)
+      );
+
+      // Filter out blocked users
+      const blockedIds = await storage.getBlockedUserIdsFor(userId);
+      if (blockedIds?.length) {
+        communityPosts = communityPosts.filter((p: any) => !blockedIds.includes(p.authorId));
+      }
+
+      // Sort by recency
+      communityPosts.sort((a: any, b: any) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      // Limit results
+      const posts = communityPosts.slice(0, limit);
+
+      // Add community info to each post
+      const postsWithCommunity = await Promise.all(
+        posts.map(async (post: any) => {
+          const community = userCommunities.find((c: any) => c.id === post.communityId);
+          return {
+            ...post,
+            community: community ? {
+              id: community.id,
+              name: community.name,
+              slug: community.slug,
+            } : null,
+          };
+        })
+      );
+
+      return res.json({ posts: postsWithCommunity });
+    } catch (err) {
+      console.error('Error fetching home feed:', err);
+      res.status(500).json({ message: 'Error fetching home feed' });
+    }
+  });
+
+  // ============================================================================
   // GET /api/feed/explore - Explore feed with anti-farm scoring (Hardened Service)
   // ============================================================================
 

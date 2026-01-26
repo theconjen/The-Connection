@@ -26,7 +26,7 @@ export default function TabsLayout() {
 
   // Earth-forward icon colors - warm, grounded palette
   const iconColors = {
-    feed: '#5C6B5E',        // Sage (was blue)
+    home: '#5C6B5E',        // Sage
     communities: '#7C6B78', // Muted plum
     events: '#B56A55',      // Terracotta
     apologetics: '#7C8F78', // Sage green
@@ -58,17 +58,23 @@ export default function TabsLayout() {
       },
     }}>
       <Tabs.Screen
-        name="feed"
+        name="home"
         options={{
-          title: 'Feed',
+          title: 'Home',
           tabBarIcon: ({ focused, size }) => (
             <Ionicons
-              name={focused ? "chatbubble" : "chatbubble-outline"}
+              name={focused ? "home" : "home-outline"}
               size={size}
-              color={focused ? iconColors.feed : colors.textSecondary}
+              color={focused ? iconColors.home : colors.textSecondary}
             />
           ),
-          tabBarActiveTintColor: iconColors.feed,
+          tabBarActiveTintColor: iconColors.home,
+        }}
+      />
+      <Tabs.Screen
+        name="feed"
+        options={{
+          href: null, // Hide old feed, keep for backwards compatibility
         }}
       />
       <Tabs.Screen
