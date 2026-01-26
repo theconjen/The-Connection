@@ -18,6 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI, chatAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -59,6 +60,7 @@ export default function CommunityDetailScreen() {
   const { id } = useLocalSearchParams() as { id: string };
   const { user } = useAuth();
   const { colors, colorScheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<TabType>('feed');
@@ -1180,7 +1182,7 @@ export default function CommunityDetailScreen() {
               </ScrollView>
 
               {/* Message Input */}
-              <View style={styles.chatInputContainer}>
+              <View style={[styles.chatInputContainer, { paddingBottom: 12 + insets.bottom }]}>
                 <TextInput
                   style={styles.chatInput}
                   value={newChatMessage}
