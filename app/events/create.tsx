@@ -93,12 +93,36 @@ export default function CreateEventScreen() {
   // Date and time state
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState(new Date());
+  const [selectedEndTime, setSelectedEndTime] = useState(() => {
+    // Default end time is 1 hour after start time
+    const endTime = new Date();
+    endTime.setHours(endTime.getHours() + 1);
+    return endTime;
+  });
+
+  // Event category/type
+  const [category, setCategory] = useState<string | null>(null);
 
   // Modal state
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
+
+  // Event categories
+  const EVENT_CATEGORIES = [
+    { value: 'sunday_service', label: 'Sunday Service', icon: 'sunny-outline' },
+    { value: 'worship', label: 'Worship', icon: 'musical-notes-outline' },
+    { value: 'bible_study', label: 'Bible Study', icon: 'book-outline' },
+    { value: 'prayer', label: 'Prayer Meeting', icon: 'hand-left-outline' },
+    { value: 'fellowship', label: 'Fellowship/Social', icon: 'people-outline' },
+    { value: 'outreach', label: 'Service/Outreach', icon: 'heart-outline' },
+    { value: 'conference', label: 'Conference', icon: 'mic-outline' },
+    { value: 'youth', label: 'Youth Event', icon: 'school-outline' },
+    { value: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' },
+  ] as const;
 
   // Fetch user's communities (only where user is moderator or owner)
   const { data: communities, isLoading: communitiesLoading } = useQuery<Community[]>({
@@ -242,11 +266,15 @@ export default function CreateEventScreen() {
     // Format date as YYYY-MM-DD
     const eventDate = selectedDate.toISOString().slice(0, 10);
 
-    // Format time as HH:MM:SS
+    // Format start time as HH:MM:SS
     const hours = selectedTime.getHours().toString().padStart(2, '0');
     const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
     const startTime = `${hours}:${minutes}:00`;
-    const endTime = startTime; // Default to same as start time
+
+    // Format end time as HH:MM:SS
+    const endHours = selectedEndTime.getHours().toString().padStart(2, '0');
+    const endMinutes = selectedEndTime.getMinutes().toString().padStart(2, '0');
+    const endTime = `${endHours}:${endMinutes}:00`;
 
     // Use coordinates from selected location suggestion
     let latitude: number | undefined;
@@ -302,6 +330,9 @@ export default function CreateEventScreen() {
       // Backend expects latitude/longitude as strings (text columns)
       payload.latitude = String(latitude);
       payload.longitude = String(longitude);
+    }
+    if (category) {
+      payload.category = category;
     }
 
     // Debug logging - show exactly what's being sent
@@ -405,6 +436,34 @@ export default function CreateEventScreen() {
               placeholderTextColor={colors.textMuted}
               maxLength={100}
             />
+          </View>
+
+          {/* Event Type/Category */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Event Type</Text>
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={() => setShowCategoryPicker(true)}
+            >
+              {category ? (
+                <>
+                  <Ionicons
+                    name={EVENT_CATEGORIES.find(c => c.value === category)?.icon as any || 'calendar-outline'}
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.pickerText}>
+                    {EVENT_CATEGORIES.find(c => c.value === category)?.label || 'Select type'}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="pricetag-outline" size={20} color={colors.textMuted} />
+                  <Text style={[styles.pickerText, styles.placeholderText]}>Select event type</Text>
+                </>
+              )}
+              <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
           </View>
 
           {/* Description */}
@@ -553,9 +612,9 @@ export default function CreateEventScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Time Picker */}
+          {/* Start Time Picker */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Time *</Text>
+            <Text style={styles.label}>Start Time *</Text>
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowTimePicker(true)}
@@ -563,6 +622,23 @@ export default function CreateEventScreen() {
               <Ionicons name="time-outline" size={20} color={colors.primary} />
               <Text style={styles.pickerText}>{formatTime(selectedTime)}</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* End Time Picker */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>End Time *</Text>
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={() => setShowEndTimePicker(true)}
+            >
+              <Ionicons name="time-outline" size={20} color={colors.primary} />
+              <Text style={styles.pickerText}>{formatTime(selectedEndTime)}</Text>
+            </TouchableOpacity>
+            {selectedEndTime <= selectedTime && (
+              <Text style={[styles.locationHint, { color: colors.warning || '#f59e0b' }]}>
+                End time should be after start time
+              </Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -670,6 +746,53 @@ export default function CreateEventScreen() {
         </Pressable>
       </Modal>
 
+      {/* Category Picker Modal */}
+      <Modal
+        visible={showCategoryPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCategoryPicker(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowCategoryPicker(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Event Type</Text>
+              <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {EVENT_CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat.value}
+                  style={[
+                    styles.communityOption,
+                    category === cat.value && styles.communityOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setCategory(cat.value);
+                    setShowCategoryPicker(false);
+                  }}
+                >
+                  <View style={styles.categoryOptionContent}>
+                    <Ionicons name={cat.icon as any} size={22} color={category === cat.value ? colors.primary : colors.textMuted} />
+                    <Text style={[styles.communityName, category === cat.value && { color: colors.primary }]}>
+                      {cat.label}
+                    </Text>
+                  </View>
+                  {category === cat.value && (
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Date Picker - iOS: wrapped in Modal with Done button */}
       {Platform.OS === 'ios' ? (
         <Modal
@@ -726,7 +849,7 @@ export default function CreateEventScreen() {
         )
       )}
 
-      {/* Time Picker - iOS: wrapped in Modal with Done button */}
+      {/* Start Time Picker - iOS: wrapped in Modal with Done button */}
       {Platform.OS === 'ios' ? (
         <Modal
           visible={showTimePicker}
@@ -743,7 +866,7 @@ export default function CreateEventScreen() {
                 <TouchableOpacity onPress={() => setShowTimePicker(false)}>
                   <Text style={[styles.pickerModalButton, { color: colors.textMuted }]}>Cancel</Text>
                 </TouchableOpacity>
-                <Text style={styles.pickerModalTitle}>Select Time</Text>
+                <Text style={styles.pickerModalTitle}>Start Time</Text>
                 <TouchableOpacity onPress={() => setShowTimePicker(false)}>
                   <Text style={[styles.pickerModalButton, { color: colors.primary }]}>Done</Text>
                 </TouchableOpacity>
@@ -756,6 +879,12 @@ export default function CreateEventScreen() {
                 onChange={(event, date) => {
                   if (date) {
                     setSelectedTime(date);
+                    // Auto-update end time if it's before or equal to new start time
+                    if (selectedEndTime <= date) {
+                      const newEndTime = new Date(date);
+                      newEndTime.setHours(newEndTime.getHours() + 1);
+                      setSelectedEndTime(newEndTime);
+                    }
                   }
                 }}
                 themeVariant={colorScheme}
@@ -775,6 +904,68 @@ export default function CreateEventScreen() {
               setShowTimePicker(false);
               if (date) {
                 setSelectedTime(date);
+                // Auto-update end time if it's before or equal to new start time
+                if (selectedEndTime <= date) {
+                  const newEndTime = new Date(date);
+                  newEndTime.setHours(newEndTime.getHours() + 1);
+                  setSelectedEndTime(newEndTime);
+                }
+              }
+            }}
+            themeVariant={colorScheme}
+          />
+        )
+      )}
+
+      {/* End Time Picker - iOS: wrapped in Modal with Done button */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showEndTimePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowEndTimePicker(false)}
+        >
+          <Pressable
+            style={styles.pickerModalOverlay}
+            onPress={() => setShowEndTimePicker(false)}
+          >
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.textMuted }]}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerModalTitle}>End Time</Text>
+                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.primary }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedEndTime}
+                mode="time"
+                display="spinner"
+                is24Hour={false}
+                onChange={(event, date) => {
+                  if (date) {
+                    setSelectedEndTime(date);
+                  }
+                }}
+                themeVariant={colorScheme}
+                style={{ height: 200 }}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showEndTimePicker && (
+          <DateTimePicker
+            value={selectedEndTime}
+            mode="time"
+            display="default"
+            is24Hour={false}
+            onChange={(event, date) => {
+              setShowEndTimePicker(false);
+              if (date) {
+                setSelectedEndTime(date);
               }
             }}
             themeVariant={colorScheme}
@@ -1060,6 +1251,12 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
     },
     theConnectionName: {
       color: colors.primary,
+    },
+    categoryOptionContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
     },
     // iOS Date/Time Picker Modal Styles
     pickerModalOverlay: {
