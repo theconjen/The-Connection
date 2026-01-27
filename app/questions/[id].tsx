@@ -220,9 +220,10 @@ export default function QuestionThreadScreen() {
         contentContainerStyle={styles.messagesContent}
       >
         {messages && messages.length > 0 ? (
-          messages.map((message) => {
+          messages.map((message, index) => {
             const isCurrentUser = message.senderUserId === user?.id;
-            const isOriginalQuestion = message.isQuestion === true;
+            // Use isQuestion flag, or fallback to first message with id=0 or index 0
+            const isOriginalQuestion = message.isQuestion === true || message.id === 0 || (index === 0 && !message.id);
 
             return (
               <View
@@ -319,19 +320,24 @@ export default function QuestionThreadScreen() {
         transparent
         onRequestClose={() => setMenuMessage(null)}
       >
-        <Pressable style={styles.actionSheetOverlay} onPress={() => setMenuMessage(null)}>
+        <View style={styles.actionSheetOverlay}>
+          <Pressable style={styles.actionSheetBackdrop} onPress={() => setMenuMessage(null)} />
           <View style={styles.actionSheet}>
             <Text style={styles.actionSheetTitle}>Message Options</Text>
             <Pressable
               style={styles.actionSheetItem}
-              onPress={() => menuMessage && handleEdit(menuMessage)}
+              onPress={() => {
+                if (menuMessage) handleEdit(menuMessage);
+              }}
             >
               <Ionicons name="pencil" size={22} color={colors.accent} />
               <Text style={styles.actionSheetItemText}>Edit Answer</Text>
             </Pressable>
             <Pressable
               style={styles.actionSheetItem}
-              onPress={() => menuMessage && handlePublish(menuMessage)}
+              onPress={() => {
+                if (menuMessage) handlePublish(menuMessage);
+              }}
             >
               <Ionicons name="library-outline" size={22} color={colors.accent} />
               <Text style={styles.actionSheetItemText}>Publish to Library</Text>
@@ -343,7 +349,7 @@ export default function QuestionThreadScreen() {
               <Text style={styles.actionSheetCancelText}>Cancel</Text>
             </Pressable>
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* Edit Modal */}
@@ -551,8 +557,11 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
   },
   actionSheetOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+  },
+  actionSheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   actionSheet: {
     backgroundColor: colors.surface,
