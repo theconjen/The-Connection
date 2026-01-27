@@ -674,7 +674,7 @@ router.get('/communities/:id/wall', requireAuth, async (req, res) => {
     const enrichedPosts = posts.map((post: any) => ({
       ...post,
       authorName: post.author?.username || post.author?.displayName || 'Unknown',
-      authorAvatar: post.author?.profileImageUrl
+      authorAvatar: post.author?.avatarUrl
     }));
 
     res.json(enrichedPosts);
@@ -1217,7 +1217,18 @@ router.get('/communities/:id/prayer-requests', requireAuth, async (req, res) => 
     }
 
     const prayerRequests = await storage.getCommunityPrayerRequests(communityId);
-    res.json(prayerRequests);
+
+    // Enrich with author info for mobile app compatibility
+    const enrichedRequests = await Promise.all(prayerRequests.map(async (prayer: any) => {
+      const author = await storage.getUser(prayer.authorId);
+      return {
+        ...prayer,
+        authorName: author?.username || author?.displayName || 'Unknown',
+        authorAvatar: author?.avatarUrl
+      };
+    }));
+
+    res.json(enrichedRequests);
   } catch (error) {
     console.error('Error fetching community prayer requests:', error);
     res.status(500).json(buildErrorResponse('Error fetching prayer requests', error));
