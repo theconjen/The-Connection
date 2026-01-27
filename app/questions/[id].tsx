@@ -411,8 +411,9 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     flex: 1,
   },
   messagesContent: {
-    padding: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
   messageBubble: {
     maxWidth: '80%',
@@ -487,7 +488,9 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
   replyContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 34, // Safe area for home indicator
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
