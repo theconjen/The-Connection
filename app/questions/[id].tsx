@@ -12,6 +12,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -302,31 +303,33 @@ export default function QuestionThreadScreen() {
       </ScrollView>
 
       {/* Reply Input */}
-      <View style={styles.replyContainer}>
-        <TextInput
-          style={styles.replyInput}
-          value={replyText}
-          onChangeText={setReplyText}
-          placeholder="Type your response..."
-          placeholderTextColor={colors.textTertiary}
-          multiline
-          maxLength={5000}
-        />
-        <Pressable
-          style={[
-            styles.sendButton,
-            (!replyText.trim() || sendMessageMutation.isPending) && styles.sendButtonDisabled,
-          ]}
-          onPress={handleSend}
-          disabled={!replyText.trim() || sendMessageMutation.isPending}
-        >
-          {sendMessageMutation.isPending ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Ionicons name="send" size={20} color="#fff" />
-          )}
-        </Pressable>
-      </View>
+      <SafeAreaView edges={['bottom']} style={styles.safeAreaBottom}>
+        <View style={styles.replyContainer}>
+          <TextInput
+            style={styles.replyInput}
+            value={replyText}
+            onChangeText={setReplyText}
+            placeholder="Type your response..."
+            placeholderTextColor={colors.textTertiary}
+            multiline
+            maxLength={5000}
+          />
+          <Pressable
+            style={[
+              styles.sendButton,
+              (!replyText.trim() || sendMessageMutation.isPending) && styles.sendButtonDisabled,
+            ]}
+            onPress={handleSend}
+            disabled={!replyText.trim() || sendMessageMutation.isPending}
+          >
+            {sendMessageMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="send" size={20} color="#fff" />
+            )}
+          </Pressable>
+        </View>
+      </SafeAreaView>
 
       {/* Edit Modal */}
       <Modal
@@ -485,12 +488,15 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     fontSize: 16,
     color: colors.textTertiary,
   },
+  safeAreaBottom: {
+    backgroundColor: colors.surface,
+  },
   replyContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 12,
     paddingTop: 12,
-    paddingBottom: 34, // Safe area for home indicator
+    paddingBottom: 12,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
@@ -503,6 +509,7 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     paddingVertical: 10,
     fontSize: 15,
     color: colors.textPrimary,
+    minHeight: 44,
     maxHeight: 100,
     marginRight: 8,
   },
