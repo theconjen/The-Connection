@@ -46,6 +46,28 @@ interface Message {
   isQuestion?: boolean; // Flag for the original question
 }
 
+// Structured answer template for apologists
+const ANSWER_TEMPLATE = `## Summary
+[2-3 sentence answer to the question]
+
+## Key Points
+- [Main point 1]
+- [Main point 2]
+- [Main point 3]
+
+## Detailed Answer
+[Full explanation here...]
+
+## Scripture References
+- [Book Chapter:Verse - Brief context]
+
+## Sources
+- [Author, "Title" (Publisher, Year)]
+
+## Perspectives
+- [Denominational perspectives if relevant]
+`;
+
 export default function QuestionThreadScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -59,6 +81,7 @@ export default function QuestionThreadScreen() {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [editText, setEditText] = useState('');
   const [menuMessage, setMenuMessage] = useState<Message | null>(null); // message for showing action menu
+  const [showTemplateOption, setShowTemplateOption] = useState(true); // Show template button for first answer
 
   const questionId = parseInt(id || '0');
 
@@ -151,13 +174,18 @@ export default function QuestionThreadScreen() {
   };
 
   const handleSend = () => {
-    Alert.alert('Debug', 'Send button pressed');
     if (!replyText.trim()) {
       Alert.alert('Error', 'Please enter a message');
       return;
     }
 
     sendMessageMutation.mutate(replyText.trim());
+    setShowTemplateOption(false); // Hide template option after first message
+  };
+
+  const handleInsertTemplate = () => {
+    setReplyText(ANSWER_TEMPLATE);
+    setShowTemplateOption(false);
   };
 
   // Extract question from first message (or could fetch separately)
@@ -251,10 +279,7 @@ export default function QuestionThreadScreen() {
                 {isCurrentUser && !isOriginalQuestion && (
                   <TouchableOpacity
                     style={styles.menuButton}
-                    onPress={() => {
-                      Alert.alert('Debug', 'Menu button pressed');
-                      setMenuMessage(message);
-                    }}
+                    onPress={() => setMenuMessage(message)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     activeOpacity={0.6}
                   >
@@ -291,6 +316,17 @@ export default function QuestionThreadScreen() {
 
       {/* Reply Input */}
       <View style={styles.replyWrapper}>
+        {/* Template suggestion for apologists */}
+        {showTemplateOption && !replyText && messages && messages.length <= 1 && (
+          <TouchableOpacity
+            style={styles.templateButton}
+            onPress={handleInsertTemplate}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+            <Text style={styles.templateButtonText}>Use Structured Answer Template</Text>
+          </TouchableOpacity>
+        )}
         <View style={styles.replyContainer}>
           <TextInput
             style={styles.replyInput}
@@ -523,6 +559,22 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
+  },
+  templateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  templateButtonText: {
+    fontSize: 14,
+    color: colors.accent,
+    fontWeight: '500',
   },
   safeAreaBottom: {
     backgroundColor: colors.surface,
