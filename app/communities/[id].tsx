@@ -859,7 +859,7 @@ export default function CommunityDetailScreen() {
                                   }
                                 }}
                               >
-                                <Text style={[styles.authorName, { textDecorationLine: 'underline' }]}>
+                                <Text style={styles.authorName}>
                                   {post.author?.displayName || post.authorName}
                                 </Text>
                               </TouchableOpacity>
