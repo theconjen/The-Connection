@@ -64,6 +64,7 @@ router.get('/', async (req, res, next) => {
     const { password, ...userData } = user;
     res.json({
       ...userData,
+      profileImageUrl: user.avatarUrl, // Map avatarUrl to profileImageUrl for mobile app compatibility
       permissions,
     });
   } catch (error) {

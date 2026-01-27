@@ -674,7 +674,12 @@ router.get('/communities/:id/wall', requireAuth, async (req, res) => {
     const enrichedPosts = posts.map((post: any) => ({
       ...post,
       authorName: post.author?.username || post.author?.displayName || 'Unknown',
-      authorAvatar: post.author?.avatarUrl
+      authorAvatar: post.author?.avatarUrl,
+      // Also include author object with profileImageUrl for mobile app
+      author: post.author ? {
+        ...post.author,
+        profileImageUrl: post.author.avatarUrl, // Map avatarUrl to profileImageUrl
+      } : undefined
     }));
 
     res.json(enrichedPosts);
