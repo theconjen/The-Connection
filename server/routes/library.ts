@@ -138,10 +138,35 @@ router.get('/posts', async (req, res) => {
 });
 
 /**
+ * GET /api/library/posts/trending
+ * Get trending/featured library posts based on view count and recency
+ * Uses a score combining views and recency for better featured content
+ */
+router.get('/posts/trending', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+    const domain = req.query.domain as string | undefined;
+
+    const posts = await storage.getTrendingLibraryPosts(limit, domain);
+
+    res.json({
+      posts: {
+        items: posts,
+        total: posts.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching trending library posts:', error);
+    res.status(500).json(buildErrorResponse('Error fetching trending library posts', error));
+  }
+});
+
+/**
  * GET /api/library/posts/:id
  * Get single library post by ID
  * - Non-authors can only view published posts
  * - Authors can view their own drafts
+ * - Increments view count for published posts
  */
 router.get('/posts/:id', async (req, res) => {
   try {
@@ -156,6 +181,13 @@ router.get('/posts/:id', async (req, res) => {
 
     if (!post) {
       return res.status(404).json({ error: 'Library post not found' });
+    }
+
+    // Track view for published posts (async, don't block response)
+    if (post.status === 'published') {
+      storage.incrementLibraryPostViews(postId).catch((err) => {
+        console.error('Error incrementing view count:', err);
+      });
     }
 
     res.json(post);

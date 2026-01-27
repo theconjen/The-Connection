@@ -689,7 +689,7 @@ router.post('/communities/:id/wall', requireAuth, async (req, res) => {
   try {
     const communityId = parseInt(req.params.id);
     const userId = requireSessionUserId(req);
-    const { content } = req.body;
+    const { content, imageUrl } = req.body;
 
     if (!Number.isFinite(communityId)) {
       return res.status(400).json({ message: 'invalid id' });
@@ -712,11 +712,12 @@ router.post('/communities/:id/wall', requireAuth, async (req, res) => {
       return res.status(403).json({ message: 'Must be a community member to post' });
     }
 
-    // Create wall post
+    // Create wall post with optional image
     const post = await storage.createCommunityWallPost({
       communityId,
       authorId: userId,
       content: content.trim(),
+      imageUrl: imageUrl || null,
     });
 
     // Get post with author info

@@ -45,7 +45,23 @@ export default function LibraryPage() {
 
   const canAuthor = meData?.capabilities?.canAuthorApologeticsPosts || false;
 
-  // Fetch library posts
+  // Fetch trending library posts (based on view count)
+  const { data: trendingData, isLoading: trendingLoading } = useQuery<{
+    posts: { items: LibraryPost[]; total: number };
+  }>({
+    queryKey: ['/api/library/posts/trending', { domain: selectedDomain }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedDomain) params.set('domain', selectedDomain);
+      params.set('limit', '6');
+
+      const res = await fetch(`/api/library/posts/trending?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch trending posts');
+      return res.json();
+    },
+  });
+
+  // Fetch all library posts
   const { data, isLoading } = useQuery<{
     posts: { items: LibraryPost[]; total: number };
     pagination: { limit: number; offset: number };
@@ -65,6 +81,7 @@ export default function LibraryPage() {
 
   // API returns { posts: { items: [...], total: N } }
   const posts = data?.posts?.items || [];
+  const trendingPosts = trendingData?.posts?.items || [];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -113,6 +130,54 @@ export default function LibraryPage() {
           Polemics
         </Button>
       </div>
+
+      {/* Trending Section */}
+      {!trendingLoading && trendingPosts.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <Badge variant="secondary" className="gap-1 text-sm">
+              <Flame className="h-3 w-3" />
+              Trending
+            </Badge>
+            <h2 className="text-xl font-semibold text-gray-900">Popular Articles</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {trendingPosts.slice(0, 3).map((post) => (
+              <Link key={post.id} href={`/library/${post.id}`}>
+                <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer border-2 border-primary/20 bg-primary/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge
+                        variant={post.domain === 'apologetics' ? 'default' : 'destructive'}
+                        className="gap-1"
+                      >
+                        {post.domain === 'apologetics' ? (
+                          <Shield className="h-3 w-3" />
+                        ) : (
+                          <Flame className="h-3 w-3" />
+                        )}
+                        {post.domain}
+                      </Badge>
+                      {post.area && (
+                        <span className="text-xs text-gray-600">{post.area.name}</span>
+                      )}
+                    </div>
+                    <CardTitle className="line-clamp-2 text-base">{post.title}</CardTitle>
+                    {post.tldr && (
+                      <CardDescription className="line-clamp-2 mt-1 text-sm">
+                        {post.tldr}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All Articles Section */}
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">All Articles</h2>
 
       {/* Loading State */}
       {isLoading && (

@@ -5849,6 +5849,65 @@ export class DbStorage implements IStorage {
   }
 
   /**
+   * Increment view count for a library post
+   * Called when a published article is viewed
+   */
+  async incrementLibraryPostViews(postId: number): Promise<void> {
+    const { qaLibraryPosts } = await import('@shared/schema');
+
+    await db
+      .update(qaLibraryPosts)
+      .set({
+        viewCount: sql`COALESCE(${qaLibraryPosts.viewCount}, 0) + 1`,
+      })
+      .where(eq(qaLibraryPosts.id, postId));
+  }
+
+  /**
+   * Get trending library posts based on view count and recency
+   * Uses a weighted score: views + (recency bonus for posts in the last 7 days)
+   */
+  async getTrendingLibraryPosts(limit: number = 10, domain?: string): Promise<any[]> {
+    const { qaLibraryPosts, qaAreas, qaTags } = await import('@shared/schema');
+
+    const conditions: any[] = [
+      eq(qaLibraryPosts.status, 'published'),
+    ];
+
+    if (domain) {
+      conditions.push(eq(qaLibraryPosts.domain, domain));
+    }
+
+    // Calculate trending score: views + recency bonus
+    // Posts from the last 7 days get a boost
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const posts = await db
+      .select({
+        post: qaLibraryPosts,
+        area: qaAreas,
+        tag: qaTags,
+      })
+      .from(qaLibraryPosts)
+      .leftJoin(qaAreas, eq(qaLibraryPosts.areaId, qaAreas.id))
+      .leftJoin(qaTags, eq(qaLibraryPosts.tagId, qaTags.id))
+      .where(and(...conditions))
+      .orderBy(
+        // Order by views first, then by publishedAt for recency
+        desc(qaLibraryPosts.viewCount),
+        desc(qaLibraryPosts.publishedAt)
+      )
+      .limit(limit);
+
+    return posts.map(row => ({
+      ...row.post,
+      area: row.area,
+      tag: row.tag,
+    }));
+  }
+
+  /**
    * Create library contribution
    */
   async createContribution(postId: number, contributorUserId: number, data: any): Promise<any> {

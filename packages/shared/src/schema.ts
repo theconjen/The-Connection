@@ -2065,6 +2065,7 @@ export const qaLibraryPosts = pgTable("qa_library_posts", {
   authorUserId: integer("author_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   authorDisplayName: text("author_display_name").notNull().default("Connection Research Team"),
   status: text("status").notNull().default("draft"), // draft, published, archived
+  viewCount: integer("view_count").notNull().default(0), // Track article views for trending
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   publishedAt: timestamp("published_at"),

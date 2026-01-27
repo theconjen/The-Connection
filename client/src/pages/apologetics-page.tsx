@@ -26,7 +26,8 @@ import {
   CheckCircle2,
   Users,
   Mail,
-  Inbox
+  Inbox,
+  TrendingUp
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -133,7 +134,24 @@ export default function ApologeticsPage() {
     enabled: !!selectedAreaId,
   });
 
-  // Fetch library posts
+  // Fetch trending library posts (when no search/filter active)
+  const { data: trendingData, isLoading: trendingLoading } = useQuery<{
+    posts: { items: LibraryPostListItem[]; total: number };
+  }>({
+    queryKey: ["library-posts-trending", domain],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("domain", domain);
+      params.set("limit", "10");
+
+      const res = await fetch(`/api/library/posts/trending?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch trending posts");
+      return res.json();
+    },
+    enabled: !debouncedQuery.trim() && !selectedAreaId && !selectedTagId,
+  });
+
+  // Fetch library posts (when searching/filtering)
   const { data: postsData, isLoading: postsLoading } = useQuery<{
     posts: { items: LibraryPostListItem[]; total: number };
   }>({
@@ -151,10 +169,16 @@ export default function ApologeticsPage() {
       if (!res.ok) throw new Error("Failed to fetch posts");
       return res.json();
     },
+    enabled: !!(debouncedQuery.trim() || selectedAreaId || selectedTagId),
   });
 
   // API returns { posts: { items: [...], total: N } }
-  const posts = postsData?.posts?.items || [];
+  // Show trending posts when no search/filter, otherwise show filtered posts
+  const isSearchActive = !!(debouncedQuery.trim() || selectedAreaId || selectedTagId);
+  const posts = isSearchActive
+    ? (postsData?.posts?.items || [])
+    : (trendingData?.posts?.items || []);
+  const isLoading = isSearchActive ? postsLoading : trendingLoading;
   const hasInboxAccess = meData?.capabilities?.inboxAccess || false;
 
   function onSelectDomain(next: Domain) {
@@ -172,8 +196,9 @@ export default function ApologeticsPage() {
     setSelectedTagId((prev) => (prev === tagId ? null : tagId));
   }
 
-  const showSuggestedSearches = !query.trim() && posts.length === 0 && !postsLoading;
+  const showSuggestedSearches = !query.trim() && posts.length === 0 && !isLoading;
   const suggestedSearches = SUGGESTED_SEARCHES[domain];
+  const showTrendingHeader = !isSearchActive && posts.length > 0;
 
   return (
     <MainLayout>
@@ -299,7 +324,20 @@ export default function ApologeticsPage() {
         )}
 
         {/* Results */}
-        {postsLoading ? (
+        {showTrendingHeader && (
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">Trending Articles</h2>
+          </div>
+        )}
+        {isSearchActive && posts.length > 0 && (
+          <div className="flex items-center gap-2 mb-4">
+            <Search className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">Search Results</h2>
+            <span className="text-sm text-muted-foreground">({posts.length} found)</span>
+          </div>
+        )}
+        {isLoading ? (
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
               <Card key={i} className="animate-pulse">
