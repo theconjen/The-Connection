@@ -576,7 +576,46 @@ router.post('/assignments/:id/decline', requireAuth, requireInboxAccess, async (
     const updated = await storage.declineAssignment(assignmentId, reason);
 
     // Try to reassign to someone else
-    await storage.autoAssignQuestion(assignment.questionId);
+    const newAssignment = await storage.autoAssignQuestion(assignment.questionId);
+
+    // Notify the asker about the status change
+    try {
+      const question = await storage.getUserQuestionById(assignment.questionId);
+      if (question?.askerUserId) {
+        const decliner = await storage.getUser(userId);
+        const declinerName = decliner?.displayName || decliner?.username || 'An apologist';
+
+        if (newAssignment) {
+          // Question was reassigned to someone else
+          await notifyUserWithPreferences(question.askerUserId, {
+            title: 'Question reassigned',
+            body: 'Your question has been assigned to a new apologist who will respond soon.',
+            data: {
+              type: 'qa_reassigned',
+              questionId: assignment.questionId,
+            },
+            category: 'qa',
+            type: 'qa_reassigned',
+            actorId: userId,
+          });
+        } else {
+          // No one else available - notify asker
+          await notifyUserWithPreferences(question.askerUserId, {
+            title: 'Question pending',
+            body: 'We\'re looking for an available apologist to answer your question. Thank you for your patience.',
+            data: {
+              type: 'qa_pending',
+              questionId: assignment.questionId,
+            },
+            category: 'qa',
+            type: 'qa_pending',
+            actorId: userId,
+          });
+        }
+      }
+    } catch (notifyError) {
+      console.error('[Questions] Error notifying asker about decline:', notifyError);
+    }
 
     res.json(updated);
   } catch (error) {
