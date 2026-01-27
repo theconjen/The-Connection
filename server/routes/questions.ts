@@ -291,6 +291,138 @@ router.get('/questions/:id/messages', requireAuth, async (req, res) => {
 });
 
 /**
+ * PATCH /questions/:id/messages/:messageId
+ * Edit a message in a question thread (only sender can edit)
+ */
+router.patch('/questions/:id/messages/:messageId', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    const questionId = parseInt(req.params.id);
+    const messageId = parseInt(req.params.messageId);
+    const { body } = req.body;
+
+    if (!Number.isFinite(questionId) || !Number.isFinite(messageId)) {
+      return res.status(400).json({ message: 'Invalid question or message ID' });
+    }
+
+    if (!body || !body.trim()) {
+      return res.status(400).json({ message: 'Message body is required' });
+    }
+
+    // Verify user has access to this question
+    const hasAccess = await storage.userCanAccessQuestion(userId, questionId);
+    if (!hasAccess) {
+      return res.status(403).json({
+        message: 'Access denied. You are not part of this conversation.'
+      });
+    }
+
+    // Get the message and verify ownership
+    const message = await storage.getQuestionMessage(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    if (message.questionId !== questionId) {
+      return res.status(400).json({ message: 'Message does not belong to this question' });
+    }
+
+    if (message.senderUserId !== userId) {
+      return res.status(403).json({ message: 'You can only edit your own messages' });
+    }
+
+    // Update the message
+    const updatedMessage = await storage.updateQuestionMessage(messageId, body);
+    res.json(updatedMessage);
+  } catch (error) {
+    console.error('[Questions] Error editing message:', error);
+    res.status(500).json(buildErrorResponse('Error editing message', error));
+  }
+});
+
+/**
+ * POST /questions/:id/messages/:messageId/publish
+ * Publish an answer to the Q&A Library
+ */
+router.post('/questions/:id/messages/:messageId/publish', requireAuth, requireInboxAccess, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    const questionId = parseInt(req.params.id);
+    const messageId = parseInt(req.params.messageId);
+
+    if (!Number.isFinite(questionId) || !Number.isFinite(messageId)) {
+      return res.status(400).json({ message: 'Invalid question or message ID' });
+    }
+
+    // Verify user has access to this question
+    const hasAccess = await storage.userCanAccessQuestion(userId, questionId);
+    if (!hasAccess) {
+      return res.status(403).json({
+        message: 'Access denied. You are not part of this conversation.'
+      });
+    }
+
+    // Get the message
+    const message = await storage.getQuestionMessage(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    if (message.questionId !== questionId) {
+      return res.status(400).json({ message: 'Message does not belong to this question' });
+    }
+
+    // Only the responder who wrote the message can publish it
+    if (message.senderUserId !== userId) {
+      return res.status(403).json({ message: 'You can only publish your own answers' });
+    }
+
+    // Get the question details
+    const question = await storage.getUserQuestionById(questionId);
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
+    }
+
+    // Can't publish if the user is the asker (they shouldn't be publishing their own questions as answers)
+    if (question.askerUserId === userId) {
+      return res.status(403).json({ message: 'Askers cannot publish their own questions as answers' });
+    }
+
+    // Get user details for author display name
+    const user = await storage.getUser(userId);
+    const authorDisplayName = user?.displayName || user?.username || 'Connection Expert';
+
+    // Create a library post
+    const { db } = await import('../db');
+    const { qaLibraryPosts } = await import('@shared/schema');
+
+    const [libraryPost] = await db
+      .insert(qaLibraryPosts)
+      .values({
+        domain: question.domain,
+        areaId: question.areaId,
+        tagId: question.tagId,
+        title: question.questionText,
+        summary: message.body.substring(0, 200) + (message.body.length > 200 ? '...' : ''),
+        bodyMarkdown: message.body,
+        authorUserId: userId,
+        authorDisplayName,
+        status: 'published',
+        publishedAt: new Date(),
+      })
+      .returning();
+
+    res.status(201).json({
+      message: 'Answer published to library',
+      libraryPost,
+    });
+  } catch (error) {
+    console.error('[Questions] Error publishing answer:', error);
+    res.status(500).json(buildErrorResponse('Error publishing answer', error));
+  }
+});
+
+/**
  * POST /questions/:id/messages
  * Send a message in a question thread
  */

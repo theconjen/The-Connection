@@ -159,7 +159,7 @@ class StorageSafety {
     'createContentReport', 'createUserBlock', 'getBlockedUserIdsFor', 'removeUserBlock',
     'userHasPermission', 'getQaArea', 'getQaTag', 'createUserQuestion', 'autoAssignQuestion',
     'getUserQuestions', 'getInboxQuestions', 'userCanAccessQuestion', 'getQuestionMessages',
-    'createQuestionMessage', 'getUserQuestionById', 'getActiveAssignment', 'updateQuestionStatus',
+    'createQuestionMessage', 'getQuestionMessage', 'updateQuestionMessage', 'getUserQuestionById', 'getActiveAssignment', 'updateQuestionStatus',
     'updateAssignmentStatus', 'getQuestionAssignment', 'declineAssignment', 'grantPermission',
     'revokePermission', 'getAllResponders'
   ]);
@@ -5386,6 +5386,34 @@ export class DbStorage implements IStorage {
       .returning();
 
     return message;
+  }
+
+  /**
+   * Get a single question message by ID
+   */
+  async getQuestionMessage(messageId: number): Promise<any> {
+    const { questionMessages } = await import('@shared/schema');
+    const [message] = await db
+      .select()
+      .from(questionMessages)
+      .where(eq(questionMessages.id, messageId))
+      .limit(1);
+
+    return message;
+  }
+
+  /**
+   * Update a question message
+   */
+  async updateQuestionMessage(messageId: number, body: string): Promise<any> {
+    const { questionMessages } = await import('@shared/schema');
+    const [updated] = await db
+      .update(questionMessages)
+      .set({ body })
+      .where(eq(questionMessages.id, messageId))
+      .returning();
+
+    return updated;
   }
 
   /**
