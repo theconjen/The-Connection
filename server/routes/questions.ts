@@ -264,6 +264,7 @@ router.get('/questions/inbox', requireAuth, requireInboxAccess, async (req, res)
 /**
  * GET /questions/:id/messages
  * Get all messages for a question thread
+ * Returns the original question as the first "message" followed by actual messages
  */
 router.get('/questions/:id/messages', requireAuth, async (req, res) => {
   try {
@@ -282,8 +283,43 @@ router.get('/questions/:id/messages', requireAuth, async (req, res) => {
       });
     }
 
+    // Get the question details
+    const question = await storage.getUserQuestionById(questionId);
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
+    }
+
+    // Get the asker's info
+    const asker = await storage.getUser(question.askerUserId);
+
+    // Create a "virtual" message for the original question
+    const questionAsMessage = {
+      id: 0, // Special ID for the question
+      questionId,
+      senderUserId: question.askerUserId,
+      body: question.questionText,
+      createdAt: question.createdAt,
+      sender: asker ? {
+        id: asker.id,
+        username: asker.username,
+        displayName: asker.displayName,
+        avatarUrl: asker.avatarUrl,
+      } : null,
+      senderDisplayName: asker?.displayName || asker?.username || 'Unknown',
+      isQuestion: true, // Flag to identify this as the original question
+    };
+
+    // Get actual messages
     const messages = await storage.getQuestionMessages(questionId);
-    res.json(messages);
+
+    // Add sender display name to each message
+    const enrichedMessages = messages.map((msg: any) => ({
+      ...msg,
+      senderDisplayName: msg.sender?.displayName || msg.sender?.username || 'Unknown',
+    }));
+
+    // Return question as first message, followed by actual messages
+    res.json([questionAsMessage, ...enrichedMessages]);
   } catch (error) {
     console.error('[Questions] Error fetching messages:', error);
     res.status(500).json(buildErrorResponse('Error fetching messages', error));
