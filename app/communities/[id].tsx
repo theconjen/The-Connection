@@ -840,9 +840,9 @@ export default function CommunityDetailScreen() {
                         <View style={styles.postHeader}>
                           <View style={styles.authorInfo}>
                             <View style={styles.avatar}>
-                              {post.authorAvatar ? (
+                              {(post.authorAvatar || post.author?.profileImageUrl || post.author?.avatarUrl) ? (
                                 <Image
-                                  source={{ uri: post.authorAvatar }}
+                                  source={{ uri: post.authorAvatar || post.author?.profileImageUrl || post.author?.avatarUrl }}
                                   style={styles.avatarImage}
                                 />
                               ) : (
