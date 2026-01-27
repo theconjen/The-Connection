@@ -43,6 +43,7 @@ interface Message {
   createdAt: string;
   senderDisplayName?: string;
   isCurrentUser?: boolean;
+  isQuestion?: boolean; // Flag for the original question
 }
 
 export default function QuestionThreadScreen() {
@@ -219,34 +220,33 @@ export default function QuestionThreadScreen() {
         contentContainerStyle={styles.messagesContent}
       >
         {messages && messages.length > 0 ? (
-          messages.map((message, index) => {
+          messages.map((message) => {
             const isCurrentUser = message.senderUserId === user?.id;
-            const isFirstMessage = index === 0; // First message is the question
+            const isOriginalQuestion = message.isQuestion === true;
 
             return (
               <View
-                key={message.id}
+                key={`${message.id}-${message.isQuestion ? 'q' : 'm'}`}
                 style={[
                   styles.messageBubble,
-                  isCurrentUser ? styles.messageBubbleRight : styles.messageBubbleLeft,
-                  isFirstMessage && styles.questionBubble,
+                  isOriginalQuestion ? styles.questionBubble : (isCurrentUser ? styles.messageBubbleRight : styles.messageBubbleLeft),
                 ]}
               >
-                {isFirstMessage && (
+                {isOriginalQuestion && (
                   <View style={styles.questionHeader}>
                     <Ionicons name="help-circle" size={20} color={colors.accent} />
                     <Text style={styles.questionLabel}>Original Question</Text>
                   </View>
                 )}
 
-                {!isCurrentUser && !isFirstMessage && (
+                {!isCurrentUser && !isOriginalQuestion && (
                   <Text style={styles.senderName}>
                     {message.senderDisplayName || 'Unknown User'}
                   </Text>
                 )}
 
                 {/* Menu button for user's own answers (not the question) */}
-                {isCurrentUser && !isFirstMessage && (
+                {isCurrentUser && !isOriginalQuestion && (
                   <Pressable
                     style={styles.menuButton}
                     onPress={() => setMenuMessage(message)}
@@ -258,7 +258,7 @@ export default function QuestionThreadScreen() {
                 <Text
                   style={[
                     styles.messageText,
-                    isCurrentUser && styles.messageTextRight,
+                    isCurrentUser && !isOriginalQuestion && styles.messageTextRight,
                   ]}
                 >
                   {message.body}
@@ -267,7 +267,7 @@ export default function QuestionThreadScreen() {
                 <Text
                   style={[
                     styles.messageTimestamp,
-                    isCurrentUser && styles.messageTimestampRight,
+                    isCurrentUser && !isOriginalQuestion && styles.messageTimestampRight,
                   ]}
                 >
                   {new Date(message.createdAt).toLocaleString()}
