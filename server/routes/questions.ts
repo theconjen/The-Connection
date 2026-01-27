@@ -428,6 +428,63 @@ router.post('/questions/:id/messages/:messageId/publish', requireAuth, requireIn
     const user = await storage.getUser(userId);
     const authorDisplayName = user?.displayName || user?.username || 'Connection Expert';
 
+    // Parse structured answer sections
+    const parseStructuredAnswer = (body: string) => {
+      const sections: Record<string, string> = {};
+
+      // Extract Summary
+      const summaryMatch = body.match(/## Summary\s*\n([\s\S]*?)(?=\n## |$)/i);
+      if (summaryMatch) sections.summary = summaryMatch[1].trim();
+
+      // Extract Key Points
+      const keyPointsMatch = body.match(/## Key Points\s*\n([\s\S]*?)(?=\n## |$)/i);
+      if (keyPointsMatch) {
+        const points = keyPointsMatch[1]
+          .split('\n')
+          .filter(line => line.trim().startsWith('-'))
+          .map(line => line.trim().replace(/^-\s*/, ''));
+        sections.keyPoints = JSON.stringify(points);
+      }
+
+      // Extract Detailed Answer
+      const detailedMatch = body.match(/## Detailed Answer\s*\n([\s\S]*?)(?=\n## |$)/i);
+      if (detailedMatch) sections.detailed = detailedMatch[1].trim();
+
+      // Extract Scripture References
+      const scriptureMatch = body.match(/## Scripture References\s*\n([\s\S]*?)(?=\n## |$)/i);
+      if (scriptureMatch) {
+        const refs = scriptureMatch[1]
+          .split('\n')
+          .filter(line => line.trim().startsWith('-'))
+          .map(line => line.trim().replace(/^-\s*/, ''));
+        sections.scriptureRefs = JSON.stringify(refs);
+      }
+
+      // Extract Sources
+      const sourcesMatch = body.match(/## Sources\s*\n([\s\S]*?)(?=\n## |$)/i);
+      if (sourcesMatch) {
+        const sources = sourcesMatch[1]
+          .split('\n')
+          .filter(line => line.trim().startsWith('-'))
+          .map(line => ({ citation: line.trim().replace(/^-\s*/, '') }));
+        sections.sources = JSON.stringify(sources);
+      }
+
+      // Extract Perspectives
+      const perspectivesMatch = body.match(/## Perspectives\s*\n([\s\S]*?)(?=\n## |$)/i);
+      if (perspectivesMatch) {
+        const perspectives = perspectivesMatch[1]
+          .split('\n')
+          .filter(line => line.trim().startsWith('-'))
+          .map(line => line.trim().replace(/^-\s*/, ''));
+        sections.perspectives = perspectives;
+      }
+
+      return sections;
+    };
+
+    const parsed = parseStructuredAnswer(message.body);
+
     // Create a library post
     const { db } = await import('../db');
     const { qaLibraryPosts } = await import('@shared/schema');
@@ -439,8 +496,13 @@ router.post('/questions/:id/messages/:messageId/publish', requireAuth, requireIn
         areaId: question.areaId,
         tagId: question.tagId,
         title: question.questionText,
-        summary: message.body.substring(0, 200) + (message.body.length > 200 ? '...' : ''),
-        bodyMarkdown: message.body,
+        tldr: parsed.summary || null,
+        summary: parsed.summary || message.body.substring(0, 200) + (message.body.length > 200 ? '...' : ''),
+        keyPoints: parsed.keyPoints ? JSON.parse(parsed.keyPoints) : [],
+        scriptureRefs: parsed.scriptureRefs ? JSON.parse(parsed.scriptureRefs) : [],
+        sources: parsed.sources ? JSON.parse(parsed.sources) : [],
+        perspectives: parsed.perspectives || [],
+        bodyMarkdown: parsed.detailed || message.body,
         authorUserId: userId,
         authorDisplayName,
         status: 'published',
