@@ -57,7 +57,7 @@ export default function QuestionThreadScreen() {
   const [replyText, setReplyText] = useState('');
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [editText, setEditText] = useState('');
-  const [showMenu, setShowMenu] = useState<number | null>(null); // messageId for showing menu
+  const [menuMessage, setMenuMessage] = useState<Message | null>(null); // message for showing action menu
 
   const questionId = parseInt(id || '0');
 
@@ -127,9 +127,9 @@ export default function QuestionThreadScreen() {
   });
 
   const handleEdit = (message: Message) => {
+    setMenuMessage(null);
     setEditingMessage(message);
     setEditText(message.body);
-    setShowMenu(null);
   };
 
   const handleSaveEdit = () => {
@@ -137,14 +137,14 @@ export default function QuestionThreadScreen() {
     editMessageMutation.mutate({ messageId: editingMessage.id, body: editText.trim() });
   };
 
-  const handlePublish = (messageId: number) => {
-    setShowMenu(null);
+  const handlePublish = (message: Message) => {
+    setMenuMessage(null);
     Alert.alert(
       'Publish Answer',
       'This will publish your answer to the Apologetics Library where it can help others with similar questions. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Publish', onPress: () => publishMutation.mutate(messageId) },
+        { text: 'Publish', onPress: () => publishMutation.mutate(message.id) },
       ]
     );
   };
@@ -249,30 +249,10 @@ export default function QuestionThreadScreen() {
                 {isCurrentUser && !isFirstMessage && (
                   <Pressable
                     style={styles.menuButton}
-                    onPress={() => setShowMenu(showMenu === message.id ? null : message.id)}
+                    onPress={() => setMenuMessage(message)}
                   >
-                    <Ionicons name="ellipsis-vertical" size={18} color="rgba(255,255,255,0.8)" />
+                    <Ionicons name="ellipsis-vertical" size={20} color="rgba(255,255,255,0.9)" />
                   </Pressable>
-                )}
-
-                {/* Dropdown menu */}
-                {showMenu === message.id && (
-                  <View style={styles.menuDropdown}>
-                    <Pressable
-                      style={styles.menuItem}
-                      onPress={() => handleEdit(message)}
-                    >
-                      <Ionicons name="pencil" size={18} color={colors.textPrimary} />
-                      <Text style={styles.menuItemText}>Edit</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.menuItem}
-                      onPress={() => handlePublish(message.id)}
-                    >
-                      <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
-                      <Text style={styles.menuItemText}>Publish to Library</Text>
-                    </Pressable>
-                  </View>
                 )}
 
                 <Text
@@ -303,7 +283,7 @@ export default function QuestionThreadScreen() {
       </ScrollView>
 
       {/* Reply Input */}
-      <SafeAreaView edges={['bottom']} style={styles.safeAreaBottom}>
+      <View style={styles.replyWrapper}>
         <View style={styles.replyContainer}>
           <TextInput
             style={styles.replyInput}
@@ -329,7 +309,42 @@ export default function QuestionThreadScreen() {
             )}
           </Pressable>
         </View>
-      </SafeAreaView>
+        <SafeAreaView edges={['bottom']} style={styles.safeAreaBottom} />
+      </View>
+
+      {/* Action Sheet Modal */}
+      <Modal
+        visible={!!menuMessage}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setMenuMessage(null)}
+      >
+        <Pressable style={styles.actionSheetOverlay} onPress={() => setMenuMessage(null)}>
+          <View style={styles.actionSheet}>
+            <Text style={styles.actionSheetTitle}>Message Options</Text>
+            <Pressable
+              style={styles.actionSheetItem}
+              onPress={() => menuMessage && handleEdit(menuMessage)}
+            >
+              <Ionicons name="pencil" size={22} color={colors.accent} />
+              <Text style={styles.actionSheetItemText}>Edit Answer</Text>
+            </Pressable>
+            <Pressable
+              style={styles.actionSheetItem}
+              onPress={() => menuMessage && handlePublish(menuMessage)}
+            >
+              <Ionicons name="library-outline" size={22} color={colors.accent} />
+              <Text style={styles.actionSheetItemText}>Publish to Library</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.actionSheetItem, styles.actionSheetCancel]}
+              onPress={() => setMenuMessage(null)}
+            >
+              <Text style={styles.actionSheetCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Edit Modal */}
       <Modal
@@ -488,6 +503,11 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     fontSize: 16,
     color: colors.textTertiary,
   },
+  replyWrapper: {
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
   safeAreaBottom: {
     backgroundColor: colors.surface,
   },
@@ -495,11 +515,8 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingVertical: 12,
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
   },
   replyInput: {
     flex: 1,
@@ -528,32 +545,48 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     position: 'absolute',
     top: 8,
     right: 8,
-    padding: 4,
+    padding: 6,
   },
-  menuDropdown: {
-    position: 'absolute',
-    top: 32,
-    right: 8,
+  actionSheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
     backgroundColor: colors.surface,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 100,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
-  menuItem: {
+  actionSheetTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  actionSheetItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minWidth: 160,
+    gap: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
   },
-  menuItemText: {
-    fontSize: 15,
+  actionSheetItemText: {
+    fontSize: 17,
     color: colors.textPrimary,
+  },
+  actionSheetCancel: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    justifyContent: 'center',
+  },
+  actionSheetCancelText: {
+    fontSize: 17,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,
