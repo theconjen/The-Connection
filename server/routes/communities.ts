@@ -673,7 +673,7 @@ router.get('/communities/:id/wall', requireAuth, async (req, res) => {
     // Add authorName field for mobile app compatibility
     const enrichedPosts = posts.map((post: any) => ({
       ...post,
-      authorName: post.author?.username || post.author?.displayName || 'Unknown',
+      authorName: post.author?.displayName || post.author?.username || 'Unknown',
       authorAvatar: post.author?.avatarUrl,
       // Also include author object with profileImageUrl for mobile app
       author: post.author ? {
@@ -1228,8 +1228,12 @@ router.get('/communities/:id/prayer-requests', requireAuth, async (req, res) => 
       const author = await storage.getUser(prayer.authorId);
       return {
         ...prayer,
-        authorName: author?.username || author?.displayName || 'Unknown',
-        authorAvatar: author?.avatarUrl
+        authorName: author?.displayName || author?.username || 'Unknown',
+        authorAvatar: author?.avatarUrl,
+        author: author ? {
+          ...author,
+          profileImageUrl: author.avatarUrl,
+        } : undefined
       };
     }));
 
