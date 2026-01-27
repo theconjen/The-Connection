@@ -16,6 +16,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,9 @@ import { Text } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback } from 'react';
 import socketService, { ChatMessage } from '../../src/lib/socket';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { Video, ResizeMode } from 'expo-av';
 
 interface WallPost {
   id: number;
@@ -37,6 +41,7 @@ interface WallPost {
   createdAt: string;
   likesCount?: number;
   isLiked?: boolean;
+  imageUrl?: string;
 }
 
 interface Community {
@@ -65,6 +70,7 @@ export default function CommunityDetailScreen() {
 
   const [activeTab, setActiveTab] = useState<TabType>('feed');
   const [newPostContent, setNewPostContent] = useState('');
+  const [selectedMedia, setSelectedMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
   const [showModeratorModal, setShowModeratorModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [newPrayerRequest, setNewPrayerRequest] = useState('');
@@ -279,9 +285,11 @@ export default function CommunityDetailScreen() {
 
   // Create wall post mutation
   const createPostMutation = useMutation({
-    mutationFn: (content: string) => communitiesAPI.createWallPost(communityId, content),
+    mutationFn: ({ content, imageUrl }: { content: string; imageUrl?: string }) =>
+      communitiesAPI.createWallPost(communityId, content, imageUrl),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['community-wall', communityId] });
+      setSelectedMedia(null);
       setNewPostContent('');
       Alert.alert('Success', 'Your post has been shared!');
     },
@@ -423,7 +431,7 @@ export default function CommunityDetailScreen() {
     }
   };
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!newPostContent.trim()) {
       Alert.alert('Error', 'Post content cannot be empty');
       return;
@@ -434,7 +442,83 @@ export default function CommunityDetailScreen() {
       return;
     }
 
-    createPostMutation.mutate(newPostContent.trim());
+    let imageUrl: string | undefined;
+
+    // Convert selected media to base64 if present
+    if (selectedMedia) {
+      try {
+        const base64 = await FileSystem.readAsStringAsync(selectedMedia.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const extension = selectedMedia.uri.split('.').pop()?.toLowerCase();
+        let mimeType: string;
+        if (selectedMedia.type === 'video') {
+          mimeType = extension === 'mov' ? 'video/quicktime' : 'video/mp4';
+        } else {
+          mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+        }
+        imageUrl = `data:${mimeType};base64,${base64}`;
+      } catch (error) {
+        console.error('Error reading media:', error);
+        Alert.alert('Error', 'Failed to process media');
+        return;
+      }
+    }
+
+    createPostMutation.mutate({ content: newPostContent.trim(), imageUrl });
+  };
+
+  const handlePickMedia = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        allowsEditing: false,
+        quality: 0.8,
+        videoMaxDuration: 60, // 60 second max for videos
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        const isVideo = asset.type === 'video';
+        setSelectedMedia({ uri: asset.uri, type: isVideo ? 'video' : 'image' });
+      }
+    } catch (error) {
+      console.error('Error picking media:', error);
+      Alert.alert('Error', 'Failed to pick media');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow access to your camera');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setSelectedMedia({ uri: result.assets[0].uri, type: 'image' });
+      }
+    } catch (error: any) {
+      // Camera not available on simulator
+      if (error?.message?.includes('Camera not available')) {
+        Alert.alert('Camera Unavailable', 'Camera is not available on the simulator. Use a physical device or pick from library.');
+      } else {
+        console.error('Error taking photo:', error);
+        Alert.alert('Error', 'Failed to take photo');
+      }
+    }
   };
 
   const handleSendChatMessage = () => {
@@ -637,9 +721,16 @@ export default function CommunityDetailScreen() {
                   <View style={styles.twitterComposer}>
                     <View style={styles.composerRow}>
                       <View style={styles.composerAvatar}>
-                        <Text style={styles.composerAvatarText}>
-                          {user?.displayName?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() || 'U'}
-                        </Text>
+                        {(user?.profileImageUrl || user?.avatarUrl) ? (
+                          <Image
+                            source={{ uri: user.profileImageUrl || user.avatarUrl }}
+                            style={styles.composerAvatarImage}
+                          />
+                        ) : (
+                          <Text style={styles.composerAvatarText}>
+                            {user?.displayName?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                          </Text>
+                        )}
                       </View>
                       <View style={styles.composerInputContainer}>
                         <TextInput
@@ -654,7 +745,55 @@ export default function CommunityDetailScreen() {
                         />
                       </View>
                     </View>
+
+                    {/* Media Preview */}
+                    {selectedMedia && (
+                      <View style={styles.imagePreviewContainer}>
+                        {selectedMedia.type === 'video' ? (
+                          <Video
+                            source={{ uri: selectedMedia.uri }}
+                            style={styles.imagePreview}
+                            resizeMode={ResizeMode.COVER}
+                            shouldPlay={false}
+                            isLooping={false}
+                            useNativeControls
+                          />
+                        ) : (
+                          <Image source={{ uri: selectedMedia.uri }} style={styles.imagePreview} />
+                        )}
+                        <TouchableOpacity
+                          style={styles.removeImageButton}
+                          onPress={() => setSelectedMedia(null)}
+                        >
+                          <Ionicons name="close-circle" size={24} color="#fff" />
+                        </TouchableOpacity>
+                        {selectedMedia.type === 'video' && (
+                          <View style={styles.videoIndicator}>
+                            <Ionicons name="videocam" size={16} color="#fff" />
+                          </View>
+                        )}
+                      </View>
+                    )}
+
                     <View style={styles.composerFooter}>
+                      {/* Media Buttons */}
+                      <View style={styles.mediaButtons}>
+                        <TouchableOpacity
+                          style={styles.mediaButton}
+                          onPress={handlePickMedia}
+                          disabled={createPostMutation.isPending}
+                        >
+                          <Ionicons name="images-outline" size={22} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.mediaButton}
+                          onPress={handleTakePhoto}
+                          disabled={createPostMutation.isPending}
+                        >
+                          <Ionicons name="camera-outline" size={22} color={colors.primary} />
+                        </TouchableOpacity>
+                      </View>
+
                       <View style={styles.charCountContainer}>
                         <Text style={[
                           styles.charCount,
@@ -701,9 +840,16 @@ export default function CommunityDetailScreen() {
                         <View style={styles.postHeader}>
                           <View style={styles.authorInfo}>
                             <View style={styles.avatar}>
-                              <Text style={styles.avatarText}>
-                                {post.authorName?.charAt(0).toUpperCase() || 'U'}
-                              </Text>
+                              {post.authorAvatar ? (
+                                <Image
+                                  source={{ uri: post.authorAvatar }}
+                                  style={styles.avatarImage}
+                                />
+                              ) : (
+                                <Text style={styles.avatarText}>
+                                  {post.authorName?.charAt(0).toUpperCase() || 'U'}
+                                </Text>
+                              )}
                             </View>
                             <View style={{ flex: 1 }}>
                               <TouchableOpacity
@@ -744,6 +890,24 @@ export default function CommunityDetailScreen() {
                           )}
                         </View>
                         <Text style={styles.postContent}>{post.content}</Text>
+                        {post.imageUrl && (
+                          post.imageUrl.includes('video') ? (
+                            <Video
+                              source={{ uri: post.imageUrl }}
+                              style={styles.postImage}
+                              resizeMode={ResizeMode.COVER}
+                              shouldPlay={false}
+                              isLooping={false}
+                              useNativeControls
+                            />
+                          ) : (
+                            <Image
+                              source={{ uri: post.imageUrl }}
+                              style={styles.postImage}
+                              resizeMode="cover"
+                            />
+                          )
+                        )}
                       </View>
                     );
                   })
@@ -816,9 +980,16 @@ export default function CommunityDetailScreen() {
                     return (
                       <View key={request.id} style={styles.joinRequestCard}>
                         <View style={styles.avatar}>
-                          <Text style={styles.avatarText}>
-                            {(userData.displayName || userData.username || 'U').charAt(0).toUpperCase()}
-                          </Text>
+                          {(userData.profileImageUrl || userData.avatarUrl) ? (
+                            <Image
+                              source={{ uri: userData.profileImageUrl || userData.avatarUrl }}
+                              style={styles.avatarImage}
+                            />
+                          ) : (
+                            <Text style={styles.avatarText}>
+                              {(userData.displayName || userData.username || 'U').charAt(0).toUpperCase()}
+                            </Text>
+                          )}
                         </View>
                         <View style={styles.requestInfo}>
                           <Text style={styles.memberName}>
@@ -931,10 +1102,17 @@ export default function CommunityDetailScreen() {
                       disabled={!canManage}
                     >
                       <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>
-                          {memberData.displayName?.charAt(0).toUpperCase() ||
-                           memberData.username?.charAt(0).toUpperCase() || 'U'}
-                        </Text>
+                        {(memberData.profileImageUrl || memberData.avatarUrl) ? (
+                          <Image
+                            source={{ uri: memberData.profileImageUrl || memberData.avatarUrl }}
+                            style={styles.avatarImage}
+                          />
+                        ) : (
+                          <Text style={styles.avatarText}>
+                            {memberData.displayName?.charAt(0).toUpperCase() ||
+                             memberData.username?.charAt(0).toUpperCase() || 'U'}
+                          </Text>
+                        )}
                       </View>
                       <View style={styles.memberInfo}>
                         <Text style={styles.memberName}>
@@ -1056,9 +1234,16 @@ export default function CommunityDetailScreen() {
                         <View style={styles.prayerHeader}>
                           <View style={styles.authorInfo}>
                             <View style={styles.avatar}>
-                              <Text style={styles.avatarText}>
-                                {prayer.isAnonymous ? '?' : (prayer.authorName?.charAt(0).toUpperCase() || 'U')}
-                              </Text>
+                              {!prayer.isAnonymous && prayer.authorAvatar ? (
+                                <Image
+                                  source={{ uri: prayer.authorAvatar }}
+                                  style={styles.avatarImage}
+                                />
+                              ) : (
+                                <Text style={styles.avatarText}>
+                                  {prayer.isAnonymous ? '?' : (prayer.authorName?.charAt(0).toUpperCase() || 'U')}
+                                </Text>
+                              )}
                             </View>
                             <View style={{ flex: 1 }}>
                               <Text style={styles.authorName}>
@@ -1224,9 +1409,16 @@ export default function CommunityDetailScreen() {
 
             <View style={styles.memberPreview}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {(selectedMember.user?.displayName || selectedMember.user?.username || 'U').charAt(0).toUpperCase()}
-                </Text>
+                {(selectedMember.user?.profileImageUrl || selectedMember.user?.avatarUrl) ? (
+                  <Image
+                    source={{ uri: selectedMember.user.profileImageUrl || selectedMember.user.avatarUrl }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <Text style={styles.avatarText}>
+                    {(selectedMember.user?.displayName || selectedMember.user?.username || 'U').charAt(0).toUpperCase()}
+                  </Text>
+                )}
               </View>
               <View>
                 <Text style={styles.memberName}>
@@ -1666,6 +1858,11 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
     fontSize: 16,
     fontWeight: '600',
   },
+  composerAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
   composerInputContainer: {
     flex: 1,
   },
@@ -1681,6 +1878,7 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingLeft: 52, // Align with input text (40px avatar + 12px gap)
+    gap: 12,
   },
   charCountContainer: {
     flex: 1,
@@ -1714,6 +1912,51 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
     fontSize: 15,
     fontWeight: '700',
   },
+  mediaButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mediaButton: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  imagePreviewContainer: {
+    marginLeft: 52,
+    marginBottom: 12,
+    position: 'relative',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
+  },
+  videoIndicator: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  postImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginTop: 12,
+    backgroundColor: colors.surfaceMuted,
+  },
   postCard: {
     backgroundColor: colors.surface,
     padding: 16,
@@ -1742,6 +1985,11 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
     color: '#fff',
     fontSize: 17,
     fontWeight: '600',
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   authorName: {
     fontSize: 15,
