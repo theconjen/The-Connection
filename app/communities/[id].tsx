@@ -860,7 +860,7 @@ export default function CommunityDetailScreen() {
                                 }}
                               >
                                 <Text style={[styles.authorName, { textDecorationLine: 'underline' }]}>
-                                  @{post.authorName}
+                                  {post.author?.displayName || post.authorName}
                                 </Text>
                               </TouchableOpacity>
                               <Text style={styles.postTime}>{formatDate(post.createdAt)}</Text>
@@ -1247,7 +1247,7 @@ export default function CommunityDetailScreen() {
                             </View>
                             <View style={{ flex: 1 }}>
                               <Text style={styles.authorName}>
-                                {prayer.isAnonymous ? 'Anonymous' : `@${prayer.authorName}`}
+                                {prayer.isAnonymous ? 'Anonymous' : (prayer.author?.displayName || prayer.authorName)}
                               </Text>
                               <Text style={styles.postTime}>{formatDate(prayer.createdAt)}</Text>
                             </View>
