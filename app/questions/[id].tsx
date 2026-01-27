@@ -151,6 +151,7 @@ export default function QuestionThreadScreen() {
   };
 
   const handleSend = () => {
+    Alert.alert('Debug', 'Send button pressed');
     if (!replyText.trim()) {
       Alert.alert('Error', 'Please enter a message');
       return;
@@ -250,7 +251,10 @@ export default function QuestionThreadScreen() {
                 {isCurrentUser && !isOriginalQuestion && (
                   <TouchableOpacity
                     style={styles.menuButton}
-                    onPress={() => setMenuMessage(message)}
+                    onPress={() => {
+                      Alert.alert('Debug', 'Menu button pressed');
+                      setMenuMessage(message);
+                    }}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     activeOpacity={0.6}
                   >
