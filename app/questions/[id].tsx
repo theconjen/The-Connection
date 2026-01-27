@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,6 +54,9 @@ export default function QuestionThreadScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [replyText, setReplyText] = useState('');
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [editText, setEditText] = useState('');
+  const [showMenu, setShowMenu] = useState<number | null>(null); // messageId for showing menu
 
   const questionId = parseInt(id || '0');
 
@@ -84,6 +88,65 @@ export default function QuestionThreadScreen() {
       Alert.alert('Error', error.response?.data?.message || 'Failed to send message');
     },
   });
+
+  // Edit message mutation
+  const editMessageMutation = useMutation({
+    mutationFn: async ({ messageId, body }: { messageId: number; body: string }) => {
+      return await apiClient.patch(`/api/questions/${questionId}/messages/${messageId}`, { body });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/questions', questionId, 'messages'] });
+      setEditingMessage(null);
+      setEditText('');
+      Alert.alert('Success', 'Answer updated');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update message');
+    },
+  });
+
+  // Publish as article mutation
+  const publishMutation = useMutation({
+    mutationFn: async (messageId: number) => {
+      return await apiClient.post(`/api/questions/${questionId}/messages/${messageId}/publish`);
+    },
+    onSuccess: (response: any) => {
+      Alert.alert(
+        'Published!',
+        'Your answer has been published to the Apologetics Library.',
+        [
+          { text: 'View Article', onPress: () => router.push(`/apologetics/${response.data?.postId}`) },
+          { text: 'OK' },
+        ]
+      );
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to publish answer');
+    },
+  });
+
+  const handleEdit = (message: Message) => {
+    setEditingMessage(message);
+    setEditText(message.body);
+    setShowMenu(null);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingMessage || !editText.trim()) return;
+    editMessageMutation.mutate({ messageId: editingMessage.id, body: editText.trim() });
+  };
+
+  const handlePublish = (messageId: number) => {
+    setShowMenu(null);
+    Alert.alert(
+      'Publish Answer',
+      'This will publish your answer to the Apologetics Library where it can help others with similar questions. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Publish', onPress: () => publishMutation.mutate(messageId) },
+      ]
+    );
+  };
 
   const handleSend = () => {
     if (!replyText.trim()) {
@@ -175,10 +238,40 @@ export default function QuestionThreadScreen() {
                   </View>
                 )}
 
-                {!isCurrentUser && (
+                {!isCurrentUser && !isFirstMessage && (
                   <Text style={styles.senderName}>
                     {message.senderDisplayName || 'Unknown User'}
                   </Text>
+                )}
+
+                {/* Menu button for user's own answers (not the question) */}
+                {isCurrentUser && !isFirstMessage && (
+                  <Pressable
+                    style={styles.menuButton}
+                    onPress={() => setShowMenu(showMenu === message.id ? null : message.id)}
+                  >
+                    <Ionicons name="ellipsis-vertical" size={18} color="rgba(255,255,255,0.8)" />
+                  </Pressable>
+                )}
+
+                {/* Dropdown menu */}
+                {showMenu === message.id && (
+                  <View style={styles.menuDropdown}>
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={() => handleEdit(message)}
+                    >
+                      <Ionicons name="pencil" size={18} color={colors.textPrimary} />
+                      <Text style={styles.menuItemText}>Edit</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={() => handlePublish(message.id)}
+                    >
+                      <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                      <Text style={styles.menuItemText}>Publish to Library</Text>
+                    </Pressable>
+                  </View>
                 )}
 
                 <Text
@@ -234,6 +327,56 @@ export default function QuestionThreadScreen() {
           )}
         </Pressable>
       </View>
+
+      {/* Edit Modal */}
+      <Modal
+        visible={!!editingMessage}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditingMessage(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Answer</Text>
+              <Pressable onPress={() => setEditingMessage(null)}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </Pressable>
+            </View>
+            <TextInput
+              style={styles.editInput}
+              value={editText}
+              onChangeText={setEditText}
+              multiline
+              autoFocus
+              placeholder="Edit your answer..."
+              placeholderTextColor={colors.textTertiary}
+            />
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={styles.cancelButton}
+                onPress={() => setEditingMessage(null)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.saveButton,
+                  (!editText.trim() || editMessageMutation.isPending) && styles.saveButtonDisabled,
+                ]}
+                onPress={handleSaveEdit}
+                disabled={!editText.trim() || editMessageMutation.isPending}
+              >
+                {editMessageMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -370,5 +513,99 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
   },
   sendButtonDisabled: {
     backgroundColor: colors.textTertiary,
+  },
+  menuButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+  },
+  menuDropdown: {
+    position: 'absolute',
+    top: 32,
+    right: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 100,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    minWidth: 160,
+  },
+  menuItemText: {
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  editInput: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: colors.textPrimary,
+    minHeight: 200,
+    maxHeight: 400,
+    textAlignVertical: 'top',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 16,
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: colors.accent,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    fontSize: 15,
+    color: '#fff',
+    fontWeight: '600',
   },
 });
