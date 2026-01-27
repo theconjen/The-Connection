@@ -513,10 +513,11 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
   },
   replyContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: colors.surface,
+    gap: 8,
   },
   replyInput: {
     flex: 1,
@@ -528,18 +529,19 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     color: colors.textPrimary,
     minHeight: 44,
     maxHeight: 100,
-    marginRight: 8,
   },
   sendButton: {
     width: 44,
     height: 44,
+    minWidth: 44,
     borderRadius: 22,
     backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
   sendButtonDisabled: {
-    backgroundColor: colors.textTertiary,
+    opacity: 0.5,
   },
   menuButton: {
     position: 'absolute',
