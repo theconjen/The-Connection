@@ -4,7 +4,7 @@ import {
   Text,
   ScrollView,
   TextInput,
-  Pressable,
+  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -188,9 +188,9 @@ export default function QuestionThreadScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>Question Thread</Text>
         </View>
         <View style={styles.loadingContainer}>
@@ -207,9 +207,9 @@ export default function QuestionThreadScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
-        </Pressable>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Question Thread</Text>
       </View>
 
@@ -248,12 +248,14 @@ export default function QuestionThreadScreen() {
 
                 {/* Menu button for user's own answers (not the question) */}
                 {isCurrentUser && !isOriginalQuestion && (
-                  <Pressable
+                  <TouchableOpacity
                     style={styles.menuButton}
                     onPress={() => setMenuMessage(message)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    activeOpacity={0.6}
                   >
                     <Ionicons name="ellipsis-vertical" size={20} color="rgba(255,255,255,0.9)" />
-                  </Pressable>
+                  </TouchableOpacity>
                 )}
 
                 <Text
@@ -295,20 +297,21 @@ export default function QuestionThreadScreen() {
             multiline
             maxLength={5000}
           />
-          <Pressable
+          <TouchableOpacity
             style={[
               styles.sendButton,
               (!replyText.trim() || sendMessageMutation.isPending) && styles.sendButtonDisabled,
             ]}
             onPress={handleSend}
             disabled={!replyText.trim() || sendMessageMutation.isPending}
+            activeOpacity={0.7}
           >
             {sendMessageMutation.isPending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Ionicons name="send" size={20} color="#fff" />
             )}
-          </Pressable>
+          </TouchableOpacity>
         </View>
         <SafeAreaView edges={['bottom']} style={styles.safeAreaBottom} />
       </View>
@@ -321,33 +324,36 @@ export default function QuestionThreadScreen() {
         onRequestClose={() => setMenuMessage(null)}
       >
         <View style={styles.actionSheetOverlay}>
-          <Pressable style={styles.actionSheetBackdrop} onPress={() => setMenuMessage(null)} />
+          <TouchableOpacity style={styles.actionSheetBackdrop} onPress={() => setMenuMessage(null)} />
           <View style={styles.actionSheet}>
             <Text style={styles.actionSheetTitle}>Message Options</Text>
-            <Pressable
+            <TouchableOpacity
               style={styles.actionSheetItem}
               onPress={() => {
                 if (menuMessage) handleEdit(menuMessage);
               }}
+              activeOpacity={0.7}
             >
               <Ionicons name="pencil" size={22} color={colors.accent} />
               <Text style={styles.actionSheetItemText}>Edit Answer</Text>
-            </Pressable>
-            <Pressable
+            </TouchableOpacity>
+            <TouchableOpacity
               style={styles.actionSheetItem}
               onPress={() => {
                 if (menuMessage) handlePublish(menuMessage);
               }}
+              activeOpacity={0.7}
             >
               <Ionicons name="library-outline" size={22} color={colors.accent} />
               <Text style={styles.actionSheetItemText}>Publish to Library</Text>
-            </Pressable>
-            <Pressable
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.actionSheetItem, styles.actionSheetCancel]}
               onPress={() => setMenuMessage(null)}
+              activeOpacity={0.7}
             >
               <Text style={styles.actionSheetCancelText}>Cancel</Text>
-            </Pressable>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -363,9 +369,9 @@ export default function QuestionThreadScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Answer</Text>
-              <Pressable onPress={() => setEditingMessage(null)}>
+              <TouchableOpacity onPress={() => setEditingMessage(null)}>
                 <Ionicons name="close" size={24} color={colors.textPrimary} />
-              </Pressable>
+              </TouchableOpacity>
             </View>
             <TextInput
               style={styles.editInput}
@@ -377,13 +383,13 @@ export default function QuestionThreadScreen() {
               placeholderTextColor={colors.textTertiary}
             />
             <View style={styles.modalButtons}>
-              <Pressable
+              <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => setEditingMessage(null)}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[
                   styles.saveButton,
                   (!editText.trim() || editMessageMutation.isPending) && styles.saveButtonDisabled,
@@ -396,7 +402,7 @@ export default function QuestionThreadScreen() {
                 ) : (
                   <Text style={styles.saveButtonText}>Save</Text>
                 )}
-              </Pressable>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
