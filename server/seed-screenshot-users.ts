@@ -27,6 +27,7 @@ const screenshotUsers = [
     interests: ['Prayer', 'Worship', 'Community Service'],
     age: 28,
     gender: 'Female',
+    profileImageUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'davidmartinez',
@@ -37,6 +38,7 @@ const screenshotUsers = [
     interests: ['Worship Music', 'Bible Study', 'Family Ministry'],
     age: 34,
     gender: 'Male',
+    profileImageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'emilychen',
@@ -47,6 +49,7 @@ const screenshotUsers = [
     interests: ['Apologetics', 'Campus Ministry', 'Philosophy'],
     age: 21,
     gender: 'Female',
+    profileImageUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'michaelthompson',
@@ -57,6 +60,7 @@ const screenshotUsers = [
     interests: ['Teaching', 'Youth Ministry', 'Discipleship'],
     age: 42,
     gender: 'Male',
+    profileImageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'rachelwilliams',
@@ -67,6 +71,7 @@ const screenshotUsers = [
     interests: ['Parenting', 'Prayer', 'Women\'s Ministry'],
     age: 36,
     gender: 'Female',
+    profileImageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'jamesanderson',
@@ -77,6 +82,7 @@ const screenshotUsers = [
     interests: ['Apologetics', 'Tech Ministry', 'Evangelism'],
     age: 29,
     gender: 'Male',
+    profileImageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'gracetaylor',
@@ -87,6 +93,7 @@ const screenshotUsers = [
     interests: ['Missions', 'Bible Study', 'Theology'],
     age: 25,
     gender: 'Female',
+    profileImageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'danielbrown',
@@ -97,6 +104,7 @@ const screenshotUsers = [
     interests: ['Men\'s Ministry', 'Business', 'Mentoring'],
     age: 45,
     gender: 'Male',
+    profileImageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'oliviadavis',
@@ -107,6 +115,7 @@ const screenshotUsers = [
     interests: ['Worship', 'Healthcare Ministry', 'Prayer'],
     age: 31,
     gender: 'Female',
+    profileImageUrl: 'https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'noahwilson',
@@ -117,6 +126,7 @@ const screenshotUsers = [
     interests: ['Youth Ministry', 'Gaming', 'Social Media'],
     age: 27,
     gender: 'Male',
+    profileImageUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'sophiagarcia',
@@ -127,6 +137,7 @@ const screenshotUsers = [
     interests: ['Arts & Crafts', 'Writing', 'Creative Worship'],
     age: 33,
     gender: 'Female',
+    profileImageUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'ethanmiller',
@@ -137,6 +148,7 @@ const screenshotUsers = [
     interests: ['Recovery Ministry', 'First Responders', 'Testimony'],
     age: 38,
     gender: 'Male',
+    profileImageUrl: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'isabellarodriguez',
@@ -147,6 +159,7 @@ const screenshotUsers = [
     interests: ['Teaching', 'Bilingual Ministry', 'Kids Ministry'],
     age: 30,
     gender: 'Female',
+    profileImageUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'masonlee',
@@ -157,6 +170,7 @@ const screenshotUsers = [
     interests: ['Marriage Ministry', 'Small Groups', 'Discipleship'],
     age: 32,
     gender: 'Male',
+    profileImageUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&h=150&fit=crop&crop=face',
   },
   {
     username: 'avaharris',
@@ -167,6 +181,7 @@ const screenshotUsers = [
     interests: ['Singles Ministry', 'Prayer', 'Community'],
     age: 34,
     gender: 'Female',
+    profileImageUrl: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop&crop=face',
   },
 ];
 

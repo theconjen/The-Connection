@@ -84,8 +84,33 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
           }
         }
 
+        // Enrich posts with author data
+        const enrichedPosts = await Promise.all(
+          allPosts.map(async (post: any) => {
+            // Skip if author already populated
+            if (post.author?.displayName) return post;
+
+            const author = await storage.getUser(post.authorId);
+            return {
+              ...post,
+              author: author ? {
+                id: author.id,
+                username: author.username,
+                displayName: author.displayName,
+                avatarUrl: author.avatarUrl,
+                profileImageUrl: author.avatarUrl, // For backward compatibility
+              } : {
+                id: post.authorId,
+                username: 'deleted',
+                displayName: 'Deleted User',
+                avatarUrl: null,
+              },
+            };
+          })
+        );
+
         // Filter out posts from private accounts (unless it's the user's own post)
-        allPosts = allPosts.filter((p: any) => {
+        let filteredPosts = enrichedPosts.filter((p: any) => {
           // User can see their own posts
           if (userId && p.authorId === userId) return true;
           // Hide posts from private accounts
@@ -95,7 +120,7 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
 
         // Score and sort posts by language match, recency, and engagement
         const now = Date.now();
-        const scoredPosts = allPosts.map((post: any) => ({
+        const scoredPosts = filteredPosts.map((post: any) => ({
           ...post,
           feedScore: calculateFeedScore(post, userLanguages, now),
         }));
@@ -174,10 +199,11 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
       // Limit results
       const posts = communityPosts.slice(0, limit);
 
-      // Add community info to each post
-      const postsWithCommunity = await Promise.all(
+      // Add community and author info to each post
+      const postsWithCommunityAndAuthor = await Promise.all(
         posts.map(async (post: any) => {
           const community = userCommunities.find((c: any) => c.id === post.communityId);
+          const author = await storage.getUser(post.authorId);
           return {
             ...post,
             community: community ? {
@@ -185,11 +211,23 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
               name: community.name,
               slug: community.slug,
             } : null,
+            author: author ? {
+              id: author.id,
+              username: author.username,
+              displayName: author.displayName,
+              avatarUrl: author.avatarUrl,
+              profileImageUrl: author.avatarUrl,
+            } : {
+              id: post.authorId,
+              username: 'deleted',
+              displayName: 'Deleted User',
+              avatarUrl: null,
+            },
           };
         })
       );
 
-      return res.json({ posts: postsWithCommunity });
+      return res.json({ posts: postsWithCommunityAndAuthor });
     } catch (err) {
       console.error('Error fetching home feed:', err);
       res.status(500).json({ message: 'Error fetching home feed' });
