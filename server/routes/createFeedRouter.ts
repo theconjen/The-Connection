@@ -155,6 +155,7 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
 
   // ============================================================================
   // GET /api/feed/home - Home feed showing posts from joined communities only
+  // Supports cursor-based pagination for infinite scroll
   // ============================================================================
 
   router.get('/feed/home', async (req, res) => {
@@ -166,6 +167,7 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
       }
 
       const limit = parseLimit(req.query.limit);
+      const cursor = req.query.cursor as string | undefined;
 
       // Get user's joined communities
       const userCommunities = await storage.getUserCommunities(userId);
@@ -173,7 +175,7 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
 
       if (joinedCommunityIds.length === 0) {
         // User hasn't joined any communities
-        return res.json({ posts: [], message: 'Join communities to see posts' });
+        return res.json({ posts: [], nextCursor: null, message: 'Join communities to see posts' });
       }
 
       // Get posts from joined communities
@@ -196,8 +198,22 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
-      // Limit results
-      const posts = communityPosts.slice(0, limit);
+      // Apply cursor-based pagination
+      let startIndex = 0;
+      if (cursor) {
+        const cursorDate = new Date(cursor);
+        startIndex = communityPosts.findIndex((p: any) =>
+          new Date(p.createdAt).getTime() < cursorDate.getTime()
+        );
+        if (startIndex === -1) {
+          startIndex = communityPosts.length; // No more posts after cursor
+        }
+      }
+
+      // Get one extra to determine if there are more
+      const postsSlice = communityPosts.slice(startIndex, startIndex + limit + 1);
+      const hasMore = postsSlice.length > limit;
+      const posts = hasMore ? postsSlice.slice(0, limit) : postsSlice;
 
       // Add community and author info to each post
       const postsWithCommunityAndAuthor = await Promise.all(
@@ -227,7 +243,16 @@ export default function createFeedRouter(storage: IStorage, opts?: { useDb?: boo
         })
       );
 
-      return res.json({ posts: postsWithCommunityAndAuthor });
+      // Calculate next cursor (use createdAt of last post)
+      const nextCursor = hasMore && postsWithCommunityAndAuthor.length > 0
+        ? postsWithCommunityAndAuthor[postsWithCommunityAndAuthor.length - 1].createdAt
+        : null;
+
+      return res.json({
+        posts: postsWithCommunityAndAuthor,
+        nextCursor,
+        hasMore
+      });
     } catch (err) {
       console.error('Error fetching home feed:', err);
       res.status(500).json({ message: 'Error fetching home feed' });

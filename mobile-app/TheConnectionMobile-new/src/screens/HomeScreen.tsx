@@ -2,6 +2,7 @@
  * HOME SCREEN - The Connection Mobile App
  * ----------------------------------------
  * Read-only home feed showing:
+ * - Community Advice questions (topic=QUESTION microblogs)
  * - Recent posts from communities the user has joined
  * - Featured/recent Apologetics articles
  *
@@ -9,7 +10,7 @@
  * Users must join a community to see posts.
  */
 
-import React from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,10 +20,11 @@ import {
   StyleSheet,
   Pressable,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -41,6 +43,7 @@ interface User {
   displayName?: string;
   profileImageUrl?: string;
   avatarUrl?: string;
+  isVerifiedClergy?: boolean;
 }
 
 interface CommunityPost {
@@ -72,9 +75,22 @@ interface ApologeticsArticle {
   area?: { name: string };
 }
 
+interface AdvicePost {
+  id: number;
+  content: string;
+  author?: User;
+  createdAt: string;
+  likeCount?: number;
+  commentCount?: number;
+  replyCount?: number;
+  isLiked?: boolean;
+  isBookmarked?: boolean;
+  anonymousNickname?: string;
+}
+
 interface HomeFeedItem {
-  type: 'community_post' | 'apologetics_article' | 'section_header';
-  data: CommunityPost | ApologeticsArticle | { title: string };
+  type: 'community_post' | 'apologetics_article' | 'advice_post' | 'section_header';
+  data: CommunityPost | ApologeticsArticle | AdvicePost | { title: string };
   id: string;
 }
 
@@ -92,63 +108,103 @@ interface HomeScreenProps {
 // API HOOKS
 // ============================================================================
 
-function useHomeFeed() {
+const ADVICE_PAGE_SIZE = 15;
+const COMMUNITY_PAGE_SIZE = 15;
+
+// Fetch advice posts with cursor-based pagination
+function useAdviceFeed() {
   const { user } = useAuth();
 
-  return useQuery({
-    queryKey: ['home-feed', user?.id],
-    queryFn: async () => {
-      // Fetch posts from joined communities
-      const [communityPostsRes, apologeticsRes] = await Promise.all([
-        apiClient.get('/api/feed/home').catch(() => ({ data: { posts: [] } })),
-        apiClient.get('/api/library/posts?status=published&limit=5').catch(() => ({ data: { posts: { items: [] } } })),
-      ]);
-
-      const communityPosts: CommunityPost[] = communityPostsRes.data?.posts || [];
-      const apologeticsArticles: ApologeticsArticle[] = apologeticsRes.data?.posts?.items || [];
-
-      // Build combined feed
-      const feedItems: HomeFeedItem[] = [];
-
-      // Add community posts section
-      if (communityPosts.length > 0) {
-        feedItems.push({
-          type: 'section_header',
-          data: { title: 'From Your Communities' },
-          id: 'header-communities',
-        });
-
-        communityPosts.forEach((post) => {
-          feedItems.push({
-            type: 'community_post',
-            data: post,
-            id: `post-${post.id}`,
-          });
-        });
+  return useInfiniteQuery({
+    queryKey: ['advice-feed', user?.id],
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams({
+        topic: 'QUESTION',
+        limit: String(ADVICE_PAGE_SIZE),
+      });
+      if (pageParam) {
+        params.append('cursor', pageParam);
       }
 
-      // Add apologetics section
-      if (apologeticsArticles.length > 0) {
-        feedItems.push({
-          type: 'section_header',
-          data: { title: 'Featured Articles' },
-          id: 'header-apologetics',
-        });
-
-        apologeticsArticles.forEach((article) => {
-          feedItems.push({
-            type: 'apologetics_article',
-            data: article,
-            id: `article-${article.id}`,
-          });
-        });
-      }
-
-      return feedItems;
+      const res = await apiClient.get(`/api/feed/explore?${params.toString()}`);
+      return {
+        posts: res.data?.microblogs || [],
+        nextCursor: res.data?.nextCursor || null,
+        hasMore: res.data?.hasMore || false,
+      };
     },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!user,
     staleTime: 30000,
   });
+}
+
+// Fetch community posts with cursor-based pagination
+function useCommunityFeed() {
+  const { user } = useAuth();
+
+  return useInfiniteQuery({
+    queryKey: ['community-home-feed', user?.id],
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams({
+        limit: String(COMMUNITY_PAGE_SIZE),
+      });
+      if (pageParam) {
+        params.append('cursor', pageParam);
+      }
+
+      const res = await apiClient.get(`/api/feed/home?${params.toString()}`);
+      return {
+        posts: res.data?.posts || [],
+        nextCursor: res.data?.nextCursor || null,
+        hasMore: res.data?.hasMore || false,
+      };
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: !!user,
+    staleTime: 30000,
+  });
+}
+
+// Fetch trending articles (non-paginated, just top 5)
+function useTrendingArticles() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['trending-articles'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/library/posts/trending?limit=5');
+        return res.data?.posts?.items || [];
+      } catch {
+        try {
+          const res = await apiClient.get('/api/library/posts?status=published&limit=5');
+          return res.data?.posts?.items || [];
+        } catch {
+          return [];
+        }
+      }
+    },
+    enabled: !!user,
+    staleTime: 60000,
+  });
+}
+
+// Hybrid "hot" sorting for advice posts (combines recency + upvotes)
+function calculateHotScore(post: AdvicePost): number {
+  const upvotes = post.likeCount || 0;
+  const replies = post.replyCount || post.commentCount || 0;
+  const createdAt = new Date(post.createdAt).getTime();
+  const now = Date.now();
+  const ageInHours = (now - createdAt) / (1000 * 60 * 60);
+
+  const engagementScore = (upvotes * 2) + (replies * 3);
+  const recencyBoost = Math.max(0, 48 - ageInHours) / 48;
+  const timeDecay = 1 / Math.pow(ageInHours + 2, 0.5);
+
+  return (engagementScore + 1) * (0.5 + recencyBoost) * timeDecay;
 }
 
 function useJoinedCommunities() {
@@ -162,6 +218,116 @@ function useJoinedCommunities() {
     },
     enabled: !!user,
   });
+}
+
+// Build combined feed items from paginated data
+function useCombinedFeed() {
+  const adviceQuery = useAdviceFeed();
+  const communityQuery = useCommunityFeed();
+  const articlesQuery = useTrendingArticles();
+
+  const feedItems = useMemo(() => {
+    const items: HomeFeedItem[] = [];
+
+    // Get all advice posts from all pages
+    const allAdvicePosts = adviceQuery.data?.pages.flatMap(p => p.posts) || [];
+    const sortedAdvicePosts = [...allAdvicePosts].sort((a, b) =>
+      calculateHotScore(b) - calculateHotScore(a)
+    );
+
+    // Get all community posts from all pages
+    const allCommunityPosts = communityQuery.data?.pages.flatMap(p => p.posts) || [];
+
+    // Get trending articles
+    const articles = articlesQuery.data || [];
+
+    // Build interleaved feed for better experience
+    // Show advice header and first batch
+    if (sortedAdvicePosts.length > 0) {
+      items.push({
+        type: 'section_header',
+        data: { title: 'Community Advice' },
+        id: 'header-advice',
+      });
+
+      // Show advice posts
+      sortedAdvicePosts.forEach((post) => {
+        items.push({
+          type: 'advice_post',
+          data: post,
+          id: `advice-${post.id}`,
+        });
+      });
+    }
+
+    // Add community posts section
+    if (allCommunityPosts.length > 0) {
+      items.push({
+        type: 'section_header',
+        data: { title: 'From Your Communities' },
+        id: 'header-communities',
+      });
+
+      allCommunityPosts.forEach((post) => {
+        items.push({
+          type: 'community_post',
+          data: post,
+          id: `post-${post.id}`,
+        });
+      });
+    }
+
+    // Add trending articles section at the end
+    if (articles.length > 0) {
+      items.push({
+        type: 'section_header',
+        data: { title: 'Trending Articles' },
+        id: 'header-apologetics',
+      });
+
+      articles.forEach((article: ApologeticsArticle) => {
+        items.push({
+          type: 'apologetics_article',
+          data: article,
+          id: `article-${article.id}`,
+        });
+      });
+    }
+
+    return items;
+  }, [adviceQuery.data, communityQuery.data, articlesQuery.data]);
+
+  const isLoading = adviceQuery.isLoading || communityQuery.isLoading;
+  const isRefetching = adviceQuery.isRefetching || communityQuery.isRefetching;
+  const isFetchingNextPage = adviceQuery.isFetchingNextPage || communityQuery.isFetchingNextPage;
+
+  const hasMore = adviceQuery.hasNextPage || communityQuery.hasNextPage;
+
+  const fetchNextPage = useCallback(() => {
+    // Load more from whichever has more data
+    if (adviceQuery.hasNextPage && !adviceQuery.isFetchingNextPage) {
+      adviceQuery.fetchNextPage();
+    }
+    if (communityQuery.hasNextPage && !communityQuery.isFetchingNextPage) {
+      communityQuery.fetchNextPage();
+    }
+  }, [adviceQuery, communityQuery]);
+
+  const refetch = useCallback(() => {
+    adviceQuery.refetch();
+    communityQuery.refetch();
+    articlesQuery.refetch();
+  }, [adviceQuery, communityQuery, articlesQuery]);
+
+  return {
+    feedItems,
+    isLoading,
+    isRefetching,
+    isFetchingNextPage,
+    hasMore,
+    fetchNextPage,
+    refetch,
+  };
 }
 
 // ============================================================================
@@ -298,6 +464,93 @@ function ApologeticsCard({
   );
 }
 
+function AdvicePostCard({
+  post,
+  colors,
+  onPress,
+  onUpvote,
+  onComment,
+  onBookmark,
+  isUpvoted = false,
+  isBookmarked = false,
+}: {
+  post: AdvicePost;
+  colors: any;
+  onPress: () => void;
+  onUpvote: () => void;
+  onComment: () => void;
+  onBookmark: () => void;
+  isUpvoted?: boolean;
+  isBookmarked?: boolean;
+}) {
+  const timeAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
+
+  return (
+    <Pressable
+      style={[styles.adviceCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+      onPress={onPress}
+    >
+      <View style={styles.adviceHeader}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={[styles.adviceBadge, { backgroundColor: '#EC489915' }]}>
+            <Ionicons name="help-circle" size={14} color="#EC4899" />
+            <Text style={[styles.adviceBadgeText, { color: '#EC4899' }]}>
+              Seeking Advice
+            </Text>
+          </View>
+          {post.anonymousNickname && (
+            <Text style={[styles.adviceNickname, { color: colors.textSecondary }]}>
+              from {post.anonymousNickname}
+            </Text>
+          )}
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={[styles.adviceTime, { color: colors.textMuted }]}>
+            {timeAgo}
+          </Text>
+          <Pressable onPress={onBookmark} hitSlop={8}>
+            <Ionicons
+              name={isBookmarked ? "bookmark" : "bookmark-outline"}
+              size={18}
+              color={isBookmarked ? colors.primary : colors.textMuted}
+            />
+          </Pressable>
+        </View>
+      </View>
+
+      <Text style={[styles.adviceContent, { color: colors.textPrimary }]} numberOfLines={4}>
+        {post.content}
+      </Text>
+
+      <View style={styles.adviceFooter}>
+        <View style={styles.adviceStats}>
+          <Pressable style={styles.adviceStat} onPress={onUpvote} hitSlop={8}>
+            <Ionicons
+              name={isUpvoted ? "arrow-up" : "arrow-up-outline"}
+              size={18}
+              color={isUpvoted ? colors.primary : colors.textMuted}
+            />
+            <Text style={[styles.adviceStatText, { color: isUpvoted ? colors.primary : colors.textMuted }]}>
+              {post.likeCount || 0}
+            </Text>
+          </Pressable>
+          <Pressable style={styles.adviceStat} onPress={onComment} hitSlop={8}>
+            <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
+            <Text style={[styles.adviceStatText, { color: colors.textMuted }]}>
+              {post.commentCount || post.replyCount || 0}
+            </Text>
+          </Pressable>
+        </View>
+        <Pressable onPress={onComment}>
+          <Text style={[styles.adviceCta, { color: colors.primary }]}>
+            Share your thoughts
+          </Text>
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+}
+
 function EmptyState({ colors, onExplore }: { colors: any; onExplore: () => void }) {
   return (
     <View style={styles.emptyState}>
@@ -337,11 +590,146 @@ export default function HomeScreen({
   const { colors, colorScheme } = useTheme();
   const { user } = useAuth();
 
-  const { data: feedItems = [], isLoading, refetch, isRefetching } = useHomeFeed();
+  const {
+    feedItems,
+    isLoading,
+    isRefetching,
+    isFetchingNextPage,
+    hasMore,
+    fetchNextPage,
+    refetch,
+  } = useCombinedFeed();
   const { data: joinedCommunities = [] } = useJoinedCommunities();
+  const queryClient = useQueryClient();
+
+  // Track local upvote/bookmark state for optimistic UI
+  const [upvotedPosts, setUpvotedPosts] = useState<Set<number>>(new Set());
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<number>>(new Set());
+
+  // Upvote mutation
+  const upvoteMutation = useMutation({
+    mutationFn: async ({ postId, isCurrentlyLiked }: { postId: number; isCurrentlyLiked: boolean }) => {
+      if (isCurrentlyLiked) {
+        return apiClient.delete(`/api/microblogs/${postId}/like`);
+      } else {
+        return apiClient.post(`/api/microblogs/${postId}/like`);
+      }
+    },
+    onMutate: async ({ postId, isCurrentlyLiked }) => {
+      // Optimistic update
+      setUpvotedPosts(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyLiked) {
+          next.delete(postId);
+        } else {
+          next.add(postId);
+        }
+        return next;
+      });
+    },
+    onError: (error, { postId, isCurrentlyLiked }) => {
+      // Revert on error
+      setUpvotedPosts(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyLiked) {
+          next.add(postId);
+        } else {
+          next.delete(postId);
+        }
+        return next;
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['home-feed'] });
+    },
+  });
+
+  // Bookmark mutation
+  const bookmarkMutation = useMutation({
+    mutationFn: async ({ postId, isCurrentlyBookmarked }: { postId: number; isCurrentlyBookmarked: boolean }) => {
+      if (isCurrentlyBookmarked) {
+        return apiClient.delete(`/api/microblogs/${postId}/bookmark`);
+      } else {
+        return apiClient.post(`/api/microblogs/${postId}/bookmark`);
+      }
+    },
+    onMutate: async ({ postId, isCurrentlyBookmarked }) => {
+      setBookmarkedPosts(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyBookmarked) {
+          next.delete(postId);
+        } else {
+          next.add(postId);
+        }
+        return next;
+      });
+    },
+    onError: (error, { postId, isCurrentlyBookmarked }) => {
+      setBookmarkedPosts(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyBookmarked) {
+          next.add(postId);
+        } else {
+          next.delete(postId);
+        }
+        return next;
+      });
+    },
+  });
+
+  const handleUpvote = useCallback((postId: number, isCurrentlyLiked: boolean) => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to upvote posts.');
+      return;
+    }
+    upvoteMutation.mutate({ postId, isCurrentlyLiked });
+  }, [user, upvoteMutation]);
+
+  const handleBookmark = useCallback((postId: number, isCurrentlyBookmarked: boolean) => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to bookmark posts.');
+      return;
+    }
+    bookmarkMutation.mutate({ postId, isCurrentlyBookmarked });
+  }, [user, bookmarkMutation]);
+
+  const handleComment = useCallback((postId: number) => {
+    router.push({ pathname: '/advice/[id]' as any, params: { id: postId.toString() } });
+  }, [router]);
 
   const hasJoinedCommunities = joinedCommunities.length > 0;
   const hasFeedItems = feedItems.length > 0;
+
+  // Handle loading more when scrolling to bottom
+  const handleEndReached = useCallback(() => {
+    if (hasMore && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasMore, isFetchingNextPage, fetchNextPage]);
+
+  // Footer component for loading indicator
+  const ListFooter = useCallback(() => {
+    if (isFetchingNextPage) {
+      return (
+        <View style={styles.footerLoader}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.footerText, { color: colors.textMuted }]}>
+            Loading more...
+          </Text>
+        </View>
+      );
+    }
+    if (!hasMore && feedItems.length > 0) {
+      return (
+        <View style={styles.footerEnd}>
+          <Text style={[styles.footerText, { color: colors.textMuted }]}>
+            You're all caught up!
+          </Text>
+        </View>
+      );
+    }
+    return null;
+  }, [isFetchingNextPage, hasMore, feedItems.length, colors]);
 
   const renderItem = ({ item }: { item: HomeFeedItem }) => {
     switch (item.type) {
@@ -366,6 +754,23 @@ export default function HomeScreen({
             article={article}
             colors={colors}
             onPress={() => router.push({ pathname: '/apologetics/[id]' as any, params: { id: article.id.toString() } })}
+          />
+        );
+
+      case 'advice_post':
+        const advice = item.data as AdvicePost;
+        const isUpvoted = advice.isLiked || upvotedPosts.has(advice.id);
+        const isBookmarked = advice.isBookmarked || bookmarkedPosts.has(advice.id);
+        return (
+          <AdvicePostCard
+            post={advice}
+            colors={colors}
+            onPress={() => handleComment(advice.id)}
+            onUpvote={() => handleUpvote(advice.id, isUpvoted)}
+            onComment={() => handleComment(advice.id)}
+            onBookmark={() => handleBookmark(advice.id, isBookmarked)}
+            isUpvoted={isUpvoted}
+            isBookmarked={isBookmarked}
           />
         );
 
@@ -414,6 +819,9 @@ export default function HomeScreen({
             />
           }
           showsVerticalScrollIndicator={false}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={ListFooter}
         />
       )}
     </SafeAreaView>
@@ -573,6 +981,67 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+  // Advice Card
+  adviceCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  adviceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  adviceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  adviceBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  adviceNickname: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  adviceTime: {
+    fontSize: 12,
+  },
+  adviceContent: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  adviceFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  adviceStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  adviceStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  adviceStatText: {
+    fontSize: 13,
+  },
+  adviceCta: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
   // Empty State
   emptyState: {
     flex: 1,
@@ -609,5 +1078,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+
+  // Footer styles for infinite scroll
+  footerLoader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  footerEnd: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  footerText: {
+    fontSize: 14,
   },
 });
