@@ -1,92 +1,122 @@
 /**
- * Engagement Notifications Service
+ * Strategic Engagement Notifications Service
  *
- * Sends strategic push notifications to drive user engagement with REAL content.
+ * High-conversion notification types (ranked by return rate):
+ * 1. PERSONAL/RELATIONAL (highest pull):
+ *    - "Your prayer request was prayed for X times today"
+ *    - "Someone replied to your advice question"
+ *    - "A new member joined [community] — say hi!"
  *
- * Strategy:
- * - Only notify about verified, real content (not bots or spam)
- * - Respect user cooldowns to prevent notification fatigue
- * - Spread notifications across the day (morning, afternoon, evening)
- * - Keep batches small to maintain quality over quantity
+ * 2. GROUP ACTIVITY:
+ *    - "[Community] posted something new — check it out!"
+ *    - "[Community] has a new event this week"
  *
- * Notification Types:
- * 1. Active Community: "[Community Name] is active!" (verified 5+ real posts)
- * 2. Seeking Advice: "Someone needs advice" (real questions needing answers)
- * 3. Popular Event: "Event is trending!" (verified 20+ RSVPs)
- * 4. Featured Apologetics: Highlight REAL answered questions
- * 5. Admin Alerts: "You have Community requests" (admins only)
+ * 3. SPIRITUAL MICRO-DOSE (habit building):
+ *    - "Quick truth for today" from Apologetics
+ *    - Featured answered Q&A
+ *
+ * 4. RE-ENGAGEMENT (7-14 day inactive users):
+ *    - "We miss you — someone in your area just joined a group you might like"
+ *
+ * Best Practices Applied:
+ * - Rich notifications with emoji, preview text, deep links
+ * - Smart timing: 7-9 AM or 6-8 PM windows
+ * - Rate limit: Max 1/day for engagement notifications per user
+ * - Content-based deduplication
+ * - Respect user notification preferences
  *
  * Schedule (via render.yaml cron):
- * - Morning (10am ET):   --community --advice
- * - Afternoon (2pm ET):  --events --apologetics
- * - Daily (9am ET):      --admin
+ * - Morning (8am ET):  --personal --spiritual
+ * - Afternoon (2pm ET): --group --events
+ * - Evening (8pm ET):   --reengagement
+ * - Daily (9am ET):     --admin
  */
 
 import 'dotenv/config';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
-import { notifyMultipleUsers, truncateText } from '../services/notificationHelper';
+import { notifyMultipleUsers, notifyUserWithPreferences, truncateText } from '../services/notificationHelper';
 
 // ============================================================================
-// CONFIGURATION - Conservative settings to prevent notification fatigue
+// CONFIGURATION
 // ============================================================================
 
 const CONFIG = {
-  // Minimum REAL posts (not from bots) to consider community "active"
-  COMMUNITY_ACTIVITY_THRESHOLD: 5,
-  // Minimum community members to be considered for notification
-  COMMUNITY_MIN_MEMBERS: 10,
-  // Minimum RSVPs for "popular event" notification
-  EVENT_RSVP_THRESHOLD: 20,
-  // Max users to notify per notification type per run
-  MAX_USERS_COMMUNITY: 15,
-  MAX_USERS_ADVICE: 10,
-  MAX_USERS_EVENT: 20,
-  MAX_USERS_APOLOGETICS: 15,
-  // Hours between same notification type per user
-  COOLDOWN_COMMUNITY: 48,    // 2 days between community notifications
-  COOLDOWN_ADVICE: 24,       // 1 day between advice notifications
-  COOLDOWN_EVENT: 72,        // 3 days between event notifications
-  COOLDOWN_APOLOGETICS: 96,  // 4 days between apologetics prompts
-  COOLDOWN_ADMIN: 24,        // 1 day between admin notifications
-  // Minimum content length to be considered "real" question
-  MIN_ADVICE_LENGTH: 50,
+  // Rate limits per user
+  MAX_ENGAGEMENT_NOTIFICATIONS_PER_DAY: 1,
+  // Cooldowns (hours)
+  COOLDOWN_PERSONAL: 24,
+  COOLDOWN_GROUP: 48,
+  COOLDOWN_SPIRITUAL: 24,
+  COOLDOWN_REENGAGEMENT: 168, // 7 days
+  COOLDOWN_ADMIN: 24,
+  // Thresholds
+  PRAYER_COUNT_THRESHOLD: 3,     // Min prayers to notify
+  COMMUNITY_ACTIVITY_THRESHOLD: 3, // Min posts for "active" community
+  COMMUNITY_MIN_MEMBERS: 5,
+  EVENT_RSVP_THRESHOLD: 10,
+  INACTIVE_DAYS_MIN: 7,
+  INACTIVE_DAYS_MAX: 30,
+  // Batch sizes (keep small for quality)
+  MAX_USERS_PERSONAL: 50,
+  MAX_USERS_GROUP: 20,
+  MAX_USERS_SPIRITUAL: 30,
+  MAX_USERS_REENGAGEMENT: 25,
 };
 
-// Bot user IDs to exclude from "real" activity checks
-const BOT_USER_IDS = [1, 2, 3, 4, 5]; // Adjust based on your bot users
+// Bot user IDs to exclude
+const BOT_USER_IDS = [1, 2, 3, 4, 5];
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 
 /**
- * Get users who haven't received this notification type recently
- * and who are active (logged in within 30 days)
+ * Check if user has already received an engagement notification today
+ */
+async function hasReceivedEngagementToday(userId: number): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT COUNT(*) as count FROM notifications
+    WHERE user_id = ${userId}
+    AND data->>'isEngagement' = 'true'
+    AND created_at > NOW() - INTERVAL '24 hours'
+  `);
+  const count = parseInt((result.rows?.[0] as any)?.count || '0');
+  return count >= CONFIG.MAX_ENGAGEMENT_NOTIFICATIONS_PER_DAY;
+}
+
+/**
+ * Get users eligible for a notification type (respects cooldowns & daily limit)
  */
 async function getEligibleUsers(
   notificationType: string,
   cooldownHours: number,
   limit: number,
-  excludeIds: number[] = []
+  additionalCondition?: string
 ): Promise<number[]> {
-  const excludeList = [...BOT_USER_IDS, ...excludeIds];
-  const excludeClause = excludeList.length > 0
-    ? sql`AND u.id NOT IN (${sql.join(excludeList.map(id => sql`${id}`), sql`, `)})`
+  const botExclusion = BOT_USER_IDS.length > 0
+    ? sql`AND u.id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})`
     : sql``;
+
+  const additionalWhere = additionalCondition ? sql.raw(additionalCondition) : sql``;
 
   const result = await db.execute(sql`
     SELECT u.id FROM users u
     WHERE u.deleted_at IS NULL
-    -- Only active users (logged in within 30 days)
-    AND (u.last_login_at IS NULL OR u.last_login_at > NOW() - INTERVAL '30 days')
-    -- Not recently notified with this type
+    ${botExclusion}
+    -- Not received this notification type recently
     AND u.id NOT IN (
       SELECT DISTINCT n.user_id FROM notifications n
       WHERE n.data->>'notificationType' = ${notificationType}
       AND n.created_at > NOW() - INTERVAL '${sql.raw(String(cooldownHours))} hours'
     )
-    ${excludeClause}
+    -- Not received ANY engagement notification today (max 1/day)
+    AND u.id NOT IN (
+      SELECT DISTINCT n.user_id FROM notifications n
+      WHERE n.data->>'isEngagement' = 'true'
+      AND n.created_at > NOW() - INTERVAL '24 hours'
+    )
+    ${additionalWhere}
     ORDER BY RANDOM()
     LIMIT ${limit}
   `);
@@ -94,212 +124,298 @@ async function getEligibleUsers(
 }
 
 /**
- * Check if we've already notified about this specific content
+ * Check if content was already notified about
  */
-async function hasNotifiedAboutContent(
+async function wasContentNotified(
   notificationType: string,
-  contentId: number,
-  contentIdField: string
+  contentField: string,
+  contentId: number
 ): Promise<boolean> {
   const result = await db.execute(sql`
     SELECT COUNT(*) as count FROM notifications
     WHERE data->>'notificationType' = ${notificationType}
-    AND (data->>'${sql.raw(contentIdField)}')::int = ${contentId}
+    AND (data->>'${sql.raw(contentField)}')::int = ${contentId}
     AND created_at > NOW() - INTERVAL '7 days'
   `);
-  const count = (result.rows?.[0] as any)?.count || 0;
-  return parseInt(count) > 0;
+  return parseInt((result.rows?.[0] as any)?.count || '0') > 0;
 }
 
 // ============================================================================
-// NOTIFICATION FUNCTIONS
+// 1. PERSONAL/RELATIONAL NOTIFICATIONS (Highest Conversion)
 // ============================================================================
 
 /**
- * 1. Active Community Notifications
- * Only notifies about communities with REAL activity (not bots)
+ * Notify users when their prayer requests are prayed for
+ * "Your prayer request was prayed for 3 times today"
  */
-async function sendActiveCommunityNotifications(): Promise<number> {
-  console.info('\n📢 Checking for genuinely active communities...');
+async function sendPrayerNotifications(): Promise<number> {
+  console.info('\n🙏 Checking for prayer request activity...');
 
-  // Find communities with REAL activity in last 48 hours
-  // Excludes bot posts and requires minimum member count
-  const botExclusion = BOT_USER_IDS.length > 0
-    ? sql`AND p.user_id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})`
-    : sql``;
+  // Find prayer requests that received prayers today
+  const prayedRequests = await db.execute(sql`
+    SELECT
+      pr.id,
+      pr.user_id,
+      pr.content,
+      COUNT(pp.id) as prayer_count
+    FROM prayer_requests pr
+    JOIN prayer_prayers pp ON pp.request_id = pr.id
+      AND pp.created_at > NOW() - INTERVAL '24 hours'
+    WHERE pr.deleted_at IS NULL
+      AND pr.user_id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
+    GROUP BY pr.id, pr.user_id, pr.content
+    HAVING COUNT(pp.id) >= ${CONFIG.PRAYER_COUNT_THRESHOLD}
+    LIMIT 20
+  `);
 
+  const requests = (prayedRequests.rows || []) as any[];
+  let notificationsSent = 0;
+
+  for (const req of requests) {
+    // Check if already notified about this today
+    if (await wasContentNotified('prayer_support', 'prayerRequestId', req.id)) {
+      continue;
+    }
+
+    // Check daily limit
+    if (await hasReceivedEngagementToday(req.user_id)) {
+      continue;
+    }
+
+    await notifyUserWithPreferences(req.user_id, {
+      title: 'Your prayer request touched hearts',
+      body: `${req.prayer_count} people prayed for you today 🙏`,
+      data: {
+        notificationType: 'prayer_support',
+        isEngagement: 'true',
+        prayerRequestId: req.id,
+        screen: 'prayer',
+        params: { id: req.id },
+      },
+      category: 'community',
+    });
+
+    notificationsSent++;
+    console.info(`   ✅ Notified user ${req.user_id} about ${req.prayer_count} prayers`);
+  }
+
+  return notificationsSent;
+}
+
+/**
+ * Notify users about replies to their advice questions
+ * "Someone replied to your question in Seeking Advice"
+ */
+async function sendAdviceReplyNotifications(): Promise<number> {
+  console.info('\n💬 Checking for advice replies...');
+
+  // Find advice questions that got replies today
+  const questionsWithReplies = await db.execute(sql`
+    SELECT DISTINCT
+      m.id as question_id,
+      m.author_id,
+      m.content as question_content,
+      r.content as reply_preview,
+      r.anonymous_nickname as replier_name
+    FROM microblogs m
+    JOIN microblogs r ON r.parent_id = m.id
+      AND r.created_at > NOW() - INTERVAL '24 hours'
+      AND r.deleted_at IS NULL
+    WHERE m.topic = 'QUESTION'
+      AND m.parent_id IS NULL
+      AND m.deleted_at IS NULL
+      AND m.author_id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
+    ORDER BY r.created_at DESC
+    LIMIT 20
+  `);
+
+  const questions = (questionsWithReplies.rows || []) as any[];
+  let notificationsSent = 0;
+
+  for (const q of questions) {
+    if (await hasReceivedEngagementToday(q.author_id)) {
+      continue;
+    }
+
+    const replierDisplay = q.replier_name || 'Someone';
+    const replyPreview = truncateText(q.reply_preview, 50);
+
+    await notifyUserWithPreferences(q.author_id, {
+      title: `${replierDisplay} replied to your question`,
+      body: `"${replyPreview}"`,
+      data: {
+        notificationType: 'advice_reply',
+        isEngagement: 'true',
+        microblogId: q.question_id,
+        screen: 'advice',
+        params: { id: q.question_id },
+      },
+      category: 'feed',
+    });
+
+    notificationsSent++;
+    console.info(`   ✅ Notified user ${q.author_id} about reply`);
+  }
+
+  return notificationsSent;
+}
+
+/**
+ * Notify community members about new members
+ * "A new member joined [Community] — say hi!"
+ */
+async function sendNewMemberNotifications(): Promise<number> {
+  console.info('\n👋 Checking for new community members...');
+
+  // Find communities that got new members today
+  const newMembers = await db.execute(sql`
+    SELECT
+      c.id as community_id,
+      c.name as community_name,
+      u.display_name as new_member_name,
+      u.id as new_member_id,
+      cm.joined_at
+    FROM community_members cm
+    JOIN communities c ON c.id = cm.community_id
+    JOIN users u ON u.id = cm.user_id
+    WHERE cm.joined_at > NOW() - INTERVAL '24 hours'
+      AND cm.status = 'accepted'
+      AND c.deleted_at IS NULL
+      AND u.id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
+    ORDER BY cm.joined_at DESC
+    LIMIT 10
+  `);
+
+  const members = (newMembers.rows || []) as any[];
+  let notificationsSent = 0;
+
+  for (const member of members) {
+    // Get a few existing members to notify (admins/active)
+    const existingMembers = await db.execute(sql`
+      SELECT cm.user_id FROM community_members cm
+      WHERE cm.community_id = ${member.community_id}
+        AND cm.user_id != ${member.new_member_id}
+        AND cm.status = 'accepted'
+        AND cm.role IN ('owner', 'admin', 'moderator')
+      LIMIT 5
+    `);
+
+    const memberIds = (existingMembers.rows || []).map((r: any) => r.user_id);
+
+    for (const userId of memberIds) {
+      if (await hasReceivedEngagementToday(userId)) {
+        continue;
+      }
+
+      await notifyUserWithPreferences(userId, {
+        title: `${member.community_name} is growing!`,
+        body: `${member.new_member_name || 'Someone new'} just joined — welcome them! 👋`,
+        data: {
+          notificationType: 'new_member',
+          isEngagement: 'true',
+          communityId: member.community_id,
+          newMemberId: member.new_member_id,
+          screen: 'community',
+          params: { id: member.community_id },
+        },
+        category: 'community',
+      });
+
+      notificationsSent++;
+    }
+  }
+
+  console.info(`   ✅ Sent ${notificationsSent} new member notifications`);
+  return notificationsSent;
+}
+
+// ============================================================================
+// 2. GROUP ACTIVITY NOTIFICATIONS
+// ============================================================================
+
+/**
+ * Notify members about active community posts
+ * "[Community] posted something new — check it out!"
+ */
+async function sendCommunityActivityNotifications(): Promise<number> {
+  console.info('\n📢 Checking for community activity...');
+
+  // Find communities with recent activity
   const activeCommunities = await db.execute(sql`
     SELECT
       c.id,
       c.name,
       COUNT(DISTINCT p.id) as post_count,
-      COUNT(DISTINCT cm.user_id) as member_count
+      MAX(p.title) as latest_post_title
     FROM communities c
-    LEFT JOIN posts p ON p.community_id = c.id
-      AND p.created_at > NOW() - INTERVAL '48 hours'
+    JOIN posts p ON p.community_id = c.id
+      AND p.created_at > NOW() - INTERVAL '24 hours'
       AND p.deleted_at IS NULL
-      ${botExclusion}
-    LEFT JOIN community_members cm ON cm.community_id = c.id
-      AND cm.status = 'accepted'
+      AND p.user_id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
     WHERE c.deleted_at IS NULL
     GROUP BY c.id, c.name
     HAVING COUNT(DISTINCT p.id) >= ${CONFIG.COMMUNITY_ACTIVITY_THRESHOLD}
-       AND COUNT(DISTINCT cm.user_id) >= ${CONFIG.COMMUNITY_MIN_MEMBERS}
     ORDER BY COUNT(DISTINCT p.id) DESC
-    LIMIT 1
+    LIMIT 3
   `);
 
   const communities = (activeCommunities.rows || []) as any[];
   let notificationsSent = 0;
 
-  if (communities.length === 0) {
-    console.info('   No communities meet activity threshold');
-    return 0;
-  }
+  for (const community of communities) {
+    // Get members who haven't visited recently
+    const membersToNotify = await db.execute(sql`
+      SELECT cm.user_id FROM community_members cm
+      WHERE cm.community_id = ${community.id}
+        AND cm.status = 'accepted'
+        AND cm.user_id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
+        AND cm.user_id NOT IN (
+          SELECT DISTINCT n.user_id FROM notifications n
+          WHERE n.data->>'notificationType' = 'community_activity'
+          AND n.created_at > NOW() - INTERVAL '${sql.raw(String(CONFIG.COOLDOWN_GROUP))} hours'
+        )
+        AND cm.user_id NOT IN (
+          SELECT DISTINCT n.user_id FROM notifications n
+          WHERE n.data->>'isEngagement' = 'true'
+          AND n.created_at > NOW() - INTERVAL '24 hours'
+        )
+      ORDER BY RANDOM()
+      LIMIT ${CONFIG.MAX_USERS_GROUP}
+    `);
 
-  const community = communities[0];
+    const userIds = (membersToNotify.rows || []).map((r: any) => r.user_id);
 
-  // Check if we already notified about this community recently
-  const alreadyNotified = await hasNotifiedAboutContent('active_community', community.id, 'communityId');
-  if (alreadyNotified) {
-    console.info(`   Already notified about "${community.name}" recently, skipping`);
-    return 0;
-  }
+    if (userIds.length > 0) {
+      await notifyMultipleUsers(userIds, {
+        title: `${community.name} is buzzing!`,
+        body: `${community.post_count} new posts today — see what's happening 💬`,
+        data: {
+          notificationType: 'community_activity',
+          isEngagement: 'true',
+          communityId: community.id,
+          screen: 'community',
+          params: { id: community.id },
+        },
+        category: 'community',
+      });
 
-  // Get users who are NOT members but might be interested
-  const nonMemberUsers = await db.execute(sql`
-    SELECT u.id FROM users u
-    WHERE u.deleted_at IS NULL
-    AND u.id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
-    AND u.id NOT IN (
-      SELECT user_id FROM community_members WHERE community_id = ${community.id}
-    )
-    AND u.id NOT IN (
-      SELECT DISTINCT n.user_id FROM notifications n
-      WHERE n.data->>'notificationType' = 'active_community'
-      AND n.created_at > NOW() - INTERVAL '${sql.raw(String(CONFIG.COOLDOWN_COMMUNITY))} hours'
-    )
-    ORDER BY RANDOM()
-    LIMIT ${CONFIG.MAX_USERS_COMMUNITY}
-  `);
-
-  const userIds = (nonMemberUsers.rows || []).map((r: any) => r.id);
-
-  if (userIds.length > 0) {
-    await notifyMultipleUsers(userIds, {
-      title: `${community.name} is active!`,
-      body: `${community.post_count} new posts from ${community.member_count} members. Join the conversation!`,
-      data: {
-        notificationType: 'active_community',
-        communityId: community.id,
-        screen: 'community',
-        params: { id: community.id },
-      },
-      category: 'community',
-    });
-    notificationsSent = userIds.length;
-    console.info(`   ✅ Notified ${userIds.length} users about "${community.name}"`);
+      notificationsSent += userIds.length;
+      console.info(`   ✅ Notified ${userIds.length} members of "${community.name}"`);
+    }
   }
 
   return notificationsSent;
 }
 
 /**
- * 2. Seeking Advice Notifications
- * Only notifies about REAL questions with substantive content that need answers
+ * Notify members about upcoming community events
+ * "[Community] has a new event this week"
  */
-async function sendSeekingAdviceNotifications(): Promise<number> {
-  console.info('\n💬 Checking for real advice questions needing answers...');
+async function sendUpcomingEventNotifications(): Promise<number> {
+  console.info('\n📅 Checking for upcoming events...');
 
-  // Find recent advice posts that:
-  // 1. Have substantive content (50+ chars)
-  // 2. Have NO replies yet (need answers)
-  // 3. Not from bots
-  // 4. Not already notified about
-  const botExclusion = BOT_USER_IDS.length > 0
-    ? sql`AND m.author_id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})`
-    : sql``;
-
-  const advicePosts = await db.execute(sql`
-    SELECT
-      m.id,
-      m.content,
-      m.anonymous_nickname,
-      m.author_id,
-      m.created_at
-    FROM microblogs m
-    WHERE m.topic = 'QUESTION'
-      AND m.parent_id IS NULL
-      AND m.created_at > NOW() - INTERVAL '24 hours'
-      AND m.deleted_at IS NULL
-      AND LENGTH(m.content) >= ${CONFIG.MIN_ADVICE_LENGTH}
-      ${botExclusion}
-      -- Has no replies yet
-      AND NOT EXISTS (
-        SELECT 1 FROM microblogs r
-        WHERE r.parent_id = m.id AND r.deleted_at IS NULL
-      )
-    ORDER BY m.created_at DESC
-    LIMIT 1
-  `);
-
-  const posts = (advicePosts.rows || []) as any[];
-  let notificationsSent = 0;
-
-  if (posts.length === 0) {
-    console.info('   No qualifying advice posts found');
-    return 0;
-  }
-
-  const post = posts[0];
-
-  // Check if we already notified about this post
-  const alreadyNotified = await hasNotifiedAboutContent('seeking_advice', post.id, 'microblogId');
-  if (alreadyNotified) {
-    console.info(`   Already notified about this post, skipping`);
-    return 0;
-  }
-
-  // Get eligible users
-  const userIds = await getEligibleUsers(
-    'seeking_advice',
-    CONFIG.COOLDOWN_ADVICE,
-    CONFIG.MAX_USERS_ADVICE,
-    [post.author_id]
-  );
-
-  if (userIds.length > 0) {
-    const truncatedContent = truncateText(post.content, 80);
-    const authorName = post.anonymous_nickname || 'Someone';
-
-    await notifyMultipleUsers(userIds, {
-      title: `${authorName} needs advice`,
-      body: `"${truncatedContent}"`,
-      data: {
-        notificationType: 'seeking_advice',
-        microblogId: post.id,
-        screen: 'advice',
-        params: { id: post.id },
-      },
-      category: 'feed',
-    });
-
-    notificationsSent = userIds.length;
-    console.info(`   ✅ Notified ${userIds.length} users about advice question`);
-  }
-
-  return notificationsSent;
-}
-
-/**
- * 3. Popular Event Notifications
- * Only notifies about events with verified 20+ RSVPs
- */
-async function sendPopularEventNotifications(): Promise<number> {
-  console.info('\n🎉 Checking for genuinely popular events...');
-
-  // Find events with 20+ RSVPs that are upcoming
-  const popularEvents = await db.execute(sql`
+  // Find events happening in the next 7 days
+  const upcomingEvents = await db.execute(sql`
     SELECT
       e.id,
       e.title,
@@ -312,170 +428,217 @@ async function sendPopularEventNotifications(): Promise<number> {
     LEFT JOIN event_rsvps er ON er.event_id = e.id AND er.status = 'going'
     WHERE e.deleted_at IS NULL
       AND e.start_time > NOW()
-      AND e.start_time < NOW() + INTERVAL '14 days'
+      AND e.start_time < NOW() + INTERVAL '7 days'
     GROUP BY e.id, e.title, e.start_time, e.community_id, c.name
     HAVING COUNT(er.id) >= ${CONFIG.EVENT_RSVP_THRESHOLD}
     ORDER BY e.start_time ASC
-    LIMIT 1
+    LIMIT 2
   `);
 
-  const events = (popularEvents.rows || []) as any[];
+  const events = (upcomingEvents.rows || []) as any[];
   let notificationsSent = 0;
 
-  if (events.length === 0) {
-    console.info('   No events meet RSVP threshold');
-    return 0;
-  }
+  for (const event of events) {
+    if (await wasContentNotified('upcoming_event', 'eventId', event.id)) {
+      continue;
+    }
 
-  const event = events[0];
+    // Get community members who haven't RSVPed
+    const membersToNotify = await db.execute(sql`
+      SELECT cm.user_id FROM community_members cm
+      WHERE cm.community_id = ${event.community_id}
+        AND cm.status = 'accepted'
+        AND cm.user_id NOT IN (
+          SELECT user_id FROM event_rsvps WHERE event_id = ${event.id}
+        )
+        AND cm.user_id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
+        AND cm.user_id NOT IN (
+          SELECT DISTINCT n.user_id FROM notifications n
+          WHERE n.data->>'isEngagement' = 'true'
+          AND n.created_at > NOW() - INTERVAL '24 hours'
+        )
+      ORDER BY RANDOM()
+      LIMIT 15
+    `);
 
-  // Check if we already notified about this event
-  const alreadyNotified = await hasNotifiedAboutContent('popular_event', event.id, 'eventId');
-  if (alreadyNotified) {
-    console.info(`   Already notified about "${event.title}", skipping`);
-    return 0;
-  }
+    const userIds = (membersToNotify.rows || []).map((r: any) => r.user_id);
 
-  // Get users who haven't RSVPed yet
-  const nonRsvpUsers = await db.execute(sql`
-    SELECT u.id FROM users u
-    WHERE u.deleted_at IS NULL
-    AND u.id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
-    AND u.id NOT IN (
-      SELECT user_id FROM event_rsvps WHERE event_id = ${event.id}
-    )
-    AND u.id NOT IN (
-      SELECT DISTINCT n.user_id FROM notifications n
-      WHERE n.data->>'notificationType' = 'popular_event'
-      AND n.created_at > NOW() - INTERVAL '${sql.raw(String(CONFIG.COOLDOWN_EVENT))} hours'
-    )
-    ORDER BY RANDOM()
-    LIMIT ${CONFIG.MAX_USERS_EVENT}
-  `);
+    if (userIds.length > 0) {
+      const daysUntil = Math.ceil((new Date(event.start_time).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      const timeText = daysUntil === 1 ? 'tomorrow' : `in ${daysUntil} days`;
 
-  const userIds = (nonRsvpUsers.rows || []).map((r: any) => r.id);
+      await notifyMultipleUsers(userIds, {
+        title: `${event.community_name || 'Community'} Event ${timeText}!`,
+        body: `${event.title} — ${event.rsvp_count} people going 🎉`,
+        data: {
+          notificationType: 'upcoming_event',
+          isEngagement: 'true',
+          eventId: event.id,
+          screen: 'event',
+          params: { id: event.id },
+        },
+        category: 'event',
+      });
 
-  if (userIds.length > 0) {
-    const communityInfo = event.community_name ? ` in ${event.community_name}` : '';
-
-    await notifyMultipleUsers(userIds, {
-      title: `${event.title} is trending!`,
-      body: `${event.rsvp_count} people going${communityInfo}. Don't miss out!`,
-      data: {
-        notificationType: 'popular_event',
-        eventId: event.id,
-        screen: 'event',
-        params: { id: event.id },
-      },
-      category: 'event',
-    });
-
-    notificationsSent = userIds.length;
-    console.info(`   ✅ Notified ${userIds.length} users about "${event.title}"`);
+      notificationsSent += userIds.length;
+      console.info(`   ✅ Notified ${userIds.length} about "${event.title}"`);
+    }
   }
 
   return notificationsSent;
 }
 
-/**
- * 4. Featured Apologetics Notifications
- * Highlights REAL answered questions instead of generic prompts
- */
-async function sendApologeticsNotifications(): Promise<number> {
-  console.info('\n📖 Checking for featured apologetics content...');
+// ============================================================================
+// 3. SPIRITUAL MICRO-DOSE NOTIFICATIONS (Habit Building)
+// ============================================================================
 
-  // Find recently answered apologetics questions with quality answers
-  const featuredQuestions = await db.execute(sql`
+/**
+ * Send featured apologetics Q&A
+ * "Quick truth for today" highlighting real answered questions
+ */
+async function sendSpiritualNudgeNotifications(): Promise<number> {
+  console.info('\n📖 Preparing spiritual nudge...');
+
+  // Find a recently answered apologetics question with a quality answer
+  const featuredQA = await db.execute(sql`
     SELECT
       q.id,
       q.question,
-      a.content as answer_preview,
-      u.display_name as answerer_name
+      a.content as answer,
+      u.display_name as answerer_name,
+      t.name as topic_name
     FROM user_questions q
     JOIN user_question_messages a ON a.question_id = q.id AND a.sender_role = 'apologist'
     JOIN users u ON u.id = a.sender_id
-    WHERE q.status = 'answered'
-      AND a.created_at > NOW() - INTERVAL '7 days'
-      AND LENGTH(a.content) >= 100
+    LEFT JOIN apologetics_topics t ON t.id = q.topic_id
+    WHERE q.status IN ('answered', 'published')
+      AND a.created_at > NOW() - INTERVAL '14 days'
+      AND LENGTH(a.content) >= 150
     ORDER BY a.created_at DESC
     LIMIT 1
   `);
 
-  const questions = (featuredQuestions.rows || []) as any[];
+  const questions = (featuredQA.rows || []) as any[];
   let notificationsSent = 0;
 
   if (questions.length === 0) {
-    // Fall back to simple prompt only if no featured content
-    console.info('   No featured apologetics content, sending simple prompt');
-
-    const userIds = await getEligibleUsers(
-      'apologetics_prompt',
-      CONFIG.COOLDOWN_APOLOGETICS,
-      CONFIG.MAX_USERS_APOLOGETICS
-    );
-
-    if (userIds.length > 0) {
-      await notifyMultipleUsers(userIds, {
-        title: 'Have a faith question?',
-        body: 'Our apologists are ready to help you find answers.',
-        data: {
-          notificationType: 'apologetics_prompt',
-          screen: 'apologetics',
-        },
-        category: 'feed',
-      });
-
-      notificationsSent = userIds.length;
-      console.info(`   ✅ Sent prompt to ${userIds.length} users`);
-    }
-    return notificationsSent;
-  }
-
-  const question = questions[0];
-
-  // Check if we already notified about this question
-  const alreadyNotified = await hasNotifiedAboutContent('apologetics_featured', question.id, 'questionId');
-  if (alreadyNotified) {
-    console.info(`   Already featured this question, skipping`);
+    console.info('   No featured Q&A available');
     return 0;
   }
 
+  const qa = questions[0];
+
+  if (await wasContentNotified('spiritual_nudge', 'questionId', qa.id)) {
+    console.info('   Already featured this Q&A');
+    return 0;
+  }
+
+  // Get eligible users
   const userIds = await getEligibleUsers(
-    'apologetics_featured',
-    CONFIG.COOLDOWN_APOLOGETICS,
-    CONFIG.MAX_USERS_APOLOGETICS
+    'spiritual_nudge',
+    CONFIG.COOLDOWN_SPIRITUAL,
+    CONFIG.MAX_USERS_SPIRITUAL
   );
 
   if (userIds.length > 0) {
-    const truncatedQuestion = truncateText(question.question, 60);
+    const questionPreview = truncateText(qa.question, 50);
+    const topicLabel = qa.topic_name || 'Faith';
 
     await notifyMultipleUsers(userIds, {
-      title: 'Featured Q&A',
-      body: `"${truncatedQuestion}" - answered by ${question.answerer_name}`,
+      title: `Quick truth: ${topicLabel}`,
+      body: `"${questionPreview}" — answered by ${qa.answerer_name} 📚`,
       data: {
-        notificationType: 'apologetics_featured',
-        questionId: question.id,
+        notificationType: 'spiritual_nudge',
+        isEngagement: 'true',
+        questionId: qa.id,
         screen: 'apologetics',
-        params: { questionId: question.id },
+        params: { questionId: qa.id },
       },
       category: 'feed',
     });
 
     notificationsSent = userIds.length;
-    console.info(`   ✅ Notified ${userIds.length} users about featured Q&A`);
+    console.info(`   ✅ Sent spiritual nudge to ${userIds.length} users`);
   }
 
   return notificationsSent;
 }
 
-/**
- * 5. Admin Community Request Notifications
- * Notifies admins about REAL pending community join requests
- */
-async function sendAdminCommunityRequestNotifications(): Promise<number> {
-  console.info('\n👑 Checking for pending community requests...');
+// ============================================================================
+// 4. RE-ENGAGEMENT NOTIFICATIONS (Inactive Users)
+// ============================================================================
 
-  // Find communities with pending join requests
+/**
+ * Re-engage users who haven't been active in 7-14 days
+ * "We miss you — check out what's new in your communities"
+ */
+async function sendReengagementNotifications(): Promise<number> {
+  console.info('\n💭 Checking for inactive users to re-engage...');
+
+  // Find users who were active but haven't logged in for 7-30 days
+  const inactiveUsers = await db.execute(sql`
+    SELECT
+      u.id,
+      u.display_name,
+      u.last_login_at,
+      (
+        SELECT c.name FROM communities c
+        JOIN community_members cm ON cm.community_id = c.id
+        WHERE cm.user_id = u.id AND cm.status = 'accepted'
+        ORDER BY cm.joined_at DESC
+        LIMIT 1
+      ) as favorite_community
+    FROM users u
+    WHERE u.deleted_at IS NULL
+      AND u.last_login_at IS NOT NULL
+      AND u.last_login_at < NOW() - INTERVAL '${sql.raw(String(CONFIG.INACTIVE_DAYS_MIN))} days'
+      AND u.last_login_at > NOW() - INTERVAL '${sql.raw(String(CONFIG.INACTIVE_DAYS_MAX))} days'
+      AND u.id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
+      AND u.id NOT IN (
+        SELECT DISTINCT n.user_id FROM notifications n
+        WHERE n.data->>'notificationType' = 'reengagement'
+        AND n.created_at > NOW() - INTERVAL '${sql.raw(String(CONFIG.COOLDOWN_REENGAGEMENT))} hours'
+      )
+    ORDER BY u.last_login_at DESC
+    LIMIT ${CONFIG.MAX_USERS_REENGAGEMENT}
+  `);
+
+  const users = (inactiveUsers.rows || []) as any[];
+  let notificationsSent = 0;
+
+  for (const user of users) {
+    const message = user.favorite_community
+      ? `${user.favorite_community} has been active — come see what's new! 💫`
+      : `Your community friends have been sharing — come catch up! 💫`;
+
+    await notifyUserWithPreferences(user.id, {
+      title: `We miss you, ${user.display_name || 'friend'}!`,
+      body: message,
+      data: {
+        notificationType: 'reengagement',
+        isEngagement: 'true',
+        screen: 'home',
+      },
+      category: 'feed',
+    });
+
+    notificationsSent++;
+  }
+
+  console.info(`   ✅ Sent ${notificationsSent} re-engagement notifications`);
+  return notificationsSent;
+}
+
+// ============================================================================
+// 5. ADMIN NOTIFICATIONS
+// ============================================================================
+
+/**
+ * Notify admins about pending community requests
+ */
+async function sendAdminNotifications(): Promise<number> {
+  console.info('\n👑 Checking for admin tasks...');
+
   const pendingRequests = await db.execute(sql`
     SELECT
       c.id as community_id,
@@ -495,38 +658,27 @@ async function sendAdminCommunityRequestNotifications(): Promise<number> {
   const requests = (pendingRequests.rows || []) as any[];
   let notificationsSent = 0;
 
-  if (requests.length === 0) {
-    console.info('   No pending community requests');
-    return 0;
-  }
-
   for (const req of requests) {
-    // Get community admins who haven't been notified recently
     const admins = await db.execute(sql`
       SELECT cm.user_id FROM community_members cm
       WHERE cm.community_id = ${req.community_id}
-      AND cm.role IN ('owner', 'admin')
-      AND cm.user_id NOT IN (
-        SELECT DISTINCT n.user_id FROM notifications n
-        WHERE n.data->>'notificationType' = 'admin_community_requests'
-        AND (n.data->>'communityId')::int = ${req.community_id}
-        AND n.created_at > NOW() - INTERVAL '${sql.raw(String(CONFIG.COOLDOWN_ADMIN))} hours'
-      )
+        AND cm.role IN ('owner', 'admin')
+        AND cm.user_id NOT IN (
+          SELECT DISTINCT n.user_id FROM notifications n
+          WHERE n.data->>'notificationType' = 'admin_pending'
+          AND (n.data->>'communityId')::int = ${req.community_id}
+          AND n.created_at > NOW() - INTERVAL '${sql.raw(String(CONFIG.COOLDOWN_ADMIN))} hours'
+        )
     `);
 
     const adminIds = (admins.rows || []).map((r: any) => r.user_id);
 
-    // Also include the community creator if not in list
-    if (req.owner_id && !adminIds.includes(req.owner_id)) {
-      adminIds.push(req.owner_id);
-    }
-
     if (adminIds.length > 0) {
       await notifyMultipleUsers(adminIds, {
-        title: 'Requests pending',
+        title: 'Action needed',
         body: `${req.community_name}: ${req.pending_count} member${req.pending_count > 1 ? 's' : ''} waiting to join`,
         data: {
-          notificationType: 'admin_community_requests',
+          notificationType: 'admin_pending',
           communityId: req.community_id,
           screen: 'community',
           params: { id: req.community_id, tab: 'members' },
@@ -535,7 +687,7 @@ async function sendAdminCommunityRequestNotifications(): Promise<number> {
       });
 
       notificationsSent += adminIds.length;
-      console.info(`   ✅ Notified ${adminIds.length} admins about "${req.community_name}"`);
+      console.info(`   ✅ Notified ${adminIds.length} admins of "${req.community_name}"`);
     }
   }
 
@@ -551,44 +703,62 @@ async function main() {
 
   // Parse which notifications to send
   const sendAll = args.length === 0 || args.includes('--all');
-  const sendCommunity = sendAll || args.includes('--community');
-  const sendAdvice = sendAll || args.includes('--advice');
+  const sendPersonal = sendAll || args.includes('--personal');
+  const sendGroup = sendAll || args.includes('--group');
+  const sendSpiritual = sendAll || args.includes('--spiritual');
   const sendEvents = sendAll || args.includes('--events');
-  const sendApologetics = sendAll || args.includes('--apologetics');
-  const sendAdmin = sendAll || args.includes('--admin');
+  const sendReengagement = sendAll || args.includes('--reengagement');
+  const sendAdmin = args.includes('--admin'); // Admin is explicit only
 
   console.info('='.repeat(60));
-  console.info('📱 Engagement Notifications Service');
+  console.info('📱 Strategic Engagement Notifications');
   console.info('='.repeat(60));
   console.info(`📅 ${new Date().toISOString()}`);
-  console.info('Strategy: Quality over quantity - real content only');
+  console.info('Strategy: Personal > Group > Spiritual > Re-engagement');
+  console.info('Max 1 engagement notification per user per day');
   console.info('='.repeat(60));
 
   let totalSent = 0;
 
   try {
-    if (sendCommunity) {
-      totalSent += await sendActiveCommunityNotifications();
+    // 1. PERSONAL (highest conversion)
+    if (sendPersonal) {
+      console.info('\n--- PERSONAL/RELATIONAL ---');
+      totalSent += await sendPrayerNotifications();
+      totalSent += await sendAdviceReplyNotifications();
+      totalSent += await sendNewMemberNotifications();
     }
 
-    if (sendAdvice) {
-      totalSent += await sendSeekingAdviceNotifications();
+    // 2. GROUP ACTIVITY
+    if (sendGroup) {
+      console.info('\n--- GROUP ACTIVITY ---');
+      totalSent += await sendCommunityActivityNotifications();
     }
 
     if (sendEvents) {
-      totalSent += await sendPopularEventNotifications();
+      totalSent += await sendUpcomingEventNotifications();
     }
 
-    if (sendApologetics) {
-      totalSent += await sendApologeticsNotifications();
+    // 3. SPIRITUAL MICRO-DOSE
+    if (sendSpiritual) {
+      console.info('\n--- SPIRITUAL NUDGE ---');
+      totalSent += await sendSpiritualNudgeNotifications();
     }
 
+    // 4. RE-ENGAGEMENT
+    if (sendReengagement) {
+      console.info('\n--- RE-ENGAGEMENT ---');
+      totalSent += await sendReengagementNotifications();
+    }
+
+    // 5. ADMIN
     if (sendAdmin) {
-      totalSent += await sendAdminCommunityRequestNotifications();
+      console.info('\n--- ADMIN ---');
+      totalSent += await sendAdminNotifications();
     }
 
     console.info('\n' + '='.repeat(60));
-    console.info(`✨ Complete! Sent ${totalSent} notifications`);
+    console.info(`✨ Complete! Sent ${totalSent} strategic notifications`);
     console.info('='.repeat(60) + '\n');
 
   } catch (error) {

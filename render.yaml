@@ -130,10 +130,11 @@ services:
       - key: DATABASE_URL
         sync: true
 
-  # Engagement Notifications - Morning (10am ET / 3pm UTC)
+  # Strategic Engagement Notifications - Morning (8am ET / 1pm UTC)
+  # Personal/relational notifications (highest conversion) + spiritual nudge
   - type: cron
-    name: engagement-notifications-morning
-    schedule: "0 15 * * *"
+    name: engagement-morning
+    schedule: "0 13 * * *"
     region: ohio
     repo: https://github.com/theconjen/The-Connection
     branch: main
@@ -141,7 +142,7 @@ services:
       corepack enable &&
       corepack prepare pnpm@10.24.0 --activate &&
       pnpm install
-    startCommand: npx tsx server/scripts/engagement-notifications.ts --community --advice
+    startCommand: npx tsx server/scripts/engagement-notifications.ts --personal --spiritual
     envVars:
       - key: NODE_VERSION
         value: "22"
@@ -150,9 +151,10 @@ services:
       - key: DATABASE_URL
         sync: true
 
-  # Engagement Notifications - Afternoon (2pm ET / 7pm UTC)
+  # Strategic Engagement Notifications - Afternoon (2pm ET / 7pm UTC)
+  # Group activity + upcoming events
   - type: cron
-    name: engagement-notifications-afternoon
+    name: engagement-afternoon
     schedule: "0 19 * * *"
     region: ohio
     repo: https://github.com/theconjen/The-Connection
@@ -161,7 +163,28 @@ services:
       corepack enable &&
       corepack prepare pnpm@10.24.0 --activate &&
       pnpm install
-    startCommand: npx tsx server/scripts/engagement-notifications.ts --events --apologetics
+    startCommand: npx tsx server/scripts/engagement-notifications.ts --group --events
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: true
+
+  # Strategic Engagement Notifications - Evening (8pm ET / 1am UTC)
+  # Re-engagement for inactive users (7-30 days)
+  - type: cron
+    name: engagement-evening
+    schedule: "0 1 * * *"
+    region: ohio
+    repo: https://github.com/theconjen/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install
+    startCommand: npx tsx server/scripts/engagement-notifications.ts --reengagement
     envVars:
       - key: NODE_VERSION
         value: "22"
