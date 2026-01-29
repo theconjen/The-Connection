@@ -92,6 +92,7 @@ export default function CommunitiesTab() {
       hasInboxAccess={hasInboxAccess}
       onSearch={() => router.push("/search")}
       onUserPress={(userId) => router.push(`/(tabs)/profile?userId=${userId}`)}
+      onAdvicePress={(adviceId) => router.push(`/advice/${adviceId}`)}
     />
   </>
   );

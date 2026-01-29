@@ -68,6 +68,7 @@ export default function ApologeticsTab() {
         hasInboxAccess={hasInboxAccess}
         onSearch={() => router.push("/search")}
         onUserPress={(userId) => router.push(`/(tabs)/profile?userId=${userId}`)}
+        onAdvicePress={(adviceId) => router.push(`/advice/${adviceId}`)}
       />
     </>
   );

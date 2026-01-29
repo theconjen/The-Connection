@@ -19,9 +19,10 @@ interface MenuDrawerProps {
   hasInboxAccess?: boolean;
   onSearch?: () => void;
   onUserPress?: (userId: number) => void;
+  onAdvicePress?: (adviceId: number) => void;
 }
 
-interface SearchResult {
+interface UserSearchResult {
   type: 'user';
   id: number;
   username: string;
@@ -32,7 +33,25 @@ interface SearchResult {
   dmPrivacyReason?: string;
 }
 
-export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onInbox, hasInboxAccess, onSearch, onUserPress }: MenuDrawerProps) {
+interface AdviceSearchResult {
+  type: 'advice';
+  id: number;
+  content: string;
+  anonymousNickname?: string;
+  createdAt: string;
+  likeCount: number;
+  replyCount: number;
+  author?: {
+    id: number;
+    username: string;
+    displayName: string;
+    avatarUrl?: string;
+  };
+}
+
+type SearchResult = UserSearchResult | AdviceSearchResult;
+
+export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onInbox, hasInboxAccess, onSearch, onUserPress, onAdvicePress }: MenuDrawerProps) {
   const { colors, theme, setTheme } = useTheme();
   const styles = getStyles(colors, theme);
 
@@ -57,8 +76,11 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
         setIsSearching(true);
         setShowResults(true);
         try {
-          const response = await apiClient.get(`/api/search?q=${encodeURIComponent(searchQuery)}&filter=accounts`);
-          setSearchResults(response.data);
+          // Search for both accounts and advice posts
+          const response = await apiClient.get(`/api/search?q=${encodeURIComponent(searchQuery)}&filter=all`);
+          // Filter to only users and advice
+          const filtered = response.data.filter((r: SearchResult) => r.type === 'user' || r.type === 'advice');
+          setSearchResults(filtered);
         } catch (error) {
           console.error('Search error:', error);
           setSearchResults([]);
@@ -74,12 +96,23 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
     return () => clearTimeout(delaySearch);
   }, [searchQuery]);
 
-  const handleUserPress = (user: SearchResult) => {
+  const handleUserPress = (user: UserSearchResult) => {
     onClose();
     if (onUserPress) {
       onUserPress(user.id);
     }
   };
+
+  const handleAdvicePress = (advice: AdviceSearchResult) => {
+    onClose();
+    if (onAdvicePress) {
+      onAdvicePress(advice.id);
+    }
+  };
+
+  // Separate results by type
+  const userResults = searchResults.filter((r): r is UserSearchResult => r.type === 'user');
+  const adviceResults = searchResults.filter((r): r is AdviceSearchResult => r.type === 'advice');
 
   return (
     <Modal
@@ -104,7 +137,7 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
               <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search for people..."
+                placeholder="Search people & advice..."
                 placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -127,31 +160,68 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                       <ActivityIndicator size="large" color={colors.primary} />
                       <Text style={styles.loadingText}>Searching...</Text>
                     </View>
-                  ) : searchResults.length > 0 ? (
+                  ) : (userResults.length > 0 || adviceResults.length > 0) ? (
                     <>
-                      <Text style={styles.resultsHeader}>People</Text>
-                      {searchResults.map((user) => (
-                        <Pressable
-                          key={user.id}
-                          style={styles.userResult}
-                          onPress={() => handleUserPress(user)}
-                        >
-                          <Image
-                            source={{ uri: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.username)}&background=random` }}
-                            style={styles.userAvatar}
-                          />
-                          <View style={styles.userInfo}>
-                            <Text style={styles.userDisplayName}>{user.displayName || user.username}</Text>
-                            <Text style={styles.userUsername}>@{user.username}</Text>
-                          </View>
-                          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-                        </Pressable>
-                      ))}
+                      {/* People Results */}
+                      {userResults.length > 0 && (
+                        <>
+                          <Text style={styles.resultsHeader}>People</Text>
+                          {userResults.map((user) => (
+                            <Pressable
+                              key={`user-${user.id}`}
+                              style={styles.userResult}
+                              onPress={() => handleUserPress(user)}
+                            >
+                              <Image
+                                source={{ uri: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.username)}&background=random` }}
+                                style={styles.userAvatar}
+                              />
+                              <View style={styles.userInfo}>
+                                <Text style={styles.userDisplayName}>{user.displayName || user.username}</Text>
+                                <Text style={styles.userUsername}>@{user.username}</Text>
+                              </View>
+                              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                            </Pressable>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Advice Results */}
+                      {adviceResults.length > 0 && (
+                        <>
+                          <Text style={[styles.resultsHeader, userResults.length > 0 && { marginTop: 16 }]}>Seeking Advice</Text>
+                          {adviceResults.map((advice) => (
+                            <Pressable
+                              key={`advice-${advice.id}`}
+                              style={styles.adviceResult}
+                              onPress={() => handleAdvicePress(advice)}
+                            >
+                              <View style={styles.adviceIconContainer}>
+                                <Ionicons name="help-circle" size={24} color="#EC4899" />
+                              </View>
+                              <View style={styles.adviceInfo}>
+                                <Text style={styles.adviceContent} numberOfLines={2}>
+                                  {advice.content}
+                                </Text>
+                                <View style={styles.adviceMeta}>
+                                  <Text style={styles.adviceAuthor}>
+                                    {advice.anonymousNickname || advice.author?.displayName || 'Anonymous'}
+                                  </Text>
+                                  <Text style={styles.adviceStats}>
+                                    {advice.likeCount} likes · {advice.replyCount} replies
+                                  </Text>
+                                </View>
+                              </View>
+                              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                            </Pressable>
+                          ))}
+                        </>
+                      )}
                     </>
                   ) : (
                     <View style={styles.emptyContainer}>
                       <Ionicons name="search-outline" size={48} color={colors.textMuted} />
-                      <Text style={styles.emptyText}>No people found</Text>
+                      <Text style={styles.emptyText}>No results found</Text>
                       <Text style={styles.emptySubtext}>Try a different search term</Text>
                     </View>
                   )}
@@ -430,6 +500,45 @@ const getStyles = (colors: any, theme: string) => StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 8,
     textAlign: 'center',
+  },
+  // Advice result styles
+  adviceResult: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  adviceIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EC489915',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  adviceInfo: {
+    flex: 1,
+  },
+  adviceContent: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.textPrimary,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  adviceMeta: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  adviceAuthor: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  adviceStats: {
+    fontSize: 12,
+    color: colors.textMuted,
   },
   themeSectionContainer: {
     paddingHorizontal: 20,

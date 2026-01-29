@@ -107,6 +107,37 @@ router.get('/', requireAuth, async (req, res) => {
       }
     }
 
+    // Search advice posts (microblogs with topic=QUESTION)
+    if (filter === 'all' || filter === 'advice') {
+      try {
+        const advicePosts = await storage.searchMicroblogs?.(searchQuery, { topic: 'QUESTION', limit: 20 });
+        if (advicePosts) {
+          const adviceResults = await Promise.all(advicePosts.map(async (post: any) => {
+            const author = await storage.getUser(post.authorId);
+            return {
+              type: 'advice',
+              id: post.id,
+              content: post.content,
+              authorId: post.authorId,
+              anonymousNickname: post.anonymousNickname,
+              createdAt: post.createdAt,
+              likeCount: post.likeCount || 0,
+              replyCount: post.replyCount || 0,
+              author: author ? {
+                id: author.id,
+                username: author.username,
+                displayName: author.displayName,
+                avatarUrl: author.avatarUrl,
+              } : null,
+            };
+          }));
+          results.push(...adviceResults);
+        }
+      } catch (error) {
+        // Advice search not implemented, skip
+      }
+    }
+
     // Sort results by relevance (prioritize exact matches in title/name)
     const sortedResults = results.sort((a, b) => {
       const aTitle = (a.title || a.name || a.displayName || a.username || '').toLowerCase();
