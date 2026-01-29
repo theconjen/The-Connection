@@ -69,3 +69,63 @@ services:
         sync: true
       - key: BOT_PASSWORD
         sync: false
+
+  # Daily Advice Bot - Morning (8am ET / 1pm UTC)
+  - type: cron
+    name: advice-bot-morning
+    schedule: "0 13 * * *"
+    region: ohio
+    repo: https://github.com/theconjen/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install
+    startCommand: npx tsx server/scripts/daily-advice-bot.ts --questions=2
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: true
+
+  # Daily Advice Bot - Afternoon (2pm ET / 7pm UTC)
+  - type: cron
+    name: advice-bot-afternoon
+    schedule: "0 19 * * *"
+    region: ohio
+    repo: https://github.com/theconjen/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install
+    startCommand: npx tsx server/scripts/daily-advice-bot.ts --questions=1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: true
+
+  # Daily Advice Bot - Evening (8pm ET / 1am UTC next day)
+  - type: cron
+    name: advice-bot-evening
+    schedule: "0 1 * * *"
+    region: ohio
+    repo: https://github.com/theconjen/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install
+    startCommand: npx tsx server/scripts/daily-advice-bot.ts --questions=2
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: true
