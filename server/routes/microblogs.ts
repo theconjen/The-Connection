@@ -233,6 +233,9 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     try {
       const userId = getSessionUserId(req);
       const filter = (req.query.filter as string) || 'recent'; // 'recent' or 'popular'
+      const topic = req.query.topic as string | undefined; // Optional topic filter (e.g., 'QUESTION')
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 25));
+      const cursor = req.query.cursor as string | undefined; // Cursor for pagination
 
       let microblogs: any[] = [];
 
@@ -269,6 +272,11 @@ export function createMicroblogsRouter(storage = defaultStorage) {
         microblogs = await storage.getAllMicroblogs();
       }
 
+      // Filter by topic if specified (e.g., topic=QUESTION for Seeking Advice)
+      if (topic) {
+        microblogs = microblogs.filter(m => m.topic === topic);
+      }
+
       // Enrich microblogs with author data and user engagement status
       const enrichedMicroblogs = await Promise.all(
         microblogs.map(async (microblog) => {
@@ -277,13 +285,28 @@ export function createMicroblogsRouter(storage = defaultStorage) {
           const isReposted = userId ? await storage.hasUserRepostedMicroblog(microblog.id, userId) : false;
           const isBookmarked = userId ? await storage.hasUserBookmarkedMicroblog(microblog.id, userId) : false;
 
+          // Get reply count if not already present
+          let replyCount = microblog.replyCount || 0;
+          if (!microblog.replyCount && storage.getMicroblogReplies) {
+            try {
+              const replies = await storage.getMicroblogReplies(microblog.id);
+              replyCount = replies?.length || 0;
+            } catch {
+              // Ignore errors getting reply count
+            }
+          }
+
           return {
             ...microblog,
+            likeCount: microblog.likeCount || 0,
+            replyCount,
+            commentCount: replyCount, // Alias for frontend compatibility
             author: author ? {
               id: author.id,
               username: author.username,
               displayName: author.displayName,
               profileImageUrl: author.profileImageUrl,
+              avatarUrl: author.avatarUrl,
             } : {
               id: microblog.authorId,
               username: 'deleted',
@@ -309,7 +332,31 @@ export function createMicroblogsRouter(storage = defaultStorage) {
         );
       }
 
-      res.json(sortedMicroblogs);
+      // Apply cursor-based pagination
+      let startIndex = 0;
+      if (cursor) {
+        const cursorDate = new Date(cursor);
+        startIndex = sortedMicroblogs.findIndex((m: any) =>
+          new Date(m.createdAt).getTime() < cursorDate.getTime()
+        );
+        if (startIndex === -1) startIndex = sortedMicroblogs.length;
+      }
+
+      // Get one extra to check if there are more
+      const slice = sortedMicroblogs.slice(startIndex, startIndex + limit + 1);
+      const hasMore = slice.length > limit;
+      const items = hasMore ? slice.slice(0, limit) : slice;
+
+      const nextCursor = hasMore && items.length > 0
+        ? items[items.length - 1].createdAt
+        : null;
+
+      // Return with pagination metadata
+      res.json({
+        microblogs: items,
+        nextCursor,
+        hasMore,
+      });
     } catch (error) {
       console.error('Error fetching microblogs:', error);
       res.status(500).json(buildErrorResponse('Error fetching microblogs', error));

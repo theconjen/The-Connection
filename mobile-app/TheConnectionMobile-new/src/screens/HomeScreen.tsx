@@ -126,7 +126,8 @@ function useAdviceFeed() {
         params.append('cursor', pageParam);
       }
 
-      const res = await apiClient.get(`/api/feed/explore?${params.toString()}`);
+      // Call the microblogs endpoint with topic=QUESTION for advice posts
+      const res = await apiClient.get(`/api/microblogs?${params.toString()}`);
       return {
         posts: res.data?.microblogs || [],
         nextCursor: res.data?.nextCursor || null,
