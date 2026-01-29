@@ -129,3 +129,63 @@ services:
         value: production
       - key: DATABASE_URL
         sync: true
+
+  # Engagement Notifications - Morning (10am ET / 3pm UTC)
+  - type: cron
+    name: engagement-notifications-morning
+    schedule: "0 15 * * *"
+    region: ohio
+    repo: https://github.com/theconjen/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install
+    startCommand: npx tsx server/scripts/engagement-notifications.ts --community --advice
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: true
+
+  # Engagement Notifications - Afternoon (2pm ET / 7pm UTC)
+  - type: cron
+    name: engagement-notifications-afternoon
+    schedule: "0 19 * * *"
+    region: ohio
+    repo: https://github.com/theconjen/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install
+    startCommand: npx tsx server/scripts/engagement-notifications.ts --events --apologetics
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: true
+
+  # Admin Notifications - Daily (9am ET / 2pm UTC)
+  - type: cron
+    name: admin-notifications
+    schedule: "0 14 * * *"
+    region: ohio
+    repo: https://github.com/theconjen/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install
+    startCommand: npx tsx server/scripts/engagement-notifications.ts --admin
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: true

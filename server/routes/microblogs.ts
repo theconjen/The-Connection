@@ -362,11 +362,41 @@ export function createMicroblogsRouter(storage = defaultStorage) {
   router.get('/microblogs/:id', async (req, res) => {
     try {
       const microblogId = parseInt(req.params.id);
+      const userId = (req as any).session?.userId;
       const microblog = await storage.getMicroblog(microblogId);
       if (!microblog || (microblog as any).deletedAt) {
         return res.status(404).json({ message: 'Microblog not found' });
       }
-      res.json(microblog);
+
+      // Enrich with author data
+      const author = await storage.getUser((microblog as any).authorId);
+      const enrichedMicroblog = {
+        ...microblog,
+        author: author ? {
+          id: author.id,
+          username: author.username,
+          displayName: author.displayName,
+          avatarUrl: author.avatarUrl,
+          profileImageUrl: author.avatarUrl,
+        } : {
+          id: (microblog as any).authorId,
+          username: 'deleted',
+          displayName: 'Deleted User',
+          avatarUrl: null,
+        },
+      };
+
+      // Add user-specific interaction states if logged in
+      if (userId) {
+        const [isLiked, isBookmarked] = await Promise.all([
+          storage.hasMicroblogLike?.(microblogId, userId).catch(() => false),
+          storage.hasMicroblogBookmark?.(microblogId, userId).catch(() => false),
+        ]);
+        (enrichedMicroblog as any).isLiked = isLiked || false;
+        (enrichedMicroblog as any).isBookmarked = isBookmarked || false;
+      }
+
+      res.json(enrichedMicroblog);
     } catch (error) {
       console.error('Error fetching microblog:', error);
       res.status(500).json(buildErrorResponse('Error fetching microblog', error));
@@ -504,6 +534,9 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       storage.processMicroblogKeywords(microblog.id, validatedData.content)
         .catch(error => console.error('Error processing keywords:', error));
 
+      // Note: Advice notifications are handled by scheduled engagement-notifications.ts
+      // This prevents overwhelming users and respects cooldown periods
+
       // If poll was created, include poll data in response
       let responseData: any = microblog;
       if (pollId) {
@@ -613,11 +646,13 @@ export function createMicroblogsRouter(storage = defaultStorage) {
               id: author.id,
               username: author.username,
               displayName: author.displayName,
-              profileImageUrl: author.profileImageUrl,
+              avatarUrl: author.avatarUrl,
+              profileImageUrl: author.avatarUrl,
             } : {
               id: comment.authorId,
               username: 'deleted',
               displayName: 'Deleted User',
+              avatarUrl: null,
               profileImageUrl: null,
             },
           };
@@ -752,10 +787,8 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     try {
       const userId = requireSessionUserId(req);
       const microblogId = parseInt(req.params.id);
-      const success = await storage.unbookmarkMicroblog(microblogId, userId);
-      if (!success) {
-        return res.status(404).json({ message: 'Bookmark not found' });
-      }
+      // Make DELETE idempotent - return success even if bookmark didn't exist
+      await storage.unbookmarkMicroblog(microblogId, userId);
       res.json({ message: 'Microblog unbookmarked successfully' });
     } catch (error) {
       console.error('Error unbookmarking microblog:', error);
