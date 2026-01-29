@@ -222,6 +222,7 @@ function useJoinedCommunities() {
 }
 
 // Build combined feed items from paginated data
+// Layout: Global Community (advice) → Your Communities → Grow Your Faith (articles)
 function useCombinedFeed() {
   const adviceQuery = useAdviceFeed();
   const communityQuery = useCommunityFeed();
@@ -239,19 +240,17 @@ function useCombinedFeed() {
     // Get all community posts from all pages
     const allCommunityPosts = communityQuery.data?.pages.flatMap(p => p.posts) || [];
 
-    // Get trending articles
-    const articles = articlesQuery.data || [];
+    // Get trending articles (limited to 3)
+    const articles = (articlesQuery.data || []).slice(0, 3);
 
-    // Build interleaved feed for better experience
-    // Show advice header and first batch
+    // SECTION 1: Global Community (Advice posts)
     if (sortedAdvicePosts.length > 0) {
       items.push({
         type: 'section_header',
-        data: { title: 'Community Advice' },
+        data: { title: 'Global Community' },
         id: 'header-advice',
       });
 
-      // Show advice posts
       sortedAdvicePosts.forEach((post) => {
         items.push({
           type: 'advice_post',
@@ -261,11 +260,11 @@ function useCombinedFeed() {
       });
     }
 
-    // Add community posts section
+    // SECTION 2: Your Communities (posts from joined communities)
     if (allCommunityPosts.length > 0) {
       items.push({
         type: 'section_header',
-        data: { title: 'From Your Communities' },
+        data: { title: 'Your Communities' },
         id: 'header-communities',
       });
 
@@ -278,12 +277,12 @@ function useCombinedFeed() {
       });
     }
 
-    // Add trending articles section at the end
+    // SECTION 3: Grow Your Faith (featured articles - compact, at bottom)
     if (articles.length > 0) {
       items.push({
         type: 'section_header',
-        data: { title: 'Trending Articles' },
-        id: 'header-apologetics',
+        data: { title: 'Grow Your Faith' },
+        id: 'header-articles',
       });
 
       articles.forEach((article: ApologeticsArticle) => {
