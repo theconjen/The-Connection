@@ -175,12 +175,12 @@ export default function MobileMicroblogPost({
     
     // Replace hashtags with links
     formattedContent = formattedContent.replace(hashtagPattern, (match, tag) => {
-      return `<a href="/tags/${tag}" class="text-primary hover:opacity-80 active:opacity-60">${match}</a>`;
+      return `<a href="/search?q=%23${tag}" class="text-primary hover:opacity-80 active:opacity-60">${match}</a>`;
     });
     
     // Replace @mentions with links
     formattedContent = formattedContent.replace(mentionPattern, (match, username) => {
-      return `<a href="/users/${username}" class="text-primary hover:opacity-80 active:opacity-60">${match}</a>`;
+      return `<a href="/profile/${username}" class="text-primary hover:opacity-80 active:opacity-60">${match}</a>`;
     });
     
     return formattedContent;

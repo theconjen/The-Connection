@@ -176,8 +176,8 @@ export default function Header() {
                 </Sheet>
 
                 {/* Create Button - Desktop & Tablet only */}
-                <Link href="/submit-post">
-                  <Button 
+                <Link href="/advice">
+                  <Button
                     className="hidden md:flex btn-gradient font-medium"
                     size="sm"
                   >

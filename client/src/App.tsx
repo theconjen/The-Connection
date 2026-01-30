@@ -40,6 +40,7 @@ const BlockedUsersPage = lazy(() => import("./pages/BlockedUsersPage"));
 // Q&A features
 const QuestionsInbox = lazy(() => import("./pages/questions-inbox"));
 const QuestionDetailPage = lazy(() => import("./pages/question-detail-page"));
+const QuestionsAskPage = lazy(() => import("./pages/questions-ask"));
 
 // Prayer requests
 const PrayerRequestsPage = lazy(() => import("./pages/prayer-requests-page"));
@@ -136,6 +137,7 @@ function App() {
             <Route path="/prayers/:id" component={PrayerDetailPage} />
 
             {/* Q&A */}
+            <Route path="/questions/ask" component={QuestionsAskPage} />
             <Route path="/questions/inbox" component={QuestionsInbox} />
             <Route path="/questions/:id" component={QuestionDetailPage} />
 

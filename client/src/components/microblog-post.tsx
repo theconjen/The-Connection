@@ -185,12 +185,12 @@ export function MicroblogPost({
     
     // Replace hashtags with links
     formattedContent = formattedContent.replace(hashtagPattern, (match, tag) => {
-      return `<a href="/tags/${tag}" class="text-primary hover:underline">${match}</a>`;
+      return `<a href="/search?q=%23${tag}" class="text-primary hover:underline">${match}</a>`;
     });
     
     // Replace @mentions with links
     formattedContent = formattedContent.replace(mentionPattern, (match, username) => {
-      return `<a href="/users/${username}" class="text-primary hover:underline">${match}</a>`;
+      return `<a href="/profile/${username}" class="text-primary hover:underline">${match}</a>`;
     });
     
     return formattedContent;
