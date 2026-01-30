@@ -171,6 +171,12 @@ export default function TabsLayout() {
           href: null, // Hide from tab bar, but keep route accessible
         }}
       />
+      <Tabs.Screen
+        name="advice"
+        options={{
+          href: null, // Hide from tab bar, accessible via Home "See All"
+        }}
+      />
     </Tabs>
 
       <CreateHubSheet

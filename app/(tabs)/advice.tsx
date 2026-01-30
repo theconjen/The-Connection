@@ -1,0 +1,467 @@
+/**
+ * ADVICE LISTING PAGE - Shows all Global Community advice posts
+ * Inside (tabs) to show bottom navigation bar
+ */
+
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  RefreshControl,
+  ActivityIndicator,
+  StyleSheet,
+  Pressable,
+  StatusBar,
+  Alert,
+  TextInput,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { useTheme } from '../../src/contexts/ThemeContext';
+import apiClient from '../../src/lib/apiClient';
+import { formatDistanceToNow } from 'date-fns';
+
+interface AdvicePost {
+  id: number;
+  content: string;
+  author?: {
+    id: number;
+    username: string;
+    displayName?: string;
+    profileImageUrl?: string;
+  };
+  createdAt: string;
+  likeCount?: number;
+  commentCount?: number;
+  replyCount?: number;
+  isLiked?: boolean;
+  isBookmarked?: boolean;
+  anonymousNickname?: string;
+}
+
+export default function AdviceListScreen() {
+  const router = useRouter();
+  const { colors, colorScheme } = useTheme();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [upvotedPosts, setUpvotedPosts] = useState<Set<number>>(new Set());
+  const [unupvotedPosts, setUnupvotedPosts] = useState<Set<number>>(new Set());
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<number>>(new Set());
+  const [unbookmarkedPosts, setUnbookmarkedPosts] = useState<Set<number>>(new Set());
+
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    refetch,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['advice-list', user?.id],
+    queryFn: async ({ pageParam }) => {
+      const url = pageParam
+        ? `/api/microblogs?topic=QUESTION&limit=20&cursor=${pageParam}`
+        : '/api/microblogs?topic=QUESTION&limit=20';
+      const response = await apiClient.get(url);
+      const respData = response.data;
+      const items = respData.microblogs || respData.items || (Array.isArray(respData) ? respData : []);
+      const nextCursor = respData.nextCursor || null;
+      return { items, nextCursor };
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: !!user,
+  });
+
+  const advicePosts = data?.pages.flatMap(page => page.items) || [];
+
+  // Filter posts based on search query
+  const filteredPosts = searchQuery.trim()
+    ? advicePosts.filter(post =>
+        post.content?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : advicePosts;
+
+  // Upvote mutation
+  const upvoteMutation = useMutation({
+    mutationFn: async ({ postId, isCurrentlyLiked }: { postId: number; isCurrentlyLiked: boolean }) => {
+      if (isCurrentlyLiked) {
+        return apiClient.delete(`/api/microblogs/${postId}/like`);
+      } else {
+        return apiClient.post(`/api/microblogs/${postId}/like`);
+      }
+    },
+    onMutate: async ({ postId, isCurrentlyLiked }) => {
+      if (isCurrentlyLiked) {
+        setUpvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+        setUnupvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
+      } else {
+        setUpvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
+        setUnupvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['advice-list'] });
+    },
+  });
+
+  // Bookmark mutation
+  const bookmarkMutation = useMutation({
+    mutationFn: async ({ postId, isCurrentlyBookmarked }: { postId: number; isCurrentlyBookmarked: boolean }) => {
+      if (isCurrentlyBookmarked) {
+        return apiClient.delete(`/api/microblogs/${postId}/bookmark`);
+      } else {
+        return apiClient.post(`/api/microblogs/${postId}/bookmark`);
+      }
+    },
+    onMutate: async ({ postId, isCurrentlyBookmarked }) => {
+      if (isCurrentlyBookmarked) {
+        setBookmarkedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+        setUnbookmarkedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
+      } else {
+        setBookmarkedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
+        setUnbookmarkedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['advice-list'] });
+    },
+  });
+
+  const handleUpvote = useCallback((postId: number, isCurrentlyLiked: boolean) => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to upvote posts.');
+      return;
+    }
+    upvoteMutation.mutate({ postId, isCurrentlyLiked });
+  }, [user, upvoteMutation]);
+
+  const handleBookmark = useCallback((postId: number, isCurrentlyBookmarked: boolean) => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to bookmark posts.');
+      return;
+    }
+    bookmarkMutation.mutate({ postId, isCurrentlyBookmarked });
+  }, [user, bookmarkMutation]);
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const renderItem = ({ item }: { item: AdvicePost }) => {
+    const isUpvoted = unupvotedPosts.has(item.id) ? false : (upvotedPosts.has(item.id) || item.isLiked);
+    const isBookmarked = unbookmarkedPosts.has(item.id) ? false : (bookmarkedPosts.has(item.id) || item.isBookmarked);
+    const timeAgo = formatDistanceToNow(new Date(item.createdAt), { addSuffix: true });
+
+    return (
+      <Pressable
+        style={[styles.adviceCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+        onPress={() => router.push({ pathname: '/advice/[id]' as any, params: { id: item.id.toString() } })}
+      >
+        <View style={styles.adviceHeader}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={[styles.adviceBadge, { backgroundColor: '#EC489915' }]}>
+              <Ionicons name="help-circle" size={14} color="#EC4899" />
+              <Text style={[styles.adviceBadgeText, { color: '#EC4899' }]}>
+                Seeking Advice
+              </Text>
+            </View>
+            {item.anonymousNickname && (
+              <Text style={[styles.adviceNickname, { color: colors.textSecondary }]}>
+                from {item.anonymousNickname}
+              </Text>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Text style={[styles.adviceTime, { color: colors.textMuted }]}>
+              {timeAgo}
+            </Text>
+            <Pressable onPress={() => handleBookmark(item.id, isBookmarked)} hitSlop={8}>
+              <Ionicons
+                name={isBookmarked ? "bookmark" : "bookmark-outline"}
+                size={18}
+                color={isBookmarked ? colors.primary : colors.textMuted}
+              />
+            </Pressable>
+          </View>
+        </View>
+
+        <Text style={[styles.adviceContent, { color: colors.textPrimary }]} numberOfLines={4}>
+          {item.content}
+        </Text>
+
+        <View style={styles.adviceFooter}>
+          <View style={styles.adviceStats}>
+            <Pressable
+              style={styles.adviceStat}
+              onPress={() => handleUpvote(item.id, isUpvoted)}
+              hitSlop={8}
+            >
+              <Ionicons
+                name={isUpvoted ? "arrow-up" : "arrow-up-outline"}
+                size={18}
+                color={isUpvoted ? colors.primary : colors.textMuted}
+              />
+              <Text style={[styles.adviceStatText, { color: isUpvoted ? colors.primary : colors.textMuted }]}>
+                {item.likeCount || 0}
+              </Text>
+            </Pressable>
+            <View style={styles.adviceStat}>
+              <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
+              <Text style={[styles.adviceStatText, { color: colors.textMuted }]}>
+                {item.commentCount || item.replyCount || 0}
+              </Text>
+            </View>
+          </View>
+          <Text style={[styles.adviceCta, { color: colors.primary }]}>
+            Share your thoughts
+          </Text>
+        </View>
+      </Pressable>
+    );
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* Custom Header */}
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.borderSubtle }]}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Global Community</Text>
+        <View style={styles.headerRight} />
+      </View>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+
+      {/* Search Bar */}
+      <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.searchBar, { backgroundColor: colors.surfaceMuted }]}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+            placeholder="Search topics..."
+            placeholderTextColor={colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : filteredPosts.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons
+            name={searchQuery ? "search-outline" : "chatbubbles-outline"}
+            size={64}
+            color={colors.textMuted}
+          />
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+            {searchQuery ? 'No results found' : 'No advice posts yet'}
+          </Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            {searchQuery
+              ? `Try searching for something else`
+              : 'Be the first to ask for advice from the community!'
+            }
+          </Text>
+          {searchQuery && (
+            <Pressable
+              onPress={() => setSearchQuery('')}
+              style={[styles.clearSearchButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={styles.clearSearchButtonText}>Clear Search</Text>
+            </Pressable>
+          )}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredPosts}
+          keyExtractor={(item) => `advice-${item.id}`}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={colors.primary}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : null
+          }
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  headerRight: {
+    width: 40,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    padding: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContent: {
+    paddingBottom: 20,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+
+  // Advice Card
+  adviceCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  adviceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  adviceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  adviceBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  adviceNickname: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  adviceTime: {
+    fontSize: 12,
+  },
+  adviceContent: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  adviceFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  adviceStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  adviceStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  adviceStatText: {
+    fontSize: 13,
+  },
+  adviceCta: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Empty State
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  clearSearchButton: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  clearSearchButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});
