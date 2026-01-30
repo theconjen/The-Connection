@@ -5,6 +5,7 @@ import Header from "../header";
 import MobileNavigation from "../mobile-navigation";
 import SidebarNavigation from "../sidebar-navigation";
 import { GuestAccessBanner } from "../guest-access-banner";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type ResponsiveLayoutProps = {
   children: React.ReactNode;
@@ -22,6 +23,18 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
   const [location] = useLocation();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isNativeApp, setIsNativeApp] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebarCollapsed') === 'true';
+    }
+    return false;
+  });
+
+  const toggleSidebar = () => {
+    const newState = !sidebarCollapsed;
+    setSidebarCollapsed(newState);
+    localStorage.setItem('sidebarCollapsed', String(newState));
+  };
 
   const detectNativeApp = () => {
     if (typeof window === "undefined") return false;
@@ -82,8 +95,22 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
       <div className="flex-1 flex relative">
         {/* Desktop Sidebar - visible on tablet and larger screens, hidden on admin pages */}
         {!isMobile && !location.startsWith('/admin') && (
-          <aside className="hidden md:block w-60 border-r border-border/50 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto py-4 bg-card/90 dark:bg-muted/50 backdrop-blur-sm shadow-sm">
-            <SidebarNavigation currentPath={location} />
+          <aside
+            className={`hidden md:block ${sidebarCollapsed ? 'w-16' : 'w-60'} border-r border-border/50 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto py-4 bg-card/90 dark:bg-muted/50 backdrop-blur-sm shadow-sm transition-all duration-300 relative`}
+          >
+            <SidebarNavigation currentPath={location} collapsed={sidebarCollapsed} />
+            {/* Collapse/Expand Toggle Button */}
+            <button
+              onClick={toggleSidebar}
+              className="absolute -right-3 top-6 w-6 h-6 bg-background border border-border rounded-full flex items-center justify-center shadow-sm hover:bg-muted transition-colors z-10"
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
           </aside>
         )}
 
