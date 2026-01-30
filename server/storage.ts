@@ -141,7 +141,8 @@ class StorageSafety {
     'deleteEventRSVP', 'getAllMicroblogs', 'getMicroblog', 'getUserMicroblogs',
     'createMicroblog', 'updateMicroblog', 'deleteMicroblog', 'likeMicroblog',
     'unlikeMicroblog', 'getUserLikedMicroblogs', 'hasUserLikedMicroblog',
-    'hasUserRepostedMicroblog', 'hasUserBookmarkedMicroblog', 'getAllLivestreams',
+    'hasUserRepostedMicroblog', 'hasUserBookmarkedMicroblog', 'getMicroblogLikeCount',
+    'getMicroblogReplies', 'getAllLivestreams',
     'createLivestream', 'getLivestreamerApplicationByUserId',
     'getPendingLivestreamerApplications', 'createLivestreamerApplication',
     'updateLivestreamerApplication', 'isApprovedLivestreamer',
@@ -376,6 +377,8 @@ export interface IStorage {
   hasUserLikedMicroblog(microblogId: number, userId: number): Promise<boolean>;
   hasUserRepostedMicroblog(microblogId: number, userId: number): Promise<boolean>;
   hasUserBookmarkedMicroblog(microblogId: number, userId: number): Promise<boolean>;
+  getMicroblogLikeCount(microblogId: number): Promise<number>;
+  getMicroblogReplies(microblogId: number): Promise<Microblog[]>;
 
   // Post bookmark methods
   bookmarkPost(postId: number, userId: number): Promise<PostBookmark>;
@@ -1993,6 +1996,16 @@ export class MemStorage implements IStorage {
 
   async hasUserBookmarkedMicroblog(microblogId: number, userId: number): Promise<boolean> {
     return this.data.microblogBookmarks.some(bookmark => bookmark.microblogId === microblogId && bookmark.userId === userId);
+  }
+
+  async getMicroblogLikeCount(microblogId: number): Promise<number> {
+    return this.data.microblogLikes.filter(like => like.microblogId === microblogId).length;
+  }
+
+  async getMicroblogReplies(microblogId: number): Promise<Microblog[]> {
+    return this.data.microblogs
+      .filter(m => m.parentId === microblogId)
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
 
   // Post bookmark methods
@@ -4236,6 +4249,27 @@ export class DbStorage implements IStorage {
       .limit(1);
 
     return !!bookmark;
+  }
+
+  // Get actual like count for a microblog from the likes table
+  async getMicroblogLikeCount(microblogId: number): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(microblogLikes)
+      .where(eq(microblogLikes.microblogId, microblogId));
+
+    return result[0]?.count || 0;
+  }
+
+  // Get replies (child microblogs) for a microblog
+  async getMicroblogReplies(microblogId: number): Promise<Microblog[]> {
+    const replies = await db
+      .select()
+      .from(microblogs)
+      .where(eq(microblogs.parentId, microblogId))
+      .orderBy(desc(microblogs.createdAt));
+
+    return replies;
   }
 
   // ============================================================================

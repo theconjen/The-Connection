@@ -285,22 +285,34 @@ export function createMicroblogsRouter(storage = defaultStorage) {
           const isReposted = userId ? await storage.hasUserRepostedMicroblog(microblog.id, userId) : false;
           const isBookmarked = userId ? await storage.hasUserBookmarkedMicroblog(microblog.id, userId) : false;
 
-          // Get reply count if not already present
-          let replyCount = microblog.replyCount || 0;
-          if (!microblog.replyCount && storage.getMicroblogReplies) {
+          // Always calculate actual counts from the database tables
+          let actualLikeCount = microblog.likeCount || 0;
+          let actualReplyCount = microblog.replyCount || 0;
+
+          // Get actual like count from microblog_likes table
+          if (storage.getMicroblogLikeCount) {
+            try {
+              actualLikeCount = await storage.getMicroblogLikeCount(microblog.id);
+            } catch {
+              // Fall back to cached count
+            }
+          }
+
+          // Get actual reply count from microblogs table (posts with parentId = this microblog)
+          if (storage.getMicroblogReplies) {
             try {
               const replies = await storage.getMicroblogReplies(microblog.id);
-              replyCount = replies?.length || 0;
+              actualReplyCount = replies?.length || 0;
             } catch {
-              // Ignore errors getting reply count
+              // Fall back to cached count
             }
           }
 
           return {
             ...microblog,
-            likeCount: microblog.likeCount || 0,
-            replyCount,
-            commentCount: replyCount, // Alias for frontend compatibility
+            likeCount: actualLikeCount,
+            replyCount: actualReplyCount,
+            commentCount: actualReplyCount, // Alias for frontend compatibility
             author: author ? {
               id: author.id,
               username: author.username,
@@ -681,14 +693,36 @@ export function createMicroblogsRouter(storage = defaultStorage) {
   router.get('/microblogs/:id/comments', async (req, res) => {
     try {
       const microblogId = parseInt(req.params.id);
+      const userId = getSessionUserId(req);
+
+      // Get microblog replies (microblogs with parentId = this microblog)
+      let replies: any[] = [];
+      if (storage.getMicroblogReplies) {
+        replies = await storage.getMicroblogReplies(microblogId);
+      }
+
+      // Also get regular comments (from comments table) as fallback
       const comments = await storage.getCommentsByPostId(microblogId);
 
-      // Enrich comments with author data
+      // Combine and enrich both sources
+      const allResponses = [...replies, ...comments];
+
+      // Enrich with author data
       const enrichedComments = await Promise.all(
-        comments.map(async (comment: any) => {
-          const author = await storage.getUser(comment.authorId);
+        allResponses.map(async (item: any) => {
+          const author = await storage.getUser(item.authorId);
+
+          // Get like count for replies
+          let likeCount = item.likeCount || 0;
+          if (storage.getMicroblogLikeCount && item.parentId !== undefined) {
+            try {
+              likeCount = await storage.getMicroblogLikeCount(item.id);
+            } catch {}
+          }
+
           return {
-            ...comment,
+            ...item,
+            likeCount,
             author: author ? {
               id: author.id,
               username: author.username,
@@ -696,7 +730,7 @@ export function createMicroblogsRouter(storage = defaultStorage) {
               avatarUrl: author.avatarUrl,
               profileImageUrl: author.avatarUrl,
             } : {
-              id: comment.authorId,
+              id: item.authorId,
               username: 'deleted',
               displayName: 'Deleted User',
               avatarUrl: null,
@@ -704,6 +738,11 @@ export function createMicroblogsRouter(storage = defaultStorage) {
             },
           };
         })
+      );
+
+      // Sort by creation date (oldest first for conversation flow)
+      enrichedComments.sort((a: any, b: any) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
 
       res.json(enrichedComments);
