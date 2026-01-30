@@ -84,7 +84,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.1",
     "@aws-sdk/client-ses": "^3.974.0",
-    "@capacitor/cli": "^7.4.5",
+    "@capacitor/cli": "^8.0.2",
     "@capacitor/core": "^7.4.5",
     "@expo/dev-server": "^0.5.5",
     "@google-cloud/storage": "^7.18.0",
