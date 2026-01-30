@@ -1,5 +1,5 @@
 packages:
-  - mobile-app/*
+  - mobile-app/TheConnectionMobile-new
   - packages/*
   - client
   - server
