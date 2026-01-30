@@ -3,26 +3,30 @@ import { useState } from "react";
 import {
   BarChart,
   Users,
-  Video,
   Book,
   ChevronDown,
   ChevronRight,
   Laptop,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Shield,
+  GraduationCap,
+  BookOpen
 } from "lucide-react";
-import { 
+import {
   Collapsible,
-  CollapsibleContent, 
-  CollapsibleTrigger 
+  CollapsibleContent,
+  CollapsibleTrigger
 } from "../ui/collapsible";
 import { cn } from "../../lib/utils";
 
 export function AdminNav() {
   const [location] = useLocation();
-  const [menuOpen, setMenuOpen] = useState(true);
+  const [applicationsOpen, setApplicationsOpen] = useState(true);
+  const [usersOpen, setUsersOpen] = useState(true);
+  const [apologeticsOpen, setApologeticsOpen] = useState(true);
 
-  // Navigation items for admin
+  // Navigation items for admin - updated to match actual features
   const navItems = [
     {
       title: "Dashboard",
@@ -30,19 +34,16 @@ export function AdminNav() {
       icon: <BarChart className="h-4 w-4 mr-2" />,
     },
     {
-      title: "Analytics",
-      href: "/admin/application-stats",
-      icon: <ShieldCheck className="h-4 w-4 mr-2" />,
+      title: "Content Moderation",
+      href: "/admin/moderation",
+      icon: <Shield className="h-4 w-4 mr-2" />,
     },
     {
       title: "Applications",
-      icon: <Users className="h-4 w-4 mr-2" />,
+      icon: <GraduationCap className="h-4 w-4 mr-2" />,
+      openState: applicationsOpen,
+      setOpenState: setApplicationsOpen,
       children: [
-        {
-          title: "Livestreamer",
-          href: "/admin/livestreamer-applications",
-          icon: <Video className="h-4 w-4 mr-2" />,
-        },
         {
           title: "Apologist Scholar",
           href: "/admin/apologist-scholar-applications",
@@ -53,6 +54,8 @@ export function AdminNav() {
     {
       title: "Users",
       icon: <Users className="h-4 w-4 mr-2" />,
+      openState: usersOpen,
+      setOpenState: setUsersOpen,
       children: [
         {
           title: "Directory",
@@ -68,7 +71,9 @@ export function AdminNav() {
     },
     {
       title: "Apologetics",
-      icon: <Book className="h-4 w-4 mr-2" />,
+      icon: <BookOpen className="h-4 w-4 mr-2" />,
+      openState: apologeticsOpen,
+      setOpenState: setApologeticsOpen,
       children: [
         {
           title: "Resources",
@@ -101,17 +106,19 @@ export function AdminNav() {
           {navItems.map((item, index) => {
             // For items with children (submenus)
             if (item.children) {
+              const isOpen = item.openState;
+              const setOpen = item.setOpenState;
               return (
                 <li key={index}>
                   <Collapsible
-                    open={menuOpen}
-                    onOpenChange={setMenuOpen}
+                    open={isOpen}
+                    onOpenChange={setOpen}
                     className="w-full"
                   >
                     <CollapsibleTrigger className="flex items-center w-full p-2 hover:bg-accent rounded-md text-sm font-medium">
                       {item.icon}
                       <span className="flex-1 text-left">{item.title}</span>
-                      {menuOpen ? (
+                      {isOpen ? (
                         <ChevronDown className="h-4 w-4" />
                       ) : (
                         <ChevronRight className="h-4 w-4" />
@@ -142,7 +149,7 @@ export function AdminNav() {
             // For regular menu items without children
             return (
               <li key={index}>
-                <Link href={item.href}>
+                <Link href={item.href!}>
                   <div className={cn(
                     "flex items-center p-2 hover:bg-accent rounded-md text-sm cursor-pointer",
                     item.className,

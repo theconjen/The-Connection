@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Loader2, Users, Video, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap, BookOpen, Shield } from 'lucide-react';
+import { Loader2, Users, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap, BookOpen, Shield } from 'lucide-react';
 import AdminLayout from '../../components/layouts/admin-layout';
 import { apiUrl } from '../../lib/env';
 
@@ -23,20 +23,8 @@ interface ApplicationStats {
 }
 
 export default function AdminDashboard() {
-  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
-  // Query to fetch pending livestreamer applications count
-  const { data: pendingApplications = [], isLoading: isLoadingApplications } = useQuery<ApplicationSummary[]>({
-    queryKey: ['/api/admin/applications/livestreamer'],
-    retry: false,
-    enabled: !!(isAuthenticated && user?.isAdmin),
-    queryFn: async () => {
-      const res = await fetch(apiUrl('/api/admin/applications/livestreamer'));
-      if (!res.ok) throw new Error('Failed to fetch livestreamer applications');
-      return res.json();
-    }
-  });
-  
   // Query to fetch apologist scholar applications count
   const { data: pendingApologistApplications = [], isLoading: isLoadingApologistApplications } = useQuery<ApplicationSummary[]>({
     queryKey: ['/api/admin/apologist-scholar-applications'],
@@ -45,18 +33,6 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const res = await fetch(apiUrl('/api/admin/apologist-scholar-applications'));
       if (!res.ok) throw new Error('Failed to fetch apologist scholar applications');
-      return res.json();
-    }
-  });
-
-  // Query to fetch application stats
-  const { data: applicationStats, isLoading: isLoadingStats } = useQuery<ApplicationStats>({
-    queryKey: ['/api/admin/livestreamer-applications/stats'],
-    retry: false,
-    enabled: !!(isAuthenticated && user?.isAdmin),
-    queryFn: async () => {
-      const res = await fetch(apiUrl('/api/admin/livestreamer-applications/stats'));
-      if (!res.ok) throw new Error('Failed to fetch application stats');
       return res.json();
     }
   });
@@ -73,13 +49,16 @@ export default function AdminDashboard() {
     }
   });
 
-  // AdminLayout already handles authentication and redirect checks
-
-  // Count pending applications
-  const pendingCount = pendingApplications.filter(app => app.status === 'pending').length;
-  
   // Count pending apologist scholar applications
-  const pendingApologistCount = pendingApologistApplications.filter(app => app.status === 'pending').length;
+  const pendingApologistCount = Array.isArray(pendingApologistApplications)
+    ? pendingApologistApplications.filter(app => app.status === 'pending').length
+    : 0;
+
+  // Total applications count
+  const totalApologistCount = Array.isArray(pendingApologistApplications) ? pendingApologistApplications.length : 0;
+  const approvedApologistCount = Array.isArray(pendingApologistApplications)
+    ? pendingApologistApplications.filter(app => app.status === 'approved').length
+    : 0;
 
   return (
     <AdminLayout>
@@ -95,10 +74,10 @@ export default function AdminDashboard() {
             <div>
               <p className="text-sm font-medium text-gray-500">Total Applications</p>
               <p className="text-2xl font-bold">
-                {isLoadingStats ? (
+                {isLoadingApologistApplications ? (
                   <Loader2 className="mt-1 h-4 w-4 animate-spin text-primary" />
                 ) : (
-                  applicationStats?.total || 0
+                  totalApologistCount
                 )}
               </p>
             </div>
@@ -113,10 +92,10 @@ export default function AdminDashboard() {
             <div>
               <p className="text-sm font-medium text-gray-500">Pending Review</p>
               <p className="text-2xl font-bold">
-                {isLoadingStats ? (
+                {isLoadingApologistApplications ? (
                   <Loader2 className="mt-1 h-4 w-4 animate-spin text-primary" />
                 ) : (
-                  applicationStats?.pending || 0
+                  pendingApologistCount
                 )}
               </p>
             </div>
@@ -131,10 +110,10 @@ export default function AdminDashboard() {
             <div>
               <p className="text-sm font-medium text-gray-500">Approved</p>
               <p className="text-2xl font-bold">
-                {isLoadingStats ? (
+                {isLoadingApologistApplications ? (
                   <Loader2 className="mt-1 h-4 w-4 animate-spin text-primary" />
                 ) : (
-                  applicationStats?.approved || 0
+                  approvedApologistCount
                 )}
               </p>
             </div>
@@ -147,65 +126,23 @@ export default function AdminDashboard() {
         <div className="rounded-lg bg-white p-4 shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500">Reviewed Today</p>
+              <p className="text-sm font-medium text-gray-500">Pending Reports</p>
               <p className="text-2xl font-bold">
-                {isLoadingStats ? (
+                {isLoadingReports ? (
                   <Loader2 className="mt-1 h-4 w-4 animate-spin text-primary" />
                 ) : (
-                  applicationStats?.reviewedToday || 0
+                  moderationReports.length
                 )}
               </p>
             </div>
             <div className="rounded-full bg-purple-100 p-2 text-purple-600">
-              <BarChart4 className="h-5 w-5" />
+              <Shield className="h-5 w-5" />
             </div>
           </div>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Livestreamer Applications Card */}
-        <Card className="flex flex-col">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">Livestreamer Applications</CardTitle>
-              <Video className="h-5 w-5 text-primary" />
-            </div>
-            <CardDescription>Review and manage livestreamer applications</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Pending Applications</p>
-                {isLoadingApplications ? (
-                  <Loader2 className="mt-1 h-4 w-4 animate-spin text-primary" />
-                ) : (
-                  <div className="flex items-center">
-                    <span className="text-2xl font-bold">{pendingCount}</span>
-                    {pendingCount > 0 && (
-                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-                        Needs Attention
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {pendingCount > 0 ? (
-                  <AlertCircle className="h-5 w-5 text-amber-500" />
-                ) : (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                )}
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="mt-auto">
-            <Button asChild className="w-full">
-              <Link href="/admin/livestreamer-applications">Manage Applications</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-        
         {/* Apologist Scholar Applications Card */}
         <Card className="flex flex-col">
           <CardHeader>
@@ -285,28 +222,7 @@ export default function AdminDashboard() {
           </CardContent>
           <CardFooter className="mt-auto">
             <Button asChild className="w-full" variant={moderationReports.length > 0 ? "default" : "outline"}>
-              <Link href="/admin/AdminModerationPage">Review Reports</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-
-        {/* Application Statistics Card */}
-        <Card className="flex flex-col">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">Application Statistics</CardTitle>
-              <BarChart4 className="h-5 w-5 text-primary" />
-            </div>
-            <CardDescription>View detailed insights and analytics</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-500">
-              Track application trends, approval rates, and processing metrics with interactive charts and visualizations.
-            </p>
-          </CardContent>
-          <CardFooter className="mt-auto">
-            <Button asChild className="w-full" variant="outline">
-              <Link href="/admin/application-stats">View Statistics</Link>
+              <Link href="/admin/moderation">Review Reports</Link>
             </Button>
           </CardFooter>
         </Card>

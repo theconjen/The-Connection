@@ -55,6 +55,9 @@ const AdminDashboard = lazy(() => import("./pages/admin"));
 const AdminUserManagement = lazy(() => import("./pages/admin/user-management"));
 const AdminAdminUsers = lazy(() => import("./pages/admin/admin-users"));
 const AdminPlatformSettings = lazy(() => import("./pages/admin/platform-settings"));
+const AdminModeration = lazy(() => import("./pages/admin/AdminModerationPage"));
+const AdminApologistApplications = lazy(() => import("./pages/admin/apologist-scholar-applications"));
+const AdminApologeticsResources = lazy(() => import("./pages/admin/apologetics-resources"));
 
 // Public preview pages (no auth required)
 const ApologeticsPreviewPage = lazy(() => import("./pages/public/apologetics-preview-page"));
@@ -160,6 +163,9 @@ function App() {
             <Route path="/admin/users" component={AdminUserManagement} />
             <Route path="/admin/admin-users" component={AdminAdminUsers} />
             <Route path="/admin/settings" component={AdminPlatformSettings} />
+            <Route path="/admin/moderation" component={AdminModeration} />
+            <Route path="/admin/apologist-scholar-applications" component={AdminApologistApplications} />
+            <Route path="/admin/apologetics-resources" component={AdminApologeticsResources} />
 
             <Route component={NotFound} />
           </Switch>
