@@ -1,0 +1,57 @@
+# Dependencies (installed fresh in container)
+node_modules
+**/node_modules
+
+# Build outputs (rebuilt in container)
+dist
+dist-server
+.next
+.turbo
+
+# Development files
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Testing
+coverage
+.nyc_output
+*.test.ts
+*.spec.ts
+__tests__
+tests
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Mobile app (not needed for server)
+mobile-app
+ios
+android
+*.xcworkspace
+*.xcodeproj
+Pods
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local development
+.cache
+tmp
+temp
