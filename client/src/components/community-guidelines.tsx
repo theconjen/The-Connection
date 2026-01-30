@@ -44,7 +44,7 @@ export default function CommunityGuidelines() {
           ))}
         </ul>
         <div className="mt-4">
-          <Link href="/guidelines"
+          <Link href="/terms"
             className="text-primary text-sm font-medium hover:text-primary/80">
             Read Full Guidelines
           </Link>

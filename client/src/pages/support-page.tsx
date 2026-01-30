@@ -206,9 +206,7 @@ export default function SupportPage() {
                       Understand the expectations that keep our community compassionate, respectful, and Christ-centered.
                     </p>
                     <a
-                      href="/community-guidelines"
-                      target="_blank"
-                      rel="noopener"
+                      href="/terms"
                       className="text-sm font-medium text-primary hover:underline"
                     >
                       Review Community Guidelines
