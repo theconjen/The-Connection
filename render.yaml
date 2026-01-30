@@ -1,13 +1,18 @@
 services:
   - type: web
-    runtime: docker
+    runtime: node
     name: the-connection-api
     plan: starter
     region: ohio
     autoDeploy: true
     repo: https://github.com/theconjen/The-Connection
     branch: main
-    dockerfilePath: ./Dockerfile.prod
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      bash scripts/render-build.sh
+    startCommand: >-
+      bash -lc "if [ ! -f dist-server/index.cjs ]; then pnpm run build:server; fi; node dist-server/index.cjs"
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
