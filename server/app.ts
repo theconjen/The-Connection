@@ -27,56 +27,78 @@ const secureCookie = sameSite === 'none' ? true : isProduction;
 app.use(makeCors());
 
 // Add secure HTTP headers with Helmet
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
-        imgSrc: ["'self'", "data:", "https:", "blob:"],
-        connectSrc: ["'self'", "https:", "wss:"],
-        fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
-        frameSrc: ["'none'"],
+// Disable CSP and other strict headers in development for Safari compatibility
+if (isProduction) {
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+          imgSrc: ["'self'", "data:", "https:", "blob:"],
+          connectSrc: ["'self'", "https:", "wss:"],
+          fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+        },
       },
-    },
-    crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-  })
-);
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    })
+  );
+} else {
+  // Minimal helmet in development - no CSP, no HSTS
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      hsts: false,
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: false,
+    })
+  );
+}
 
-// Add HSTS and Referrer Policy in production
+// Add HSTS and Referrer Policy in production only
+// HSTS in development causes Safari to force HTTPS on localhost
 if (isProduction) {
   app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true }));
   app.use(helmet.referrerPolicy({ policy: 'no-referrer-when-downgrade' }));
+} else {
+  // Explicitly disable HSTS in development
+  app.use((_req, res, next) => {
+    res.removeHeader('Strict-Transport-Security');
+    next();
+  });
 }
 
 // Apply a basic rate limiter to prevent brute-force and DDoS attacks
 // Higher limit in development to support rapid mobile app testing
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isProduction ? 100 : 1000, // 100 in prod, 1000 in dev
+  max: isProduction ? 100 : 10000, // 100 in prod, 10000 in dev
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.path === '/health' || req.path === '/api/health',
 });
-// Apply limiter only for /api and skip in test env
-if (process.env.NODE_ENV !== 'test') {
+// Apply limiter only for /api and skip in test/dev env
+if (process.env.NODE_ENV === 'production') {
   app.use('/api/', limiter);
 }
 
-// Stricter rate limiter for auth endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // allow fewer attempts for auth routes
-  message: 'Too many authentication attempts from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api/auth/', authLimiter);
+// Stricter rate limiter for auth endpoints (production only)
+if (isProduction) {
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // allow fewer attempts for auth routes
+    message: 'Too many authentication attempts from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use('/api/auth/', authLimiter);
+}
 
 // Parse cookies before sessions (needed for CSRF tokens)
 app.use(cookieParser());

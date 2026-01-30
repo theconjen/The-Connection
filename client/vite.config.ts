@@ -1,5 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import legacy from "@vitejs/plugin-legacy";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import path from "path";
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -13,17 +15,37 @@ import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      jsxRuntime: 'automatic',
+      babel: {
+        plugins: [],
+        babelrc: false,
+        configFile: false,
+      }
+    }),
+    legacy({
+      targets: ['safari >= 12', 'chrome >= 80', 'firefox >= 78'],
+      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
+      renderLegacyChunks: true,
+      modernPolyfills: true,
+    }),
+    basicSsl(),
+  ],
   server: {
-  allowedHosts: ['narthecal-doughy-nicholas.ngrok-free.dev'],
+    https: true,
+    port: 5173,
+    allowedHosts: ['narthecal-doughy-nicholas.ngrok-free.dev'],
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
+        secure: false,
       },
       '/socket.io': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:5001',
         ws: true,
+        secure: false,
       },
     },
   },
@@ -37,15 +59,41 @@ export default defineConfig({
       // Force lucide-react to its ESM bundle to avoid package entry resolution issues
       ...(lucideResolved ? { 'lucide-react': lucideResolved } : {}),
     },
+    dedupe: ['react', 'react-dom'],
   },
   optimizeDeps: {
     include: [
-      'lucide-react'
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'lucide-react',
+      'zod',
+      'zod/v4',
+      '@tanstack/react-query',
+      'wouter',
+      'clsx',
+      'tailwind-merge',
+      '@sentry/react',
+      'react-hook-form',
+      '@hookform/resolvers/zod',
+      'date-fns',
+      'drizzle-orm',
+      'drizzle-zod'
     ],
+    esbuildOptions: {
+      target: ['es2019', 'safari12'],
+    },
+    force: true,
+  },
+  esbuild: {
+    target: ['es2019', 'safari12'],
   },
   ssr: {
     noExternal: [
-      'lucide-react'
+      'lucide-react',
+      'drizzle-orm',
+      'drizzle-zod'
     ],
   },
   css: {

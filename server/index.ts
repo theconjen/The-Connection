@@ -40,45 +40,61 @@ async function bootstrap() {
 
   app.use(makeCors());
 
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-          styleSrc: [
-            "'self'",
-            "'unsafe-inline'",
-            "https://fonts.googleapis.com",
-            "https://cdnjs.cloudflare.com"
-          ],
-          imgSrc: ["'self'", "data:", "https:", "blob:"],
-          connectSrc: ["'self'", "https:", "wss:"],
-          fontSrc: [
-            "'self'",
-            "data:",
-            "https://fonts.gstatic.com",
-            "https://cdnjs.cloudflare.com"
-          ],
-          objectSrc: ["'none'"],
-          mediaSrc: ["'self'"],
-          frameSrc: ["'none'"],
+  // Only apply strict CSP in production - Safari has issues with upgrade-insecure-requests in dev
+  if (isProduction) {
+    app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            styleSrc: [
+              "'self'",
+              "'unsafe-inline'",
+              "https://fonts.googleapis.com",
+              "https://cdnjs.cloudflare.com"
+            ],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            connectSrc: ["'self'", "https:", "wss:"],
+            fontSrc: [
+              "'self'",
+              "data:",
+              "https://fonts.gstatic.com",
+              "https://cdnjs.cloudflare.com"
+            ],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'"],
+            frameSrc: ["'none'"],
+          },
         },
-      },
-      crossOriginEmbedderPolicy: false,
-      crossOriginResourcePolicy: { policy: "cross-origin" },
-    })
-  );
+        crossOriginEmbedderPolicy: false,
+        crossOriginResourcePolicy: { policy: "cross-origin" },
+      })
+    );
+  } else {
+    // Minimal security headers in development - no CSP that breaks Safari
+    app.use(
+      helmet({
+        contentSecurityPolicy: false,
+        hsts: false,
+        crossOriginEmbedderPolicy: false,
+        crossOriginResourcePolicy: false,
+      })
+    );
+  }
 
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: "Too many requests from this IP, please try again later.",
-    standardHeaders: true,
-    legacyHeaders: false,
-    skip: (req) => req.path === '/health' || req.path === '/api/health',
-  });
-  app.use(limiter);
+  // Rate limiting - only in production
+  if (isProduction) {
+    const limiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 100,
+      message: "Too many requests from this IP, please try again later.",
+      standardHeaders: true,
+      legacyHeaders: false,
+      skip: (req) => req.path === '/health' || req.path === '/api/health',
+    });
+    app.use(limiter);
+  }
 
   app.use(cookieParser());
 

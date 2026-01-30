@@ -2,6 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Safari compatibility polyfills -->
+    <script>
+      // Polyfill for globalThis (Safari 12.0-12.1)
+      if (typeof globalThis === 'undefined') {
+        Object.defineProperty(window, 'globalThis', { value: window, writable: true, configurable: true });
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>The Connection - Your Christian Community Platform</title>
     <meta name="description" content="The Connection is a Christian community platform focused on spiritual growth, apologetics, and Bible study groups. Join discussions, access resources, and connect with other believers." />
@@ -17,7 +24,39 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="root">
+      <div id="loading-fallback" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, sans-serif;">
+        <div style="text-align: center;">
+          <div id="loading-spinner" style="width: 40px; height: 40px; border: 3px solid #eee; border-top: 3px solid #333; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+          <p id="loading-text">Loading The Connection...</p>
+        </div>
+      </div>
+    </div>
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    <script>
+      // Debug: Log when script starts
+      console.log('[DEBUG] Inline script executing');
+      document.getElementById('loading-text').textContent = 'Loading scripts...';
+
+      // Error handler for module loading
+      window.onerror = function(msg, url, line, col, error) {
+        console.error('[DEBUG] Global error:', msg, url, line, col, error);
+        var loadingText = document.getElementById('loading-text');
+        if (loadingText) {
+          loadingText.textContent = 'Error: ' + msg;
+          loadingText.style.color = 'red';
+        }
+        return false;
+      };
+    </script>
+    <script type="module" src="/src/main.tsx" onerror="document.getElementById('loading-text').textContent='Module load error'; document.getElementById('loading-text').style.color='red';"></script>
+    <script type="module">
+      console.log('[DEBUG] Module script loaded successfully');
+      document.getElementById('loading-text').textContent = 'React initializing...';
+    </script>
+    <script nomodule>
+      document.getElementById('loading-text').textContent = 'Your browser does not support ES modules. Please update Safari.';
+      document.getElementById('loading-text').style.color = 'red';
+    </script>
   </body>
 </html>
