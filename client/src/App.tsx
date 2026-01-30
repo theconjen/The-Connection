@@ -21,6 +21,7 @@ const EventDetailPage = lazy(() => import("./pages/event-detail-page"));
 const EventEditPage = lazy(() => import("./pages/event-edit-page"));
 const ApologeticsPage = lazy(() => import("./pages/apologetics-page"));
 const ApologeticsDetail = lazy(() => import("./pages/apologetics-detail"));
+const ApologistScholarApplication = lazy(() => import("./pages/apologist-scholar-application-page"));
 
 // Advice/Microblogs (Global Community section)
 const MicroblogsPage = lazy(() => import("./pages/microblogs-page"));
@@ -59,6 +60,7 @@ const AdminPlatformSettings = lazy(() => import("./pages/admin/platform-settings
 const AdminModeration = lazy(() => import("./pages/admin/AdminModerationPage"));
 const AdminApologistApplications = lazy(() => import("./pages/admin/apologist-scholar-applications"));
 const AdminApologeticsResources = lazy(() => import("./pages/admin/apologetics-resources"));
+const AdminAnalytics = lazy(() => import("./pages/admin/analytics"));
 
 // Public preview pages (no auth required)
 const ApologeticsPreviewPage = lazy(() => import("./pages/public/apologetics-preview-page"));
@@ -124,6 +126,7 @@ function App() {
             <Route path="/events/:id/edit" component={EventEditPage} />
             <Route path="/events/:id" component={EventDetailPage} />
             <Route path="/apologetics" component={ApologeticsPage} />
+            <Route path="/apologetics/apply" component={ApologistScholarApplication} />
             <Route path="/apologetics/:id" component={ApologeticsDetail} />
 
             {/* Advice/Microblogs (Global Community) */}
@@ -165,6 +168,7 @@ function App() {
             <Route path="/admin/users" component={AdminUserManagement} />
             <Route path="/admin/admin-users" component={AdminAdminUsers} />
             <Route path="/admin/settings" component={AdminPlatformSettings} />
+            <Route path="/admin/analytics" component={AdminAnalytics} />
             <Route path="/admin/moderation" component={AdminModeration} />
             <Route path="/admin/apologist-scholar-applications" component={AdminApologistApplications} />
             <Route path="/admin/apologetics-resources" component={AdminApologeticsResources} />

@@ -221,17 +221,27 @@ export default function ApologeticsPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Inbox Access Button (for apologists) */}
-        {hasInboxAccess && (
-          <div className="mb-6">
+        {/* Action Buttons */}
+        <div className="mb-6 flex flex-wrap gap-3">
+          {/* Inbox Access Button (for apologists) */}
+          {hasInboxAccess && (
             <Button asChild variant="outline" size="sm">
               <Link href="/questions/inbox">
                 <Inbox className="mr-2 h-4 w-4" />
                 Apologetics Inbox
               </Link>
             </Button>
-          </div>
-        )}
+          )}
+          {/* Become a Scholar Application Link */}
+          {!hasInboxAccess && (
+            <Button asChild variant="secondary" size="sm">
+              <Link href="/apologetics/apply">
+                <Users className="mr-2 h-4 w-4" />
+                Become a Scholar
+              </Link>
+            </Button>
+          )}
+        </div>
 
         {/* Search */}
         <div className="mb-6">

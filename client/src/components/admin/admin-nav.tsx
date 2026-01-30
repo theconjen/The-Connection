@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   Shield,
   GraduationCap,
-  BookOpen
+  BookOpen,
+  TrendingUp
 } from "lucide-react";
 import {
   Collapsible,
@@ -32,6 +33,11 @@ export function AdminNav() {
       title: "Dashboard",
       href: "/admin",
       icon: <BarChart className="h-4 w-4 mr-2" />,
+    },
+    {
+      title: "Analytics",
+      href: "/admin/analytics",
+      icon: <TrendingUp className="h-4 w-4 mr-2" />,
     },
     {
       title: "Content Moderation",
