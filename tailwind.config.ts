@@ -61,7 +61,25 @@ export default {
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         
-        // Direct access to TC logo color palette
+        // Earth-forward color palette
+        sage: {
+          DEFAULT: "#5C6B5E",
+          light: "#7C8F78",
+          dark: "#4A574C",
+        },
+        terracotta: {
+          DEFAULT: "#B56A55",
+          light: "#C98570",
+          dark: "#9A5543",
+        },
+        gold: {
+          DEFAULT: "#C7A45B",
+          light: "#D4B87A",
+          dark: "#A88A47",
+        },
+        warmPaper: "#F3EFE9",
+
+        // Legacy TC colors (keeping for backwards compatibility)
         neutralGray: "#8E8E93",
         deepCharcoal: "#1C1C1E",
         softWhite: "#F2F2F7",

@@ -1,33 +1,16 @@
 import { Link } from "wouter";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
-import WelcomeBanner from "../components/welcome-banner";
 import PersonalizedFeed from "../components/PersonalizedFeed";
 import { useMediaQuery } from "../hooks/use-media-query";
-import { 
-  MessageCircle, 
-  BookOpen, 
-  Users, 
-  FileHeart, 
-  Tv, 
-  Calendar, 
-  Sparkles, 
-  Lightbulb, 
+import {
+  Users,
+  Calendar,
+  BookOpen,
   MessageSquare,
-  Briefcase,
-  Activity,
-  GraduationCap,
-  Palette,
-  TrendingUp,
-  Heart,
-  Plus,
-  Globe
+  Heart
 } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
-import { FriendsSection } from "../components/FriendsSection";
-import MobileModernButton from "../components/mobile-modern-button";
-import TouchFeedback from "../components/mobile-touch-feedback";
 
 interface FeatureCardProps {
   title: string;
@@ -63,188 +46,68 @@ interface HomePageProps {
 export default function HomePage({ isGuest = false }: HomePageProps) {
   const { user } = useAuth() as AuthContextType;
   const isMobile = useMediaQuery("(max-width: 768px)");
-  
+
+  // Simplified feature cards matching mobile tabs
   const featuredApps = [
-    {
-      title: "Feed",
-      description: "Explore posts and discussions from the community on topics of faith and spiritual growth.",
-      icon: <MessageCircle className="h-6 w-6 text-blue-600" />,
-      path: "/microblogs",
-      color: "bg-blue-500"
-    },
     {
       title: "Communities",
       description: "Connect with other believers in specialized communities for encouragement and discussion.",
-      icon: <Users className="h-6 w-6 text-purple-600" />,
+      icon: <Users className="h-6 w-6 text-[#7C6B78]" />,
       path: "/communities",
-      color: "bg-purple-500"
+      color: "bg-[#7C6B78]"
     },
-    // {
-    //   title: "Bible Study",
-    //   description: "Dive into God's Word with Bible study plans, devotionals, and reading tools.",
-    //   icon: <BookOpen className="h-6 w-6 text-green-600" />,
-    //   path: "/bible-study",
-    //   color: "bg-green-500"
-    // }, // Hidden for MVP
     {
-      title: "Prayer Requests",
-      description: "Share your prayer needs or pray for others in our supportive prayer community.",
-      icon: <Sparkles className="h-6 w-6 text-red-600" />,
-      path: "/prayer-requests",
-      color: "bg-red-500"
+      title: "Events",
+      description: "Discover upcoming in-person and virtual events to connect with the Christian community.",
+      icon: <Calendar className="h-6 w-6 text-[#B56A55]" />,
+      path: "/events",
+      color: "bg-[#B56A55]"
     },
     {
       title: "Apologetics",
       description: "Discover resources to help you understand and defend your faith with confidence.",
-      icon: <Lightbulb className="h-6 w-6 text-amber-600" />,
+      icon: <BookOpen className="h-6 w-6 text-[#5C6B5E]" />,
       path: "/apologetics",
-      color: "bg-amber-500"
-    },
-    // {
-    //   title: "Livestreams",
-    //   description: "Watch live services, teachings, and special events from Christian speakers and churches.",
-    //   icon: <Tv className="h-6 w-6 text-sky-600" />,
-    //   path: "/livestreams",
-    //   color: "bg-sky-500"
-    // }, // Hidden for MVP
-    {
-      title: "Events",
-      description: "Discover upcoming in-person and virtual events to connect with the Christian community.",
-      icon: <Calendar className="h-6 w-6 text-indigo-600" />,
-      path: "/events",
-      color: "bg-indigo-500"
+      color: "bg-[#5C6B5E]"
     },
     {
-      title: "Forums",
-      description: "Discover and engage with discussions, ask questions, and share insights with the Christian community.",
-      icon: <FileHeart className="h-6 w-6 text-orange-600" />,
-      path: "/forums",
-      color: "bg-orange-500"
+      title: "Prayer Requests",
+      description: "Share your prayer needs or pray for others in our supportive prayer community.",
+      icon: <Heart className="h-6 w-6 text-pink-600" />,
+      path: "/prayer-requests",
+      color: "bg-pink-500"
     },
-
+    {
+      title: "Advice",
+      description: "Ask questions and get thoughtful advice from the community on matters of faith and life.",
+      icon: <MessageSquare className="h-6 w-6 text-[#C7A45B]" />,
+      path: "/advice",
+      color: "bg-[#C7A45B]"
+    },
   ];
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl">
+    <div className="container mx-auto px-4 py-6 max-w-3xl">
       {user ? (
-        // Social Media Style Layout for Authenticated Users
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Left Sidebar - Quick Actions & Navigation */}
-          <div className="lg:w-80 space-y-4">
-            {/* Welcome Card */}
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-purple-500 flex items-center justify-center text-white font-bold">
-                    {user.username?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Welcome back!</h3>
-                    <p className="text-sm text-muted-foreground">@{user.username}</p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Link href="/submit-post">
-                  <Button className="w-full" size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Share Something
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader>
-                <h4 className="font-semibold flex items-center">
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Your Activity
-                </h4>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span>Posts this week</span>
-                  <Badge variant="secondary">3</Badge>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Prayer requests</span>
-                  <Badge variant="secondary">2</Badge>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Communities joined</span>
-                  <Badge variant="secondary">5</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Navigation */}
-            <Card>
-              <CardHeader>
-                <h4 className="font-semibold flex items-center">
-                  <Globe className="h-4 w-4 mr-2" />
-                  Explore More
-                </h4>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {featuredApps.slice(0, 6).map((app, index) => (
-                  <Link key={index} href={app.path}>
-                    <Button variant="ghost" className="w-full justify-start h-auto p-2">
-                      {app.icon}
-                      <span className="ml-2 text-sm">{app.title}</span>
-                    </Button>
-                  </Link>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Content - Personalized Feed */}
-          <div className="flex-1 max-w-2xl">
-            <PersonalizedFeed limit={15} />
-          </div>
-
-          {/* Right Sidebar - Friends & Recommendations */}
-          <div className="lg:w-80 space-y-4">
-            <FriendsSection />
-            
-            {/* Trending Topics */}
-            <Card>
-              <CardHeader>
-                <h4 className="font-semibold flex items-center">
-                  <Heart className="h-4 w-4 mr-2" />
-                  Trending in Faith
-                </h4>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {['#PrayerRequest', '#BibleStudy', '#Worship', '#Community', '#Faith'].map((tag) => (
-                  <div key={tag} className="flex items-center justify-between">
-                    <span className="text-sm text-primary cursor-pointer hover:underline">{tag}</span>
-                    <Badge variant="outline" className="text-xs">234</Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
+        // Clean, mobile-like layout for authenticated users
+        <div className="space-y-6">
+          {/* Personalized Feed with 3 sections matching mobile */}
+          <PersonalizedFeed limit={15} />
         </div>
       ) : (
         // Guest User Experience
         <div className="flex flex-col min-h-[calc(100vh-4rem)]">
           {/* Hero Section */}
-          <div className="mb-10">
-            <WelcomeBanner className="mb-6" />
-            
-            <div className="max-w-2xl mx-auto text-center mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold mb-3">Welcome to The Connection</h1>
-              <p className="text-lg text-muted-foreground">A community where faith grows through meaningful connections.</p>
-            </div>
+          <div className="mb-10 text-center">
+            <h1 className="text-3xl md:text-4xl font-bold mb-3">Welcome to The Connection</h1>
+            <p className="text-lg text-muted-foreground">A community where faith grows through meaningful connections.</p>
           </div>
-          
+
           {/* Feature Grid for Guests */}
           <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 text-center">Explore What We Offer</h2>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
+            <h2 className="text-xl font-semibold mb-6 text-center">Explore What We Offer</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
               {featuredApps.map((app, index) => (
                 <FeatureCard
                   key={index}
@@ -259,11 +122,13 @@ export default function HomePage({ isGuest = false }: HomePageProps) {
           </div>
 
           {/* Call to Action */}
-          <div className="mt-6 p-8 rounded-xl bg-gradient-to-r from-primary/10 to-purple-500/10 text-center shadow-sm">
+          <div className="mt-6 p-8 rounded-xl bg-gradient-to-r from-[#5C6B5E]/10 to-[#B56A55]/10 text-center shadow-sm">
             <h3 className="text-2xl font-semibold mb-3">Join Our Community</h3>
-            <p className="mb-6 text-lg max-w-xl mx-auto">Connect with fellow believers, access all features, and start your journey with us today.</p>
+            <p className="mb-6 text-lg max-w-xl mx-auto text-muted-foreground">
+              Connect with fellow believers, access all features, and start your journey with us today.
+            </p>
             <Link href="/auth" className="inline-block">
-              <Button size="lg" className="btn-gradient font-medium text-base px-8 py-6 shadow-md active-scale touch-target">
+              <Button size="lg" className="font-medium text-base px-8 py-6 shadow-md bg-[#5C6B5E] hover:bg-[#4A574C] text-white">
                 Sign Up Now
               </Button>
             </Link>

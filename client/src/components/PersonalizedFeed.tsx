@@ -214,9 +214,9 @@ export default function PersonalizedFeed({ className = "", limit = 10 }: Persona
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-pink-500" />
-              <h2 className="text-lg font-semibold">Community Advice</h2>
+              <h2 className="text-lg font-semibold">Global Community</h2>
             </div>
-            <Link href="/microblogs?topic=QUESTION">
+            <Link href="/advice">
               <Button variant="ghost" size="sm" className="gap-1">
                 View All <ChevronRight className="h-4 w-4" />
               </Button>
@@ -257,7 +257,7 @@ export default function PersonalizedFeed({ className = "", limit = 10 }: Persona
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">From Your Communities</h2>
+              <h2 className="text-lg font-semibold">Your Communities</h2>
             </div>
             <Link href="/communities">
               <Button variant="ghost" size="sm" className="gap-1">
@@ -324,8 +324,8 @@ export default function PersonalizedFeed({ className = "", limit = 10 }: Persona
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-amber-500" />
-              <h2 className="text-lg font-semibold">Trending Articles</h2>
+              <BookOpen className="h-5 w-5 text-amber-500" />
+              <h2 className="text-lg font-semibold">Grow Your Faith</h2>
             </div>
             <Link href="/apologetics">
               <Button variant="ghost" size="sm" className="gap-1">
