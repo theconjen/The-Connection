@@ -4,6 +4,7 @@ import { storage } from '../storage-optimized';
 import { requireSessionUserId, getSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { notifyUserWithPreferences, getUserDisplayName } from '../services/notificationHelper';
+import { broadcastEngagementUpdate } from '../socketInstance';
 
 const router = Router();
 
@@ -98,6 +99,14 @@ router.post('/users/:userId/follow', requireAuth, async (req, res) => {
     // Public account: Create immediate follow
     await storage.createUserFollow({ followerId, followingId, status: 'accepted' });
 
+    // Broadcast engagement update for real-time follow count sync
+    broadcastEngagementUpdate({
+      type: 'follow',
+      followerId,
+      followedId: followingId,
+      action: 'add',
+    });
+
     // Notify the followed user
     getUserDisplayName(followerId).then(async (followerName) => {
       await notifyUserWithPreferences(followingId, {
@@ -152,6 +161,14 @@ router.post('/follow-requests/:userId/accept', requireAuth, async (req, res) => 
 
     // Update status to accepted
     await storage.updateFollowStatus(requesterId, currentUserId, 'accepted');
+
+    // Broadcast engagement update for real-time follow count sync
+    broadcastEngagementUpdate({
+      type: 'follow',
+      followerId: requesterId,
+      followedId: currentUserId,
+      action: 'add',
+    });
 
     // Notify the requester that their request was accepted
     getUserDisplayName(currentUserId).then(async (userName) => {
@@ -225,6 +242,14 @@ router.delete('/users/:userId/follow', requireAuth, async (req, res) => {
 
     // Remove follow relationship
     await storage.deleteUserFollow(followerId, followingId);
+
+    // Broadcast engagement update for real-time follow count sync
+    broadcastEngagementUpdate({
+      type: 'follow',
+      followerId,
+      followedId: followingId,
+      action: 'remove',
+    });
 
     res.json({
       success: true,
@@ -326,13 +351,14 @@ router.get('/users/:userId/profile', async (req, res) => {
 
     // Use efficient COUNT queries for stats (only for accepted follows)
     const { db } = await import('../db');
-    const { userFollows, posts: postsTable, microblogs: microblogsTable } = await import('@shared/schema');
+    const { userFollows, posts: postsTable, microblogs: microblogsTable, eventRsvps } = await import('@shared/schema');
     const { eq, sql, and } = await import('drizzle-orm');
 
     let followersCount = 0;
     let followingCount = 0;
     let postsCount = 0;
     let microblogsCount = 0;
+    let eventsCount = 0;
 
     try {
       // Get followers count (only accepted follows)
@@ -368,6 +394,16 @@ router.get('/users/:userId/profile', async (req, res) => {
         .from(microblogsTable)
         .where(eq(microblogsTable.authorId, userId));
       microblogsCount = Number(microblogsResult[0]?.count || 0);
+
+      // Get confirmed attended events count (events with confirmedAt set)
+      const eventsResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(eventRsvps)
+        .where(and(
+          eq(eventRsvps.userId, userId),
+          sql`${eventRsvps.confirmedAt} IS NOT NULL`
+        ));
+      eventsCount = Number(eventsResult[0]?.count || 0);
     } catch (error) {
       console.error('[PROFILE] Error fetching stats:', error);
     }
@@ -393,6 +429,7 @@ router.get('/users/:userId/profile', async (req, res) => {
         postsCount: canViewFullProfile ? totalPosts : 0,
         forumPostsCount: canViewFullProfile ? postsCount : 0,
         feedPostsCount: canViewFullProfile ? microblogsCount : 0,
+        eventsCount: canViewFullProfile ? eventsCount : 0,
       },
       isPrivate,
       canViewFullProfile,

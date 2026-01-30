@@ -6,6 +6,7 @@ import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { notifyUserWithPreferences, getUserDisplayName } from '../services/notificationHelper';
+import { broadcastEngagementUpdate } from '../socketInstance';
 import {
   requestJoin,
   leaveCommunity,
@@ -227,6 +228,89 @@ router.get('/communities/recommended', requireAuth, async (req, res) => {
     res.status(500).json(buildErrorResponse('Error fetching recommended communities', error));
   }
 });
+
+// Get active communities (sorted by recent activity)
+router.get('/communities/active', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    // Import needed modules
+    const { communities, posts, events, chatMessages, communityChatRooms } = await import('@shared/schema');
+    const { desc, sql, and, gte, isNull, eq } = await import('drizzle-orm');
+    const { db } = await import('../db');
+
+    // Get communities with activity data
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // Query communities with subqueries for activity counts
+    const activeCommunities = await db
+      .select({
+        id: communities.id,
+        name: communities.name,
+        slug: communities.slug,
+        description: communities.description,
+        iconName: communities.iconName,
+        iconColor: communities.iconColor,
+        memberCount: communities.memberCount,
+        lastActivityAt: communities.lastActivityAt,
+        recentPostCount: communities.recentPostCount,
+        upcomingEventCount: communities.upcomingEventCount,
+      })
+      .from(communities)
+      .where(isNull(communities.deletedAt))
+      .orderBy(
+        desc(communities.lastActivityAt),
+        desc(communities.memberCount)
+      )
+      .limit(Math.min(limit, 50));
+
+    // Enhance with computed activity indicators
+    const enrichedCommunities = activeCommunities.map(comm => ({
+      ...comm,
+      isActive: (comm.recentPostCount || 0) > 0 ||
+                (comm.upcomingEventCount || 0) > 0 ||
+                (comm.lastActivityAt && comm.lastActivityAt > sevenDaysAgo),
+      activityLabel: getActivityLabel(comm),
+    }));
+
+    // Sort by activity (active first, then by member count)
+    enrichedCommunities.sort((a, b) => {
+      if (a.isActive && !b.isActive) return -1;
+      if (!a.isActive && b.isActive) return 1;
+      return (b.memberCount || 0) - (a.memberCount || 0);
+    });
+
+    res.json(enrichedCommunities);
+  } catch (error) {
+    console.error('Error fetching active communities:', error);
+    res.status(500).json(buildErrorResponse('Error fetching active communities', error));
+  }
+});
+
+// Helper function to generate activity label
+function getActivityLabel(community: any): string | null {
+  if (community.upcomingEventCount > 0) {
+    return community.upcomingEventCount === 1
+      ? 'Event coming up'
+      : `${community.upcomingEventCount} upcoming events`;
+  }
+  if (community.recentPostCount > 0) {
+    return community.recentPostCount === 1
+      ? 'New post this week'
+      : `${community.recentPostCount} posts this week`;
+  }
+  if (community.lastActivityAt) {
+    const daysAgo = Math.floor(
+      (Date.now() - new Date(community.lastActivityAt).getTime()) / (24 * 60 * 60 * 1000)
+    );
+    if (daysAgo === 0) return 'Active today';
+    if (daysAgo === 1) return 'Active yesterday';
+    if (daysAgo <= 7) return `Active ${daysAgo} days ago`;
+  }
+  return null;
+}
 
 router.get('/communities/:idOrSlug', async (req, res) => {
   try {
@@ -1317,6 +1401,15 @@ router.patch('/communities/:id/prayer-requests/:prayerId/answered', requireAuth,
       isAnswered: true,
       answeredDescription: answeredDescription || null,
       updatedAt: new Date(),
+    });
+
+    // Broadcast for real-time prayer request sync
+    broadcastEngagementUpdate({
+      type: 'prayer',
+      targetType: 'prayer_request',
+      targetId: prayerId,
+      userId,
+      action: 'add',
     });
 
     res.json(updated);

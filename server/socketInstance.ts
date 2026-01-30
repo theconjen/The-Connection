@@ -103,3 +103,39 @@ export function emitNotificationToMany(recipientIds: number[], notification: {
     emitNotification(recipientId, notification);
   }
 }
+
+/**
+ * Broadcast engagement update to all connected clients
+ * Used for real-time sync of likes, comments, follows, RSVPs, bookmarks, etc.
+ */
+export function broadcastEngagementUpdate(payload: {
+  type: 'like' | 'comment' | 'follow' | 'rsvp' | 'bookmark' | 'prayer';
+  targetType?: 'post' | 'microblog' | 'event' | 'prayer_request' | 'user';
+  targetId?: number;
+  count?: number;
+  userId?: number;
+  followerId?: number;
+  followedId?: number;
+  action?: 'add' | 'remove';
+}): void {
+  if (!io) {
+    console.warn('[Socket] Cannot broadcast engagement:update: Socket.IO not initialized');
+    return;
+  }
+  // Broadcast to all connected clients
+  io.emit('engagement:update', payload);
+}
+
+/**
+ * Emit engagement update to specific user(s)
+ * Used when we want to target specific users rather than broadcast
+ */
+export function emitEngagementToUser(userId: number, payload: {
+  type: 'like' | 'comment' | 'follow' | 'rsvp' | 'bookmark' | 'prayer';
+  targetType?: 'post' | 'microblog' | 'event' | 'prayer_request' | 'user';
+  targetId?: number;
+  count?: number;
+  action?: 'add' | 'remove';
+}): void {
+  emitToUser(userId, 'engagement:update', payload);
+}

@@ -4,22 +4,22 @@ import { useAuth, AuthContextType } from "../hooks/use-auth";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import logoImage from "@assets/tc-logo.png";
-import { 
-  Search, 
+import {
+  Search,
   PenSquare,
   BellIcon,
   MessageCircle,
   MessageSquare,
-  BookOpen, 
+  BookOpen,
   Home,
   X,
   Menu,
   Users,
   CalendarDays
 } from "lucide-react";
-import { 
-  Sheet, 
-  SheetContent, 
+import {
+  Sheet,
+  SheetContent,
   SheetTrigger,
   SheetClose,
   SheetHeader,
@@ -30,6 +30,7 @@ import UserMenu from "./user-menu";
 import SidebarNavigation from "./sidebar-navigation";
 import GlobalSearch from "./GlobalSearch";
 import { useMediaQuery } from "../hooks/use-media-query";
+import { useNotificationCount, useUnreadMessageCount } from "../hooks/use-notification-count";
 
 export default function Header() {
   const [location] = useLocation();
@@ -40,6 +41,12 @@ export default function Header() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isTablet = useMediaQuery("(min-width: 769px) and (max-width: 1023px)");
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Real-time notification and message counts
+  const { data: notificationData } = useNotificationCount();
+  const { data: messageData } = useUnreadMessageCount();
+  const unreadNotifications = notificationData?.count || 0;
+  const unreadMessages = messageData?.count || 0;
 
   // We no longer use top navigation items for desktop
   // Navigation is handled through the homepage grid and mobile nav
@@ -135,21 +142,31 @@ export default function Header() {
                     className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative active-scale touch-target"
                   >
                     <MessageSquare className="h-5 w-5" />
-                    {/* Unread messages indicator */}
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
+                    {/* Unread messages indicator - only show when there are unread messages */}
+                    {unreadMessages > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-rose-500 text-white text-xs font-medium rounded-full px-1">
+                        {unreadMessages > 99 ? '99+' : unreadMessages}
+                      </span>
+                    )}
                   </Button>
                 </Link>
 
                 {/* Notifications Button - SECOND */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative active-scale touch-target"
-                >
-                  <BellIcon className="h-5 w-5" />
-                  {/* Notification indicator dot - show when there are unread notifications */}
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                </Button>
+                <Link href="/notifications">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground hover:bg-background/60 relative active-scale touch-target"
+                  >
+                    <BellIcon className="h-5 w-5" />
+                    {/* Notification indicator - only show when there are unread notifications */}
+                    {unreadNotifications > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-xs font-medium rounded-full px-1">
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
 
                 {/* Hamburger Menu Button - Available on all screen sizes */}
                 <Sheet open={menuOpen} onOpenChange={setMenuOpen}>

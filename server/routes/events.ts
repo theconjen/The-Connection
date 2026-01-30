@@ -6,6 +6,7 @@ import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { notifyCommunityMembers, notifyEventAttendees, notifyNearbyUsers, truncateText } from '../services/notificationHelper';
+import { broadcastEngagementUpdate } from '../socketInstance';
 import {
   createEvent as createEventService,
   updateEvent as updateEventService,
@@ -882,15 +883,25 @@ router.post('/events/:id/rsvp', requireAuth, async (req, res) => {
     // Upsert RSVP (creates or updates)
     const rsvp = await storage.upsertEventRSVP(eventId, userId, normalizedStatus);
 
-    // Check if we just crossed the 25 RSVP threshold
+    // Check if we just crossed the 20 RSVP threshold (popular event)
     const rsvpsAfter = await storage.getEventRSVPs(eventId);
     const attendingCountAfter = rsvpsAfter.filter(
       r => r.status === 'going' || r.status === 'maybe' || r.status === 'interested'
     ).length;
 
-    // If we just hit 25 RSVPs and event has location, notify nearby users
-    if (attendingCountBefore < 25 && attendingCountAfter >= 25) {
-      console.info(`[Events] Event ${eventId} reached 25 RSVPs! Notifying nearby users...`);
+    // Broadcast engagement update for real-time RSVP count sync
+    broadcastEngagementUpdate({
+      type: 'rsvp',
+      targetType: 'event',
+      targetId: eventId,
+      count: attendingCountAfter,
+      userId,
+      action: normalizedStatus === 'not_going' ? 'remove' : 'add',
+    });
+
+    // If we just hit 20 RSVPs, notify users about popular event
+    if (attendingCountBefore < 20 && attendingCountAfter >= 20) {
+      console.info(`[Events] Event ${eventId} reached 20 RSVPs! This event is trending!`);
 
       // Check if event has location data
       if (event.latitude && event.longitude) {
@@ -988,10 +999,156 @@ router.delete('/events/:id/rsvp', requireAuth, async (req, res) => {
     }
 
     await storage.deleteEventRSVP(rsvp.id);
+
+    // Get updated count and broadcast for real-time sync
+    const rsvpsAfter = await storage.getEventRSVPs(eventId);
+    const attendingCount = rsvpsAfter.filter(
+      (r: any) => r.status === 'going' || r.status === 'maybe' || r.status === 'interested'
+    ).length;
+
+    broadcastEngagementUpdate({
+      type: 'rsvp',
+      targetType: 'event',
+      targetId: eventId,
+      count: attendingCount,
+      userId,
+      action: 'remove',
+    });
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting RSVP:', error);
     res.status(500).json(buildErrorResponse('Error deleting RSVP', error));
+  }
+});
+
+// ============================================================================
+// EVENT ATTENDANCE CONFIRMATION ENDPOINTS
+// ============================================================================
+
+// Helper to check if an event has ended
+function isEventEnded(event: any): boolean {
+  if (!event || !event.eventDate) return false;
+  const dateStr = String(event.eventDate).split(' ')[0];
+  const endTime = event.endTime || '23:59:59';
+  const eventEndDate = new Date(`${dateStr}T${endTime}`);
+  return eventEndDate < new Date();
+}
+
+// Confirm attendance at a past event
+router.post('/events/:id/confirm-attendance', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    // Check if event exists
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Verify user had RSVP 'going'
+    const rsvp = await storage.getUserEventRSVP(eventId, userId);
+    if (!rsvp || rsvp.status !== 'going') {
+      return res.status(400).json({ error: 'No RSVP found or status is not "going"' });
+    }
+
+    // Check if already confirmed
+    if ((rsvp as any).confirmedAt) {
+      return res.json({
+        success: true,
+        message: 'Attendance already confirmed',
+        alreadyConfirmed: true,
+      });
+    }
+
+    // Verify event has ended
+    if (!isEventEnded(event)) {
+      return res.status(400).json({ error: 'Event has not ended yet' });
+    }
+
+    // Confirm attendance
+    const updated = await storage.confirmEventAttendance(eventId, userId);
+
+    res.json({
+      success: true,
+      message: 'Attendance confirmed! Event added to your profile.',
+      rsvp: updated,
+    });
+  } catch (error) {
+    console.error('Error confirming attendance:', error);
+    res.status(500).json(buildErrorResponse('Error confirming attendance', error));
+  }
+});
+
+// Get pending attendance confirmations for current user
+router.get('/events/pending-confirmations', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    const events = await storage.getPendingAttendanceConfirmations(userId);
+
+    // Enrich events with host info
+    const enrichedEvents = await Promise.all(events.map(async (event: any) => {
+      let host = null;
+      if (event.creatorId) {
+        try {
+          const user = await storage.getUser(event.creatorId);
+          if (user) {
+            host = {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName || user.username,
+              avatarUrl: user.avatarUrl || null,
+            };
+          }
+        } catch (e) { /* ignore */ }
+      }
+      return { ...event, host };
+    }));
+
+    res.json({ events: enrichedEvents });
+  } catch (error) {
+    console.error('Error fetching pending confirmations:', error);
+    res.status(500).json(buildErrorResponse('Error fetching pending confirmations', error));
+  }
+});
+
+// Get user's confirmed attended events (for profile)
+router.get('/users/:userId/attended-events', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    if (!Number.isFinite(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const events = await storage.getConfirmedAttendedEvents(userId);
+
+    // Enrich events with community name if applicable
+    const enrichedEvents = await Promise.all(events.map(async (event: any) => {
+      let communityName = null;
+      if (event.communityId) {
+        try {
+          const community = await storage.getCommunity(event.communityId);
+          if (community) {
+            communityName = community.name;
+          }
+        } catch (e) { /* ignore */ }
+      }
+      return {
+        id: event.id,
+        title: event.title,
+        eventDate: event.eventDate,
+        location: event.location || event.city,
+        imageUrl: event.imageUrl,
+        communityId: event.communityId,
+        communityName,
+      };
+    }));
+
+    res.json({ events: enrichedEvents, count: enrichedEvents.length });
+  } catch (error) {
+    console.error('Error fetching attended events:', error);
+    res.status(500).json(buildErrorResponse('Error fetching attended events', error));
   }
 });
 
@@ -1012,6 +1169,16 @@ router.post('/events/:id/bookmark', requireAuth, async (req, res) => {
     }
 
     const bookmark = await storage.bookmarkEvent(eventId, userId);
+
+    // Broadcast for real-time bookmark sync
+    broadcastEngagementUpdate({
+      type: 'bookmark',
+      targetType: 'event',
+      targetId: eventId,
+      userId,
+      action: 'add',
+    });
+
     res.status(201).json({ success: true, bookmark });
   } catch (error) {
     console.error('Error bookmarking event:', error);
@@ -1029,6 +1196,15 @@ router.delete('/events/:id/bookmark', requireAuth, async (req, res) => {
     if (!success) {
       return res.status(404).json({ error: 'Bookmark not found' });
     }
+
+    // Broadcast for real-time bookmark sync
+    broadcastEngagementUpdate({
+      type: 'bookmark',
+      targetType: 'event',
+      targetId: eventId,
+      userId,
+      action: 'remove',
+    });
 
     res.json({ success: true, message: 'Event unbookmarked successfully' });
   } catch (error) {

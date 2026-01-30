@@ -10,6 +10,7 @@ import { notifyCommunityMembers, notifyUserWithPreferences, truncateText, getUse
 import { sortPostsByFeedScore } from '../algorithms/christianFeedScoring';
 import { detectLanguage } from '../services/languageDetection';
 import { trackEngagement } from '../services/engagementTracking';
+import { broadcastEngagementUpdate } from '../socketInstance';
 
 const MAX_TITLE_LENGTH = 60;
 
@@ -498,6 +499,16 @@ export function createPostsRouter(storage = defaultStorage) {
         .catch(error => console.error('Error tracking engagement:', error));
     }
 
+    // Broadcast engagement update for real-time sync
+    broadcastEngagementUpdate({
+      type: 'like',
+      targetType: 'post',
+      targetId: postId,
+      count: result.post?.upvotes || 0,
+      userId,
+      action: result.voted ? 'add' : 'remove',
+    });
+
     // Notify post author about like (only if liked, not unliked)
     if (result.voted && result.post && result.post.authorId !== userId) {
       try {
@@ -535,6 +546,17 @@ export function createPostsRouter(storage = defaultStorage) {
       return res.status(401).json({ message: 'User not found' });
     }
     const result = await storage.togglePostVote(postId, userId, 'downvote');
+
+    // Broadcast engagement update for real-time sync
+    broadcastEngagementUpdate({
+      type: 'like',
+      targetType: 'post',
+      targetId: postId,
+      count: result.post?.upvotes || 0,
+      userId,
+      action: result.voted ? 'remove' : 'add',
+    });
+
     res.json({ ...result.post, userHasDownvoted: result.voted });
   } catch (error) {
     console.error('Error toggling post downvote:', error);
@@ -583,6 +605,17 @@ export function createPostsRouter(storage = defaultStorage) {
     const validatedData = insertCommentSchema.parse({ ...req.body, authorId: userId });
     const comment = await storage.createComment(validatedData);
 
+    // Broadcast engagement update for real-time comment count sync
+    const post = await storage.getPost(comment.postId);
+    broadcastEngagementUpdate({
+      type: 'comment',
+      targetType: 'post',
+      targetId: comment.postId,
+      count: (post?.commentsCount || 0) + 1,
+      userId,
+      action: 'add',
+    });
+
     // Notify post author or parent comment author
     try {
       const commenterName = await getUserDisplayName(userId);
@@ -607,7 +640,6 @@ export function createPostsRouter(storage = defaultStorage) {
         }
       } else {
         // Top-level comment - notify post author
-        const post = await storage.getPost(comment.postId);
         if (post && post.authorId !== userId) {
           await notifyUserWithPreferences(post.authorId, {
             title: `${commenterName} commented on your post`,

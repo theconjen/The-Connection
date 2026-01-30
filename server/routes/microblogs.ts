@@ -11,6 +11,7 @@ import { detectLanguage } from '../services/languageDetection';
 import { trackEngagement } from '../services/engagementTracking';
 import { notifyUserWithPreferences, truncateText, getUserDisplayName } from '../services/notificationHelper';
 import { uploadFile, UploadCategory, validateMimeType } from '../services/storageService';
+import { broadcastEngagementUpdate } from '../socketInstance';
 
 // Configure multer for memory storage (we'll upload to GCS directly)
 const upload = multer({
@@ -574,6 +575,19 @@ export function createMicroblogsRouter(storage = defaultStorage) {
 
       const microblog = await storage.createMicroblog(validatedData);
 
+      // If this is a reply, broadcast engagement update for real-time comment count sync
+      if (validatedData.parentId) {
+        const parentMicroblog = await storage.getMicroblog(validatedData.parentId);
+        broadcastEngagementUpdate({
+          type: 'comment',
+          targetType: 'microblog',
+          targetId: validatedData.parentId,
+          count: (parentMicroblog?.replyCount || 0) + 1,
+          userId,
+          action: 'add',
+        });
+      }
+
       // Detect and update language asynchronously (don't block response)
       Promise.resolve().then(async () => {
         try {
@@ -629,8 +643,19 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       trackEngagement(userId, microblogId, 'microblog', 'like')
         .catch(error => console.error('Error tracking engagement:', error));
 
-      // Notify author about the like (async, don't block response)
+      // Broadcast engagement update for real-time sync across all clients
       const microblog = await storage.getMicroblog(microblogId);
+      const likeCount = microblog?.likeCount || 0;
+      broadcastEngagementUpdate({
+        type: 'like',
+        targetType: 'microblog',
+        targetId: microblogId,
+        count: likeCount + 1,
+        userId,
+        action: 'add',
+      });
+
+      // Notify author about the like (async, don't block response)
       if (microblog && microblog.authorId !== userId) {
         getUserDisplayName(userId).then(async (likerName) => {
           await notifyUserWithPreferences(microblog.authorId, {
@@ -658,6 +683,19 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       const microblogId = parseInt(req.params.id);
       const userId = requireSessionUserId(req);
       await storage.unlikeMicroblog(microblogId, userId);
+
+      // Broadcast engagement update for real-time sync
+      const microblog = await storage.getMicroblog(microblogId);
+      const likeCount = Math.max(0, (microblog?.likeCount || 1) - 1);
+      broadcastEngagementUpdate({
+        type: 'like',
+        targetType: 'microblog',
+        targetId: microblogId,
+        count: likeCount,
+        userId,
+        action: 'remove',
+      });
+
       res.json({ message: 'Microblog unliked successfully' });
     } catch (error) {
       console.error('Error unliking microblog:', error);
@@ -862,6 +900,16 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       }
 
       const bookmark = await storage.bookmarkMicroblog(microblogId, userId);
+
+      // Broadcast for real-time bookmark sync
+      broadcastEngagementUpdate({
+        type: 'bookmark',
+        targetType: 'microblog',
+        targetId: microblogId,
+        userId,
+        action: 'add',
+      });
+
       res.status(201).json(bookmark);
     } catch (error: any) {
       console.error('Error bookmarking microblog:', error);
@@ -875,6 +923,16 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       const microblogId = parseInt(req.params.id);
       // Make DELETE idempotent - return success even if bookmark didn't exist
       await storage.unbookmarkMicroblog(microblogId, userId);
+
+      // Broadcast for real-time bookmark sync
+      broadcastEngagementUpdate({
+        type: 'bookmark',
+        targetType: 'microblog',
+        targetId: microblogId,
+        userId,
+        action: 'remove',
+      });
+
       res.json({ message: 'Microblog unbookmarked successfully' });
     } catch (error) {
       console.error('Error unbookmarking microblog:', error);
