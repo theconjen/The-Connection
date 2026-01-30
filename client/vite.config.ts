@@ -1,6 +1,5 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import legacy from "@vitejs/plugin-legacy";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import path from "path";
 import { createRequire } from 'module';
@@ -23,12 +22,6 @@ export default defineConfig({
         babelrc: false,
         configFile: false,
       }
-    }),
-    legacy({
-      targets: ['safari >= 12', 'chrome >= 80', 'firefox >= 78'],
-      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
-      renderLegacyChunks: true,
-      modernPolyfills: true,
     }),
     basicSsl(),
   ],
