@@ -8,6 +8,8 @@ export interface PushNotificationPayload {
   title: string;
   body: string;
   data?: any;
+  channelId?: string; // Android notification channel (dm, community, event, forum, feed)
+  priority?: 'default' | 'normal' | 'high';
 }
 
 /**
@@ -34,6 +36,8 @@ export async function sendPushNotifications(
       title: notification.title,
       body: notification.body,
       data: notification.data,
+      channelId: notification.channelId || 'default',
+      priority: notification.priority || 'high',
     });
   }
 
@@ -60,12 +64,16 @@ export async function sendPushNotifications(
  * @param title Notification title
  * @param body Notification body
  * @param data Optional additional data
+ * @param channelId Android notification channel (dm, community, event, forum, feed)
+ * @param priority Notification priority (default: high)
  */
 export async function sendPushNotification(
   token: string,
   title: string,
   body: string,
-  data?: any
+  data?: any,
+  channelId?: string,
+  priority?: 'default' | 'normal' | 'high'
 ): Promise<ExpoPushTicket[]> {
-  return sendPushNotifications([{ to: token, title, body, data }]);
+  return sendPushNotifications([{ to: token, title, body, data, channelId, priority }]);
 }

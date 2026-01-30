@@ -8,7 +8,7 @@ import { setupAuth, isAuthenticated, isAdmin } from './auth';
 import { storage as storageReal } from './storage';
 import rateLimit from 'express-rate-limit';
 import { sendPushNotification } from './services/pushService';
-import { notifyUserWithPreferences, truncateText } from './services/notificationHelper';
+import { notifyUserWithPreferences, notifyCommunityMembers, truncateText } from './services/notificationHelper';
 import { contentCreationLimiter, messageCreationLimiter } from './rate-limiters';
 
 // NOTE: many of the shared "Insert..." Zod-derived types are being inferred
@@ -110,6 +110,7 @@ import messagesRoutes from './routes/messages';
 import notificationsRoutes from './routes/notifications';
 import publicRoutes from './routes/public';
 import wellKnownRoutes from './routes/well-known';
+import clergyVerificationRoutes from './routes/clergy-verification';
 import { ogMetaMiddleware } from './middleware/og-meta';
 
 declare module 'express-session' {
@@ -333,7 +334,7 @@ export function registerSocketHandlers(
     // Handle new chat message
     socket.on('new_message', async (data) => {
       try {
-        const { roomId, content, senderId } = data;
+        const { roomId, content, senderId, isAnnouncement } = data;
 
         // SECURITY: Verify senderId matches authenticated user
         if (parseInt(senderId) !== authenticatedUserId) {
@@ -345,11 +346,36 @@ export function registerSocketHandlers(
           return;
         }
 
+        // Get the chat room to find the community
+        const chatRoom = await storageDep.getCommunityRoom(parseInt(roomId));
+        if (!chatRoom) {
+          socket.emit('error', {
+            message: 'Chat room not found',
+            code: 'ROOM_NOT_FOUND'
+          });
+          return;
+        }
+
+        // If sending as announcement, verify user is admin/moderator
+        let canSendAnnouncement = false;
+        if (isAnnouncement) {
+          const isModerator = await storageDep.isCommunityModerator(chatRoom.communityId, authenticatedUserId);
+          if (!isModerator) {
+            socket.emit('error', {
+              message: 'Only admins and moderators can send announcements',
+              code: 'UNAUTHORIZED_ANNOUNCEMENT'
+            });
+            return;
+          }
+          canSendAnnouncement = true;
+        }
+
         // Create message in database
         const newMessage = await storageDep.createChatMessage({
           chatRoomId: parseInt(roomId),
           senderId: authenticatedUserId, // Use authenticated userId
           content: content,
+          isAnnouncement: canSendAnnouncement,
         });
 
         // Get sender info
@@ -358,6 +384,32 @@ export function registerSocketHandlers(
 
         // Broadcast to room
         io.to(`room_${roomId}`).emit('message_received', messageWithSender);
+
+        // If announcement, send push notifications to all community members
+        if (canSendAnnouncement) {
+          const community = await storageDep.getCommunity(chatRoom.communityId);
+          const communityName = community?.name || 'Community';
+          const senderName = sender?.displayName || sender?.username || 'Admin';
+
+          logger.log(`Sending announcement notification to community ${chatRoom.communityId}`);
+
+          // Notify all community members except the sender
+          await notifyCommunityMembers(
+            chatRoom.communityId,
+            {
+              title: `${communityName} Announcement`,
+              body: `${senderName}: ${truncateText(content, 100)}`,
+              data: {
+                type: 'community_announcement',
+                communityId: chatRoom.communityId,
+                roomId: parseInt(roomId),
+                messageId: newMessage.id,
+              },
+              category: 'community',
+            },
+            [authenticatedUserId] // Exclude sender from notifications
+          );
+        }
       } catch (error) {
         emitSocketError(socket, logger, 'Error handling chat message', error, {
           message: 'Failed to send message',
@@ -483,12 +535,24 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   app.use('/api', generalApiLimiter);
 
-  // Set up Socket.IO for real-time chat
+  // Set up Socket.IO for real-time chat with memory optimizations
   const io = new SocketIOServer(httpServer, {
     cors: {
       origin: "*",
       methods: ["GET", "POST"]
-    }
+    },
+    // Memory optimizations for 512MB environments
+    maxHttpBufferSize: 1e6, // 1MB max message size (default is 1e6)
+    pingTimeout: 30000, // Give clients time to respond
+    pingInterval: 25000, // Keep connections alive
+    connectTimeout: 45000, // Allow slow mobile connections
+    // Disable binary parser to save memory if not using binary data
+    parser: undefined,
+    // Limit concurrent polling requests
+    transports: ['polling', 'websocket'],
+    allowUpgrades: true,
+    // Reduce memory usage by limiting adapters
+    perMessageDeflate: false, // Disable compression (CPU/memory tradeoff)
   });
 
   // Make socket instance available to other modules (e.g., dmRoutes)
@@ -512,6 +576,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   if (FEATURES.ORGS) {
     app.use('/api/organizations', organizationRoutes);
+    app.use('/api/clergy-verification', clergyVerificationRoutes);
   }
 
   if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {

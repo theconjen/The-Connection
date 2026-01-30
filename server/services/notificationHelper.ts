@@ -183,13 +183,20 @@ export async function notifyUserWithPreferences(
 
     for (const tokenRecord of pushTokens) {
       try {
+        // Map category to Android channel ID and set appropriate priority
+        // DM, community, and event channels use HIGH importance for banners
+        const channelId = notification.category;
+        const priority = ['dm', 'community', 'event'].includes(notification.category) ? 'high' : 'default';
+
         await sendPushNotification(
           tokenRecord.token,
           notification.title,
           notification.body,
-          notification.data
+          notification.data,
+          channelId,
+          priority as 'default' | 'normal' | 'high'
         );
-        console.info(`[NotificationHelper] Push sent to device: ${tokenRecord.platform}`);
+        console.info(`[NotificationHelper] Push sent to device: ${tokenRecord.platform} (channel: ${channelId}, priority: ${priority})`);
       } catch (error) {
         console.error(`[NotificationHelper] Failed to send push to token ${tokenRecord.id}:`, error);
         // Don't fail the whole operation if one token fails

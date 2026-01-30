@@ -186,19 +186,24 @@ router.post("/send", dmSendLimiter, async (req, res) => {
     emitToUser(senderId, 'new_message', messagePayload);
 
     // Notify receiver using dual notification system (async, don't block response)
-    const sender = await storage.getUser(senderId);
-    const senderName = sender?.displayName || sender?.username || 'Someone';
+    // Check if receiver has muted this conversation before sending notification
+    const isMuted = await storage.isConversationMuted(parsedReceiverId, senderId);
 
-    notifyUserWithPreferences(parsedReceiverId, {
-      title: `New message from ${senderName}`,
-      body: truncateText(content, 80),
-      data: {
-        type: 'dm',
-        senderId,
-        messageId: message.id,
-      },
-      category: 'dm',
-    }).catch(error => console.error('[DM] Error sending notification:', error));
+    if (!isMuted) {
+      const sender = await storage.getUser(senderId);
+      const senderName = sender?.displayName || sender?.username || 'Someone';
+
+      notifyUserWithPreferences(parsedReceiverId, {
+        title: `New message from ${senderName}`,
+        body: truncateText(content, 80),
+        data: {
+          type: 'dm',
+          senderId,
+          messageId: message.id,
+        },
+        category: 'dm',
+      }).catch(error => console.error('[DM] Error sending notification:', error));
+    }
 
     res.json(message);
   } catch (error) {
@@ -322,6 +327,125 @@ router.get("/messages/:messageId/reactions", async (req, res) => {
   } catch (error) {
     console.error('Error fetching message reactions:', error);
     res.status(500).json({ message: 'Error fetching reactions' });
+  }
+});
+
+// Mute a conversation (stop receiving notifications)
+router.post("/mute/:userId", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const mutedUserId = parseInt(req.params.userId);
+  if (!Number.isFinite(mutedUserId)) {
+    return res.status(400).json({ message: 'Invalid user id' });
+  }
+
+  try {
+    const success = await storage.muteConversation(currentUserId, mutedUserId);
+    if (success) {
+      res.json({ success: true, message: 'Conversation muted' });
+    } else {
+      res.status(500).json({ message: 'Failed to mute conversation' });
+    }
+  } catch (error) {
+    console.error('Error muting conversation:', error);
+    res.status(500).json({ message: 'Error muting conversation' });
+  }
+});
+
+// Unmute a conversation
+router.delete("/mute/:userId", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const mutedUserId = parseInt(req.params.userId);
+  if (!Number.isFinite(mutedUserId)) {
+    return res.status(400).json({ message: 'Invalid user id' });
+  }
+
+  try {
+    const success = await storage.unmuteConversation(currentUserId, mutedUserId);
+    if (success) {
+      res.json({ success: true, message: 'Conversation unmuted' });
+    } else {
+      res.status(500).json({ message: 'Failed to unmute conversation' });
+    }
+  } catch (error) {
+    console.error('Error unmuting conversation:', error);
+    res.status(500).json({ message: 'Error unmuting conversation' });
+  }
+});
+
+// Check if a conversation is muted
+router.get("/mute/:userId", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const otherUserId = parseInt(req.params.userId);
+  if (!Number.isFinite(otherUserId)) {
+    return res.status(400).json({ message: 'Invalid user id' });
+  }
+
+  try {
+    const isMuted = await storage.isConversationMuted(currentUserId, otherUserId);
+    res.json({ isMuted });
+  } catch (error) {
+    console.error('Error checking mute status:', error);
+    res.status(500).json({ message: 'Error checking mute status' });
+  }
+});
+
+// Get all muted conversations
+router.get("/muted", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  try {
+    const mutedUserIds = await storage.getMutedConversations(currentUserId);
+    res.json({ mutedUserIds });
+  } catch (error) {
+    console.error('Error fetching muted conversations:', error);
+    res.status(500).json({ message: 'Error fetching muted conversations' });
+  }
+});
+
+// Delete a message (only sender can delete their own message)
+router.delete("/messages/:messageId", async (req, res) => {
+  const currentUserId = getSessionUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const messageId = parseInt(req.params.messageId);
+  if (!Number.isFinite(messageId)) {
+    return res.status(400).json({ message: 'Invalid message id' });
+  }
+
+  try {
+    const deleted = await storage.deleteDirectMessage(messageId, currentUserId);
+    if (deleted) {
+      // Emit socket event to notify other user
+      const message = await storage.getMessageById?.(messageId.toString());
+      if (message) {
+        const otherUserId = message.senderId === currentUserId ? message.receiverId : message.senderId;
+        emitToUser(otherUserId, 'dm:deleted', { messageId });
+        emitToUser(currentUserId, 'dm:deleted', { messageId });
+      }
+      res.json({ success: true, message: 'Message deleted' });
+    } else {
+      res.status(404).json({ message: 'Message not found or not authorized to delete' });
+    }
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    res.status(500).json({ message: 'Error deleting message' });
   }
 });
 

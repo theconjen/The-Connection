@@ -28,18 +28,16 @@ let poolInstance: Pool | undefined;
 
 if (isConnected && databaseUrl) {
   sqlInstance = neon(databaseUrl);
-  poolInstance = new Pool({ connectionString: databaseUrl });
+  // Neon serverless pool - keep options minimal for compatibility
+  poolInstance = new Pool({
+    connectionString: databaseUrl,
+    max: 10, // Maximum connections
+    idleTimeoutMillis: 30000, // Close idle connections after 30s
+    connectionTimeoutMillis: 10000, // Fail fast if can't connect
+  });
 }
 
 export const sql = sqlInstance;
 export const pool = poolInstance;
 export const db = sqlInstance ? drizzle(sqlInstance, { schema }) : undefined;
 
-// Test the database connection
-// sql`SELECT NOW()`
-//   .then(() => {
-//     console.log('✅ Database connection successful');
-//   })
-//   .catch(err => {
-//     console.error('❌ Database connection failed:', err.message);
-//   });

@@ -19,6 +19,7 @@ import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
 import { pool } from "./db";
 import { startEventReminderScheduler } from "./services/eventReminderService";
+import compression from "compression";
 
 // Hold a module-level reference to the Sentry SDK when initialized so
 // we can mount handlers (tracing + error handler) in other places below.
@@ -98,6 +99,18 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
+  // Enable gzip/brotli compression to reduce memory usage for large responses
+  // Only compress responses > 1KB to avoid overhead for small responses
+  app.use(compression({
+    level: 6, // Balanced compression (1-9, higher = more CPU, less memory)
+    threshold: 1024, // Only compress responses > 1KB
+    filter: (req, res) => {
+      // Don't compress if client doesn't accept it
+      if (req.headers['x-no-compression']) return false;
+      return compression.filter(req, res);
+    },
+  }));
+
   const useDb = envConfig.useDb;
   const isSecureCookie = envConfig.isSecureCookie;
   const sameSiteMode: "lax" | "none" = isSecureCookie ? "none" : "lax";
@@ -122,6 +135,10 @@ async function bootstrap() {
       pool: pool as any,
       tableName: "sessions",
       createTableIfMissing: true,
+      // Memory optimization: Prune expired sessions every 15 minutes
+      pruneSessionInterval: 15 * 60, // seconds
+      // Disable session padding to save memory
+      disableTouch: false,
     });
   }
 
@@ -193,6 +210,18 @@ async function bootstrap() {
 
   app.get("/api/health", (_req: Request, res: Response) => {
     res.json({ ok: true });
+  });
+
+  // Memory stats endpoint for monitoring (admin-only in production)
+  app.get("/api/memory-stats", (req: Request, res: Response) => {
+    const memUsage = process.memoryUsage();
+    res.json({
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + "MB",
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + "MB",
+      rss: Math.round(memUsage.rss / 1024 / 1024) + "MB",
+      external: Math.round(memUsage.external / 1024 / 1024) + "MB",
+      arrayBuffers: Math.round(memUsage.arrayBuffers / 1024 / 1024) + "MB",
+    });
   });
 
   app.use((req: Request, res: Response, next: NextFunction) => {

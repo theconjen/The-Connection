@@ -175,9 +175,15 @@ router.get('/events', async (req, res) => {
     }));
 
     res.json({ events: eventsWithUserData });
-  } catch (error) {
-    console.error('Error fetching events:', error);
-    res.status(500).json(buildErrorResponse('Error fetching events', error));
+  } catch (error: any) {
+    const errorMessage = error?.message || 'Unknown error';
+    const errorCode = error?.code || 'NO_CODE';
+    console.error('Error fetching events:', errorMessage, errorCode, error);
+    res.status(500).json({
+      message: 'Error fetching events',
+      // Temporarily expose error for debugging - remove after fixing
+      debug: { message: errorMessage, code: errorCode }
+    });
   }
 });
 

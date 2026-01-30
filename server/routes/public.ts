@@ -41,6 +41,7 @@ const publicApiLimiter = rateLimit({
     // Use X-Forwarded-For for clients behind proxies
     return req.headers['x-forwarded-for']?.toString().split(',')[0] || req.ip || 'unknown';
   },
+  validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
 });
 
 // Apply rate limiter to all public API routes

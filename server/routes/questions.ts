@@ -185,21 +185,17 @@ router.post('/questions', requireAuth, async (req, res) => {
       status: 'new',
     });
 
-    // Auto-assign to responder
-    await storage.autoAssignQuestion(question.id);
+    // Auto-assign to responder based on expertise (smart routing)
+    const assignment = await storage.autoAssignQuestion(question.id);
 
-    // Notify all users with inbox_access about the new question
+    // Notify the assigned apologist about the new question
     try {
-      const responders = await storage.getAllResponders();
       const asker = await storage.getUser(userId);
       const askerName = asker?.displayName || asker?.username || 'Someone';
 
-      for (const responder of responders) {
-        // Don't notify the asker if they happen to have inbox_access
-        if (responder.id === userId) continue;
-
-        await notifyUserWithPreferences(responder.id, {
-          title: `New ${domain} question`,
+      if (assignment?.assignedToUserId && assignment.assignedToUserId !== userId) {
+        await notifyUserWithPreferences(assignment.assignedToUserId, {
+          title: `New ${domain} question assigned to you`,
           body: truncateText(questionText, 100),
           data: {
             type: 'qa_new_question',
@@ -215,7 +211,7 @@ router.post('/questions', requireAuth, async (req, res) => {
       }
     } catch (notifyError) {
       // Don't fail the request if notifications fail
-      console.error('[Questions] Error notifying responders:', notifyError);
+      console.error('[Questions] Error notifying assigned apologist:', notifyError);
     }
 
     res.status(201).json(question);

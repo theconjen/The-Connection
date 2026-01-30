@@ -180,9 +180,15 @@ router.get('/communities', async (req, res) => {
     // Limit to 50 results
     communities = communities.slice(0, 50);
     res.json(communities);
-  } catch (error) {
-    console.error('Error fetching communities:', error);
-    res.status(500).json(buildErrorResponse('Error fetching communities', error));
+  } catch (error: any) {
+    const errorMessage = error?.message || 'Unknown error';
+    const errorCode = error?.code || 'NO_CODE';
+    console.error('Error fetching communities:', errorMessage, errorCode, error);
+    res.status(500).json({
+      message: 'Error fetching communities',
+      // Temporarily expose error for debugging - remove after fixing
+      debug: { message: errorMessage, code: errorCode }
+    });
   }
 });
 
