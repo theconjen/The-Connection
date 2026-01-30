@@ -188,10 +188,17 @@ export default function AdviceListScreen() {
       'Are you sure you want to report this post?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Report', style: 'destructive', onPress: () => {
+        { text: 'Report', style: 'destructive', onPress: async () => {
           setReportedPosts(prev => new Set(prev).add(postId));
-          // TODO: Send report to server
-          // apiClient.post(`/api/microblogs/${postId}/report`);
+          try {
+            await apiClient.post('/api/reports', {
+              subjectType: 'microblog',
+              subjectId: postId,
+              reason: 'inappropriate_content',
+            });
+          } catch (error) {
+            console.error('Error reporting content:', error);
+          }
         }},
       ]
     );

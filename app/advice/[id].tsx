@@ -234,11 +234,13 @@ export default function AdviceDetailScreen() {
           onPress: async () => {
             setIsPostReported(true);
             try {
-              await apiClient.post(`/api/microblogs/${adviceId}/report`, {
+              await apiClient.post('/api/reports', {
+                subjectType: 'microblog',
+                subjectId: adviceId,
                 reason: 'inappropriate_content',
               });
-            } catch {
-              // Still show as reported even if API fails
+            } catch (error) {
+              console.error('Error reporting post:', error);
             }
           },
         },
@@ -264,11 +266,14 @@ export default function AdviceDetailScreen() {
           onPress: async () => {
             setReportedResponses(prev => new Set(prev).add(response.id));
             try {
-              await apiClient.post(`/api/microblogs/comments/${response.id}/report`, {
+              await apiClient.post('/api/reports', {
+                subjectType: 'microblog',
+                subjectId: response.id,
                 reason: 'inappropriate_content',
+                description: 'Comment/response on advice post',
               });
-            } catch {
-              // Still show as reported even if API fails
+            } catch (error) {
+              console.error('Error reporting response:', error);
             }
           },
         },
