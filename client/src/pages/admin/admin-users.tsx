@@ -1,207 +1,312 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "../../components/layouts/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
-import { Switch } from "../../components/ui/switch";
-import { AlertCircle, KeyRound, UserPlus } from "lucide-react";
+import { useToast } from "../../hooks/use-toast";
+import { Loader2, UserPlus, UserMinus, Shield, ShieldCheck } from "lucide-react";
+import { apiUrl } from "../../lib/env";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/ui/alert-dialog";
 
-type AdminRecord = {
+type AdminUser = {
   id: number;
   name: string;
   email: string;
-  role: "superadmin" | "admin" | "moderator";
+  role: "admin";
   lastActive: string;
-  mfaEnabled: boolean;
+  isAdmin: boolean;
 };
 
-const seedAdmins: AdminRecord[] = [
-  {
-    id: 1,
-    name: "Olivia Brown",
-    email: "olivia@theconnection.app",
-    role: "superadmin",
-    lastActive: "5 minutes ago",
-    mfaEnabled: true,
-  },
-  {
-    id: 2,
-    name: "James Walker",
-    email: "james@theconnection.app",
-    role: "admin",
-    lastActive: "1 hour ago",
-    mfaEnabled: true,
-  },
-  {
-    id: 3,
-    name: "Linda Foster",
-    email: "linda@theconnection.app",
-    role: "moderator",
-    lastActive: "Yesterday",
-    mfaEnabled: false,
-  },
-];
-
 export default function AdminUsersPage() {
-  const [records, setRecords] = useState<AdminRecord[]>(seedAdmins);
-  const [newAdmin, setNewAdmin] = useState({
-    name: "",
-    email: "",
-    role: "admin" as AdminRecord["role"],
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [newAdmin, setNewAdmin] = useState({ name: "", email: "", role: "admin" });
+
+  // Fetch admin users
+  const { data: adminUsers = [], isLoading } = useQuery<AdminUser[]>({
+    queryKey: ["/api/admin/admin-users"],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/admin/admin-users"));
+      if (!res.ok) throw new Error("Failed to fetch admin users");
+      return res.json();
+    },
   });
 
-  const addAdmin = () => {
-    if (!newAdmin.name || !newAdmin.email) return;
-    setRecords((prev) => [
-      ...prev,
-      {
-        id: prev.length + 1,
-        ...newAdmin,
-        lastActive: "Just invited",
-        mfaEnabled: false,
-      },
-    ]);
-    setNewAdmin({ name: "", email: "", role: "admin" });
+  // Fetch all users for promoting to admin
+  const { data: allUsers = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/users"],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/admin/users"));
+      if (!res.ok) throw new Error("Failed to fetch users");
+      return res.json();
+    },
+  });
+
+  // Remove admin mutation
+  const removeAdminMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await fetch(apiUrl(`/api/admin/users/${userId}/role`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isAdmin: false }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to remove admin");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/admin-users"] });
+      toast({ title: "Success", description: "Admin privileges removed" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Invite/promote admin mutation
+  const inviteAdminMutation = useMutation({
+    mutationFn: async (data: { email: string; name: string; role: string }) => {
+      const res = await fetch(apiUrl("/api/admin/invite"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to invite admin");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/admin-users"] });
+      toast({ title: "Success", description: data.message });
+      setNewAdmin({ name: "", email: "", role: "admin" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleInvite = () => {
+    if (!newAdmin.email) {
+      toast({ title: "Error", description: "Email is required", variant: "destructive" });
+      return;
+    }
+    inviteAdminMutation.mutate(newAdmin);
   };
 
-  const toggleMfa = (id: number) => {
-    setRecords((prev) => prev.map((record) => (record.id === id ? { ...record, mfaEnabled: !record.mfaEnabled } : record)));
-  };
+  // Non-admin users who could be promoted
+  const nonAdminUsers = allUsers.filter(u => !u.isAdmin);
 
   return (
     <AdminLayout>
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Admin Users</h1>
-          <p className="text-gray-500">Control privileged accounts and guardrails.</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Admin Users</h1>
+            <p className="text-gray-500">Manage administrator accounts and privileges.</p>
+          </div>
         </div>
-        <Button onClick={addAdmin} className="gap-2">
-          <UserPlus className="h-4 w-4" />
-          Invite admin
-        </Button>
-      </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
+        {/* Invite New Admin Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Superadmins</CardTitle>
-            <CardDescription>Full platform control</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Invite a New Admin
+            </CardTitle>
+            <CardDescription>
+              Add an existing user as an admin or send an invitation.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{records.filter((r) => r.role === "superadmin").length}</div>
-            <div className="text-sm text-muted-foreground">Consider two-person approval for risky actions.</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Admins</CardTitle>
-            <CardDescription>Most day-to-day controls</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{records.filter((r) => r.role === "admin").length}</div>
-            <div className="text-sm text-muted-foreground">Access to moderation and settings.</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Moderators</CardTitle>
-            <CardDescription>Focused on safety</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{records.filter((r) => r.role === "moderator").length}</div>
-            <div className="text-sm text-muted-foreground">Limited administrative rights.</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Invite a new admin</CardTitle>
-          <CardDescription>Send secure, time-bound invitations.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid md:grid-cols-3 gap-3">
-            <Input
-              placeholder="Name"
-              value={newAdmin.name}
-              onChange={(e) => setNewAdmin((prev) => ({ ...prev, name: e.target.value }))}
-            />
-            <Input
-              placeholder="Email"
-              value={newAdmin.email}
-              onChange={(e) => setNewAdmin((prev) => ({ ...prev, email: e.target.value }))}
-            />
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium">Role</label>
-              <select
-                value={newAdmin.role}
-                onChange={(e) => setNewAdmin((prev) => ({ ...prev, role: e.target.value as AdminRecord["role"] }))}
-                className="border rounded px-3 py-2 text-sm"
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-sm font-medium mb-1 block">Name</label>
+                <Input
+                  placeholder="Name"
+                  value={newAdmin.name}
+                  onChange={(e) => setNewAdmin({ ...newAdmin, name: e.target.value })}
+                />
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-sm font-medium mb-1 block">Email</label>
+                <Input
+                  placeholder="Email"
+                  type="email"
+                  value={newAdmin.email}
+                  onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
+                />
+              </div>
+              <div className="w-[150px]">
+                <label className="text-sm font-medium mb-1 block">Role</label>
+                <Select
+                  value={newAdmin.role}
+                  onValueChange={(value) => setNewAdmin({ ...newAdmin, role: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="moderator">Moderator</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                onClick={handleInvite}
+                disabled={inviteAdminMutation.isPending}
               >
-                <option value="admin">Admin</option>
-                <option value="moderator">Moderator</option>
-                <option value="superadmin">Superadmin</option>
-              </select>
+                {inviteAdminMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <UserPlus className="h-4 w-4 mr-2" />
+                )}
+                Invite
+              </Button>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2 text-sm text-muted-foreground items-center">
-            <AlertCircle className="h-4 w-4" />
-            New invites require MFA on first login.
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Privileged directory</CardTitle>
-          <CardDescription>Review MFA status, recent activity, and roles.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-muted-foreground">
-                  <th className="pb-2">Name</th>
-                  <th className="pb-2">Role</th>
-                  <th className="pb-2">MFA</th>
-                  <th className="pb-2">Last active</th>
-                  <th className="pb-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {records.map((record) => (
-                  <tr key={record.id}>
-                    <td className="py-3">
-                      <div className="font-medium">{record.name}</div>
-                      <div className="text-muted-foreground">{record.email}</div>
-                    </td>
-                    <td className="py-3">
-                      <Badge variant="outline" className="capitalize">
-                        {record.role}
-                      </Badge>
-                    </td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-2">
-                        <Switch checked={record.mfaEnabled} onCheckedChange={() => toggleMfa(record.id)} />
-                        <span className="text-xs text-muted-foreground">Required</span>
-                      </div>
-                    </td>
-                    <td className="py-3">{record.lastActive}</td>
-                    <td className="py-3 text-right space-x-2">
-                      <Button variant="outline" size="sm" className="gap-1">
-                        <KeyRound className="h-4 w-4" />
-                        Reset MFA
-                      </Button>
-                      <Button variant="destructive" size="sm">Remove</Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Stats Cards */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Total Admins</CardDescription>
+              <CardTitle className="text-3xl">{adminUsers.length}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Users with admin privileges</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Total Users</CardDescription>
+              <CardTitle className="text-3xl">{allUsers.length}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">All registered users</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Admin Ratio</CardDescription>
+              <CardTitle className="text-3xl">
+                {allUsers.length > 0 ? ((adminUsers.length / allUsers.length) * 100).toFixed(1) : 0}%
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Percentage of users with admin access</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Admin Users List */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Current Admins
+            </CardTitle>
+            <CardDescription>
+              Users with administrative privileges on the platform.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : adminUsers.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No admin users found.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4 font-medium">Name</th>
+                      <th className="text-left py-3 px-4 font-medium">Email</th>
+                      <th className="text-left py-3 px-4 font-medium">Role</th>
+                      <th className="text-left py-3 px-4 font-medium">Last Active</th>
+                      <th className="text-right py-3 px-4 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminUsers.map((admin) => (
+                      <tr key={admin.id} className="border-b hover:bg-muted/50">
+                        <td className="py-3 px-4">
+                          <div className="font-medium">{admin.name}</div>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">{admin.email}</td>
+                        <td className="py-3 px-4">
+                          <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                            <Shield className="h-3 w-3" />
+                            Admin
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {admin.lastActive !== 'Never'
+                            ? new Date(admin.lastActive).toLocaleDateString()
+                            : 'Never'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm">
+                                <UserMinus className="h-4 w-4 mr-1" />
+                                Remove
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove Admin Privileges?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to remove admin privileges from {admin.name}?
+                                  They will no longer have access to the admin panel.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => removeAdminMutation.mutate(admin.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Remove
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </AdminLayout>
   );
 }
