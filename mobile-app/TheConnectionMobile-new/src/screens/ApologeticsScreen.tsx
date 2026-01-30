@@ -24,6 +24,7 @@ import {
   StatusBar,
   Alert,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,6 +33,8 @@ import { AppHeader } from "./AppHeader";
 import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../lib/apiClient";
 import { shareApologetics } from "../lib/shareUrls";
+
+const BANNER_DISMISSED_KEY = "apologist-banner-dismissed";
 
 type Domain = "apologetics" | "polemics";
 
@@ -129,6 +132,43 @@ export default function ApologeticsScreen({
 
   const styles = useMemo(() => getStyles(colors), [colors]);
   const queryClient = useQueryClient();
+
+  // Fetch user capabilities to check if they have inbox access
+  const { data: meData } = useQuery<{
+    user: any;
+    permissions: string[];
+    capabilities: {
+      inboxAccess: boolean;
+      canAuthorApologeticsPosts: boolean;
+    };
+  }>({
+    queryKey: ['/api/me'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/me');
+      return res.data;
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  const hasInboxAccess = meData?.capabilities?.inboxAccess || false;
+
+  // Banner dismiss state
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  // Load banner dismissed state from AsyncStorage
+  useEffect(() => {
+    AsyncStorage.getItem(BANNER_DISMISSED_KEY).then((value) => {
+      if (value === "true") {
+        setBannerDismissed(true);
+      }
+    });
+  }, []);
+
+  const dismissBanner = useCallback(async () => {
+    setBannerDismissed(true);
+    await AsyncStorage.setItem(BANNER_DISMISSED_KEY, "true");
+  }, []);
 
   // Debounce search query
   useEffect(() => {
@@ -237,6 +277,34 @@ export default function ApologeticsScreen({
         unreadNotificationCount={unreadNotificationCount}
         unreadMessageCount={unreadMessageCount}
       />
+
+      {/* Apologist Application Banner - only show to users who don't have inbox access and haven't dismissed */}
+      {user && !hasInboxAccess && !bannerDismissed && (
+        <View style={styles.applicationBanner}>
+          <Pressable
+            style={styles.bannerTouchable}
+            onPress={() => router.push("/apologetics/apply" as any)}
+          >
+            <View style={styles.bannerIconWrap}>
+              <Ionicons name="school-outline" size={24} color="#D97706" />
+            </View>
+            <View style={styles.bannerContent}>
+              <Text style={styles.bannerTitle}>Become an Apologist Scholar</Text>
+              <Text style={styles.bannerDescription}>
+                Share your knowledge and help answer faith questions
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#D97706" />
+          </Pressable>
+          <Pressable
+            style={styles.bannerCloseButton}
+            onPress={dismissBanner}
+            hitSlop={10}
+          >
+            <Ionicons name="close" size={18} color="#92400E" />
+          </Pressable>
+        </View>
+      )}
 
       <View style={styles.screen}>
         {/* Search */}
@@ -623,6 +691,54 @@ function getStyles(colors: any) {
     safeArea: {
       flex: 1,
       backgroundColor: colors.header, // Match header color to extend to top of screen
+    },
+    applicationBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#FFFBEB', // amber-50 equivalent
+      borderBottomWidth: 1,
+      borderBottomColor: '#FDE68A', // amber-200 equivalent
+      paddingRight: 40, // Space for close button
+    },
+    bannerTouchable: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 12,
+    },
+    bannerIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#FEF3C7', // amber-100 equivalent
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bannerContent: {
+      flex: 1,
+    },
+    bannerTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: '#78350F', // amber-900 equivalent
+    },
+    bannerDescription: {
+      fontSize: 12,
+      color: '#B45309', // amber-700 equivalent
+      marginTop: 2,
+    },
+    bannerCloseButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: '#FEF3C7',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     screen: {
       flex: 1,

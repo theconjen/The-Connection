@@ -11,7 +11,7 @@
  * - Inbox access for apologists
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../hooks/use-auth";
 import MainLayout from "../components/layouts/main-layout";
@@ -27,7 +27,11 @@ import {
   Users,
   Mail,
   Inbox,
-  TrendingUp
+  TrendingUp,
+  GraduationCap,
+  BookOpen,
+  ArrowRight,
+  X
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -83,6 +87,8 @@ const SUGGESTED_SEARCHES = {
   ],
 };
 
+const BANNER_DISMISSED_KEY = "apologist-banner-dismissed";
+
 export default function ApologeticsPage() {
   const { user } = useAuth();
   const [domain, setDomain] = useState<Domain>("apologetics");
@@ -90,6 +96,17 @@ export default function ApologeticsPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedAreaId, setSelectedAreaId] = useState<number | null>(null);
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(BANNER_DISMISSED_KEY) === "true";
+    }
+    return false;
+  });
+
+  const dismissBanner = useCallback(() => {
+    setBannerDismissed(true);
+    localStorage.setItem(BANNER_DISMISSED_KEY, "true");
+  }, []);
 
   // Fetch /api/me to check capabilities
   const { data: meData } = useQuery<{
@@ -219,6 +236,44 @@ export default function ApologeticsPage() {
         </div>
       </div>
 
+      {/* Apologist Application Banner - shown to non-scholars, dismissible */}
+      {!hasInboxAccess && user && !bannerDismissed && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-b border-amber-200 dark:border-amber-800 relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pr-8">
+              <div className="flex items-start gap-4">
+                <div className="hidden sm:flex h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900/50 items-center justify-center flex-shrink-0">
+                  <GraduationCap className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-100">
+                    Become an Apologist Scholar
+                  </h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1 max-w-lg">
+                    Share your knowledge and help others understand the faith. Join our team of verified scholars and answer questions from the community.
+                  </p>
+                </div>
+              </div>
+              <Button asChild className="bg-amber-600 hover:bg-amber-700 text-white flex-shrink-0">
+                <Link href="/apologetics/apply">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Apply Now
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+            {/* Close button */}
+            <button
+              onClick={dismissBanner}
+              className="absolute top-3 right-3 p-1 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
+              aria-label="Dismiss banner"
+            >
+              <X className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Action Buttons */}
@@ -229,15 +284,6 @@ export default function ApologeticsPage() {
               <Link href="/questions/inbox">
                 <Inbox className="mr-2 h-4 w-4" />
                 Apologetics Inbox
-              </Link>
-            </Button>
-          )}
-          {/* Become a Scholar Application Link */}
-          {!hasInboxAccess && (
-            <Button asChild variant="secondary" size="sm">
-              <Link href="/apologetics/apply">
-                <Users className="mr-2 h-4 w-4" />
-                Become a Scholar
               </Link>
             </Button>
           )}
