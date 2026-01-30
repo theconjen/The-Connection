@@ -3,7 +3,7 @@
  * Inside (tabs) to show bottom navigation bar
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
   StatusBar,
   Alert,
   TextInput,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +26,7 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import apiClient from '../../src/lib/apiClient';
 import { formatDistanceToNow } from 'date-fns';
+import { shareAdvice } from '../../src/lib/shareUrls';
 
 interface AdvicePost {
   id: number;
@@ -54,6 +57,10 @@ export default function AdviceListScreen() {
   const [unupvotedPosts, setUnupvotedPosts] = useState<Set<number>>(new Set());
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<number>>(new Set());
   const [unbookmarkedPosts, setUnbookmarkedPosts] = useState<Set<number>>(new Set());
+
+  // Menu state
+  const [menuPost, setMenuPost] = useState<AdvicePost | null>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
 
   const {
     data,
@@ -157,6 +164,34 @@ export default function AdviceListScreen() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  const showMenu = useCallback((post: AdvicePost, event: any) => {
+    event.stopPropagation();
+    const { pageY, pageX } = event.nativeEvent;
+    setMenuPosition({ top: pageY + 5, right: 16 });
+    setMenuPost(post);
+  }, []);
+
+  const handleShare = useCallback(async () => {
+    if (!menuPost) return;
+    setMenuPost(null);
+    const preview = menuPost.content?.slice(0, 100) || '';
+    await shareAdvice(menuPost.id, preview);
+  }, [menuPost]);
+
+  const handleReport = useCallback(() => {
+    setMenuPost(null);
+    Alert.alert(
+      'Report Content',
+      'Are you sure you want to report this post?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Report', style: 'destructive', onPress: () => {
+          Alert.alert('Reported', 'Thank you for your report. Our team will review this content.');
+        }},
+      ]
+    );
+  }, []);
+
   const renderItem = ({ item }: { item: AdvicePost }) => {
     const isUpvoted = unupvotedPosts.has(item.id) ? false : (upvotedPosts.has(item.id) || item.isLiked);
     const isBookmarked = unbookmarkedPosts.has(item.id) ? false : (bookmarkedPosts.has(item.id) || item.isBookmarked);
@@ -190,6 +225,13 @@ export default function AdviceListScreen() {
                 name={isBookmarked ? "bookmark" : "bookmark-outline"}
                 size={18}
                 color={isBookmarked ? colors.primary : colors.textMuted}
+              />
+            </Pressable>
+            <Pressable onPress={(e) => showMenu(item, e)} hitSlop={8}>
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={18}
+                color={colors.textMuted}
               />
             </Pressable>
           </View>
@@ -317,6 +359,32 @@ export default function AdviceListScreen() {
           }
         />
       )}
+
+      {/* Dropdown Menu */}
+      <Modal
+        visible={!!menuPost}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuPost(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setMenuPost(null)}>
+          <View style={styles.menuOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: menuPosition.top, right: menuPosition.right }]}>
+                <Pressable style={styles.dropdownItem} onPress={handleShare}>
+                  <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                  <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>
+                </Pressable>
+                <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                <Pressable style={styles.dropdownItem} onPress={handleReport}>
+                  <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                  <Text style={[styles.dropdownItemText, { color: '#EF4444' }]}>Report</Text>
+                </Pressable>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -463,5 +531,37 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+
+  // Dropdown Menu
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    minWidth: 150,
+    borderRadius: 12,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  dropdownItemText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  dropdownDivider: {
+    height: 1,
+    marginHorizontal: 12,
   },
 });

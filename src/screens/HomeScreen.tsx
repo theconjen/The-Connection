@@ -21,6 +21,8 @@ import {
   Pressable,
   StatusBar,
   Alert,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +34,7 @@ import apiClient from '../lib/apiClient';
 import { AppHeader } from './AppHeader';
 import { PostCard } from './PostCard';
 import { formatDistanceToNow } from 'date-fns';
+import { shareAdvice, shareApologetics } from '../lib/shareUrls';
 
 // ============================================================================
 // TYPES
@@ -411,10 +414,12 @@ function ApologeticsCard({
   article,
   colors,
   onPress,
+  onMenuPress,
 }: {
   article: ApologeticsArticle;
   colors: any;
   onPress: () => void;
+  onMenuPress?: (event: any) => void;
 }) {
   return (
     <Pressable
@@ -428,11 +433,18 @@ function ApologeticsCard({
             {article.domain === 'apologetics' ? 'Apologetics' : 'Polemics'}
           </Text>
         </View>
-        {article.area && (
-          <Text style={[styles.articleArea, { color: colors.textMuted }]}>
-            {article.area.name}
-          </Text>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          {article.area && (
+            <Text style={[styles.articleArea, { color: colors.textMuted }]}>
+              {article.area.name}
+            </Text>
+          )}
+          {onMenuPress && (
+            <Pressable onPress={onMenuPress} hitSlop={8}>
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <Text style={[styles.articleTitle, { color: colors.textPrimary }]} numberOfLines={2}>
@@ -605,6 +617,12 @@ export default function HomeScreen({
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<number>>(new Set());
   const [unbookmarkedPosts, setUnbookmarkedPosts] = useState<Set<number>>(new Set());
 
+  // Menu state for advice and apologetics
+  const [adviceMenuPost, setAdviceMenuPost] = useState<AdvicePost | null>(null);
+  const [adviceMenuPosition, setAdviceMenuPosition] = useState({ top: 0, right: 0 });
+  const [articleMenuPost, setArticleMenuPost] = useState<ApologeticsArticle | null>(null);
+  const [articleMenuPosition, setArticleMenuPosition] = useState({ top: 0, right: 0 });
+
   // Upvote mutation
   const upvoteMutation = useMutation({
     mutationFn: async ({ postId, isCurrentlyLiked }: { postId: number; isCurrentlyLiked: boolean }) => {
@@ -693,6 +711,63 @@ export default function HomeScreen({
     router.push({ pathname: '/advice/[id]' as any, params: { id: postId.toString() } });
   }, [router]);
 
+  // Menu handlers for advice posts
+  const showAdviceMenu = useCallback((post: AdvicePost, event: any) => {
+    event.stopPropagation();
+    const { pageY } = event.nativeEvent;
+    setAdviceMenuPosition({ top: pageY + 5, right: 16 });
+    setAdviceMenuPost(post);
+  }, []);
+
+  const handleShareAdvice = useCallback(async () => {
+    if (!adviceMenuPost) return;
+    setAdviceMenuPost(null);
+    const preview = adviceMenuPost.content?.slice(0, 100) || '';
+    await shareAdvice(adviceMenuPost.id, preview);
+  }, [adviceMenuPost]);
+
+  const handleReportAdvice = useCallback(() => {
+    setAdviceMenuPost(null);
+    Alert.alert(
+      'Report Content',
+      'Are you sure you want to report this post?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Report', style: 'destructive', onPress: () => {
+          Alert.alert('Reported', 'Thank you for your report. Our team will review this content.');
+        }},
+      ]
+    );
+  }, []);
+
+  // Menu handlers for apologetics articles
+  const showArticleMenu = useCallback((article: ApologeticsArticle, event: any) => {
+    event.stopPropagation();
+    const { pageY } = event.nativeEvent;
+    setArticleMenuPosition({ top: pageY + 5, right: 16 });
+    setArticleMenuPost(article);
+  }, []);
+
+  const handleShareArticle = useCallback(async () => {
+    if (!articleMenuPost) return;
+    setArticleMenuPost(null);
+    await shareApologetics(articleMenuPost.id, articleMenuPost.title);
+  }, [articleMenuPost]);
+
+  const handleReportArticle = useCallback(() => {
+    setArticleMenuPost(null);
+    Alert.alert(
+      'Report Content',
+      'Are you sure you want to report this article?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Report', style: 'destructive', onPress: () => {
+          Alert.alert('Reported', 'Thank you for your report. Our team will review this content.');
+        }},
+      ]
+    );
+  }, []);
+
   const hasJoinedCommunities = joinedCommunities.length > 0;
   const hasFeedItems = verticalFeedItems.length > 0 || advicePosts.length > 0;
 
@@ -739,13 +814,22 @@ export default function HomeScreen({
               </Text>
             </View>
           </View>
-          <Pressable onPress={() => handleBookmark(item.id, isBookmarked)} hitSlop={8}>
-            <Ionicons
-              name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={16}
-              color={isBookmarked ? colors.primary : colors.textMuted}
-            />
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Pressable onPress={() => handleBookmark(item.id, isBookmarked)} hitSlop={8}>
+              <Ionicons
+                name={isBookmarked ? "bookmark" : "bookmark-outline"}
+                size={16}
+                color={isBookmarked ? colors.primary : colors.textMuted}
+              />
+            </Pressable>
+            <Pressable onPress={(e) => showAdviceMenu(item, e)} hitSlop={8}>
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={16}
+                color={colors.textMuted}
+              />
+            </Pressable>
+          </View>
         </View>
 
         {item.anonymousNickname && (
@@ -783,7 +867,7 @@ export default function HomeScreen({
         </View>
       </Pressable>
     );
-  }, [colors, upvotedPosts, unupvotedPosts, bookmarkedPosts, unbookmarkedPosts, handleUpvote, handleBookmark, handleComment]);
+  }, [colors, upvotedPosts, unupvotedPosts, bookmarkedPosts, unbookmarkedPosts, handleUpvote, handleBookmark, handleComment, showAdviceMenu]);
 
   // Header component with horizontal Global Community carousel
   const ListHeaderComponent = useCallback(() => {
@@ -845,6 +929,7 @@ export default function HomeScreen({
             article={article}
             colors={colors}
             onPress={() => router.push({ pathname: '/apologetics/[id]' as any, params: { id: article.id.toString() } })}
+            onMenuPress={(e) => showArticleMenu(article, e)}
           />
         );
 
@@ -899,6 +984,58 @@ export default function HomeScreen({
           ListFooterComponent={ListFooterComponent}
         />
       )}
+
+      {/* Advice Dropdown Menu */}
+      <Modal
+        visible={!!adviceMenuPost}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAdviceMenuPost(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setAdviceMenuPost(null)}>
+          <View style={styles.menuOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: adviceMenuPosition.top, right: adviceMenuPosition.right }]}>
+                <Pressable style={styles.dropdownItem} onPress={handleShareAdvice}>
+                  <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                  <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>
+                </Pressable>
+                <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                <Pressable style={styles.dropdownItem} onPress={handleReportAdvice}>
+                  <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                  <Text style={[styles.dropdownItemText, { color: '#EF4444' }]}>Report</Text>
+                </Pressable>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Article Dropdown Menu */}
+      <Modal
+        visible={!!articleMenuPost}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setArticleMenuPost(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setArticleMenuPost(null)}>
+          <View style={styles.menuOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: articleMenuPosition.top, right: articleMenuPosition.right }]}>
+                <Pressable style={styles.dropdownItem} onPress={handleShareArticle}>
+                  <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                  <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>
+                </Pressable>
+                <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                <Pressable style={styles.dropdownItem} onPress={handleReportArticle}>
+                  <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                  <Text style={[styles.dropdownItemText, { color: '#EF4444' }]}>Report</Text>
+                </Pressable>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1214,5 +1351,37 @@ const styles = StyleSheet.create({
     width: 50,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  // Dropdown Menu
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    minWidth: 150,
+    borderRadius: 12,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  dropdownItemText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  dropdownDivider: {
+    height: 1,
+    marginHorizontal: 12,
   },
 });

@@ -17,6 +17,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -26,6 +28,7 @@ import apiClient from '../../src/lib/apiClient';
 import { Text } from '../../src/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { shareAdvice, shareAdviceResponse } from '../../src/lib/shareUrls';
 
 // Get avatar URL with fallback to UI Avatars
 function getAvatarUrl(author?: any): string {
@@ -69,6 +72,10 @@ export default function AdviceDetailScreen() {
   const styles = getStyles(colors, theme);
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState('');
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ y: 0 });
+  const [responseMenuVisible, setResponseMenuVisible] = useState<number | null>(null);
+  const [responseMenuPosition, setResponseMenuPosition] = useState({ y: 0 });
 
   const adviceId = parseInt(id || '0');
 
@@ -192,6 +199,89 @@ export default function AdviceDetailScreen() {
            'Unknown User';
   };
 
+  // Handle sharing the main advice post
+  const handleSharePost = async () => {
+    setMenuVisible(false);
+    const preview = advicePost?.content || '';
+    const result = await shareAdvice(adviceId, preview);
+    if (!result.success && result.error !== 'Share dismissed') {
+      Alert.alert('Error', 'Failed to share. Please try again.');
+    }
+  };
+
+  // Handle sharing a response
+  const handleShareResponse = async (response: any) => {
+    setResponseMenuVisible(null);
+    const result = await shareAdviceResponse(adviceId, response.content);
+    if (!result.success && result.error !== 'Share dismissed') {
+      Alert.alert('Error', 'Failed to share. Please try again.');
+    }
+  };
+
+  // Handle report for main post
+  const handleReportPost = () => {
+    setMenuVisible(false);
+    Alert.alert(
+      'Report Post',
+      'Are you sure you want to report this post? Our team will review it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.post(`/api/microblogs/${adviceId}/report`, {
+                reason: 'inappropriate_content',
+              });
+              Alert.alert('Reported', 'Thank you for your report. Our team will review it.');
+            } catch {
+              Alert.alert('Error', 'Failed to report. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle report for a response
+  const handleReportResponse = (response: any) => {
+    setResponseMenuVisible(null);
+    Alert.alert(
+      'Report Response',
+      'Are you sure you want to report this response? Our team will review it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.post(`/api/microblogs/comments/${response.id}/report`, {
+                reason: 'inappropriate_content',
+              });
+              Alert.alert('Reported', 'Thank you for your report. Our team will review it.');
+            } catch {
+              Alert.alert('Error', 'Failed to report. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Show dropdown menu for main post
+  const showPostMenu = (pageY: number) => {
+    setMenuPosition({ y: pageY + 25 });
+    setMenuVisible(true);
+  };
+
+  // Show dropdown menu for a response
+  const showResponseMenu = (response: any, pageY: number) => {
+    setResponseMenuPosition({ y: pageY + 25 });
+    setResponseMenuVisible(response.id);
+  };
+
   if (adviceLoading) {
     return (
       <View style={styles.centerContainer}>
@@ -218,13 +308,7 @@ export default function AdviceDetailScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Advice</Text>
-          <Pressable onPress={() => bookmarkMutation.mutate()} hitSlop={8} style={styles.headerBookmark}>
-            <Ionicons
-              name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={22}
-              color={isBookmarked ? colors.primary : colors.textSecondary}
-            />
-          </Pressable>
+          <View style={styles.headerSpacer} />
         </View>
 
         <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -243,6 +327,18 @@ export default function AdviceDetailScreen() {
                     <Text style={styles.postTime}>
                       {advicePost.createdAt ? formatTime(advicePost.createdAt) : 'Recently'}
                     </Text>
+                  </View>
+                  <View style={styles.cardActions}>
+                    <Pressable onPress={() => bookmarkMutation.mutate()} hitSlop={8} style={styles.cardAction}>
+                      <Ionicons
+                        name={isBookmarked ? "bookmark" : "bookmark-outline"}
+                        size={20}
+                        color={isBookmarked ? colors.primary : colors.textMuted}
+                      />
+                    </Pressable>
+                    <Pressable onPress={(e) => showPostMenu(e.nativeEvent.pageY)} hitSlop={8} style={styles.cardAction}>
+                      <Ionicons name="ellipsis-horizontal" size={20} color={colors.textMuted} />
+                    </Pressable>
                   </View>
                 </View>
 
@@ -327,13 +423,22 @@ export default function AdviceDetailScreen() {
                   />
                   <View style={styles.commentMain}>
                     <View style={styles.commentHeader}>
-                      <Text style={styles.commentAuthorName}>
-                        {response.author?.displayName || response.author?.username || 'User'}
-                      </Text>
-                      <Text style={styles.postDot}>·</Text>
-                      {response.createdAt && (
-                        <Text style={styles.postTime}>{formatTime(response.createdAt)}</Text>
-                      )}
+                      <View style={styles.commentAuthorRow}>
+                        <Text style={styles.commentAuthorName}>
+                          {response.author?.displayName || response.author?.username || 'User'}
+                        </Text>
+                        <Text style={styles.postDot}>·</Text>
+                        {response.createdAt && (
+                          <Text style={styles.postTime}>{formatTime(response.createdAt)}</Text>
+                        )}
+                      </View>
+                      <Pressable
+                        onPress={(e) => showResponseMenu(response, e.nativeEvent.pageY)}
+                        hitSlop={8}
+                        style={styles.responseMenuButton}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+                      </Pressable>
                     </View>
                     <Text style={styles.commentContent}>{response.content}</Text>
                   </View>
@@ -367,6 +472,88 @@ export default function AdviceDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Dropdown Menu for Post */}
+        {menuVisible && (
+          <Modal
+            visible={true}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setMenuVisible(false)}
+          >
+            <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+              <View style={styles.dropdownOverlay}>
+                <View
+                  style={[
+                    styles.dropdownMenu,
+                    {
+                      backgroundColor: colors.surface,
+                      top: menuPosition.y,
+                      right: 16,
+                    }
+                  ]}
+                >
+                  <Pressable style={styles.dropdownItem} onPress={handleSharePost}>
+                    <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share</Text>
+                  </Pressable>
+                  <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                  <Pressable style={styles.dropdownItem} onPress={handleReportPost}>
+                    <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                    <Text style={[styles.dropdownText, { color: '#EF4444' }]}>Report</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+        )}
+
+        {/* Dropdown Menu for Response */}
+        {responseMenuVisible !== null && (
+          <Modal
+            visible={true}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setResponseMenuVisible(null)}
+          >
+            <TouchableWithoutFeedback onPress={() => setResponseMenuVisible(null)}>
+              <View style={styles.dropdownOverlay}>
+                <View
+                  style={[
+                    styles.dropdownMenu,
+                    {
+                      backgroundColor: colors.surface,
+                      top: responseMenuPosition.y,
+                      right: 16,
+                    }
+                  ]}
+                >
+                  <Pressable
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      const response = responses.find((r: any) => r.id === responseMenuVisible);
+                      if (response) handleShareResponse(response);
+                    }}
+                  >
+                    <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share</Text>
+                  </Pressable>
+                  <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                  <Pressable
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      const response = responses.find((r: any) => r.id === responseMenuVisible);
+                      if (response) handleReportResponse(response);
+                    }}
+                  >
+                    <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                    <Text style={[styles.dropdownText, { color: '#EF4444' }]}>Report</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -407,11 +594,8 @@ const getStyles = (colors: any, theme: string) => {
       fontWeight: '600',
       color: colors.textPrimary || colors.text
     },
-    headerBookmark: {
+    headerSpacer: {
       width: 40,
-      height: 40,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     content: {
       flex: 1
@@ -428,6 +612,15 @@ const getStyles = (colors: any, theme: string) => {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: 12,
+    },
+    cardActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginLeft: 'auto',
+      gap: 8,
+    },
+    cardAction: {
+      padding: 4,
     },
     anonymousAvatar: {
       width: 44,
@@ -561,8 +754,17 @@ const getStyles = (colors: any, theme: string) => {
     commentHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      flexWrap: 'wrap',
+      justifyContent: 'space-between',
       marginBottom: 4,
+    },
+    commentAuthorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      flex: 1,
+    },
+    responseMenuButton: {
+      padding: 4,
     },
     commentAuthorName: {
       fontSize: 14,
@@ -613,6 +815,40 @@ const getStyles = (colors: any, theme: string) => {
     },
     postButtonDisabled: {
       opacity: 0.5,
+    },
+    postDot: {
+      color: colors.textMuted || colors.textSecondary,
+      marginHorizontal: 4,
+    },
+    dropdownOverlay: {
+      flex: 1,
+      backgroundColor: 'transparent',
+    },
+    dropdownMenu: {
+      position: 'absolute',
+      minWidth: 140,
+      borderRadius: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+      overflow: 'hidden',
+    },
+    dropdownItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      gap: 10,
+    },
+    dropdownText: {
+      fontSize: 15,
+      fontWeight: '500',
+    },
+    dropdownDivider: {
+      height: 1,
+      marginHorizontal: 12,
     },
   });
 };
