@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { useMediaQuery } from '../hooks/use-media-query';
 import io, { Socket } from 'socket.io-client';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 import { ArrowLeft, Phone, Video, MoreVertical } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { apiUrl } from '../lib/env';
 import type { User } from '@connection/shared/mobile-web/types';
 
 interface Message {
@@ -31,8 +32,9 @@ export default function DMs() {
   const params = useParams() as { userId?: string };
   const userIdFromUrl = params.userId;
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
   const isMobile = useMediaQuery("(max-width: 768px)");
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -63,7 +65,7 @@ export default function DMs() {
     if (!userIdFromUrl) return;
 
     setIsLoading(true);
-    fetch(`/api/dms/${userIdFromUrl}`)
+    fetch(apiUrl(`/api/dms/${userIdFromUrl}`))
       .then((res) => res.json())
       .then((data) => {
         setMessages(data || []);
@@ -76,17 +78,23 @@ export default function DMs() {
       });
   }, [userIdFromUrl]);
 
-  // Mark conversation as read when opened
+  // Mark conversation as read when opened (syncs with mobile app)
   useEffect(() => {
     if (!userIdFromUrl || !user?.id) return;
 
-    fetch(`/api/dms/mark-conversation-read/${userIdFromUrl}`, {
+    fetch(apiUrl(`/api/dms/mark-conversation-read/${userIdFromUrl}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
-    }).catch((err) => {
-      console.error("Error marking conversation as read:", err);
-    });
-  }, [userIdFromUrl, user?.id]);
+    })
+      .then(() => {
+        // Invalidate conversation queries so unread counts update
+        queryClient.invalidateQueries({ queryKey: ['/api/dms/conversations'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/dms/unread-count'] });
+      })
+      .catch((err) => {
+        console.error("Error marking conversation as read:", err);
+      });
+  }, [userIdFromUrl, user?.id, queryClient]);
 
   // Socket.IO connection
   useEffect(() => {
@@ -115,7 +123,17 @@ export default function DMs() {
           }
           return [...prev, message];
         });
+        // Mark as read since we're viewing this conversation
+        if (message.senderId.toString() === userIdFromUrl) {
+          fetch(apiUrl(`/api/dms/mark-conversation-read/${userIdFromUrl}`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          }).catch(() => {});
+        }
       }
+      // Refresh conversation queries so unread counts stay in sync
+      queryClient.invalidateQueries({ queryKey: ['/api/dms/conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dms/unread-count'] });
     });
 
     socket.on('error', (error: any) => {
@@ -125,7 +143,7 @@ export default function DMs() {
     return () => {
       socket.disconnect();
     };
-  }, [user?.id, userIdFromUrl]);
+  }, [user?.id, userIdFromUrl, queryClient]);
 
   // Send message
   const handleSendMessage = async (messageContent: string) => {

@@ -14,6 +14,15 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Platform settings table - stores admin-configurable settings
+export const platformSettings = pgTable("platform_settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: integer("updated_by").references(() => users.id),
+});
+
 // Password reset tokens table - stores hashed tokens for security
 export const passwordResetTokens = pgTable(
   "password_reset_tokens",
@@ -81,6 +90,10 @@ export const users = pgTable("users", {
   dateOfBirth: date("date_of_birth"),
   ageGatePassed: boolean("age_gate_passed").default(false),
   ageVerifiedAt: timestamp("age_verified_at"),
+  // Clergy verification fields
+  isVerifiedClergy: boolean("is_verified_clergy").default(false),
+  clergyVerifiedAt: timestamp("clergy_verified_at"),
+  clergyVerifiedByOrgId: integer("clergy_verified_by_org_id").references(() => organizations.id),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -182,6 +195,10 @@ export const communities = pgTable("communities", {
   frequency: text("frequency"), // Daily, Weekly, Bi-weekly, Monthly, One-time
   lifeStages: text("life_stages").array(), // Singles, Married, Students, etc.
   parentCategories: text("parent_categories").array(), // All Parents, Moms, Dads, etc.
+  // Activity tracking fields
+  lastActivityAt: timestamp("last_activity_at"), // Updated when post/event/chat happens
+  recentPostCount: integer("recent_post_count").default(0), // Posts in last 7 days
+  upcomingEventCount: integer("upcoming_event_count").default(0), // Events in next 30 days
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   createdBy: integer("created_by").references(() => users.id),
@@ -332,6 +349,7 @@ export const chatMessages = pgTable("chat_messages", {
   chatRoomId: integer("chat_room_id").references(() => communityChatRooms.id).notNull(),
   senderId: integer("sender_id").references(() => users.id).notNull(),
   isSystemMessage: boolean("is_system_message").default(false),
+  isAnnouncement: boolean("is_announcement").default(false), // Admin/mod announcements that notify all members
   createdAt: timestamp("created_at").defaultNow(),
 } as any);
 
@@ -340,6 +358,7 @@ export const insertChatMessageSchema = createInsertSchema(chatMessages).pick({
   chatRoomId: true,
   senderId: true,
   isSystemMessage: true,
+  isAnnouncement: true,
 } as any);
 
 // Community Wall Posts schema
@@ -918,6 +937,7 @@ export const microblogs: any = pgTable("microblogs", {
   postType: text("post_type").default('STANDARD'), // STANDARD or POLL
   pollId: integer("poll_id"), // FK to polls table (set after poll creation)
   sourceUrl: text("source_url"), // For NEWS/CULTURE/ENTERTAINMENT posts with external links
+  anonymousNickname: text("anonymous_nickname"), // Optional nickname for anonymous advice posts (e.g., "Struggling Mom")
   createdAt: timestamp("created_at").defaultNow(),
 } as any);
 
@@ -935,6 +955,7 @@ export const insertMicroblogSchema = createInsertSchema(microblogs).pick({
   postType: true,
   pollId: true,
   sourceUrl: true,
+  anonymousNickname: true,
 } as any);
 
 // Microblog likes table for tracking user likes
@@ -1227,8 +1248,9 @@ export const eventRsvps = pgTable(
     id: serial("id").primaryKey(),
     eventId: integer("event_id").notNull().references(() => events.id),
     userId: integer("user_id").notNull().references(() => users.id),
-    status: text("status").notNull(), // attending, maybe, declined
+    status: text("status").notNull(), // going, maybe, not_going
     createdAt: timestamp("created_at").defaultNow(),
+    confirmedAt: timestamp("confirmed_at"), // null = not confirmed, set = confirmed attendance (shows on profile)
   },
   (table) => [
     uniqueIndex("event_rsvps_event_user_idx").on(table.eventId, table.userId),
@@ -1856,6 +1878,21 @@ export const insertUserBlockSchema = createInsertSchema(userBlocks).omit({
   createdAt: true,
 } as any);
 
+// Muted conversations - users can mute notifications for specific conversations
+export const mutedConversations = pgTable("muted_conversations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  mutedUserId: integer("muted_user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueMute: uniqueIndex("muted_conversations_unique_idx").on(table.userId, table.mutedUserId),
+}));
+
+export const insertMutedConversationSchema = createInsertSchema(mutedConversations).omit({
+  id: true,
+  createdAt: true,
+} as any);
+
 // Hidden suggestions - users dismissed from friend suggestions
 export const hiddenSuggestions = pgTable("hidden_suggestions", {
   id: serial("id").primaryKey(),
@@ -2238,6 +2275,29 @@ export const insertQuestionMessageSchema = createInsertSchema(questionMessages).
   senderUserId: true,
   body: true,
 } as any);
+
+// Clergy Verification Requests - organizations can vouch for pastors/priests
+export const clergyVerificationRequests = pgTable("clergy_verification_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  requestedAt: timestamp("requested_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedByUserId: integer("reviewed_by_user_id").references(() => users.id),
+  notes: text("notes"), // Optional notes from reviewer
+} as any);
+
+export const insertClergyVerificationRequestSchema = createInsertSchema(clergyVerificationRequests).pick({
+  userId: true,
+  organizationId: true,
+  status: true,
+  notes: true,
+} as any);
+
+// Type exports for Clergy Verification
+export type ClergyVerificationRequest = typeof clergyVerificationRequests.$inferSelect;
+export type InsertClergyVerificationRequest = typeof clergyVerificationRequests.$inferInsert;
 
 // Type exports for Q&A Inbox system
 export type UserPermission = typeof userPermissions.$inferSelect;

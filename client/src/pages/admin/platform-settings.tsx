@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "../../components/layouts/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Label } from "../../components/ui/label";
@@ -7,22 +8,94 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { Save, ShieldCheck, Bell, Globe2 } from "lucide-react";
+import { useToast } from "../../hooks/use-toast";
+import { Save, ShieldCheck, Bell, Globe2, Loader2 } from "lucide-react";
+import { apiUrl } from "../../lib/env";
+
+type PlatformSettings = {
+  onboarding: boolean;
+  contentModeration: boolean;
+  emailFrom: string;
+  announcement: string;
+  supportLink: string;
+  dailyDigest: boolean;
+  safetyAlerts: boolean;
+  healthUpdates: boolean;
+};
+
+const defaultSettings: PlatformSettings = {
+  onboarding: true,
+  contentModeration: true,
+  emailFrom: "support@theconnection.app",
+  announcement: "",
+  supportLink: "https://theconnection.app/support",
+  dailyDigest: true,
+  safetyAlerts: true,
+  healthUpdates: false,
+};
 
 export default function PlatformSettingsPage() {
-  const [settings, setSettings] = useState({
-    onboarding: true,
-    contentModeration: true,
-    livestreamsEnabled: true,
-    emailFrom: "support@theconnection.app",
-    announcement: "Welcome to the new admin experience!",
-    supportLink: "https://theconnection.app/support",
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [settings, setSettings] = useState<PlatformSettings>(defaultSettings);
+
+  // Fetch settings from backend
+  const { data: savedSettings, isLoading } = useQuery<PlatformSettings>({
+    queryKey: ["/api/admin/settings"],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/admin/settings"));
+      if (!res.ok) {
+        // Return defaults if not found
+        return defaultSettings;
+      }
+      return res.json();
+    },
+    retry: false,
+  });
+
+  // Update local state when data is fetched
+  useEffect(() => {
+    if (savedSettings) {
+      setSettings(savedSettings);
+    }
+  }, [savedSettings]);
+
+  // Save settings mutation
+  const saveMutation = useMutation({
+    mutationFn: async (newSettings: PlatformSettings) => {
+      const res = await fetch(apiUrl("/api/admin/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSettings),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to save settings");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+      toast({ title: "Success", description: "Settings saved successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 
   const handleSave = () => {
-    // In a real build this would call the API; for now we just keep UI responsive
-    setSettings((prev) => ({ ...prev }));
+    saveMutation.mutate(settings);
   };
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -31,8 +104,12 @@ export default function PlatformSettingsPage() {
           <h1 className="text-3xl font-bold">Platform Settings</h1>
           <p className="text-gray-500">Configure global defaults and safety controls.</p>
         </div>
-        <Button onClick={handleSave} className="gap-2">
-          <Save className="h-4 w-4" />
+        <Button onClick={handleSave} className="gap-2" disabled={saveMutation.isPending}>
+          {saveMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
           Save changes
         </Button>
       </div>
@@ -70,6 +147,7 @@ export default function PlatformSettingsPage() {
                 <Textarea
                   value={settings.announcement}
                   onChange={(e) => setSettings((prev) => ({ ...prev, announcement: e.target.value }))}
+                  placeholder="Leave empty to hide announcement banner"
                 />
               </div>
             </CardContent>
@@ -78,7 +156,7 @@ export default function PlatformSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Feature toggles</CardTitle>
-              <CardDescription>Turn on/off beta areas without deployments.</CardDescription>
+              <CardDescription>Turn on/off platform features.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between p-3 border rounded">
@@ -89,16 +167,6 @@ export default function PlatformSettingsPage() {
                 <Switch
                   checked={settings.onboarding}
                   onCheckedChange={(value) => setSettings((prev) => ({ ...prev, onboarding: value }))}
-                />
-              </div>
-              <div className="flex items-center justify-between p-3 border rounded">
-                <div>
-                  <div className="font-medium">Livestreams</div>
-                  <div className="text-sm text-muted-foreground">Enable livestream tools across the platform.</div>
-                </div>
-                <Switch
-                  checked={settings.livestreamsEnabled}
-                  onCheckedChange={(value) => setSettings((prev) => ({ ...prev, livestreamsEnabled: value }))}
                 />
               </div>
             </CardContent>
@@ -148,21 +216,30 @@ export default function PlatformSettingsPage() {
                   <div className="font-medium">Daily digest</div>
                   <div className="text-sm text-muted-foreground">Roundup of new content, events, and prayer requests.</div>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.dailyDigest}
+                  onCheckedChange={(value) => setSettings((prev) => ({ ...prev, dailyDigest: value }))}
+                />
               </div>
               <div className="flex items-center justify-between p-3 border rounded">
                 <div>
                   <div className="font-medium">Safety alerts</div>
                   <div className="text-sm text-muted-foreground">Escalate urgent trust & safety issues to admins.</div>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.safetyAlerts}
+                  onCheckedChange={(value) => setSettings((prev) => ({ ...prev, safetyAlerts: value }))}
+                />
               </div>
               <div className="flex items-center justify-between p-3 border rounded">
                 <div>
                   <div className="font-medium">Platform health updates</div>
                   <div className="text-sm text-muted-foreground">Weekly summary of uptime, outages, and maintenance.</div>
                 </div>
-                <Switch />
+                <Switch
+                  checked={settings.healthUpdates}
+                  onCheckedChange={(value) => setSettings((prev) => ({ ...prev, healthUpdates: value }))}
+                />
               </div>
             </CardContent>
           </Card>

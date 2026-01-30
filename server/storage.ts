@@ -4977,8 +4977,9 @@ export class DbStorage implements IStorage {
 
         conversationMap.set(otherUserId, {
           otherUserId,
-          lastMessage: msg.content,
+          lastMessageContent: msg.content,
           lastMessageTime: msg.createdAt,
+          lastMessageSenderId: msg.senderId,
           unreadCount: unreadMessages[0]?.count || 0
         });
       }
@@ -4994,12 +4995,12 @@ export class DbStorage implements IStorage {
           id: otherUserId,
           username: otherUser?.username || 'Unknown',
           displayName: otherUser?.displayName,
-          profileImageUrl: otherUser?.profileImageUrl
+          avatarUrl: otherUser?.avatarUrl || null // Use avatarUrl for consistency
         },
         lastMessage: { // Nest last message info
-          content: conv.lastMessage,
+          content: conv.lastMessageContent,
           createdAt: conv.lastMessageTime,
-          senderId: conv.lastMessage?.senderId || otherUserId // Include sender for better context
+          senderId: conv.lastMessageSenderId // Include sender for better context
         },
         unreadCount: conv.unreadCount
       });

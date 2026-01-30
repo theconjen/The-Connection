@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "../../components/layouts/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -7,51 +7,87 @@ import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Badge } from "../../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { BookOpen, Video, Headphones, PlusCircle } from "lucide-react";
+import { useToast } from "../../hooks/use-toast";
+import { BookOpen, Video, Headphones, PlusCircle, Trash2, Loader2 } from "lucide-react";
+import { apiUrl } from "../../lib/env";
 
 type ResourceType = "book" | "video" | "podcast";
 
 type ResourceRecord = {
-  id: number | string;
+  id: number;
   title: string;
   description: string;
   type: ResourceType;
   url?: string;
 };
 
-const fallbackResources: ResourceRecord[] = [
-  {
-    id: 1,
-    title: "The Case for Christ",
-    description: "Investigative journalist explores the evidence for Jesus.",
-    type: "book",
-    url: "https://example.com/case-for-christ",
-  },
-  {
-    id: 2,
-    title: "Defending the Faith livestream",
-    description: "Weekly Q&A with pastors and apologists.",
-    type: "video",
-    url: "https://example.com/livestream",
-  },
-  {
-    id: 3,
-    title: "Apologetics on the go",
-    description: "Short podcast episodes answering tough questions.",
-    type: "podcast",
-    url: "https://example.com/podcast",
-  },
-];
-
 export default function ApologeticsResourcesPage() {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
-  const existingResources = (queryClient.getQueryData<ResourceRecord[]>(["/api/apologetics"]) || fallbackResources) as ResourceRecord[];
-  const [resources, setResources] = useState<ResourceRecord[]>(existingResources);
   const [form, setForm] = useState({
     title: "",
     description: "",
     type: "book" as ResourceType,
     url: "",
+  });
+
+  // Fetch resources from backend
+  const { data: resources = [], isLoading } = useQuery<ResourceRecord[]>({
+    queryKey: ["/api/admin/apologetics-resources"],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/admin/apologetics-resources"));
+      if (!res.ok) {
+        // Return empty array if endpoint doesn't exist yet
+        return [];
+      }
+      return res.json();
+    },
+    retry: false,
+  });
+
+  // Add resource mutation
+  const addMutation = useMutation({
+    mutationFn: async (data: Omit<ResourceRecord, "id">) => {
+      const res = await fetch(apiUrl("/api/admin/apologetics-resources"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to add resource");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/apologetics-resources"] });
+      toast({ title: "Success", description: "Resource added successfully" });
+      setForm({ title: "", description: "", type: "book", url: "" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Delete resource mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (resourceId: number) => {
+      const res = await fetch(apiUrl(`/api/admin/apologetics-resources/${resourceId}`), {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete resource");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/apologetics-resources"] });
+      toast({ title: "Success", description: "Resource deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 
   const categorized = useMemo(() => {
@@ -63,19 +99,16 @@ export default function ApologeticsResourcesPage() {
   }, [resources]);
 
   const addResource = () => {
-    if (!form.title || !form.description) return;
-
-    const next: ResourceRecord = {
-      id: resources.length + 1,
-      ...form,
-    };
-
-    setResources((prev) => [...prev, next]);
-    queryClient.setQueryData<ResourceRecord[]>(["/api/apologetics"], (prev) => [
-      ...(prev || []),
-      next,
-    ]);
-    setForm({ title: "", description: "", type: "book", url: "" });
+    if (!form.title || !form.description) {
+      toast({ title: "Error", description: "Title and description are required", variant: "destructive" });
+      return;
+    }
+    addMutation.mutate({
+      title: form.title,
+      description: form.description,
+      type: form.type,
+      url: form.url || undefined,
+    });
   };
 
   const renderIcon = (type: ResourceType) => {
@@ -96,8 +129,12 @@ export default function ApologeticsResourcesPage() {
           <h1 className="text-3xl font-bold">Apologetics Resources</h1>
           <p className="text-gray-500">Add curated books, videos, and podcasts for the public page.</p>
         </div>
-        <Button onClick={addResource} className="gap-2">
-          <PlusCircle className="h-4 w-4" />
+        <Button onClick={addResource} className="gap-2" disabled={addMutation.isPending}>
+          {addMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <PlusCircle className="h-4 w-4" />
+          )}
           Save resource
         </Button>
       </div>
@@ -121,7 +158,7 @@ export default function ApologeticsResourcesPage() {
             <select
               value={form.type}
               onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as ResourceType }))}
-              className="border rounded px-3 py-2 text-sm"
+              className="w-full border rounded px-3 py-2 text-sm bg-background"
             >
               <option value="book">Book</option>
               <option value="video">Video</option>
@@ -139,46 +176,74 @@ export default function ApologeticsResourcesPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="book">Books</TabsTrigger>
-          <TabsTrigger value="video">Videos</TabsTrigger>
-          <TabsTrigger value="podcast">Podcasts</TabsTrigger>
-        </TabsList>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <Tabs defaultValue="all" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="all">All ({resources.length})</TabsTrigger>
+            <TabsTrigger value="book">Books ({categorized.book.length})</TabsTrigger>
+            <TabsTrigger value="video">Videos ({categorized.video.length})</TabsTrigger>
+            <TabsTrigger value="podcast">Podcasts ({categorized.podcast.length})</TabsTrigger>
+          </TabsList>
 
-        {(["all", "book", "video", "podcast"] as ("all" | ResourceType)[]).map((tab) => {
-          const list = tab === "all" ? resources : categorized[tab];
-          return (
-            <TabsContent key={tab} value={tab}>
-              <div className="grid md:grid-cols-2 gap-4">
-                {list.map((resource) => (
-                  <Card key={resource.id}>
-                    <CardHeader className="flex flex-row items-start justify-between">
-                      <div>
-                        <CardTitle className="text-base">{resource.title}</CardTitle>
-                        <CardDescription className="capitalize">{resource.type}</CardDescription>
-                      </div>
-                      <Badge className="flex items-center gap-1 capitalize" variant="outline">
-                        {renderIcon(resource.type)}
-                        {resource.type}
-                      </Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <p className="text-sm text-muted-foreground">{resource.description}</p>
-                      {resource.url && (
-                        <a href={resource.url} target="_blank" rel="noreferrer" className="text-primary text-sm font-medium">
-                          View link
-                        </a>
-                      )}
+          {(["all", "book", "video", "podcast"] as ("all" | ResourceType)[]).map((tab) => {
+            const list = tab === "all" ? resources : categorized[tab];
+            return (
+              <TabsContent key={tab} value={tab}>
+                {list.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      No {tab === "all" ? "resources" : `${tab}s`} yet. Add one above.
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            </TabsContent>
-          );
-        })}
-      </Tabs>
+                ) : (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {list.map((resource) => (
+                      <Card key={resource.id}>
+                        <CardHeader className="flex flex-row items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-base">{resource.title}</CardTitle>
+                            <CardDescription className="capitalize">{resource.type}</CardDescription>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className="flex items-center gap-1 capitalize" variant="outline">
+                              {renderIcon(resource.type)}
+                              {resource.type}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm("Delete this resource?")) {
+                                  deleteMutation.mutate(resource.id);
+                                }
+                              }}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <p className="text-sm text-muted-foreground">{resource.description}</p>
+                          {resource.url && (
+                            <a href={resource.url} target="_blank" rel="noreferrer" className="text-primary text-sm font-medium">
+                              View link
+                            </a>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      )}
     </AdminLayout>
   );
 }

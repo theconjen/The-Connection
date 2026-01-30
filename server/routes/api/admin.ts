@@ -10,9 +10,17 @@ import {
   apologistProfiles,
   apologistExpertise,
   qaAreas,
-  qaTags
+  qaTags,
+  communities,
+  communityMembers,
+  microblogs,
+  events,
+  prayerRequests,
+  messages,
+  platformSettings,
+  apologeticsResources
 } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, count, gte, sql } from 'drizzle-orm';
 
 const router = Router();
 
@@ -610,6 +618,247 @@ router.post('/invite', async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+// ============================================================================
+// PLATFORM STATISTICS
+// ============================================================================
+
+/**
+ * GET /admin/platform-stats
+ * Get platform-wide statistics for analytics dashboard
+ */
+router.get('/platform-stats', async (req, res, next) => {
+  try {
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // User stats
+    const [totalUsers] = await db.select({ count: count() }).from(users);
+    const [newUsersWeek] = await db.select({ count: count() }).from(users).where(gte(users.createdAt, oneWeekAgo));
+    const [newUsersMonth] = await db.select({ count: count() }).from(users).where(gte(users.createdAt, oneMonthAgo));
+
+    // Community stats
+    const [totalCommunities] = await db.select({ count: count() }).from(communities);
+    const [totalMemberships] = await db.select({ count: count() }).from(communityMembers);
+
+    // Content stats
+    const [totalMicroblogs] = await db.select({ count: count() }).from(microblogs);
+    const [totalEvents] = await db.select({ count: count() }).from(events);
+    const [totalPrayers] = await db.select({ count: count() }).from(prayerRequests);
+
+    // Engagement stats
+    const [messagesWeek] = await db.select({ count: count() }).from(messages).where(gte(messages.createdAt, oneWeekAgo));
+    const [eventsMonth] = await db.select({ count: count() }).from(events).where(gte(events.createdAt, oneMonthAgo));
+
+    res.json({
+      users: {
+        total: totalUsers?.count || 0,
+        newThisWeek: newUsersWeek?.count || 0,
+        newThisMonth: newUsersMonth?.count || 0,
+        active: newUsersWeek?.count || 0, // Approximation
+      },
+      communities: {
+        total: totalCommunities?.count || 0,
+        members: totalMemberships?.count || 0,
+      },
+      content: {
+        microblogs: totalMicroblogs?.count || 0,
+        events: totalEvents?.count || 0,
+        prayerRequests: totalPrayers?.count || 0,
+        apologeticsArticles: 0, // Would need library posts table
+      },
+      engagement: {
+        messagesThisWeek: messagesWeek?.count || 0,
+        eventsThisMonth: eventsMonth?.count || 0,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// PLATFORM SETTINGS
+// ============================================================================
+
+const defaultSettings = {
+  onboarding: true,
+  contentModeration: true,
+  emailFrom: "support@theconnection.app",
+  announcement: "",
+  supportLink: "https://theconnection.app/support",
+  dailyDigest: true,
+  safetyAlerts: true,
+  healthUpdates: false,
+};
+
+// Ensure platform_settings table exists
+async function ensurePlatformSettingsTable() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS platform_settings (
+        id SERIAL PRIMARY KEY,
+        key TEXT NOT NULL UNIQUE,
+        value JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_by INTEGER REFERENCES users(id)
+      )
+    `);
+  } catch (e) {
+    // Table might already exist, that's fine
+  }
+}
+
+// Run on startup
+ensurePlatformSettingsTable();
+
+/**
+ * GET /admin/settings
+ * Get platform settings from database
+ */
+router.get('/settings', async (req, res, next) => {
+  try {
+    const result = await db
+      .select()
+      .from(platformSettings)
+      .where(eq(platformSettings.key, 'platform_config'));
+
+    if (result.length > 0) {
+      res.json({ ...defaultSettings, ...(result[0].value as object) });
+    } else {
+      res.json(defaultSettings);
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    res.json(defaultSettings);
+  }
+});
+
+/**
+ * PUT /admin/settings
+ * Save platform settings to database
+ */
+router.put('/settings', async (req, res, next) => {
+  try {
+    const currentUserId = getSessionUserId(req);
+    const newSettings = { ...defaultSettings, ...req.body };
+
+    // Upsert the settings
+    const existing = await db
+      .select()
+      .from(platformSettings)
+      .where(eq(platformSettings.key, 'platform_config'));
+
+    if (existing.length > 0) {
+      await db
+        .update(platformSettings)
+        .set({
+          value: newSettings,
+          updatedAt: new Date(),
+          updatedBy: currentUserId
+        })
+        .where(eq(platformSettings.key, 'platform_config'));
+    } else {
+      await db.insert(platformSettings).values({
+        key: 'platform_config',
+        value: newSettings,
+        updatedBy: currentUserId
+      });
+    }
+
+    res.json(newSettings);
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+// ============================================================================
+// APOLOGETICS RESOURCES
+// ============================================================================
+
+/**
+ * GET /admin/apologetics-resources
+ * Get all apologetics resources from database
+ */
+router.get('/apologetics-resources', async (req, res, next) => {
+  try {
+    const resources = await db
+      .select()
+      .from(apologeticsResources)
+      .orderBy(apologeticsResources.createdAt);
+    res.json(resources);
+  } catch (error) {
+    console.error('Error loading resources:', error);
+    res.json([]);
+  }
+});
+
+/**
+ * POST /admin/apologetics-resources
+ * Add a new apologetics resource to database
+ */
+router.post('/apologetics-resources', async (req, res, next) => {
+  try {
+    const { title, description, type, url } = req.body;
+
+    if (!title || !description || !type) {
+      return res.status(400).json({ error: 'Title, description, and type are required' });
+    }
+
+    // Map type to icon
+    const iconMap: Record<string, string> = {
+      book: 'BookOpen',
+      video: 'Video',
+      podcast: 'Headphones'
+    };
+
+    const [newResource] = await db
+      .insert(apologeticsResources)
+      .values({
+        title,
+        description,
+        type,
+        iconName: iconMap[type] || 'BookOpen',
+        url: url || null
+      } as any)
+      .returning();
+
+    res.status(201).json(newResource);
+  } catch (error) {
+    console.error('Error saving resource:', error);
+    res.status(500).json({ error: 'Failed to save resource' });
+  }
+});
+
+/**
+ * DELETE /admin/apologetics-resources/:id
+ * Delete an apologetics resource from database
+ */
+router.delete('/apologetics-resources/:id', async (req, res, next) => {
+  try {
+    const resourceId = parseInt(req.params.id);
+
+    if (isNaN(resourceId)) {
+      return res.status(400).json({ error: 'Invalid resource ID' });
+    }
+
+    const result = await db
+      .delete(apologeticsResources)
+      .where(eq(apologeticsResources.id, resourceId))
+      .returning();
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Resource not found' });
+    }
+
+    res.json({ message: 'Resource deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting resource:', error);
+    res.status(500).json({ error: 'Failed to delete resource' });
   }
 });
 
