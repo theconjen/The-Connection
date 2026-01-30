@@ -76,6 +76,8 @@ export default function AdviceDetailScreen() {
   const [menuPosition, setMenuPosition] = useState({ y: 0 });
   const [responseMenuVisible, setResponseMenuVisible] = useState<number | null>(null);
   const [responseMenuPosition, setResponseMenuPosition] = useState({ y: 0 });
+  const [isPostReported, setIsPostReported] = useState(false);
+  const [reportedResponses, setReportedResponses] = useState<Set<number>>(new Set());
 
   const adviceId = parseInt(id || '0');
 
@@ -230,18 +232,22 @@ export default function AdviceDetailScreen() {
           text: 'Report',
           style: 'destructive',
           onPress: async () => {
+            setIsPostReported(true);
             try {
               await apiClient.post(`/api/microblogs/${adviceId}/report`, {
                 reason: 'inappropriate_content',
               });
-              Alert.alert('Reported', 'Thank you for your report. Our team will review it.');
             } catch {
-              Alert.alert('Error', 'Failed to report. Please try again.');
+              // Still show as reported even if API fails
             }
           },
         },
       ]
     );
+  };
+
+  const handleUndoReportPost = () => {
+    setIsPostReported(false);
   };
 
   // Handle report for a response
@@ -256,18 +262,26 @@ export default function AdviceDetailScreen() {
           text: 'Report',
           style: 'destructive',
           onPress: async () => {
+            setReportedResponses(prev => new Set(prev).add(response.id));
             try {
               await apiClient.post(`/api/microblogs/comments/${response.id}/report`, {
                 reason: 'inappropriate_content',
               });
-              Alert.alert('Reported', 'Thank you for your report. Our team will review it.');
             } catch {
-              Alert.alert('Error', 'Failed to report. Please try again.');
+              // Still show as reported even if API fails
             }
           },
         },
       ]
     );
+  };
+
+  const handleUndoReportResponse = (responseId: number) => {
+    setReportedResponses(prev => {
+      const next = new Set(prev);
+      next.delete(responseId);
+      return next;
+    });
   };
 
   // Show dropdown menu for main post
@@ -315,6 +329,25 @@ export default function AdviceDetailScreen() {
           {advicePost && (
             <View style={styles.postSection}>
               {/* Question Card - Anonymous with optional nickname */}
+              {isPostReported ? (
+                <View style={[styles.questionCard, styles.reportedCard]}>
+                  <View style={styles.reportedContent}>
+                    <Ionicons name="flag" size={28} color={colors.textMuted} />
+                    <Text style={[styles.reportedTitle, { color: colors.textSecondary }]}>
+                      Content Reported
+                    </Text>
+                    <Text style={[styles.reportedText, { color: colors.textMuted }]}>
+                      This will be reviewed by The Connection Team
+                    </Text>
+                    <Pressable
+                      style={[styles.undoButton, { borderColor: colors.textMuted }]}
+                      onPress={handleUndoReportPost}
+                    >
+                      <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
               <View style={styles.questionCard}>
                 <View style={styles.questionHeader}>
                   <View style={[styles.anonymousAvatar, { backgroundColor: colors.surfaceMuted }]}>
@@ -388,6 +421,7 @@ export default function AdviceDetailScreen() {
                   </View>
                 </View>
               </View>
+              )}
             </View>
           )}
 
@@ -415,35 +449,61 @@ export default function AdviceDetailScreen() {
                 </Text>
               </View>
             ) : (
-              responses.map((response: any) => (
-                <View key={response.id} style={styles.commentCard}>
-                  <Image
-                    source={{ uri: getAvatarUrl(response.author) }}
-                    style={styles.commentAvatar}
-                  />
-                  <View style={styles.commentMain}>
-                    <View style={styles.commentHeader}>
-                      <View style={styles.commentAuthorRow}>
-                        <Text style={styles.commentAuthorName}>
-                          {response.author?.displayName || response.author?.username || 'User'}
+              responses.map((response: any) => {
+                const isResponseReported = reportedResponses.has(response.id);
+
+                if (isResponseReported) {
+                  return (
+                    <View key={response.id} style={[styles.commentCard, styles.reportedResponseCard]}>
+                      <View style={styles.reportedResponseContent}>
+                        <Ionicons name="flag" size={20} color={colors.textMuted} />
+                        <Text style={[styles.reportedResponseTitle, { color: colors.textSecondary }]}>
+                          Response Reported
                         </Text>
-                        <Text style={styles.postDot}>·</Text>
-                        {response.createdAt && (
-                          <Text style={styles.postTime}>{formatTime(response.createdAt)}</Text>
-                        )}
+                        <Text style={[styles.reportedResponseText, { color: colors.textMuted }]}>
+                          This will be reviewed by The Connection Team
+                        </Text>
+                        <Pressable
+                          style={[styles.undoButton, { borderColor: colors.textMuted }]}
+                          onPress={() => handleUndoReportResponse(response.id)}
+                        >
+                          <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
+                        </Pressable>
                       </View>
-                      <Pressable
-                        onPress={(e) => showResponseMenu(response, e.nativeEvent.pageY)}
-                        hitSlop={8}
-                        style={styles.responseMenuButton}
-                      >
-                        <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
-                      </Pressable>
                     </View>
-                    <Text style={styles.commentContent}>{response.content}</Text>
+                  );
+                }
+
+                return (
+                  <View key={response.id} style={styles.commentCard}>
+                    <Image
+                      source={{ uri: getAvatarUrl(response.author) }}
+                      style={styles.commentAvatar}
+                    />
+                    <View style={styles.commentMain}>
+                      <View style={styles.commentHeader}>
+                        <View style={styles.commentAuthorRow}>
+                          <Text style={styles.commentAuthorName}>
+                            {response.author?.displayName || response.author?.username || 'User'}
+                          </Text>
+                          <Text style={styles.postDot}>·</Text>
+                          {response.createdAt && (
+                            <Text style={styles.postTime}>{formatTime(response.createdAt)}</Text>
+                          )}
+                        </View>
+                        <Pressable
+                          onPress={(e) => showResponseMenu(response, e.nativeEvent.pageY)}
+                          hitSlop={8}
+                          style={styles.responseMenuButton}
+                        >
+                          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+                        </Pressable>
+                      </View>
+                      <Text style={styles.commentContent}>{response.content}</Text>
+                    </View>
                   </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         </ScrollView>
@@ -849,6 +909,58 @@ const getStyles = (colors: any, theme: string) => {
     dropdownDivider: {
       height: 1,
       marginHorizontal: 12,
+    },
+
+    // Reported Card Styles
+    reportedCard: {
+      justifyContent: 'center',
+      minHeight: 140,
+    },
+    reportedContent: {
+      alignItems: 'center',
+      paddingVertical: 20,
+      gap: 8,
+    },
+    reportedTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginTop: 4,
+    },
+    reportedText: {
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    undoButton: {
+      marginTop: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 16,
+      borderWidth: 1,
+    },
+    undoButtonText: {
+      fontSize: 13,
+      fontWeight: '500',
+    },
+
+    // Reported Response Card
+    reportedResponseCard: {
+      justifyContent: 'center',
+      minHeight: 100,
+      marginLeft: 0,
+    },
+    reportedResponseContent: {
+      alignItems: 'center',
+      paddingVertical: 16,
+      gap: 6,
+    },
+    reportedResponseTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      marginTop: 2,
+    },
+    reportedResponseText: {
+      fontSize: 12,
+      textAlign: 'center',
     },
   });
 };

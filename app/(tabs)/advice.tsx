@@ -57,6 +57,7 @@ export default function AdviceListScreen() {
   const [unupvotedPosts, setUnupvotedPosts] = useState<Set<number>>(new Set());
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<number>>(new Set());
   const [unbookmarkedPosts, setUnbookmarkedPosts] = useState<Set<number>>(new Set());
+  const [reportedPosts, setReportedPosts] = useState<Set<number>>(new Set());
 
   // Menu state
   const [menuPost, setMenuPost] = useState<AdvicePost | null>(null);
@@ -179,6 +180,8 @@ export default function AdviceListScreen() {
   }, [menuPost]);
 
   const handleReport = useCallback(() => {
+    if (!menuPost) return;
+    const postId = menuPost.id;
     setMenuPost(null);
     Alert.alert(
       'Report Content',
@@ -186,16 +189,50 @@ export default function AdviceListScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Report', style: 'destructive', onPress: () => {
-          Alert.alert('Reported', 'Thank you for your report. Our team will review this content.');
+          setReportedPosts(prev => new Set(prev).add(postId));
+          // TODO: Send report to server
+          // apiClient.post(`/api/microblogs/${postId}/report`);
         }},
       ]
     );
+  }, [menuPost]);
+
+  const handleUndoReport = useCallback((postId: number) => {
+    setReportedPosts(prev => {
+      const next = new Set(prev);
+      next.delete(postId);
+      return next;
+    });
   }, []);
 
   const renderItem = ({ item }: { item: AdvicePost }) => {
     const isUpvoted = unupvotedPosts.has(item.id) ? false : (upvotedPosts.has(item.id) || item.isLiked);
     const isBookmarked = unbookmarkedPosts.has(item.id) ? false : (bookmarkedPosts.has(item.id) || item.isBookmarked);
+    const isReported = reportedPosts.has(item.id);
     const timeAgo = formatDistanceToNow(new Date(item.createdAt), { addSuffix: true });
+
+    // Show reported placeholder
+    if (isReported) {
+      return (
+        <View style={[styles.adviceCard, styles.reportedCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
+          <View style={styles.reportedContent}>
+            <Ionicons name="flag" size={24} color={colors.textMuted} />
+            <Text style={[styles.reportedTitle, { color: colors.textSecondary }]}>
+              Content Reported
+            </Text>
+            <Text style={[styles.reportedText, { color: colors.textMuted }]}>
+              This will be reviewed by The Connection Team
+            </Text>
+            <Pressable
+              style={[styles.undoButton, { borderColor: colors.textMuted }]}
+              onPress={() => handleUndoReport(item.id)}
+            >
+              <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <Pressable
@@ -563,5 +600,36 @@ const styles = StyleSheet.create({
   dropdownDivider: {
     height: 1,
     marginHorizontal: 12,
+  },
+
+  // Reported Card
+  reportedCard: {
+    minHeight: 120,
+    justifyContent: 'center',
+  },
+  reportedContent: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  reportedTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  reportedText: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  undoButton: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  undoButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

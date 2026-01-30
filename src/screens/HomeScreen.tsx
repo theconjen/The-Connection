@@ -415,12 +415,41 @@ function ApologeticsCard({
   colors,
   onPress,
   onMenuPress,
+  isReported,
+  onUndoReport,
 }: {
   article: ApologeticsArticle;
   colors: any;
   onPress: () => void;
   onMenuPress?: (event: any) => void;
+  isReported?: boolean;
+  onUndoReport?: () => void;
 }) {
+  // Show reported placeholder
+  if (isReported) {
+    return (
+      <View style={[styles.articleCard, styles.reportedCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
+        <View style={styles.reportedContent}>
+          <Ionicons name="flag" size={24} color={colors.textMuted} />
+          <Text style={[styles.reportedTitle, { color: colors.textSecondary }]}>
+            Content Reported
+          </Text>
+          <Text style={[styles.reportedText, { color: colors.textMuted }]}>
+            This will be reviewed by The Connection Team
+          </Text>
+          {onUndoReport && (
+            <Pressable
+              style={[styles.undoButton, { borderColor: colors.textMuted }]}
+              onPress={onUndoReport}
+            >
+              <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <Pressable
       style={[styles.articleCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
@@ -623,6 +652,10 @@ export default function HomeScreen({
   const [articleMenuPost, setArticleMenuPost] = useState<ApologeticsArticle | null>(null);
   const [articleMenuPosition, setArticleMenuPosition] = useState({ top: 0, right: 0 });
 
+  // Track reported content
+  const [reportedAdvicePosts, setReportedAdvicePosts] = useState<Set<number>>(new Set());
+  const [reportedArticles, setReportedArticles] = useState<Set<number>>(new Set());
+
   // Upvote mutation
   const upvoteMutation = useMutation({
     mutationFn: async ({ postId, isCurrentlyLiked }: { postId: number; isCurrentlyLiked: boolean }) => {
@@ -727,6 +760,8 @@ export default function HomeScreen({
   }, [adviceMenuPost]);
 
   const handleReportAdvice = useCallback(() => {
+    if (!adviceMenuPost) return;
+    const postId = adviceMenuPost.id;
     setAdviceMenuPost(null);
     Alert.alert(
       'Report Content',
@@ -734,10 +769,19 @@ export default function HomeScreen({
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Report', style: 'destructive', onPress: () => {
-          Alert.alert('Reported', 'Thank you for your report. Our team will review this content.');
+          setReportedAdvicePosts(prev => new Set(prev).add(postId));
+          // TODO: Send report to server
         }},
       ]
     );
+  }, [adviceMenuPost]);
+
+  const handleUndoReportAdvice = useCallback((postId: number) => {
+    setReportedAdvicePosts(prev => {
+      const next = new Set(prev);
+      next.delete(postId);
+      return next;
+    });
   }, []);
 
   // Menu handlers for apologetics articles
@@ -755,6 +799,8 @@ export default function HomeScreen({
   }, [articleMenuPost]);
 
   const handleReportArticle = useCallback(() => {
+    if (!articleMenuPost) return;
+    const articleId = articleMenuPost.id;
     setArticleMenuPost(null);
     Alert.alert(
       'Report Content',
@@ -762,10 +808,19 @@ export default function HomeScreen({
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Report', style: 'destructive', onPress: () => {
-          Alert.alert('Reported', 'Thank you for your report. Our team will review this content.');
+          setReportedArticles(prev => new Set(prev).add(articleId));
+          // TODO: Send report to server
         }},
       ]
     );
+  }, [articleMenuPost]);
+
+  const handleUndoReportArticle = useCallback((articleId: number) => {
+    setReportedArticles(prev => {
+      const next = new Set(prev);
+      next.delete(articleId);
+      return next;
+    });
   }, []);
 
   const hasJoinedCommunities = joinedCommunities.length > 0;
@@ -799,6 +854,30 @@ export default function HomeScreen({
   const renderAdviceCard = useCallback(({ item }: { item: AdvicePost }) => {
     const isUpvoted = unupvotedPosts.has(item.id) ? false : (upvotedPosts.has(item.id) || item.isLiked);
     const isBookmarked = unbookmarkedPosts.has(item.id) ? false : (bookmarkedPosts.has(item.id) || item.isBookmarked);
+    const isReported = reportedAdvicePosts.has(item.id);
+
+    // Show reported placeholder
+    if (isReported) {
+      return (
+        <View style={[styles.horizontalAdviceCard, styles.reportedCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
+          <View style={styles.reportedContent}>
+            <Ionicons name="flag" size={20} color={colors.textMuted} />
+            <Text style={[styles.reportedTitle, { color: colors.textSecondary }]}>
+              Content Reported
+            </Text>
+            <Text style={[styles.reportedText, { color: colors.textMuted }]}>
+              This will be reviewed by The Connection Team
+            </Text>
+            <Pressable
+              style={[styles.undoButton, { borderColor: colors.textMuted }]}
+              onPress={() => handleUndoReportAdvice(item.id)}
+            >
+              <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <Pressable
@@ -867,7 +946,7 @@ export default function HomeScreen({
         </View>
       </Pressable>
     );
-  }, [colors, upvotedPosts, unupvotedPosts, bookmarkedPosts, unbookmarkedPosts, handleUpvote, handleBookmark, handleComment, showAdviceMenu]);
+  }, [colors, upvotedPosts, unupvotedPosts, bookmarkedPosts, unbookmarkedPosts, reportedAdvicePosts, handleUpvote, handleBookmark, handleComment, showAdviceMenu, handleUndoReportAdvice]);
 
   // Header component with horizontal Global Community carousel
   const ListHeaderComponent = useCallback(() => {
@@ -930,6 +1009,8 @@ export default function HomeScreen({
             colors={colors}
             onPress={() => router.push({ pathname: '/apologetics/[id]' as any, params: { id: article.id.toString() } })}
             onMenuPress={(e) => showArticleMenu(article, e)}
+            isReported={reportedArticles.has(article.id)}
+            onUndoReport={() => handleUndoReportArticle(article.id)}
           />
         );
 
@@ -1383,5 +1464,36 @@ const styles = StyleSheet.create({
   dropdownDivider: {
     height: 1,
     marginHorizontal: 12,
+  },
+
+  // Reported Card
+  reportedCard: {
+    justifyContent: 'center',
+  },
+  reportedContent: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 6,
+  },
+  reportedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  reportedText: {
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+  undoButton: {
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  undoButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
