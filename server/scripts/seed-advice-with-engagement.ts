@@ -116,6 +116,90 @@ const SCRIPTURE_REPLIES = [
   "When I feel like this, I remember {reference}: '{verse}'. Easier said than lived, but still true.",
 ];
 
+// CONTEXTUAL REPLIES - Matched to question keywords for relevance
+const CONTEXTUAL_REPLIES: Record<string, string[]> = {
+  'love language': [
+    "My husband is acts of service, I'm words of affirmation. What helped us was explicitly telling each other what we need. It felt awkward at first but now it's natural.",
+    "We read the 5 Love Languages book together and it was eye-opening. Now we try to 'speak' each other's language even if it doesn't come naturally.",
+    "Something that helped us: we each committed to doing one thing in the other's love language daily. Small but consistent acts add up.",
+  ],
+  'child': [
+    "We went through this with our son. First, document everything. Then meet with the teacher AND principal together. Schools respond better when they know you're serious.",
+    "My daughter struggled with this too. What helped: we role-played responses at home, built up her confidence with activities she excelled at.",
+    "One thing that helped our family: we focused on building our child's inner confidence rather than just trying to fix the external situation.",
+  ],
+  'bully': [
+    "We went through this with our son. First, document everything. Then meet with the teacher AND principal together.",
+    "My daughter was bullied in 5th grade. What helped: we role-played responses at home and built up her confidence.",
+    "One thing that helped: we focused on building our child's inner confidence rather than just trying to stop the bullies.",
+  ],
+  'numb': [
+    "I've been there. For me, numbness was actually my body's way of protecting me from overwhelm. Small practices helped - lighting a candle during prayer, going for walks.",
+    "Spiritual numbness often comes after intense seasons. Give yourself grace. Sometimes we need to just show up without expecting to feel anything.",
+    "When I felt spiritually numb, a friend suggested I stop trying so hard and just rest. No performance, no striving.",
+  ],
+  'identity': [
+    "After my divorce, I had to completely rebuild who I was. What helped: making a list of things true about me BEFORE and AFTER the change.",
+    "Major life changes shook my identity too. I started asking 'Who does God say I am?' instead of 'Who was I?'",
+    "I went through this after leaving my career. Exploring new things - hobbies, volunteering, classes - helped me rebuild.",
+  ],
+  'coworker': [
+    "Boundaries have been key for me. I'm friendly but professional. When conflicts arise, I address them directly but calmly.",
+    "Praying for difficult coworkers changed MY heart more than it changed them. It's hard to stay angry at someone you're praying for.",
+    "I stopped expecting non-Christians to act like Christians. Lowered my frustration and helped me see them with compassion.",
+  ],
+  'screen time': [
+    "We do 'phone-free' hours - during dinner and before bed. Those quiet moments have become sacred for prayer and conversation.",
+    "I replaced my morning scroll with morning prayer. Put my phone across the room so I have to physically get up.",
+    "We got physical Bibles and devotionals so we're not tempted by phone notifications during spiritual time.",
+  ],
+  'doubt': [
+    "Doubt isn't the opposite of faith - it's part of faith. Some of the greatest believers wrestled with doubt (Thomas, David, Job).",
+    "I went through a major faith crisis. Reading books by Christians who'd wrestled with the same questions helped.",
+    "My pastor said: 'Doubt your doubts as much as you doubt your faith.' That stuck with me.",
+  ],
+  'fear': [
+    "I struggle with anxiety about the future too. What helps: limiting news, journaling fears, and praying over them specifically.",
+    "Philippians 4:6-7 has been my anchor. When fear rises, I stop and pray about the specific thing I'm afraid of.",
+    "Fear of the future is often grief about loss of control. Surrendering control to God is the antidote.",
+  ],
+  'pray': [
+    "My prayer life transformed when I stopped treating it like a to-do list and started treating it like a conversation.",
+    "Using a prayer journal changed everything. Writing prayers helps me focus and looking back builds faith.",
+    "Scheduled prayer time in the morning plus breath prayers throughout the day - that's what works for me.",
+  ],
+  'marriage': [
+    "We hit a rough patch a few years ago. What saved us: we started dating again - weekly date nights, no kid talk allowed.",
+    "Christian counseling was a game-changer for us. Having a third party help us communicate was humbling but helpful.",
+    "One thing that helps: we pray together every night before bed. Even when we're frustrated with each other.",
+  ],
+  'memorize': [
+    "What worked for me: writing verses on index cards and reviewing them during commute time. Repetition is key.",
+    "I use the app 'Scripture Typer' - typing out verses helps them stick better than just reading.",
+    "Start small - one verse a week, really meditate on it. I also set the verse as my phone wallpaper.",
+  ],
+  'church': [
+    "When we moved, we visited 10+ churches before finding our home. Don't rush it - look for genuine community.",
+    "We looked for a church where we could serve, not just consume. Getting involved fast helped us connect.",
+    "Ask people whose faith you respect for recommendations. Also, small groups are where real connection happens.",
+  ],
+  'anxiety': [
+    "I deal with this daily. Morning routine anchored in Scripture, limiting caffeine, and being honest with my small group helps.",
+    "Anxiety and faith can coexist. God gave us brains that sometimes misfire. Medication + prayer both helped me.",
+    "When anxiety hits, I do 4-7-8 breathing while reciting a verse. Engages both body and spirit.",
+  ],
+};
+
+function findContextualReplies(postContent: string): string[] {
+  const contentLower = postContent.toLowerCase();
+  for (const [keyword, replies] of Object.entries(CONTEXTUAL_REPLIES)) {
+    if (contentLower.includes(keyword)) {
+      return replies;
+    }
+  }
+  return [];
+}
+
 // FOLLOW-UP QUESTIONS (to encourage more replies)
 const FOLLOW_UP_QUESTIONS = [
   "What about you - has anyone else walked through this?",
@@ -157,7 +241,8 @@ function getReplyDate(referenceDate: Date, minHours: number = 1, maxHours: numbe
 }
 
 // Generate a reply based on the distribution (60% short, 30% medium, 10% long)
-function generateReply(includeScripture: boolean = false, includeFollowUp: boolean = false): string {
+// Now accepts postContent to generate contextual replies
+function generateReply(includeScripture: boolean = false, includeFollowUp: boolean = false, postContent: string = ''): string {
   const rand = Math.random();
   let reply: string;
 
@@ -168,15 +253,21 @@ function generateReply(includeScripture: boolean = false, includeFollowUp: boole
     reply = template
       .replace('{verse}', scripture.text.substring(0, 100) + '...')
       .replace('{reference}', scripture.verse);
-  } else if (rand < 0.60) {
-    // 60% short
-    reply = getRandomItem(SHORT_REPLIES);
-  } else if (rand < 0.90) {
-    // 30% medium
-    reply = getRandomItem(MEDIUM_REPLIES);
   } else {
-    // 10% long
-    reply = getRandomItem(LONG_REPLIES);
+    // Try to find contextual replies based on post content (80% chance to use if available)
+    const contextualReplies = postContent ? findContextualReplies(postContent) : [];
+    if (contextualReplies.length > 0 && Math.random() < 0.8) {
+      reply = getRandomItem(contextualReplies);
+    } else if (rand < 0.60) {
+      // 60% short
+      reply = getRandomItem(SHORT_REPLIES);
+    } else if (rand < 0.90) {
+      // 30% medium
+      reply = getRandomItem(MEDIUM_REPLIES);
+    } else {
+      // 10% long
+      reply = getRandomItem(LONG_REPLIES);
+    }
   }
 
   // Occasionally add a follow-up question (10% chance)
@@ -305,11 +396,11 @@ async function seedAdviceWithEngagement(postCount: number = 30) {
           scriptureCounter++;
         }
 
-        // Generate unique reply
-        let reply = generateReply(shouldIncludeScripture, i === commenters.length - 1);
+        // Generate unique reply - pass question content for contextual replies
+        let reply = generateReply(shouldIncludeScripture, i === commenters.length - 1, question.content);
         let attempts = 0;
         while (usedReplies.has(reply) && attempts < 10) {
-          reply = generateReply(shouldIncludeScripture, false);
+          reply = generateReply(shouldIncludeScripture, false, question.content);
           attempts++;
         }
         usedReplies.add(reply);
