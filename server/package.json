@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "NODE_ENV=development pnpm exec tsx watch index.ts",
+    "dev": "NODE_ENV=development pnpm exec tsx watch --ignore '../**/node_modules/**' --ignore '**/node_modules/**' index.ts",
     "build": "node ../scripts/build-server.mjs"
   },
   "dependencies": {
