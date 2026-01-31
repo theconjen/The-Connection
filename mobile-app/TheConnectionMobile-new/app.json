@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.theconnection.mobile",
-      "buildNumber": "3",
+      "buildNumber": "2",
       "associatedDomains": [
         "applinks:theconnection.app",
         "applinks:www.theconnection.app"
@@ -39,7 +39,7 @@
       }
     },
     "android": {
-      "versionCode": 3,
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a2a4a"
