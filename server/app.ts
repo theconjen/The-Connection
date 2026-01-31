@@ -75,9 +75,10 @@ if (isProduction) {
 
 // Apply a basic rate limiter to prevent brute-force and DDoS attacks
 // Higher limit in development to support rapid mobile app testing
+// Production limit increased to 500 to support mobile app polling
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isProduction ? 100 : 10000, // 100 in prod, 10000 in dev
+  max: isProduction ? 500 : 10000, // 500 in prod, 10000 in dev
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
