@@ -15,7 +15,9 @@ import {
   X,
   Menu,
   Users,
-  CalendarDays
+  CalendarDays,
+  ChevronDown,
+  Plus
 } from "lucide-react";
 import {
   Sheet,
@@ -26,6 +28,13 @@ import {
   SheetTitle,
   SheetDescription
 } from "./ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "./ui/dropdown-menu";
 import UserMenu from "./user-menu";
 import SidebarNavigation from "./sidebar-navigation";
 import GlobalSearch from "./GlobalSearch";
@@ -192,17 +201,41 @@ export default function Header() {
                   </SheetContent>
                 </Sheet>
 
-                {/* Create Button - Desktop & Tablet only */}
-                <Link href="/advice">
-                  <Button
-                    className="hidden md:flex btn-gradient font-medium"
-                    size="sm"
-                  >
-                    <PenSquare className="h-4 w-4 mr-2" />
-                    Create
-                  </Button>
-                </Link>
-                
+                {/* Create Button with Dropdown - Desktop & Tablet only */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      className="hidden md:flex btn-gradient font-medium"
+                      size="sm"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <Link href="/communities/create">
+                      <DropdownMenuItem className="cursor-pointer py-3">
+                        <Users className="h-5 w-5 mr-3 text-muted-foreground" />
+                        <div className="flex flex-col">
+                          <span className="font-medium">Create a Community</span>
+                          <span className="text-xs text-muted-foreground">Build a space around a topic</span>
+                        </div>
+                      </DropdownMenuItem>
+                    </Link>
+                    <DropdownMenuSeparator />
+                    <Link href="/events/create">
+                      <DropdownMenuItem className="cursor-pointer py-3">
+                        <CalendarDays className="h-5 w-5 mr-3 text-muted-foreground" />
+                        <div className="flex flex-col">
+                          <span className="font-medium">Create an Event</span>
+                          <span className="text-xs text-muted-foreground">Post a meetup, study, or service</span>
+                        </div>
+                      </DropdownMenuItem>
+                    </Link>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 {/* User Menu - Optimized for both desktop and mobile */}
                 <UserMenu user={user} />
               </>
@@ -256,14 +289,14 @@ export default function Header() {
                   </SheetContent>
                 </Sheet>
 
-                {/* Create Button - Desktop & Tablet only */}
+                {/* Create Button - Desktop & Tablet only (redirects to auth for guests) */}
                 <Link href="/auth">
-                  <Button 
+                  <Button
                     className="hidden md:flex text-muted-foreground hover:text-foreground"
                     variant="ghost"
                     size="sm"
                   >
-                    <PenSquare className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Create
                   </Button>
                 </Link>
