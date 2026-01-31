@@ -82,48 +82,30 @@ interface ApologeticsArticle {
 export default function PersonalizedFeed({ className = "", limit = 10 }: PersonalizedFeedProps) {
   const { user } = useAuth() as AuthContextType;
 
-  // Fetch Community Advice (microblogs with topic=QUESTION)
+  // Fetch Community Advice (microblogs with topic=QUESTION) - matches mobile
   const { data: adviceData, isLoading: adviceLoading } = useQuery<AdvicePost[]>({
     queryKey: ['community-advice'],
     queryFn: async () => {
-      const res = await fetch('/api/microblogs?topic=QUESTION&limit=5');
+      const res = await fetch('/api/microblogs?topic=QUESTION&limit=15');
       if (!res.ok) return [];
       const data = await res.json();
-      return Array.isArray(data) ? data : (data?.items || []);
+      // Handle both array response and paginated response
+      const posts = Array.isArray(data) ? data : (data?.microblogs || data?.items || []);
+      return posts;
     },
     enabled: !!user,
   });
 
-  // Fetch joined communities
-  const { data: communitiesData } = useQuery<any[]>({
-    queryKey: ['joined-communities-feed'],
-    queryFn: async () => {
-      const res = await fetch('/api/communities?joined=true');
-      if (!res.ok) return [];
-      const data = await res.json();
-      return (data || []).filter((c: any) => c.isMember);
-    },
-    enabled: !!user,
-  });
-
-  // Fetch community posts from joined communities
+  // Fetch community posts from joined communities (using same endpoint as mobile)
   const { data: communityPosts, isLoading: postsLoading } = useQuery<CommunityPost[]>({
-    queryKey: ['community-posts-feed', communitiesData?.map(c => c.id)],
+    queryKey: ['community-posts-feed'],
     queryFn: async () => {
-      if (!communitiesData || communitiesData.length === 0) return [];
-      const joinedCommunityIds = communitiesData.map(c => c.id);
-
-      const res = await fetch('/api/feed?limit=50');
+      const res = await fetch('/api/feed/home?limit=15');
       if (!res.ok) return [];
       const data = await res.json();
-      const allPosts = data?.items || [];
-
-      // Filter to only posts from joined communities
-      return allPosts.filter((post: any) =>
-        post.communityId && joinedCommunityIds.includes(post.communityId)
-      ).slice(0, 10);
+      return data?.posts || [];
     },
-    enabled: !!user && !!communitiesData && communitiesData.length > 0,
+    enabled: !!user,
   });
 
   // Fetch trending apologetics articles
@@ -223,29 +205,34 @@ export default function PersonalizedFeed({ className = "", limit = 10 }: Persona
             </Link>
           </div>
           <div className="space-y-3">
-            {advicePosts.slice(0, 3).map((post) => (
-              <Card key={post.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Badge variant="outline" className="bg-pink-50 text-pink-600 border-pink-200 shrink-0">
-                      <HelpCircle className="h-3 w-3 mr-1" />
-                      Seeking Advice
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm line-clamp-3">{post.content}</p>
-                  <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Heart className="h-4 w-4" /> {post.likeCount || 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MessageCircle className="h-4 w-4" /> {post.commentCount || post.replyCount || 0}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+            {advicePosts.slice(0, 5).map((post) => (
+              <Link key={post.id} href={`/advice/${post.id}`}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="bg-pink-50 text-pink-600 border-pink-200 shrink-0">
+                        <HelpCircle className="h-3 w-3 mr-1" />
+                        Seeking Advice
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm line-clamp-3">{post.content}</p>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Heart className="h-4 w-4" /> {post.likeCount || 0}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageCircle className="h-4 w-4" /> {post.commentCount || post.replyCount || 0}
+                        </span>
+                      </div>
+                      <span className="text-xs text-primary font-medium">Share your thoughts →</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         </section>
@@ -266,7 +253,7 @@ export default function PersonalizedFeed({ className = "", limit = 10 }: Persona
             </Link>
           </div>
           <div className="space-y-3">
-            {posts.slice(0, 5).map((post) => (
+            {posts.slice(0, 10).map((post) => (
               <Link key={post.id} href={`/communities/${post.community?.slug || post.communityId}`}>
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-4">
@@ -334,7 +321,7 @@ export default function PersonalizedFeed({ className = "", limit = 10 }: Persona
             </Link>
           </div>
           <div className="space-y-3">
-            {articles.slice(0, 3).map((article) => (
+            {articles.slice(0, 5).map((article) => (
               <Link key={article.id} href={`/apologetics/${article.id}`}>
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-4">
