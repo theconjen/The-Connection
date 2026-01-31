@@ -214,6 +214,16 @@ export default function Header() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-64">
+                    <Link href="/advice">
+                      <DropdownMenuItem className="cursor-pointer py-3">
+                        <MessageCircle className="h-5 w-5 mr-3 text-muted-foreground" />
+                        <div className="flex flex-col">
+                          <span className="font-medium">Ask for Advice</span>
+                          <span className="text-xs text-muted-foreground">Get guidance from the community</span>
+                        </div>
+                      </DropdownMenuItem>
+                    </Link>
+                    <DropdownMenuSeparator />
                     <Link href="/communities/create">
                       <DropdownMenuItem className="cursor-pointer py-3">
                         <Users className="h-5 w-5 mr-3 text-muted-foreground" />

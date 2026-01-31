@@ -93,9 +93,15 @@ export default function MicroblogsPage() {
   if (isMobile) {
     return (
       <>
+        {/* Mobile Page Header */}
+        <div className="px-4 pt-4 pb-2">
+          <h1 className="text-2xl font-bold">Advice</h1>
+          <p className="text-sm text-muted-foreground">Get guidance from the community</p>
+        </div>
+
         {/* Mobile Recommendations Section */}
         {user && (
-          <div className="p-4">
+          <div className="p-4 pt-0">
             <RecommendedForYou section="feed" maxItems={3} showHeader={true} />
           </div>
         )}
@@ -137,7 +143,7 @@ export default function MicroblogsPage() {
                 </div>
               ) : (
                 <div className="text-center py-10 text-muted-foreground">
-                  No posts found. Be the first to post!
+                  No advice posts yet. Be the first to ask for advice!
                 </div>
               )}
             </MobilePullRefresh>
@@ -171,7 +177,7 @@ export default function MicroblogsPage() {
                 </div>
               ) : (
                 <div className="text-center py-10 text-muted-foreground">
-                  No posts found. Be the first to post!
+                  No advice posts yet. Be the first to ask for advice!
                 </div>
               )}
             </MobilePullRefresh>
@@ -179,10 +185,10 @@ export default function MicroblogsPage() {
         </Tabs>
         
         {/* Floating Action Button */}
-        <FloatingActionButton 
-          onClick={() => setShowMobileComposer(true)} 
+        <FloatingActionButton
+          onClick={() => setShowMobileComposer(true)}
           icon={<PenSquare className="h-6 w-6 text-white" />}
-          label="Create post"
+          label="Ask for Advice"
           position="bottom-right"
         />
         
@@ -194,7 +200,7 @@ export default function MicroblogsPage() {
           <SheetContent side="bottom" className="h-[85vh] rounded-t-xl p-0">
             <div className="flex flex-col h-full">
               <div className="border-b p-3 flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Create post</h3>
+                <h3 className="text-lg font-semibold">Ask for Advice</h3>
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -219,8 +225,11 @@ export default function MicroblogsPage() {
   // Desktop version - unchanged
   return (
     <div className="container max-w-3xl py-6">
-      <h1 className="text-3xl font-bold mb-6">Feed</h1>
-      
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Advice</h1>
+        <p className="text-muted-foreground mt-1">Get guidance from the community</p>
+      </div>
+
       {/* Recommended Content Section */}
       {user && (
         <div className="mb-6">
@@ -255,7 +264,7 @@ export default function MicroblogsPage() {
         </div>
       ) : (
         <div className="text-center py-10 text-muted-foreground">
-          No posts found. Be the first to post!
+          No advice posts yet. Be the first to ask for advice!
         </div>
       )}
     </div>
