@@ -102,7 +102,7 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
             {/* Collapse/Expand Toggle Button */}
             <button
               onClick={toggleSidebar}
-              className="absolute -right-4 top-8 w-8 h-8 bg-primary text-primary-foreground border-2 border-background rounded-full flex items-center justify-center shadow-lg hover:bg-primary/90 transition-all z-20"
+              className="absolute -right-4 top-20 w-8 h-8 bg-primary text-primary-foreground border-2 border-background rounded-full flex items-center justify-center shadow-lg hover:bg-primary/90 transition-all z-20"
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {sidebarCollapsed ? (
