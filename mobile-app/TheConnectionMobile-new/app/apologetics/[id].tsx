@@ -36,6 +36,7 @@ import Markdown from "react-native-markdown-display";
 import { fetchBiblePassage, looksLikeBibleReference } from "../../src/lib/bibleApi";
 import { shareApologetics, buildApologeticsShareUrl } from "../../src/lib/shareUrls";
 import * as Clipboard from "expo-clipboard";
+import { MenuDrawer } from "../../src/components/MenuDrawer";
 
 // Regex to detect Bible references in text (e.g., "Romans 8:28", "1 Corinthians 13:4-7", "(John 3:16)")
 const SCRIPTURE_REGEX = /\(?\b((?:1|2|3|I|II|III)\s*)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song\s*of\s*Solomon|Songs?|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s*\d+(?::\d+(?:-\d+)?)?(?:\s*-\s*\d+(?::\d+)?)?\)?/gi;
@@ -144,6 +145,7 @@ export default function ApologeticsDetailScreen() {
   const [showVerseModal, setShowVerseModal] = useState(false);
   const [verseData, setVerseData] = useState<{ reference: string; text: string; translation: string } | null>(null);
   const [verseLoading, setVerseLoading] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   // Fetch data first so handlers can use it
   const { data, isLoading, error } = useQuery({
@@ -204,7 +206,7 @@ export default function ApologeticsDetailScreen() {
           showMessages={true}
           onMessagesPress={() => router.push("/messages" as any)}
           showMenu={true}
-          onMenuPress={() => router.push("/menu" as any)}
+          onMenuPress={() => setMenuVisible(true)}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -226,7 +228,7 @@ export default function ApologeticsDetailScreen() {
           showMessages={true}
           onMessagesPress={() => router.push("/messages" as any)}
           showMenu={true}
-          onMenuPress={() => router.push("/menu" as any)}
+          onMenuPress={() => setMenuVisible(true)}
         />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color={colors.textMuted} />
@@ -258,7 +260,7 @@ export default function ApologeticsDetailScreen() {
         showMessages={true}
         onMessagesPress={() => router.push("/messages" as any)}
         showMenu={true}
-        onMenuPress={() => router.push("/menu" as any)}
+        onMenuPress={() => setMenuVisible(true)}
       />
 
       <ScrollView
@@ -564,6 +566,19 @@ export default function ApologeticsDetailScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Menu Drawer */}
+      <MenuDrawer
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        onSettings={() => router.push("/settings" as any)}
+        onNotifications={() => router.push("/notifications" as any)}
+        onBookmarks={() => router.push("/bookmarks" as any)}
+        onInbox={() => router.push("/qa-inbox" as any)}
+        hasInboxAccess={user?.role === 'admin' || user?.role === 'apologist'}
+        onUserPress={(userId) => router.push(`/profile/${userId}` as any)}
+        onAdvicePress={(adviceId) => router.push(`/advice/${adviceId}` as any)}
+      />
     </SafeAreaView>
   );
 }
