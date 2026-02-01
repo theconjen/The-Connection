@@ -2341,7 +2341,8 @@ export class DbStorage implements IStorage {
       homeChurch: result[0].homeChurch,
       favoriteBibleVerse: result[0].favoriteBibleVerse,
       testimony: result[0].testimony,
-      interests: result[0].interests
+      interests: result[0].interests,
+      dateOfBirth: result[0].dateOfBirth
     });
     return result[0];
   }
