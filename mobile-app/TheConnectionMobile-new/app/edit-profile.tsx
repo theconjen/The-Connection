@@ -39,6 +39,7 @@ export default function EditProfileScreen() {
     displayName: '',
     bio: '',
     location: '',
+    age: '',
     denomination: '',
     homeChurch: '',
     favoriteBibleVerse: '',
@@ -47,6 +48,7 @@ export default function EditProfileScreen() {
   });
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Update form data when profile data is loaded
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function EditProfileScreen() {
         displayName: userData.displayName || '',
         bio: userData.bio || '',
         location: userData.location || '',
+        age: userData.age ? String(userData.age) : '',
         denomination: userData.denomination || '',
         homeChurch: userData.homeChurch || '',
         favoriteBibleVerse: userData.favoriteBibleVerse || '',
@@ -99,8 +102,45 @@ export default function EditProfileScreen() {
     });
 
     if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
-      // TODO: Upload image to server
+      const uri = result.assets[0].uri;
+      setProfileImage(uri);
+
+      // Upload image to server
+      setIsUploadingImage(true);
+      try {
+        const formData = new FormData();
+        const filename = uri.split('/').pop() || 'profile.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+        formData.append('image', {
+          uri,
+          name: filename,
+          type,
+        } as any);
+
+        const response = await apiClient.post('/api/upload/profile-picture', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        if (response.data?.url) {
+          setProfileImage(response.data.url);
+          // Update profile with new image URL
+          await apiClient.patch('/user/profile', { avatarUrl: response.data.url });
+          queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+          queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+          Alert.alert('Success', 'Profile picture updated!');
+        }
+      } catch (error: any) {
+        console.error('Error uploading image:', error);
+        Alert.alert('Upload Failed', error.response?.data?.error || 'Failed to upload profile picture');
+        // Revert to previous image
+        setProfileImage(profileData?.user?.profileImageUrl || null);
+      } finally {
+        setIsUploadingImage(false);
+      }
     }
   };
 
@@ -110,7 +150,13 @@ export default function EditProfileScreen() {
       return;
     }
 
-    updateProfileMutation.mutate(formData);
+    // Convert age to number for API
+    const dataToSend = {
+      ...formData,
+      age: formData.age ? parseInt(formData.age, 10) : null,
+    };
+
+    updateProfileMutation.mutate(dataToSend);
   };
 
   const updateField = (field: string, value: string) => {
@@ -160,7 +206,7 @@ export default function EditProfileScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Photo */}
         <View style={styles.photoSection}>
-          <Pressable onPress={handlePickImage} style={styles.photoContainer}>
+          <Pressable onPress={handlePickImage} style={styles.photoContainer} disabled={isUploadingImage}>
             {profileImage ? (
               <Image source={{ uri: profileImage }} style={styles.photo} />
             ) : (
@@ -169,10 +215,14 @@ export default function EditProfileScreen() {
               </View>
             )}
             <View style={styles.photoOverlay}>
-              <Ionicons name="camera" size={24} color="#fff" />
+              {isUploadingImage ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="camera" size={24} color="#fff" />
+              )}
             </View>
           </Pressable>
-          <Text style={styles.photoLabel}>Change Photo</Text>
+          <Text style={styles.photoLabel}>{isUploadingImage ? 'Uploading...' : 'Change Photo'}</Text>
         </View>
 
         {/* Basic Information */}
@@ -215,6 +265,19 @@ export default function EditProfileScreen() {
               onChangeText={(text) => updateField('location', text)}
             />
             <Text style={styles.hint}>Help others connect with you locally</Text>
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Age</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Your age"
+              placeholderTextColor={colors.textMuted}
+              value={formData.age}
+              onChangeText={(text) => updateField('age', text.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              maxLength={3}
+            />
           </View>
         </View>
 
