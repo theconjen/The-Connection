@@ -10,7 +10,7 @@ export default function AppDownloadBanner() {
   const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
-    // Don't show on mobile devices (they're likely already using the app or should see it naturally)
+    // Only show on mobile devices and iPad (users visiting website from mobile browser)
     const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     // Check if user previously dismissed
@@ -18,8 +18,8 @@ export default function AppDownloadBanner() {
     const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
     const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
 
-    // Show banner if not on mobile and (never dismissed OR dismissed more than 7 days ago)
-    if (!isMobileDevice && (!dismissed || daysSinceDismissed > 7)) {
+    // Show banner only on mobile/iPad and (never dismissed OR dismissed more than 7 days ago)
+    if (isMobileDevice && (!dismissed || daysSinceDismissed > 7)) {
       // Delay showing for better UX
       const timer = setTimeout(() => setIsVisible(true), 2000);
       return () => clearTimeout(timer);
