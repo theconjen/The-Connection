@@ -181,15 +181,23 @@ router.patch('/profile', async (req, res, next) => {
 // The /:id route below will NOT match "settings" because userSettingsRoutes handles it first
 
 // Alternative endpoint for updating user by ID
+// IMPORTANT: Only matches numeric IDs - non-numeric paths like "settings" should be handled
+// by userSettingsRoutes which is mounted before this router
 router.patch('/:id', async (req, res, next) => {
   try {
+    // Skip non-numeric IDs - they should be handled by other routes
+    const targetUserId = parseInt(req.params.id);
+    if (!Number.isFinite(targetUserId)) {
+      console.info(`[user.ts] Skipping non-numeric ID: ${req.params.id} - should be handled by userSettingsRoutes`);
+      return next('route'); // Skip to next route/router
+    }
+
     const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
 
-    const targetUserId = parseInt(req.params.id);
-    if (!Number.isFinite(targetUserId) || targetUserId !== userId) {
+    if (targetUserId !== userId) {
       return res.status(401).json({ message: 'Not authorized to update this profile' });
     }
 
