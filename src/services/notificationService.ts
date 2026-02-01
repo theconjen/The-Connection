@@ -152,7 +152,7 @@ export async function registerPushToken(token: string): Promise<boolean> {
   try {
     const platform = Platform.OS;
 
-    await apiClient.post('/push-tokens', {
+    await apiClient.post('/api/push-tokens', {
       token,
       platform,
     });
@@ -178,7 +178,7 @@ export async function registerPushToken(token: string): Promise<boolean> {
  */
 export async function unregisterPushToken(token: string): Promise<void> {
   try {
-    await apiClient.delete(`/push-tokens/${encodeURIComponent(token)}`);
+    await apiClient.delete(`/api/push-tokens/${encodeURIComponent(token)}`);
     console.info('[Notifications] Token unregistered from backend');
   } catch (error: any) {
     // Suppress expected errors:

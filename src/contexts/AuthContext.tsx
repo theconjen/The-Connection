@@ -18,6 +18,7 @@ interface User {
   onboardingCompleted?: boolean;
   role?: string; // admin, pastor, leader, member
   permissions?: string[]; // inbox_access, manage_experts, etc.
+  dateOfBirth?: string; // Birthday in YYYY-MM-DD format
 }
 
 interface RegisterPayload {
@@ -26,6 +27,7 @@ interface RegisterPayload {
   password: string;
   firstName?: string;
   lastName?: string;
+  dob?: string; // Date of birth in YYYY-MM-DD format for age verification
 }
 
 interface RegisterResult {

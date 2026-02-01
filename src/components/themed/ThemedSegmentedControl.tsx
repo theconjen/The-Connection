@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, Text, StyleSheet } from 'react-native';
-import { useTheme } from '../../theme/ThemeProvider';
+import { useTheme } from '../../contexts/ThemeContext';
 import { radii, spacing } from '../../theme/tokens';
 
 interface ThemedSegmentedControlProps {

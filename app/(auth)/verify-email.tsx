@@ -119,26 +119,26 @@ export default function VerifyEmailScreen() {
 
         {initialSendFailed ? (
           <View style={styles.messageContainer}>
-            <Text style={[styles.message, { color: colors.textPrimary }]}>
+            <Text style={[styles.message, { color: colors.text }]}>
               We couldn't send your verification email automatically.
             </Text>
-            <Text style={[styles.message, { color: colors.textPrimary, marginTop: 4 }]}>
+            <Text style={[styles.message, { color: colors.text, marginTop: 4 }]}>
               Tap below to request a new link for:
             </Text>
           </View>
         ) : (
-          <Text style={[styles.message, { color: colors.textPrimary }]}>
+          <Text style={[styles.message, { color: colors.text }]}>
             We've sent a verification link to
           </Text>
         )}
         
         <Text style={[styles.email, { color: colors.email }]}>{email}</Text>
 
-        <View style={[styles.instructionsCard, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
+        <View style={[styles.instructionsCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
           <View style={[styles.instructionIcon, { backgroundColor: colors.accentLight }]}>
             <Ionicons name="finger-print" size={24} color={colors.accent} />
           </View>
-          <Text style={[styles.instructions, { color: colors.textPrimary }]}>
+          <Text style={[styles.instructions, { color: colors.text }]}>
             Click the link in the email to verify your account and start using The Connection.
           </Text>
         </View>

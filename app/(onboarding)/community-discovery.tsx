@@ -34,7 +34,8 @@ interface Community {
 
 export default function CommunityDiscoveryScreen() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors, colorScheme } = useTheme();
+  const isDark = colorScheme === 'dark';
   const { user, refresh } = useAuth();
 
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -121,7 +122,7 @@ export default function CommunityDiscoveryScreen() {
       await SecureStore.deleteItemAsync('onboarding_faith');
 
       // Navigate to feed
-      router.replace('/(tabs)/feed');
+      router.replace('/(tabs)/home');
 
       // Show success message
       setTimeout(() => {
@@ -133,7 +134,7 @@ export default function CommunityDiscoveryScreen() {
     } catch (error) {
       console.error('Error completing onboarding:', error);
       Alert.alert('Error', 'Failed to complete setup. You can finish it later in settings.');
-      router.replace('/(tabs)/feed');
+      router.replace('/(tabs)/home');
     } finally {
       setIsCompleting(false);
     }
@@ -147,7 +148,7 @@ export default function CommunityDiscoveryScreen() {
     return (
       <View style={[styles.communityCard, {
         backgroundColor: isDark ? '#1a2a4a' : '#fff',
-        borderColor: colors.border
+        borderColor: colors.borderSubtle
       }]}>
         <View style={styles.communityHeader}>
           <View style={[styles.communityIcon, {

@@ -50,6 +50,10 @@ export default function TabsLayout() {
         paddingBottom: 34, // Safe area for iPhone home indicator (34px standard)
         paddingTop: 8,
         height: 90, // Increased height to accommodate elevated button
+        paddingHorizontal: 10, // Add horizontal padding for edge breathing room
+      },
+      tabBarItemStyle: {
+        flex: 1, // Ensure each tab takes equal space
       },
       tabBarLabelStyle: {
         fontSize: 11,
@@ -142,7 +146,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="apologetics"
         options={{
-          title: 'Apologetics',
+          title: 'Q&A',
           tabBarIcon: ({ focused, size }) => (
             <Ionicons
               name={focused ? "book" : "book-outline"}

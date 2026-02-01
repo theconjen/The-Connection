@@ -14,7 +14,7 @@
  * - Time-based grouping (Today, Last 7 Days, Last 30 Days, Older)
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -24,6 +24,7 @@ import {
   Animated,
   PanResponder,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '../theme';
@@ -128,6 +129,68 @@ function useDeleteNotification() {
         || error.response?.data?.diagnostics?.reason
         || 'Failed to delete notification';
       Alert.alert('Error', message);
+    },
+  });
+}
+
+// ============================================================================
+// FOLLOW REQUEST HOOKS
+// ============================================================================
+
+interface FollowRequest {
+  id: number;
+  followerId: number;
+  follower: {
+    id: number;
+    username: string;
+    displayName?: string;
+    avatarUrl?: string;
+    profileImageUrl?: string;
+  };
+  createdAt: string;
+}
+
+function useFollowRequests() {
+  return useQuery<FollowRequest[]>({
+    queryKey: ['follow-requests'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/follow-requests');
+      return response.data || [];
+    },
+  });
+}
+
+function useAcceptFollowRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiClient.post(`/api/follow-requests/${userId}/accept`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['follow-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to accept request');
+    },
+  });
+}
+
+function useDenyFollowRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiClient.post(`/api/follow-requests/${userId}/deny`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['follow-requests'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to deny request');
     },
   });
 }
@@ -381,6 +444,199 @@ function GroupHeader({ title, count }: { title: string; count: number }) {
 }
 
 // ============================================================================
+// CONNECTION REQUESTS SECTION
+// ============================================================================
+
+function FollowRequestCard({
+  request,
+  onAccept,
+  onDeny,
+  isAccepting,
+  isDenying,
+}: {
+  request: FollowRequest;
+  onAccept: () => void;
+  onDeny: () => void;
+  isAccepting: boolean;
+  isDenying: boolean;
+}) {
+  const { colors, spacing } = useTheme();
+  const follower = request.follower;
+  const avatarUrl = follower.profileImageUrl || follower.avatarUrl;
+  const displayName = follower.displayName || follower.username;
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: spacing.md,
+        backgroundColor: colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderSubtle,
+      }}
+    >
+      {/* Avatar */}
+      {avatarUrl ? (
+        <Image
+          source={{ uri: avatarUrl }}
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: colors.surfaceMuted,
+          }}
+        />
+      ) : (
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: colors.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>
+            {displayName.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+      )}
+
+      {/* User Info */}
+      <View style={{ flex: 1, marginLeft: spacing.md }}>
+        <Text style={{ fontWeight: '600', color: colors.textPrimary, fontSize: 15 }}>
+          {displayName}
+        </Text>
+        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+          @{follower.username}
+        </Text>
+      </View>
+
+      {/* Action Buttons */}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Pressable
+          onPress={onDeny}
+          disabled={isDenying || isAccepting}
+          style={({ pressed }) => ({
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.borderSubtle,
+            backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
+            opacity: isDenying ? 0.5 : 1,
+          })}
+        >
+          <Text style={{ color: colors.textSecondary, fontWeight: '600', fontSize: 13 }}>
+            {isDenying ? '...' : 'Deny'}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={onAccept}
+          disabled={isAccepting || isDenying}
+          style={({ pressed }) => ({
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: 8,
+            backgroundColor: pressed ? `${colors.primary}dd` : colors.primary,
+            opacity: isAccepting ? 0.5 : 1,
+          })}
+        >
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>
+            {isAccepting ? '...' : 'Accept'}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function FollowRequestsSection() {
+  const { colors, spacing } = useTheme();
+  const { data: requests = [], isLoading } = useFollowRequests();
+  const acceptMutation = useAcceptFollowRequest();
+  const denyMutation = useDenyFollowRequest();
+  const [processingIds, setProcessingIds] = useState<{ [key: number]: 'accept' | 'deny' }>({});
+
+  const handleAccept = (userId: number) => {
+    setProcessingIds(prev => ({ ...prev, [userId]: 'accept' }));
+    acceptMutation.mutate(userId, {
+      onSettled: () => {
+        setProcessingIds(prev => {
+          const next = { ...prev };
+          delete next[userId];
+          return next;
+        });
+      },
+    });
+  };
+
+  const handleDeny = (userId: number) => {
+    setProcessingIds(prev => ({ ...prev, [userId]: 'deny' }));
+    denyMutation.mutate(userId, {
+      onSettled: () => {
+        setProcessingIds(prev => {
+          const next = { ...prev };
+          delete next[userId];
+          return next;
+        });
+      },
+    });
+  };
+
+  if (isLoading || requests.length === 0) {
+    return null;
+  }
+
+  return (
+    <View>
+      {/* Header */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.sm,
+          backgroundColor: `${colors.primary}10`,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.borderSubtle,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="person-add" size={16} color={colors.primary} />
+          <Text
+            style={{
+              fontWeight: '700',
+              color: colors.primary,
+              fontSize: 13,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+            }}
+          >
+            Connection Requests ({requests.length})
+          </Text>
+        </View>
+      </View>
+
+      {/* Request Cards */}
+      {requests.map((request) => (
+        <FollowRequestCard
+          key={request.id}
+          request={request}
+          onAccept={() => handleAccept(request.follower.id)}
+          onDeny={() => handleDeny(request.follower.id)}
+          isAccepting={processingIds[request.follower.id] === 'accept'}
+          isDenying={processingIds[request.follower.id] === 'deny'}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ============================================================================
 // MAIN SCREEN
 // ============================================================================
 
@@ -509,39 +765,47 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
               Loading notifications...
             </Text>
           </View>
-        ) : !hasAnyNotifications ? (
-          <View
-            style={{
-              alignItems: 'center',
-              paddingVertical: spacing.xl * 3,
-              paddingHorizontal: spacing.lg,
-            }}
-          >
-            <Ionicons name="notifications-off-outline" size={64} color={colors.textMuted} />
-            <Text
-              variant="body"
-              style={{
-                fontWeight: '600',
-                marginTop: spacing.md,
-                textAlign: 'center',
-              }}
-            >
-              No Notifications Yet
-            </Text>
-            <Text
-              variant="bodySmall"
-              color="textMuted"
-              style={{ marginTop: spacing.sm, textAlign: 'center' }}
-            >
-              Notifications about events, invitations, and engagement will appear here.
-            </Text>
-          </View>
         ) : (
           <View>
-            {renderGroup('today', 'Today')}
-            {renderGroup('last7days', 'Last 7 Days')}
-            {renderGroup('last30days', 'Last 30 Days')}
-            {renderGroup('older', 'Older')}
+            {/* Connection Requests Section - Always at top */}
+            <FollowRequestsSection />
+
+            {/* Regular Notifications */}
+            {hasAnyNotifications ? (
+              <>
+                {renderGroup('today', 'Today')}
+                {renderGroup('last7days', 'Last 7 Days')}
+                {renderGroup('last30days', 'Last 30 Days')}
+                {renderGroup('older', 'Older')}
+              </>
+            ) : (
+              <View
+                style={{
+                  alignItems: 'center',
+                  paddingVertical: spacing.xl * 3,
+                  paddingHorizontal: spacing.lg,
+                }}
+              >
+                <Ionicons name="notifications-off-outline" size={64} color={colors.textMuted} />
+                <Text
+                  variant="body"
+                  style={{
+                    fontWeight: '600',
+                    marginTop: spacing.md,
+                    textAlign: 'center',
+                  }}
+                >
+                  No Notifications Yet
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  color="textMuted"
+                  style={{ marginTop: spacing.sm, textAlign: 'center' }}
+                >
+                  Notifications about events, invitations, and engagement will appear here.
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>

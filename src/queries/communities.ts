@@ -13,7 +13,7 @@ export function useCommunities(search?: string) {
   return useQuery<Community[]>({
     queryKey: ['communities', { search: search || '' }],
     queryFn: async () => {
-      const response = await apiClient.get(`/communities${search ? `?search=${encodeURIComponent(search)}` : ''}`);
+      const response = await apiClient.get(`/api/communities${search ? `?search=${encodeURIComponent(search)}` : ''}`);
       const data = response.data;
       return Array.isArray(data) ? data : [];
     },

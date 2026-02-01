@@ -31,6 +31,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/theme";
 import { AppHeader } from "../../src/screens/AppHeader";
 import { useAuth } from "../../src/contexts/AuthContext";
+import { MenuDrawer } from "../../src/components/MenuDrawer";
 import apiClient from "../../src/lib/apiClient";
 import Markdown from "react-native-markdown-display";
 import { fetchBiblePassage, looksLikeBibleReference } from "../../src/lib/bibleApi";
@@ -144,6 +145,7 @@ export default function ApologeticsDetailScreen() {
   const [showVerseModal, setShowVerseModal] = useState(false);
   const [verseData, setVerseData] = useState<{ reference: string; text: string; translation: string } | null>(null);
   const [verseLoading, setVerseLoading] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   // Fetch data first so handlers can use it
   const { data, isLoading, error } = useQuery({
@@ -199,12 +201,12 @@ export default function ApologeticsDetailScreen() {
         <AppHeader
           showCenteredLogo={true}
           userName={user?.displayName || user?.username}
-          userAvatar={user?.profileImageUrl}
+          userAvatar={user?.profileImageUrl || user?.avatarUrl}
           onProfilePress={() => router.push("/profile" as any)}
           showMessages={true}
           onMessagesPress={() => router.push("/messages" as any)}
           showMenu={true}
-          onMenuPress={() => router.push("/menu" as any)}
+          onMenuPress={() => setMenuVisible(true)}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -221,12 +223,12 @@ export default function ApologeticsDetailScreen() {
         <AppHeader
           showCenteredLogo={true}
           userName={user?.displayName || user?.username}
-          userAvatar={user?.profileImageUrl}
+          userAvatar={user?.profileImageUrl || user?.avatarUrl}
           onProfilePress={() => router.push("/profile" as any)}
           showMessages={true}
           onMessagesPress={() => router.push("/messages" as any)}
           showMenu={true}
-          onMenuPress={() => router.push("/menu" as any)}
+          onMenuPress={() => setMenuVisible(true)}
         />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color={colors.textMuted} />
@@ -253,12 +255,12 @@ export default function ApologeticsDetailScreen() {
       <AppHeader
         showCenteredLogo={true}
         userName={user?.displayName || user?.username}
-        userAvatar={user?.profileImageUrl}
+        userAvatar={user?.profileImageUrl || user?.avatarUrl}
         onProfilePress={() => router.push("/profile" as any)}
         showMessages={true}
         onMessagesPress={() => router.push("/messages" as any)}
         showMenu={true}
-        onMenuPress={() => router.push("/menu" as any)}
+        onMenuPress={() => setMenuVisible(true)}
       />
 
       <ScrollView
@@ -526,7 +528,10 @@ export default function ApologeticsDetailScreen() {
           style={styles.modalOverlay}
           onPress={() => setShowVerseModal(false)}
         >
-          <Pressable style={[styles.verseModalContent, { backgroundColor: colors.surface }]}>
+          <View
+            style={[styles.verseModalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.verseModalHeader}>
               <Ionicons name="book" size={20} color={colors.primary} />
               <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
@@ -549,7 +554,7 @@ export default function ApologeticsDetailScreen() {
               </View>
             ) : (
               <>
-                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={false}>
+                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
                   <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
                     {verseData?.text}
                   </Text>
@@ -561,9 +566,18 @@ export default function ApologeticsDetailScreen() {
                 )}
               </>
             )}
-          </Pressable>
+          </View>
         </Pressable>
       </Modal>
+
+      {/* Menu Drawer */}
+      <MenuDrawer
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        onSettings={() => router.push("/settings")}
+        onNotifications={() => router.push("/notifications")}
+        onBookmarks={() => router.push("/bookmarks")}
+      />
     </SafeAreaView>
   );
 }
@@ -939,7 +953,7 @@ function getStyles(colors: any) {
     verseModalContent: {
       width: '100%',
       maxWidth: 360,
-      maxHeight: '70%',
+      maxHeight: '80%',
       borderRadius: 16,
       padding: 20,
       shadowColor: '#000',
@@ -960,7 +974,8 @@ function getStyles(colors: any) {
       fontWeight: '600',
     },
     verseModalScroll: {
-      maxHeight: 300,
+      flexGrow: 1,
+      flexShrink: 1,
     },
     verseModalText: {
       fontSize: 16,

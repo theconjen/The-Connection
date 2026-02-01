@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet, PressableProps, ActivityIndicator } from 'react-native';
-import { useTheme } from '../../theme/ThemeProvider';
+import { useTheme } from '../../contexts/ThemeContext';
 import { radii, spacing } from '../../theme/tokens';
 
 interface ThemedButtonProps extends PressableProps {

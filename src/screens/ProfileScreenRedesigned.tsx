@@ -1,5 +1,6 @@
 /**
- * Redesigned ProfileScreen - Modern profile with tabs, follow system, communities, and posts
+ * Redesigned ProfileScreen - Modern profile with tabs, follow system, and communities
+ * Tabs: Communities (joined groups) and Questions (advice questions asked)
  */
 
 import React, { useState } from 'react';
@@ -33,7 +34,7 @@ import {
   useUnfollowUser,
   useFollowStatus,
 } from '../queries/follow';
-import { Colors } from '../shared/colors';
+// Colors now come from useTheme() - see colors.primary usage below
 import { fetchBiblePassage, looksLikeBibleReference } from '../lib/bibleApi';
 
 // Custom church icon
@@ -48,11 +49,13 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const { colors, spacing, radii, colorScheme } = useTheme();
   const { user: currentUser, refresh: refreshAuth } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'posts' | 'communities'>('posts');
+  const [activeTab, setActiveTab] = useState<'communities' | 'advice'>('communities');
   const [refreshing, setRefreshing] = useState(false);
   const [showVerseModal, setShowVerseModal] = useState(false);
   const [versePassage, setVersePassage] = useState<{ reference: string; text: string; translation: string } | null>(null);
   const [verseLoading, setVerseLoading] = useState(false);
+  const [showClergyModal, setShowClergyModal] = useState(false);
+  const [showApologistModal, setShowApologistModal] = useState(false);
 
   // Determine if viewing own profile
   const viewingOwnProfile = !userId || userId === currentUser?.id;
@@ -107,7 +110,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   };
 
   const handleVersePress = async () => {
-    const verseText = user?.favoriteBibleVerse;
+    const verseText = profile?.user?.favoriteBibleVerse;
     if (!verseText) return;
 
     setShowVerseModal(true);
@@ -217,7 +220,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
     );
   }
 
-  const { user, stats, communities, recentPosts, recentMicroblogs } = profile;
+  const { user, stats, communities, recentPosts, recentMicroblogs, isPrivate: isPrivateProfile } = profile;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
@@ -282,16 +285,22 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Stats */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.postsCount}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Posts</Text>
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.eventsCount || 0}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Events</Text>
               </View>
-              <Pressable style={styles.statItem}>
+              <Pressable
+                style={styles.statItem}
+                onPress={() => router.push(`/profile/followers?userId=${targetUserId}&tab=followers`)}
+              >
                 <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.followersCount}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Followers</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Connections</Text>
               </Pressable>
-              <Pressable style={styles.statItem}>
+              <Pressable
+                style={styles.statItem}
+                onPress={() => router.push(`/profile/followers?userId=${targetUserId}&tab=following`)}
+              >
                 <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.followingCount}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Following</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Connected</Text>
               </Pressable>
             </View>
           </View>
@@ -303,6 +312,26 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               <Text style={[styles.displayName, { color: colors.textPrimary }]}>
                 {user.displayName || user.username}
               </Text>
+              {/* Clergy badge - shows if user.isVerifiedClergy */}
+              {user.isVerifiedClergy && (
+                <Pressable onPress={() => setShowClergyModal(true)} style={{ marginLeft: 2 }}>
+                  <Image
+                    source={require('../../assets/clergy-shield.png')}
+                    style={{ width: 18, height: 18 }}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+              )}
+              {/* Apologist badge - shows if user.isVerifiedApologeticsAnswerer */}
+              {user.isVerifiedApologeticsAnswerer && (
+                <Pressable onPress={() => setShowApologistModal(true)} style={{ marginLeft: 2 }}>
+                  <Image
+                    source={require('../../assets/apologist-shield.png')}
+                    style={{ width: 18, height: 18 }}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+              )}
               {user.denomination && (
                 <View style={[styles.denominationBadge, { backgroundColor: `${colors.primary}15` }]}>
                   <Text style={[styles.denominationText, { color: colors.primary }]}>{user.denomination}</Text>
@@ -396,141 +425,53 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                     followStatus?.isFollowing && [styles.followingButtonText, { color: colors.textPrimary }],
                   ]}
                 >
-                  {followStatus?.isFollowing ? 'Following' : 'Follow'}
+                  {followStatus?.isFollowing ? 'Connected' : 'Connect'}
                 </Text>
               </Pressable>
             )}
           </View>
         </View>
 
-        {/* Tabs */}
+        {/* Tabs - Advice tab only visible on own profile, Communities hidden from others if profile is private */}
         <View style={[styles.tabsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
-          <Pressable
-            style={[styles.tab, activeTab === 'posts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => setActiveTab('posts')}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={20}
-              color={activeTab === 'posts' ? colors.primary : colors.textSecondary}
-            />
-            <Text style={[styles.tabText, { color: activeTab === 'posts' ? colors.primary : colors.textSecondary }]}>
-              Posts
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.tab, activeTab === 'communities' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => setActiveTab('communities')}
-          >
-            <Ionicons
-              name="people-outline"
-              size={20}
-              color={activeTab === 'communities' ? colors.primary : colors.textSecondary}
-            />
-            <Text
-              style={[styles.tabText, { color: activeTab === 'communities' ? colors.primary : colors.textSecondary }]}
+          {/* Communities tab - only visible to profile owner OR to others if profile is NOT private */}
+          {(viewingOwnProfile || !isPrivateProfile) && (
+            <Pressable
+              style={[styles.tab, activeTab === 'communities' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+              onPress={() => setActiveTab('communities')}
             >
-              Communities
-            </Text>
-          </Pressable>
+              <Ionicons
+                name="people-outline"
+                size={20}
+                color={activeTab === 'communities' ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[styles.tabText, { color: activeTab === 'communities' ? colors.primary : colors.textSecondary }]}
+              >
+                Communities
+              </Text>
+            </Pressable>
+          )}
+          {/* Advice tab - only visible on own profile (private) */}
+          {viewingOwnProfile && (
+            <Pressable
+              style={[styles.tab, activeTab === 'advice' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+              onPress={() => setActiveTab('advice')}
+            >
+              <Ionicons
+                name="chatbubbles-outline"
+                size={20}
+                color={activeTab === 'advice' ? colors.primary : colors.textSecondary}
+              />
+              <Text style={[styles.tabText, { color: activeTab === 'advice' ? colors.primary : colors.textSecondary }]}>
+                My Advice
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Tab Content */}
         <View style={[styles.content, { backgroundColor: colors.background }]}>
-          {activeTab === 'posts' && (
-            <View style={styles.postsContainer}>
-              {/* Show microblogs (feed posts) */}
-              {recentMicroblogs && recentMicroblogs.length > 0 ? (
-                recentMicroblogs.map((microblog: any) => (
-                  <View key={`microblog-${microblog.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.postContent, { color: colors.textPrimary }]} numberOfLines={4}>
-                      {microblog.content}
-                    </Text>
-                    <View style={styles.postFooter}>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {new Date(microblog.createdAt).toLocaleDateString()}
-                      </Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {microblog.likeCount || 0} likes
-                      </Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {microblog.replyCount || 0} comments
-                      </Text>
-                    </View>
-                  </View>
-                ))
-              ) : recentPosts && recentPosts.length > 0 ? (
-                // Show forum posts if no microblogs
-                recentPosts.map((post: any) => (
-                  <View key={`post-${post.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.postTitle, { color: colors.textPrimary }]}>{post.title}</Text>
-                    <Text style={[styles.postContent, { color: colors.textSecondary }]} numberOfLines={3}>
-                      {post.content}
-                    </Text>
-                    <View style={styles.postFooter}>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {new Date(post.createdAt).toLocaleDateString()}
-                      </Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>{post.upvotes || 0} upvotes</Text>
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <View style={styles.emptyState}>
-                  <Ionicons name="document-outline" size={40} color={colors.textMuted} style={{ opacity: 0.5, marginBottom: 8 }} />
-
-                  {viewingOwnProfile ? (
-                    // Own profile empty state
-                    <>
-                      <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
-                        {stats.postsCount > 0 ? "Your posts aren't showing here" : 'Nothing here yet'}
-                      </Text>
-                      <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                        {stats.postsCount > 0
-                          ? 'Check your privacy settings if this seems wrong.'
-                          : "Share something when you're ready."}
-                      </Text>
-                      <Pressable
-                        style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
-                        onPress={() => router.push('/create')}
-                      >
-                        <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
-                          Create a post
-                        </Text>
-                      </Pressable>
-                    </>
-                  ) : (
-                    // Viewing another user's profile
-                    <>
-                      <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
-                        {stats.postsCount > 0 ? "Posts aren't visible" : 'Nothing here yet'}
-                      </Text>
-                      <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                        {stats.postsCount > 0
-                          ? 'Follow to see what they share.'
-                          : "They haven't shared anything publicly."}
-                      </Text>
-                      {stats.postsCount > 0 && !followStatus?.isFollowing && (
-                        <Pressable
-                          style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
-                          onPress={handleFollow}
-                          disabled={followMutation.isPending}
-                        >
-                          <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
-                            Follow
-                          </Text>
-                        </Pressable>
-                      )}
-                    </>
-                  )}
-                </View>
-              )}
-            </View>
-          )}
-
           {activeTab === 'communities' && (
             <View style={styles.communitiesContainer}>
               {communities && communities.length > 0 ? (
@@ -560,6 +501,94 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 <View style={styles.emptyState}>
                   <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
                   <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No communities yet</Text>
+                  {viewingOwnProfile && (
+                    <Pressable
+                      style={[styles.emptyActionButton, { backgroundColor: colors.primary, marginTop: 16 }]}
+                      onPress={() => router.push('/(tabs)/communities' as any)}
+                    >
+                      <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
+                        Explore Communities
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
+          {activeTab === 'advice' && (
+            <View style={styles.postsContainer}>
+              {/* Show advice questions (microblogs with topic=QUESTION) - tappable for editing */}
+              {recentMicroblogs && recentMicroblogs.filter((m: any) => m.topic === 'QUESTION').length > 0 ? (
+                recentMicroblogs.filter((m: any) => m.topic === 'QUESTION').map((microblog: any) => (
+                  <Pressable
+                    key={`advice-${microblog.id}`}
+                    style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+                    onPress={() => router.push(`/advice/${microblog.id}` as any)}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <View style={{ backgroundColor: '#EC489915', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="chatbubbles" size={14} color="#EC4899" />
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#EC4899' }}>Advice Request</Text>
+                      </View>
+                      {/* Edit button */}
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          router.push(`/advice/edit/${microblog.id}` as any);
+                        }}
+                        hitSlop={8}
+                        style={{ padding: 4 }}
+                      >
+                        <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+                      </Pressable>
+                    </View>
+                    <Text style={[styles.postContent, { color: colors.textPrimary }]} numberOfLines={4}>
+                      {microblog.content}
+                    </Text>
+                    {/* Show nickname/city if set */}
+                    {(microblog.anonymousNickname || microblog.anonymousCity) && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, opacity: 0.7 }}>
+                        {microblog.anonymousNickname && (
+                          <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+                            as {microblog.anonymousNickname}
+                          </Text>
+                        )}
+                        {microblog.anonymousCity && (
+                          <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                            from {microblog.anonymousCity}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                    <View style={styles.postFooter}>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
+                        {new Date(microblog.createdAt).toLocaleDateString()}
+                      </Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
+                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
+                        {microblog.replyCount || microblog.commentCount || 0} replies
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="chatbubbles-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
+                    No advice requests yet
+                  </Text>
+                  <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                    Your private advice requests will appear here.
+                  </Text>
+                  <Pressable
+                    style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
+                    onPress={() => router.push('/create/advice' as any)}
+                  >
+                    <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
+                      Ask for Advice
+                    </Text>
+                  </Pressable>
                 </View>
               )}
             </View>
@@ -579,7 +608,10 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
           style={styles.modalOverlay}
           onPress={() => setShowVerseModal(false)}
         >
-          <Pressable style={[styles.verseModalContent, { backgroundColor: colors.surface }]}>
+          <View
+            style={[styles.verseModalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.verseModalHeader}>
               <Ionicons name="book" size={20} color={colors.primary} />
               <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
@@ -602,7 +634,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               </View>
             ) : (
               <>
-                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={false}>
+                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
                   <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
                     {versePassage?.text || user?.favoriteBibleVerse}
                   </Text>
@@ -614,7 +646,103 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 )}
               </>
             )}
-          </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Clergy Verification Modal */}
+      <Modal
+        visible={showClergyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowClergyModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowClergyModal(false)}
+        >
+          <View
+            style={[styles.verseModalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.verseModalHeader}>
+              <Image
+                source={require('../../assets/clergy-shield.png')}
+                style={{ width: 28, height: 28 }}
+                resizeMode="contain"
+              />
+              <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
+                Verified Clergy
+              </Text>
+              <Pressable
+                onPress={() => setShowClergyModal(false)}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
+              <Text style={[styles.clergyModalText, { color: colors.textPrimary }]}>
+                This person has been verified as ordained clergy by their church or organization on The Connection.
+              </Text>
+              <Text style={[styles.clergyModalText, { color: colors.textPrimary, marginTop: 12 }]}>
+                Verified clergy members have had their pastoral credentials confirmed by a registered church administrator, ensuring authentic spiritual leadership within our community.
+              </Text>
+            </ScrollView>
+
+            <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+              "Feed my sheep" - John 21:17
+            </Text>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Apologist Verification Modal */}
+      <Modal
+        visible={showApologistModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowApologistModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowApologistModal(false)}
+        >
+          <View
+            style={[styles.verseModalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.verseModalHeader}>
+              <Image
+                source={require('../../assets/apologist-shield.png')}
+                style={{ width: 28, height: 28 }}
+                resizeMode="contain"
+              />
+              <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
+                Verified Apologist
+              </Text>
+              <Pressable
+                onPress={() => setShowApologistModal(false)}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
+              <Text style={[styles.clergyModalText, { color: colors.textPrimary }]}>
+                This person is a verified Christian apologist on The Connection.
+              </Text>
+              <Text style={[styles.clergyModalText, { color: colors.textPrimary, marginTop: 12 }]}>
+                Verified apologists have demonstrated theological knowledge and are approved to answer faith-related questions in our Q&A system, helping others understand and defend the Christian faith.
+              </Text>
+            </ScrollView>
+
+            <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+              "Always be prepared to give an answer" - 1 Peter 3:15
+            </Text>
+          </View>
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -654,7 +782,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#7C8F78',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -771,7 +899,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#7C8F78',
     alignItems: 'center',
   },
   followingButton: {
@@ -798,14 +926,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: Colors.primary,
+    borderBottomColor: '#7C8F78',
   },
   tabText: {
     fontSize: 14,
     fontWeight: '500',
   },
   activeTabText: {
-    color: Colors.primary,
+    color: '#7C8F78',
     fontWeight: '600',
   },
   content: {
@@ -858,7 +986,7 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     padding: 3,
     borderWidth: 2,
-    borderColor: Colors.primary,
+    borderColor: '#7C8F78',
     marginBottom: 6,
   },
   storyIconCircle: {
@@ -944,6 +1072,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 26,
     fontStyle: 'italic',
+  },
+  clergyModalText: {
+    fontSize: 15,
+    lineHeight: 24,
   },
   verseModalAttribution: {
     fontSize: 12,

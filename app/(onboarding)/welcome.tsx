@@ -23,7 +23,8 @@ import apiClient from '../../src/lib/apiClient';
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors, colorScheme } = useTheme();
+  const isDark = colorScheme === 'dark';
   const { refresh } = useAuth();
   const [isSkipping, setIsSkipping] = useState(false);
 
@@ -39,7 +40,7 @@ export default function WelcomeScreen() {
       await refresh();
 
       // Navigate to feed
-      router.replace('/(tabs)/feed');
+      router.replace('/(tabs)/home');
     } catch (error) {
       console.error('Error skipping onboarding:', error);
       Alert.alert('Error', 'Failed to skip onboarding. Please try again.');

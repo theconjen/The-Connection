@@ -26,7 +26,8 @@ import apiClient from '../../src/lib/apiClient';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors, colorScheme } = useTheme();
+  const isDark = colorScheme === 'dark';
   const { user, refresh } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -78,7 +79,7 @@ export default function ProfileSetupScreen() {
       await refresh();
 
       // Navigate to feed
-      router.replace('/(tabs)/feed');
+      router.replace('/(tabs)/home');
     } catch (error) {
       console.error('Error skipping onboarding:', error);
       Alert.alert('Error', 'Failed to skip onboarding. Please try again.');
@@ -146,7 +147,7 @@ export default function ProfileSetupScreen() {
             onPress={pickImage}
             style={[styles.photoButton, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
-              borderColor: colors.border
+              borderColor: colors.borderSubtle
             }]}
           >
             {profileImage ? (
@@ -174,7 +175,7 @@ export default function ProfileSetupScreen() {
             style={[styles.input, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
               color: colors.textPrimary,
-              borderColor: colors.border
+              borderColor: colors.borderSubtle
             }]}
             value={formData.displayName}
             onChangeText={(text) => setFormData({ ...formData, displayName: text })}
@@ -197,7 +198,7 @@ export default function ProfileSetupScreen() {
             style={[styles.input, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
               color: colors.textPrimary,
-              borderColor: colors.border
+              borderColor: colors.borderSubtle
             }]}
             value={formData.location}
             onChangeText={(text) => setFormData({ ...formData, location: text })}
@@ -220,7 +221,7 @@ export default function ProfileSetupScreen() {
             style={[styles.textArea, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
               color: colors.textPrimary,
-              borderColor: colors.border
+              borderColor: colors.borderSubtle
             }]}
             value={formData.bio}
             onChangeText={(text) => setFormData({ ...formData, bio: text })}

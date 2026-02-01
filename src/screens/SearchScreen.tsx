@@ -560,7 +560,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
               </Pressable>
 
               <Pressable
-                onPress={() => router.push('/feed')}
+                onPress={() => router.push('/(tabs)/home')}
                 style={({ pressed }) => [
                   styles.quickAccessItem,
                   {
@@ -582,14 +582,14 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     justifyContent: 'center',
                   }}
                 >
-                  <Ionicons name="refresh-outline" size={24} color={colors.primary} />
+                  <Ionicons name="home-outline" size={24} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
                   <Text variant="body" style={{ fontWeight: '600' }}>
-                    Feed
+                    Home
                   </Text>
                   <Text variant="caption" color="textMuted">
-                    Latest posts
+                    Your community feed
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />

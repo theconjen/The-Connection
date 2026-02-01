@@ -14,6 +14,7 @@ import { initializeNotifications, cleanupNotifications, unregisterPushToken, get
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import apiClient from '../src/lib/apiClient';
 import { VideoSplash } from '../src/components/VideoSplash';
+import { BirthdayCelebration } from '../src/components/BirthdayCelebration';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -61,6 +62,7 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
   const notificationListeners = useRef<{
     receivedListener: Notifications.Subscription | null;
     responseListener: Notifications.Subscription | null;
@@ -103,14 +105,17 @@ function RootLayoutNav() {
         if (user.onboardingCompleted === false) {
           router.replace('/(onboarding)/welcome');
         } else {
-          router.replace('/(tabs)/feed');
+          router.replace('/(tabs)/home');
         }
       } else if (inOnboardingGroup && user.onboardingCompleted === true) {
         // User completed onboarding but still on onboarding screens - redirect to feed
-        router.replace('/(tabs)/feed');
+        router.replace('/(tabs)/home');
       }
       // If user is in tabs or other authenticated areas, let them be
     }
+
+    // Mark navigation as ready after first auth check
+    setIsNavigationReady(true);
   }, [user, isLoading, segments]);
 
   // Initialize notifications when user is authenticated
@@ -161,10 +166,21 @@ function RootLayoutNav() {
     };
   }, [user, isLoading]);
 
+  // Don't render routes until we know the auth state
+  // This prevents the login screen from flashing before redirect
+  if (isLoading || !isNavigationReady) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#EDE8DF' }}>
+        <ThemedStatusBar />
+      </View>
+    );
+  }
+
   return (
     <>
       <ThemedStatusBar />
       <Slot />
+      <BirthdayCelebration />
     </>
   );
 }

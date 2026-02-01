@@ -14,7 +14,7 @@ export function useEvents() {
   return useQuery<EventItem[]>({
     queryKey: ['events'],
     queryFn: async () => {
-      const response = await apiClient.get('/events');
+      const response = await apiClient.get('/api/events');
       const data = response.data;
       return Array.isArray(data) ? data : [];
     },

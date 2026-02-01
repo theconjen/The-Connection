@@ -79,6 +79,7 @@ export default function CommunityDetailScreen() {
   const [newChatMessage, setNewChatMessage] = useState('');
   const [chatRoom, setChatRoom] = useState<any>(null);
   const chatScrollRef = useRef<ScrollView>(null);
+  const [isAnnouncementMode, setIsAnnouncementMode] = useState(false);
   const [showAnsweredModal, setShowAnsweredModal] = useState(false);
   const [selectedPrayer, setSelectedPrayer] = useState<any>(null);
   const [answeredDescription, setAnsweredDescription] = useState('');
@@ -164,20 +165,28 @@ export default function CommunityDetailScreen() {
     queryKey: ['chat-room', communityId],
     queryFn: () => chatAPI.getChatRoom(communityId),
     enabled: !!communityId && activeTab === 'chat' && !!community?.isMember,
-    onSuccess: (data) => {
-      setChatRoom(data);
-    },
   });
+
+  // Update chatRoom state when data is fetched
+  useEffect(() => {
+    if (chatRoomData) {
+      setChatRoom(chatRoomData);
+    }
+  }, [chatRoomData]);
 
   // Fetch chat messages
   const { data: chatMessagesData, isLoading: chatMessagesLoading, refetch: refetchChatMessages } = useQuery({
     queryKey: ['chat-messages', communityId],
     queryFn: () => chatAPI.getChatMessages(communityId),
-    enabled: !!communityId && activeTab === 'chat' && !!chatRoom && !!community?.isMember,
-    onSuccess: (data) => {
-      setChatMessages(data || []);
-    },
+    enabled: !!communityId && activeTab === 'chat' && !!chatRoomData && !!community?.isMember,
   });
+
+  // Update chatMessages state when data is fetched
+  useEffect(() => {
+    if (chatMessagesData) {
+      setChatMessages(chatMessagesData);
+    }
+  }, [chatMessagesData]);
 
   // Socket.IO connection for real-time chat
   useEffect(() => {
@@ -211,6 +220,33 @@ export default function CommunityDetailScreen() {
     };
   }, [user?.id, community?.isMember, activeTab, chatRoom]);
 
+  // Show welcome message for new admins/owners
+  const showAdminWelcome = (communityName: string) => {
+    Alert.alert(
+      'You\'re the Community Admin!',
+      `As the first member of "${communityName}", you're now the Admin. Here's what that means:\n\n` +
+      '• You can manage members and assign moderators\n' +
+      '• You control community settings and privacy\n' +
+      '• You can remove inappropriate content\n\n' +
+      'Important: Update your community\'s location in Settings so people nearby can discover and join what God is building through this community!',
+      [{ text: 'Got it!', style: 'default' }]
+    );
+  };
+
+  // Show welcome message for new moderators
+  const showModeratorWelcome = (communityName: string) => {
+    Alert.alert(
+      'You\'re Now a Moderator!',
+      `You've been made a moderator of "${communityName}". Here's your role:\n\n` +
+      '• Help maintain a positive, Christ-centered environment\n' +
+      '• Review and remove inappropriate content\n' +
+      '• Welcome new members and encourage participation\n' +
+      '• Support the Admin in growing the community\n\n' +
+      'Tip: Encourage the Admin to set the community location so nearby believers can find and join!',
+      [{ text: 'Let\'s go!', style: 'default' }]
+    );
+  };
+
   // Join/Leave mutations
   const joinMutation = useMutation({
     mutationFn: async () => {
@@ -230,7 +266,15 @@ export default function CommunityDetailScreen() {
       const refetchResult = await queryClient.refetchQueries({ queryKey: ['community', communityId] });
       console.log(`[FRONTEND] Refetch result:`, refetchResult);
 
-      Alert.alert('Success', 'You have joined the community!');
+      // Show appropriate welcome message based on role
+      const communityName = community?.name || 'this community';
+      if (data?.role === 'owner') {
+        showAdminWelcome(communityName);
+      } else if (data?.role === 'moderator') {
+        showModeratorWelcome(communityName);
+      } else {
+        Alert.alert('Welcome!', `You've joined ${communityName}!`);
+      }
     },
     onError: async (error: any) => {
       console.log(`[FRONTEND] Join error:`, error.response?.data);
@@ -532,8 +576,10 @@ export default function CommunityDetailScreen() {
     }
 
     // Send via Socket.IO for real-time delivery
-    socketService.sendChatMessage(chatRoom.id, newChatMessage.trim(), user.id);
+    // Pass isAnnouncement flag for admin/moderator announcements
+    socketService.sendChatMessage(chatRoom.id, newChatMessage.trim(), user.id, isAnnouncementMode);
     setNewChatMessage('');
+    setIsAnnouncementMode(false); // Reset announcement mode after sending
 
     // Scroll to bottom
     setTimeout(() => {
@@ -613,12 +659,20 @@ export default function CommunityDetailScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {community.isAdmin && (
-            <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={() => router.push(`/communities/settings/${community.id}`)}
-            >
-              <Ionicons name="settings-outline" size={20} color={communityColor} />
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => router.push(`/communities/${community.id}/members`)}
+              >
+                <Ionicons name="people" size={20} color={communityColor} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => router.push(`/communities/settings/${community.id}`)}
+              >
+                <Ionicons name="settings-outline" size={20} color={communityColor} />
+              </TouchableOpacity>
+            </>
           )}
           {!community.isAdmin && (
             <TouchableOpacity
@@ -1327,6 +1381,37 @@ export default function CommunityDetailScreen() {
                 ) : (
                   chatMessages.map((message) => {
                     const isOwnMessage = message.senderId === user?.id;
+                    const isAnnouncement = message.isAnnouncement;
+
+                    // Announcement messages have special full-width styling
+                    if (isAnnouncement) {
+                      return (
+                        <View key={message.id} style={styles.announcementBubble}>
+                          <View style={styles.announcementHeader}>
+                            <Ionicons name="megaphone" size={16} color="#F59E0B" />
+                            <Text style={styles.announcementLabel}>Community Update</Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => {
+                              if (message.sender?.id) {
+                                router.push(`/(tabs)/profile?userId=${message.sender.id}`);
+                              }
+                            }}
+                          >
+                            <Text style={[styles.chatSenderName, { textDecorationLine: 'underline', color: '#F59E0B' }]}>
+                              @{message.sender?.username || message.sender?.displayName}
+                            </Text>
+                          </TouchableOpacity>
+                          <Text style={styles.announcementText}>
+                            {message.content}
+                          </Text>
+                          <Text style={styles.announcementTime}>
+                            {formatDate(message.createdAt)}
+                          </Text>
+                        </View>
+                      );
+                    }
+
                     return (
                       <View
                         key={message.id}
@@ -1366,13 +1451,41 @@ export default function CommunityDetailScreen() {
                 )}
               </ScrollView>
 
+              {/* Announcement mode indicator - above input */}
+              {isAnnouncementMode && (
+                <View style={styles.announcementIndicator}>
+                  <Ionicons name="megaphone" size={14} color="#F59E0B" />
+                  <Text style={styles.announcementIndicatorText}>
+                    Sending as community update - all members will be notified
+                  </Text>
+                </View>
+              )}
               {/* Message Input */}
               <View style={[styles.chatInputContainer, { paddingBottom: 12 + insets.bottom }]}>
+                {/* Announcement toggle for admins/moderators */}
+                {(community?.isAdmin || community?.isModerator || community?.role === 'owner' || community?.role === 'moderator') && (
+                  <TouchableOpacity
+                    style={[
+                      styles.announcementToggle,
+                      isAnnouncementMode && styles.announcementToggleActive,
+                    ]}
+                    onPress={() => setIsAnnouncementMode(!isAnnouncementMode)}
+                  >
+                    <Ionicons
+                      name="megaphone"
+                      size={20}
+                      color={isAnnouncementMode ? '#fff' : '#F59E0B'}
+                    />
+                  </TouchableOpacity>
+                )}
                 <TextInput
-                  style={styles.chatInput}
+                  style={[
+                    styles.chatInput,
+                    isAnnouncementMode && styles.chatInputAnnouncement,
+                  ]}
                   value={newChatMessage}
                   onChangeText={setNewChatMessage}
-                  placeholder="Type a message..."
+                  placeholder={isAnnouncementMode ? "Type an announcement..." : "Type a message..."}
                   placeholderTextColor={colors.mutedForeground}
                   multiline
                   maxLength={500}
@@ -1380,6 +1493,7 @@ export default function CommunityDetailScreen() {
                 <TouchableOpacity
                   style={[
                     styles.chatSendButton,
+                    isAnnouncementMode && styles.chatSendButtonAnnouncement,
                     !newChatMessage.trim() && styles.chatSendButtonDisabled,
                   ]}
                   onPress={handleSendChatMessage}
@@ -2276,6 +2390,78 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
   },
   chatSendButtonDisabled: {
     opacity: 0.5,
+  },
+  // Announcement Styles
+  announcementBubble: {
+    width: '100%',
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  announcementHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  announcementLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F59E0B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  announcementText: {
+    fontSize: 15,
+    color: colors.foreground,
+    lineHeight: 22,
+    marginTop: 4,
+  },
+  announcementTime: {
+    fontSize: 11,
+    color: colors.mutedForeground,
+    marginTop: 8,
+  },
+  announcementToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  announcementToggleActive: {
+    backgroundColor: '#F59E0B',
+    borderColor: '#F59E0B',
+  },
+  chatInputAnnouncement: {
+    borderColor: '#F59E0B',
+    borderWidth: 2,
+  },
+  chatSendButtonAnnouncement: {
+    backgroundColor: '#F59E0B',
+  },
+  announcementIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderBottomWidth: 0,
+    marginBottom: 0,
+  },
+  announcementIndicatorText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    flex: 1,
   },
   // Prayer Request Styles
   prayerCard: {

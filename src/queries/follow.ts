@@ -21,6 +21,7 @@ export interface UserProfile {
     followingCount: number;
     communitiesCount: number;
     postsCount: number; // Total posts (forum + microblogs)
+    eventsCount: number; // Events attended
     forumPostsCount: number; // Just forum posts
     feedPostsCount: number; // Just microblogs (feed posts)
   };

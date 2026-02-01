@@ -61,7 +61,8 @@ const INTERESTS = [
 
 export default function FaithBackgroundScreen() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors, colorScheme } = useTheme();
+  const isDark = colorScheme === 'dark';
   const { refresh } = useAuth();
 
   const [denomination, setDenomination] = useState('');
@@ -95,7 +96,7 @@ export default function FaithBackgroundScreen() {
       await refresh();
 
       // Navigate to feed
-      router.replace('/(tabs)/feed');
+      router.replace('/(tabs)/home');
     } catch (error) {
       console.error('Error skipping onboarding:', error);
       Alert.alert('Error', 'Failed to skip onboarding. Please try again.');
@@ -235,7 +236,7 @@ export default function FaithBackgroundScreen() {
             style={[styles.input, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
               color: colors.textPrimary,
-              borderColor: colors.border
+              borderColor: colors.borderSubtle
             }]}
             value={homeChurch}
             onChangeText={setHomeChurch}
@@ -255,7 +256,7 @@ export default function FaithBackgroundScreen() {
             style={[styles.input, {
               backgroundColor: isDark ? '#1a2a4a' : '#f0f4f8',
               color: colors.textPrimary,
-              borderColor: colors.border
+              borderColor: colors.borderSubtle
             }]}
             value={favoriteBibleVerse}
             onChangeText={setFavoriteBibleVerse}

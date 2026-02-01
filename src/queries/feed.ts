@@ -15,7 +15,7 @@ export function useFeed() {
   return useQuery<FeedPost[]>({
     queryKey: ['feed'],
     queryFn: async () => {
-      const response = await apiClient.get('/feed');
+      const response = await apiClient.get('/api/feed');
       const data = response.data;
       return Array.isArray(data) ? data : [];
     },

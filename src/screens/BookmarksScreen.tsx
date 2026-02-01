@@ -61,7 +61,7 @@ export default function BookmarksScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'feed' | 'forum' | 'apologetics'>('feed');
+  const [activeTab, setActiveTab] = useState<'advice' | 'apologetics'>('advice');
 
   const colors = {
     background: isDark ? '#000000' : '#FFFFFF',
@@ -76,32 +76,20 @@ export default function BookmarksScreen() {
 
   const styles = getStyles(colors, isDark);
 
-  // Fetch bookmarked microblogs
+  // Fetch bookmarked advice posts (microblogs with topic=QUESTION)
   const {
-    data: bookmarkedMicroblogs = [],
-    isLoading: isLoadingMicroblogs,
-    refetch: refetchMicroblogs,
+    data: bookmarkedAdvice = [],
+    isLoading: isLoadingAdvice,
+    refetch: refetchAdvice,
   } = useQuery<Microblog[]>({
-    queryKey: ['/api/microblogs/bookmarks'],
+    queryKey: ['/api/microblogs/bookmarks/advice'],
     queryFn: async () => {
       const response = await apiClient.get('/api/microblogs/bookmarks');
-      return response.data;
+      // Filter to only show advice posts (topic=QUESTION)
+      const allBookmarks = response.data || [];
+      return allBookmarks.filter((m: any) => m.topic === 'QUESTION');
     },
-    enabled: !!user && activeTab === 'feed',
-  });
-
-  // Fetch bookmarked posts
-  const {
-    data: bookmarkedPosts = [],
-    isLoading: isLoadingPosts,
-    refetch: refetchPosts,
-  } = useQuery<Post[]>({
-    queryKey: ['/api/posts/bookmarks'],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/posts/bookmarks');
-      return response.data;
-    },
-    enabled: !!user && activeTab === 'forum',
+    enabled: !!user && activeTab === 'advice',
   });
 
   // Fetch bookmarked apologetics Q&A
@@ -132,33 +120,21 @@ export default function BookmarksScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (activeTab === 'feed') {
-      await refetchMicroblogs();
-    } else if (activeTab === 'forum') {
-      await refetchPosts();
+    if (activeTab === 'advice') {
+      await refetchAdvice();
     } else {
       await refetchApologetics();
     }
     setRefreshing(false);
   };
 
-  const handleUnbookmarkMicroblog = async (microblogId: number) => {
+  const handleUnbookmarkAdvice = async (adviceId: number) => {
     try {
-      await apiClient.delete(`/api/microblogs/${microblogId}/bookmark`);
-      queryClient.invalidateQueries({ queryKey: ['/api/microblogs/bookmarks'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
+      await apiClient.delete(`/api/microblogs/${adviceId}/bookmark`);
+      queryClient.invalidateQueries({ queryKey: ['/api/microblogs/bookmarks/advice'] });
+      queryClient.invalidateQueries({ queryKey: ['advice-posts'] });
     } catch (error) {
-      console.error('Error unbookmarking microblog:', error);
-    }
-  };
-
-  const handleUnbookmarkPost = async (postId: number) => {
-    try {
-      await apiClient.delete(`/api/posts/${postId}/bookmark`);
-      queryClient.invalidateQueries({ queryKey: ['/api/posts/bookmarks'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
-    } catch (error) {
-      console.error('Error unbookmarking post:', error);
+      console.error('Error unbookmarking advice:', error);
     }
   };
 
@@ -172,85 +148,49 @@ export default function BookmarksScreen() {
     }
   };
 
-  const renderMicroblogItem = (microblog: Microblog) => (
-    <View key={microblog.id} style={styles.postCard}>
+  const renderAdviceItem = (advice: Microblog & { anonymousNickname?: string }) => (
+    <Pressable
+      key={advice.id}
+      style={styles.postCard}
+      onPress={() => router.push({ pathname: '/advice/[id]' as any, params: { id: advice.id.toString() } })}
+    >
       <View style={styles.postHeader}>
-        <View style={styles.authorInfo}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={20} color={colors.textSecondary} />
-          </View>
-          <View style={styles.authorText}>
-            <Text style={styles.authorName}>
-              {microblog.author?.displayName || microblog.author?.username || 'Unknown'}
-            </Text>
-            <Text style={styles.timestamp}>
-              {new Date(microblog.createdAt).toLocaleDateString()}
-            </Text>
-          </View>
+        <View style={styles.adviceBadge}>
+          <Ionicons name="help-circle" size={14} color="#EC4899" />
+          <Text style={styles.adviceBadgeText}>Seeking Advice</Text>
+          {(advice as any).anonymousNickname && (
+            <Text style={styles.adviceNickname}>from {(advice as any).anonymousNickname}</Text>
+          )}
         </View>
         <Pressable
-          onPress={() => handleUnbookmarkMicroblog(microblog.id)}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleUnbookmarkAdvice(advice.id);
+          }}
           style={styles.unbookmarkButton}
         >
           <Ionicons name="bookmark" size={20} color={colors.primary} />
         </Pressable>
       </View>
 
-      <Text style={styles.postContent}>{microblog.content}</Text>
+      <Text style={styles.postContent} numberOfLines={4}>{advice.content}</Text>
 
       <View style={styles.postStats}>
         <View style={styles.statItem}>
-          <Ionicons name="heart-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.statText}>{microblog.likeCount || 0}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="repeat-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.statText}>{microblog.repostCount || 0}</Text>
+          <Ionicons name="arrow-up-outline" size={16} color={colors.textSecondary} />
+          <Text style={styles.statText}>{advice.likeCount || 0}</Text>
         </View>
         <View style={styles.statItem}>
           <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.statText}>{microblog.replyCount || 0}</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderPostItem = (post: Post) => (
-    <View key={post.id} style={styles.postCard}>
-      <View style={styles.postHeader}>
-        <View style={styles.forumBadge}>
-          <Ionicons name="chatbubbles" size={14} color={colors.primary} />
-          <Text style={styles.forumBadgeText}>Forum</Text>
-        </View>
-        <Pressable
-          onPress={() => handleUnbookmarkPost(post.id)}
-          style={styles.unbookmarkButton}
-        >
-          <Ionicons name="bookmark" size={20} color={colors.primary} />
-        </Pressable>
-      </View>
-
-      <Text style={styles.postTitle}>{post.title}</Text>
-      <Text style={styles.postContent} numberOfLines={3}>
-        {post.content}
-      </Text>
-
-      <View style={styles.postStats}>
-        <View style={styles.statItem}>
-          <Ionicons name="arrow-up" size={16} color={colors.textSecondary} />
-          <Text style={styles.statText}>{post.upvotes || 0}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.statText}>{post.commentCount || 0}</Text>
+          <Text style={styles.statText}>{advice.replyCount || 0}</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.timestamp}>
-            {new Date(post.createdAt).toLocaleDateString()}
+            {new Date(advice.createdAt).toLocaleDateString()}
           </Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 
   const renderApologeticsItem = (qa: ApologeticsQA) => (
@@ -309,28 +249,16 @@ export default function BookmarksScreen() {
       <Ionicons name="bookmark-outline" size={64} color={colors.textSecondary} />
       <Text style={styles.emptyStateTitle}>No bookmarks yet</Text>
       <Text style={styles.emptyStateText}>
-        {activeTab === 'feed'
-          ? 'Bookmark posts from your feed to save them for later'
-          : activeTab === 'forum'
-          ? 'Bookmark forum posts to save them for later'
+        {activeTab === 'advice'
+          ? 'Bookmark advice posts to save them for later'
           : 'Bookmark Q&A entries from Apologetics to save them for later'}
       </Text>
     </View>
   );
 
-  const isLoading =
-    activeTab === 'feed'
-      ? isLoadingMicroblogs
-      : activeTab === 'forum'
-      ? isLoadingPosts
-      : isLoadingApologetics;
+  const isLoading = activeTab === 'advice' ? isLoadingAdvice : isLoadingApologetics;
 
-  const data =
-    activeTab === 'feed'
-      ? bookmarkedMicroblogs
-      : activeTab === 'forum'
-      ? bookmarkedPosts
-      : bookmarkedApologetics;
+  const data = activeTab === 'advice' ? bookmarkedAdvice : bookmarkedApologetics;
 
   const isEmpty = !isLoading && data.length === 0;
 
@@ -355,40 +283,21 @@ export default function BookmarksScreen() {
       {/* Tabs */}
       <View style={styles.tabs}>
         <Pressable
-          style={[styles.tab, activeTab === 'feed' && styles.tabActive]}
-          onPress={() => setActiveTab('feed')}
+          style={[styles.tab, activeTab === 'advice' && styles.tabActive]}
+          onPress={() => setActiveTab('advice')}
         >
           <Ionicons
-            name="newspaper"
+            name="help-circle"
             size={20}
-            color={activeTab === 'feed' ? colors.tabActive : colors.tabInactive}
+            color={activeTab === 'advice' ? colors.tabActive : colors.tabInactive}
           />
           <Text
             style={[
               styles.tabText,
-              activeTab === 'feed' ? styles.tabTextActive : styles.tabTextInactive,
+              activeTab === 'advice' ? styles.tabTextActive : styles.tabTextInactive,
             ]}
           >
-            Feed
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={[styles.tab, activeTab === 'forum' && styles.tabActive]}
-          onPress={() => setActiveTab('forum')}
-        >
-          <Ionicons
-            name="chatbubbles"
-            size={20}
-            color={activeTab === 'forum' ? colors.tabActive : colors.tabInactive}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'forum' ? styles.tabTextActive : styles.tabTextInactive,
-            ]}
-          >
-            Forums
+            Advice
           </Text>
         </Pressable>
 
@@ -423,10 +332,8 @@ export default function BookmarksScreen() {
           </View>
         ) : isEmpty ? (
           renderEmptyState()
-        ) : activeTab === 'feed' ? (
-          bookmarkedMicroblogs.map(renderMicroblogItem)
-        ) : activeTab === 'forum' ? (
-          bookmarkedPosts.map(renderPostItem)
+        ) : activeTab === 'advice' ? (
+          bookmarkedAdvice.map(renderAdviceItem)
         ) : (
           bookmarkedApologetics.map(renderApologeticsItem)
         )}
@@ -540,19 +447,25 @@ function getStyles(colors: any, isDark: boolean) {
     unbookmarkButton: {
       padding: 8,
     },
-    forumBadge: {
+    adviceBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
       paddingHorizontal: 8,
       paddingVertical: 4,
-      backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
+      backgroundColor: isDark ? 'rgba(236, 72, 153, 0.15)' : 'rgba(236, 72, 153, 0.1)',
       borderRadius: 12,
     },
-    forumBadgeText: {
+    adviceBadgeText: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.primary,
+      color: '#EC4899',
+    },
+    adviceNickname: {
+      fontSize: 11,
+      fontStyle: 'italic',
+      color: colors.textSecondary,
+      marginLeft: 4,
     },
     postTitle: {
       fontSize: 17,

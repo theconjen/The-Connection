@@ -528,13 +528,15 @@ export default function EditEventScreen() {
                 <Text style={styles.pickerModalDone}>Done</Text>
               </TouchableOpacity>
             </View>
-            <DateTimePicker
-              value={tempDate}
-              mode="date"
-              display="spinner"
-              onChange={(_, date) => date && setTempDate(date)}
-              style={styles.picker}
-            />
+            <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+              <DateTimePicker
+                value={tempDate}
+                mode="date"
+                display="spinner"
+                onChange={(_, date) => date && setTempDate(date)}
+                style={styles.picker}
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -552,13 +554,15 @@ export default function EditEventScreen() {
                 <Text style={styles.pickerModalDone}>Done</Text>
               </TouchableOpacity>
             </View>
-            <DateTimePicker
-              value={tempTime}
-              mode="time"
-              display="spinner"
-              onChange={(_, date) => date && setTempTime(date)}
-              style={styles.picker}
-            />
+            <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+              <DateTimePicker
+                value={tempTime}
+                mode="time"
+                display="spinner"
+                onChange={(_, date) => date && setTempTime(date)}
+                style={styles.picker}
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -576,13 +580,15 @@ export default function EditEventScreen() {
                 <Text style={styles.pickerModalDone}>Done</Text>
               </TouchableOpacity>
             </View>
-            <DateTimePicker
-              value={tempTime}
-              mode="time"
-              display="spinner"
-              onChange={(_, date) => date && setTempTime(date)}
-              style={styles.picker}
-            />
+            <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+              <DateTimePicker
+                value={tempTime}
+                mode="time"
+                display="spinner"
+                onChange={(_, date) => date && setTempTime(date)}
+                style={styles.picker}
+              />
+            </View>
           </View>
         </View>
       </Modal>

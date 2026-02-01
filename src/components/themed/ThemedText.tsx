@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, TextProps, TextStyle } from 'react-native';
-import { useTheme } from '../../theme/ThemeProvider';
+import { useTheme } from '../../contexts/ThemeContext';
 import type { TextVariant, FontWeightName } from '../../theme/typography';
 import { getDefaultWeightForVariant, getTypographyStyle } from '../../theme/typography';
 

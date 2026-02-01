@@ -49,7 +49,7 @@ export default function LoginScreen() {
     if (isAuthenticated && user) {
       // Check if user has completed onboarding
       if (user.onboardingCompleted) {
-        router.replace('/(tabs)/feed');
+        router.replace('/(tabs)/home');
       } else {
         // First time user - show onboarding
         router.replace('/(onboarding)/welcome');

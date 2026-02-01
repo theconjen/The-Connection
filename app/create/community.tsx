@@ -22,7 +22,7 @@ import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { communitiesAPI } from '../../src/lib/apiClient';
 import { Ionicons } from '@expo/vector-icons';
-import { geocodeAddress, getCurrentLocation, requestLocationPermission } from '../../src/lib/locationService';
+import { geocodeAddress, getCurrentLocation, requestLocationPermission } from '../../src/services/locationService';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import * as Location from 'expo-location';
 

@@ -21,7 +21,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, refresh } = useAuth();
   const queryClient = useQueryClient();
   const { theme, setTheme, colorScheme, colors } = useTheme();
   const [emailNotifications, setEmailNotifications] = React.useState(true);
@@ -34,6 +34,8 @@ export default function SettingsScreen() {
   const [birthday, setBirthday] = React.useState<Date | null>(
     user?.dateOfBirth ? new Date(user.dateOfBirth) : null
   );
+  // Temporary state for date picker selection (only saved on "Done")
+  const [tempBirthday, setTempBirthday] = React.useState<Date | null>(null);
   const maxDate = new Date(); // Can't select future dates
 
   const updatePrivacyMutation = useMutation({
@@ -61,8 +63,9 @@ export default function SettingsScreen() {
       });
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      await refresh(); // Refresh AuthContext to get updated user data
       Alert.alert('Success', 'Your birthday has been updated.');
     },
     onError: (error: any) => {
@@ -74,16 +77,32 @@ export default function SettingsScreen() {
   const handleBirthdayChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
+      // On Android, save immediately since there's no "Done" button
+      if (event.type === 'set' && selectedDate) {
+        setBirthday(selectedDate);
+        const dobString = selectedDate.toISOString().split('T')[0];
+        updateBirthdayMutation.mutate(dobString);
+      }
+    } else if (Platform.OS === 'ios' && selectedDate) {
+      // On iOS, just update the temporary selection (don't save yet)
+      setTempBirthday(selectedDate);
     }
-    if (event.type === 'set' && selectedDate) {
-      setBirthday(selectedDate);
-      // Format as ISO date string (YYYY-MM-DD)
-      const dobString = selectedDate.toISOString().split('T')[0];
+  };
+
+  const handleBirthdayDone = () => {
+    setShowDatePicker(false);
+    if (tempBirthday) {
+      setBirthday(tempBirthday);
+      const dobString = tempBirthday.toISOString().split('T')[0];
       updateBirthdayMutation.mutate(dobString);
     }
-    if (Platform.OS === 'ios' && event.type === 'dismissed') {
-      setShowDatePicker(false);
-    }
+    setTempBirthday(null);
+  };
+
+  const handleOpenDatePicker = () => {
+    // Initialize temp with current birthday when opening picker
+    setTempBirthday(birthday);
+    setShowDatePicker(true);
   };
 
   const formatBirthday = (date: Date | null) => {
@@ -220,7 +239,7 @@ export default function SettingsScreen() {
           <SettingsItem
             icon="calendar-outline"
             label="Birthday"
-            onPress={() => setShowDatePicker(true)}
+            onPress={handleOpenDatePicker}
             rightElement={
               <View style={styles.themeValue}>
                 <Text style={[styles.themeValueText, { color: colors.textSecondary }]}>
@@ -234,23 +253,23 @@ export default function SettingsScreen() {
 
         {/* Birthday Date Picker */}
         {showDatePicker && (
-          <DateTimePicker
-            value={birthday || new Date(new Date().getFullYear() - 18, 0, 1)}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            maximumDate={maxDate}
-            onChange={handleBirthdayChange}
-            themeVariant={colorScheme}
-          />
-        )}
-        {Platform.OS === 'ios' && showDatePicker && (
-          <View style={[styles.datePickerDoneContainer, { backgroundColor: colors.surface }]}>
-            <TouchableOpacity
-              style={styles.datePickerDoneButton}
-              onPress={() => setShowDatePicker(false)}
-            >
-              <Text style={[styles.datePickerDoneText, { color: colors.primary }]}>Done</Text>
-            </TouchableOpacity>
+          <View style={styles.datePickerContainer}>
+            <DateTimePicker
+              value={tempBirthday || birthday || new Date(new Date().getFullYear() - 18, 0, 1)}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              maximumDate={maxDate}
+              onChange={handleBirthdayChange}
+              themeVariant={colorScheme}
+            />
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.datePickerDoneButton}
+                onPress={handleBirthdayDone}
+              >
+                <Text style={[styles.datePickerDoneText, { color: colors.primary }]}>Done</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -435,17 +454,23 @@ const styles = StyleSheet.create({
   bottomPadding: {
     height: 40,
   },
-  datePickerDoneContainer: {
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  datePickerContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    alignItems: 'center',
   },
   datePickerDoneButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    alignSelf: 'flex-end',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginTop: 8,
   },
   datePickerDoneText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
 });

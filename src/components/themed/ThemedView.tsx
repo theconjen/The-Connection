@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewProps, StyleSheet } from 'react-native';
-import { useTheme } from '../../theme/ThemeProvider';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface ThemedViewProps extends ViewProps {
   variant?: 'background' | 'backgroundSoft' | 'surface' | 'surfaceMuted';

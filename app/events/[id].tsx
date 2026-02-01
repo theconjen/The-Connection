@@ -48,6 +48,7 @@ interface Event {
   creatorId: number;
   hostUserId?: number;
   imageUrl?: string | null; // Event flyer/poster image
+  communityId?: number | null; // null = Connection Hosted event
   host?: {
     id: number;
     username: string;
@@ -121,17 +122,19 @@ export default function EventDetailScreen() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Send Announcement', 'Edit Event', 'Delete Event', 'Cancel'],
-          destructiveButtonIndex: 2,
-          cancelButtonIndex: 3,
+          options: ['View Attendees', 'Send Announcement', 'Edit Event', 'Delete Event', 'Cancel'],
+          destructiveButtonIndex: 3,
+          cancelButtonIndex: 4,
           title: 'Manage Event',
         },
         (buttonIndex) => {
           if (buttonIndex === 0) {
-            setShowAnnouncementModal(true);
+            router.push(`/events/${eventId}/attendees`);
           } else if (buttonIndex === 1) {
-            router.push(`/events/edit/${eventId}`);
+            setShowAnnouncementModal(true);
           } else if (buttonIndex === 2) {
+            router.push(`/events/edit/${eventId}`);
+          } else if (buttonIndex === 3) {
             confirmDelete();
           }
         }
@@ -141,6 +144,7 @@ export default function EventDetailScreen() {
         'Manage Event',
         undefined,
         [
+          { text: 'View Attendees', onPress: () => router.push(`/events/${eventId}/attendees`) },
           { text: 'Send Announcement', onPress: () => setShowAnnouncementModal(true) },
           { text: 'Edit Event', onPress: () => router.push(`/events/edit/${eventId}`) },
           { text: 'Delete Event', style: 'destructive', onPress: confirmDelete },
@@ -247,6 +251,58 @@ export default function EventDetailScreen() {
       console.error('[RSVP Error]', status, message);
     },
   });
+
+  // Check if this is a Connection Hosted event (no communityId)
+  const isConnectionHosted = event?.communityId === null || event?.communityId === undefined;
+
+  // Get nearby users count for Connection Hosted events (only for host)
+  const { data: nearbyUsersData, refetch: refetchNearbyCount } = useQuery({
+    queryKey: ['nearby-users-count', eventId],
+    queryFn: () => eventsAPI.getNearbyUsersCount(eventId, 30),
+    enabled: !!eventId && isConnectionHosted && isHost(event),
+  });
+
+  // Mutation to invite nearby users
+  const inviteNearbyMutation = useMutation({
+    mutationFn: () => eventsAPI.inviteNearbyUsers(eventId, 30, true),
+    onSuccess: (data) => {
+      Alert.alert(
+        'Invitations Sent!',
+        `Successfully invited ${data.invitedCount} users within 30 miles of the event.${data.skippedCount > 0 ? `\n\n${data.skippedCount} users were skipped (already invited or RSVP'd).` : ''}`,
+        [{ text: 'OK' }]
+      );
+      // Refresh the nearby count
+      refetchNearbyCount();
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to invite nearby users';
+      Alert.alert('Error', message);
+    },
+  });
+
+  const handleInviteNearbyUsers = () => {
+    const eligibleCount = nearbyUsersData?.eligibleToInvite || 0;
+    if (eligibleCount === 0) {
+      Alert.alert(
+        'No Users to Invite',
+        'There are no users within 30 miles who haven\'t already been invited or RSVP\'d.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Invite Nearby Users',
+      `This will send invitations to ${eligibleCount} users within 30 miles of this event.\n\nThey will receive a notification about the event.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Invite ${eligibleCount} Users`,
+          onPress: () => inviteNearbyMutation.mutate(),
+        },
+      ]
+    );
+  };
 
   // Parse eventDate (handles "2026-01-12 00:00:00" or "2026-01-12" formats)
   const parseEventDate = (eventDate: string): Date => {
@@ -512,6 +568,37 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Invite Nearby Users Button (Connection Hosted events, host only) */}
+      {event && isConnectionHosted && isHost(event) && (
+        <View style={styles.inviteNearbyContainer}>
+          <TouchableOpacity
+            style={[
+              styles.inviteNearbyButton,
+              { backgroundColor: colors.accent },
+              inviteNearbyMutation.isPending && styles.inviteNearbyButtonDisabled
+            ]}
+            onPress={handleInviteNearbyUsers}
+            disabled={inviteNearbyMutation.isPending}
+          >
+            {inviteNearbyMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.inviteNearbyIcon}>📍</Text>
+                <View style={styles.inviteNearbyTextContainer}>
+                  <Text style={styles.inviteNearbyButtonText}>Invite Nearby Users (30 mi)</Text>
+                  {nearbyUsersData && (
+                    <Text style={styles.inviteNearbySubtext}>
+                      {nearbyUsersData.eligibleToInvite} users available
+                    </Text>
+                  )}
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* RSVP Footer with 3 buttons */}
       <View style={styles.footer}>
@@ -1063,5 +1150,38 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Invite Nearby Users styles
+  inviteNearbyContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+  },
+  inviteNearbyButton: {
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteNearbyButtonDisabled: {
+    opacity: 0.7,
+  },
+  inviteNearbyIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  inviteNearbyTextContainer: {
+    alignItems: 'center',
+  },
+  inviteNearbyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  inviteNearbySubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    marginTop: 2,
   },
 });

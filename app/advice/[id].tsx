@@ -367,6 +367,16 @@ export default function AdviceDetailScreen() {
                     </Text>
                   </View>
                   <View style={styles.cardActions}>
+                    {/* Edit button - only show for own posts */}
+                    {user?.id === advicePost?.userId && (
+                      <Pressable
+                        onPress={() => router.push(`/advice/edit/${adviceId}` as any)}
+                        hitSlop={8}
+                        style={styles.cardAction}
+                      >
+                        <Ionicons name="pencil-outline" size={18} color={colors.textMuted} />
+                      </Pressable>
+                    )}
                     <Pressable onPress={() => bookmarkMutation.mutate()} hitSlop={8} style={styles.cardAction}>
                       <Ionicons
                         name={isBookmarked ? "bookmark" : "bookmark-outline"}

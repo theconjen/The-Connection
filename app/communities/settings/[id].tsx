@@ -22,7 +22,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import apiClient from '../../../src/lib/apiClient';
 import { useTheme } from '../../../src/contexts/ThemeContext';
-import { geocodeAddress, getCurrentLocation, requestLocationPermission } from '../../../src/lib/locationService';
+import { geocodeAddress, getCurrentLocation, requestLocationPermission } from '../../../src/services/locationService';
 import * as Location from 'expo-location';
 
 // Icon options for communities - includes seeded community icons

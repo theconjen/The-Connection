@@ -92,6 +92,7 @@ export default function CreateEventScreen() {
 
   // Date and time state
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedEndDate, setSelectedEndDate] = useState(new Date()); // End date for multi-day events
   const [selectedTime, setSelectedTime] = useState(new Date());
   const [selectedEndTime, setSelectedEndTime] = useState(() => {
     // Default end time is 1 hour after start time
@@ -106,10 +107,21 @@ export default function CreateEventScreen() {
   // Modal state
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false); // End date picker for Conference
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
+
+  // Multi-day events (Conference category)
+  const isMultiDayEvent = category === 'conference';
+
+  // Keep end date >= start date when start date changes
+  useEffect(() => {
+    if (isMultiDayEvent && selectedEndDate < selectedDate) {
+      setSelectedEndDate(selectedDate);
+    }
+  }, [selectedDate, isMultiDayEvent]);
 
   // Event categories
   const EVENT_CATEGORIES = [
@@ -266,6 +278,17 @@ export default function CreateEventScreen() {
     // Format date as YYYY-MM-DD
     const eventDate = selectedDate.toISOString().slice(0, 10);
 
+    // For Conference events, use end date; otherwise same as start date
+    const eventEndDate = isMultiDayEvent
+      ? selectedEndDate.toISOString().slice(0, 10)
+      : eventDate;
+
+    // Validate end date is after or equal to start date for conferences
+    if (isMultiDayEvent && selectedEndDate < selectedDate) {
+      Alert.alert('Error', 'End date must be on or after the start date');
+      return;
+    }
+
     // Format start time as HH:MM:SS
     const hours = selectedTime.getHours().toString().padStart(2, '0');
     const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
@@ -309,6 +332,7 @@ export default function CreateEventScreen() {
       title: title.trim(),
       description: description.trim(),
       eventDate,
+      eventEndDate, // End date for multi-day events (Conference)
       startTime,
       endTime,
       isPublic,
@@ -602,7 +626,7 @@ export default function CreateEventScreen() {
 
           {/* Date Picker */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date *</Text>
+            <Text style={styles.label}>{isMultiDayEvent ? 'Start Date *' : 'Date *'}</Text>
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowDatePicker(true)}
@@ -611,6 +635,23 @@ export default function CreateEventScreen() {
               <Text style={styles.pickerText}>{formatDate(selectedDate)}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* End Date Picker - Only for Conference (multi-day events) */}
+          {isMultiDayEvent && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>End Date *</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowEndDatePicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                <Text style={styles.pickerText}>{formatDate(selectedEndDate)}</Text>
+              </TouchableOpacity>
+              <Text style={[styles.locationHint, { color: colors.textMuted, fontStyle: 'italic' }]}>
+                Conferences typically span multiple days
+              </Text>
+            </View>
+          )}
 
           {/* Start Time Picker */}
           <View style={styles.inputGroup}>
@@ -810,24 +851,26 @@ export default function CreateEventScreen() {
                 <TouchableOpacity onPress={() => setShowDatePicker(false)}>
                   <Text style={[styles.pickerModalButton, { color: colors.textMuted }]}>Cancel</Text>
                 </TouchableOpacity>
-                <Text style={styles.pickerModalTitle}>Select Date</Text>
+                <Text style={styles.pickerModalTitle}>{isMultiDayEvent ? 'Select Start Date' : 'Select Date'}</Text>
                 <TouchableOpacity onPress={() => setShowDatePicker(false)}>
                   <Text style={[styles.pickerModalButton, { color: colors.primary }]}>Done</Text>
                 </TouchableOpacity>
               </View>
-              <DateTimePicker
-                value={selectedDate}
-                mode="date"
-                display="spinner"
-                onChange={(event, date) => {
-                  if (date) {
-                    setSelectedDate(date);
-                  }
-                }}
-                themeVariant={colorScheme}
-                minimumDate={new Date()}
-                style={{ height: 200 }}
-              />
+              <View style={{ paddingHorizontal: 12, paddingBottom: 16 }}>
+                <DateTimePicker
+                  value={selectedDate}
+                  mode="date"
+                  display="inline"
+                  onChange={(event, date) => {
+                    if (date) {
+                      setSelectedDate(date);
+                    }
+                  }}
+                  themeVariant={colorScheme}
+                  minimumDate={new Date()}
+                  style={{ height: 340 }}
+                />
+              </View>
             </View>
           </Pressable>
         </Modal>
@@ -845,6 +888,64 @@ export default function CreateEventScreen() {
             }}
             themeVariant={colorScheme}
             minimumDate={new Date()}
+          />
+        )
+      )}
+
+      {/* End Date Picker - iOS: wrapped in Modal with Done button (Conference only) */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showEndDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowEndDatePicker(false)}
+        >
+          <Pressable
+            style={styles.pickerModalOverlay}
+            onPress={() => setShowEndDatePicker(false)}
+          >
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.textMuted }]}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerModalTitle}>Select End Date</Text>
+                <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.primary }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ paddingHorizontal: 12, paddingBottom: 16 }}>
+                <DateTimePicker
+                  value={selectedEndDate}
+                  mode="date"
+                  display="inline"
+                  onChange={(event, date) => {
+                    if (date) {
+                      setSelectedEndDate(date);
+                    }
+                  }}
+                  themeVariant={colorScheme}
+                  minimumDate={selectedDate}
+                  style={{ height: 340 }}
+                />
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showEndDatePicker && (
+          <DateTimePicker
+            value={selectedEndDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowEndDatePicker(false);
+              if (date) {
+                setSelectedEndDate(date);
+              }
+            }}
+            themeVariant={colorScheme}
+            minimumDate={selectedDate}
           />
         )
       )}
@@ -871,25 +972,27 @@ export default function CreateEventScreen() {
                   <Text style={[styles.pickerModalButton, { color: colors.primary }]}>Done</Text>
                 </TouchableOpacity>
               </View>
-              <DateTimePicker
-                value={selectedTime}
-                mode="time"
-                display="spinner"
-                is24Hour={false}
-                onChange={(event, date) => {
-                  if (date) {
-                    setSelectedTime(date);
-                    // Auto-update end time if it's before or equal to new start time
-                    if (selectedEndTime <= date) {
-                      const newEndTime = new Date(date);
-                      newEndTime.setHours(newEndTime.getHours() + 1);
-                      setSelectedEndTime(newEndTime);
+              <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+                <DateTimePicker
+                  value={selectedTime}
+                  mode="time"
+                  display="spinner"
+                  is24Hour={false}
+                  onChange={(event, date) => {
+                    if (date) {
+                      setSelectedTime(date);
+                      // Auto-update end time if it's before or equal to new start time
+                      if (selectedEndTime <= date) {
+                        const newEndTime = new Date(date);
+                        newEndTime.setHours(newEndTime.getHours() + 1);
+                        setSelectedEndTime(newEndTime);
+                      }
                     }
-                  }
-                }}
-                themeVariant={colorScheme}
-                style={{ height: 200 }}
-              />
+                  }}
+                  themeVariant={colorScheme}
+                  style={{ height: 200 }}
+                />
+              </View>
             </View>
           </Pressable>
         </Modal>
@@ -939,19 +1042,21 @@ export default function CreateEventScreen() {
                   <Text style={[styles.pickerModalButton, { color: colors.primary }]}>Done</Text>
                 </TouchableOpacity>
               </View>
-              <DateTimePicker
-                value={selectedEndTime}
-                mode="time"
-                display="spinner"
-                is24Hour={false}
-                onChange={(event, date) => {
-                  if (date) {
-                    setSelectedEndTime(date);
-                  }
-                }}
-                themeVariant={colorScheme}
-                style={{ height: 200 }}
-              />
+              <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+                <DateTimePicker
+                  value={selectedEndTime}
+                  mode="time"
+                  display="spinner"
+                  is24Hour={false}
+                  onChange={(event, date) => {
+                    if (date) {
+                      setSelectedEndTime(date);
+                    }
+                  }}
+                  themeVariant={colorScheme}
+                  style={{ height: 200 }}
+                />
+              </View>
             </View>
           </Pressable>
         </Modal>

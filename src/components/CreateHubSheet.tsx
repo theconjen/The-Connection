@@ -33,6 +33,13 @@ interface CreateHubSheetProps {
 
 const CREATE_OPTIONS: CreateOption[] = [
   {
+    id: 'advice',
+    title: 'Ask for Advice',
+    subtitle: 'Get anonymous support from the community',
+    route: '/create/advice',
+    icon: 'chatbubble-ellipses-outline',
+  },
+  {
     id: 'community',
     title: 'Create a Community',
     subtitle: 'Build a space around a topic or interest',

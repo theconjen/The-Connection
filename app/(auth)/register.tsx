@@ -320,24 +320,26 @@ export default function RegisterScreen() {
           </View>
 
           {showDatePicker && (
-            <DateTimePicker
-              value={formData.dateOfBirth || defaultPickerDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              maximumDate={maxDate}
-              onChange={(event, selectedDate) => {
-                if (Platform.OS === 'android') {
-                  setShowDatePicker(false);
-                }
-                if (event.type === 'set' && selectedDate) {
-                  setFormData({ ...formData, dateOfBirth: selectedDate });
-                }
-                if (Platform.OS === 'ios' && event.type === 'dismissed') {
-                  setShowDatePicker(false);
-                }
-              }}
-              themeVariant={colorScheme}
-            />
+            <View style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surface, borderRadius: 8, marginBottom: 8 }}>
+              <DateTimePicker
+                value={formData.dateOfBirth || defaultPickerDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={maxDate}
+                onChange={(event, selectedDate) => {
+                  if (Platform.OS === 'android') {
+                    setShowDatePicker(false);
+                  }
+                  if (event.type === 'set' && selectedDate) {
+                    setFormData({ ...formData, dateOfBirth: selectedDate });
+                  }
+                  if (Platform.OS === 'ios' && event.type === 'dismissed') {
+                    setShowDatePicker(false);
+                  }
+                }}
+                themeVariant={colorScheme}
+              />
+            </View>
           )}
 
           {/* iOS: Show done button for date picker */}

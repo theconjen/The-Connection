@@ -28,6 +28,20 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 // App owner can create events without a community (The Connection official events)
 const APP_OWNER_USER_ID = 19; // Janelle
 
+// Event categories
+const EVENT_CATEGORIES = [
+  { value: 'sunday_service', label: 'Sunday Service', icon: 'sunny-outline' as const },
+  { value: 'worship', label: 'Worship', icon: 'musical-notes-outline' as const },
+  { value: 'bible_study', label: 'Bible Study', icon: 'book-outline' as const },
+  { value: 'prayer', label: 'Prayer Meeting', icon: 'hand-left-outline' as const },
+  { value: 'fellowship', label: 'Fellowship/Social', icon: 'people-outline' as const },
+  { value: 'service_outreach', label: 'Service/Outreach', icon: 'heart-outline' as const },
+  { value: 'activity', label: 'Activity', icon: 'fitness-outline' as const },
+  { value: 'conference', label: 'Conference', icon: 'mic-outline' as const },
+  { value: 'youth', label: 'Youth Event', icon: 'school-outline' as const },
+  { value: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' as const },
+];
+
 interface Community {
   id: number;
   name: string;
@@ -92,13 +106,29 @@ export default function CreateEventScreen() {
 
   // Date and time state
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedEndDate, setSelectedEndDate] = useState(new Date()); // End date for multi-day events
   const [selectedTime, setSelectedTime] = useState(new Date());
+  const [selectedEndTime, setSelectedEndTime] = useState(() => {
+    // Default end time is 1 hour after start time
+    const endTime = new Date();
+    endTime.setHours(endTime.getHours() + 1);
+    return endTime;
+  });
+
+  // Category state
+  const [category, setCategory] = useState<string>('other');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   // Modal state
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false); // End date picker for Conference
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false); // End time picker for Conference
   const [isGeocoding, setIsGeocoding] = useState(false);
+
+  // Multi-day events (Conference category)
+  const isMultiDayEvent = category === 'conference';
 
   // Debounced location search
   useEffect(() => {
@@ -118,6 +148,13 @@ export default function CreateEventScreen() {
 
     return () => clearTimeout(timer);
   }, [location, selectedLocation]);
+
+  // Keep end date >= start date when start date changes
+  useEffect(() => {
+    if (isMultiDayEvent && selectedEndDate < selectedDate) {
+      setSelectedEndDate(selectedDate);
+    }
+  }, [selectedDate, isMultiDayEvent]);
 
   // Handle location selection
   const handleSelectLocation = (suggestion: LocationSuggestion) => {
@@ -177,10 +214,26 @@ export default function CreateEventScreen() {
     }
 
     const eventDate = selectedDate.toISOString().slice(0, 10);
+
+    // For Conference events, use end date; otherwise same as start date
+    const eventEndDate = isMultiDayEvent
+      ? selectedEndDate.toISOString().slice(0, 10)
+      : eventDate;
+
+    // Validate end date is after or equal to start date for conferences
+    if (isMultiDayEvent && selectedEndDate < selectedDate) {
+      Alert.alert('Error', 'End date must be on or after the start date');
+      return;
+    }
+
     const hours = selectedTime.getHours().toString().padStart(2, '0');
     const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
     const startTime = `${hours}:${minutes}:00`;
-    const endTime = startTime;
+
+    // Always include end time
+    const endHours = selectedEndTime.getHours().toString().padStart(2, '0');
+    const endMinutes = selectedEndTime.getMinutes().toString().padStart(2, '0');
+    const endTime = `${endHours}:${endMinutes}:00`;
 
     let latitude: number | undefined;
     let longitude: number | undefined;
@@ -207,13 +260,15 @@ export default function CreateEventScreen() {
       title: title.trim(),
       description: description.trim(),
       location: location.trim() || undefined,
-      latitude,
-      longitude,
+      latitude: latitude !== undefined ? String(latitude) : undefined,
+      longitude: longitude !== undefined ? String(longitude) : undefined,
       eventDate,
+      eventEndDate, // End date for multi-day events (Conference)
       startTime,
       endTime,
       communityId: selectedCommunityId || undefined,
       isPublic,
+      category,
     });
   };
 
@@ -426,6 +481,67 @@ export default function CreateEventScreen() {
             )}
           </View>
 
+          {/* Category Selector */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, dynamicStyles.label]}>Category *</Text>
+            <TouchableOpacity
+              style={[
+                styles.pickerButton,
+                dynamicStyles.pickerButton,
+                showCategoryPicker && styles.pickerButtonActive,
+              ]}
+              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+            >
+              <Ionicons
+                name={EVENT_CATEGORIES.find(c => c.value === category)?.icon || 'ellipsis-horizontal-outline'}
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>
+                {EVENT_CATEGORIES.find(c => c.value === category)?.label || 'Select category'}
+              </Text>
+              <Ionicons
+                name={showCategoryPicker ? "chevron-up" : "chevron-down"}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+
+            {/* Category Dropdown Options */}
+            {showCategoryPicker && (
+              <View style={[styles.dropdownContainer, dynamicStyles.dropdownContainer]}>
+                <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>
+                  {EVENT_CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.value}
+                      style={[
+                        styles.dropdownOption,
+                        category === cat.value && styles.dropdownOptionSelected,
+                        { borderBottomColor: colors.borderSubtle },
+                      ]}
+                      onPress={() => {
+                        setCategory(cat.value);
+                        setShowCategoryPicker(false);
+                      }}
+                    >
+                      <View style={styles.dropdownOptionContent}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <Ionicons name={cat.icon} size={18} color={category === cat.value ? colors.primary : colors.textSecondary} />
+                          <Text style={[styles.dropdownOptionText, dynamicStyles.dropdownOptionText, category === cat.value && { color: colors.primary }]}>
+                            {cat.label}
+                          </Text>
+                        </View>
+                      </View>
+                      {category === cat.value && (
+                        <Ionicons name="checkmark" size={20} color={colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+
           {/* Title */}
           <View style={styles.inputGroup}>
             <Text style={[styles.label, dynamicStyles.label]}>Title *</Text>
@@ -546,7 +662,7 @@ export default function CreateEventScreen() {
 
           {/* Date Picker */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, dynamicStyles.label]}>Date *</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>{isMultiDayEvent ? 'Start Date *' : 'Date *'}</Text>
             <TouchableOpacity
               style={[styles.pickerButton, dynamicStyles.pickerButton]}
               onPress={() => setShowDatePicker(true)}
@@ -556,9 +672,26 @@ export default function CreateEventScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Time Picker */}
+          {/* End Date Picker - Only for Conference (multi-day events) */}
+          {isMultiDayEvent && (
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, dynamicStyles.label]}>End Date *</Text>
+              <TouchableOpacity
+                style={[styles.pickerButton, dynamicStyles.pickerButton]}
+                onPress={() => setShowEndDatePicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatDate(selectedEndDate)}</Text>
+              </TouchableOpacity>
+              <Text style={[styles.helpText, dynamicStyles.helpText, { fontStyle: 'italic' }]}>
+                Conferences typically span multiple days
+              </Text>
+            </View>
+          )}
+
+          {/* Start Time Picker */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, dynamicStyles.label]}>Time *</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Start Time *</Text>
             <TouchableOpacity
               style={[styles.pickerButton, dynamicStyles.pickerButton]}
               onPress={() => setShowTimePicker(true)}
@@ -568,39 +701,213 @@ export default function CreateEventScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* End Time Picker - Optional for all events */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, dynamicStyles.label]}>End Time</Text>
+            <TouchableOpacity
+              style={[styles.pickerButton, dynamicStyles.pickerButton]}
+              onPress={() => setShowEndTimePicker(true)}
+            >
+              <Ionicons name="time-outline" size={20} color={colors.primary} />
+              <Text style={[styles.pickerText, dynamicStyles.pickerText]}>{formatTime(selectedEndTime)}</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={{ height: 40 }} />
         </View>
       </ScrollView>
 
-      {/* Date Picker */}
-      {showDatePicker && (
+      {/* Date Picker - iOS with Done button */}
+      {showDatePicker && Platform.OS === 'ios' && (
+        <View style={{
+          backgroundColor: colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: colors.borderSubtle,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.borderSubtle,
+          }}>
+            <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+              <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 20, alignItems: 'center' }}>
+            <DateTimePicker
+              value={selectedDate}
+              mode="date"
+              display="inline"
+              onChange={(event, date) => {
+                if (date) setSelectedDate(date);
+              }}
+              themeVariant={isDark ? 'dark' : 'light'}
+              minimumDate={new Date()}
+              style={{ height: 340, width: '100%' }}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Date Picker - Android */}
+      {showDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={selectedDate}
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           onChange={(event, date) => {
-            setShowDatePicker(Platform.OS === 'ios');
+            setShowDatePicker(false);
             if (date) setSelectedDate(date);
-            if (Platform.OS === 'android') setShowDatePicker(false);
           }}
-          themeVariant={isDark ? 'dark' : 'light'}
           minimumDate={new Date()}
         />
       )}
 
-      {/* Time Picker */}
-      {showTimePicker && (
+      {/* End Date Picker - iOS with Done button (Conference only) */}
+      {showEndDatePicker && Platform.OS === 'ios' && (
+        <View style={{
+          backgroundColor: colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: colors.borderSubtle,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.borderSubtle,
+          }}>
+            <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+              <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 20, alignItems: 'center' }}>
+            <DateTimePicker
+              value={selectedEndDate}
+              mode="date"
+              display="inline"
+              onChange={(event, date) => {
+                if (date) setSelectedEndDate(date);
+              }}
+              themeVariant={isDark ? 'dark' : 'light'}
+              minimumDate={selectedDate}
+              style={{ height: 340, width: '100%' }}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* End Date Picker - Android (Conference only) */}
+      {showEndDatePicker && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={selectedEndDate}
+          mode="date"
+          display="default"
+          onChange={(event, date) => {
+            setShowEndDatePicker(false);
+            if (date) setSelectedEndDate(date);
+          }}
+          minimumDate={selectedDate}
+        />
+      )}
+
+      {/* Time Picker - iOS with Done button */}
+      {showTimePicker && Platform.OS === 'ios' && (
+        <View style={{
+          backgroundColor: colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: colors.borderSubtle,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.borderSubtle,
+          }}>
+            <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+              <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+            <DateTimePicker
+              value={selectedTime}
+              mode="time"
+              display="spinner"
+              is24Hour={false}
+              onChange={(event, date) => {
+                if (date) setSelectedTime(date);
+              }}
+              themeVariant={isDark ? 'dark' : 'light'}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Time Picker - Android */}
+      {showTimePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={selectedTime}
           mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           is24Hour={false}
           onChange={(event, date) => {
-            setShowTimePicker(Platform.OS === 'ios');
+            setShowTimePicker(false);
             if (date) setSelectedTime(date);
-            if (Platform.OS === 'android') setShowTimePicker(false);
           }}
-          themeVariant={isDark ? 'dark' : 'light'}
+        />
+      )}
+
+      {/* End Time Picker - iOS with Done button (Conference only) */}
+      {showEndTimePicker && Platform.OS === 'ios' && (
+        <View style={{
+          backgroundColor: colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: colors.borderSubtle,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.borderSubtle,
+          }}>
+            <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+              <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center' }}>
+            <DateTimePicker
+              value={selectedEndTime}
+              mode="time"
+              display="spinner"
+              is24Hour={false}
+              onChange={(event, date) => {
+                if (date) setSelectedEndTime(date);
+              }}
+              themeVariant={isDark ? 'dark' : 'light'}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* End Time Picker - Android (Conference only) */}
+      {showEndTimePicker && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={selectedEndTime}
+          mode="time"
+          display="default"
+          is24Hour={false}
+          onChange={(event, date) => {
+            setShowEndTimePicker(false);
+            if (date) setSelectedEndTime(date);
+          }}
         />
       )}
     </KeyboardAvoidingView>
@@ -681,7 +988,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
-    maxHeight: 200,
+    maxHeight: 400,
     overflow: 'hidden',
   },
   dropdownOption: {
