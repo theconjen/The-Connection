@@ -34,7 +34,8 @@ export default function SettingsScreen() {
   const [birthday, setBirthday] = React.useState<Date | null>(
     user?.dateOfBirth ? new Date(user.dateOfBirth) : null
   );
-  const maxDate = new Date(); // Can't select future dates
+  // Must be 13+ years old (COPPA compliance)
+  const maxDate = new Date(new Date().getFullYear() - 13, new Date().getMonth(), new Date().getDate());
 
   const updatePrivacyMutation = useMutation({
     mutationFn: async (isPrivate: boolean) => {
@@ -55,9 +56,9 @@ export default function SettingsScreen() {
   });
 
   const updateBirthdayMutation = useMutation({
-    mutationFn: async (dateOfBirth: string) => {
-      const response = await apiClient.patch('/api/user/settings', {
-        dateOfBirth,
+    mutationFn: async (birthday: string) => {
+      const response = await apiClient.patch('/user/profile', {
+        birthday,
       });
       return response.data;
     },
@@ -66,8 +67,13 @@ export default function SettingsScreen() {
       Alert.alert('Success', 'Your birthday has been updated.');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to update birthday';
-      Alert.alert('Error', message);
+      // Handle age restriction error
+      if (error.response?.data?.code === 'AGE_RESTRICTED') {
+        Alert.alert('Age Restriction', 'You must be 13 or older to use this app.');
+      } else {
+        const message = error.response?.data?.message || 'Failed to update birthday';
+        Alert.alert('Error', message);
+      }
     },
   });
 
@@ -229,6 +235,11 @@ export default function SettingsScreen() {
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </View>
             }
+          />
+          <SettingsItem
+            icon="shield-checkmark-outline"
+            label="Clergy Verification"
+            onPress={() => router.push('/settings/clergy-verification')}
           />
         </View>
 
