@@ -27,24 +27,37 @@ export interface OnboardingPrefs {
   startHereCompleted: boolean;
 }
 
-// Available topics for selection
-export const AVAILABLE_TOPICS = [
+// Available categories for selection - tailored for youth, young adults, college, young professionals
+export const AVAILABLE_CATEGORIES = [
+  // Life Stage
+  'College Life',
+  'Young Professional',
+  'Single',
+  'Dating & Relationships',
+  'Newlywed',
+  // Gender
+  'Men',
+  'Women',
+  // Faith & Growth
+  'New to Faith',
   'Bible Study',
-  'Theology',
   'Prayer',
-  'Church Life',
-  'Discipleship',
+  'Worship & Music',
   'Apologetics',
-  'Missions',
-  'Marriage',
-  'Parenting',
-  'Young Adults',
-  'Local Events',
-  'Men\'s Ministry',
-  'Women\'s Ministry',
+  'Missions & Outreach',
+  // Interests & Lifestyle
+  'Mental Health',
+  'Career & Purpose',
+  'Creative Arts',
+  'Fitness & Sports',
+  'Social Events',
+  'Small Groups',
 ] as const;
 
-export type TopicType = typeof AVAILABLE_TOPICS[number];
+export type CategoryType = typeof AVAILABLE_CATEGORIES[number];
+
+// Legacy export for backwards compatibility
+export const AVAILABLE_TOPICS = AVAILABLE_CATEGORIES;
 
 /**
  * Save location permission status

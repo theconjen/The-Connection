@@ -13,6 +13,7 @@ import {
   Image,
   ActionSheetIOS,
   Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -65,6 +66,7 @@ type EventItem = {
   rsvpStatus?: RsvpStatus; // User's RSVP status for this event (legacy)
   userRsvpStatus?: RsvpStatus; // User's RSVP status from API
   isBookmarked?: boolean; // User's bookmark status from API
+  connectionsGoing?: { count: number; names: string[] }; // Connections (following) who RSVP'd going
 };
 
 // ----- API -----
@@ -218,6 +220,50 @@ function ToggleTabs({
   );
 }
 
+// Format category for display: "bible_study" -> "Bible Study"
+function formatCategory(category: string | null | undefined): string {
+  if (!category) return 'Event';
+  // Replace underscores with spaces and capitalize each word
+  return category
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+// Simplify location display: extract venue name and city only
+function formatLocationDisplay(location: string | null | undefined): string {
+  if (!location) return '';
+
+  // Split by comma and take relevant parts
+  const parts = location.split(',').map(p => p.trim());
+
+  if (parts.length <= 2) {
+    return location; // Already short enough
+  }
+
+  // Try to get venue name (first part) and city (usually 3rd or 4th part)
+  const venueName = parts[0];
+
+  // Skip parts that look like street numbers or county names
+  const cityPart = parts.find((part, index) => {
+    if (index === 0) return false; // Skip venue name
+    // Skip if it's just a number (like "45271")
+    if (/^\d+$/.test(part)) return false;
+    // Skip if it contains "Street", "Road", "Ave", etc.
+    if (/\b(Street|St|Road|Rd|Avenue|Ave|Boulevard|Blvd|Drive|Dr|Lane|Ln|Court|Ct|Way|Place|Pl)\b/i.test(part)) return false;
+    // Skip if it contains "County", "Township", "Charter"
+    if (/\b(County|Township|Charter)\b/i.test(part)) return false;
+    return true;
+  });
+
+  if (cityPart) {
+    return `${venueName}, ${cityPart}`;
+  }
+
+  // Fallback: just use first two parts
+  return parts.slice(0, 2).join(', ');
+}
+
 // Parse eventDate (handles "2026-01-12 00:00:00" or "2026-01-12" formats)
 function parseEventDate(eventDate: string): Date {
   if (!eventDate) return new Date(NaN);
@@ -288,14 +334,24 @@ const getEventIcon = (eventType: string) => {
   return EVENT_TYPE_ICONS[eventType] || 'calendar-outline';
 };
 
-// Default gradient colors for event types
+// Default gradient colors for event types - each category has unique color
 const EVENT_TYPE_GRADIENTS: Record<string, [string, string]> = {
-  'Sunday Service': ['#4A5568', '#2D3748'],
-  'Worship': ['#805AD5', '#553C9A'],
-  'Social': ['#48BB78', '#38A169'],
-  'Service': ['#ED8936', '#DD6B20'],
-  'Bible Study': ['#3182CE', '#2C5282'],
-  'Prayer': ['#9F7AEA', '#805AD5'],
+  'Sunday Service': ['#4A5568', '#2D3748'],      // Slate gray
+  'Worship': ['#805AD5', '#553C9A'],             // Purple
+  'Bible Study': ['#5C6B5E', '#3D4A3F'],         // Muted sage green
+  'Prayer Meeting': ['#9F7AEA', '#805AD5'],      // Light purple
+  'Prayer': ['#9F7AEA', '#805AD5'],              // Light purple (alias)
+  'Fellowship Social': ['#48BB78', '#38A169'],   // Green
+  'Fellowship/Social': ['#48BB78', '#38A169'],   // Green (alias)
+  'Social': ['#48BB78', '#38A169'],              // Green (alias)
+  'Service Outreach': ['#E07C4F', '#C4623A'],    // Terracotta/burnt orange
+  'Service/Outreach': ['#E07C4F', '#C4623A'],    // Terracotta (alias)
+  'Service': ['#ED8936', '#DD6B20'],             // Orange (legacy)
+  'Activity': ['#3B82F6', '#2563EB'],            // Blue
+  'Conference': ['#EC4899', '#DB2777'],          // Pink
+  'Youth Event': ['#14B8A6', '#0D9488'],         // Teal
+  'Youth': ['#14B8A6', '#0D9488'],               // Teal (alias)
+  'Other': ['#6B7280', '#4B5563'],               // Gray
 };
 
 // RSVP status colors - matches backend values
@@ -313,6 +369,7 @@ function EventCard({
   onRsvpPress,
   onBookmarkPress,
   isBookmarked,
+  onConnectionsPress,
 }: {
   item: EventItem;
   colors: any;
@@ -321,6 +378,7 @@ function EventCard({
   onRsvpPress?: () => void;
   onBookmarkPress?: () => void;
   isBookmarked?: boolean;
+  onConnectionsPress?: () => void;
 }) {
   // Handle both isOnline and isVirtual flags
   const isOnlineEvent = item.isOnline || item.isVirtual;
@@ -328,14 +386,14 @@ function EventCard({
   // Use location field first, then fall back to city/state
   const locationLine = isOnlineEvent
     ? "Online"
-    : item.location || [item.city, item.state].filter(Boolean).join(", ");
+    : formatLocationDisplay(item.location) || [item.city, item.state].filter(Boolean).join(", ");
 
   const distance =
     !item.isOnline && typeof item.distanceMiles === "number"
       ? `${item.distanceMiles.toFixed(1)} mi`
       : null;
 
-  const eventType = item.category || 'Sunday Service';
+  const eventType = formatCategory(item.category) || 'Sunday Service';
   const eventIcon = getEventIcon(eventType);
   const [gradientStart, gradientEnd] = EVENT_TYPE_GRADIENTS[eventType] || ['#4A5568', '#2D3748'];
   const isSundayService = eventType === 'Sunday Service';
@@ -418,21 +476,39 @@ function EventCard({
 
       {/* Footer actions */}
       <View style={styles.footerRow}>
-        {/* Event type chip - always show */}
-        <View
-          style={[
-            styles.categoryChip,
-            { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
-          ]}
-        >
-          {isSundayService ? (
-            <Image source={ChurchIcon} style={styles.chipIconImage} />
-          ) : (
-            <Ionicons name={eventIcon || 'calendar-outline'} size={11} color={colors.textPrimary} style={{ marginRight: 4 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+          {/* Event type chip - always show */}
+          <View
+            style={[
+              styles.categoryChip,
+              { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
+            ]}
+          >
+            {isSundayService ? (
+              <Image source={ChurchIcon} style={styles.chipIconImage} />
+            ) : (
+              <Ionicons name={eventIcon || 'calendar-outline'} size={11} color={colors.textPrimary} style={{ marginRight: 4 }} />
+            )}
+            <Text style={[styles.categoryText, { color: colors.textPrimary }]} numberOfLines={1}>
+              {eventType}
+            </Text>
+          </View>
+
+          {/* Connections Going pill - tappable to show names */}
+          {item.connectionsGoing && item.connectionsGoing.count > 0 && (
+            <Pressable
+              onPress={onConnectionsPress}
+              style={[
+                styles.connectionsChip,
+                { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' },
+              ]}
+            >
+              <Ionicons name="people" size={11} color={colors.primary} style={{ marginRight: 3 }} />
+              <Text style={[styles.connectionsText, { color: colors.primary }]} numberOfLines={1}>
+                {item.connectionsGoing.count} {item.connectionsGoing.count === 1 ? 'Connection' : 'Connections'}
+              </Text>
+            </Pressable>
           )}
-          <Text style={[styles.categoryText, { color: colors.textPrimary }]} numberOfLines={1}>
-            {eventType}
-          </Text>
         </View>
 
         <View style={{ flexDirection: "row", gap: 6 }}>
@@ -479,6 +555,192 @@ function EventCard({
   );
 }
 
+// Cluster events by location to prevent flickering when multiple events share coordinates
+interface ClusteredLocation {
+  key: string;
+  latitude: number;
+  longitude: number;
+  events: EventItem[];
+}
+
+function clusterEventsByLocation(events: EventItem[]): ClusteredLocation[] {
+  const clusters = new Map<string, ClusteredLocation>();
+
+  for (const event of events) {
+    if (!event.latitude || !event.longitude || event.isOnline) {
+      continue;
+    }
+
+    // Round coordinates to group nearby events (within ~10m)
+    const lat = Math.round(event.latitude * 10000) / 10000;
+    const lng = Math.round(event.longitude * 10000) / 10000;
+    const key = `${lat},${lng}`;
+
+    if (clusters.has(key)) {
+      clusters.get(key)!.events.push(event);
+    } else {
+      clusters.set(key, {
+        key,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        events: [event],
+      });
+    }
+  }
+
+  return Array.from(clusters.values());
+}
+
+// Separate map component to handle clustering
+function EventMapView({
+  data,
+  userLocation,
+  locationPermissionGranted,
+  theme,
+  colors,
+  router,
+}: {
+  data: EventItem[] | undefined;
+  userLocation: UserLocation | null;
+  locationPermissionGranted: boolean;
+  theme: string;
+  colors: any;
+  router: any;
+}) {
+  const [selectedCluster, setSelectedCluster] = useState<ClusteredLocation | null>(null);
+
+  const clusters = useMemo(() => {
+    if (!data) return [];
+    return clusterEventsByLocation(data);
+  }, [data]);
+
+  const handleClusterPress = (cluster: ClusteredLocation) => {
+    if (cluster.events.length === 1) {
+      // Single event - navigate directly
+      router.push({
+        pathname: "/events/[id]",
+        params: { id: String(cluster.events[0].id) },
+      });
+    } else {
+      // Multiple events - show selection modal
+      setSelectedCluster(cluster);
+    }
+  };
+
+  const handleEventSelect = (event: EventItem) => {
+    setSelectedCluster(null);
+    router.push({
+      pathname: "/events/[id]",
+      params: { id: String(event.id) },
+    });
+  };
+
+  return (
+    <>
+      <MapView
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={
+          userLocation
+            ? {
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude,
+                latitudeDelta: 0.2,
+                longitudeDelta: 0.2,
+              }
+            : {
+                // Default to US center if no location
+                latitude: 39.8283,
+                longitude: -98.5795,
+                latitudeDelta: 50,
+                longitudeDelta: 50,
+              }
+        }
+        showsUserLocation={locationPermissionGranted}
+        showsMyLocationButton={true}
+        userInterfaceStyle={theme === "dark" ? "dark" : "light"}
+      >
+        {clusters.map((cluster) => {
+          const primaryEvent = cluster.events[0];
+          const eventType = formatCategory(primaryEvent.category) || 'Sunday Service';
+          const eventIcon = getEventIcon(eventType);
+          const [markerColor] = EVENT_TYPE_GRADIENTS[eventType] || ['#3B82F6'];
+          const isSundayService = eventType === 'Sunday Service';
+          const eventCount = cluster.events.length;
+
+          return (
+            <Marker
+              key={cluster.key}
+              coordinate={{
+                latitude: cluster.latitude,
+                longitude: cluster.longitude,
+              }}
+              title={eventCount > 1 ? `${eventCount} events` : primaryEvent.title}
+              description={eventCount > 1 ? 'Tap to see all events' : formatWhen(primaryEvent)}
+              onPress={() => handleClusterPress(cluster)}
+              tracksViewChanges={false}
+            >
+              {/* Custom marker with event type icon */}
+              <View style={[styles.customMarker, { backgroundColor: markerColor }]}>
+                {isSundayService ? (
+                  <Image source={ChurchIcon} style={styles.markerIconImage} />
+                ) : (
+                  <Ionicons name={eventIcon || 'calendar-outline'} size={18} color="#FFFFFF" />
+                )}
+                {/* Badge for multiple events */}
+                {eventCount > 1 && (
+                  <View style={styles.clusterBadge}>
+                    <Text style={styles.clusterBadgeText}>{eventCount}</Text>
+                  </View>
+                )}
+              </View>
+            </Marker>
+          );
+        })}
+      </MapView>
+
+      {/* Event Selection Modal for clustered locations */}
+      {selectedCluster && (
+        <View style={[styles.clusterModal, { backgroundColor: colors.surface }]}>
+          <View style={styles.clusterModalHeader}>
+            <Text style={[styles.clusterModalTitle, { color: colors.textPrimary }]}>
+              {selectedCluster.events.length} Events at this Location
+            </Text>
+            <Pressable onPress={() => setSelectedCluster(null)} hitSlop={12}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+          <ScrollView style={styles.clusterModalList}>
+            {selectedCluster.events.map((event) => {
+              const eventType = formatCategory(event.category) || 'Sunday Service';
+              const [bgColor] = EVENT_TYPE_GRADIENTS[eventType] || ['#3B82F6'];
+
+              return (
+                <Pressable
+                  key={event.id}
+                  style={[styles.clusterEventItem, { borderBottomColor: colors.borderSubtle }]}
+                  onPress={() => handleEventSelect(event)}
+                >
+                  <View style={[styles.clusterEventDot, { backgroundColor: bgColor }]} />
+                  <View style={styles.clusterEventInfo}>
+                    <Text style={[styles.clusterEventTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                      {event.title}
+                    </Text>
+                    <Text style={[styles.clusterEventTime, { color: colors.textSecondary }]}>
+                      {formatWhen(event)}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+    </>
+  );
+}
+
 interface EventsScreenNewProps {
   onMenuPress?: () => void;
   onProfilePress?: () => void;
@@ -517,6 +779,19 @@ export default function EventsScreenNew({
   const [rsvpStatuses, setRsvpStatuses] = useState<Record<string | number, RsvpStatus>>({});
   const [bookmarkedEvents, setBookmarkedEvents] = useState<Set<string | number>>(new Set());
   const queryClient = useQueryClient();
+
+  // Connections modal state
+  const [connectionsModalVisible, setConnectionsModalVisible] = useState(false);
+  const [selectedEventConnections, setSelectedEventConnections] = useState<{
+    eventTitle: string;
+    names: string[];
+  } | null>(null);
+
+  // Handle connections pill press - show modal with connection names
+  const handleConnectionsPress = (eventTitle: string, names: string[]) => {
+    setSelectedEventConnections({ eventTitle, names });
+    setConnectionsModalVisible(true);
+  };
 
   // RSVP mutation
   const rsvpMutation = useMutation({
@@ -698,9 +973,9 @@ export default function EventsScreenNew({
   const { data: rawData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ["events", { view, range, mode, distance, q, city, userLocation }],
     queryFn: () => fetchEvents({ range, mode, distance, q, city, userLocation }),
-    staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+    staleTime: 2 * 60 * 1000, // 2 minutes - fresher data for better UX
     gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache longer (formerly cacheTime)
-    refetchOnMount: false, // Don't refetch when component mounts if data exists
+    refetchOnMount: 'always', // Always check for fresh data when mounting
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
@@ -1111,69 +1386,14 @@ export default function EventsScreenNew({
 
         {/* Body */}
         {view === "map" ? (
-          <MapView
-            style={styles.map}
-            provider={PROVIDER_GOOGLE}
-            initialRegion={
-              userLocation
-                ? {
-                    latitude: userLocation.latitude,
-                    longitude: userLocation.longitude,
-                    latitudeDelta: 0.2,
-                    longitudeDelta: 0.2,
-                  }
-                : {
-                    // Default to US center if no location
-                    latitude: 39.8283,
-                    longitude: -98.5795,
-                    latitudeDelta: 50,
-                    longitudeDelta: 50,
-                  }
-            }
-            showsUserLocation={locationPermissionGranted}
-            showsMyLocationButton={true}
-            userInterfaceStyle={theme === "dark" ? "dark" : "light"}
-          >
-            {data?.map((event) => {
-              // Skip events without coordinates or online events
-              if (!event.latitude || !event.longitude || event.isOnline) {
-                return null;
-              }
-
-              const eventType = event.category || 'Sunday Service';
-              const eventIcon = getEventIcon(eventType);
-              const [markerColor] = EVENT_TYPE_GRADIENTS[eventType] || ['#3B82F6'];
-              const isSundayService = eventType === 'Sunday Service';
-
-              return (
-                <Marker
-                  key={event.id}
-                  coordinate={{
-                    latitude: event.latitude,
-                    longitude: event.longitude,
-                  }}
-                  title={event.title}
-                  description={formatWhen(event)}
-                  pinColor={markerColor}
-                  onCalloutPress={() => {
-                    router.push({
-                      pathname: "/events/[id]",
-                      params: { id: String(event.id) },
-                    });
-                  }}
-                >
-                  {/* Custom marker with event type icon */}
-                  <View style={[styles.customMarker, { backgroundColor: markerColor }]}>
-                    {isSundayService ? (
-                      <Image source={ChurchIcon} style={styles.markerIconImage} />
-                    ) : (
-                      <Ionicons name={eventIcon || 'calendar-outline'} size={18} color="#FFFFFF" />
-                    )}
-                  </View>
-                </Marker>
-              );
-            })}
-          </MapView>
+          <EventMapView
+            data={data}
+            userLocation={userLocation}
+            locationPermissionGranted={locationPermissionGranted}
+            theme={theme}
+            colors={colors}
+            router={router}
+          />
         ) : isLoading && !rawData ? (
           // Initial loading state - show loading indicator
           <View style={styles.loadingContainer}>
@@ -1232,6 +1452,11 @@ export default function EventsScreenNew({
                 onRsvpPress={() => handleRsvpPress(item.id)}
                 isBookmarked={bookmarkedEvents.has(item.id)}
                 onBookmarkPress={() => handleBookmarkPress(item.id)}
+                onConnectionsPress={
+                  item.connectionsGoing?.count
+                    ? () => handleConnectionsPress(item.title, item.connectionsGoing?.names || [])
+                    : undefined
+                }
               />
             )}
             refreshing={isFetching && !!rawData}
@@ -1247,6 +1472,80 @@ export default function EventsScreenNew({
           </View>
         ) : null}
       </View>
+
+      {/* Connections Going Modal */}
+      <Modal
+        visible={connectionsModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setConnectionsModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setConnectionsModalVisible(false)}
+        >
+          <Pressable
+            style={[styles.connectionsModal, { backgroundColor: colors.surface }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <View style={[styles.connectionsModalHeader, { borderBottomColor: colors.borderSubtle }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.connectionsModalTitle, { color: colors.textPrimary }]}>
+                  Connections Going
+                </Text>
+                {selectedEventConnections && (
+                  <Text style={[styles.connectionsModalSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {selectedEventConnections.eventTitle}
+                  </Text>
+                )}
+              </View>
+              <Pressable
+                onPress={() => setConnectionsModalVisible(false)}
+                hitSlop={12}
+                style={[styles.closeButton, { backgroundColor: colors.surfaceMuted }]}
+              >
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            {/* Connection List */}
+            <ScrollView style={styles.connectionsModalList}>
+              {selectedEventConnections?.names.map((name, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.connectionItem,
+                    { borderBottomColor: colors.borderSubtle },
+                    index === selectedEventConnections.names.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <View style={[styles.connectionAvatar, { backgroundColor: colors.primary + '20' }]}>
+                    <Ionicons name="person" size={18} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.connectionName, { color: colors.textPrimary }]}>
+                    {name}
+                  </Text>
+                  <View style={[styles.goingBadge, { backgroundColor: '#22C55E20' }]}>
+                    <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
+                    <Text style={[styles.goingBadgeText, { color: '#22C55E' }]}>Going</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            {/* Empty state */}
+            {(!selectedEventConnections?.names || selectedEventConnections.names.length === 0) && (
+              <View style={styles.emptyConnections}>
+                <Ionicons name="people-outline" size={40} color={colors.textMuted} />
+                <Text style={[styles.emptyConnectionsText, { color: colors.textSecondary }]}>
+                  No connections going yet
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1591,6 +1890,15 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   categoryText: { fontSize: 10, fontWeight: "900" },
+  connectionsChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  connectionsText: { fontSize: 10, fontWeight: "600" },
   iconAction: {
     width: 32,
     height: 32,
@@ -1637,6 +1945,77 @@ const styles = StyleSheet.create({
     height: 18,
     tintColor: '#FFFFFF',
   },
+  clusterBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#EF4444',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  clusterBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  clusterModal: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  clusterModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+  clusterModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  clusterModalList: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  clusterEventItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  clusterEventDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  clusterEventInfo: {
+    flex: 1,
+  },
+  clusterEventTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  clusterEventTime: {
+    fontSize: 13,
+    marginTop: 2,
+  },
   empty: {
     margin: 16,
     borderRadius: 16,
@@ -1658,5 +2037,85 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
+  },
+
+  // Connections Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  connectionsModal: {
+    maxHeight: '60%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  connectionsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  connectionsModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  connectionsModalSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectionsModalList: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  connectionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  connectionAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  connectionName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  goingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  goingBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyConnections: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyConnectionsText: {
+    fontSize: 15,
+    marginTop: 12,
   },
 });

@@ -2,7 +2,7 @@
  * Start Here Onboarding Screen
  * A low-friction onboarding flow for new users:
  * 1. Location (optional) - Enable to see nearby communities
- * 2. Topics (required) - Pick 3-5 interests
+ * 2. Categories (required) - Choose 3-5 categories
  * 3. Starter Communities - Join a few to get started
  */
 
@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/contexts/ThemeContext';
 import { communitiesAPI } from '../src/lib/apiClient';
 import {
-  AVAILABLE_TOPICS,
+  AVAILABLE_CATEGORIES,
   saveLocationPermissionGranted,
   saveLastKnownCoords,
   saveSelectedTopics,
@@ -36,16 +36,32 @@ import {
   hasLocationPermission,
 } from '../src/services/locationService';
 
-// Starter community IDs - these are known good communities for new users
-// Can be configured without backend changes
-const STARTER_COMMUNITY_SLUGS = [
-  'the-connection-community',
-  'bible-study',
-  'prayer-warriors',
-  'young-adults',
-  'new-believers',
-  'apologetics',
-];
+// Category to community keyword mapping - tailored for youth, young adults, college, young professionals
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  // Life Stage
+  'College Life': ['college', 'university', 'student', 'campus', 'dorm', 'grad'],
+  'Young Professional': ['professional', 'career', 'workplace', 'young adult', '20s', 'millennial'],
+  'Single': ['single', 'singles', 'unmarried'],
+  'Dating & Relationships': ['dating', 'relationship', 'couples', 'love', 'engaged'],
+  'Newlywed': ['newlywed', 'married', 'marriage', 'spouse', 'wedding'],
+  // Gender
+  'Men': ['men', 'man', 'brotherhood', 'guys', 'bros'],
+  'Women': ['women', 'woman', 'sisterhood', 'ladies', 'girls'],
+  // Faith & Growth
+  'New to Faith': ['new believer', 'new to faith', 'seeker', 'exploring', 'beginner', 'basics'],
+  'Bible Study': ['bible', 'study', 'scripture', 'word', 'reading', 'devotional'],
+  'Prayer': ['prayer', 'intercession', 'praying', 'devotion'],
+  'Worship & Music': ['worship', 'praise', 'music', 'singing', 'band', 'choir'],
+  'Apologetics': ['apologetics', 'defense', 'reason', 'evidence', 'questions', 'theology', 'doctrine'],
+  'Missions & Outreach': ['missions', 'outreach', 'evangelism', 'serve', 'volunteer', 'global'],
+  // Interests & Lifestyle
+  'Mental Health': ['mental health', 'wellness', 'anxiety', 'support', 'healing', 'recovery'],
+  'Career & Purpose': ['career', 'purpose', 'calling', 'work', 'vocation', 'business'],
+  'Creative Arts': ['creative', 'art', 'music', 'writing', 'film', 'media', 'design'],
+  'Fitness & Sports': ['fitness', 'sports', 'gym', 'running', 'workout', 'health', 'active'],
+  'Social Events': ['social', 'events', 'meetup', 'gathering', 'hangout', 'fun', 'fellowship'],
+  'Small Groups': ['small group', 'home group', 'life group', 'community', 'connect'],
+};
 
 interface Community {
   id: number;
@@ -66,53 +82,129 @@ export default function StartHereScreen() {
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
 
-  // Topics state
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const MIN_TOPICS = 3;
-  const MAX_TOPICS = 5;
+  // Categories state
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const MIN_CATEGORIES = 3;
+  const MAX_CATEGORIES = 5;
 
   // Communities state
   const [communities, setCommunities] = useState<Community[]>([]);
   const [joinedCommunities, setJoinedCommunities] = useState<Set<number>>(new Set());
+  const [joiningCommunityId, setJoiningCommunityId] = useState<number | null>(null);
   const [isLoadingCommunities, setIsLoadingCommunities] = useState(true);
   const [isFinishing, setIsFinishing] = useState(false);
+
+  // Store all communities for filtering
+  const [allCommunitiesData, setAllCommunitiesData] = useState<Community[]>([]);
 
   // Load initial state
   useEffect(() => {
     loadInitialState();
-    loadCommunities();
+    loadAllCommunities();
   }, []);
 
+  // Re-filter communities when categories change
+  useEffect(() => {
+    if (allCommunitiesData.length > 0) {
+      filterCommunitiesByCategories(allCommunitiesData, selectedCategories);
+    }
+  }, [selectedCategories, allCommunitiesData]);
+
   const loadInitialState = async () => {
-    const [topics, locationGranted] = await Promise.all([
+    const [savedCategories, locationGranted] = await Promise.all([
       getSelectedTopics(),
       getLocationPermissionGranted(),
     ]);
-    if (topics.length > 0) setSelectedTopics(topics);
+
+    // Only load categories that are still valid (in case categories were updated)
+    if (savedCategories.length > 0) {
+      const validCategories = savedCategories.filter(cat =>
+        AVAILABLE_CATEGORIES.includes(cat as any)
+      );
+      // If old categories don't match new ones, clear storage
+      if (validCategories.length !== savedCategories.length) {
+        await saveSelectedTopics(validCategories);
+      }
+      if (validCategories.length > 0) {
+        setSelectedCategories(validCategories);
+      }
+    }
+
     if (locationGranted) {
       const hasPermission = await hasLocationPermission();
       setLocationEnabled(hasPermission);
     }
   };
 
-  const loadCommunities = async () => {
+  // Calculate relevance score for a community based on selected categories
+  const calculateRelevanceScore = (community: Community, categories: string[]): number => {
+    if (categories.length === 0) return 0;
+
+    let score = 0;
+    const communityText = `${community.name} ${community.description || ''}`.toLowerCase();
+
+    for (const category of categories) {
+      const keywords = CATEGORY_KEYWORDS[category] || [];
+      for (const keyword of keywords) {
+        if (communityText.includes(keyword.toLowerCase())) {
+          score += 10; // Base match
+          // Bonus for name match (more relevant)
+          if (community.name.toLowerCase().includes(keyword.toLowerCase())) {
+            score += 5;
+          }
+        }
+      }
+    }
+
+    return score;
+  };
+
+  const filterCommunitiesByCategories = (allCommunities: Community[], categories: string[]) => {
+    if (categories.length === 0) {
+      // No categories selected, show top communities by member count
+      const sorted = [...allCommunities]
+        .sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))
+        .slice(0, 8);
+      setCommunities(sorted);
+      return;
+    }
+
+    // Score and sort communities by relevance to selected categories
+    const scoredCommunities = allCommunities.map(c => ({
+      community: c,
+      score: calculateRelevanceScore(c, categories),
+    }));
+
+    // Sort by score (descending), then by member count for ties
+    scoredCommunities.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (b.community.memberCount || 0) - (a.community.memberCount || 0);
+    });
+
+    // Take top matches, but include some variety
+    const matched = scoredCommunities
+      .filter(s => s.score > 0)
+      .slice(0, 6)
+      .map(s => s.community);
+
+    // If we don't have enough matches, add popular communities
+    if (matched.length < 4) {
+      const remaining = allCommunities
+        .filter(c => !matched.find(m => m.id === c.id))
+        .sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))
+        .slice(0, 6 - matched.length);
+      matched.push(...remaining);
+    }
+
+    setCommunities(matched.slice(0, 8));
+  };
+
+  const loadAllCommunities = async () => {
     try {
       setIsLoadingCommunities(true);
       const allCommunities = await communitiesAPI.getAll();
 
-      // Filter to starter communities or top communities
-      let starterCommunities = allCommunities.filter((c: Community) =>
-        STARTER_COMMUNITY_SLUGS.includes(c.slug || '')
-      );
-
-      // If no starter communities found, use top communities by member count
-      if (starterCommunities.length < 3) {
-        starterCommunities = allCommunities
-          .sort((a: Community, b: Community) => (b.memberCount || 0) - (a.memberCount || 0))
-          .slice(0, 6);
-      }
-
-      setCommunities(starterCommunities.slice(0, 6));
+      setAllCommunitiesData(allCommunities);
 
       // Mark already joined communities
       const joined = new Set<number>();
@@ -120,6 +212,9 @@ export default function StartHereScreen() {
         if (c.isMember) joined.add(c.id);
       });
       setJoinedCommunities(joined);
+
+      // Initial filter
+      filterCommunitiesByCategories(allCommunities, selectedCategories);
     } catch (error) {
       console.error('Error loading communities:', error);
     } finally {
@@ -150,23 +245,55 @@ export default function StartHereScreen() {
     }
   };
 
-  // Topic handlers
-  const toggleTopic = (topic: string) => {
-    setSelectedTopics(prev => {
-      if (prev.includes(topic)) {
-        return prev.filter(t => t !== topic);
+  // Category handlers
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(category)) {
+        return prev.filter(c => c !== category);
       }
-      if (prev.length >= MAX_TOPICS) {
-        Alert.alert('Maximum Topics', `You can select up to ${MAX_TOPICS} topics.`);
+      if (prev.length >= MAX_CATEGORIES) {
+        Alert.alert('Maximum Categories', `You can select up to ${MAX_CATEGORIES} categories.`);
         return prev;
       }
-      return [...prev, topic];
+      return [...prev, category];
     });
+  };
+
+  // Show welcome message for new admins/owners
+  const showAdminWelcome = (communityName: string) => {
+    Alert.alert(
+      'You\'re the Community Admin!',
+      `As the first member of "${communityName}", you're now the Admin. Here's what that means:\n\n` +
+      '• You can manage members and assign moderators\n' +
+      '• You control community settings and privacy\n' +
+      '• You can remove inappropriate content\n\n' +
+      'Important: Update your community\'s location in Settings so people nearby can discover and join what God is building through this community!',
+      [{ text: 'Got it!', style: 'default' }]
+    );
+  };
+
+  // Show welcome message for new moderators
+  const showModeratorWelcome = (communityName: string) => {
+    Alert.alert(
+      'You\'re Now a Moderator!',
+      `You've been made a moderator of "${communityName}". Here's your role:\n\n` +
+      '• Help maintain a positive, Christ-centered environment\n' +
+      '• Review and remove inappropriate content\n' +
+      '• Welcome new members and encourage participation\n' +
+      '• Support the Admin in growing the community\n\n' +
+      'Tip: Encourage the Admin to set the community location so nearby believers can find and join!',
+      [{ text: 'Let\'s go!', style: 'default' }]
+    );
   };
 
   // Community handlers
   const toggleJoinCommunity = async (communityId: number) => {
     const isJoined = joinedCommunities.has(communityId);
+
+    // Prevent double-tap
+    if (joiningCommunityId === communityId) return;
+
+    setJoiningCommunityId(communityId);
 
     try {
       if (isJoined) {
@@ -177,26 +304,51 @@ export default function StartHereScreen() {
           return next;
         });
       } else {
-        await communitiesAPI.join(communityId);
-        setJoinedCommunities(prev => new Set(prev).add(communityId));
+        const response = await communitiesAPI.join(communityId);
+        console.log('[StartHere] Join response:', response);
+
+        // Check if join was successful or pending (for private communities)
+        if (response?.isPending) {
+          Alert.alert('Request Sent', 'Your join request has been sent to the community admins.');
+        } else {
+          // Join was successful
+          setJoinedCommunities(prev => new Set(prev).add(communityId));
+
+          // Check if user became an admin (first to join)
+          const community = communities.find(c => c.id === communityId);
+          if (response?.role === 'owner') {
+            showAdminWelcome(community?.name || 'this community');
+          } else if (response?.role === 'moderator') {
+            showModeratorWelcome(community?.name || 'this community');
+          }
+        }
       }
     } catch (error: any) {
       console.error('Error toggling community:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update membership');
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to update membership';
+
+      // If already a member, update the UI accordingly
+      if (error.response?.data?.isMember) {
+        setJoinedCommunities(prev => new Set(prev).add(communityId));
+      } else {
+        Alert.alert('Error', errorMsg);
+      }
+    } finally {
+      setJoiningCommunityId(null);
     }
   };
 
   // Finish handler
   const handleFinish = async () => {
-    if (selectedTopics.length < MIN_TOPICS) {
-      Alert.alert('Select Topics', `Please select at least ${MIN_TOPICS} topics to continue.`);
+    if (selectedCategories.length < MIN_CATEGORIES) {
+      Alert.alert('Select Categories', `Please select at least ${MIN_CATEGORIES} categories to continue.`);
       return;
     }
 
     setIsFinishing(true);
     try {
-      // Save topics
-      await saveSelectedTopics(selectedTopics);
+      // Save categories (using existing saveSelectedTopics for backwards compatibility)
+      await saveSelectedTopics(selectedCategories);
 
       // Mark Start Here as completed
       await setStartHereCompleted(true);
@@ -211,7 +363,7 @@ export default function StartHereScreen() {
     }
   };
 
-  const canFinish = selectedTopics.length >= MIN_TOPICS;
+  const canFinish = selectedCategories.length >= MIN_CATEGORIES;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -282,7 +434,7 @@ export default function StartHereScreen() {
           )}
         </View>
 
-        {/* Section 2: Topics (Required) */}
+        {/* Section 2: Categories (Required) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIcon, { backgroundColor: colors.primary + '15' }]}>
@@ -290,20 +442,20 @@ export default function StartHereScreen() {
             </View>
             <View style={styles.sectionTitleContainer}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-                Pick a few topics
+                Choose a Few Categories
               </Text>
               <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
-                Select {MIN_TOPICS}-{MAX_TOPICS} topics that interest you.
+                Select {MIN_CATEGORIES}-{MAX_CATEGORIES} categories that describe you.
               </Text>
             </View>
           </View>
 
           <View style={styles.topicsContainer}>
-            {AVAILABLE_TOPICS.map(topic => {
-              const isSelected = selectedTopics.includes(topic);
+            {AVAILABLE_CATEGORIES.map(category => {
+              const isSelected = selectedCategories.includes(category);
               return (
                 <Pressable
-                  key={topic}
+                  key={category}
                   style={[
                     styles.topicChip,
                     {
@@ -311,7 +463,7 @@ export default function StartHereScreen() {
                       borderColor: isSelected ? colors.primary : colors.borderSubtle,
                     },
                   ]}
-                  onPress={() => toggleTopic(topic)}
+                  onPress={() => toggleCategory(category)}
                 >
                   <Text
                     style={[
@@ -319,7 +471,7 @@ export default function StartHereScreen() {
                       { color: isSelected ? '#fff' : colors.textPrimary },
                     ]}
                   >
-                    {topic}
+                    {category}
                   </Text>
                   {isSelected && (
                     <Ionicons name="checkmark" size={14} color="#fff" />
@@ -330,7 +482,7 @@ export default function StartHereScreen() {
           </View>
 
           <Text style={[styles.topicCount, { color: colors.textMuted }]}>
-            {selectedTopics.length} of {MIN_TOPICS} minimum selected
+            {selectedCategories.length} of {MIN_CATEGORIES} minimum selected
           </Text>
         </View>
 
@@ -408,15 +560,20 @@ export default function StartHereScreen() {
                         },
                       ]}
                       onPress={() => toggleJoinCommunity(community.id)}
+                      disabled={joiningCommunityId === community.id}
                     >
-                      <Text
-                        style={[
-                          styles.joinButtonText,
-                          { color: isJoined ? colors.textPrimary : '#fff' },
-                        ]}
-                      >
-                        {isJoined ? 'Joined' : 'Join'}
-                      </Text>
+                      {joiningCommunityId === community.id ? (
+                        <ActivityIndicator size="small" color={isJoined ? colors.textPrimary : '#fff'} />
+                      ) : (
+                        <Text
+                          style={[
+                            styles.joinButtonText,
+                            { color: isJoined ? colors.textPrimary : '#fff' },
+                          ]}
+                        >
+                          {isJoined ? 'Joined' : 'Join'}
+                        </Text>
+                      )}
                     </Pressable>
                   </View>
                 );
@@ -464,7 +621,7 @@ export default function StartHereScreen() {
         </Pressable>
         {!canFinish && (
           <Text style={[styles.finishHint, { color: colors.textMuted }]}>
-            Select at least {MIN_TOPICS} topics to continue
+            Select at least {MIN_CATEGORIES} categories to continue
           </Text>
         )}
       </View>

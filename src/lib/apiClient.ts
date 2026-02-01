@@ -124,6 +124,7 @@ apiClient.interceptors.response.use(
           { status: 400, messageIncludes: 'already a member' },
           { status: 400, messageIncludes: 'Already bookmarked' }, // Bookmark toggle behavior
           { status: 400, messageIncludes: 'Already liked' }, // Like toggle behavior
+          { status: 400, url: '/api/library/posts/trending' }, // Trending endpoint - fallback handles this
           { status: 403, messageIncludes: 'You do not have access to this private event' }, // Private events
           { status: 403, messageIncludes: 'Only admins and moderators can view join requests' }, // Expected for non-admins
           { status: 404, url: '/api/microblogs/trending/combined' }, // Backend endpoint not deployed yet
@@ -131,6 +132,8 @@ apiClient.interceptors.response.use(
           { status: 404, url: '/api/qa-areas' }, // QA areas endpoint not deployed yet
           { status: 404, url: '/api/qa-tags' }, // QA tags endpoint not deployed yet
           { status: 404, url: '/my-rsvp' }, // my-rsvp endpoint not deployed yet
+          { status: 404, url: '/api/library/posts/trending' }, // Trending endpoint being deployed
+          { status: 404, url: '/nearby-users-count' }, // Nearby users count - server restart needed
           { status: 500, url: '/api/user/suggestions/friends' }, // Friend suggestions being deployed
           { status: 429 }, // Rate limiting - handled by retry logic
         ];
@@ -292,8 +295,8 @@ export const communitiesAPI = {
   leave: (id: number) => apiClient.post(`/api/communities/${id}/leave`).then(res => res.data),
   getMembers: (id: number) => apiClient.get(`/api/communities/${id}/members`).then(res => res.data),
   getWallPosts: (id: number) => apiClient.get(`/api/communities/${id}/wall`).then(res => res.data),
-  createWallPost: (id: number, content: string) =>
-    apiClient.post(`/api/communities/${id}/wall`, { content }).then(res => res.data),
+  createWallPost: (id: number, content: string, imageUrl?: string) =>
+    apiClient.post(`/api/communities/${id}/wall`, { content, imageUrl }).then(res => res.data),
   deleteWallPost: (communityId: number, postId: number) =>
     apiClient.delete(`/api/communities/${communityId}/wall/${postId}`).then(res => res.data),
   updateMemberRole: (communityId: number, userId: number, role: 'member' | 'moderator') =>
@@ -318,6 +321,16 @@ export const communitiesAPI = {
     apiClient.post(`/api/communities/${communityId}/join-requests/${requestId}/deny`).then(res => res.data),
   requestToJoin: (communityId: number) =>
     apiClient.post(`/api/communities/${communityId}/request-join`).then(res => res.data),
+
+  // Community Invitations
+  inviteUser: (communityId: number, inviteeId: number, sendDm: boolean = true) =>
+    apiClient.post(`/api/communities/${communityId}/invite-user`, { inviteeId, sendDm }).then(res => res.data),
+  getPendingInvitations: () =>
+    apiClient.get('/api/community-invitations/pending').then(res => res.data),
+  acceptInvitation: (invitationId: number) =>
+    apiClient.post(`/api/community-invitations/${invitationId}/accept`).then(res => res.data),
+  declineInvitation: (invitationId: number) =>
+    apiClient.post(`/api/community-invitations/${invitationId}/decline`).then(res => res.data),
 };
 
 // Direct Messages API
@@ -355,6 +368,12 @@ export const followAPI = {
     apiClient.get(`/api/users/${userId}/profile`).then(res => res.data),
 };
 
+// Search API
+export const searchAPI = {
+  searchUsers: (query: string) =>
+    apiClient.get('/api/users/search', { params: { q: query } }).then(res => res.data),
+};
+
 // Events API
 export const eventsAPI = {
   getAll: () => apiClient.get('/api/events').then(res => res.data),
@@ -389,6 +408,22 @@ export const eventsAPI = {
   // Send announcement to all RSVPed attendees (host only)
   announce: (id: number, message: string) =>
     apiClient.post(`/api/events/${id}/announce`, { message }).then(res => res.data),
+
+  // Event Invitations
+  inviteUsers: (eventId: number, inviteeIds: number[], sendDm: boolean = true) =>
+    apiClient.post(`/api/events/${eventId}/invite`, { inviteeIds, sendDm }).then(res => res.data),
+  getPendingInvitations: () =>
+    apiClient.get('/api/event-invitations/pending').then(res => res.data),
+  acceptInvitation: (invitationId: number) =>
+    apiClient.post(`/api/event-invitations/${invitationId}/accept`).then(res => res.data),
+  declineInvitation: (invitationId: number) =>
+    apiClient.post(`/api/event-invitations/${invitationId}/decline`).then(res => res.data),
+
+  // Nearby Users Invitations (Connection Hosted events only)
+  getNearbyUsersCount: (eventId: number, radiusMiles: number = 30) =>
+    apiClient.get(`/api/events/${eventId}/nearby-users-count`, { params: { radius: radiusMiles } }).then(res => res.data),
+  inviteNearbyUsers: (eventId: number, radiusMiles: number = 30, sendNotifications: boolean = true) =>
+    apiClient.post(`/api/events/${eventId}/invite-nearby`, { radiusMiles, sendNotifications }).then(res => res.data),
 };
 
 // Safety & Moderation API
