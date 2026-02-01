@@ -276,21 +276,43 @@ router.get('/settings', async (req, res, next) => {
   }
 });
 
-// Update user settings (notification preferences)
-router.put('/settings', async (req, res, next) => {
+// Update user settings handler (shared by PUT and PATCH)
+const updateSettingsHandler = async (req: any, res: any, next: any) => {
   try {
     const userId = requireSessionUserId(req);
     if (!userId) {
       return;
     }
 
-    const { notifyDms, notifyCommunities, notifyForums, notifyFeed } = req.body;
+    const { notifyDms, notifyCommunities, notifyForums, notifyFeed, birthday, dateOfBirth } = req.body;
 
     const updateData: any = {};
     if (typeof notifyDms === 'boolean') updateData.notifyDms = notifyDms;
     if (typeof notifyCommunities === 'boolean') updateData.notifyCommunities = notifyCommunities;
     if (typeof notifyForums === 'boolean') updateData.notifyForums = notifyForums;
     if (typeof notifyFeed === 'boolean') updateData.notifyFeed = notifyFeed;
+
+    // Support birthday updates via settings endpoint too
+    const birthdayValue = birthday || dateOfBirth;
+    if (birthdayValue !== undefined) {
+      // Validate age is 13+ if birthday is provided (COPPA compliance)
+      const birthdayDate = new Date(birthdayValue);
+      if (!isNaN(birthdayDate.getTime())) {
+        const today = new Date();
+        let calculatedAge = today.getFullYear() - birthdayDate.getFullYear();
+        const monthDiff = today.getMonth() - birthdayDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdayDate.getDate())) {
+          calculatedAge--;
+        }
+        if (calculatedAge < 13) {
+          return res.status(403).json({
+            code: 'AGE_RESTRICTED',
+            message: 'You must be 13 or older to use this app.'
+          });
+        }
+      }
+      updateData.dateOfBirth = birthdayValue;
+    }
 
     const updatedUser = await storage.updateUser(userId, updateData);
 
@@ -303,7 +325,11 @@ router.put('/settings', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-});
+};
+
+// Update user settings (notification preferences) - supports both PUT and PATCH
+router.put('/settings', updateSettingsHandler);
+router.patch('/settings', updateSettingsHandler);
 
 // Get communities the user is a member of
 router.get('/communities', async (req, res, next) => {
