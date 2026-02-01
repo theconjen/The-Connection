@@ -12,27 +12,38 @@ router.use(requireAuth);
 
 // Fetch user settings
 router.get("/settings", async (req, res) => {
+  console.info('[userSettingsRoutes] GET /settings hit');
   try {
     const userId = requireSessionUserId(req);
-    
+    console.info('[userSettingsRoutes] GET /settings userId:', userId);
+
     const user = await storage.getUser(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
-    // Return user data without sensitive fields
-    const { password, ...userData } = user;
-    res.json(userData);
-  } catch (error) {
-    console.error('Error fetching user settings:', error);
+
+    // Return notification settings for mobile app
+    res.json({
+      notifyDms: user.notifyDms !== false,
+      notifyCommunities: user.notifyCommunities !== false,
+      notifyForums: user.notifyForums !== false,
+      notifyFeed: user.notifyFeed !== false,
+    });
+  } catch (error: any) {
+    console.error('[userSettingsRoutes] Error fetching user settings:', error);
+    if (error.status === 401 || error.statusCode === 401) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
     res.status(500).json(buildErrorResponse('Error fetching user settings', error));
   }
 });
 
 // Update user settings
 router.put("/settings", async (req, res) => {
+  console.info('[userSettingsRoutes] PUT /settings hit');
   try {
     const userId = requireSessionUserId(req);
+    console.info('[userSettingsRoutes] PUT /settings userId:', userId);
 
     const {
       displayName,
@@ -83,16 +94,21 @@ router.put("/settings", async (req, res) => {
     }
 
     res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating user settings:', error);
+  } catch (error: any) {
+    console.error('[userSettingsRoutes] Error updating user settings:', error);
+    if (error.status === 401 || error.statusCode === 401) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
     res.status(500).json(buildErrorResponse('Error updating user settings', error));
   }
 });
 
 // PATCH user settings (partial update)
 router.patch("/settings", async (req, res) => {
+  console.info('[userSettingsRoutes] PATCH /settings hit');
   try {
     const userId = requireSessionUserId(req);
+    console.info('[userSettingsRoutes] PATCH /settings userId:', userId);
 
     const {
       displayName,
@@ -143,8 +159,11 @@ router.patch("/settings", async (req, res) => {
     }
 
     res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating user settings:', error);
+  } catch (error: any) {
+    console.error('[userSettingsRoutes] Error updating user settings:', error);
+    if (error.status === 401 || error.statusCode === 401) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
     res.status(500).json(buildErrorResponse('Error updating user settings', error));
   }
 });

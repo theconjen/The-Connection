@@ -177,7 +177,10 @@ router.patch('/profile', async (req, res, next) => {
   }
 });
 
-// Alternative endpoint for updating user by ID (same functionality)
+// NOTE: /settings routes are handled by userSettingsRoutes.ts which is mounted before this router
+// The /:id route below will NOT match "settings" because userSettingsRoutes handles it first
+
+// Alternative endpoint for updating user by ID
 router.patch('/:id', async (req, res, next) => {
   try {
     const userId = requireSessionUserId(req);
@@ -189,7 +192,7 @@ router.patch('/:id', async (req, res, next) => {
     if (!Number.isFinite(targetUserId) || targetUserId !== userId) {
       return res.status(401).json({ message: 'Not authorized to update this profile' });
     }
-    
+
     const {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
@@ -243,7 +246,7 @@ router.patch('/:id', async (req, res, next) => {
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
 
     const updatedUser = await storage.updateUser(targetUserId, updateData);
-    
+
     // Return updated user data without sensitive fields
     const { password, ...userData } = updatedUser;
     res.json(userData);
@@ -251,85 +254,6 @@ router.patch('/:id', async (req, res, next) => {
     next(error);
   }
 });
-
-// Get user settings (notification preferences)
-router.get('/settings', async (req, res, next) => {
-  try {
-    const userId = requireSessionUserId(req);
-    if (!userId) {
-      return;
-    }
-
-    const user = await storage.getUser(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json({
-      notifyDms: user.notifyDms !== false,
-      notifyCommunities: user.notifyCommunities !== false,
-      notifyForums: user.notifyForums !== false,
-      notifyFeed: user.notifyFeed !== false,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Update user settings handler (shared by PUT and PATCH)
-const updateSettingsHandler = async (req: any, res: any, next: any) => {
-  try {
-    const userId = requireSessionUserId(req);
-    if (!userId) {
-      return;
-    }
-
-    const { notifyDms, notifyCommunities, notifyForums, notifyFeed, birthday, dateOfBirth } = req.body;
-
-    const updateData: any = {};
-    if (typeof notifyDms === 'boolean') updateData.notifyDms = notifyDms;
-    if (typeof notifyCommunities === 'boolean') updateData.notifyCommunities = notifyCommunities;
-    if (typeof notifyForums === 'boolean') updateData.notifyForums = notifyForums;
-    if (typeof notifyFeed === 'boolean') updateData.notifyFeed = notifyFeed;
-
-    // Support birthday updates via settings endpoint too
-    const birthdayValue = birthday || dateOfBirth;
-    if (birthdayValue !== undefined) {
-      // Validate age is 13+ if birthday is provided (COPPA compliance)
-      const birthdayDate = new Date(birthdayValue);
-      if (!isNaN(birthdayDate.getTime())) {
-        const today = new Date();
-        let calculatedAge = today.getFullYear() - birthdayDate.getFullYear();
-        const monthDiff = today.getMonth() - birthdayDate.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdayDate.getDate())) {
-          calculatedAge--;
-        }
-        if (calculatedAge < 13) {
-          return res.status(403).json({
-            code: 'AGE_RESTRICTED',
-            message: 'You must be 13 or older to use this app.'
-          });
-        }
-      }
-      updateData.dateOfBirth = birthdayValue;
-    }
-
-    const updatedUser = await storage.updateUser(userId, updateData);
-
-    res.json({
-      notifyDms: updatedUser.notifyDms !== false,
-      notifyCommunities: updatedUser.notifyCommunities !== false,
-      notifyForums: updatedUser.notifyForums !== false,
-      notifyFeed: updatedUser.notifyFeed !== false,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Update user settings (notification preferences) - supports both PUT and PATCH
-router.put('/settings', updateSettingsHandler);
-router.patch('/settings', updateSettingsHandler);
 
 // Get communities the user is a member of
 router.get('/communities', async (req, res, next) => {
@@ -391,117 +315,6 @@ router.get('/events', async (req, res, next) => {
     res.json(filterItemsByUserId(events, userId));
   } catch (error) {
     next(error);
-  }
-});
-
-// User settings endpoints using your approach
-router.get("/settings", async (req, res) => {
-  try {
-    const userId = requireSessionUserId(req);
-    if (!userId) {
-      return;
-    }
-    
-    const user = await storage.getUser(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    // Return user data without sensitive fields
-    const { password, ...userData } = user;
-    res.json(userData);
-  } catch (error) {
-    res.status(500).json(buildErrorResponse('Error fetching user settings', error));
-  }
-});
-
-// Helper function to build settings update data
-function buildSettingsUpdateData(body: any): { updateData: any; notificationPrefsUpdated: boolean; visibilityError?: string } {
-  const {
-    displayName, email, bio, city, state, zipCode, birthday,
-    profileVisibility, showLocation, showInterests,
-    notifyDms, notifyCommunities, notifyForums, notifyFeed
-  } = body;
-
-  const updateData: any = {};
-  if (displayName !== undefined) updateData.displayName = displayName;
-  if (email !== undefined) updateData.email = email;
-  if (bio !== undefined) updateData.bio = bio;
-  if (city !== undefined) updateData.city = city;
-  if (state !== undefined) updateData.state = state;
-  if (zipCode !== undefined) updateData.zipCode = zipCode;
-  if (birthday !== undefined) updateData.birthday = birthday;
-  if (profileVisibility !== undefined) {
-    if (!isValidVisibility(profileVisibility)) {
-      return { updateData: {}, notificationPrefsUpdated: false, visibilityError: "Invalid profile visibility option" };
-    }
-    updateData.profileVisibility = profileVisibility;
-  }
-  if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
-  if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
-  if (typeof notifyDms === "boolean") updateData.notifyDms = notifyDms;
-  if (typeof notifyCommunities === "boolean") updateData.notifyCommunities = notifyCommunities;
-  if (typeof notifyForums === "boolean") updateData.notifyForums = notifyForums;
-  if (typeof notifyFeed === "boolean") updateData.notifyFeed = notifyFeed;
-
-  const notificationPrefsUpdated =
-    typeof notifyDms === "boolean" ||
-    typeof notifyCommunities === "boolean" ||
-    typeof notifyForums === "boolean" ||
-    typeof notifyFeed === "boolean";
-
-  return { updateData, notificationPrefsUpdated };
-}
-
-// Update user settings using your approach (PUT)
-router.put("/settings", async (req, res) => {
-  try {
-    const userId = requireSessionUserId(req);
-    if (!userId) {
-      return;
-    }
-
-    const { updateData, notificationPrefsUpdated, visibilityError } = buildSettingsUpdateData(req.body);
-    if (visibilityError) {
-      return res.status(400).json({ message: visibilityError });
-    }
-
-    await storage.updateUser(userId, updateData);
-
-    if (notificationPrefsUpdated) {
-      clearPreferencesCache(userId);
-      console.info(`[API/User] Cleared notification preferences cache for user ${userId}`);
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json(buildErrorResponse('Error updating user settings', error));
-  }
-});
-
-// Update user settings (PATCH) - same as PUT but with PATCH method for mobile app compatibility
-router.patch("/settings", async (req, res) => {
-  try {
-    const userId = requireSessionUserId(req);
-    if (!userId) {
-      return;
-    }
-
-    const { updateData, notificationPrefsUpdated, visibilityError } = buildSettingsUpdateData(req.body);
-    if (visibilityError) {
-      return res.status(400).json({ message: visibilityError });
-    }
-
-    await storage.updateUser(userId, updateData);
-
-    if (notificationPrefsUpdated) {
-      clearPreferencesCache(userId);
-      console.info(`[API/User] Cleared notification preferences cache for user ${userId}`);
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json(buildErrorResponse('Error updating user settings', error));
   }
 });
 
