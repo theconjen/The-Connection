@@ -106,7 +106,8 @@ router.patch('/profile', async (req, res, next) => {
     const {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
-      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests
+      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests,
+      birthday, age
     } = req.body;
 
     // Only allow updating specific fields
@@ -124,6 +125,8 @@ router.patch('/profile', async (req, res, next) => {
     if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
     if (testimony !== undefined) updateData.testimony = testimony;
     if (interests !== undefined) updateData.interests = interests;
+    if (birthday !== undefined) updateData.birthday = birthday;
+    if (age !== undefined) updateData.age = age;
     if (profileVisibility !== undefined) {
       if (!isValidVisibility(profileVisibility)) {
         return res.status(400).json({ message: "Invalid profile visibility option" });
@@ -171,7 +174,8 @@ router.patch('/:id', async (req, res, next) => {
     const {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
-      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests
+      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests,
+      birthday, age
     } = req.body;
 
     // Only allow updating specific fields
@@ -189,6 +193,8 @@ router.patch('/:id', async (req, res, next) => {
     if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
     if (testimony !== undefined) updateData.testimony = testimony;
     if (interests !== undefined) updateData.interests = interests;
+    if (birthday !== undefined) updateData.birthday = birthday;
+    if (age !== undefined) updateData.age = age;
     if (profileVisibility !== undefined) {
       if (!isValidVisibility(profileVisibility)) {
         return res.status(400).json({ message: "Invalid profile visibility option" });

@@ -15,7 +15,10 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Platform,
+  Modal,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -39,7 +42,7 @@ export default function EditProfileScreen() {
     displayName: '',
     bio: '',
     location: '',
-    age: '',
+    birthday: null as Date | null,
     denomination: '',
     homeChurch: '',
     favoriteBibleVerse: '',
@@ -49,6 +52,7 @@ export default function EditProfileScreen() {
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Update form data when profile data is loaded
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function EditProfileScreen() {
         displayName: userData.displayName || '',
         bio: userData.bio || '',
         location: userData.location || '',
-        age: userData.age ? String(userData.age) : '',
+        birthday: userData.birthday ? new Date(userData.birthday) : null,
         denomination: userData.denomination || '',
         homeChurch: userData.homeChurch || '',
         favoriteBibleVerse: userData.favoriteBibleVerse || '',
@@ -150,13 +154,27 @@ export default function EditProfileScreen() {
       return;
     }
 
-    // Convert age to number for API
+    // Format birthday as ISO string for API
     const dataToSend = {
       ...formData,
-      age: formData.age ? parseInt(formData.age, 10) : null,
+      birthday: formData.birthday ? formData.birthday.toISOString().split('T')[0] : null,
     };
 
     updateProfileMutation.mutate(dataToSend);
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setFormData(prev => ({ ...prev, birthday: selectedDate }));
+    }
+  };
+
+  const formatBirthday = (date: Date | null): string => {
+    if (!date) return '';
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
   const updateField = (field: string, value: string) => {
@@ -268,18 +286,64 @@ export default function EditProfileScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Age</Text>
-            <TextInput
+            <Text style={styles.label}>Birthday</Text>
+            <Pressable
               style={styles.input}
-              placeholder="Your age"
-              placeholderTextColor={colors.textMuted}
-              value={formData.age}
-              onChangeText={(text) => updateField('age', text.replace(/[^0-9]/g, ''))}
-              keyboardType="number-pad"
-              maxLength={3}
-            />
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={formData.birthday ? { color: colors.textPrimary, fontSize: 15 } : { color: colors.textMuted, fontSize: 15 }}>
+                {formData.birthday ? formatBirthday(formData.birthday) : 'Select your birthday'}
+              </Text>
+            </Pressable>
           </View>
         </View>
+
+        {/* Date Picker Modal for iOS */}
+        {Platform.OS === 'ios' && showDatePicker && (
+          <Modal
+            transparent
+            animationType="slide"
+            visible={showDatePicker}
+            onRequestClose={() => setShowDatePicker(false)}
+          >
+            <Pressable
+              style={styles.datePickerOverlay}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <View style={[styles.datePickerContainer, { backgroundColor: colors.surface }]}>
+                <View style={styles.datePickerHeader}>
+                  <Pressable onPress={() => setShowDatePicker(false)}>
+                    <Text style={[styles.datePickerButton, { color: colors.textMuted }]}>Cancel</Text>
+                  </Pressable>
+                  <Text style={[styles.datePickerTitle, { color: colors.textPrimary }]}>Select Birthday</Text>
+                  <Pressable onPress={() => setShowDatePicker(false)}>
+                    <Text style={[styles.datePickerButton, { color: colors.primary }]}>Done</Text>
+                  </Pressable>
+                </View>
+                <DateTimePicker
+                  value={formData.birthday || new Date(2000, 0, 1)}
+                  mode="date"
+                  display="spinner"
+                  onChange={handleDateChange}
+                  maximumDate={new Date()}
+                  minimumDate={new Date(1900, 0, 1)}
+                />
+              </View>
+            </Pressable>
+          </Modal>
+        )}
+
+        {/* Date Picker for Android */}
+        {Platform.OS === 'android' && showDatePicker && (
+          <DateTimePicker
+            value={formData.birthday || new Date(2000, 0, 1)}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+            maximumDate={new Date()}
+            minimumDate={new Date(1900, 0, 1)}
+          />
+        )}
 
         {/* Faith Information */}
         <View style={styles.section}>
@@ -498,5 +562,31 @@ const getStyles = (colors: any) =>
       fontSize: 13,
       color: colors.textSecondary,
       lineHeight: 18,
+    },
+    datePickerOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    datePickerContainer: {
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      paddingBottom: 40,
+    },
+    datePickerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    datePickerTitle: {
+      fontSize: 17,
+      fontWeight: '600',
+    },
+    datePickerButton: {
+      fontSize: 16,
+      fontWeight: '500',
     },
   });
