@@ -148,10 +148,34 @@ export default function EditProfileScreen() {
     }
   };
 
+  // Calculate age from birthday
+  const calculateAge = (birthday: Date): number => {
+    const today = new Date();
+    let age = today.getFullYear() - birthday.getFullYear();
+    const monthDiff = today.getMonth() - birthday.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthday.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   const handleSave = () => {
     if (!formData.displayName.trim()) {
       Alert.alert('Required Field', 'Please enter your display name');
       return;
+    }
+
+    // Validate age is 13+ if birthday is provided
+    if (formData.birthday) {
+      const age = calculateAge(formData.birthday);
+      if (age < 13) {
+        Alert.alert(
+          'Age Restriction',
+          'You must be 13 or older to use this app.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
     }
 
     // Format birthday as ISO string for API
@@ -325,7 +349,7 @@ export default function EditProfileScreen() {
                   mode="date"
                   display="spinner"
                   onChange={handleDateChange}
-                  maximumDate={new Date()}
+                  maximumDate={new Date(new Date().getFullYear() - 13, new Date().getMonth(), new Date().getDate())}
                   minimumDate={new Date(1900, 0, 1)}
                 />
               </View>
@@ -340,7 +364,7 @@ export default function EditProfileScreen() {
             mode="date"
             display="default"
             onChange={handleDateChange}
-            maximumDate={new Date()}
+            maximumDate={new Date(new Date().getFullYear() - 13, new Date().getMonth(), new Date().getDate())}
             minimumDate={new Date(1900, 0, 1)}
           />
         )}

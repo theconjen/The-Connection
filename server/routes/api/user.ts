@@ -125,7 +125,25 @@ router.patch('/profile', async (req, res, next) => {
     if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
     if (testimony !== undefined) updateData.testimony = testimony;
     if (interests !== undefined) updateData.interests = interests;
-    if (birthday !== undefined) updateData.birthday = birthday;
+    if (birthday !== undefined) {
+      // Validate age is 13+ if birthday is provided (COPPA compliance)
+      const birthdayDate = new Date(birthday);
+      if (!isNaN(birthdayDate.getTime())) {
+        const today = new Date();
+        let calculatedAge = today.getFullYear() - birthdayDate.getFullYear();
+        const monthDiff = today.getMonth() - birthdayDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdayDate.getDate())) {
+          calculatedAge--;
+        }
+        if (calculatedAge < 13) {
+          return res.status(403).json({
+            code: 'AGE_RESTRICTED',
+            message: 'You must be 13 or older to use this app.'
+          });
+        }
+      }
+      updateData.birthday = birthday;
+    }
     if (age !== undefined) updateData.age = age;
     if (profileVisibility !== undefined) {
       if (!isValidVisibility(profileVisibility)) {
@@ -193,7 +211,25 @@ router.patch('/:id', async (req, res, next) => {
     if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
     if (testimony !== undefined) updateData.testimony = testimony;
     if (interests !== undefined) updateData.interests = interests;
-    if (birthday !== undefined) updateData.birthday = birthday;
+    if (birthday !== undefined) {
+      // Validate age is 13+ if birthday is provided (COPPA compliance)
+      const birthdayDate = new Date(birthday);
+      if (!isNaN(birthdayDate.getTime())) {
+        const today = new Date();
+        let calculatedAge = today.getFullYear() - birthdayDate.getFullYear();
+        const monthDiff = today.getMonth() - birthdayDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdayDate.getDate())) {
+          calculatedAge--;
+        }
+        if (calculatedAge < 13) {
+          return res.status(403).json({
+            code: 'AGE_RESTRICTED',
+            message: 'You must be 13 or older to use this app.'
+          });
+        }
+      }
+      updateData.birthday = birthday;
+    }
     if (age !== undefined) updateData.age = age;
     if (profileVisibility !== undefined) {
       if (!isValidVisibility(profileVisibility)) {
@@ -203,7 +239,7 @@ router.patch('/:id', async (req, res, next) => {
     }
     if (typeof showLocation === "boolean") updateData.showLocation = showLocation;
     if (typeof showInterests === "boolean") updateData.showInterests = showInterests;
-    
+
     const updatedUser = await storage.updateUser(targetUserId, updateData);
     
     // Return updated user data without sensitive fields
