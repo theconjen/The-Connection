@@ -11,6 +11,7 @@ overrides:
   undici: '>=7.0.0'
   esbuild: '>=0.25.0'
   multer: '>=2.0.0'
+  lodash: '>=4.17.21'
 
 importers:
 
