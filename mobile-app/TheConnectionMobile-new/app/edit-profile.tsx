@@ -62,7 +62,7 @@ export default function EditProfileScreen() {
         displayName: userData.displayName || '',
         bio: userData.bio || '',
         location: userData.location || '',
-        birthday: userData.birthday ? new Date(userData.birthday) : null,
+        birthday: userData.dateOfBirth ? new Date(userData.dateOfBirth) : (userData.birthday ? new Date(userData.birthday) : null),
         denomination: userData.denomination || '',
         homeChurch: userData.homeChurch || '',
         favoriteBibleVerse: userData.favoriteBibleVerse || '',

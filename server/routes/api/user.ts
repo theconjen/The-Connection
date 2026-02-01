@@ -142,7 +142,8 @@ router.patch('/profile', async (req, res, next) => {
           });
         }
       }
-      updateData.birthday = birthday;
+      // Map to database field name (dateOfBirth -> date_of_birth column)
+      updateData.dateOfBirth = birthday;
     }
     if (age !== undefined) updateData.age = age;
     if (profileVisibility !== undefined) {
@@ -228,7 +229,8 @@ router.patch('/:id', async (req, res, next) => {
           });
         }
       }
-      updateData.birthday = birthday;
+      // Map to database field name (dateOfBirth -> date_of_birth column)
+      updateData.dateOfBirth = birthday;
     }
     if (age !== undefined) updateData.age = age;
     if (profileVisibility !== undefined) {

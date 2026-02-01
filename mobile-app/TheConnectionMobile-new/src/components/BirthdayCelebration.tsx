@@ -134,7 +134,7 @@ export const BirthdayCelebration: React.FC<BirthdayCelebrationProps> = ({ onDism
       if (!response.ok) return;
 
       const data = await response.json();
-      const birthday = data.user?.birthday || data.birthday;
+      const birthday = data.user?.dateOfBirth || data.dateOfBirth || data.user?.birthday || data.birthday;
 
       if (!birthday) return;
 
