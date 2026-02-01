@@ -142,9 +142,14 @@ router.patch("/settings", async (req, res) => {
     if (typeof notifyCommunities === 'boolean') updateData.notifyCommunities = notifyCommunities;
     if (typeof notifyForums === 'boolean') updateData.notifyForums = notifyForums;
     if (typeof notifyFeed === 'boolean') updateData.notifyFeed = notifyFeed;
-    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
+    if (dateOfBirth !== undefined) {
+      console.info('[userSettingsRoutes] PATCH received dateOfBirth:', dateOfBirth, 'type:', typeof dateOfBirth);
+      updateData.dateOfBirth = dateOfBirth;
+    }
 
-    await storage.updateUser(userId, updateData);
+    console.info('[userSettingsRoutes] PATCH calling updateUser with:', JSON.stringify(updateData));
+    const updatedUser = await storage.updateUser(userId, updateData);
+    console.info('[userSettingsRoutes] PATCH updateUser returned, dateOfBirth:', updatedUser.dateOfBirth);
 
     // Clear notification preferences cache if any notification settings were updated
     const notificationPrefsUpdated =
@@ -158,7 +163,7 @@ router.patch("/settings", async (req, res) => {
       console.info(`[Settings] Cleared notification preferences cache for user ${userId}`);
     }
 
-    res.json({ success: true });
+    res.json({ success: true, dateOfBirth: updatedUser.dateOfBirth });
   } catch (error: any) {
     console.error('[userSettingsRoutes] Error updating user settings:', error);
     if (error.status === 401 || error.statusCode === 401) {
