@@ -19,6 +19,7 @@ import {
   Modal,
   Switch,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { Text, Badge, useTheme } from '../theme';
 import { AppHeader } from './AppHeader';
@@ -28,7 +29,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import apiClient, { communitiesAPI } from '../lib/apiClient';
 import { queryClient } from '../../lib/queryClient';
 import { useAuth } from '../contexts/AuthContext';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 
 // No custom icon components needed - using Ionicons directly
@@ -1145,7 +1146,8 @@ export function EventsScreen({
 
                 <MapView
                   style={{ flex: 1 }}
-                  provider={PROVIDER_GOOGLE}
+                  // Use Apple Maps on iOS (works without API key), Google Maps on Android
+                  provider={Platform.OS === 'ios' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE}
                   initialRegion={{
                     latitude: userLocation.latitude,
                     longitude: userLocation.longitude,

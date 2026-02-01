@@ -16,7 +16,8 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
+import { Platform } from 'react-native';
 import apiClient, { eventsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -469,7 +470,8 @@ export default function EventDetailScreen() {
                       latitudeDelta: 0.01,
                       longitudeDelta: 0.01,
                     }}
-                    provider={PROVIDER_GOOGLE}
+                    // Use Apple Maps on iOS (works without API key), Google Maps on Android
+                    provider={Platform.OS === 'ios' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE}
                   >
                     <Marker
                       coordinate={getCoordinates()}
