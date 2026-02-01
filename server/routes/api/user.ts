@@ -252,6 +252,59 @@ router.patch('/:id', async (req, res, next) => {
   }
 });
 
+// Get user settings (notification preferences)
+router.get('/settings', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      notifyDms: user.notifyDms !== false,
+      notifyCommunities: user.notifyCommunities !== false,
+      notifyForums: user.notifyForums !== false,
+      notifyFeed: user.notifyFeed !== false,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update user settings (notification preferences)
+router.put('/settings', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const { notifyDms, notifyCommunities, notifyForums, notifyFeed } = req.body;
+
+    const updateData: any = {};
+    if (typeof notifyDms === 'boolean') updateData.notifyDms = notifyDms;
+    if (typeof notifyCommunities === 'boolean') updateData.notifyCommunities = notifyCommunities;
+    if (typeof notifyForums === 'boolean') updateData.notifyForums = notifyForums;
+    if (typeof notifyFeed === 'boolean') updateData.notifyFeed = notifyFeed;
+
+    const updatedUser = await storage.updateUser(userId, updateData);
+
+    res.json({
+      notifyDms: updatedUser.notifyDms !== false,
+      notifyCommunities: updatedUser.notifyCommunities !== false,
+      notifyForums: updatedUser.notifyForums !== false,
+      notifyFeed: updatedUser.notifyFeed !== false,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get communities the user is a member of
 router.get('/communities', async (req, res, next) => {
   try {
