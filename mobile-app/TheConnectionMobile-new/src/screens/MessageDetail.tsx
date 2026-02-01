@@ -23,7 +23,47 @@ import { useConversationMessages, useSendMessage, useMarkAsRead } from '../queri
 import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
-import apiClient from '../lib/apiClient';
+import apiClient, { communitiesAPI, eventsAPI } from '../lib/apiClient';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+
+// ============================================================================
+// INVITATION MESSAGE TYPES
+// ============================================================================
+
+interface CommunityInviteData {
+  type: 'community_invite';
+  communityId: number;
+  communityName: string;
+  inviterName: string;
+  invitationId: number;
+}
+
+interface EventInviteData {
+  type: 'event_invite';
+  eventId: number;
+  eventName: string;
+  eventDate: string;
+  eventTime?: string;
+  location?: string;
+  inviterName: string;
+  invitationId: number;
+}
+
+type InviteData = CommunityInviteData | EventInviteData;
+
+function parseInvitationMessage(content: string): InviteData | null {
+  if (!content.startsWith('{')) return null;
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed.type === 'community_invite' || parsed.type === 'event_invite') {
+      return parsed as InviteData;
+    }
+  } catch {
+    // Not valid JSON
+  }
+  return null;
+}
 
 // ============================================================================
 // TYPES
@@ -138,6 +178,243 @@ function ChatHeader({ otherUser, onBack, onProfilePress, onMenuPress, colors }: 
 }
 
 // ============================================================================
+// INVITATION MESSAGE CARD COMPONENT
+// ============================================================================
+
+interface InvitationCardProps {
+  inviteData: InviteData;
+  isMe: boolean;
+  colors: any;
+  messageTime: string;
+}
+
+function InvitationMessageCard({ inviteData, isMe, colors, messageTime }: InvitationCardProps) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [status, setStatus] = useState<'pending' | 'accepted' | 'declined'>('pending');
+
+  const acceptCommunityMutation = useMutation({
+    mutationFn: (invitationId: number) => communitiesAPI.acceptInvitation(invitationId),
+    onSuccess: () => {
+      setStatus('accepted');
+      queryClient.invalidateQueries({ queryKey: ['community-invitations-pending'] });
+      queryClient.invalidateQueries({ queryKey: ['user-communities'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to accept invitation');
+    },
+  });
+
+  const declineCommunityMutation = useMutation({
+    mutationFn: (invitationId: number) => communitiesAPI.declineInvitation(invitationId),
+    onSuccess: () => {
+      setStatus('declined');
+      queryClient.invalidateQueries({ queryKey: ['community-invitations-pending'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to decline invitation');
+    },
+  });
+
+  const acceptEventMutation = useMutation({
+    mutationFn: (invitationId: number) => eventsAPI.acceptInvitation(invitationId),
+    onSuccess: () => {
+      setStatus('accepted');
+      queryClient.invalidateQueries({ queryKey: ['event-invitations-pending'] });
+      queryClient.invalidateQueries({ queryKey: ['my-events'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to accept invitation');
+    },
+  });
+
+  const declineEventMutation = useMutation({
+    mutationFn: (invitationId: number) => eventsAPI.declineInvitation(invitationId),
+    onSuccess: () => {
+      setStatus('declined');
+      queryClient.invalidateQueries({ queryKey: ['event-invitations-pending'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to decline invitation');
+    },
+  });
+
+  const isCommunityInvite = inviteData.type === 'community_invite';
+  const isProcessing = acceptCommunityMutation.isPending || declineCommunityMutation.isPending ||
+                       acceptEventMutation.isPending || declineEventMutation.isPending;
+
+  const handleAccept = () => {
+    if (isCommunityInvite) {
+      acceptCommunityMutation.mutate((inviteData as CommunityInviteData).invitationId);
+    } else {
+      acceptEventMutation.mutate((inviteData as EventInviteData).invitationId);
+    }
+  };
+
+  const handleDecline = () => {
+    if (isCommunityInvite) {
+      declineCommunityMutation.mutate((inviteData as CommunityInviteData).invitationId);
+    } else {
+      declineEventMutation.mutate((inviteData as EventInviteData).invitationId);
+    }
+  };
+
+  const handleCardPress = () => {
+    if (isCommunityInvite) {
+      router.push(`/communities/${(inviteData as CommunityInviteData).communityId}`);
+    } else {
+      router.push(`/events/${(inviteData as EventInviteData).eventId}`);
+    }
+  };
+
+  return (
+    <View style={[
+      styles.messageRow,
+      isMe ? styles.messageRowRight : styles.messageRowLeft
+    ]}>
+      <View style={{
+        backgroundColor: colors.surface,
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: colors.borderSubtle,
+        maxWidth: '85%',
+        minWidth: 220,
+      }}>
+        <Pressable onPress={handleCardPress}>
+          {/* Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <View style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: isCommunityInvite ? colors.primary : colors.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Ionicons
+                name={isCommunityInvite ? 'people' : 'calendar'}
+                size={18}
+                color="#fff"
+              />
+            </View>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', fontWeight: '600' }}>
+                {isCommunityInvite ? 'Community Invitation' : 'Event Invitation'}
+              </Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }} numberOfLines={2}>
+                {isCommunityInvite
+                  ? (inviteData as CommunityInviteData).communityName
+                  : (inviteData as EventInviteData).eventName
+                }
+              </Text>
+            </View>
+          </View>
+
+          {/* Event Details */}
+          {!isCommunityInvite && (
+            <View style={{ marginBottom: 8 }}>
+              {(inviteData as EventInviteData).eventDate && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 4 }}>
+                    {new Date((inviteData as EventInviteData).eventDate).toLocaleDateString()}
+                    {(inviteData as EventInviteData).eventTime && ` at ${(inviteData as EventInviteData).eventTime}`}
+                  </Text>
+                </View>
+              )}
+              {(inviteData as EventInviteData).location && (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 4 }} numberOfLines={1}>
+                    {(inviteData as EventInviteData).location}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+        </Pressable>
+
+        {/* Action Buttons - Only show if not sender and pending */}
+        {!isMe && status === 'pending' && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <Pressable
+              onPress={handleAccept}
+              disabled={isProcessing}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: colors.primary,
+                paddingVertical: 8,
+                borderRadius: 8,
+                opacity: isProcessing ? 0.6 : 1,
+              }}
+            >
+              {isProcessing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark" size={16} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '600', marginLeft: 4, fontSize: 13 }}>
+                    {isCommunityInvite ? 'Join' : 'Accept'}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={handleDecline}
+              disabled={isProcessing}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: colors.textMuted,
+                paddingVertical: 8,
+                borderRadius: 8,
+                opacity: isProcessing ? 0.6 : 1,
+              }}
+            >
+              <Ionicons name="close" size={16} color={colors.textSecondary} />
+              <Text style={{ color: colors.textSecondary, fontWeight: '600', marginLeft: 4, fontSize: 13 }}>
+                Decline
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Status indicator */}
+        {status !== 'pending' && (
+          <View style={{
+            marginTop: 8,
+            paddingVertical: 6,
+            borderRadius: 6,
+            backgroundColor: status === 'accepted' ? colors.successMuted : colors.errorMuted,
+            alignItems: 'center',
+          }}>
+            <Text style={{
+              color: status === 'accepted' ? colors.success : colors.error,
+              fontWeight: '600',
+              fontSize: 13,
+            }}>
+              {status === 'accepted' ? 'Accepted' : 'Declined'}
+            </Text>
+          </View>
+        )}
+
+        {/* Time */}
+        <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 6, alignSelf: 'flex-end' }}>
+          {messageTime}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// ============================================================================
 // MESSAGE BUBBLE COMPONENT
 // ============================================================================
 
@@ -232,6 +509,19 @@ function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, 
 
     return { type: null, url: null };
   };
+
+  // Check for invitation message first
+  const inviteData = parseInvitationMessage(message.content);
+  if (inviteData) {
+    return (
+      <InvitationMessageCard
+        inviteData={inviteData}
+        isMe={isMe}
+        colors={colors}
+        messageTime={formatMessageTime(message.createdAt)}
+      />
+    );
+  }
 
   // Detect media from content URL
   const detectedMedia = detectMediaUrl(message.content);
@@ -812,6 +1102,20 @@ export function MessageDetail({
     }
   }, [conversationId]);
 
+  // Load muted state when other user is known
+  useEffect(() => {
+    const loadMuteStatus = async () => {
+      if (!otherUser?.id) return;
+      try {
+        const response = await apiClient.get(`/api/dm/mute/${otherUser.id}`);
+        setIsMuted(response.data?.isMuted || false);
+      } catch (error) {
+        console.error('Error loading mute status:', error);
+      }
+    };
+    loadMuteStatus();
+  }, [otherUser?.id]);
+
   // Load existing reactions when messages load
   useEffect(() => {
     const loadReactions = async () => {
@@ -881,15 +1185,23 @@ export function MessageDetail({
   };
 
   const handleMute = async () => {
+    if (!otherUser?.id) return;
+
     try {
-      // TODO: Implement mute API
-      setIsMuted(!isMuted);
-      Alert.alert(
-        isMuted ? 'Unmuted' : 'Muted',
-        isMuted ? 'You will receive notifications from this conversation.' : 'You will not receive notifications from this conversation.'
-      );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update notification settings.');
+      if (isMuted) {
+        // Unmute
+        await apiClient.delete(`/api/dm/mute/${otherUser.id}`);
+        setIsMuted(false);
+        Alert.alert('Unmuted', 'You will receive notifications from this conversation.');
+      } else {
+        // Mute
+        await apiClient.post(`/api/dm/mute/${otherUser.id}`);
+        setIsMuted(true);
+        Alert.alert('Muted', 'You will not receive notifications from this conversation.');
+      }
+    } catch (error: any) {
+      console.error('Error toggling mute:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update notification settings.');
     }
   };
 
@@ -957,6 +1269,32 @@ export function MessageDetail({
     }
   }, []);
 
+  const handleDeleteMessage = async (messageId: number | string) => {
+    try {
+      await apiClient.delete(`/api/dm/messages/${messageId}`);
+      refetch();
+      Alert.alert('Deleted', 'Message deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting message:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to delete message');
+    }
+  };
+
+  const confirmDeleteMessage = (message: MessageItem) => {
+    Alert.alert(
+      'Delete Message',
+      'Are you sure you want to delete this message? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => handleDeleteMessage(message.id),
+        },
+      ]
+    );
+  };
+
   const handleMessageLongPress = (message: MessageItem) => {
     const isMyMessage = message.senderId === currentUser?.id;
 
@@ -980,8 +1318,7 @@ export function MessageDetail({
             Clipboard.setString(message.content);
             Alert.alert('Copied', 'Message copied to clipboard');
           } else if (buttonIndex === 1 && isMyMessage) {
-            // TODO: Implement delete
-            Alert.alert('Delete', 'Delete functionality coming soon');
+            confirmDeleteMessage(message);
           } else if (buttonIndex === 1 && !isMyMessage) {
             setShowReportModal(true);
           }
@@ -997,7 +1334,7 @@ export function MessageDetail({
             Alert.alert('Copied', 'Message copied to clipboard');
           }},
           ...(isMyMessage
-            ? [{ text: 'Delete Message', style: 'destructive' as const, onPress: () => Alert.alert('Delete', 'Delete functionality coming soon') }]
+            ? [{ text: 'Delete Message', style: 'destructive' as const, onPress: () => confirmDeleteMessage(message) }]
             : [{ text: 'Report Message', onPress: () => setShowReportModal(true) }]
           ),
           { text: 'Cancel', style: 'cancel' as const },

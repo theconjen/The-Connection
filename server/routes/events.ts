@@ -5,7 +5,7 @@ import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
-import { notifyCommunityMembers, notifyEventAttendees, notifyNearbyUsers, truncateText } from '../services/notificationHelper';
+import { notifyCommunityMembers, notifyEventAttendees, notifyNearbyUsers, notifyUserWithPreferences, getUserDisplayName, truncateText } from '../services/notificationHelper';
 import { broadcastEngagementUpdate } from '../socketInstance';
 import {
   createEvent as createEventService,
@@ -165,13 +165,52 @@ router.get('/events', async (req, res) => {
       }
     }
 
-    // Attach user's RSVP status, bookmark status, and host info to each event
+    // Get user's connections (people they follow) who are going to each event
+    let connectionsGoingMap: Record<number, { count: number; names: string[] }> = {};
+    if (userId) {
+      try {
+        // Get all user IDs that this user follows
+        const following = await storage.getUserFollowing(userId);
+        const followingIds = following.map((f: any) => f.id);
+
+        if (followingIds.length > 0) {
+          // For each event, check which connections are going
+          for (const event of events) {
+            const eventRsvps = await storage.getEventRSVPs(event.id);
+            const goingRsvps = eventRsvps.filter((r: any) =>
+              r.status === 'going' && followingIds.includes(r.userId)
+            );
+
+            if (goingRsvps.length > 0) {
+              // Get names of connections going (first 3 for display)
+              const connectionNames: string[] = [];
+              for (const rsvp of goingRsvps.slice(0, 3)) {
+                const user = following.find((f: any) => f.id === rsvp.userId);
+                if (user) {
+                  connectionNames.push(user.displayName || user.username);
+                }
+              }
+              connectionsGoingMap[event.id] = {
+                count: goingRsvps.length,
+                names: connectionNames
+              };
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching connections going to events:', err);
+        // Continue without connections data
+      }
+    }
+
+    // Attach user's RSVP status, bookmark status, host info, and connections going to each event
     const eventsWithUserData = events.map((event: any) => ({
       ...event,
       hostUserId: event.creatorId, // Reliable host identifier
       userRsvpStatus: userRsvpMap[event.id] || null,
       isBookmarked: userBookmarkSet.has(event.id),
       host: hostUsers[event.creatorId] || null,
+      connectionsGoing: connectionsGoingMap[event.id] || { count: 0, names: [] },
     }));
 
     res.json({ events: eventsWithUserData });
@@ -528,6 +567,7 @@ router.post('/events', requireAuth, async (req, res) => {
       description,
       category, // Event type: Sunday Service, Worship, Bible Study, etc.
       eventDate,
+      eventEndDate, // For multi-day events (e.g., conferences)
       startTime,
       endTime,
       isVirtual,
@@ -621,6 +661,7 @@ router.post('/events', requireAuth, async (req, res) => {
       description,
       category: category || null, // Event type: Sunday Service, Worship, Bible Study, etc.
       eventDate: finalEventDate,
+      eventEndDate: eventEndDate || null, // For multi-day events (e.g., conferences)
       startTime: finalStartTime,
       endTime: finalEndTime,
       isVirtual: isVirtual ?? false,
@@ -786,7 +827,7 @@ router.patch('/events/:id', requireAuth, async (req, res) => {
 
     // Build update payload (only include fields that are provided)
     const updatePayload: any = {};
-    const allowedFields = ['title', 'description', 'category', 'eventDate', 'startTime', 'endTime', 'isVirtual',
+    const allowedFields = ['title', 'description', 'category', 'eventDate', 'eventEndDate', 'startTime', 'endTime', 'isVirtual',
                            'location', 'address', 'city', 'state', 'zipCode', 'latitude', 'longitude',
                            'virtualMeetingUrl', 'isPublic', 'imageUrl'];
 
@@ -1422,6 +1463,7 @@ router.post('/events/v2', requireAuth, async (req, res) => {
     title: req.body.title,
     description: req.body.description,
     eventDate: req.body.eventDate,
+    eventEndDate: req.body.eventEndDate,
     startTime: req.body.startTime,
     endTime: req.body.endTime,
     isVirtual: req.body.isVirtual,
@@ -1465,6 +1507,7 @@ router.patch('/events/:id/v2', requireAuth, async (req, res) => {
     title: req.body.title,
     description: req.body.description,
     eventDate: req.body.eventDate,
+    eventEndDate: req.body.eventEndDate,
     startTime: req.body.startTime,
     endTime: req.body.endTime,
     isVirtual: req.body.isVirtual,
@@ -1506,6 +1549,530 @@ router.delete('/events/:id/v2', requireAuth, async (req, res) => {
   const result = await cancelEventService(eventId, actorId, requestId);
   res.setHeader('x-request-id', requestId);
   res.status(mapStatusToHttpCode(result.status)).json(result);
+});
+
+// ============================================================================
+// EVENT INVITATIONS
+// ============================================================================
+
+// Invite users to an event (attendees or creator can invite)
+router.post('/events/:id/invite', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const { inviteeIds, sendDm } = req.body;
+
+    if (!Number.isFinite(eventId)) {
+      return res.status(400).json({ message: 'Invalid event ID' });
+    }
+
+    if (!inviteeIds || !Array.isArray(inviteeIds) || inviteeIds.length === 0) {
+      return res.status(400).json({ message: 'User IDs to invite are required' });
+    }
+
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if inviter is creator or attendee
+    const isCreator = event.creatorId === userId;
+    const rsvp = await storage.getUserEventRSVP(eventId, userId);
+    const isAttendee = rsvp && (rsvp.status === 'going' || rsvp.status === 'maybe');
+
+    if (!isCreator && !isAttendee) {
+      return res.status(403).json({ message: 'Only event creator or attendees can invite others' });
+    }
+
+    const inviterName = await getUserDisplayName(userId);
+    const results = [];
+
+    for (const inviteeId of inviteeIds) {
+      if (!Number.isFinite(inviteeId)) continue;
+
+      // Check if invitee exists
+      const invitee = await storage.getUser(inviteeId);
+      if (!invitee) continue;
+
+      // Check if already invited
+      const existingInvitation = await storage.getEventInvitation(eventId, inviteeId);
+      if (existingInvitation) {
+        results.push({ inviteeId, status: 'already_invited' });
+        continue;
+      }
+
+      // Check if already attending
+      const existingRsvp = await storage.getUserEventRSVP(eventId, inviteeId);
+      if (existingRsvp) {
+        results.push({ inviteeId, status: 'already_attending' });
+        continue;
+      }
+
+      // Create invitation
+      const invitation = await storage.createEventInvitation({
+        eventId,
+        inviterId: userId,
+        inviteeId,
+        status: 'pending'
+      });
+
+      // Send notification
+      const eventDate = new Date(event.eventDate);
+      const formattedDate = eventDate.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      });
+
+      await notifyUserWithPreferences(inviteeId, {
+        title: 'Event Invitation',
+        body: `${inviterName} invited you to "${truncateText(event.title, 30)}" on ${formattedDate}`,
+        data: { eventId, invitationId: invitation.id, type: 'event_invite' },
+        category: 'event'
+      });
+
+      // Optionally send DM with invitation
+      if (sendDm) {
+        const dmContent = JSON.stringify({
+          type: 'event_invite',
+          eventId,
+          eventName: event.title,
+          eventDate: event.eventDate,
+          eventTime: event.startTime,
+          location: event.location,
+          inviterName,
+          invitationId: invitation.id
+        });
+        await storage.createDirectMessage({
+          senderId: userId,
+          receiverId: inviteeId,
+          content: dmContent
+        });
+      }
+
+      results.push({ inviteeId, status: 'invited', invitationId: invitation.id });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Invitations sent',
+      results
+    });
+  } catch (error) {
+    console.error('Error sending event invitations:', error);
+    res.status(500).json(buildErrorResponse('Error sending invitations', error));
+  }
+});
+
+// Get pending event invitations for current user
+router.get('/event-invitations/pending', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+
+    const invitations = await storage.getPendingEventInvitationsForUser(userId);
+
+    // Enrich with event and inviter info
+    const enrichedInvitations = await Promise.all(
+      invitations.map(async (inv: any) => {
+        const event = await storage.getEvent(inv.eventId);
+        const inviter = await storage.getUser(inv.inviterId);
+        const attendeeCount = event ? await storage.getEventAttendeeCount(inv.eventId) : 0;
+
+        return {
+          ...inv,
+          event: event ? {
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            eventDate: event.eventDate,
+            startTime: event.startTime,
+            endTime: event.endTime,
+            location: event.location,
+            address: event.address,
+            city: event.city,
+            state: event.state,
+            isVirtual: event.isVirtual,
+            virtualMeetingUrl: event.virtualMeetingUrl,
+            imageUrl: event.imageUrl,
+            attendeeCount
+          } : null,
+          inviter: inviter ? {
+            id: inviter.id,
+            username: inviter.username,
+            displayName: inviter.displayName,
+            avatarUrl: inviter.avatarUrl
+          } : null
+        };
+      })
+    );
+
+    res.json(enrichedInvitations);
+  } catch (error) {
+    console.error('Error fetching pending event invitations:', error);
+    res.status(500).json(buildErrorResponse('Error fetching invitations', error));
+  }
+});
+
+// Accept event invitation (auto-RSVP as 'going')
+router.post('/event-invitations/:id/accept', requireAuth, async (req, res) => {
+  try {
+    const invitationId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(invitationId)) {
+      return res.status(400).json({ message: 'Invalid invitation ID' });
+    }
+
+    const invitation = await storage.getEventInvitationById(invitationId);
+    if (!invitation) {
+      return res.status(404).json({ message: 'Invitation not found' });
+    }
+
+    // Verify invitation is for this user
+    if (invitation.inviteeId !== userId) {
+      return res.status(403).json({ message: 'This invitation is not for you' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.status(400).json({ message: 'Invitation already processed' });
+    }
+
+    // Get event to verify it exists and hasn't passed
+    const event = await storage.getEvent(invitation.eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event no longer exists' });
+    }
+
+    // Check if event has passed
+    const eventDate = new Date(event.eventDate);
+    if (eventDate < new Date()) {
+      await storage.updateEventInvitationStatus(invitationId, 'expired');
+      return res.status(400).json({ message: 'Event has already passed' });
+    }
+
+    // Create or update RSVP as 'going'
+    const existingRsvp = await storage.getUserEventRSVP(invitation.eventId, userId);
+    if (existingRsvp) {
+      await storage.upsertEventRSVP(invitation.eventId, userId, 'going');
+    } else {
+      await storage.createEventRSVP({
+        eventId: invitation.eventId,
+        userId,
+        status: 'going'
+      });
+    }
+
+    // Update invitation status
+    await storage.updateEventInvitationStatus(invitationId, 'accepted');
+
+    // Notify inviter
+    const inviteeName = await getUserDisplayName(userId);
+    await notifyUserWithPreferences(invitation.inviterId, {
+      title: 'Invitation Accepted',
+      body: `${inviteeName} accepted your invitation to "${truncateText(event.title, 30)}"`,
+      data: { eventId: invitation.eventId, type: 'event_invite_accepted' },
+      category: 'event'
+    });
+
+    res.json({
+      success: true,
+      message: 'You are now attending this event',
+      eventId: invitation.eventId
+    });
+  } catch (error) {
+    console.error('Error accepting event invitation:', error);
+    res.status(500).json(buildErrorResponse('Error accepting invitation', error));
+  }
+});
+
+// Decline event invitation
+router.post('/event-invitations/:id/decline', requireAuth, async (req, res) => {
+  try {
+    const invitationId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(invitationId)) {
+      return res.status(400).json({ message: 'Invalid invitation ID' });
+    }
+
+    const invitation = await storage.getEventInvitationById(invitationId);
+    if (!invitation) {
+      return res.status(404).json({ message: 'Invitation not found' });
+    }
+
+    // Verify invitation is for this user
+    if (invitation.inviteeId !== userId) {
+      return res.status(403).json({ message: 'This invitation is not for you' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.status(400).json({ message: 'Invitation already processed' });
+    }
+
+    // Update invitation status
+    await storage.updateEventInvitationStatus(invitationId, 'declined');
+
+    res.json({
+      success: true,
+      message: 'Invitation declined'
+    });
+  } catch (error) {
+    console.error('Error declining event invitation:', error);
+    res.status(500).json(buildErrorResponse('Error declining invitation', error));
+  }
+});
+
+// Haversine formula for calculating distance between two coordinates in miles
+function calculateDistanceMiles(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const toRadians = (deg: number) => (deg * Math.PI) / 180;
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMiles * c;
+}
+
+// Invite all users within a radius of a Connection Hosted event
+// Only available for events without a communityId (Connection Hosted)
+// Only the event creator can use this endpoint
+router.post('/events/:id/invite-nearby', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const { radiusMiles = 30, sendNotifications = true } = req.body;
+
+    // Validate radius (1-100 miles)
+    const radius = Math.min(Math.max(parseFloat(radiusMiles) || 30, 1), 100);
+
+    // Get event
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Only Connection Hosted events (communityId is null)
+    if (event.communityId !== null) {
+      return res.status(403).json({
+        message: 'This feature is only available for Connection Hosted events'
+      });
+    }
+
+    // Only event creator can invite nearby users
+    if (event.creatorId !== userId) {
+      return res.status(403).json({
+        message: 'Only the event creator can invite nearby users'
+      });
+    }
+
+    // Event must have location data
+    if (!event.latitude || !event.longitude) {
+      return res.status(400).json({
+        message: 'Event must have location coordinates to invite nearby users'
+      });
+    }
+
+    const eventLat = parseFloat(String(event.latitude));
+    const eventLon = parseFloat(String(event.longitude));
+
+    if (isNaN(eventLat) || isNaN(eventLon)) {
+      return res.status(400).json({
+        message: 'Event has invalid location coordinates'
+      });
+    }
+
+    // Get all users
+    const allUsers = await storage.getAllUsers();
+
+    // Get existing RSVPs and invitations to exclude
+    const existingRsvps = await storage.getEventRSVPs(eventId);
+    const rsvpedUserIds = new Set(existingRsvps.map(r => r.userId));
+
+    // Get inviter info
+    const inviterName = await getUserDisplayName(userId);
+    const formattedDate = new Date(event.eventDate).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+
+    // Find nearby users and create invitations
+    const results: Array<{ userId: number; status: string; distance?: number }> = [];
+    let invitedCount = 0;
+    let skippedCount = 0;
+
+    for (const user of allUsers) {
+      // Skip the inviter
+      if (user.id === userId) continue;
+
+      // Skip users already RSVP'd
+      if (rsvpedUserIds.has(user.id)) {
+        skippedCount++;
+        continue;
+      }
+
+      // Skip users without location data
+      if (!user.latitude || !user.longitude) continue;
+
+      const userLat = parseFloat(String(user.latitude));
+      const userLon = parseFloat(String(user.longitude));
+
+      if (isNaN(userLat) || isNaN(userLon)) continue;
+
+      // Calculate distance
+      const distance = calculateDistanceMiles(eventLat, eventLon, userLat, userLon);
+
+      // Skip users outside radius
+      if (distance > radius) continue;
+
+      // Check if already invited
+      const existingInvitation = await storage.getEventInvitation(eventId, user.id);
+      if (existingInvitation) {
+        results.push({ userId: user.id, status: 'already_invited', distance: Math.round(distance * 10) / 10 });
+        skippedCount++;
+        continue;
+      }
+
+      // Create invitation
+      const invitation = await storage.createEventInvitation({
+        eventId,
+        inviterId: userId,
+        inviteeId: user.id,
+        status: 'pending'
+      });
+
+      // Send notification if enabled
+      if (sendNotifications) {
+        await notifyUserWithPreferences(user.id, {
+          title: `📍 Event near you!`,
+          body: `${inviterName} invited you to "${truncateText(event.title, 30)}" on ${formattedDate} (${Math.round(distance)} mi away)`,
+          data: { eventId, invitationId: invitation.id, type: 'event_invite' },
+          category: 'event',
+        });
+      }
+
+      results.push({
+        userId: user.id,
+        status: 'invited',
+        distance: Math.round(distance * 10) / 10
+      });
+      invitedCount++;
+    }
+
+    console.info(`[Events] Invited ${invitedCount} nearby users within ${radius} miles of event ${eventId}, skipped ${skippedCount}`);
+
+    res.json({
+      success: true,
+      message: `Invited ${invitedCount} users within ${radius} miles`,
+      invitedCount,
+      skippedCount,
+      radiusMiles: radius,
+      results
+    });
+  } catch (error) {
+    console.error('Error inviting nearby users:', error);
+    res.status(500).json(buildErrorResponse('Error inviting nearby users', error));
+  }
+});
+
+// Get count of users within radius (preview before inviting)
+router.get('/events/:id/nearby-users-count', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const radiusMiles = parseFloat(req.query.radius as string) || 30;
+
+    // Validate radius (1-100 miles)
+    const radius = Math.min(Math.max(radiusMiles, 1), 100);
+
+    // Get event
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Only Connection Hosted events
+    if (event.communityId !== null) {
+      return res.status(403).json({
+        message: 'This feature is only available for Connection Hosted events'
+      });
+    }
+
+    // Only event creator can check
+    if (event.creatorId !== userId) {
+      return res.status(403).json({
+        message: 'Only the event creator can view nearby user counts'
+      });
+    }
+
+    // Event must have location data
+    if (!event.latitude || !event.longitude) {
+      return res.status(400).json({
+        message: 'Event must have location coordinates'
+      });
+    }
+
+    const eventLat = parseFloat(String(event.latitude));
+    const eventLon = parseFloat(String(event.longitude));
+
+    if (isNaN(eventLat) || isNaN(eventLon)) {
+      return res.status(400).json({
+        message: 'Event has invalid location coordinates'
+      });
+    }
+
+    // Get all users and count nearby ones
+    const allUsers = await storage.getAllUsers();
+    const existingRsvps = await storage.getEventRSVPs(eventId);
+    const rsvpedUserIds = new Set(existingRsvps.map(r => r.userId));
+
+    let nearbyCount = 0;
+    let alreadyRsvpdCount = 0;
+    let alreadyInvitedCount = 0;
+
+    for (const user of allUsers) {
+      if (user.id === userId) continue;
+      if (!user.latitude || !user.longitude) continue;
+
+      const userLat = parseFloat(String(user.latitude));
+      const userLon = parseFloat(String(user.longitude));
+      if (isNaN(userLat) || isNaN(userLon)) continue;
+
+      const distance = calculateDistanceMiles(eventLat, eventLon, userLat, userLon);
+      if (distance > radius) continue;
+
+      if (rsvpedUserIds.has(user.id)) {
+        alreadyRsvpdCount++;
+        continue;
+      }
+
+      const existingInvitation = await storage.getEventInvitation(eventId, user.id);
+      if (existingInvitation) {
+        alreadyInvitedCount++;
+        continue;
+      }
+
+      nearbyCount++;
+    }
+
+    res.json({
+      radiusMiles: radius,
+      eligibleToInvite: nearbyCount,
+      alreadyRsvpd: alreadyRsvpdCount,
+      alreadyInvited: alreadyInvitedCount,
+      totalNearby: nearbyCount + alreadyRsvpdCount + alreadyInvitedCount
+    });
+  } catch (error) {
+    console.error('Error counting nearby users:', error);
+    res.status(500).json(buildErrorResponse('Error counting nearby users', error));
+  }
 });
 
 export default router;

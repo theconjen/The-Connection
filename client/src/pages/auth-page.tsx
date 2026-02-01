@@ -101,8 +101,13 @@ export default function AuthPage() {
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
     // Omit confirmPassword as it's not in the InsertUser type
-    const { confirmPassword, ...userData } = data;
-    
+    // Map dateOfBirth to dob for server compatibility
+    const { confirmPassword, dateOfBirth, ...rest } = data;
+    const userData = {
+      ...rest,
+      dob: dateOfBirth, // Server expects 'dob' field
+    };
+
     auth.registerMutation.mutate(userData as InsertUser);
   };
 

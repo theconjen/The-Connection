@@ -494,6 +494,29 @@ function useReportPost() {
   });
 }
 
+function useBlockUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, reason }: { userId: number; reason?: string }) => {
+      const response = await apiClient.post('/api/safety/blocks', {
+        userId,
+        reason,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate feed queries to remove blocked user's posts
+      queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/feed'] });
+      Alert.alert('User Blocked', 'You will no longer see posts from this user.');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error?.response?.data?.message || 'Failed to block user');
+    },
+  });
+}
+
 function useComments(postId: number | null) {
   return useQuery<Comment[]>({
     queryKey: ['/api/microblogs', postId, 'comments'],
@@ -1087,6 +1110,7 @@ export default function FeedScreen({
   const createMutation = useCreateMicroblog();
   const deleteMutation = useDeletePost();
   const reportMutation = useReportPost();
+  const blockMutation = useBlockUser();
   const { data: comments = [], isLoading: commentsLoading } = useComments(selectedPostForComments?.id || null);
   const createCommentMutation = useCreateComment();
   const repostMutation = useRepostMicroblog();
@@ -1214,8 +1238,7 @@ export default function FeedScreen({
           text: 'Block',
           style: 'destructive',
           onPress: () => {
-            // TODO: Implement block user API call
-            Alert.alert('Coming Soon', 'Block user functionality will be available soon');
+            blockMutation.mutate({ userId });
           },
         },
       ]

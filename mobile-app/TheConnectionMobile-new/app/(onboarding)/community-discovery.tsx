@@ -1,6 +1,9 @@
 /**
  * COMMUNITY DISCOVERY SCREEN - The Connection Onboarding
  * Step 4: Discover and join communities
+ *
+ * Communities are personalized based on user's selected interests
+ * from the faith-background step.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -23,6 +26,26 @@ import { communitiesAPI } from '../../src/lib/apiClient';
 import apiClient from '../../src/lib/apiClient';
 import * as SecureStore from 'expo-secure-store';
 
+// Topic to community keyword mapping - matches user interests to communities
+const INTEREST_KEYWORDS: Record<string, string[]> = {
+  'Bible Study': ['bible', 'study', 'scripture', 'word', 'reading'],
+  'Prayer': ['prayer', 'intercession', 'warriors', 'praying'],
+  'Apologetics': ['apologetics', 'defense', 'reason', 'evidence', 'questions'],
+  'Theology': ['theology', 'doctrine', 'reformed', 'faith', 'beliefs'],
+  'Evangelism': ['evangelism', 'outreach', 'gospel', 'witness', 'sharing'],
+  'Missions': ['missions', 'missionary', 'outreach', 'global', 'international'],
+  'Discipleship': ['discipleship', 'growth', 'mentor', 'disciple', 'spiritual'],
+  'Worship': ['worship', 'praise', 'music', 'singing'],
+  'Youth Ministry': ['youth', 'teen', 'student', 'young'],
+  "Men's Ministry": ['men', 'man', 'brotherhood', 'guys', 'fathers'],
+  "Women's Ministry": ['women', 'woman', 'sisterhood', 'ladies', 'mothers', 'moms'],
+  'Marriage & Family': ['marriage', 'married', 'couples', 'spouse', 'family', 'parent'],
+  'Small Groups': ['small', 'group', 'home', 'cell'],
+  'Volunteering': ['volunteer', 'serve', 'service', 'helping'],
+  'Christian Education': ['education', 'teaching', 'learning', 'school'],
+  'Spiritual Formation': ['formation', 'spiritual', 'growth', 'journey'],
+};
+
 interface Community {
   id: number;
   name: string;
@@ -41,22 +64,93 @@ export default function CommunityDiscoveryScreen() {
   const [joinedCommunities, setJoinedCommunities] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [userInterests, setUserInterests] = useState<string[]>([]);
 
   useEffect(() => {
     loadCommunities();
   }, []);
 
+  // Calculate relevance score for a community based on user's interests
+  const calculateRelevanceScore = (community: Community, interests: string[]): number => {
+    if (interests.length === 0) return 0;
+
+    let score = 0;
+    const communityText = `${community.name} ${community.description || ''}`.toLowerCase();
+
+    for (const interest of interests) {
+      const keywords = INTEREST_KEYWORDS[interest] || [];
+      for (const keyword of keywords) {
+        if (communityText.includes(keyword.toLowerCase())) {
+          score += 10; // Base match
+          // Bonus for name match (more relevant)
+          if (community.name.toLowerCase().includes(keyword.toLowerCase())) {
+            score += 5;
+          }
+        }
+      }
+    }
+
+    return score;
+  };
+
+  // Filter and sort communities by relevance to user's interests
+  const filterCommunitiesByInterests = (allCommunities: Community[], interests: string[]): Community[] => {
+    if (interests.length === 0) {
+      // No interests selected, show top communities by member count
+      return [...allCommunities]
+        .sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))
+        .slice(0, 10);
+    }
+
+    // Score and sort communities by relevance
+    const scoredCommunities = allCommunities.map(c => ({
+      community: c,
+      score: calculateRelevanceScore(c, interests),
+    }));
+
+    // Sort by score (descending), then by member count for ties
+    scoredCommunities.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (b.community.memberCount || 0) - (a.community.memberCount || 0);
+    });
+
+    // Take top matches
+    const matched = scoredCommunities
+      .filter(s => s.score > 0)
+      .slice(0, 8)
+      .map(s => s.community);
+
+    // If we don't have enough matches, add popular communities
+    if (matched.length < 5) {
+      const remaining = allCommunities
+        .filter(c => !matched.find(m => m.id === c.id))
+        .sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))
+        .slice(0, 10 - matched.length);
+      matched.push(...remaining);
+    }
+
+    return matched.slice(0, 10);
+  };
+
   const loadCommunities = async () => {
     try {
       setIsLoading(true);
+
+      // Get user's interests from the previous step
+      const faithData = await SecureStore.getItemAsync('onboarding_faith');
+      let interests: string[] = [];
+      if (faithData) {
+        const parsed = JSON.parse(faithData);
+        interests = parsed.interests || [];
+        setUserInterests(interests);
+      }
+
       const data = await communitiesAPI.getAll();
 
-      // Sort by member count and take top 10
-      const sorted = data
-        .sort((a: any, b: any) => (b.memberCount || 0) - (a.memberCount || 0))
-        .slice(0, 10);
+      // Filter communities based on user's interests
+      const personalized = filterCommunitiesByInterests(data, interests);
 
-      setCommunities(sorted);
+      setCommunities(personalized);
     } catch (error) {
       console.error('Error loading communities:', error);
       Alert.alert('Error', 'Failed to load communities');
@@ -231,7 +325,9 @@ export default function CommunityDiscoveryScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Join communities that align with your faith and interests. You can always discover more later.
+          {userInterests.length > 0
+            ? 'Based on your interests, here are communities you might enjoy. You can always discover more later.'
+            : 'Join communities that align with your faith and interests. You can always discover more later.'}
         </Text>
 
         {isLoading ? (

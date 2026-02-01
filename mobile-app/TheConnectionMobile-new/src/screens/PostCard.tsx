@@ -10,6 +10,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { sharePost } from '../lib/shareUrls';
 import { ImageCarousel } from '../components/ImageCarousel';
+import { ClergyBadge } from '../components/ClergyBadge';
 
 // Helper to extract first sentence from text
 function getFirstSentence(text: string): { firstSentence: string; rest: string } {
@@ -57,6 +58,7 @@ export interface Post {
   username?: string;
   authorId?: number;
   isAnonymous?: boolean;
+  isVerifiedClergy?: boolean;
   timeAgo: string;
   title: string;
   content: string;
@@ -190,6 +192,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
                   >
                     {post.displayName || post.username || post.author}
                   </Text>
+                  {post.isVerifiedClergy && <ClergyBadge size="small" />}
                   <Text style={{ fontSize: 12, color: colors.textMuted, opacity: 0.6, marginHorizontal: 4 }}>·</Text>
                   <Text style={{ fontSize: 12, color: colors.textMuted, opacity: 0.7 }}>{post.timeAgo}</Text>
                 </View>

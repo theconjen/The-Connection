@@ -249,8 +249,8 @@ export default function CreateEventScreen() {
       title: title.trim(),
       description: description.trim(),
       location: location.trim() || undefined,
-      latitude,
-      longitude,
+      latitude: latitude !== undefined ? String(latitude) : undefined,
+      longitude: longitude !== undefined ? String(longitude) : undefined,
       eventDate,
       eventEndDate,
       startTime: startTimeStr,
@@ -726,13 +726,13 @@ export default function CreateEventScreen() {
                   <DateTimePicker
                     value={startDate}
                     mode="date"
-                    display="spinner"
+                    display="inline"
                     onChange={(event, date) => {
                       if (date) setStartDate(date);
                     }}
                     themeVariant={isDark ? 'dark' : 'light'}
                     minimumDate={new Date()}
-                    style={styles.iosPicker}
+                    style={styles.iosCalendarPicker}
                   />
                 )}
                 {activePickerTab === 'startTime' && (
@@ -752,13 +752,13 @@ export default function CreateEventScreen() {
                   <DateTimePicker
                     value={endDate}
                     mode="date"
-                    display="spinner"
+                    display="inline"
                     onChange={(event, date) => {
                       if (date) setEndDate(date);
                     }}
                     themeVariant={isDark ? 'dark' : 'light'}
                     minimumDate={startDate}
-                    style={styles.iosPicker}
+                    style={styles.iosCalendarPicker}
                   />
                 )}
                 {activePickerTab === 'endTime' && (
@@ -1099,11 +1099,14 @@ const styles = StyleSheet.create({
   iosPicker: {
     height: 200,
   },
+  iosCalendarPicker: {
+    height: 340,
+  },
   dateTimeModalContent: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 34,
-    maxHeight: '70%',
+    maxHeight: '85%',
   },
   dateTimeTabContainer: {
     flexDirection: 'row',

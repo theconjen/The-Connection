@@ -1098,6 +1098,237 @@ router.post('/communities/:id/invite', requireAuth, async (req, res) => {
   }
 });
 
+// Invite user to community by userId (any member can invite)
+router.post('/communities/:id/invite-user', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+    const { inviteeId, sendDm } = req.body;
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'Invalid community ID' });
+    }
+
+    if (!inviteeId || !Number.isFinite(inviteeId)) {
+      return res.status(400).json({ message: 'Valid user ID is required' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Check if inviter is a member
+    const inviterMember = await storage.getCommunityMember(communityId, userId);
+    if (!inviterMember) {
+      return res.status(403).json({ message: 'Only community members can invite others' });
+    }
+
+    // Check if invitee exists
+    const invitee = await storage.getUser(inviteeId);
+    if (!invitee) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if invitee is already a member
+    const existingMember = await storage.getCommunityMember(communityId, inviteeId);
+    if (existingMember) {
+      return res.status(400).json({ message: 'User is already a member' });
+    }
+
+    // Check if invitation already exists
+    const existingInvitation = await storage.getCommunityInvitationByEmailAndCommunity(invitee.email, communityId);
+    if (existingInvitation && existingInvitation.status === 'pending') {
+      return res.status(400).json({ message: 'Invitation already sent to this user' });
+    }
+
+    // Create invitation with 30-day expiration
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const invitation = await storage.createCommunityInvitation({
+      communityId,
+      inviterUserId: userId,
+      inviteeEmail: invitee.email,
+      inviteeUserId: inviteeId,
+      status: 'pending',
+      token: `invite-${communityId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      expiresAt
+    });
+
+    // Send notification
+    const inviterName = await getUserDisplayName(userId);
+    await notifyUserWithPreferences(inviteeId, {
+      title: 'Community Invitation',
+      body: `${inviterName} invited you to join ${community.name}`,
+      data: { communityId, invitationId: invitation.id, type: 'community_invite' },
+      category: 'community'
+    });
+
+    // Optionally send a DM with invitation
+    if (sendDm) {
+      const dmContent = JSON.stringify({
+        type: 'community_invite',
+        communityId,
+        communityName: community.name,
+        inviterName,
+        invitationId: invitation.id
+      });
+      await storage.createDirectMessage({
+        senderId: userId,
+        receiverId: inviteeId,
+        content: dmContent
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Invitation sent successfully',
+      invitation
+    });
+  } catch (error) {
+    console.error('Error sending user invitation:', error);
+    res.status(500).json(buildErrorResponse('Error sending invitation', error));
+  }
+});
+
+// Get pending community invitations for current user
+router.get('/community-invitations/pending', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+
+    const invitations = await storage.getPendingCommunityInvitationsForUser(userId);
+
+    // Enrich with community and inviter info
+    const enrichedInvitations = await Promise.all(
+      invitations.map(async (inv: any) => {
+        const community = await storage.getCommunity(inv.communityId);
+        const inviter = await storage.getUser(inv.inviterUserId);
+        const memberCount = await storage.getCommunityMemberCount(inv.communityId);
+        return {
+          ...inv,
+          community: community ? {
+            id: community.id,
+            name: community.name,
+            slug: community.slug,
+            description: community.description,
+            iconName: community.iconName,
+            iconColor: community.iconColor,
+            memberCount
+          } : null,
+          inviter: inviter ? {
+            id: inviter.id,
+            username: inviter.username,
+            displayName: inviter.displayName,
+            avatarUrl: inviter.avatarUrl
+          } : null
+        };
+      })
+    );
+
+    res.json(enrichedInvitations);
+  } catch (error) {
+    console.error('Error fetching pending invitations:', error);
+    res.status(500).json(buildErrorResponse('Error fetching invitations', error));
+  }
+});
+
+// Accept community invitation
+router.post('/community-invitations/:id/accept', requireAuth, async (req, res) => {
+  try {
+    const invitationId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(invitationId)) {
+      return res.status(400).json({ message: 'Invalid invitation ID' });
+    }
+
+    const invitation = await storage.getCommunityInvitationById(invitationId);
+    if (!invitation) {
+      return res.status(404).json({ message: 'Invitation not found' });
+    }
+
+    // Verify invitation is for this user
+    if (invitation.inviteeUserId !== userId) {
+      return res.status(403).json({ message: 'This invitation is not for you' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.status(400).json({ message: 'Invitation already processed' });
+    }
+
+    // Check expiration
+    if (new Date(invitation.expiresAt) < new Date()) {
+      await storage.updateCommunityInvitationStatus(invitationId, 'expired');
+      return res.status(400).json({ message: 'Invitation has expired' });
+    }
+
+    // Add user to community
+    await storage.addCommunityMember({
+      communityId: invitation.communityId,
+      userId,
+      role: 'member'
+    });
+
+    // Update invitation status
+    await storage.updateCommunityInvitationStatus(invitationId, 'accepted');
+
+    // Notify inviter
+    const inviteeName = await getUserDisplayName(userId);
+    const community = await storage.getCommunity(invitation.communityId);
+    await notifyUserWithPreferences(invitation.inviterUserId, {
+      title: 'Invitation Accepted',
+      body: `${inviteeName} accepted your invitation to join ${community?.name || 'the community'}`,
+      data: { communityId: invitation.communityId, type: 'community_invite_accepted' },
+      category: 'community'
+    });
+
+    res.json({
+      success: true,
+      message: 'You have joined the community',
+      communityId: invitation.communityId
+    });
+  } catch (error) {
+    console.error('Error accepting invitation:', error);
+    res.status(500).json(buildErrorResponse('Error accepting invitation', error));
+  }
+});
+
+// Decline community invitation
+router.post('/community-invitations/:id/decline', requireAuth, async (req, res) => {
+  try {
+    const invitationId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(invitationId)) {
+      return res.status(400).json({ message: 'Invalid invitation ID' });
+    }
+
+    const invitation = await storage.getCommunityInvitationById(invitationId);
+    if (!invitation) {
+      return res.status(404).json({ message: 'Invitation not found' });
+    }
+
+    // Verify invitation is for this user
+    if (invitation.inviteeUserId !== userId) {
+      return res.status(403).json({ message: 'This invitation is not for you' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.status(400).json({ message: 'Invitation already processed' });
+    }
+
+    // Update invitation status
+    await storage.updateCommunityInvitationStatus(invitationId, 'declined');
+
+    res.json({
+      success: true,
+      message: 'Invitation declined'
+    });
+  } catch (error) {
+    console.error('Error declining invitation:', error);
+    res.status(500).json(buildErrorResponse('Error declining invitation', error));
+  }
+});
+
 // ============================================================================
 // COMMUNITY UPDATE
 // ============================================================================

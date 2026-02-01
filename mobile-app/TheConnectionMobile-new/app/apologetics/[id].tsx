@@ -954,7 +954,7 @@ function getStyles(colors: any) {
     verseModalContent: {
       width: '100%',
       maxWidth: 360,
-      maxHeight: '70%',
+      maxHeight: '80%',
       borderRadius: 16,
       padding: 20,
       shadowColor: '#000',
@@ -975,7 +975,8 @@ function getStyles(colors: any) {
       fontWeight: '600',
     },
     verseModalScroll: {
-      maxHeight: 300,
+      flexGrow: 1,
+      flexShrink: 1,
     },
     verseModalText: {
       fontSize: 16,

@@ -33,8 +33,10 @@ import {
   useUnfollowUser,
   useFollowStatus,
 } from '../queries/follow';
-import { Colors } from '../shared/colors';
+import { eventsAPI } from '../lib/apiClient';
+// Colors now come from useTheme() - see colors.primary usage below
 import { fetchBiblePassage, looksLikeBibleReference } from '../lib/bibleApi';
+import { ClergyBadge } from '../components/ClergyBadge';
 
 // Custom church icon
 const ChurchIcon = require('../../assets/church-icon.png');
@@ -48,7 +50,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const { colors, spacing, radii, colorScheme } = useTheme();
   const { user: currentUser, refresh: refreshAuth } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'posts' | 'communities'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'communities' | 'events'>('posts');
   const [refreshing, setRefreshing] = useState(false);
   const [showVerseModal, setShowVerseModal] = useState(false);
   const [versePassage, setVersePassage] = useState<{ reference: string; text: string; translation: string } | null>(null);
@@ -62,6 +64,13 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   // Fetch user profile data
   const { data: profile, isLoading, error, refetch } = useUserProfile(targetUserId);
   const { data: followStatus } = useFollowStatus(targetUserId);
+
+  // Fetch attended events for the Events tab
+  const { data: attendedEventsData, refetch: refetchAttendedEvents } = useQuery({
+    queryKey: ['attended-events', targetUserId],
+    queryFn: () => eventsAPI.getAttendedEvents(targetUserId),
+    enabled: !!targetUserId,
+  });
 
   // Debug logging
   React.useEffect(() => {
@@ -100,8 +109,9 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
-      refetch(),        // Refresh local profile query
-      refreshAuth(),    // Refresh global user state
+      refetch(),                 // Refresh local profile query
+      refreshAuth(),             // Refresh global user state
+      refetchAttendedEvents(),   // Refresh attended events
     ]);
     setRefreshing(false);
   };
@@ -282,8 +292,8 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Stats */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.postsCount}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Posts</Text>
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.eventsCount || 0}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Events</Text>
               </View>
               <Pressable style={styles.statItem}>
                 <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.followersCount}</Text>
@@ -303,6 +313,10 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               <Text style={[styles.displayName, { color: colors.textPrimary }]}>
                 {user.displayName || user.username}
               </Text>
+              {/* TEMP: Inline clergy badge for preview */}
+              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginLeft: 4 }}>
+                <Ionicons name="shield-checkmark" size={11} color="#D97706" />
+              </View>
               {user.denomination && (
                 <View style={[styles.denominationBadge, { backgroundColor: `${colors.primary}15` }]}>
                   <Text style={[styles.denominationText, { color: colors.primary }]}>{user.denomination}</Text>
@@ -431,6 +445,21 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               style={[styles.tabText, { color: activeTab === 'communities' ? colors.primary : colors.textSecondary }]}
             >
               Communities
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, activeTab === 'events' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            onPress={() => setActiveTab('events')}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={20}
+              color={activeTab === 'events' ? colors.primary : colors.textSecondary}
+            />
+            <Text
+              style={[styles.tabText, { color: activeTab === 'events' ? colors.primary : colors.textSecondary }]}
+            >
+              Events
             </Text>
           </Pressable>
         </View>
@@ -565,6 +594,76 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             </View>
           )}
 
+          {activeTab === 'events' && (
+            <View style={styles.eventsContainer}>
+              {attendedEventsData?.events && attendedEventsData.events.length > 0 ? (
+                attendedEventsData.events.map((event: any) => (
+                  <Pressable
+                    key={event.id}
+                    style={[styles.attendedEventCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+                    onPress={() => router.push(`/events/${event.id}`)}
+                  >
+                    {event.imageUrl && (
+                      <Image
+                        source={{ uri: event.imageUrl }}
+                        style={styles.attendedEventImage}
+                        resizeMode="cover"
+                      />
+                    )}
+                    <View style={styles.attendedEventInfo}>
+                      <Text style={[styles.attendedEventTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+                        {event.title}
+                      </Text>
+                      <View style={styles.attendedEventMeta}>
+                        <Ionicons name="calendar" size={12} color={colors.textSecondary} />
+                        <Text style={[styles.attendedEventMetaText, { color: colors.textSecondary }]}>
+                          {new Date(event.eventDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </Text>
+                      </View>
+                      {(event.location || event.communityName) && (
+                        <View style={styles.attendedEventMeta}>
+                          <Ionicons name="location" size={12} color={colors.textSecondary} />
+                          <Text style={[styles.attendedEventMetaText, { color: colors.textSecondary }]} numberOfLines={1}>
+                            {event.location || event.communityName}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={[styles.attendedBadge, { backgroundColor: '#10B98115' }]}>
+                      <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                    </View>
+                  </Pressable>
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="calendar-outline" size={48} color={colors.textMuted} style={{ opacity: 0.5 }} />
+                  <Text style={[styles.emptyHeadline, { color: colors.textPrimary, marginTop: 12 }]}>
+                    No events attended yet
+                  </Text>
+                  <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                    {viewingOwnProfile
+                      ? 'RSVP to events and confirm your attendance after they end to build your event history!'
+                      : "This user hasn't confirmed attendance at any events yet."}
+                  </Text>
+                  {viewingOwnProfile && (
+                    <Pressable
+                      style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
+                      onPress={() => router.push('/(tabs)/events')}
+                    >
+                      <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
+                        Browse Events
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
         </View>
       </ScrollView>
 
@@ -654,7 +753,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#7C8F78',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -771,7 +870,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#7C8F78',
     alignItems: 'center',
   },
   followingButton: {
@@ -798,14 +897,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: Colors.primary,
+    borderBottomColor: '#7C8F78',
   },
   tabText: {
     fontSize: 14,
     fontWeight: '500',
   },
   activeTabText: {
-    color: Colors.primary,
+    color: '#7C8F78',
     fontWeight: '600',
   },
   content: {
@@ -847,6 +946,49 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     gap: 16,
   },
+  eventsContainer: {
+    padding: 16,
+  },
+  attendedEventCard: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  attendedEventImage: {
+    width: 80,
+    height: 80,
+  },
+  attendedEventInfo: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'center',
+  },
+  attendedEventTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  attendedEventMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  attendedEventMetaText: {
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  attendedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   storyCircle: {
     width: 80,
     alignItems: 'center',
@@ -858,7 +1000,7 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     padding: 3,
     borderWidth: 2,
-    borderColor: Colors.primary,
+    borderColor: '#7C8F78',
     marginBottom: 6,
   },
   storyIconCircle: {

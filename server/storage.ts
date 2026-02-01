@@ -38,6 +38,8 @@ import {
   Event, InsertEvent,
   EventRsvp, InsertEventRsvp,
   EventBookmark, InsertEventBookmark,
+  EventInvitation, InsertEventInvitation,
+  eventInvitations,
 
   // Prayer system
   PrayerRequest, InsertPrayerRequest,
@@ -75,7 +77,7 @@ import {
 } from "@shared/schema";
 import { postVotes, commentVotes } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, asc, lt, sql, inArray, like, ilike, isNull } from "drizzle-orm";
+import { eq, and, or, desc, asc, lt, gt, sql, inArray, like, ilike, isNull } from "drizzle-orm";
 import { whereNotDeleted, andNotDeleted } from "./db/helpers";
 import { geocodeAddress } from "./geocoding";
 import softDelete from './db/softDelete';
@@ -138,7 +140,9 @@ class StorageSafety {
     'getApologeticsAnswersByQuestion', 'createApologeticsAnswer', 'getAllEvents',
     'getEvent', 'getUserEvents', 'getNearbyEvents', 'createEvent', 'updateEvent', 'deleteEvent',
     'createEventRSVP', 'getEventRSVPs', 'getUserEventRSVP', 'getUserRSVPs', 'upsertEventRSVP',
-    'deleteEventRSVP', 'getAllMicroblogs', 'getMicroblog', 'getUserMicroblogs',
+    'deleteEventRSVP', 'createEventInvitation', 'getEventInvitation', 'getEventInvitationById',
+    'getPendingEventInvitationsForUser', 'updateEventInvitationStatus', 'getEventAttendeeCount',
+    'getAllMicroblogs', 'getMicroblog', 'getUserMicroblogs',
     'createMicroblog', 'updateMicroblog', 'deleteMicroblog', 'likeMicroblog',
     'unlikeMicroblog', 'getUserLikedMicroblogs', 'hasUserLikedMicroblog',
     'hasUserRepostedMicroblog', 'hasUserBookmarkedMicroblog', 'getMicroblogLikeCount',
@@ -225,7 +229,8 @@ export interface IStorage {
   updateCommunityInvitationStatus(id: number, status: string): Promise<CommunityInvitation>;
   deleteCommunityInvitation(id: number): Promise<boolean>;
   getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined>;
-  
+  getPendingCommunityInvitationsForUser(userId: number): Promise<CommunityInvitation[]>;
+
   // Community Members & Roles
   getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]>;
   getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined>;
@@ -348,7 +353,15 @@ export interface IStorage {
   getUserRSVPs(userId: number): Promise<EventRsvp[]>;
   upsertEventRSVP(eventId: number, userId: number, status: string): Promise<EventRsvp>;
   deleteEventRSVP(id: number): Promise<boolean>;
-  
+
+  // Event Invitation methods
+  createEventInvitation(invitation: InsertEventInvitation): Promise<EventInvitation>;
+  getEventInvitation(eventId: number, inviteeId: number): Promise<EventInvitation | undefined>;
+  getEventInvitationById(id: number): Promise<EventInvitation | undefined>;
+  getPendingEventInvitationsForUser(userId: number): Promise<EventInvitation[]>;
+  updateEventInvitationStatus(id: number, status: string): Promise<EventInvitation>;
+  getEventAttendeeCount(eventId: number): Promise<number>;
+
   // Microblog methods
   getAllMicroblogs(): Promise<Microblog[]>;
   getMicroblog(id: number): Promise<Microblog | undefined>;
@@ -593,6 +606,7 @@ export class MemStorage implements IStorage {
     apologeticsAnswers: [] as ApologeticsAnswer[],
     events: [] as Event[],
     eventRsvps: [] as EventRsvp[],
+    eventInvitations: [] as EventInvitation[],
     microblogs: [] as Microblog[],
     microblogLikes: [] as MicroblogLike[],
     microblogReposts: [] as MicroblogRepost[],
@@ -945,7 +959,16 @@ export class MemStorage implements IStorage {
   async getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined> {
     return this.data.communityInvitations.find(i => i.inviteeEmail === email && i.communityId === communityId);
   }
-  
+
+  async getPendingCommunityInvitationsForUser(userId: number): Promise<CommunityInvitation[]> {
+    return this.data.communityInvitations.filter(i =>
+      i.inviteeUserId === userId &&
+      i.status === 'pending' &&
+      i.inviterUserId !== userId && // Exclude self-invitations (join requests)
+      new Date(i.expiresAt) > new Date()
+    );
+  }
+
   // Community member methods
   async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
     return this.data.communityMembers
@@ -1788,12 +1811,55 @@ export class MemStorage implements IStorage {
     
     return true;
   }
-  
+
+  // Event Invitation methods (MemStorage)
+  async createEventInvitation(invitation: InsertEventInvitation): Promise<EventInvitation> {
+    const newInvitation: EventInvitation = {
+      id: this.nextId++,
+      eventId: invitation.eventId,
+      inviterId: invitation.inviterId,
+      inviteeId: invitation.inviteeId,
+      status: invitation.status || 'pending',
+      createdAt: new Date(),
+      respondedAt: null
+    };
+    this.data.eventInvitations.push(newInvitation);
+    return newInvitation;
+  }
+
+  async getEventInvitation(eventId: number, inviteeId: number): Promise<EventInvitation | undefined> {
+    return this.data.eventInvitations.find(i => i.eventId === eventId && i.inviteeId === inviteeId);
+  }
+
+  async getEventInvitationById(id: number): Promise<EventInvitation | undefined> {
+    return this.data.eventInvitations.find(i => i.id === id);
+  }
+
+  async getPendingEventInvitationsForUser(userId: number): Promise<EventInvitation[]> {
+    return this.data.eventInvitations.filter(i =>
+      i.inviteeId === userId && i.status === 'pending'
+    );
+  }
+
+  async updateEventInvitationStatus(id: number, status: string): Promise<EventInvitation> {
+    const invitation = this.data.eventInvitations.find(i => i.id === id);
+    if (!invitation) throw new Error('Invitation not found');
+    invitation.status = status;
+    invitation.respondedAt = new Date();
+    return invitation;
+  }
+
+  async getEventAttendeeCount(eventId: number): Promise<number> {
+    return this.data.eventRsvps.filter(r =>
+      r.eventId === eventId && (r.status === 'going' || r.status === 'maybe')
+    ).length;
+  }
+
   // Livestream methods
   async getAllLivestreams(): Promise<Livestream[]> {
     return [...this.data.livestreams].sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
-  
+
   async createLivestream(livestream: any): Promise<Livestream> {
     const newLivestream: Livestream = {
       id: this.nextId++,
@@ -2951,7 +3017,22 @@ export class DbStorage implements IStorage {
 
     return invitation;
   }
-  
+
+  async getPendingCommunityInvitationsForUser(userId: number): Promise<CommunityInvitation[]> {
+    const now = new Date();
+    const invitations = await db.select()
+      .from(communityInvitations)
+      .where(and(
+        eq(communityInvitations.inviteeUserId, userId),
+        eq(communityInvitations.status, 'pending'),
+        gt(communityInvitations.expiresAt, now)
+      ))
+      .orderBy(communityInvitations.createdAt);
+
+    // Filter out self-invitations (join requests)
+    return invitations.filter(inv => inv.inviterUserId !== inv.inviteeUserId);
+  }
+
   // Community chat room methods
   async getCommunityRooms(communityId: number): Promise<CommunityChatRoom[]> {
     return await db.select()
@@ -3937,7 +4018,64 @@ export class DbStorage implements IStorage {
     const result = await db.delete(eventRsvps).where(eq(eventRsvps.id, id));
     return true;
   }
-  
+
+  // Event Invitation methods (DbStorage)
+  async createEventInvitation(invitation: InsertEventInvitation): Promise<EventInvitation> {
+    const [newInvitation] = await db.insert(eventInvitations).values(invitation as any).returning();
+    return newInvitation as EventInvitation;
+  }
+
+  async getEventInvitation(eventId: number, inviteeId: number): Promise<EventInvitation | undefined> {
+    const [invitation] = await db.select()
+      .from(eventInvitations)
+      .where(and(
+        eq(eventInvitations.eventId, eventId),
+        eq(eventInvitations.inviteeId, inviteeId)
+      ))
+      .limit(1);
+    return invitation as EventInvitation | undefined;
+  }
+
+  async getEventInvitationById(id: number): Promise<EventInvitation | undefined> {
+    const [invitation] = await db.select()
+      .from(eventInvitations)
+      .where(eq(eventInvitations.id, id))
+      .limit(1);
+    return invitation as EventInvitation | undefined;
+  }
+
+  async getPendingEventInvitationsForUser(userId: number): Promise<EventInvitation[]> {
+    const invitations = await db.select()
+      .from(eventInvitations)
+      .where(and(
+        eq(eventInvitations.inviteeId, userId),
+        eq(eventInvitations.status, 'pending')
+      ))
+      .orderBy(desc(eventInvitations.createdAt));
+    return invitations as EventInvitation[];
+  }
+
+  async updateEventInvitationStatus(id: number, status: string): Promise<EventInvitation> {
+    const [updated] = await db.update(eventInvitations)
+      .set({ status, respondedAt: new Date() })
+      .where(eq(eventInvitations.id, id))
+      .returning();
+    return updated as EventInvitation;
+  }
+
+  async getEventAttendeeCount(eventId: number): Promise<number> {
+    const rsvps = await db.select()
+      .from(eventRsvps)
+      .where(and(
+        eq(eventRsvps.eventId, eventId),
+        or(
+          eq(eventRsvps.status, 'going'),
+          eq(eventRsvps.status, 'maybe')
+        )
+      ));
+    return rsvps.length;
+  }
+
   // Livestream methods
   async getAllLivestreams(): Promise<Livestream[]> {
     return await db.select()

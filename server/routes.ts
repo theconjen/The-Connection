@@ -168,6 +168,7 @@ function sanitizeUserForResponse(target: User, viewerId?: number, viewerIsAdmin?
     result.notifyForums = target.notifyForums;
     result.notifyFeed = target.notifyFeed;
     result.dmPrivacy = target.dmPrivacy;
+    result.dateOfBirth = target.dateOfBirth;
   }
 
   if (target.showLocation || viewerIsAdmin || isSelf) {

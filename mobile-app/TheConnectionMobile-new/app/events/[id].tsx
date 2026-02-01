@@ -51,6 +51,7 @@ interface Event {
   creatorId: number;
   hostUserId?: number; // Reliable host identifier
   host?: HostUser | null; // Host user info from API
+  communityId?: number | null; // null = Connection Hosted event
 }
 
 export default function EventDetailScreen() {
@@ -201,6 +202,58 @@ export default function EventDetailScreen() {
       console.error('[RSVP Error]', status, message);
     },
   });
+
+  // Check if this is a Connection Hosted event (no communityId)
+  const isConnectionHosted = event?.communityId === null || event?.communityId === undefined;
+
+  // Get nearby users count for Connection Hosted events (only for host)
+  const { data: nearbyUsersData, refetch: refetchNearbyCount } = useQuery({
+    queryKey: ['nearby-users-count', eventId],
+    queryFn: () => eventsAPI.getNearbyUsersCount(eventId, 30),
+    enabled: !!eventId && isConnectionHosted && isHost(event, user?.id),
+  });
+
+  // Mutation to invite nearby users
+  const inviteNearbyMutation = useMutation({
+    mutationFn: () => eventsAPI.inviteNearbyUsers(eventId, 30, true),
+    onSuccess: (data) => {
+      Alert.alert(
+        'Invitations Sent!',
+        `Successfully invited ${data.invitedCount} users within 30 miles of the event.${data.skippedCount > 0 ? `\n\n${data.skippedCount} users were skipped (already invited or RSVP'd).` : ''}`,
+        [{ text: 'OK' }]
+      );
+      // Refresh the nearby count
+      refetchNearbyCount();
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to invite nearby users';
+      Alert.alert('Error', message);
+    },
+  });
+
+  const handleInviteNearbyUsers = () => {
+    const eligibleCount = nearbyUsersData?.eligibleToInvite || 0;
+    if (eligibleCount === 0) {
+      Alert.alert(
+        'No Users to Invite',
+        'There are no users within 30 miles who haven\'t already been invited or RSVP\'d.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Invite Nearby Users',
+      `This will send invitations to ${eligibleCount} users within 30 miles of this event.\n\nThey will receive a notification about the event.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Invite ${eligibleCount} Users`,
+          onPress: () => inviteNearbyMutation.mutate(),
+        },
+      ]
+    );
+  };
 
   // Parse eventDate (handles "2026-01-12 00:00:00" or "2026-01-12" formats)
   const parseEventDate = (eventDate: string): Date => {
@@ -513,6 +566,49 @@ export default function EventDetailScreen() {
             onPress={() => router.push({ pathname: '/events/manage/[id]', params: { id: String(eventId) } })}
           >
             <Text style={styles.manageEventText}>Manage Event</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Invite Friends Button (for hosts and attendees) */}
+      {event && isAuthenticated && (isHost(event, user?.id) || currentRsvp === 'going' || currentRsvp === 'maybe') && (
+        <View style={styles.inviteContainer}>
+          <TouchableOpacity
+            style={[styles.inviteButton, { borderColor: colors.primary }]}
+            onPress={() => router.push({ pathname: '/events/[id]/invite', params: { id: String(eventId) } })}
+          >
+            <Text style={[styles.inviteButtonText, { color: colors.primary }]}>Invite Friends</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Invite Nearby Users Button (Connection Hosted events, host only) */}
+      {event && isConnectionHosted && isHost(event, user?.id) && (
+        <View style={styles.inviteNearbyContainer}>
+          <TouchableOpacity
+            style={[
+              styles.inviteNearbyButton,
+              { backgroundColor: colors.accent },
+              inviteNearbyMutation.isPending && styles.inviteNearbyButtonDisabled
+            ]}
+            onPress={handleInviteNearbyUsers}
+            disabled={inviteNearbyMutation.isPending}
+          >
+            {inviteNearbyMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.inviteNearbyIcon}>📍</Text>
+                <View style={styles.inviteNearbyTextContainer}>
+                  <Text style={styles.inviteNearbyButtonText}>Invite Nearby Users (30 mi)</Text>
+                  {nearbyUsersData && (
+                    <Text style={styles.inviteNearbySubtext}>
+                      {nearbyUsersData.eligibleToInvite} users available
+                    </Text>
+                  )}
+                </View>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -966,6 +1062,54 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  inviteContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+  },
+  inviteButton: {
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  inviteButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  inviteNearbyContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+  },
+  inviteNearbyButton: {
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteNearbyButtonDisabled: {
+    opacity: 0.7,
+  },
+  inviteNearbyIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  inviteNearbyTextContainer: {
+    alignItems: 'center',
+  },
+  inviteNearbyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  inviteNearbySubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    marginTop: 2,
   },
 
   // DEV-ONLY Debug Panel styles

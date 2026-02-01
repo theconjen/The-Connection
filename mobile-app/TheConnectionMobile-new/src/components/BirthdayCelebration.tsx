@@ -27,6 +27,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import apiClient from '../lib/apiClient';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CONFETTI_COUNT = 50;
@@ -130,10 +131,8 @@ export const BirthdayCelebration: React.FC<BirthdayCelebrationProps> = ({ onDism
 
     try {
       // Fetch user profile to get birthday
-      const response = await fetch(`https://api.theconnection.app/api/users/${user.id}`);
-      if (!response.ok) return;
-
-      const data = await response.json();
+      const response = await apiClient.get(`/api/users/${user.id}`);
+      const data = response.data;
       const birthday = data.user?.dateOfBirth || data.dateOfBirth || data.user?.birthday || data.birthday;
 
       if (!birthday) return;

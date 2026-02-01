@@ -21,6 +21,9 @@ import {
   Pressable,
   StatusBar,
   Alert,
+  ActionSheetIOS,
+  Modal,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +35,7 @@ import apiClient from '../lib/apiClient';
 import { AppHeader } from './AppHeader';
 import { PostCard } from './PostCard';
 import { formatDistanceToNow } from 'date-fns';
+import { shareAdvice } from '../lib/shareUrls';
 
 // ============================================================================
 // TYPES
@@ -471,6 +475,7 @@ function AdvicePostCard({
   onUpvote,
   onComment,
   onBookmark,
+  onMenuPress,
   isUpvoted = false,
   isBookmarked = false,
 }: {
@@ -480,6 +485,7 @@ function AdvicePostCard({
   onUpvote: () => void;
   onComment: () => void;
   onBookmark: () => void;
+  onMenuPress: () => void;
   isUpvoted?: boolean;
   isBookmarked?: boolean;
 }) {
@@ -504,16 +510,19 @@ function AdvicePostCard({
             </Text>
           )}
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={[styles.adviceTime, { color: colors.textMuted }]}>
             {timeAgo}
           </Text>
-          <Pressable onPress={onBookmark} hitSlop={8}>
+          <Pressable onPress={(e) => { e.stopPropagation(); onBookmark(); }} hitSlop={8}>
             <Ionicons
               name={isBookmarked ? "bookmark" : "bookmark-outline"}
               size={18}
               color={isBookmarked ? colors.primary : colors.textMuted}
             />
+          </Pressable>
+          <Pressable onPress={(e) => { e.stopPropagation(); onMenuPress(); }} hitSlop={8}>
+            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
           </Pressable>
         </View>
       </View>
@@ -606,6 +615,9 @@ export default function HomeScreen({
   const [upvotedPosts, setUpvotedPosts] = useState<Set<number>>(new Set());
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<number>>(new Set());
 
+  // State for advice post menu (Android)
+  const [adviceMenuPost, setAdviceMenuPost] = useState<AdvicePost | null>(null);
+
   // Upvote mutation
   const upvoteMutation = useMutation({
     mutationFn: async ({ postId, isCurrentlyLiked }: { postId: number; isCurrentlyLiked: boolean }) => {
@@ -697,6 +709,60 @@ export default function HomeScreen({
     router.push({ pathname: '/advice/[id]' as any, params: { id: postId.toString() } });
   }, [router]);
 
+  // Handle sharing an advice post
+  const handleShareAdvice = useCallback(async (post: AdvicePost) => {
+    setAdviceMenuPost(null);
+    const result = await shareAdvice(post.id, post.content);
+    if (!result.success && result.error !== 'Share dismissed') {
+      Alert.alert('Error', 'Failed to share. Please try again.');
+    }
+  }, []);
+
+  // Handle reporting an advice post
+  const handleReportAdvice = useCallback((post: AdvicePost) => {
+    setAdviceMenuPost(null);
+    Alert.alert(
+      'Report Post',
+      'Are you sure you want to report this post? Our team will review it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.post(`/api/microblogs/${post.id}/report`, {
+                reason: 'inappropriate_content',
+              });
+              Alert.alert('Reported', 'Thank you for your report. Our team will review it.');
+            } catch {
+              Alert.alert('Error', 'Failed to report. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
+  // Show menu for advice post
+  const showAdviceMenu = useCallback((post: AdvicePost) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Share', 'Report'],
+          cancelButtonIndex: 0,
+          destructiveButtonIndex: 2,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) handleShareAdvice(post);
+          if (buttonIndex === 2) handleReportAdvice(post);
+        }
+      );
+    } else {
+      setAdviceMenuPost(post);
+    }
+  }, [handleShareAdvice, handleReportAdvice]);
+
   const hasJoinedCommunities = joinedCommunities.length > 0;
   const hasFeedItems = feedItems.length > 0;
 
@@ -769,6 +835,7 @@ export default function HomeScreen({
             onUpvote={() => handleUpvote(advice.id, isUpvoted)}
             onComment={() => handleComment(advice.id)}
             onBookmark={() => handleBookmark(advice.id, isBookmarked)}
+            onMenuPress={() => showAdviceMenu(advice)}
             isUpvoted={isUpvoted}
             isBookmarked={isBookmarked}
           />
@@ -823,6 +890,50 @@ export default function HomeScreen({
           onEndReachedThreshold={0.5}
           ListFooterComponent={ListFooter}
         />
+      )}
+
+      {/* Android Action Sheet for Advice Post Menu */}
+      {Platform.OS === 'android' && adviceMenuPost && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setAdviceMenuPost(null)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setAdviceMenuPost(null)}
+          >
+            <View style={[styles.actionSheet, { backgroundColor: colors.surface }]}>
+              <Pressable
+                style={styles.actionSheetItem}
+                onPress={() => handleShareAdvice(adviceMenuPost)}
+              >
+                <Ionicons name="share-outline" size={22} color={colors.textPrimary} />
+                <Text style={[styles.actionSheetText, { color: colors.textPrimary }]}>
+                  Share
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.actionSheetItem}
+                onPress={() => handleReportAdvice(adviceMenuPost)}
+              >
+                <Ionicons name="flag-outline" size={22} color="#EF4444" />
+                <Text style={[styles.actionSheetText, { color: '#EF4444' }]}>
+                  Report
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.actionSheetItem, styles.actionSheetCancel, { borderTopColor: colors.borderSubtle }]}
+                onPress={() => setAdviceMenuPost(null)}
+              >
+                <Text style={[styles.actionSheetText, { color: colors.textSecondary }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Modal>
       )}
     </SafeAreaView>
   );
@@ -1095,5 +1206,34 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
+  },
+
+  // Modal / Action Sheet styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34,
+    paddingTop: 8,
+  },
+  actionSheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  actionSheetText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  actionSheetCancel: {
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    marginTop: 8,
   },
 });

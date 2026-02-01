@@ -703,6 +703,64 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     }
   });
 
+  // PATCH /microblogs/:id - Update a microblog (advice posts)
+  router.patch('/microblogs/:id', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const microblogId = parseInt(req.params.id);
+      if (!Number.isFinite(microblogId)) {
+        return res.status(400).json({ message: 'Invalid microblog ID' });
+      }
+
+      const microblog = await storage.getMicroblog(microblogId);
+      if (!microblog || (microblog as any).deletedAt) {
+        return res.status(404).json({ message: 'Microblog not found' });
+      }
+      if (microblog.authorId !== userId) {
+        return res.status(403).json({ message: 'Not authorized to edit this microblog' });
+      }
+
+      // Only allow updating certain fields
+      const allowedFields = ['content', 'anonymousNickname', 'anonymousCity'];
+      const updates: any = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: 'No valid fields to update' });
+      }
+
+      // Validate content length if updating content
+      if (updates.content !== undefined) {
+        if (typeof updates.content !== 'string' || updates.content.trim().length === 0) {
+          return res.status(400).json({ message: 'Content cannot be empty' });
+        }
+        if (updates.content.length > 5000) {
+          return res.status(400).json({ message: 'Content cannot exceed 5000 characters' });
+        }
+        updates.content = updates.content.trim();
+      }
+
+      const updatedMicroblog = await storage.updateMicroblog(microblogId, updates);
+
+      // Reprocess hashtags and keywords if content changed
+      if (updates.content) {
+        storage.processMicroblogHashtags(microblogId, updates.content)
+          .catch(error => console.error('Error processing hashtags:', error));
+        storage.processMicroblogKeywords(microblogId, updates.content)
+          .catch(error => console.error('Error processing keywords:', error));
+      }
+
+      res.json(updatedMicroblog);
+    } catch (error) {
+      console.error('Error updating microblog:', error);
+      res.status(500).json(buildErrorResponse('Error updating microblog', error));
+    }
+  });
+
   router.delete('/microblogs/:id', requireAuth, async (req, res) => {
     try {
       const userId = requireSessionUserId(req);

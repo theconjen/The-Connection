@@ -347,10 +347,11 @@ export default function EditProfileScreen() {
                 <DateTimePicker
                   value={formData.birthday || new Date(2000, 0, 1)}
                   mode="date"
-                  display="spinner"
+                  display="inline"
                   onChange={handleDateChange}
                   maximumDate={new Date(new Date().getFullYear() - 13, new Date().getMonth(), new Date().getDate())}
                   minimumDate={new Date(1900, 0, 1)}
+                  style={{ height: 340 }}
                 />
               </View>
             </Pressable>

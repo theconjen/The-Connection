@@ -1,0 +1,3 @@
+0 8 * * * cd /Users/rawaselou/Desktop/The-Connection-main && npx tsx server/scripts/daily-advice-bot.ts --questions=2
+0 14 * * * cd /Users/rawaselou/Desktop/The-Connection-main && npx tsx server/scripts/daily-advice-bot.ts --questions=1
+0 20 * * * cd /Users/rawaselou/Desktop/The-Connection-main && npx tsx server/scripts/daily-advice-bot.ts --questions=2

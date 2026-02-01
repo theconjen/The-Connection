@@ -10,6 +10,7 @@
  * - /e/:eventId - Events
  * - /p/:postId - Posts
  * - /u/:username - User profiles
+ * - /advice/:adviceId - Advice posts
  */
 
 import { Share, Platform } from 'react-native';
@@ -79,9 +80,18 @@ export function buildProfileShareUrl(username: string, utmSource?: string): stri
 }
 
 /**
+ * Build a share URL for an advice post
+ */
+export function buildAdviceShareUrl(adviceId: number | string, utmSource?: string): string {
+  const base = `${WEB_BASE_URL}/advice/${adviceId}`;
+  const utmParams = buildUtmParams(utmSource);
+  return utmParams ? `${base}?${utmParams}` : base;
+}
+
+/**
  * Share content types
  */
-export type ShareContentType = 'apologetics' | 'event' | 'post' | 'profile';
+export type ShareContentType = 'apologetics' | 'event' | 'post' | 'profile' | 'advice';
 
 export interface ShareContent {
   type: ShareContentType;
@@ -115,6 +125,12 @@ export function buildShareData(content: ShareContent): { url: string; title: str
     case 'profile':
       url = buildProfileShareUrl(content.id as string, utmSource);
       defaultMessage = `Check out ${content.title}'s profile on The Connection`;
+      break;
+    case 'advice':
+      url = buildAdviceShareUrl(content.id, utmSource);
+      defaultMessage = content.title
+        ? `Someone is seeking advice: "${content.title.slice(0, 100)}${content.title.length > 100 ? '...' : ''}" - Share your wisdom on The Connection`
+        : 'Someone needs advice - Share your wisdom on The Connection';
       break;
     default:
       throw new Error(`Unknown content type: ${content.type}`);
@@ -212,6 +228,47 @@ export async function shareProfile(
     id: username,
     title: displayName,
     message: customMessage,
+  });
+}
+
+/**
+ * Share an advice post
+ * @param adviceId - The ID of the advice post
+ * @param contentPreview - Preview of the advice content (first ~100 chars)
+ * @param customMessage - Optional custom share message
+ */
+export async function shareAdvice(
+  adviceId: number | string,
+  contentPreview: string,
+  customMessage?: string
+): Promise<{ success: boolean; error?: string }> {
+  return shareContent({
+    type: 'advice',
+    id: adviceId,
+    title: contentPreview,
+    message: customMessage,
+  });
+}
+
+/**
+ * Share a response to an advice post
+ * @param adviceId - The ID of the advice post (links to the full post)
+ * @param responseContent - Content of the response being shared
+ * @param customMessage - Optional custom share message
+ */
+export async function shareAdviceResponse(
+  adviceId: number | string,
+  responseContent: string,
+  customMessage?: string
+): Promise<{ success: boolean; error?: string }> {
+  const preview = responseContent.slice(0, 100);
+  const message = customMessage || `Great advice: "${preview}${responseContent.length > 100 ? '...' : ''}" - Join the conversation on The Connection`;
+
+  return shareContent({
+    type: 'advice',
+    id: adviceId,
+    title: responseContent,
+    message,
   });
 }
 

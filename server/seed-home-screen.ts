@@ -36,41 +36,49 @@ const advicePosts = [
     content: "How do you balance screen time with spiritual time? I want to spend more time in the Word but keep getting distracted by my phone.",
     topic: "QUESTION",
     tags: ["seeking-advice", "discipline", "balance"],
+    anonymousNickname: "Distracted Dad",
   },
   {
     content: "Any tips for explaining the Trinity to a non-Christian friend? They asked me and I stumbled through my answer.",
     topic: "QUESTION",
     tags: ["seeking-advice", "apologetics", "evangelism"],
+    anonymousNickname: "College Student",
   },
   {
     content: "What's helped you stay consistent with daily prayer? I start strong but fade after a few weeks.",
     topic: "QUESTION",
     tags: ["seeking-advice", "prayer", "discipline"],
+    anonymousNickname: "Seeking Consistency",
   },
   {
     content: "How do you handle difficult coworkers while still being a light for Christ? Need wisdom here.",
     topic: "QUESTION",
     tags: ["seeking-advice", "workplace", "witness"],
+    anonymousNickname: "Office Worker",
   },
   {
     content: "Best way to memorize Scripture? I've tried flashcards but they don't stick for me.",
     topic: "QUESTION",
     tags: ["seeking-advice", "bible", "memorization"],
+    // No nickname - will show as "Anonymous"
   },
   {
     content: "How do you find a good church when you move to a new city? What should I look for?",
     topic: "QUESTION",
     tags: ["seeking-advice", "church", "community"],
+    anonymousNickname: "New In Town",
   },
   {
     content: "What's your go-to verse when anxiety hits? Looking to build a list for difficult moments.",
     topic: "QUESTION",
     tags: ["seeking-advice", "anxiety", "scripture"],
+    anonymousNickname: "Anxious Heart",
   },
   {
     content: "How do you handle disagreements about theology with family members? Want to keep the peace but also hold to truth.",
     topic: "QUESTION",
     tags: ["seeking-advice", "family", "theology"],
+    anonymousNickname: "Peacemaker",
   },
 ];
 
@@ -215,10 +223,12 @@ async function seedHomeScreenContent() {
         content: post.content,
         topic: post.topic as any,
         tags: post.tags,
+        anonymousNickname: (post as any).anonymousNickname || null,
         createdAt: new Date(Date.now() - (i * 2 * 60 * 60 * 1000)), // Spread over past hours
       });
 
-      console.info(`   ✅ "${post.content.substring(0, 50)}..." by ${author.displayName || author.username}`);
+      const nickname = (post as any).anonymousNickname ? ` (${(post as any).anonymousNickname})` : '';
+      console.info(`   ✅ "${post.content.substring(0, 50)}..."${nickname}`);
     }
 
     // ========================================

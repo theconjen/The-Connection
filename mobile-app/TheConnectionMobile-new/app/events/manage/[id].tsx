@@ -765,7 +765,7 @@ export default function ManageEventScreen() {
               <DateTimePicker
                 value={selectedDate}
                 mode="date"
-                display="spinner"
+                display="inline"
                 onChange={(event, date) => {
                   if (date) {
                     setSelectedDate(date);
@@ -773,7 +773,7 @@ export default function ManageEventScreen() {
                 }}
                 themeVariant={colorScheme}
                 minimumDate={new Date()}
-                style={styles.iosPicker}
+                style={styles.iosCalendarPicker}
               />
             </View>
           </Pressable>
@@ -1233,6 +1233,9 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
     },
     iosPicker: {
       height: 200,
+    },
+    iosCalendarPicker: {
+      height: 340,
     },
     // Category picker styles
     categoryModalContent: {

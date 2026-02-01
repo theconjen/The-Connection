@@ -67,6 +67,8 @@ interface Community {
   iconColor: string;
   isNew: boolean;
   distance?: number | null;
+  isActive?: boolean;
+  activityLabel?: string | null;
 }
 
 // Filter category interface
@@ -545,7 +547,27 @@ function CommunityRow({
           >
             {community.title}
           </Text>
-          {community.isNew && (
+          {community.isActive && (
+            <View
+              style={{
+                backgroundColor: '#10B981',
+                paddingHorizontal: 5,
+                paddingVertical: 1,
+                borderRadius: radii.sm,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 8,
+                  fontWeight: '700',
+                  color: '#FFFFFF',
+                }}
+              >
+                ACTIVE
+              </Text>
+            </View>
+          )}
+          {community.isNew && !community.isActive && (
             <View
               style={{
                 backgroundColor: colors.secondary,
@@ -571,10 +593,27 @@ function CommunityRow({
           variant="caption"
           color="textMuted"
           numberOfLines={1}
-          style={{ marginBottom: spacing.xs }}
+          style={{ marginBottom: community.activityLabel ? 2 : spacing.xs }}
         >
           {community.subtitle}
         </Text>
+
+        {/* Activity Label */}
+        {community.activityLabel && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              marginBottom: spacing.xs,
+            }}
+          >
+            <Ionicons name="pulse" size={10} color="#10B981" />
+            <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '600' }}>
+              {community.activityLabel}
+            </Text>
+          </View>
+        )}
 
         {/* Tags */}
         <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
@@ -688,6 +727,13 @@ export function CommunitiesScreen({
     staleTime: 0, // Always fetch fresh data to ensure membership status is current
     refetchOnMount: 'always', // Always refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when app comes to foreground
+  });
+
+  // Fetch active communities for "Active Communities" section
+  const { data: activeCommunities = [] } = useQuery({
+    queryKey: ['/api/communities/active'],
+    queryFn: () => communitiesAPI.getActive(8),
+    staleTime: 60000, // Cache for 1 minute
   });
 
   // Map communities to channels format for the horizontal scroll
@@ -889,6 +935,127 @@ export function CommunitiesScreen({
           </ScrollView>
         </View>
 
+        {/* Active Communities Section */}
+        {activeCommunities.length > 0 && (
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              padding: spacing.lg,
+              paddingTop: spacing.md,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.sm,
+                marginBottom: spacing.md,
+              }}
+            >
+              <View
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: '#10B981',
+                }}
+              />
+              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+                Active Communities
+              </Text>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: spacing.sm }}
+            >
+              {activeCommunities.map((community: any) => (
+                <Pressable
+                  key={community.id}
+                  onPress={() => onCommunityPress?.(community as any)}
+                  style={({ pressed }) => ({
+                    backgroundColor: getLightBackground(community.iconColor),
+                    borderRadius: radii.xl,
+                    padding: spacing.md,
+                    width: 160,
+                    borderWidth: 1,
+                    borderColor: community.iconColor + '30',
+                    opacity: pressed ? 0.9 : 1,
+                  })}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.sm,
+                      marginBottom: spacing.sm,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: radii.lg,
+                        backgroundColor: community.iconColor || '#4F46E5',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Ionicons
+                        name={(community.iconName || 'people') as any}
+                        size={16}
+                        color="#FFFFFF"
+                      />
+                    </View>
+                    <View
+                      style={{
+                        backgroundColor: '#10B981',
+                        paddingHorizontal: 5,
+                        paddingVertical: 2,
+                        borderRadius: radii.sm,
+                      }}
+                    >
+                      <Text style={{ fontSize: 8, fontWeight: '700', color: '#FFFFFF' }}>
+                        ACTIVE
+                      </Text>
+                    </View>
+                  </View>
+                  <Text
+                    variant="bodySmall"
+                    style={{ fontWeight: '700', color: colors.textPrimary }}
+                    numberOfLines={1}
+                  >
+                    {community.name}
+                  </Text>
+                  {community.activityLabel && (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        marginTop: 4,
+                      }}
+                    >
+                      <Ionicons name="pulse" size={10} color="#10B981" />
+                      <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '500' }}>
+                        {community.activityLabel}
+                      </Text>
+                    </View>
+                  )}
+                  <Text
+                    variant="caption"
+                    style={{ color: colors.textMuted, marginTop: 2 }}
+                    numberOfLines={1}
+                  >
+                    {community.memberCount || 0} members
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Search Bar */}
         <View
           style={{
@@ -1040,6 +1207,8 @@ export function CommunitiesScreen({
                       iconColor: community.iconColor || '#4F46E5',
                       isNew: false,
                       distance: community.distance,
+                      isActive: community.isActive,
+                      activityLabel: community.activityLabel,
                     }}
                     onPress={() => onCommunityPress?.(community as any)}
                   />

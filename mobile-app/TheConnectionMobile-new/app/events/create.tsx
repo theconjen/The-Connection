@@ -108,14 +108,19 @@ export default function CreateEventScreen() {
 
   // Date and time state
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedEndDate, setSelectedEndDate] = useState(new Date()); // End date for multi-day events (Conference)
   const [selectedTime, setSelectedTime] = useState(new Date());
 
   // Modal state
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false); // End date picker for Conference
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
+
+  // Multi-day events (Conference category)
+  const isMultiDayEvent = category === 'Conference';
 
   // Fetch user's communities (only where user is moderator or owner)
   const { data: communities, isLoading: communitiesLoading } = useQuery<Community[]>({
@@ -148,6 +153,13 @@ export default function CreateEventScreen() {
 
     return () => clearTimeout(timer);
   }, [location, selectedLocation]);
+
+  // Auto-adjust end date when start date changes (keep end date >= start date)
+  useEffect(() => {
+    if (isMultiDayEvent && selectedEndDate < selectedDate) {
+      setSelectedEndDate(selectedDate);
+    }
+  }, [selectedDate, isMultiDayEvent]);
 
   // Handle location selection
   const handleSelectLocation = (suggestion: LocationSuggestion) => {
@@ -199,6 +211,17 @@ export default function CreateEventScreen() {
     // Format date as YYYY-MM-DD
     const eventDate = selectedDate.toISOString().slice(0, 10);
 
+    // For Conference events, use end date; otherwise same as start date
+    const eventEndDate = isMultiDayEvent
+      ? selectedEndDate.toISOString().slice(0, 10)
+      : eventDate;
+
+    // Validate end date is after or equal to start date for conferences
+    if (isMultiDayEvent && selectedEndDate < selectedDate) {
+      Alert.alert('Error', 'End date must be after or on the start date');
+      return;
+    }
+
     // Format time as HH:MM:SS
     const hours = selectedTime.getHours().toString().padStart(2, '0');
     const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
@@ -237,9 +260,10 @@ export default function CreateEventScreen() {
       description: description.trim(),
       category, // Event type: Sunday Service, Worship, Bible Study, etc.
       location: location.trim() || undefined,
-      latitude,
-      longitude,
+      latitude: latitude !== undefined ? String(latitude) : undefined,
+      longitude: longitude !== undefined ? String(longitude) : undefined,
       eventDate,
+      eventEndDate, // End date for multi-day events (Conference)
       startTime,
       endTime,
       communityId: selectedCommunityId || undefined, // null/undefined for "The Connection" events
@@ -470,7 +494,7 @@ export default function CreateEventScreen() {
 
           {/* Date Picker */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date *</Text>
+            <Text style={styles.label}>{isMultiDayEvent ? 'Start Date *' : 'Date *'}</Text>
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowDatePicker(true)}
@@ -479,6 +503,21 @@ export default function CreateEventScreen() {
               <Text style={styles.pickerText}>{formatDate(selectedDate)}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* End Date Picker - Only for Conference (multi-day events) */}
+          {isMultiDayEvent && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>End Date *</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowEndDatePicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                <Text style={styles.pickerText}>{formatDate(selectedEndDate)}</Text>
+              </TouchableOpacity>
+              <Text style={styles.helperText}>Conferences typically span multiple days</Text>
+            </View>
+          )}
 
           {/* Time Picker */}
           <View style={styles.inputGroup}>
@@ -654,7 +693,7 @@ export default function CreateEventScreen() {
               <DateTimePicker
                 value={selectedDate}
                 mode="date"
-                display="spinner"
+                display="inline"
                 onChange={(event, date) => {
                   if (date) {
                     setSelectedDate(date);
@@ -662,7 +701,7 @@ export default function CreateEventScreen() {
                 }}
                 themeVariant={colorScheme}
                 minimumDate={new Date()}
-                style={styles.iosPicker}
+                style={styles.iosCalendarPicker}
               />
             </View>
           </Pressable>
@@ -680,6 +719,61 @@ export default function CreateEventScreen() {
               }
             }}
             minimumDate={new Date()}
+          />
+        )
+      )}
+
+      {/* End Date Picker - Modal for iOS, inline for Android (Conference only) */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showEndDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowEndDatePicker(false)}
+        >
+          <Pressable
+            style={styles.pickerModalOverlay}
+            onPress={() => setShowEndDatePicker(false)}
+          >
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                  <Text style={styles.pickerModalCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerModalTitle}>Select End Date</Text>
+                <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                  <Text style={styles.pickerModalDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedEndDate}
+                mode="date"
+                display="inline"
+                onChange={(event, date) => {
+                  if (date) {
+                    setSelectedEndDate(date);
+                  }
+                }}
+                themeVariant={colorScheme}
+                minimumDate={selectedDate}
+                style={styles.iosCalendarPicker}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showEndDatePicker && (
+          <DateTimePicker
+            value={selectedEndDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowEndDatePicker(false);
+              if (date) {
+                setSelectedEndDate(date);
+              }
+            }}
+            minimumDate={selectedDate}
           />
         )
       )}
@@ -1002,5 +1096,14 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
     },
     iosPicker: {
       height: 200,
+    },
+    iosCalendarPicker: {
+      height: 340,
+    },
+    helperText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 6,
+      fontStyle: 'italic',
     },
   });

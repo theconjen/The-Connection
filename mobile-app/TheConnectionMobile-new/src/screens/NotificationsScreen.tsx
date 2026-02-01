@@ -32,8 +32,10 @@ import { PageHeader } from './AppHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient from '../lib/apiClient';
-import { formatDistanceToNow, isToday, isWithinInterval, subDays, startOfDay } from 'date-fns';
+import apiClient, { communitiesAPI, eventsAPI } from '../lib/apiClient';
+import { formatDistanceToNow, isToday, isWithinInterval, subDays, startOfDay, format } from 'date-fns';
+import { useRouter } from 'expo-router';
+import { Image } from 'react-native';
 
 // ============================================================================
 // TYPES
@@ -61,6 +63,59 @@ interface GroupedNotifications {
   last7days: Notification[];
   last30days: Notification[];
   older: Notification[];
+}
+
+interface CommunityInvitation {
+  id: number;
+  communityId: number;
+  inviterUserId: number;
+  status: string;
+  createdAt: string;
+  community: {
+    id: number;
+    name: string;
+    slug: string;
+    description: string;
+    iconName: string;
+    iconColor: string;
+    memberCount: number;
+  } | null;
+  inviter: {
+    id: number;
+    username: string;
+    displayName?: string;
+    avatarUrl?: string;
+  } | null;
+}
+
+interface EventInvitation {
+  id: number;
+  eventId: number;
+  inviterId: number;
+  status: string;
+  createdAt: string;
+  event: {
+    id: number;
+    title: string;
+    description: string;
+    eventDate: string;
+    startTime: string;
+    endTime: string;
+    location?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    isVirtual: boolean;
+    virtualMeetingUrl?: string;
+    imageUrl?: string;
+    attendeeCount: number;
+  } | null;
+  inviter: {
+    id: number;
+    username: string;
+    displayName?: string;
+    avatarUrl?: string;
+  } | null;
 }
 
 // ============================================================================
@@ -128,6 +183,64 @@ function useDeleteNotification() {
         || error.response?.data?.diagnostics?.reason
         || 'Failed to delete notification';
       Alert.alert('Error', message);
+    },
+  });
+}
+
+// Community Invitation hooks
+function useCommunityInvitations() {
+  return useQuery<CommunityInvitation[]>({
+    queryKey: ['community-invitations-pending'],
+    queryFn: () => communitiesAPI.getPendingInvitations(),
+  });
+}
+
+function useAcceptCommunityInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invitationId: number) => communitiesAPI.acceptInvitation(invitationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-invitations-pending'] });
+      queryClient.invalidateQueries({ queryKey: ['user-communities'] });
+    },
+  });
+}
+
+function useDeclineCommunityInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invitationId: number) => communitiesAPI.declineInvitation(invitationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-invitations-pending'] });
+    },
+  });
+}
+
+// Event Invitation hooks
+function useEventInvitations() {
+  return useQuery<EventInvitation[]>({
+    queryKey: ['event-invitations-pending'],
+    queryFn: () => eventsAPI.getPendingInvitations(),
+  });
+}
+
+function useAcceptEventInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invitationId: number) => eventsAPI.acceptInvitation(invitationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['event-invitations-pending'] });
+      queryClient.invalidateQueries({ queryKey: ['my-events'] });
+    },
+  });
+}
+
+function useDeclineEventInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invitationId: number) => eventsAPI.declineInvitation(invitationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['event-invitations-pending'] });
     },
   });
 }
@@ -381,23 +494,370 @@ function GroupHeader({ title, count }: { title: string; count: number }) {
 }
 
 // ============================================================================
+// INVITATION CARD COMPONENTS
+// ============================================================================
+
+function CommunityInvitationCard({
+  invitation,
+  onAccept,
+  onDecline,
+  isAccepting,
+  isDeclining,
+}: {
+  invitation: CommunityInvitation;
+  onAccept: () => void;
+  onDecline: () => void;
+  isAccepting: boolean;
+  isDeclining: boolean;
+}) {
+  const { colors, spacing } = useTheme();
+  const router = useRouter();
+
+  if (!invitation.community) return null;
+
+  const isProcessing = isAccepting || isDeclining;
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: 12,
+        padding: spacing.md,
+        marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.borderSubtle,
+      }}
+    >
+      <Pressable
+        onPress={() => router.push(`/communities/${invitation.communityId}`)}
+        style={{ flexDirection: 'row', marginBottom: spacing.md }}
+      >
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: invitation.community.iconColor || colors.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="people" size={24} color="#fff" />
+        </View>
+        <View style={{ flex: 1, marginLeft: spacing.md }}>
+          <Text variant="body" style={{ fontWeight: '600' }}>
+            {invitation.community.name}
+          </Text>
+          <Text variant="caption" color="textMuted" numberOfLines={2}>
+            {invitation.community.description}
+          </Text>
+          <Text variant="caption" color="textMuted" style={{ marginTop: 4 }}>
+            {invitation.community.memberCount} members
+          </Text>
+        </View>
+      </Pressable>
+
+      {invitation.inviter && (
+        <Text variant="caption" color="textMuted" style={{ marginBottom: spacing.sm }}>
+          Invited by {invitation.inviter.displayName || invitation.inviter.username}
+        </Text>
+      )}
+
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <Pressable
+          onPress={onAccept}
+          disabled={isProcessing}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colors.primary,
+            paddingVertical: spacing.sm,
+            borderRadius: 8,
+            opacity: isProcessing ? 0.6 : 1,
+          }}
+        >
+          {isAccepting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Ionicons name="checkmark" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '600', marginLeft: 4 }}>Accept</Text>
+            </>
+          )}
+        </Pressable>
+        <Pressable
+          onPress={onDecline}
+          disabled={isProcessing}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: colors.textMuted,
+            paddingVertical: spacing.sm,
+            borderRadius: 8,
+            opacity: isProcessing ? 0.6 : 1,
+          }}
+        >
+          <Ionicons name="close" size={18} color={colors.textSecondary} />
+          <Text style={{ color: colors.textSecondary, fontWeight: '600', marginLeft: 4 }}>Decline</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function EventInvitationCard({
+  invitation,
+  onAccept,
+  onDecline,
+  isAccepting,
+  isDeclining,
+}: {
+  invitation: EventInvitation;
+  onAccept: () => void;
+  onDecline: () => void;
+  isAccepting: boolean;
+  isDeclining: boolean;
+}) {
+  const { colors, spacing } = useTheme();
+  const router = useRouter();
+
+  if (!invitation.event) return null;
+
+  const isProcessing = isAccepting || isDeclining;
+  const eventDate = new Date(invitation.event.eventDate);
+  const formattedDate = format(eventDate, 'EEE, MMM d');
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: 12,
+        padding: spacing.md,
+        marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.borderSubtle,
+      }}
+    >
+      <Pressable
+        onPress={() => router.push(`/events/${invitation.eventId}`)}
+        style={{ flexDirection: 'row', marginBottom: spacing.md }}
+      >
+        {invitation.event.imageUrl ? (
+          <Image
+            source={{ uri: invitation.event.imageUrl }}
+            style={{ width: 64, height: 64, borderRadius: 8 }}
+          />
+        ) : (
+          <View
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 8,
+              backgroundColor: colors.primaryMuted,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="calendar" size={28} color={colors.primary} />
+          </View>
+        )}
+        <View style={{ flex: 1, marginLeft: spacing.md }}>
+          <Text variant="body" style={{ fontWeight: '600' }} numberOfLines={2}>
+            {invitation.event.title}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+            <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
+            <Text variant="caption" color="textMuted" style={{ marginLeft: 4 }}>
+              {formattedDate} at {invitation.event.startTime}
+            </Text>
+          </View>
+          {invitation.event.location && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+              <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+              <Text variant="caption" color="textMuted" style={{ marginLeft: 4 }} numberOfLines={1}>
+                {invitation.event.location}
+              </Text>
+            </View>
+          )}
+          <Text variant="caption" color="textMuted" style={{ marginTop: 4 }}>
+            {invitation.event.attendeeCount} attending
+          </Text>
+        </View>
+      </Pressable>
+
+      {invitation.inviter && (
+        <Text variant="caption" color="textMuted" style={{ marginBottom: spacing.sm }}>
+          Invited by {invitation.inviter.displayName || invitation.inviter.username}
+        </Text>
+      )}
+
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <Pressable
+          onPress={onAccept}
+          disabled={isProcessing}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colors.primary,
+            paddingVertical: spacing.sm,
+            borderRadius: 8,
+            opacity: isProcessing ? 0.6 : 1,
+          }}
+        >
+          {isAccepting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Ionicons name="checkmark" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '600', marginLeft: 4 }}>RSVP Yes</Text>
+            </>
+          )}
+        </Pressable>
+        <Pressable
+          onPress={onDecline}
+          disabled={isProcessing}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: colors.textMuted,
+            paddingVertical: spacing.sm,
+            borderRadius: 8,
+            opacity: isProcessing ? 0.6 : 1,
+          }}
+        >
+          <Ionicons name="close" size={18} color={colors.textSecondary} />
+          <Text style={{ color: colors.textSecondary, fontWeight: '600', marginLeft: 4 }}>Decline</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ============================================================================
 // MAIN SCREEN
 // ============================================================================
 
 export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
   const { colors, spacing } = useTheme();
   const { user } = useAuth();
+  const router = useRouter();
 
   const { data: notifications = [], isLoading, refetch } = useNotifications();
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
   const deleteNotificationMutation = useDeleteNotification();
 
+  // Invitation hooks
+  const { data: communityInvitations = [] } = useCommunityInvitations();
+  const { data: eventInvitations = [] } = useEventInvitations();
+  const acceptCommunityInvitation = useAcceptCommunityInvitation();
+  const declineCommunityInvitation = useDeclineCommunityInvitation();
+  const acceptEventInvitation = useAcceptEventInvitation();
+  const declineEventInvitation = useDeclineEventInvitation();
+
   const handleNotificationPress = (notification: Notification) => {
     if (!notification.isRead) {
       markAsReadMutation.mutate(notification.id);
     }
-    // TODO: Navigate to the relevant screen based on notification.data
+
+    // Navigate to the relevant screen based on notification category and data
+    const { category, data } = notification;
+
+    try {
+      switch (category) {
+        case 'event':
+          // Navigate to event detail
+          if (data?.eventId) {
+            router.push(`/events/${data.eventId}`);
+          } else {
+            router.push('/(tabs)/events');
+          }
+          break;
+
+        case 'invitation':
+          // Community invitation - navigate to community
+          if (data?.communityId) {
+            router.push(`/communities/${data.communityId}`);
+          } else {
+            router.push('/(tabs)/communities');
+          }
+          break;
+
+        case 'like':
+        case 'comment':
+        case 'reply':
+          // Navigate to the post
+          if (data?.postId) {
+            router.push(`/posts/${data.postId}`);
+          } else if (data?.microblogId) {
+            router.push('/(tabs)/feed');
+          }
+          break;
+
+        case 'community':
+          // Community update - navigate to community
+          if (data?.communityId) {
+            router.push(`/communities/${data.communityId}`);
+          } else {
+            router.push('/(tabs)/communities');
+          }
+          break;
+
+        case 'follow':
+          // New follower - navigate to their profile
+          if (data?.followerId) {
+            router.push(`/profile/${data.followerId}`);
+          } else if (data?.userId) {
+            router.push(`/profile/${data.userId}`);
+          }
+          break;
+
+        case 'message':
+        case 'dm':
+          // Direct message - navigate to conversation
+          if (data?.senderId) {
+            router.push(`/messages/${data.senderId}`);
+          } else if (data?.userId) {
+            router.push(`/messages/${data.userId}`);
+          } else {
+            router.push('/(tabs)/messages');
+          }
+          break;
+
+        case 'prayer':
+          // Prayer request - navigate to prayer detail
+          if (data?.prayerId) {
+            router.push(`/prayers/${data.prayerId}`);
+          }
+          break;
+
+        case 'apologetics':
+        case 'question':
+          // Apologetics question - navigate to question detail
+          if (data?.questionId) {
+            router.push(`/questions/${data.questionId}`);
+          } else {
+            router.push('/(tabs)/apologetics');
+          }
+          break;
+
+        default:
+          // No specific navigation - stay on notifications
+          break;
+      }
+    } catch (error) {
+      console.error('Error navigating from notification:', error);
+    }
   };
 
   const handleMarkAllAsRead = () => {
@@ -442,6 +902,8 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
   };
 
   const hasAnyNotifications = notificationsList.length > 0;
+  const hasInvitations = communityInvitations.length > 0 || eventInvitations.length > 0;
+  const hasAnyContent = hasAnyNotifications || hasInvitations;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
@@ -509,7 +971,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
               Loading notifications...
             </Text>
           </View>
-        ) : !hasAnyNotifications ? (
+        ) : !hasAnyContent ? (
           <View
             style={{
               alignItems: 'center',
@@ -538,6 +1000,45 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
           </View>
         ) : (
           <View>
+            {/* Community Invitations Section */}
+            {communityInvitations.length > 0 && (
+              <View>
+                <GroupHeader title="Community Invitations" count={communityInvitations.length} />
+                <View style={{ padding: spacing.md }}>
+                  {communityInvitations.map((invitation) => (
+                    <CommunityInvitationCard
+                      key={invitation.id}
+                      invitation={invitation}
+                      onAccept={() => acceptCommunityInvitation.mutate(invitation.id)}
+                      onDecline={() => declineCommunityInvitation.mutate(invitation.id)}
+                      isAccepting={acceptCommunityInvitation.isPending}
+                      isDeclining={declineCommunityInvitation.isPending}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Event Invitations Section */}
+            {eventInvitations.length > 0 && (
+              <View>
+                <GroupHeader title="Event Invitations" count={eventInvitations.length} />
+                <View style={{ padding: spacing.md }}>
+                  {eventInvitations.map((invitation) => (
+                    <EventInvitationCard
+                      key={invitation.id}
+                      invitation={invitation}
+                      onAccept={() => acceptEventInvitation.mutate(invitation.id)}
+                      onDecline={() => declineEventInvitation.mutate(invitation.id)}
+                      isAccepting={acceptEventInvitation.isPending}
+                      isDeclining={declineEventInvitation.isPending}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Regular Notifications */}
             {renderGroup('today', 'Today')}
             {renderGroup('last7days', 'Last 7 Days')}
             {renderGroup('last30days', 'Last 30 Days')}

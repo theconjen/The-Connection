@@ -938,6 +938,7 @@ export const microblogs: any = pgTable("microblogs", {
   pollId: integer("poll_id"), // FK to polls table (set after poll creation)
   sourceUrl: text("source_url"), // For NEWS/CULTURE/ENTERTAINMENT posts with external links
   anonymousNickname: text("anonymous_nickname"), // Optional nickname for anonymous advice posts (e.g., "Struggling Mom")
+  anonymousCity: text("anonymous_city"), // Optional city for advice posts to connect with nearby users
   createdAt: timestamp("created_at").defaultNow(),
 } as any);
 
@@ -956,6 +957,7 @@ export const insertMicroblogSchema = createInsertSchema(microblogs).pick({
   pollId: true,
   sourceUrl: true,
   anonymousNickname: true,
+  anonymousCity: true,
 } as any);
 
 // Microblog likes table for tracking user likes
@@ -1206,6 +1208,7 @@ export const events = pgTable("events", {
   showOnMap: boolean("show_on_map").default(true), // Whether to display the event on maps
   virtualMeetingUrl: text("virtual_meeting_url"),
   eventDate: date("event_date").notNull(),
+  eventEndDate: date("event_end_date"), // For multi-day events (e.g., conferences)
   startTime: time("start_time").notNull(),
   endTime: time("end_time").notNull(),
   imageUrl: text("image_url"),
@@ -1232,6 +1235,7 @@ export const insertEventSchema = createInsertSchema(events).pick({
   showOnMap: true,
   virtualMeetingUrl: true,
   eventDate: true,
+  eventEndDate: true,
   startTime: true,
   endTime: true,
   imageUrl: true,
@@ -1280,6 +1284,29 @@ export const insertEventBookmarkSchema = createInsertSchema(eventBookmarks).pick
 
 export type InsertEventBookmark = typeof eventBookmarks.$inferInsert;
 export type EventBookmark = typeof eventBookmarks.$inferSelect;
+
+// Event invitations table for inviting users to events
+export const eventInvitations = pgTable("event_invitations", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  inviterId: integer("inviter_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  inviteeId: integer("invitee_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  status: text("status").notNull().default("pending"), // 'pending', 'accepted', 'declined'
+  createdAt: timestamp("created_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+}, (table) => [
+  uniqueIndex("event_invitations_unique_idx").on(table.eventId, table.inviteeId),
+]);
+
+export const insertEventInvitationSchema = createInsertSchema(eventInvitations).pick({
+  eventId: true,
+  inviterId: true,
+  inviteeId: true,
+  status: true,
+} as any);
+
+export type EventInvitation = typeof eventInvitations.$inferSelect;
+export type InsertEventInvitation = typeof eventInvitations.$inferInsert;
 
 // ========================
 // PRAYER REQUESTS

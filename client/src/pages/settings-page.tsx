@@ -55,6 +55,8 @@ interface UserProfile {
   favoriteBibleVerse: string | null;
   testimony: string | null;
   interests: string | null;
+  // Personal info
+  dateOfBirth: string | null;
 }
 
 interface UserPreferences {
@@ -80,6 +82,8 @@ export default function SettingsPage() {
     state: "",
     zipCode: "",
     email: "",
+    // Personal info
+    dateOfBirth: "",
     // Faith Journey fields
     denomination: "",
     homeChurch: "",
@@ -98,6 +102,8 @@ export default function SettingsPage() {
         state: user.state || "",
         zipCode: user.zipCode || "",
         email: user.email || "",
+        // Personal info
+        dateOfBirth: (user as any).dateOfBirth || "",
         // Faith Journey fields
         denomination: (user as any).denomination || "",
         homeChurch: (user as any).homeChurch || "",
@@ -441,6 +447,22 @@ export default function SettingsPage() {
                       onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
                       placeholder="your@email.com"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="dateOfBirth">Birthday</Label>
+                    <Input
+                      id="dateOfBirth"
+                      type="date"
+                      value={profileData.dateOfBirth}
+                      onChange={(e) => setProfileData({ ...profileData, dateOfBirth: e.target.value })}
+                      max={new Date().toISOString().split('T')[0]}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your birthday is kept private and used only for age verification
+                    </p>
                   </div>
                 </div>
 

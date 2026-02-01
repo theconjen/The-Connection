@@ -91,6 +91,7 @@ type EventItem = {
   creatorId?: number; // Event creator ID
   hostUserId?: number; // Reliable host identifier from API
   host?: HostUser | null; // Host user info from API
+  connectionsGoing?: { count: number; names: string[] }; // Connections (following) who RSVP'd going
 };
 
 // ----- API -----
@@ -244,6 +245,50 @@ function ToggleTabs({
   );
 }
 
+// Format category for display: "bible_study" -> "Bible Study"
+function formatCategory(category: string | null | undefined): string {
+  if (!category) return 'Event';
+  // Replace underscores with spaces and capitalize each word
+  return category
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+// Simplify location display: extract venue name and city only
+function formatLocationDisplay(location: string | null | undefined): string {
+  if (!location) return '';
+
+  // Split by comma and take relevant parts
+  const parts = location.split(',').map(p => p.trim());
+
+  if (parts.length <= 2) {
+    return location; // Already short enough
+  }
+
+  // Try to get venue name (first part) and city (usually 3rd or 4th part)
+  const venueName = parts[0];
+
+  // Skip parts that look like street numbers or county names
+  const cityPart = parts.find((part, index) => {
+    if (index === 0) return false; // Skip venue name
+    // Skip if it's just a number (like "45271")
+    if (/^\d+$/.test(part)) return false;
+    // Skip if it contains "Street", "Road", "Ave", etc.
+    if (/\b(Street|St|Road|Rd|Avenue|Ave|Boulevard|Blvd|Drive|Dr|Lane|Ln|Court|Ct|Way|Place|Pl)\b/i.test(part)) return false;
+    // Skip if it contains "County", "Township", "Charter"
+    if (/\b(County|Township|Charter)\b/i.test(part)) return false;
+    return true;
+  });
+
+  if (cityPart) {
+    return `${venueName}, ${cityPart}`;
+  }
+
+  // Fallback: just use first two parts
+  return parts.slice(0, 2).join(', ');
+}
+
 // Parse eventDate (handles "2026-01-12 00:00:00" or "2026-01-12" formats)
 function parseEventDate(eventDate: string): Date {
   if (!eventDate) return new Date(NaN);
@@ -384,14 +429,14 @@ function EventCard({
   // Use location field first, then fall back to city/state
   const locationLine = isOnlineEvent
     ? "Online"
-    : item.location || [item.city, item.state].filter(Boolean).join(", ");
+    : formatLocationDisplay(item.location) || [item.city, item.state].filter(Boolean).join(", ");
 
   const distance =
     !item.isOnline && typeof item.distanceMiles === "number"
       ? `${item.distanceMiles.toFixed(1)} mi`
       : null;
 
-  const eventType = item.category || 'Sunday Service';
+  const eventType = formatCategory(item.category) || 'Sunday Service';
   const eventIcon = getEventIcon(eventType);
   const [gradientStart, gradientEnd] = EVENT_TYPE_GRADIENTS[eventType] || ['#4A5568', '#2D3748'];
   const isSundayService = eventType === 'Sunday Service';
@@ -492,21 +537,38 @@ function EventCard({
 
       {/* Footer actions */}
       <View style={styles.footerRow}>
-        {/* Event type chip - always show */}
-        <View
-          style={[
-            styles.categoryChip,
-            { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
-          ]}
-        >
-          {isSundayService ? (
-            <Image source={ChurchIcon} style={styles.chipIconImage} />
-          ) : (
-            <Ionicons name={eventIcon || 'calendar-outline'} size={11} color={colors.textPrimary} style={{ marginRight: 4 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+          {/* Event type chip - always show */}
+          <View
+            style={[
+              styles.categoryChip,
+              { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
+            ]}
+          >
+            {isSundayService ? (
+              <Image source={ChurchIcon} style={styles.chipIconImage} />
+            ) : (
+              <Ionicons name={eventIcon || 'calendar-outline'} size={11} color={colors.textPrimary} style={{ marginRight: 4 }} />
+            )}
+            <Text style={[styles.categoryText, { color: colors.textPrimary }]} numberOfLines={1}>
+              {eventType}
+            </Text>
+          </View>
+
+          {/* Connections Going pill */}
+          {item.connectionsGoing && item.connectionsGoing.count > 0 && (
+            <View
+              style={[
+                styles.connectionsChip,
+                { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' },
+              ]}
+            >
+              <Ionicons name="people" size={11} color={colors.primary} style={{ marginRight: 3 }} />
+              <Text style={[styles.connectionsText, { color: colors.primary }]} numberOfLines={1}>
+                {item.connectionsGoing.count} {item.connectionsGoing.count === 1 ? 'Connection' : 'Connections'}
+              </Text>
+            </View>
           )}
-          <Text style={[styles.categoryText, { color: colors.textPrimary }]} numberOfLines={1}>
-            {eventType}
-          </Text>
         </View>
 
         <View style={{ flexDirection: "row", gap: 6 }}>
@@ -1493,7 +1555,7 @@ export default function EventsScreenNew({
                 return null;
               }
 
-              const eventType = event.category || 'Sunday Service';
+              const eventType = formatCategory(event.category) || 'Sunday Service';
               const eventIcon = getEventIcon(eventType);
               const [markerColor] = EVENT_TYPE_GRADIENTS[eventType] || ['#3B82F6'];
               const isSundayService = eventType === 'Sunday Service';
@@ -1968,6 +2030,15 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   categoryText: { fontSize: 10, fontWeight: "900" },
+  connectionsChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  connectionsText: { fontSize: 10, fontWeight: "600" },
   iconAction: {
     width: 32,
     height: 32,

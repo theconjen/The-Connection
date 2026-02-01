@@ -76,7 +76,7 @@ router.post('/users/:userId/follow', requireAuth, async (req, res) => {
       // Notify the user about the follow request
       getUserDisplayName(followerId).then(async (followerName) => {
         await notifyUserWithPreferences(followingId, {
-          title: `${followerName} wants to follow you`,
+          title: `${followerName} wants to connect with you`,
           body: 'Tap to review the request',
           data: {
             type: 'follow_request',
@@ -173,7 +173,7 @@ router.post('/follow-requests/:userId/accept', requireAuth, async (req, res) => 
     // Notify the requester that their request was accepted
     getUserDisplayName(currentUserId).then(async (userName) => {
       await notifyUserWithPreferences(requesterId, {
-        title: `${userName} accepted your follow request`,
+        title: `${userName} accepted your connection request`,
         body: 'You can now see their posts',
         data: {
           type: 'follow_accepted',

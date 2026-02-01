@@ -156,6 +156,14 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Search API
+export const searchAPI = {
+  search: (query: string, filter: 'all' | 'accounts' | 'communities' = 'all') =>
+    apiClient.get('/api/search', { params: { q: query, filter } }).then(res => res.data),
+  searchUsers: (query: string) =>
+    apiClient.get('/api/search', { params: { q: query, filter: 'accounts' } }).then(res => res.data),
+};
+
 // Posts API (Forum posts - supports anonymous posting)
 export const postsAPI = {
   create: (data: {
@@ -251,6 +259,8 @@ export const pollsAPI = {
 // Communities API
 export const communitiesAPI = {
   getAll: () => apiClient.get('/api/communities').then(res => res.data),
+  getActive: (limit?: number) =>
+    apiClient.get(`/api/communities/active${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
   getById: (id: number) => apiClient.get(`/api/communities/${id}`, {
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -306,6 +316,16 @@ export const communitiesAPI = {
     apiClient.post(`/api/communities/${communityId}/join-requests/${requestId}/deny`).then(res => res.data),
   requestToJoin: (communityId: number) =>
     apiClient.post(`/api/communities/${communityId}/request-join`).then(res => res.data),
+
+  // Invitations
+  inviteUser: (communityId: number, inviteeId: number, sendDm: boolean = true) =>
+    apiClient.post(`/api/communities/${communityId}/invite-user`, { inviteeId, sendDm }).then(res => res.data),
+  getPendingInvitations: () =>
+    apiClient.get('/api/community-invitations/pending').then(res => res.data),
+  acceptInvitation: (invitationId: number) =>
+    apiClient.post(`/api/community-invitations/${invitationId}/accept`).then(res => res.data),
+  declineInvitation: (invitationId: number) =>
+    apiClient.post(`/api/community-invitations/${invitationId}/decline`).then(res => res.data),
 };
 
 // Direct Messages API
@@ -381,6 +401,26 @@ export const eventsAPI = {
   // Host-only management endpoints
   getRsvpsManage: (id: number) => apiClient.get(`/api/events/${id}/rsvps/manage`).then(res => res.data),
   cancel: (id: number) => apiClient.post(`/api/events/${id}/cancel`).then(res => res.data),
+  // Attendance confirmation
+  confirmAttendance: (id: number) => apiClient.post(`/api/events/${id}/confirm-attendance`).then(res => res.data),
+  getPendingConfirmations: () => apiClient.get('/api/events/pending-confirmations').then(res => res.data),
+  getAttendedEvents: (userId: number) => apiClient.get(`/api/users/${userId}/attended-events`).then(res => res.data),
+
+  // Event Invitations
+  inviteUsers: (eventId: number, inviteeIds: number[], sendDm: boolean = true) =>
+    apiClient.post(`/api/events/${eventId}/invite`, { inviteeIds, sendDm }).then(res => res.data),
+  getPendingInvitations: () =>
+    apiClient.get('/api/event-invitations/pending').then(res => res.data),
+  acceptInvitation: (invitationId: number) =>
+    apiClient.post(`/api/event-invitations/${invitationId}/accept`).then(res => res.data),
+  declineInvitation: (invitationId: number) =>
+    apiClient.post(`/api/event-invitations/${invitationId}/decline`).then(res => res.data),
+
+  // Nearby Users Invitations (Connection Hosted events only)
+  getNearbyUsersCount: (eventId: number, radiusMiles: number = 30) =>
+    apiClient.get(`/api/events/${eventId}/nearby-users-count`, { params: { radius: radiusMiles } }).then(res => res.data),
+  inviteNearbyUsers: (eventId: number, radiusMiles: number = 30, sendNotifications: boolean = true) =>
+    apiClient.post(`/api/events/${eventId}/invite-nearby`, { radiusMiles, sendNotifications }).then(res => res.data),
 };
 
 // Safety & Moderation API

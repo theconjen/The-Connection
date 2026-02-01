@@ -19,6 +19,8 @@ export interface ChatMessage {
   senderId: number;
   content: string;
   createdAt: string;
+  isAnnouncement?: boolean;
+  isSystemMessage?: boolean;
   sender: {
     id: number;
     username: string;
@@ -36,6 +38,10 @@ export interface DirectMessage {
   isRead: boolean;
 }
 
+// Store pending room joins to execute after connection
+let pendingRoomJoin: number | null = null;
+let pendingMessageCallback: ((message: ChatMessage) => void) | null = null;
+
 export const socketService = {
   connect: (userId: number) => {
     if (!SOCKET_ENABLED) {
@@ -44,6 +50,17 @@ export const socketService = {
     }
 
     if (socket?.connected) {
+      // Socket already connected - execute any pending operations
+      if (pendingRoomJoin !== null) {
+        console.info('[Socket] Executing pending room join:', pendingRoomJoin);
+        socket.emit('join_room', pendingRoomJoin);
+        pendingRoomJoin = null;
+      }
+      if (pendingMessageCallback) {
+        console.info('[Socket] Attaching pending message callback');
+        socket.on('message_received', pendingMessageCallback);
+        pendingMessageCallback = null;
+      }
       return socket;
     }
 
@@ -65,6 +82,20 @@ export const socketService = {
         console.info('[Socket] Connected successfully');
         // Join user's personal room for DMs
         socket?.emit('join_user_room', userId);
+
+        // Execute any pending room join
+        if (pendingRoomJoin !== null) {
+          console.info('[Socket] Executing pending room join after connect:', pendingRoomJoin);
+          socket?.emit('join_room', pendingRoomJoin);
+          pendingRoomJoin = null;
+        }
+
+        // Attach any pending message callback
+        if (pendingMessageCallback) {
+          console.info('[Socket] Attaching pending message callback after connect');
+          socket?.on('message_received', pendingMessageCallback);
+          pendingMessageCallback = null;
+        }
       });
 
       socket.on('disconnect', (reason) => {
@@ -100,7 +131,12 @@ export const socketService = {
   // Community Chat Methods
   joinChatRoom: (roomId: number) => {
     if (socket?.connected) {
+      console.info('[Socket] Joining room:', roomId);
       socket.emit('join_room', roomId);
+    } else {
+      // Store for later when socket connects
+      console.info('[Socket] Storing pending room join:', roomId);
+      pendingRoomJoin = roomId;
     }
   },
 
@@ -108,17 +144,28 @@ export const socketService = {
     if (socket?.connected) {
       socket.emit('leave_room', roomId);
     }
+    // Clear pending if leaving the room we were about to join
+    if (pendingRoomJoin === roomId) {
+      pendingRoomJoin = null;
+    }
   },
 
-  sendChatMessage: (roomId: number, content: string, senderId: number) => {
+  sendChatMessage: (roomId: number, content: string, senderId: number, isAnnouncement: boolean = false) => {
     if (socket?.connected) {
-      socket.emit('new_message', { roomId, content, senderId });
+      socket.emit('new_message', { roomId, content, senderId, isAnnouncement });
+    } else {
+      console.warn('[Socket] Cannot send message - not connected');
     }
   },
 
   onChatMessage: (callback: (message: ChatMessage) => void) => {
-    if (socket) {
+    if (socket?.connected) {
+      console.info('[Socket] Attaching message callback');
       socket.on('message_received', callback);
+    } else {
+      // Store for later when socket connects
+      console.info('[Socket] Storing pending message callback');
+      pendingMessageCallback = callback;
     }
   },
 
@@ -126,6 +173,7 @@ export const socketService = {
     if (socket) {
       socket.off('message_received');
     }
+    pendingMessageCallback = null;
   },
 
   // Direct Message Methods

@@ -73,6 +73,7 @@ export default function CommunityDetailScreen() {
   const [newChatMessage, setNewChatMessage] = useState('');
   const [chatRoom, setChatRoom] = useState<any>(null);
   const chatScrollRef = useRef<ScrollView>(null);
+  const [isAnnouncementMode, setIsAnnouncementMode] = useState(false);
   const [showAnsweredModal, setShowAnsweredModal] = useState(false);
   const [selectedPrayer, setSelectedPrayer] = useState<any>(null);
   const [answeredDescription, setAnsweredDescription] = useState('');
@@ -158,20 +159,28 @@ export default function CommunityDetailScreen() {
     queryKey: ['chat-room', communityId],
     queryFn: () => chatAPI.getChatRoom(communityId),
     enabled: !!communityId && activeTab === 'chat' && !!community?.isMember,
-    onSuccess: (data) => {
-      setChatRoom(data);
-    },
   });
+
+  // Update chatRoom state when data is fetched
+  useEffect(() => {
+    if (chatRoomData) {
+      setChatRoom(chatRoomData);
+    }
+  }, [chatRoomData]);
 
   // Fetch chat messages
   const { data: chatMessagesData, isLoading: chatMessagesLoading, refetch: refetchChatMessages } = useQuery({
     queryKey: ['chat-messages', communityId],
     queryFn: () => chatAPI.getChatMessages(communityId),
-    enabled: !!communityId && activeTab === 'chat' && !!chatRoom && !!community?.isMember,
-    onSuccess: (data) => {
-      setChatMessages(data || []);
-    },
+    enabled: !!communityId && activeTab === 'chat' && !!chatRoomData && !!community?.isMember,
   });
+
+  // Update chatMessages state when data is fetched
+  useEffect(() => {
+    if (chatMessagesData) {
+      setChatMessages(chatMessagesData);
+    }
+  }, [chatMessagesData]);
 
   // Socket.IO connection for real-time chat
   useEffect(() => {
@@ -393,12 +402,22 @@ export default function CommunityDetailScreen() {
   const requestToJoinMutation = useMutation({
     mutationFn: () => communitiesAPI.requestToJoin(communityId),
     onSuccess: () => {
+      setHasPendingRequest(true);
       Alert.alert('Request Sent', 'Your request to join has been sent to the community admins.');
     },
     onError: (error: any) => {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to send join request');
+      // Check if error indicates already pending
+      if (error.response?.data?.message?.includes('pending') || error.response?.data?.message?.includes('already')) {
+        setHasPendingRequest(true);
+        Alert.alert('Request Pending', 'Your request is already pending approval.');
+      } else {
+        Alert.alert('Error', error.response?.data?.message || 'Failed to send join request');
+      }
     },
   });
+
+  // Track if user has a pending join request
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
 
   const handleJoinLeave = () => {
     if (community?.isMember) {
@@ -448,8 +467,10 @@ export default function CommunityDetailScreen() {
     }
 
     // Send via Socket.IO for real-time delivery
-    socketService.sendChatMessage(chatRoom.id, newChatMessage.trim(), user.id);
+    // Pass isAnnouncement flag for admin/moderator announcements
+    socketService.sendChatMessage(chatRoom.id, newChatMessage.trim(), user.id, isAnnouncementMode);
     setNewChatMessage('');
+    setIsAnnouncementMode(false); // Reset announcement mode after sending
 
     // Scroll to bottom
     setTimeout(() => {
@@ -528,36 +549,72 @@ export default function CommunityDetailScreen() {
           )}
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          {community.isAdmin && (
+          {/* Invite Friends button - visible to members */}
+          {community.isMember && (
             <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={() => router.push(`/communities/settings/${community.id}`)}
+              style={styles.inviteButton}
+              onPress={() => router.push(`/communities/${community.id}/invite`)}
             >
-              <Ionicons name="settings-outline" size={20} color={communityColor} />
+              <Ionicons name="person-add-outline" size={20} color={communityColor} />
             </TouchableOpacity>
+          )}
+          {/* Join Requests button - visible to admins of private communities */}
+          {canManageRequests && joinRequests.length > 0 && (
+            <TouchableOpacity
+              style={styles.requestsButton}
+              onPress={() => router.push(`/communities/${community.id}/join-requests`)}
+            >
+              <Ionicons name="people-outline" size={20} color={communityColor} />
+              <View style={styles.requestsBadge}>
+                <Text style={styles.requestsBadgeText}>{joinRequests.length}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          {community.isAdmin && (
+            <>
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => router.push(`/communities/${community.id}/members`)}
+              >
+                <Ionicons name="people" size={20} color={communityColor} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => router.push(`/communities/settings/${community.id}`)}
+              >
+                <Ionicons name="settings-outline" size={20} color={communityColor} />
+              </TouchableOpacity>
+            </>
           )}
           {!community.isAdmin && (
             <TouchableOpacity
               style={[
                 styles.joinButton,
                 community.isMember && styles.joinedButton,
-                isPrivate && !community.isMember && styles.requestButton,
+                isPrivateCommunity && !community.isMember && styles.requestButton,
+                hasPendingRequest && styles.pendingButton,
               ]}
               onPress={handleJoinLeave}
-              disabled={joinMutation.isPending || leaveMutation.isPending || requestToJoinMutation.isPending}
+              disabled={joinMutation.isPending || leaveMutation.isPending || requestToJoinMutation.isPending || hasPendingRequest}
             >
               {joinMutation.isPending || leaveMutation.isPending || requestToJoinMutation.isPending ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
                   <Ionicons
-                    name={community.isMember ? "checkmark" : isPrivate ? "lock-closed" : "person-add"}
+                    name={
+                      community.isMember ? "checkmark" :
+                      hasPendingRequest ? "time-outline" :
+                      isPrivateCommunity ? "lock-closed" : "person-add"
+                    }
                     size={18}
                     color="#fff"
                     style={{ marginRight: 6 }}
                   />
                   <Text style={styles.joinButtonText}>
-                    {community.isMember ? 'Joined' : isPrivate ? 'Request' : 'Join'}
+                    {community.isMember ? 'Joined' :
+                     hasPendingRequest ? 'Pending' :
+                     isPrivateCommunity ? 'Request to Join' : 'Join'}
                   </Text>
                 </>
               )}
@@ -1142,6 +1199,37 @@ export default function CommunityDetailScreen() {
                 ) : (
                   chatMessages.map((message) => {
                     const isOwnMessage = message.senderId === user?.id;
+                    const isAnnouncement = message.isAnnouncement;
+
+                    // Announcement messages have special full-width styling
+                    if (isAnnouncement) {
+                      return (
+                        <View key={message.id} style={styles.announcementBubble}>
+                          <View style={styles.announcementHeader}>
+                            <Ionicons name="megaphone" size={16} color="#F59E0B" />
+                            <Text style={styles.announcementLabel}>Community Update</Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => {
+                              if (message.sender?.id) {
+                                router.push(`/(tabs)/profile?userId=${message.sender.id}`);
+                              }
+                            }}
+                          >
+                            <Text style={[styles.chatSenderName, { textDecorationLine: 'underline', color: '#F59E0B' }]}>
+                              @{message.sender?.username || message.sender?.displayName}
+                            </Text>
+                          </TouchableOpacity>
+                          <Text style={styles.announcementText}>
+                            {message.content}
+                          </Text>
+                          <Text style={styles.announcementTime}>
+                            {formatDate(message.createdAt)}
+                          </Text>
+                        </View>
+                      );
+                    }
+
                     return (
                       <View
                         key={message.id}
@@ -1181,13 +1269,41 @@ export default function CommunityDetailScreen() {
                 )}
               </ScrollView>
 
+              {/* Announcement mode indicator - above input */}
+              {isAnnouncementMode && (
+                <View style={styles.announcementIndicator}>
+                  <Ionicons name="megaphone" size={14} color="#F59E0B" />
+                  <Text style={styles.announcementIndicatorText}>
+                    Sending as community update - all members will be notified
+                  </Text>
+                </View>
+              )}
               {/* Message Input */}
               <View style={[styles.chatInputContainer, { paddingBottom: 12 + insets.bottom }]}>
+                {/* Announcement toggle for admins/moderators */}
+                {(community?.isAdmin || community?.isModerator || community?.role === 'owner' || community?.role === 'moderator') && (
+                  <TouchableOpacity
+                    style={[
+                      styles.announcementToggle,
+                      isAnnouncementMode && styles.announcementToggleActive,
+                    ]}
+                    onPress={() => setIsAnnouncementMode(!isAnnouncementMode)}
+                  >
+                    <Ionicons
+                      name="megaphone"
+                      size={20}
+                      color={isAnnouncementMode ? '#fff' : '#F59E0B'}
+                    />
+                  </TouchableOpacity>
+                )}
                 <TextInput
-                  style={styles.chatInput}
+                  style={[
+                    styles.chatInput,
+                    isAnnouncementMode && styles.chatInputAnnouncement,
+                  ]}
                   value={newChatMessage}
                   onChangeText={setNewChatMessage}
-                  placeholder="Type a message..."
+                  placeholder={isAnnouncementMode ? "Type an announcement..." : "Type a message..."}
                   placeholderTextColor={colors.mutedForeground}
                   multiline
                   maxLength={500}
@@ -1195,6 +1311,7 @@ export default function CommunityDetailScreen() {
                 <TouchableOpacity
                   style={[
                     styles.chatSendButton,
+                    isAnnouncementMode && styles.chatSendButtonAnnouncement,
                     !newChatMessage.trim() && styles.chatSendButtonDisabled,
                   ]}
                   onPress={handleSendChatMessage}
@@ -1595,6 +1712,44 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
     color: '#10B981',
     fontWeight: '600',
   },
+  inviteButton: {
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  requestsButton: {
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  requestsBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  requestsBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
   settingsButton: {
     backgroundColor: colors.surface,
     paddingVertical: 10,
@@ -1618,6 +1773,10 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
   },
   requestButton: {
     backgroundColor: '#F59E0B',
+  },
+  pendingButton: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.8,
   },
   joinButtonText: {
     color: '#fff',
@@ -2028,6 +2187,78 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
   },
   chatSendButtonDisabled: {
     opacity: 0.5,
+  },
+  // Announcement Styles
+  announcementBubble: {
+    width: '100%',
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  announcementHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  announcementLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F59E0B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  announcementText: {
+    fontSize: 15,
+    color: colors.foreground,
+    lineHeight: 22,
+    marginTop: 4,
+  },
+  announcementTime: {
+    fontSize: 11,
+    color: colors.mutedForeground,
+    marginTop: 8,
+  },
+  announcementToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  announcementToggleActive: {
+    backgroundColor: '#F59E0B',
+    borderColor: '#F59E0B',
+  },
+  chatInputAnnouncement: {
+    borderColor: '#F59E0B',
+    borderWidth: 2,
+  },
+  chatSendButtonAnnouncement: {
+    backgroundColor: '#F59E0B',
+  },
+  announcementIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderBottomWidth: 0,
+    marginBottom: 0,
+  },
+  announcementIndicatorText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    flex: 1,
   },
   // Prayer Request Styles
   prayerCard: {
