@@ -1020,6 +1020,51 @@ router.get('/events/:id/rsvps', async (req, res) => {
   }
 });
 
+// Get connections going to this event (people you follow who RSVP'd going)
+router.get('/events/:id/connections-going', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    // Check if event exists
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Get users the current user follows
+    const following = await storage.getUserFollowing(userId);
+    const followingIds = following.map((f: any) => f.id);
+
+    if (followingIds.length === 0) {
+      return res.json({ count: 0, names: [] });
+    }
+
+    // Get RSVPs for this event
+    const rsvps = await storage.getEventRSVPs(eventId);
+    const goingRsvps = rsvps.filter((r: any) =>
+      r.status === 'going' && followingIds.includes(r.userId)
+    );
+
+    // Get names of connections going
+    const connectionNames: string[] = [];
+    for (const rsvp of goingRsvps) {
+      const user = await storage.getUser(rsvp.userId);
+      if (user) {
+        connectionNames.push(user.displayName || user.username || 'User');
+      }
+    }
+
+    res.json({
+      count: goingRsvps.length,
+      names: connectionNames
+    });
+  } catch (error) {
+    console.error('Error fetching connections going:', error);
+    res.status(500).json(buildErrorResponse('Error fetching connections', error));
+  }
+});
+
 // Get current user's RSVP for an event
 router.get('/events/:id/my-rsvp', requireAuth, async (req, res) => {
   try {

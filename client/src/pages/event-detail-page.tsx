@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "../hooks/use-toast";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { CalendarDays, MapPin, Clock, Users, ArrowLeft, Share2, Edit, Trash2, X } from "lucide-react";
+import { CalendarDays, MapPin, Clock, Users, ArrowLeft, Share2, Edit, Trash2, X, UserCheck, MessageSquare, Send, Bell } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +42,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Separator } from "../components/ui/separator";
+import { Badge } from "../components/ui/badge";
+import { Textarea } from "../components/ui/textarea";
 import type { Event, EventRsvp } from '@connection/shared/mobile-web/types';
 
 export default function EventDetailPage() {
@@ -52,8 +54,11 @@ export default function EventDetailPage() {
   const { toast } = useToast();
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isAnnouncementDialogOpen, setIsAnnouncementDialogOpen] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState("");
+  const [announcementMessage, setAnnouncementMessage] = useState("");
+  const [announcementTarget, setAnnouncementTarget] = useState<"going" | "maybe" | "all">("all");
 
   // Get event details
   const { data: event, isLoading: isLoadingEvent } = useQuery({
@@ -89,6 +94,20 @@ export default function EventDetailPage() {
       if (!response.ok) {
         if (response.status === 404) return null;
         throw new Error("Failed to fetch your RSVP");
+      }
+      return response.json();
+    },
+    enabled: !!user && !!event,
+  });
+
+  // Get connections going to this event (people you follow who RSVP'd)
+  const { data: connectionsGoing = { count: 0, names: [] } } = useQuery({
+    queryKey: [`/api/events/${eventId}/connections-going`],
+    queryFn: async () => {
+      const response = await fetch(`/api/events/${eventId}/connections-going`);
+      if (!response.ok) {
+        if (response.status === 404) return { count: 0, names: [] };
+        throw new Error("Failed to fetch connections");
       }
       return response.json();
     },
@@ -188,6 +207,52 @@ export default function EventDetailPage() {
       });
     },
   });
+
+  // Send announcement mutation
+  const sendAnnouncementMutation = useMutation({
+    mutationFn: async ({ message, targetStatus }: { message: string; targetStatus: string }) => {
+      const response = await apiRequest("POST", `/api/events/${eventId}/announce`, {
+        message,
+        targetStatus
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to send announcement");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Announcement Sent",
+        description: `Your message was sent to ${data.sentCount || 0} attendees.`,
+      });
+      setIsAnnouncementDialogOpen(false);
+      setAnnouncementMessage("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to send announcement",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle sending announcement
+  const handleSendAnnouncement = () => {
+    if (!announcementMessage.trim()) {
+      toast({
+        title: "Message Required",
+        description: "Please enter a message for your announcement.",
+        variant: "destructive",
+      });
+      return;
+    }
+    sendAnnouncementMutation.mutate({
+      message: announcementMessage,
+      targetStatus: announcementTarget
+    });
+  };
 
   // Handle RSVP action
   const handleRsvp = (status: string) => {
@@ -365,6 +430,25 @@ export default function EventDetailPage() {
                         <div>{going.length} Going · {maybe.length} Maybe</div>
                       </div>
                     </div>
+
+                    {/* Connections Going */}
+                    {connectionsGoing.count > 0 && (
+                      <div className="flex items-start gap-2">
+                        <UserCheck size={18} className="text-primary mt-0.5" />
+                        <div>
+                          <div className="font-medium text-sm text-primary">Connections Going</div>
+                          <div className="text-sm">
+                            {connectionsGoing.count} {connectionsGoing.count === 1 ? 'connection' : 'connections'} attending
+                          </div>
+                          {connectionsGoing.names.length > 0 && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {connectionsGoing.names.slice(0, 3).join(", ")}
+                              {connectionsGoing.names.length > 3 && ` +${connectionsGoing.names.length - 3} more`}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -440,6 +524,43 @@ export default function EventDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Host Management Section - only visible to event creator */}
+          {isCreator && (
+            <Card className="mb-6 border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Bell size={18} className="text-primary" />
+                  Host Dashboard
+                </CardTitle>
+                <CardDescription>Manage your event attendees</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="text-center p-3 bg-green-500/10 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{going.length}</div>
+                    <div className="text-xs text-muted-foreground">Going</div>
+                  </div>
+                  <div className="text-center p-3 bg-yellow-500/10 rounded-lg">
+                    <div className="text-2xl font-bold text-yellow-600">{maybe.length}</div>
+                    <div className="text-xs text-muted-foreground">Maybe</div>
+                  </div>
+                  <div className="text-center p-3 bg-red-500/10 rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{notGoing.length}</div>
+                    <div className="text-xs text-muted-foreground">Can't Go</div>
+                  </div>
+                </div>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => setIsAnnouncementDialogOpen(true)}
+                >
+                  <MessageSquare size={16} className="mr-2" />
+                  Send Announcement
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -525,6 +646,70 @@ export default function EventDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Send Announcement Dialog */}
+      <Dialog open={isAnnouncementDialogOpen} onOpenChange={setIsAnnouncementDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Announcement</DialogTitle>
+            <DialogDescription>
+              Send a message to attendees about this event
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Send to:</label>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={announcementTarget === "all" ? "default" : "outline"}
+                  onClick={() => setAnnouncementTarget("all")}
+                >
+                  All ({going.length + maybe.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant={announcementTarget === "going" ? "default" : "outline"}
+                  onClick={() => setAnnouncementTarget("going")}
+                >
+                  Going ({going.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant={announcementTarget === "maybe" ? "default" : "outline"}
+                  onClick={() => setAnnouncementTarget("maybe")}
+                >
+                  Maybe ({maybe.length})
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Message:</label>
+              <Textarea
+                placeholder="Type your announcement message..."
+                value={announcementMessage}
+                onChange={(e) => setAnnouncementMessage(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              onClick={handleSendAnnouncement}
+              disabled={sendAnnouncementMutation.isPending || !announcementMessage.trim()}
+            >
+              <Send size={16} className="mr-2" />
+              {sendAnnouncementMutation.isPending ? "Sending..." : "Send"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Social Media Share Dialog */}
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
