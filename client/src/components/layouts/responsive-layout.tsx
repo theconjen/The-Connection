@@ -5,6 +5,7 @@ import Header from "../header";
 import MobileNavigation from "../mobile-navigation";
 import SidebarNavigation from "../sidebar-navigation";
 import { GuestAccessBanner } from "../guest-access-banner";
+import AppDownloadBanner from "../AppDownloadBanner";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type ResponsiveLayoutProps = {
@@ -155,6 +156,9 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
 
       {/* Guest call-to-action banner to encourage sign in/up while still allowing browsing */}
       <GuestAccessBanner />
+
+      {/* App download banner for desktop users */}
+      <AppDownloadBanner />
     </div>
   );
 }
