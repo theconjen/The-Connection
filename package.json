@@ -83,8 +83,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.1",
-    "@aws-sdk/client-ses": "^3.974.0",
-    "@capacitor/cli": "^7.4.5",
+    "@aws-sdk/client-ses": "^3.980.0",
+    "@capacitor/cli": "^8.0.2",
     "@capacitor/core": "^7.4.5",
     "@expo/dev-server": "^0.5.5",
     "@google-cloud/storage": "^7.18.0",
@@ -138,5 +138,13 @@
     "zod": "^4.3.6"
   },
   "version": "1.0.0",
-  "main": "node_modules/expo/AppEntry.js"
+  "main": "node_modules/expo/AppEntry.js",
+  "pnpm": {
+    "overrides": {
+      "fast-xml-parser": ">=5.3.4",
+      "tar": ">=7.5.7",
+      "markdown-it": ">=12.3.2",
+      "undici": ">=7.0.0"
+    }
+  }
 }
