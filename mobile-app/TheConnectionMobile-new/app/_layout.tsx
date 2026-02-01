@@ -7,12 +7,15 @@ import { CreateMenuProvider } from '../src/contexts/CreateMenuContext';
 import { SocketProvider } from '../src/contexts/SocketContext';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { Text, TextInput, Platform, View } from 'react-native';
+import { Text, TextInput, Platform, View, AppState, AppStateStatus } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { initializeNotifications, cleanupNotifications, unregisterPushToken, getCurrentToken } from '../src/services/notificationService';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { VideoSplash } from '../src/components/VideoSplash';
+import { AttendanceConfirmationModal } from '../src/components/AttendanceConfirmationModal';
+import { BirthdayCelebration } from '../src/components/BirthdayCelebration';
+import { eventsAPI } from '../src/lib/apiClient';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -48,6 +51,11 @@ function RootLayoutNav() {
     receivedListener: Notifications.Subscription | null;
     responseListener: Notifications.Subscription | null;
   } | null>(null);
+
+  // Attendance confirmation state
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [pendingEvent, setPendingEvent] = useState<any>(null);
+  const hasCheckedAttendance = useRef(false);
 
   // Handle authentication routing
   useEffect(() => {
@@ -129,10 +137,81 @@ function RootLayoutNav() {
     };
   }, [user, isLoading]);
 
+  // Check for pending attendance confirmations
+  useEffect(() => {
+    async function checkPendingConfirmations() {
+      if (!user || isLoading || hasCheckedAttendance.current) {
+        return;
+      }
+
+      try {
+        const response = await eventsAPI.getPendingConfirmations();
+        if (response?.events && response.events.length > 0) {
+          // Show modal for the most recent event awaiting confirmation
+          setPendingEvent(response.events[0]);
+          setShowAttendanceModal(true);
+        }
+        hasCheckedAttendance.current = true;
+      } catch (error) {
+        console.error('[AttendanceCheck] Error checking pending confirmations:', error);
+      }
+    }
+
+    // Check on initial load when user is authenticated
+    if (user && !isLoading) {
+      // Small delay to let the app settle after login
+      const timer = setTimeout(checkPendingConfirmations, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, isLoading]);
+
+  // Re-check when app comes to foreground
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && user && !showAttendanceModal) {
+        try {
+          const response = await eventsAPI.getPendingConfirmations();
+          if (response?.events && response.events.length > 0) {
+            setPendingEvent(response.events[0]);
+            setShowAttendanceModal(true);
+          }
+        } catch (error) {
+          // Silently fail on foreground check
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [user, showAttendanceModal]);
+
+  const handleAttendanceConfirmed = () => {
+    // Check for more pending events
+    eventsAPI.getPendingConfirmations().then(response => {
+      if (response?.events && response.events.length > 0) {
+        // Show next event
+        setPendingEvent(response.events[0]);
+        setShowAttendanceModal(true);
+      }
+    }).catch(() => {});
+  };
+
+  const handleCloseAttendanceModal = () => {
+    setShowAttendanceModal(false);
+    setPendingEvent(null);
+  };
+
   return (
     <>
       <ThemedStatusBar />
       <Slot />
+      <AttendanceConfirmationModal
+        visible={showAttendanceModal}
+        event={pendingEvent}
+        onClose={handleCloseAttendanceModal}
+        onConfirmed={handleAttendanceConfirmed}
+      />
+      <BirthdayCelebration />
     </>
   );
 }
