@@ -20,7 +20,7 @@ import { useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { eventsAPI } from "../lib/apiClient";
 import { Ionicons } from "@expo/vector-icons";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { AppHeader } from "./AppHeader";
@@ -639,7 +639,8 @@ function EventMapView({
     <>
       <MapView
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
+        // Use Apple Maps on iOS (works without API key), Google Maps on Android
+        provider={Platform.OS === 'ios' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE}
         initialRegion={
           userLocation
             ? {

@@ -22,7 +22,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { eventsAPI } from '../../src/lib/apiClient';
@@ -519,7 +519,8 @@ export default function EventDetailScreen() {
                         latitudeDelta: hasCoordinates ? 0.01 : 0.5,
                         longitudeDelta: hasCoordinates ? 0.01 : 0.5,
                       }}
-                      provider={PROVIDER_GOOGLE}
+                      // Use Apple Maps on iOS (works without API key), Google Maps on Android
+                      provider={Platform.OS === 'ios' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE}
                     >
                       {hasCoordinates && (
                         <Marker

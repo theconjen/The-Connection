@@ -36,25 +36,94 @@ import {
   hasLocationPermission,
 } from '../src/services/locationService';
 
-// Category to community keyword mapping - tailored for youth, young adults, college, young professionals
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
+// Category to server-side filter mapping
+// Maps user-friendly categories to the actual database filter fields
+const CATEGORY_TO_FILTERS: Record<string, { field: string; values: string[] }[]> = {
   // Life Stage
+  'College Life': [
+    { field: 'lifeStages', values: ['Students'] },
+    { field: 'ageGroup', values: ['Young Adult'] },
+  ],
+  'Young Professional': [
+    { field: 'lifeStages', values: ['Young Professionals'] },
+    { field: 'ageGroup', values: ['Young Adult', 'Adult'] },
+  ],
+  'Single': [
+    { field: 'lifeStages', values: ['Singles'] },
+  ],
+  'Dating & Relationships': [
+    { field: 'lifeStages', values: ['Singles', 'Married'] },
+  ],
+  'Newlywed': [
+    { field: 'lifeStages', values: ['Married'] },
+  ],
+  // Gender
+  'Men': [
+    { field: 'gender', values: ["Men's Only"] },
+  ],
+  'Women': [
+    { field: 'gender', values: ["Women's Only"] },
+  ],
+  // Faith & Growth
+  'New to Faith': [
+    { field: 'lifeStages', values: ['New Believers'] },
+    { field: 'ministry', values: ['Discipleship'] },
+  ],
+  'Bible Study': [
+    { field: 'ministry', values: ['Bible Study'] },
+  ],
+  'Prayer': [
+    { field: 'ministry', values: ['Prayer'] },
+  ],
+  'Worship & Music': [
+    { field: 'ministry', values: ['Worship'] },
+    { field: 'activities', values: ['Music', 'Worship Music'] },
+  ],
+  'Apologetics': [
+    { field: 'ministry', values: ['Apologetics'] },
+  ],
+  'Missions & Outreach': [
+    { field: 'ministry', values: ['Missions', 'Evangelism'] },
+    { field: 'activities', values: ['Service Projects', 'Volunteering'] },
+  ],
+  // Interests & Lifestyle
+  'Mental Health': [
+    { field: 'recovery', values: ['Mental Health'] },
+  ],
+  'Career & Purpose': [
+    { field: 'professions', values: ['Business', 'Entrepreneurs'] },
+    { field: 'lifeStages', values: ['Young Professionals'] },
+  ],
+  'Creative Arts': [
+    { field: 'activities', values: ['Arts & Crafts', 'Music', 'Photography', 'Writing', 'Theater/Drama'] },
+  ],
+  'Fitness & Sports': [
+    { field: 'activities', values: ['Sports', 'Fitness', 'Running', 'Hiking', 'Basketball', 'Soccer', 'Cycling', 'Swimming'] },
+  ],
+  'Social Events': [
+    { field: 'activities', values: ['Social Events', 'Coffee & Conversations', 'Board Games', 'Movies'] },
+  ],
+  'Small Groups': [
+    { field: 'ministry', values: ['Discipleship', 'Bible Study'] },
+    { field: 'meetingType', values: ['In-Person', 'Hybrid'] },
+  ],
+};
+
+// Legacy keyword mapping for fallback text-based matching
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'College Life': ['college', 'university', 'student', 'campus', 'dorm', 'grad'],
   'Young Professional': ['professional', 'career', 'workplace', 'young adult', '20s', 'millennial'],
   'Single': ['single', 'singles', 'unmarried'],
   'Dating & Relationships': ['dating', 'relationship', 'couples', 'love', 'engaged'],
   'Newlywed': ['newlywed', 'married', 'marriage', 'spouse', 'wedding'],
-  // Gender
   'Men': ['men', 'man', 'brotherhood', 'guys', 'bros'],
   'Women': ['women', 'woman', 'sisterhood', 'ladies', 'girls'],
-  // Faith & Growth
   'New to Faith': ['new believer', 'new to faith', 'seeker', 'exploring', 'beginner', 'basics'],
   'Bible Study': ['bible', 'study', 'scripture', 'word', 'reading', 'devotional'],
   'Prayer': ['prayer', 'intercession', 'praying', 'devotion'],
   'Worship & Music': ['worship', 'praise', 'music', 'singing', 'band', 'choir'],
   'Apologetics': ['apologetics', 'defense', 'reason', 'evidence', 'questions', 'theology', 'doctrine'],
   'Missions & Outreach': ['missions', 'outreach', 'evangelism', 'serve', 'volunteer', 'global'],
-  // Interests & Lifestyle
   'Mental Health': ['mental health', 'wellness', 'anxiety', 'support', 'healing', 'recovery'],
   'Career & Purpose': ['career', 'purpose', 'calling', 'work', 'vocation', 'business'],
   'Creative Arts': ['creative', 'art', 'music', 'writing', 'film', 'media', 'design'],
@@ -71,6 +140,17 @@ interface Community {
   iconName?: string;
   iconColor?: string;
   slug?: string;
+  // Filter fields from the database
+  ageGroup?: string;
+  gender?: string;
+  ministryTypes?: string[];
+  activities?: string[];
+  professions?: string[];
+  recoverySupport?: string[];
+  meetingType?: string;
+  frequency?: string;
+  lifeStages?: string[];
+  parentCategories?: string[];
 }
 
 export default function StartHereScreen() {
@@ -137,17 +217,48 @@ export default function StartHereScreen() {
   };
 
   // Calculate relevance score for a community based on selected categories
-  const calculateRelevanceScore = (community: Community, categories: string[]): number => {
+  // Uses both filter field matching and keyword fallback
+  const calculateRelevanceScore = (community: any, categories: string[]): number => {
     if (categories.length === 0) return 0;
 
     let score = 0;
     const communityText = `${community.name} ${community.description || ''}`.toLowerCase();
 
     for (const category of categories) {
+      // First, try filter field matching (more accurate)
+      const filterMappings = CATEGORY_TO_FILTERS[category] || [];
+      for (const mapping of filterMappings) {
+        const communityFieldValue = community[mapping.field === 'ministry' ? 'ministryTypes' :
+                                              mapping.field === 'recovery' ? 'recoverySupport' :
+                                              mapping.field];
+        if (communityFieldValue) {
+          // Check if any of the filter values match
+          if (Array.isArray(communityFieldValue)) {
+            const hasMatch = mapping.values.some(v =>
+              communityFieldValue.some((cv: string) =>
+                cv.toLowerCase().includes(v.toLowerCase()) || v.toLowerCase().includes(cv.toLowerCase())
+              )
+            );
+            if (hasMatch) {
+              score += 20; // Strong match via filter fields
+            }
+          } else if (typeof communityFieldValue === 'string') {
+            const hasMatch = mapping.values.some(v =>
+              communityFieldValue.toLowerCase().includes(v.toLowerCase()) ||
+              v.toLowerCase().includes(communityFieldValue.toLowerCase())
+            );
+            if (hasMatch) {
+              score += 20; // Strong match via filter fields
+            }
+          }
+        }
+      }
+
+      // Fallback to keyword matching for communities without filter data
       const keywords = CATEGORY_KEYWORDS[category] || [];
       for (const keyword of keywords) {
         if (communityText.includes(keyword.toLowerCase())) {
-          score += 10; // Base match
+          score += 10; // Base keyword match
           // Bonus for name match (more relevant)
           if (community.name.toLowerCase().includes(keyword.toLowerCase())) {
             score += 5;
