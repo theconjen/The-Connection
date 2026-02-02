@@ -32,7 +32,6 @@ services:
       - key: BOT_PASSWORD
         value: "REPLACE_ME"
 
-  # Background worker for content bots (Bible verses & theology quotes)
   - type: worker
     runtime: node
     name: content-bots
@@ -56,9 +55,9 @@ services:
       - key: BOT_PASSWORD
         value: "REPLACE_ME"
 
-  # Daily Advice Bot - Morning (8am ET / 1pm UTC)
   - type: cron
     name: advice-bot-morning
+    env: node
     schedule: "0 13 * * *"
     region: ohio
     repo: https://github.com/theconjen/The-Connection
@@ -76,9 +75,9 @@ services:
       - key: DATABASE_URL
         value: "REPLACE_ME"
 
-  # Daily Advice Bot - Afternoon (2pm ET / 7pm UTC)
   - type: cron
     name: advice-bot-afternoon
+    env: node
     schedule: "0 19 * * *"
     region: ohio
     repo: https://github.com/theconjen/The-Connection
@@ -96,9 +95,9 @@ services:
       - key: DATABASE_URL
         value: "REPLACE_ME"
 
-  # Daily Advice Bot - Evening (8pm ET / 1am UTC next day)
   - type: cron
     name: advice-bot-evening
+    env: node
     schedule: "0 1 * * *"
     region: ohio
     repo: https://github.com/theconjen/The-Connection
@@ -116,9 +115,9 @@ services:
       - key: DATABASE_URL
         value: "REPLACE_ME"
 
-  # Strategic Engagement Notifications - Morning (8am ET / 1pm UTC)
   - type: cron
     name: engagement-morning
+    env: node
     schedule: "0 13 * * *"
     region: ohio
     repo: https://github.com/theconjen/The-Connection
@@ -136,9 +135,9 @@ services:
       - key: DATABASE_URL
         value: "REPLACE_ME"
 
-  # Strategic Engagement Notifications - Afternoon (2pm ET / 7pm UTC)
   - type: cron
     name: engagement-afternoon
+    env: node
     schedule: "0 19 * * *"
     region: ohio
     repo: https://github.com/theconjen/The-Connection
@@ -156,9 +155,9 @@ services:
       - key: DATABASE_URL
         value: "REPLACE_ME"
 
-  # Strategic Engagement Notifications - Evening (8pm ET / 1am UTC)
   - type: cron
     name: engagement-evening
+    env: node
     schedule: "0 1 * * *"
     region: ohio
     repo: https://github.com/theconjen/The-Connection
@@ -176,9 +175,9 @@ services:
       - key: DATABASE_URL
         value: "REPLACE_ME"
 
-  # Admin Notifications - Daily (9am ET / 2pm UTC)
   - type: cron
     name: admin-notifications
+    env: node
     schedule: "0 14 * * *"
     region: ohio
     repo: https://github.com/theconjen/The-Connection
