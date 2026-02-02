@@ -19,6 +19,8 @@ import {
   Pressable,
   Modal,
   TouchableWithoutFeedback,
+  Linking,
+  Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -28,8 +30,8 @@ import apiClient from '../../src/lib/apiClient';
 import { Text } from '../../src/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
-import { ClergyBadge } from '../../src/components/ClergyBadge';
 import { shareAdvice, shareAdviceResponse } from '../../src/lib/shareUrls';
+import { ShareContentModal, ShareableContent } from '../../src/components/ShareContentModal';
 
 // Get avatar URL with fallback to UI Avatars
 function getAvatarUrl(author?: any): string {
@@ -77,6 +79,10 @@ export default function AdviceDetailScreen() {
   const [menuPosition, setMenuPosition] = useState({ y: 0 });
   const [responseMenuVisible, setResponseMenuVisible] = useState<number | null>(null);
   const [responseMenuPosition, setResponseMenuPosition] = useState({ y: 0 });
+  const [isPostReported, setIsPostReported] = useState(false);
+  const [reportedResponses, setReportedResponses] = useState<Set<number>>(new Set());
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareContent, setShareContent] = useState<ShareableContent | null>(null);
 
   const adviceId = parseInt(id || '0');
 
@@ -219,6 +225,32 @@ export default function AdviceDetailScreen() {
     }
   };
 
+  // Handle in-app sharing of the main advice post
+  const handleInAppSharePost = () => {
+    setMenuVisible(false);
+    const preview = advicePost?.content || '';
+    setShareContent({
+      type: 'advice',
+      id: adviceId,
+      title: advicePost?.anonymousNickname ? `Advice from ${advicePost.anonymousNickname}` : 'Advice Post',
+      preview: preview.length > 150 ? preview.substring(0, 150) + '...' : preview,
+    });
+    setShowShareModal(true);
+  };
+
+  // Handle in-app sharing of a response
+  const handleInAppShareResponse = (response: any) => {
+    setResponseMenuVisible(null);
+    const authorName = response.author?.displayName || response.author?.username || 'User';
+    setShareContent({
+      type: 'advice',
+      id: adviceId,
+      title: `Response from ${authorName}`,
+      preview: response.content.length > 150 ? response.content.substring(0, 150) + '...' : response.content,
+    });
+    setShowShareModal(true);
+  };
+
   // Handle report for main post
   const handleReportPost = () => {
     setMenuVisible(false);
@@ -231,18 +263,24 @@ export default function AdviceDetailScreen() {
           text: 'Report',
           style: 'destructive',
           onPress: async () => {
+            setIsPostReported(true);
             try {
-              await apiClient.post(`/api/microblogs/${adviceId}/report`, {
+              await apiClient.post('/api/reports', {
+                subjectType: 'microblog',
+                subjectId: adviceId,
                 reason: 'inappropriate_content',
               });
-              Alert.alert('Reported', 'Thank you for your report. Our team will review it.');
-            } catch {
-              Alert.alert('Error', 'Failed to report. Please try again.');
+            } catch (error) {
+              console.error('Error reporting post:', error);
             }
           },
         },
       ]
     );
+  };
+
+  const handleUndoReportPost = () => {
+    setIsPostReported(false);
   };
 
   // Handle report for a response
@@ -257,18 +295,29 @@ export default function AdviceDetailScreen() {
           text: 'Report',
           style: 'destructive',
           onPress: async () => {
+            setReportedResponses(prev => new Set(prev).add(response.id));
             try {
-              await apiClient.post(`/api/microblogs/comments/${response.id}/report`, {
+              await apiClient.post('/api/reports', {
+                subjectType: 'microblog',
+                subjectId: response.id,
                 reason: 'inappropriate_content',
+                description: 'Comment/response on advice post',
               });
-              Alert.alert('Reported', 'Thank you for your report. Our team will review it.');
-            } catch {
-              Alert.alert('Error', 'Failed to report. Please try again.');
+            } catch (error) {
+              console.error('Error reporting response:', error);
             }
           },
         },
       ]
     );
+  };
+
+  const handleUndoReportResponse = (responseId: number) => {
+    setReportedResponses(prev => {
+      const next = new Set(prev);
+      next.delete(responseId);
+      return next;
+    });
   };
 
   // Show dropdown menu for main post
@@ -305,7 +354,7 @@ export default function AdviceDetailScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/advice')} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Advice</Text>
@@ -316,6 +365,25 @@ export default function AdviceDetailScreen() {
           {advicePost && (
             <View style={styles.postSection}>
               {/* Question Card - Anonymous with optional nickname */}
+              {isPostReported ? (
+                <View style={[styles.questionCard, styles.reportedCard]}>
+                  <View style={styles.reportedContent}>
+                    <Ionicons name="flag" size={28} color={colors.textMuted} />
+                    <Text style={[styles.reportedTitle, { color: colors.textSecondary }]}>
+                      Content Reported
+                    </Text>
+                    <Text style={[styles.reportedText, { color: colors.textMuted }]}>
+                      This will be reviewed by The Connection Team
+                    </Text>
+                    <Pressable
+                      style={[styles.undoButton, { borderColor: colors.textMuted }]}
+                      onPress={handleUndoReportPost}
+                    >
+                      <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
               <View style={styles.questionCard}>
                 <View style={styles.questionHeader}>
                   <View style={[styles.anonymousAvatar, { backgroundColor: colors.surfaceMuted }]}>
@@ -330,6 +398,16 @@ export default function AdviceDetailScreen() {
                     </Text>
                   </View>
                   <View style={styles.cardActions}>
+                    {/* Edit button - only show for own posts */}
+                    {user?.id === advicePost?.userId && (
+                      <Pressable
+                        onPress={() => router.push(`/advice/edit/${adviceId}` as any)}
+                        hitSlop={8}
+                        style={styles.cardAction}
+                      >
+                        <Ionicons name="pencil-outline" size={18} color={colors.textMuted} />
+                      </Pressable>
+                    )}
                     <Pressable onPress={() => bookmarkMutation.mutate()} hitSlop={8} style={styles.cardAction}>
                       <Ionicons
                         name={isBookmarked ? "bookmark" : "bookmark-outline"}
@@ -351,6 +429,43 @@ export default function AdviceDetailScreen() {
 
                 {/* Content */}
                 <Text style={styles.postContent}>{advicePost.content}</Text>
+
+                {/* Attached Images */}
+                {advicePost.imageUrls && advicePost.imageUrls.length > 0 && (
+                  <View style={styles.attachedImages}>
+                    {advicePost.imageUrls.map((imageUrl: string, index: number) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.attachedImageWrapper,
+                          advicePost.imageUrls.length === 1 && styles.singleAttachedImage,
+                        ]}
+                        onPress={() => {/* Could open image viewer */}}
+                        activeOpacity={0.9}
+                      >
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={styles.attachedImage}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {/* Attached Link */}
+                {advicePost.sourceUrl && (
+                  <TouchableOpacity
+                    style={[styles.linkPreview, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}
+                    onPress={() => Linking.openURL(advicePost.sourceUrl)}
+                  >
+                    <Ionicons name="link" size={16} color={colors.primary} />
+                    <Text style={[styles.linkPreviewText, { color: colors.primary }]} numberOfLines={1}>
+                      {advicePost.sourceUrl}
+                    </Text>
+                    <Ionicons name="open-outline" size={14} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
 
                 {/* Tags */}
                 {advicePost.tags && advicePost.tags.length > 0 && (
@@ -389,6 +504,7 @@ export default function AdviceDetailScreen() {
                   </View>
                 </View>
               </View>
+              )}
             </View>
           )}
 
@@ -416,47 +532,61 @@ export default function AdviceDetailScreen() {
                 </Text>
               </View>
             ) : (
-              responses.map((response: any) => (
-                <View
-                  key={response.id}
-                  style={[
-                    styles.commentCard,
-                    response.author?.isVerifiedClergy && styles.clergyCommentCard
-                  ]}
-                >
-                  <Image
-                    source={{ uri: getAvatarUrl(response.author) }}
-                    style={styles.commentAvatar}
-                  />
-                  <View style={styles.commentMain}>
-                    <View style={styles.commentHeader}>
-                      <View style={styles.commentAuthorRow}>
-                        <Text style={styles.commentAuthorName}>
-                          {response.author?.displayName || response.author?.username || 'User'}
+              responses.map((response: any) => {
+                const isResponseReported = reportedResponses.has(response.id);
+
+                if (isResponseReported) {
+                  return (
+                    <View key={response.id} style={[styles.commentCard, styles.reportedResponseCard]}>
+                      <View style={styles.reportedResponseContent}>
+                        <Ionicons name="flag" size={20} color={colors.textMuted} />
+                        <Text style={[styles.reportedResponseTitle, { color: colors.textSecondary }]}>
+                          Response Reported
                         </Text>
-                        {response.author?.isVerifiedClergy && (
-                          <ClergyBadge size="small" style={{ marginLeft: 4 }} />
-                        )}
-                        <Text style={styles.postDot}>·</Text>
-                        {response.createdAt && (
-                          <Text style={styles.postTime}>{formatTime(response.createdAt)}</Text>
-                        )}
+                        <Text style={[styles.reportedResponseText, { color: colors.textMuted }]}>
+                          This will be reviewed by The Connection Team
+                        </Text>
+                        <Pressable
+                          style={[styles.undoButton, { borderColor: colors.textMuted }]}
+                          onPress={() => handleUndoReportResponse(response.id)}
+                        >
+                          <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
+                        </Pressable>
                       </View>
-                      <Pressable
-                        onPress={(e) => showResponseMenu(response, e.nativeEvent.pageY)}
-                        hitSlop={8}
-                        style={styles.responseMenuButton}
-                      >
-                        <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
-                      </Pressable>
                     </View>
-                    {response.author?.isVerifiedClergy && (
-                      <Text style={styles.clergyLabel}>Verified Clergy</Text>
-                    )}
-                    <Text style={styles.commentContent}>{response.content}</Text>
+                  );
+                }
+
+                return (
+                  <View key={response.id} style={styles.commentCard}>
+                    <Image
+                      source={{ uri: getAvatarUrl(response.author) }}
+                      style={styles.commentAvatar}
+                    />
+                    <View style={styles.commentMain}>
+                      <View style={styles.commentHeader}>
+                        <View style={styles.commentAuthorRow}>
+                          <Text style={styles.commentAuthorName}>
+                            {response.author?.displayName || response.author?.username || 'User'}
+                          </Text>
+                          <Text style={styles.postDot}>·</Text>
+                          {response.createdAt && (
+                            <Text style={styles.postTime}>{formatTime(response.createdAt)}</Text>
+                          )}
+                        </View>
+                        <Pressable
+                          onPress={(e) => showResponseMenu(response, e.nativeEvent.pageY)}
+                          hitSlop={8}
+                          style={styles.responseMenuButton}
+                        >
+                          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+                        </Pressable>
+                      </View>
+                      <Text style={styles.commentContent}>{response.content}</Text>
+                    </View>
                   </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         </ScrollView>
@@ -506,9 +636,14 @@ export default function AdviceDetailScreen() {
                     }
                   ]}
                 >
+                  <Pressable style={styles.dropdownItem} onPress={handleInAppSharePost}>
+                    <Ionicons name="paper-plane-outline" size={18} color={colors.textPrimary} />
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Send to...</Text>
+                  </Pressable>
+                  <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
                   <Pressable style={styles.dropdownItem} onPress={handleSharePost}>
                     <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
-                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share</Text>
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share External</Text>
                   </Pressable>
                   <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
                   <Pressable style={styles.dropdownItem} onPress={handleReportPost}>
@@ -545,11 +680,22 @@ export default function AdviceDetailScreen() {
                     style={styles.dropdownItem}
                     onPress={() => {
                       const response = responses.find((r: any) => r.id === responseMenuVisible);
+                      if (response) handleInAppShareResponse(response);
+                    }}
+                  >
+                    <Ionicons name="paper-plane-outline" size={18} color={colors.textPrimary} />
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Send to...</Text>
+                  </Pressable>
+                  <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                  <Pressable
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      const response = responses.find((r: any) => r.id === responseMenuVisible);
                       if (response) handleShareResponse(response);
                     }}
                   >
                     <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
-                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share</Text>
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share External</Text>
                   </Pressable>
                   <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
                   <Pressable
@@ -567,6 +713,16 @@ export default function AdviceDetailScreen() {
             </TouchableWithoutFeedback>
           </Modal>
         )}
+
+        {/* In-App Share Modal */}
+        <ShareContentModal
+          visible={showShareModal}
+          onClose={() => {
+            setShowShareModal(false);
+            setShareContent(null);
+          }}
+          content={shareContent}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -683,6 +839,39 @@ const getStyles = (colors: any, theme: string) => {
       lineHeight: 26,
       marginTop: 8,
     },
+    attachedImages: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 12,
+    },
+    attachedImageWrapper: {
+      width: (Dimensions.get('window').width - 48) / 2,
+      height: 150,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    singleAttachedImage: {
+      width: Dimensions.get('window').width - 32,
+      height: 220,
+    },
+    attachedImage: {
+      width: '100%',
+      height: '100%',
+    },
+    linkPreview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    linkPreviewText: {
+      flex: 1,
+      fontSize: 14,
+    },
     tagsContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -753,19 +942,6 @@ const getStyles = (colors: any, theme: string) => {
       paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderSubtle || colors.border,
-    },
-    clergyCommentCard: {
-      backgroundColor: isDark ? 'rgba(217, 119, 6, 0.1)' : 'rgba(254, 243, 199, 0.5)',
-      marginHorizontal: -12,
-      paddingHorizontal: 12,
-      borderLeftWidth: 3,
-      borderLeftColor: '#D97706',
-    },
-    clergyLabel: {
-      fontSize: 11,
-      color: '#D97706',
-      fontWeight: '600',
-      marginBottom: 4,
     },
     commentAvatar: {
       width: 36,
@@ -875,6 +1051,58 @@ const getStyles = (colors: any, theme: string) => {
     dropdownDivider: {
       height: 1,
       marginHorizontal: 12,
+    },
+
+    // Reported Card Styles
+    reportedCard: {
+      justifyContent: 'center',
+      minHeight: 140,
+    },
+    reportedContent: {
+      alignItems: 'center',
+      paddingVertical: 20,
+      gap: 8,
+    },
+    reportedTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginTop: 4,
+    },
+    reportedText: {
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    undoButton: {
+      marginTop: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 16,
+      borderWidth: 1,
+    },
+    undoButtonText: {
+      fontSize: 13,
+      fontWeight: '500',
+    },
+
+    // Reported Response Card
+    reportedResponseCard: {
+      justifyContent: 'center',
+      minHeight: 100,
+      marginLeft: 0,
+    },
+    reportedResponseContent: {
+      alignItems: 'center',
+      paddingVertical: 16,
+      gap: 6,
+    },
+    reportedResponseTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      marginTop: 2,
+    },
+    reportedResponseText: {
+      fontSize: 12,
+      textAlign: 'center',
     },
   });
 };

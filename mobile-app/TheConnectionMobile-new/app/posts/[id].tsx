@@ -24,6 +24,7 @@ import apiClient from '../../src/lib/apiClient';
 import { Text } from '../../src/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { ShareContentModal, ShareableContent } from '../../src/components/ShareContentModal';
 
 // Get avatar URL with fallback to UI Avatars
 function getAvatarUrl(author?: any): string {
@@ -79,6 +80,7 @@ export default function PostDetailScreen() {
   const styles = getStyles(colors, theme);
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const postId = parseInt(id || '0');
 
@@ -216,6 +218,9 @@ export default function PostDetailScreen() {
                         <Text style={styles.postActionText}>{comments?.length}</Text>
                       )}
                     </View>
+                    <TouchableOpacity style={styles.postAction} onPress={() => setShowShareModal(true)}>
+                      <Ionicons name="paper-plane-outline" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
@@ -296,6 +301,18 @@ export default function PostDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* In-App Share Modal */}
+        <ShareContentModal
+          visible={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          content={post ? {
+            type: 'post',
+            id: postId,
+            title: post.title || 'Post',
+            preview: post.content ? (post.content.length > 150 ? post.content.substring(0, 150) + '...' : post.content) : undefined,
+          } : null}
+        />
       </View>
     </KeyboardAvoidingView>
   );

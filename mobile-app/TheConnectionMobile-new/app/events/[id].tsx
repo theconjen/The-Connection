@@ -16,12 +16,14 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import { Platform } from 'react-native';
 import apiClient, { eventsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { isHost } from '../../src/lib/eventHelpers';
+import { ShareContentModal, ShareableContent } from '../../src/components/ShareContentModal';
 
 // API expects these exact values
 type RSVPStatus = 'going' | 'maybe' | 'not_going';
@@ -67,6 +69,7 @@ export default function EventDetailScreen() {
   // ALWAYS log on mount to debug routing issues
   console.info('[EventDetail] MOUNTED - id param:', id, '-> eventId:', eventId);
   const [showMap, setShowMap] = useState(true);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [currentRsvp, setCurrentRsvp] = useState<RSVPStatus | null>(null);
   const [rsvpFeedback, setRsvpFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -403,7 +406,9 @@ export default function EventDetailScreen() {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Event Details</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={() => setShowShareModal(true)} style={{ padding: 8 }}>
+          <Ionicons name="paper-plane-outline" size={22} color={colors.accent} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
@@ -703,6 +708,18 @@ export default function EventDetailScreen() {
           </View>
         )}
       </View>
+
+      {/* In-App Share Modal */}
+      <ShareContentModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        content={event ? {
+          type: 'event',
+          id: eventId,
+          title: event.title,
+          preview: event.description ? (event.description.length > 150 ? event.description.substring(0, 150) + '...' : event.description) : undefined,
+        } : null}
+      />
     </View>
   );
 }
