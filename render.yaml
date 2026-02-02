@@ -22,29 +22,15 @@ services:
       - key: USE_DB
         value: "true"
       - key: SESSION_SECRET
-        sync: true
+        value: "REPLACE_ME"
       - key: JWT_SECRET
-        sync: true
+        value: "REPLACE_ME"
       - key: DATABASE_URL
-        sync: true
-      - key: REDIS_URL
-        sync: false
+        value: "REPLACE_ME"
       - key: COOKIE_SECURE
         value: "true"
-      - key: SENTRY_DSN
-        sync: false
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
-      - key: EMAIL_FROM
-        sync: false
-      - key: GOOGLE_CLOUD_PROJECT_ID
-        sync: false
-      - key: GOOGLE_CLOUD_STORAGE_BUCKET
-        sync: false
       - key: BOT_PASSWORD
-        sync: false
+        value: "REPLACE_ME"
 
   # Background worker for content bots (Bible verses & theology quotes)
   - type: worker
@@ -66,9 +52,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: true
+        value: "REPLACE_ME"
       - key: BOT_PASSWORD
-        sync: false
+        value: "REPLACE_ME"
 
   # Daily Advice Bot - Morning (8am ET / 1pm UTC)
   - type: cron
@@ -88,7 +74,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: true
+        value: "REPLACE_ME"
 
   # Daily Advice Bot - Afternoon (2pm ET / 7pm UTC)
   - type: cron
@@ -108,7 +94,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: true
+        value: "REPLACE_ME"
 
   # Daily Advice Bot - Evening (8pm ET / 1am UTC next day)
   - type: cron
@@ -128,10 +114,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: true
+        value: "REPLACE_ME"
 
   # Strategic Engagement Notifications - Morning (8am ET / 1pm UTC)
-  # Personal/relational notifications (highest conversion) + spiritual nudge
   - type: cron
     name: engagement-morning
     schedule: "0 13 * * *"
@@ -149,10 +134,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: true
+        value: "REPLACE_ME"
 
   # Strategic Engagement Notifications - Afternoon (2pm ET / 7pm UTC)
-  # Group activity + upcoming events
   - type: cron
     name: engagement-afternoon
     schedule: "0 19 * * *"
@@ -170,10 +154,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: true
+        value: "REPLACE_ME"
 
   # Strategic Engagement Notifications - Evening (8pm ET / 1am UTC)
-  # Re-engagement for inactive users (7-30 days)
   - type: cron
     name: engagement-evening
     schedule: "0 1 * * *"
@@ -191,7 +174,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: true
+        value: "REPLACE_ME"
 
   # Admin Notifications - Daily (9am ET / 2pm UTC)
   - type: cron
@@ -211,4 +194,4 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: true
+        value: "REPLACE_ME"
