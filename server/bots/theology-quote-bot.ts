@@ -276,8 +276,6 @@ async function main() {
 
     // Format post
     const postContent = formatQuotePost(quote);
-    );
-    );
 
     // Post to feed
     await postQuote(botUserId, postContent);

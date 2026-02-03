@@ -150,8 +150,6 @@ async function main() {
 
     // Format post
     const postContent = formatVersePost(verse);
-    );
-    );
 
     // Post to feed
     await postVerse(botUserId, postContent);
