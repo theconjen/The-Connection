@@ -12,8 +12,10 @@
  * Or add to package.json scripts for production deployment
  */
 
-import { startTrendingHashtagScheduler } from './trendingHashtagScheduler';
 import { runAdviceBot } from './advice-bot-wrapper';
+
+// DISABLED: Trending hashtags not needed
+// import { startTrendingHashtagScheduler } from './trendingHashtagScheduler';
 
 // DISABLED: These bots post to microblogs which is no longer used
 // import { postBibleVerse } from './bible-verse-bot';
@@ -53,18 +55,15 @@ async function startScheduler() {
   // Run Advice Bot immediately on startup
   await scheduleAdviceBot();
 
-  // Start trending hashtag scheduler
-  await startTrendingHashtagScheduler();
-
   // Check every minute for scheduled tasks
   setInterval(async () => {
     await scheduleAdviceBot();
   }, 60 * 1000); // Check every 60 seconds
 
   console.info('[Scheduler] Advice Bot: ACTIVE (every 8 hours)');
-  console.info('[Scheduler] Trending Hashtags: ACTIVE (every 15 minutes)');
-  console.info('[Scheduler] Bible Verse Bot: DISABLED (no feed)');
-  console.info('[Scheduler] Theology Quote Bot: DISABLED (no feed)');
+  console.info('[Scheduler] Trending Hashtags: DISABLED');
+  console.info('[Scheduler] Bible Verse Bot: DISABLED');
+  console.info('[Scheduler] Theology Quote Bot: DISABLED');
 }
 
 // Handle graceful shutdown
