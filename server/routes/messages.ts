@@ -14,6 +14,8 @@ router.get('/communities/:id/chat/messages', requireAuth, async (req, res) => {
     const userId = requireSessionUserId(req);
     const limit = parseInt(req.query.limit as string) || 50;
 
+    console.info(`[Chat Messages] Fetching for community ${communityId}, user ${userId}`);
+
     if (!Number.isFinite(communityId)) {
       return res.status(400).json({ message: 'Invalid community ID' });
     }
@@ -23,20 +25,27 @@ router.get('/communities/:id/chat/messages', requireAuth, async (req, res) => {
     if (!member) {
       return res.status(403).json({ message: 'Must be a community member to view chat' });
     }
+    console.info(`[Chat Messages] User ${userId} is a member`);
 
     // Get default chat room for community
     const rooms = await storage.getCommunityRooms(communityId);
+    console.info(`[Chat Messages] Found ${rooms?.length || 0} rooms`);
+
     if (!rooms || rooms.length === 0) {
       // No room exists, return empty array
+      console.info(`[Chat Messages] No rooms found, returning empty array`);
       return res.json([]);
     }
 
     const defaultRoom = rooms[0];
-    const messages = await storage.getChatMessages(defaultRoom.id, limit);
+    console.info(`[Chat Messages] Fetching messages for room ${defaultRoom.id}`);
 
-    res.json(messages);
-  } catch (error) {
-    console.error('Error fetching chat messages:', error);
+    const messages = await storage.getChatMessages(defaultRoom.id, limit);
+    console.info(`[Chat Messages] Found ${messages?.length || 0} messages`);
+
+    res.json(messages || []);
+  } catch (error: any) {
+    console.error('[Chat Messages] Error:', error.message, error.stack);
     res.status(500).json(buildErrorResponse('Error fetching chat messages', error));
   }
 });
