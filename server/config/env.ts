@@ -5,7 +5,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   SESSION_SECRET: z.string().min(1).optional(),
   USE_DB: z.coerce.boolean().default(false),
-  DATABASE_URL: z.string().startsWith("postgres").optional(),
+  DATABASE_URL: z.string().min(1).optional(),
   COOKIE_SECURE: z.enum(["true", "false"]).optional(),
   CORS_ALLOWED_ORIGINS: z.string().optional().default(""),
   VERIFICATION_CLEANUP_INTERVAL_MS: z.coerce.number().int().positive().default(24 * 60 * 60 * 1000),
