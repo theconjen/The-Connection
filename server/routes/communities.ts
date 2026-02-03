@@ -66,6 +66,14 @@ router.get('/communities', async (req, res) => {
 
     let communities = await storage.getPublicCommunitiesAndUserCommunities(userId, searchQuery);
 
+    // Debug: Log user's member communities
+    const memberCommunities = communities.filter((c: any) => c.isMember);
+    if (userId) {
+      console.info(`[Communities] User ${userId} is member of ${memberCommunities.length} communities:`,
+        memberCommunities.map((c: any) => ({ id: c.id, name: c.name, isPrivate: c.isPrivate }))
+      );
+    }
+
     // Calculate distance for each community if user location is provided
     if (userLat !== null && userLng !== null) {
       communities = communities.map((community: any) => {
