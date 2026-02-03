@@ -287,9 +287,7 @@ async function main() {
   }
 }
 
-// Run if called directly
-if (require.main === module) {
-  main();
-}
+// Run the bot
+main();
 
 export { main as postTheologyQuote };
