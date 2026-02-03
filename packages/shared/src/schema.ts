@@ -62,6 +62,7 @@ export const users = pgTable("users", {
   profileVisibility: text("profile_visibility").default("public"),
   showLocation: boolean("show_location").default(true),
   showInterests: boolean("show_interests").default(true),
+  showActivity: boolean("show_activity").default(true),
   notifyDms: boolean("notify_dms").default(true),
   notifyCommunities: boolean("notify_communities").default(true),
   notifyForums: boolean("notify_forums").default(true),

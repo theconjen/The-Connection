@@ -340,6 +340,18 @@ router.get('/users/:userId/activity', async (req, res) => {
     // Check privacy: can this viewer see this profile's activity?
     const isPrivate = user.profileVisibility === 'private' || user.profileVisibility === 'friends';
     const isSelf = viewerId === userId;
+    const activityHidden = user.showActivity === false; // User has disabled activity visibility
+
+    // If user has hidden their activity, only they (or admins) can see it
+    if (activityHidden && !isSelf && !isAdmin) {
+      return res.json({
+        activities: [],
+        isPrivate: false,
+        activityHidden: true,
+        canViewActivity: false,
+      });
+    }
+
     let canViewActivity = isAdmin || isSelf || !isPrivate;
 
     // For private accounts, check if viewer is an accepted follower

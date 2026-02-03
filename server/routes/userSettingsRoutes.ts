@@ -120,6 +120,7 @@ router.patch("/settings", async (req, res) => {
       profileVisibility,
       showLocation,
       showInterests,
+      showActivity,
       notifyDms,
       notifyCommunities,
       notifyForums,
@@ -138,6 +139,7 @@ router.patch("/settings", async (req, res) => {
     if (profileVisibility !== undefined) updateData.profileVisibility = profileVisibility;
     if (typeof showLocation === 'boolean') updateData.showLocation = showLocation;
     if (typeof showInterests === 'boolean') updateData.showInterests = showInterests;
+    if (typeof showActivity === 'boolean') updateData.showActivity = showActivity;
     if (typeof notifyDms === 'boolean') updateData.notifyDms = notifyDms;
     if (typeof notifyCommunities === 'boolean') updateData.notifyCommunities = notifyCommunities;
     if (typeof notifyForums === 'boolean') updateData.notifyForums = notifyForums;
