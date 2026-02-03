@@ -1,54 +1,43 @@
 /**
  * Bot Scheduler
  *
- * Schedules automatic posts from bots:
- * - Bible Verse Bot: Posts every 8 hours
- * - Theology Quote Bot: Posts every 6 hours
+ * Schedules automatic tasks:
+ * - Daily Advice Bot: Posts questions and replies every 8 hours
+ * - Trending hashtag/keyword updates every 15 minutes
+ *
+ * NOTE: Bible Verse Bot and Theology Quote Bot are DISABLED
+ * since the normal feed was removed (only Advice feed remains).
  *
  * Run with: node -r esbuild-register server/bots/scheduler.ts
  * Or add to package.json scripts for production deployment
  */
 
-import { postBibleVerse } from './bible-verse-bot';
-import { postTheologyQuote } from './theology-quote-bot';
 import { startTrendingHashtagScheduler } from './trendingHashtagScheduler';
+import { runAdviceBot } from './advice-bot-wrapper';
+
+// DISABLED: These bots post to microblogs which is no longer used
+// import { postBibleVerse } from './bible-verse-bot';
+// import { postTheologyQuote } from './theology-quote-bot';
 
 // Schedule intervals (in milliseconds)
-const BIBLE_VERSE_INTERVAL = 8 * 60 * 60 * 1000; // 8 hours
-const THEOLOGY_QUOTE_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
+const ADVICE_BOT_INTERVAL = 8 * 60 * 60 * 1000; // 8 hours
 
 // Track last post times to avoid duplicates on restart
-let lastBibleVersePost = 0;
-let lastTheologyQuotePost = 0;
+let lastAdviceBotRun = 0;
 
 /**
- * Post Bible verse if interval has passed
+ * Run Advice Bot if interval has passed
  */
-async function scheduleBibleVerse() {
+async function scheduleAdviceBot() {
   const now = Date.now();
 
-  if (now - lastBibleVersePost >= BIBLE_VERSE_INTERVAL) {
+  if (now - lastAdviceBotRun >= ADVICE_BOT_INTERVAL) {
     try {
-      await postBibleVerse();
-      lastBibleVersePost = now;
+      await runAdviceBot();
+      lastAdviceBotRun = now;
+      console.info('[Advice Bot] ✓ Completed run');
     } catch (error) {
-      console.error('✗ [Bible Verse Bot] Error:', error);
-    }
-  }
-}
-
-/**
- * Post theology quote if interval has passed
- */
-async function scheduleTheologyQuote() {
-  const now = Date.now();
-
-  if (now - lastTheologyQuotePost >= THEOLOGY_QUOTE_INTERVAL) {
-    try {
-      await postTheologyQuote();
-      lastTheologyQuotePost = now;
-    } catch (error) {
-      console.error('✗ [Theology Quote Bot] Error:', error);
+      console.error('✗ [Advice Bot] Error:', error);
     }
   }
 }
@@ -57,22 +46,25 @@ async function scheduleTheologyQuote() {
  * Main scheduler loop
  */
 async function startScheduler() {
-  console.log('='.repeat(60));
-  console.log('Starting Bot Scheduler');
-  console.log('='.repeat(60));
+  console.info('='.repeat(60));
+  console.info('Starting Bot Scheduler');
+  console.info('='.repeat(60));
 
-  // Post immediately on startup
-  await scheduleBibleVerse();
-  await scheduleTheologyQuote();
+  // Run Advice Bot immediately on startup
+  await scheduleAdviceBot();
 
   // Start trending hashtag scheduler
   await startTrendingHashtagScheduler();
 
-  // Check every minute for scheduled posts
+  // Check every minute for scheduled tasks
   setInterval(async () => {
-    await scheduleBibleVerse();
-    await scheduleTheologyQuote();
+    await scheduleAdviceBot();
   }, 60 * 1000); // Check every 60 seconds
+
+  console.info('[Scheduler] Advice Bot: ACTIVE (every 8 hours)');
+  console.info('[Scheduler] Trending Hashtags: ACTIVE (every 15 minutes)');
+  console.info('[Scheduler] Bible Verse Bot: DISABLED (no feed)');
+  console.info('[Scheduler] Theology Quote Bot: DISABLED (no feed)');
 }
 
 // Handle graceful shutdown

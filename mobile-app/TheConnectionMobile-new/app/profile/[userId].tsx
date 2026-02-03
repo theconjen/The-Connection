@@ -1,5 +1,5 @@
 /**
- * User Profile Screen - View other users' profiles and follow/unfollow
+ * User Profile Screen - View other users' profiles (Instagram-adjacent style)
  */
 
 import React, { useState } from 'react';
@@ -7,12 +7,14 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
   SafeAreaView,
   Image,
   Alert,
+  Modal,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -20,6 +22,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../src/lib/apiClient';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { fetchBiblePassage, looksLikeBibleReference } from '../../src/lib/bibleApi';
+import { formatDistanceToNow } from 'date-fns';
+
+// Helper to format activity dates
+const formatActivityDate = (date: Date) => {
+  try {
+    return formatDistanceToNow(date, { addSuffix: true }).replace('about ', '');
+  } catch {
+    return '';
+  }
+};
+
+// Custom church icon
+const ChurchIcon = require('../../assets/church-icon.png');
 
 interface UserProfile {
   user: {
@@ -33,38 +49,57 @@ interface UserProfile {
     homeChurch?: string;
     favoriteBibleVerse?: string;
     testimony?: string;
-    interests?: string[];
+    interests?: string;
+    isVerifiedClergy?: boolean;
+    isVerifiedApologeticsAnswerer?: boolean;
   };
   stats: {
     followersCount: number;
     followingCount: number;
     postsCount: number;
     communitiesCount: number;
+    eventsCount?: number;
   };
   communities?: any[];
   recentPosts?: any[];
   recentMicroblogs?: any[];
+  isPrivate?: boolean;
 }
 
 export default function UserProfileScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams<{ userId: string }>();
-  const { colors } = useTheme();
+  const { colors, colorScheme } = useTheme();
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'posts' | 'communities'>('posts');
+  const [activeTab, setActiveTab] = useState<'activity' | 'communities'>('communities');
+  const [refreshing, setRefreshing] = useState(false);
+  const [showVerseModal, setShowVerseModal] = useState(false);
+  const [versePassage, setVersePassage] = useState<{ reference: string; text: string; translation: string } | null>(null);
+  const [verseLoading, setVerseLoading] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const userIdNum = parseInt(userId || '0');
   const isOwnProfile = currentUser?.id === userIdNum;
 
   // Fetch user profile
-  const { data: profile, isLoading } = useQuery<UserProfile>({
+  const { data: profile, isLoading, refetch } = useQuery<UserProfile>({
     queryKey: ['userProfile', userIdNum],
     queryFn: async () => {
       const response = await apiClient.get(`/api/users/${userIdNum}/profile`);
       return response.data;
     },
     enabled: !!userIdNum,
+  });
+
+  // Fetch user activity (respects privacy)
+  const { data: activityData, isLoading: isActivityLoading, refetch: refetchActivity } = useQuery({
+    queryKey: ['userActivity', userIdNum],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/users/${userIdNum}/activity`);
+      return response.data;
+    },
+    enabled: !!userIdNum && activeTab === 'activity',
   });
 
   // Check follow status
@@ -117,6 +152,95 @@ export default function UserProfileScreen() {
     router.push(`/messages/${userIdNum}`);
   };
 
+  const handleBlockUser = () => {
+    setShowUserMenu(false);
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block ${profile?.user?.displayName || profile?.user?.username}? They won't be able to see your profile or message you.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.post(`/api/users/${userIdNum}/block`);
+              Alert.alert('Blocked', 'User has been blocked.');
+              router.back();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to block user');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReportUser = () => {
+    setShowUserMenu(false);
+    Alert.alert(
+      'Report User',
+      'Are you sure you want to report this user for inappropriate behavior?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.post(`/api/users/${userIdNum}/report`, {
+                reason: 'Reported from profile screen',
+              });
+              Alert.alert('Reported', 'Thank you for your report. We will review it shortly.');
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to report user');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetch(), refetchActivity()]);
+    setRefreshing(false);
+  };
+
+  const handleVersePress = async () => {
+    const verseText = profile?.user?.favoriteBibleVerse;
+    if (!verseText) return;
+
+    setShowVerseModal(true);
+    setVerseLoading(true);
+
+    if (looksLikeBibleReference(verseText)) {
+      const result = await fetchBiblePassage(verseText);
+      setVersePassage({
+        reference: result.reference,
+        text: result.text,
+        translation: result.translation || 'WEB',
+      });
+    } else {
+      setVersePassage({
+        reference: '',
+        text: verseText,
+        translation: '',
+      });
+    }
+
+    setVerseLoading(false);
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return '??';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -133,227 +257,394 @@ export default function UserProfileScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="person-outline" size={64} color={colors.textSecondary} />
           <Text style={[styles.errorText, { color: colors.textPrimary }]}>User not found</Text>
-          <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: colors.primary }]}
+          <Pressable
+            style={[styles.backButtonLarge, { backgroundColor: colors.primary }]}
             onPress={() => router.back()}
           >
             <Text style={styles.backButtonText}>Go Back</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
   }
 
-  const { user, stats } = profile;
+  const { user, stats, communities } = profile;
   const displayName = user.displayName || user.username;
-  const avatarLetter = displayName.charAt(0).toUpperCase();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+        <Pressable onPress={() => router.back()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Profile</Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Profile Header */}
-        <View style={styles.profileHeader}>
-          {/* Avatar */}
-          {user.profileImageUrl ? (
-            <Image source={{ uri: user.profileImageUrl }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
-              <Text style={styles.avatarText}>{avatarLetter}</Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+        }
+      >
+        {/* Profile Header - Instagram Style */}
+        <View style={[styles.profileHeader, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
+          {/* Top Row: Avatar + Stats */}
+          <View style={styles.topRow}>
+            {/* Avatar */}
+            <View style={styles.avatarContainer}>
+              {user.profileImageUrl ? (
+                <Image source={{ uri: user.profileImageUrl }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
+                    {getInitials(displayName)}
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
+
+            {/* Stats */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.eventsCount || 0}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Events</Text>
+              </View>
+              <Pressable
+                style={styles.statItem}
+                onPress={() => router.push(`/profile/followers?userId=${userIdNum}&tab=followers`)}
+              >
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.followersCount}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Connections</Text>
+              </Pressable>
+              <Pressable
+                style={styles.statItem}
+                onPress={() => router.push(`/profile/followers?userId=${userIdNum}&tab=following`)}
+              >
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.followingCount}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Connected</Text>
+              </Pressable>
+            </View>
+          </View>
 
           {/* Name and Username */}
-          <Text style={[styles.displayName, { color: colors.textPrimary }]}>{displayName}</Text>
-          <Text style={[styles.username, { color: colors.textSecondary }]}>@{user.username}</Text>
+          <View style={styles.infoSection}>
+            {/* Name with denomination badge */}
+            <View style={styles.nameRow}>
+              <Text style={[styles.displayName, { color: colors.textPrimary }]}>{displayName}</Text>
+              {user.isVerifiedClergy && (
+                <Image
+                  source={require('../../assets/clergy-shield.png')}
+                  style={{ width: 18, height: 18, marginLeft: 2 }}
+                  resizeMode="contain"
+                />
+              )}
+              {user.isVerifiedApologeticsAnswerer && (
+                <Image
+                  source={require('../../assets/apologist-shield.png')}
+                  style={{ width: 18, height: 18, marginLeft: 2 }}
+                  resizeMode="contain"
+                />
+              )}
+              {user.denomination && (
+                <View style={[styles.denominationBadge, { backgroundColor: `${colors.primary}15` }]}>
+                  <Text style={[styles.denominationText, { color: colors.primary }]}>{user.denomination}</Text>
+                </View>
+              )}
+            </View>
 
-          {/* Bio */}
-          {user.bio && (
-            <Text style={[styles.bio, { color: colors.textPrimary }]}>{user.bio}</Text>
-          )}
+            <Text style={[styles.username, { color: colors.textSecondary }]}>@{user.username}</Text>
 
-          {/* Stats */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{stats.followersCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Followers</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{stats.followingCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Following</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{stats.postsCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Posts</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{stats.communitiesCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Communities</Text>
-            </View>
+            {/* Compact location & church info */}
+            {(user.location || user.homeChurch) && (
+              <View style={styles.compactInfoRow}>
+                {user.location && (
+                  <>
+                    <Ionicons name="location" size={12} color={colors.textSecondary} />
+                    <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>{user.location}</Text>
+                  </>
+                )}
+                {user.location && user.homeChurch && (
+                  <Text style={[styles.separator, { color: colors.textSecondary }]}> | </Text>
+                )}
+                {user.homeChurch && (
+                  <>
+                    <Image
+                      source={ChurchIcon}
+                      style={{ width: 14, height: 14, tintColor: colors.textSecondary }}
+                      resizeMode="contain"
+                    />
+                    <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>{user.homeChurch}</Text>
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* Bio */}
+            {user.bio && <Text style={[styles.bio, { color: colors.textPrimary }]}>{user.bio}</Text>}
+
+            {/* Bible Verse - Tappable */}
+            {user.favoriteBibleVerse && (
+              <Pressable
+                onPress={handleVersePress}
+                style={({ pressed }) => [
+                  styles.bibleVerseCompact,
+                  { backgroundColor: `${colors.surfaceMuted}80`, borderLeftColor: `${colors.primary}60` },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Ionicons name="book-outline" size={12} color={colors.textMuted} style={{ opacity: 0.7 }} />
+                <Text style={[styles.bibleVerseText, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {user.favoriteBibleVerse}
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ opacity: 0.5 }} />
+              </Pressable>
+            )}
+
           </View>
 
           {/* Action Buttons */}
           {!isOwnProfile && (
             <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.followButton,
-                  {
-                    backgroundColor: followStatus?.isFollowing ? colors.surface : colors.primary,
-                    borderColor: colors.borderSubtle,
-                    borderWidth: followStatus?.isFollowing ? 1 : 0,
-                  },
-                ]}
+              <Pressable
                 onPress={handleFollowToggle}
                 disabled={followMutation.isPending || unfollowMutation.isPending}
+                style={[
+                  styles.followButton,
+                  { backgroundColor: colors.primary },
+                  followStatus?.isFollowing && [styles.followingButton, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }],
+                ]}
               >
                 {followMutation.isPending || unfollowMutation.isPending ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <ActivityIndicator size="small" color={followStatus?.isFollowing ? colors.textPrimary : colors.primaryForeground} />
                 ) : (
                   <Text
                     style={[
                       styles.followButtonText,
-                      { color: followStatus?.isFollowing ? colors.textPrimary : '#fff' },
+                      { color: colors.primaryForeground },
+                      followStatus?.isFollowing && { color: colors.textPrimary },
                     ]}
                   >
-                    {followStatus?.isFollowing ? 'Following' : 'Follow'}
+                    {followStatus?.isFollowing ? 'Connected' : 'Connect'}
                   </Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={[styles.messageButton, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
                 onPress={handleMessage}
               >
-                <Ionicons name="mail-outline" size={20} color={colors.textPrimary} />
-                <Text style={[styles.messageButtonText, { color: colors.textPrimary }]}>Message</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+                <Ionicons name="mail-outline" size={18} color={colors.textPrimary} />
+              </Pressable>
 
-          {/* Additional Info */}
-          {(user.location || user.denomination || user.homeChurch) && (
-            <View style={[styles.infoSection, { borderTopColor: colors.borderSubtle }]}>
-              {user.location && (
-                <View style={styles.infoItem}>
-                  <Ionicons name="location-outline" size={18} color={colors.textSecondary} />
-                  <Text style={[styles.infoText, { color: colors.textPrimary }]}>{user.location}</Text>
-                </View>
-              )}
-              {user.denomination && (
-                <View style={styles.infoItem}>
-                  <Ionicons name="book-outline" size={18} color={colors.textSecondary} />
-                  <Text style={[styles.infoText, { color: colors.textPrimary }]}>{user.denomination}</Text>
-                </View>
-              )}
-              {user.homeChurch && (
-                <View style={styles.infoItem}>
-                  <Ionicons name="business-outline" size={18} color={colors.textSecondary} />
-                  <Text style={[styles.infoText, { color: colors.textPrimary }]}>{user.homeChurch}</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Favorite Bible Verse */}
-          {user.favoriteBibleVerse && (
-            <View style={[styles.verseContainer, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-              <Ionicons name="book" size={20} color={colors.primary} />
-              <Text style={[styles.verseText, { color: colors.textPrimary }]}>"{user.favoriteBibleVerse}"</Text>
+              <Pressable
+                style={[styles.messageButton, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+                onPress={() => setShowUserMenu(true)}
+              >
+                <Ionicons name="ellipsis-horizontal" size={18} color={colors.textPrimary} />
+              </Pressable>
             </View>
           )}
         </View>
 
         {/* Tabs */}
-        <View style={[styles.tabsContainer, { borderBottomColor: colors.borderSubtle }]}>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'posts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
-            ]}
-            onPress={() => setActiveTab('posts')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                { color: activeTab === 'posts' ? colors.primary : colors.textSecondary },
-              ]}
-            >
-              Posts
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'communities' && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
-            ]}
+        <View style={[styles.tabsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
+          <Pressable
+            style={[styles.tab, activeTab === 'communities' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
             onPress={() => setActiveTab('communities')}
           >
-            <Text
-              style={[
-                styles.tabText,
-                { color: activeTab === 'communities' ? colors.primary : colors.textSecondary },
-              ]}
-            >
+            <Ionicons
+              name="people-outline"
+              size={20}
+              color={activeTab === 'communities' ? colors.primary : colors.textSecondary}
+            />
+            <Text style={[styles.tabText, { color: activeTab === 'communities' ? colors.primary : colors.textSecondary }]}>
               Communities
             </Text>
-          </TouchableOpacity>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, activeTab === 'activity' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            onPress={() => setActiveTab('activity')}
+          >
+            <Ionicons
+              name="time-outline"
+              size={20}
+              color={activeTab === 'activity' ? colors.primary : colors.textSecondary}
+            />
+            <Text style={[styles.tabText, { color: activeTab === 'activity' ? colors.primary : colors.textSecondary }]}>
+              Activity
+            </Text>
+          </Pressable>
         </View>
 
         {/* Tab Content */}
-        <View style={styles.tabContent}>
-          {activeTab === 'posts' ? (
-            profile.recentPosts && profile.recentPosts.length > 0 ? (
-              profile.recentPosts.map((post: any) => (
-                <View
-                  key={post.id}
-                  style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
-                >
-                  <Text style={[styles.postTitle, { color: colors.textPrimary }]}>{post.title}</Text>
-                  <Text style={[styles.postContent, { color: colors.textSecondary }]} numberOfLines={3}>
-                    {post.content}
+        <View style={[styles.content, { backgroundColor: colors.background }]}>
+          {activeTab === 'communities' ? (
+            <View style={styles.communitiesContainer}>
+              {communities && communities.length > 0 ? (
+                <View style={styles.communitiesGrid}>
+                  {communities.map((community: any) => (
+                    <Pressable
+                      key={community.id}
+                      style={styles.storyCircle}
+                      onPress={() => router.push(`/communities/${community.id}`)}
+                    >
+                      <View style={[styles.storyImageContainer, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+                        <View style={[styles.storyIconCircle, { backgroundColor: colors.surfaceMuted }]}>
+                          <Ionicons
+                            name={(community.iconName || 'people') as any}
+                            size={32}
+                            color={colors.primary}
+                          />
+                        </View>
+                      </View>
+                      <Text style={[styles.storyLabel, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {community.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No communities yet</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.activityContainer}>
+              {/* Loading state */}
+              {isActivityLoading ? (
+                <View style={styles.emptyState}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : /* Check if activity is hidden by user preference */
+              activityData?.activityHidden ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="eye-off-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Activity is hidden</Text>
+                  <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                    This user has chosen to hide their activity
                   </Text>
                 </View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="document-text-outline" size={48} color={colors.textSecondary} />
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No posts yet</Text>
-              </View>
-            )
-          ) : (
-            profile.communities && profile.communities.length > 0 ? (
-              profile.communities.map((community: any) => (
-                <View
-                  key={community.id}
-                  style={[styles.communityCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
-                >
-                  <Ionicons name="people" size={24} color={colors.primary} />
-                  <View style={styles.communityInfo}>
-                    <Text style={[styles.communityName, { color: colors.textPrimary }]}>{community.name}</Text>
-                    <Text style={[styles.communityMembers, { color: colors.textSecondary }]}>
-                      {community.memberCount} members
-                    </Text>
-                  </View>
+              ) : /* Privacy check - show message if activity is private */
+              activityData?.isPrivate && !activityData?.canViewActivity ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="lock-closed-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>This profile is private</Text>
+                  <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                    Connect with this user to see their activity
+                  </Text>
                 </View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No communities yet</Text>
-              </View>
-            )
+              ) : activityData?.activities && activityData.activities.length > 0 ? (
+                activityData.activities.map((activity: any) => (
+                  <Pressable
+                    key={activity.id}
+                    style={[styles.activityCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+                    onPress={() => {
+                      // Navigate to related content
+                      if (activity.type === 'community_join' && activity.communityId) {
+                        router.push(`/communities/${activity.communityId}`);
+                      } else if (activity.type === 'event_rsvp' && activity.eventId) {
+                        router.push(`/events/${activity.eventId}`);
+                      } else if (activity.type === 'follow' && activity.userId) {
+                        router.push(`/profile/${activity.userId}`);
+                      }
+                    }}
+                  >
+                    <View style={[styles.activityIconCircle, { backgroundColor: `${activity.iconColor}15` }]}>
+                      <Ionicons name={activity.icon as any} size={18} color={activity.iconColor} />
+                    </View>
+                    <View style={styles.activityContent}>
+                      <Text style={[styles.activityText, { color: colors.textPrimary }]}>{activity.text}</Text>
+                      <Text style={[styles.activityDate, { color: colors.textMuted }]}>
+                        {formatActivityDate(new Date(activity.date))}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ opacity: 0.5 }} />
+                  </Pressable>
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="time-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No recent activity</Text>
+                </View>
+              )}
+            </View>
           )}
         </View>
       </ScrollView>
+
+      {/* Bible Verse Modal */}
+      <Modal
+        visible={showVerseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowVerseModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowVerseModal(false)}>
+          <View
+            style={[styles.verseModalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.verseModalHeader}>
+              <Ionicons name="book" size={20} color={colors.primary} />
+              <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
+                {versePassage?.reference || 'Favorite Verse'}
+              </Text>
+              <Pressable onPress={() => setShowVerseModal(false)} hitSlop={12}>
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            {verseLoading ? (
+              <View style={styles.verseModalLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.verseModalLoadingText, { color: colors.textMuted }]}>Loading passage...</Text>
+              </View>
+            ) : (
+              <>
+                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator nestedScrollEnabled>
+                  <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
+                    {versePassage?.text || user?.favoriteBibleVerse}
+                  </Text>
+                </ScrollView>
+                {versePassage?.translation && (
+                  <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+                    {versePassage.translation}
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* User Menu Modal (Block/Report) */}
+      <Modal
+        visible={showUserMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUserMenu(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowUserMenu(false)}>
+          <View
+            style={[styles.userMenuContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Pressable style={styles.userMenuItem} onPress={handleBlockUser}>
+              <Ionicons name="ban-outline" size={20} color={colors.textPrimary} />
+              <Text style={[styles.userMenuItemText, { color: colors.textPrimary }]}>Block User</Text>
+            </Pressable>
+            <View style={[styles.userMenuDivider, { backgroundColor: colors.borderSubtle }]} />
+            <Pressable style={styles.userMenuItem} onPress={handleReportUser}>
+              <Ionicons name="flag-outline" size={20} color="#EF4444" />
+              <Text style={[styles.userMenuItemText, { color: '#EF4444' }]}>Report User</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -378,7 +669,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 16,
   },
-  backButton: {
+  backButtonLarge: {
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -408,118 +699,149 @@ const styles = StyleSheet.create({
     width: 32,
   },
   profileHeader: {
+    paddingTop: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  topRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 24,
+    marginBottom: 16,
+  },
+  avatarContainer: {
+    marginRight: 24,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
   },
   avatarText: {
-    color: '#fff',
-    fontSize: 40,
-    fontWeight: '600',
-  },
-  displayName: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '700',
-    marginBottom: 4,
   },
-  username: {
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  bio: {
-    fontSize: 15,
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  statsContainer: {
+  statsRow: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 20,
+    alignItems: 'center',
   },
   statItem: {
     alignItems: 'center',
   },
-  statValue: {
-    fontSize: 20,
+  statNumber: {
+    fontSize: 18,
     fontWeight: '700',
   },
   statLabel: {
     fontSize: 13,
-    marginTop: 4,
+    marginTop: 2,
+  },
+  infoSection: {
+    marginBottom: 12,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  displayName: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  denominationBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  denominationText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  username: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  compactInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    flexWrap: 'wrap',
+  },
+  compactInfoText: {
+    fontSize: 12,
+    marginLeft: 3,
+  },
+  separator: {
+    fontSize: 12,
+    marginHorizontal: 4,
+  },
+  bio: {
+    fontSize: 14,
+    marginTop: 10,
+    lineHeight: 20,
+  },
+  bibleVerseCompact: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    borderLeftWidth: 1.5,
+  },
+  bibleVerseText: {
+    flex: 1,
+    fontSize: 12,
+    fontStyle: 'italic',
+    lineHeight: 17,
+    opacity: 0.85,
+  },
+  interestTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+  },
+  interestTag: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  interestTagText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-    marginBottom: 20,
+    gap: 8,
   },
   followButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  followingButton: {
+    borderWidth: 1,
   },
   followButtonText: {
-    fontSize: 16,
     fontWeight: '600',
+    fontSize: 14,
   },
   messageButton: {
-    flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderWidth: 1,
     justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-  },
-  messageButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  infoSection: {
-    width: '100%',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    gap: 12,
-  },
-  infoItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  infoText: {
-    fontSize: 15,
-  },
-  verseContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    gap: 12,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 12,
-  },
-  verseText: {
-    flex: 1,
-    fontSize: 15,
-    fontStyle: 'italic',
-    lineHeight: 22,
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -527,57 +849,177 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  tabContent: {
-    padding: 16,
-  },
-  postCard: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  postTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  postContent: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  communityCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  content: {
+    minHeight: 400,
+  },
+  communitiesContainer: {
     padding: 16,
-    borderRadius: 12,
+  },
+  communitiesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 16,
+  },
+  storyCircle: {
+    width: 80,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  storyImageContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    padding: 3,
+    borderWidth: 2,
+    marginBottom: 6,
+  },
+  storyIconCircle: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 33,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storyLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+    width: '100%',
+  },
+  activityContainer: {
+    padding: 16,
+  },
+  activityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 12,
+    marginBottom: 10,
     gap: 12,
   },
-  communityInfo: {
+  activityIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activityContent: {
     flex: 1,
   },
-  communityName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
+  activityText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
   },
-  communityMembers: {
-    fontSize: 13,
+  activityDate: {
+    fontSize: 12,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    justifyContent: 'center',
+    paddingVertical: 48,
   },
   emptyText: {
     fontSize: 16,
     marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    marginTop: 6,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  verseModalContent: {
+    width: '100%',
+    maxWidth: 360,
+    maxHeight: '70%',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  verseModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  verseModalTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  verseModalScroll: {
+    maxHeight: 300,
+  },
+  verseModalText: {
+    fontSize: 16,
+    lineHeight: 26,
+    fontStyle: 'italic',
+  },
+  verseModalAttribution: {
+    fontSize: 12,
+    marginTop: 16,
+    textAlign: 'right',
+    fontWeight: '500',
+  },
+  verseModalLoading: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  verseModalLoadingText: {
+    fontSize: 14,
+  },
+  // User menu styles
+  userMenuContent: {
+    width: '80%',
+    maxWidth: 300,
+    borderRadius: 12,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  userMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  userMenuItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  userMenuDivider: {
+    height: 1,
+    marginHorizontal: 8,
   },
 });

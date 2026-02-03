@@ -26,11 +26,14 @@ import { useAuth } from '../../../src/contexts/AuthContext';
 interface Member {
   id: number;
   userId: number;
-  username: string;
-  displayName?: string;
-  avatarUrl?: string;
   role: 'owner' | 'moderator' | 'member';
   joinedAt: string;
+  user?: {
+    id: number;
+    username: string;
+    displayName?: string;
+    avatarUrl?: string;
+  };
 }
 
 export default function CommunityMembersScreen() {
@@ -74,10 +77,27 @@ export default function CommunityMembersScreen() {
   const updateRoleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: number; role: string }) =>
       communitiesAPI.updateMemberRole(communityId, userId, role),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['community-members', communityId] });
       queryClient.invalidateQueries({ queryKey: ['community', communityId] });
       setShowActionSheet(false);
+
+      const memberName = selectedMember?.user?.displayName || selectedMember?.user?.username || 'This member';
+
+      if (variables.role === 'moderator') {
+        Alert.alert(
+          'Moderator Assigned!',
+          `${memberName} is now a moderator. They'll receive a notification about their new role and responsibilities, including:\n\n` +
+          '• Helping maintain a positive environment\n' +
+          '• Reviewing content\n' +
+          '• Welcoming new members\n\n' +
+          'Reminder: Make sure your community location is set so nearby believers can find you!',
+          [{ text: 'Great!', style: 'default' }]
+        );
+      } else {
+        Alert.alert('Success', `${memberName} has been updated to ${variables.role}.`);
+      }
+
       setSelectedMember(null);
     },
     onError: (error: any) => {
@@ -184,12 +204,12 @@ export default function CommunityMembersScreen() {
           style={styles.avatarContainer}
           onPress={() => router.push(`/profile/${item.userId}`)}
         >
-          {item.avatarUrl ? (
-            <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
+          {item.user?.avatarUrl ? (
+            <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.placeholderAvatar]}>
               <Text style={styles.placeholderLetter}>
-                {(item.displayName || item.username).charAt(0).toUpperCase()}
+                {(item.user?.displayName || item.user?.username || '?').charAt(0).toUpperCase()}
               </Text>
             </View>
           )}
@@ -198,7 +218,7 @@ export default function CommunityMembersScreen() {
         <View style={styles.memberInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.memberName}>
-              {item.displayName || item.username}
+              {item.user?.displayName || item.user?.username || 'Unknown'}
               {isCurrentUser && <Text style={styles.youLabel}> (You)</Text>}
             </Text>
             {badge && (
@@ -207,7 +227,7 @@ export default function CommunityMembersScreen() {
               </View>
             )}
           </View>
-          <Text style={styles.memberHandle}>@{item.username}</Text>
+          <Text style={styles.memberHandle}>@{item.user?.username || 'unknown'}</Text>
           <Text style={styles.joinDate}>Joined {formatJoinDate(item.joinedAt)}</Text>
         </View>
 

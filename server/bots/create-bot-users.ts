@@ -46,7 +46,7 @@ async function createBotUser(config: BotConfig) {
       .limit(1);
 
     if (existingUser) {
-      `);
+      console.info(`Bot user "${config.username}" already exists (id: ${existingUser.id})`);
       return existingUser;
     }
 
@@ -69,7 +69,7 @@ async function createBotUser(config: BotConfig) {
       })
       .returning();
 
-    `);
+    console.info(`Created bot user "${config.username}" (id: ${newUser.id})`);
     return newUser;
   } catch (error) {
     console.error(`✗ Error creating bot "${config.username}":`, error);
@@ -78,12 +78,13 @@ async function createBotUser(config: BotConfig) {
 }
 
 async function main() {
+  console.info('Creating bot users...\n');
 
   for (const config of BOT_CONFIGS) {
     await createBotUser(config);
   }
 
-
+  console.info('\n✓ All bot users ready');
   process.exit(0);
 }
 

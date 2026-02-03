@@ -251,7 +251,7 @@ async function getBotUserId(): Promise<number> {
 async function postQuote(userId: number, content: string): Promise<void> {
   try {
     await db.insert(microblogs).values({
-      userId,
+      authorId: userId,
       content,
       createdAt: new Date(),
     });
@@ -263,23 +263,30 @@ async function postQuote(userId: number, content: string): Promise<void> {
 }
 
 /**
- * Main function - Post a theology quote
+ * Post a theology quote - can be called from scheduler
+ */
+export async function postTheologyQuote(): Promise<void> {
+  // Get bot user ID
+  const botUserId = await getBotUserId();
+
+  // Get random quote
+  const quote = getRandomQuote();
+
+  // Format post
+  const postContent = formatQuotePost(quote);
+
+  // Post to feed
+  await postQuote(botUserId, postContent);
+
+  console.info(`[Theology Quote Bot] Posted quote by ${quote.author}`);
+}
+
+/**
+ * Main function - for standalone execution
  */
 async function main() {
-
   try {
-    // Get bot user ID
-    const botUserId = await getBotUserId();
-
-    // Get random quote
-    const quote = getRandomQuote();
-
-    // Format post
-    const postContent = formatQuotePost(quote);
-
-    // Post to feed
-    await postQuote(botUserId, postContent);
-
+    await postTheologyQuote();
     process.exit(0);
   } catch (error) {
     console.error('\n✗ Error:', error);
@@ -287,7 +294,8 @@ async function main() {
   }
 }
 
-// Run the bot
-main();
-
-export { main as postTheologyQuote };
+// Only run main() when executed directly (not when imported)
+const isMainModule = typeof require !== 'undefined' && require.main === module;
+if (isMainModule) {
+  main();
+}

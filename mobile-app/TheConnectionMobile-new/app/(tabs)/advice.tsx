@@ -1,5 +1,6 @@
 /**
  * ADVICE LISTING PAGE - Shows all Global Community advice posts
+ * Inside (tabs) to show bottom navigation bar
  */
 
 import React, { useState, useCallback, useRef } from 'react';
@@ -13,10 +14,9 @@ import {
   Pressable,
   StatusBar,
   Alert,
+  TextInput,
   Modal,
   TouchableWithoutFeedback,
-  Image,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,8 +44,6 @@ interface AdvicePost {
   isLiked?: boolean;
   isBookmarked?: boolean;
   anonymousNickname?: string;
-  imageUrls?: string[];
-  sourceUrl?: string;
 }
 
 export default function AdviceListScreen() {
@@ -54,12 +52,16 @@ export default function AdviceListScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  const [searchQuery, setSearchQuery] = useState('');
   const [upvotedPosts, setUpvotedPosts] = useState<Set<number>>(new Set());
   const [unupvotedPosts, setUnupvotedPosts] = useState<Set<number>>(new Set());
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<number>>(new Set());
   const [unbookmarkedPosts, setUnbookmarkedPosts] = useState<Set<number>>(new Set());
+  const [reportedPosts, setReportedPosts] = useState<Set<number>>(new Set());
+
+  // Menu state
   const [menuPost, setMenuPost] = useState<AdvicePost | null>(null);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
 
   const {
     data,
@@ -87,6 +89,13 @@ export default function AdviceListScreen() {
   });
 
   const advicePosts = data?.pages.flatMap(page => page.items) || [];
+
+  // Filter posts based on search query
+  const filteredPosts = searchQuery.trim()
+    ? advicePosts.filter(post =>
+        post.content?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : advicePosts;
 
   // Upvote mutation
   const upvoteMutation = useMutation({
@@ -156,51 +165,81 @@ export default function AdviceListScreen() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Handle sharing an advice post
-  const handleShare = useCallback(async (post: AdvicePost) => {
-    setMenuPost(null);
-    const result = await shareAdvice(post.id, post.content);
-    if (!result.success && result.error !== 'Share dismissed') {
-      Alert.alert('Error', 'Failed to share. Please try again.');
-    }
+  const showMenu = useCallback((post: AdvicePost, event: any) => {
+    event.stopPropagation();
+    const { pageY, pageX } = event.nativeEvent;
+    setMenuPosition({ top: pageY + 5, right: 16 });
+    setMenuPost(post);
   }, []);
 
-  // Handle reporting an advice post
-  const handleReport = useCallback((post: AdvicePost) => {
+  const handleShare = useCallback(async () => {
+    if (!menuPost) return;
+    setMenuPost(null);
+    const preview = menuPost.content?.slice(0, 100) || '';
+    await shareAdvice(menuPost.id, preview);
+  }, [menuPost]);
+
+  const handleReport = useCallback(() => {
+    if (!menuPost) return;
+    const postId = menuPost.id;
     setMenuPost(null);
     Alert.alert(
-      'Report Post',
-      'Are you sure you want to report this post? Our team will review it.',
+      'Report Content',
+      'Are you sure you want to report this post?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Report',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await apiClient.post(`/api/microblogs/${post.id}/report`, {
-                reason: 'inappropriate_content',
-              });
-              Alert.alert('Reported', 'Thank you for your report. Our team will review it.');
-            } catch {
-              Alert.alert('Error', 'Failed to report. Please try again.');
-            }
-          },
-        },
+        { text: 'Report', style: 'destructive', onPress: async () => {
+          setReportedPosts(prev => new Set(prev).add(postId));
+          try {
+            await apiClient.post('/api/reports', {
+              subjectType: 'microblog',
+              subjectId: postId,
+              reason: 'inappropriate_content',
+            });
+          } catch (error) {
+            console.error('Error reporting content:', error);
+          }
+        }},
       ]
     );
-  }, []);
+  }, [menuPost]);
 
-  // Show dropdown menu for a post
-  const showMenu = useCallback((post: AdvicePost, pageY: number) => {
-    setMenuPosition({ x: 0, y: pageY + 25 });
-    setMenuPost(post);
+  const handleUndoReport = useCallback((postId: number) => {
+    setReportedPosts(prev => {
+      const next = new Set(prev);
+      next.delete(postId);
+      return next;
+    });
   }, []);
 
   const renderItem = ({ item }: { item: AdvicePost }) => {
     const isUpvoted = unupvotedPosts.has(item.id) ? false : (upvotedPosts.has(item.id) || item.isLiked);
     const isBookmarked = unbookmarkedPosts.has(item.id) ? false : (bookmarkedPosts.has(item.id) || item.isBookmarked);
+    const isReported = reportedPosts.has(item.id);
     const timeAgo = formatDistanceToNow(new Date(item.createdAt), { addSuffix: true });
+
+    // Show reported placeholder
+    if (isReported) {
+      return (
+        <View style={[styles.adviceCard, styles.reportedCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
+          <View style={styles.reportedContent}>
+            <Ionicons name="flag" size={24} color={colors.textMuted} />
+            <Text style={[styles.reportedTitle, { color: colors.textSecondary }]}>
+              Content Reported
+            </Text>
+            <Text style={[styles.reportedText, { color: colors.textMuted }]}>
+              This will be reviewed by The Connection Team
+            </Text>
+            <Pressable
+              style={[styles.undoButton, { borderColor: colors.textMuted }]}
+              onPress={() => handleUndoReport(item.id)}
+            >
+              <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <Pressable
@@ -223,15 +262,19 @@ export default function AdviceListScreen() {
             </Text>
           </View>
           <View style={styles.adviceHeaderRight}>
-            <Pressable onPress={(e) => { e.stopPropagation(); handleBookmark(item.id, isBookmarked); }} hitSlop={8}>
+            <Pressable onPress={() => handleBookmark(item.id, isBookmarked)} hitSlop={8}>
               <Ionicons
                 name={isBookmarked ? "bookmark" : "bookmark-outline"}
                 size={18}
                 color={isBookmarked ? colors.primary : colors.textMuted}
               />
             </Pressable>
-            <Pressable onPress={(e) => { e.stopPropagation(); showMenu(item, e.nativeEvent.pageY); }} hitSlop={8}>
-              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+            <Pressable onPress={(e) => showMenu(item, e)} hitSlop={8}>
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={18}
+                color={colors.textMuted}
+              />
             </Pressable>
           </View>
         </View>
@@ -239,32 +282,6 @@ export default function AdviceListScreen() {
         <Text style={[styles.adviceContent, { color: colors.textPrimary }]} numberOfLines={4}>
           {item.content}
         </Text>
-
-        {/* Image Thumbnails */}
-        {item.imageUrls && item.imageUrls.length > 0 && (
-          <View style={styles.imageThumbnails}>
-            {item.imageUrls.slice(0, 3).map((url, index) => (
-              <View key={index} style={styles.thumbnailWrapper}>
-                <Image source={{ uri: url }} style={styles.thumbnail} resizeMode="cover" />
-                {index === 2 && item.imageUrls && item.imageUrls.length > 3 && (
-                  <View style={styles.moreImagesOverlay}>
-                    <Text style={styles.moreImagesText}>+{item.imageUrls.length - 3}</Text>
-                  </View>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Link Indicator */}
-        {item.sourceUrl && (
-          <View style={[styles.linkIndicator, { backgroundColor: `${colors.primary}10` }]}>
-            <Ionicons name="link" size={14} color={colors.primary} />
-            <Text style={[styles.linkIndicatorText, { color: colors.primary }]} numberOfLines={1}>
-              {item.sourceUrl.replace(/^https?:\/\//, '').split('/')[0]}
-            </Text>
-          </View>
-        )}
 
         <View style={styles.adviceFooter}>
           <View style={styles.adviceStats}>
@@ -299,103 +316,119 @@ export default function AdviceListScreen() {
   };
 
   return (
-    <>
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-        {/* Custom Header */}
-        <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.borderSubtle }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-          </Pressable>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Global Community</Text>
-          <View style={styles.headerRight} />
-        </View>
-        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* Custom Header */}
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.borderSubtle }]}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Global Community</Text>
+        <View style={styles.headerRight} />
+      </View>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : advicePosts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="chatbubbles-outline" size={64} color={colors.textMuted} />
-            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No advice posts yet</Text>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              Be the first to ask for advice from the community!
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={advicePosts}
-            keyExtractor={(item) => `advice-${item.id}`}
-            renderItem={renderItem}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetching}
-                onRefresh={refetch}
-                tintColor={colors.primary}
-              />
-            }
-            showsVerticalScrollIndicator={false}
-            onEndReached={handleEndReached}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={
-              isFetchingNextPage ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                </View>
-              ) : null
-            }
+      {/* Search Bar */}
+      <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.searchBar, { backgroundColor: colors.surfaceMuted }]}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+            placeholder="Search topics..."
+            placeholderTextColor={colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
-        )}
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </Pressable>
+          )}
+        </View>
+      </View>
 
-        {/* Dropdown Menu */}
-        {menuPost && (
-          <Modal
-            visible={true}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setMenuPost(null)}
-          >
-            <TouchableWithoutFeedback onPress={() => setMenuPost(null)}>
-              <View style={styles.dropdownOverlay}>
-                <View
-                  style={[
-                    styles.dropdownMenu,
-                    {
-                      backgroundColor: colors.surface,
-                      top: menuPosition.y,
-                      right: 16,
-                      shadowColor: '#000',
-                    }
-                  ]}
-                >
-                  <Pressable
-                    style={styles.dropdownItem}
-                    onPress={() => handleShare(menuPost)}
-                  >
-                    <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
-                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>
-                      Share
-                    </Text>
-                  </Pressable>
-                  <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
-                  <Pressable
-                    style={styles.dropdownItem}
-                    onPress={() => handleReport(menuPost)}
-                  >
-                    <Ionicons name="flag-outline" size={18} color="#EF4444" />
-                    <Text style={[styles.dropdownText, { color: '#EF4444' }]}>
-                      Report
-                    </Text>
-                  </Pressable>
-                </View>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : filteredPosts.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons
+            name={searchQuery ? "search-outline" : "chatbubbles-outline"}
+            size={64}
+            color={colors.textMuted}
+          />
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+            {searchQuery ? 'No results found' : 'No advice posts yet'}
+          </Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            {searchQuery
+              ? `Try searching for something else`
+              : 'Be the first to ask for advice from the community!'
+            }
+          </Text>
+          {searchQuery && (
+            <Pressable
+              onPress={() => setSearchQuery('')}
+              style={[styles.clearSearchButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={styles.clearSearchButtonText}>Clear Search</Text>
+            </Pressable>
+          )}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredPosts}
+          keyExtractor={(item) => `advice-${item.id}`}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={colors.primary}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : null
+          }
+        />
+      )}
+
+      {/* Dropdown Menu */}
+      <Modal
+        visible={!!menuPost}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuPost(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setMenuPost(null)}>
+          <View style={styles.menuOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: menuPosition.top, right: menuPosition.right }]}>
+                <Pressable style={styles.dropdownItem} onPress={handleShare}>
+                  <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                  <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>
+                </Pressable>
+                <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                <Pressable style={styles.dropdownItem} onPress={handleReport}>
+                  <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                  <Text style={[styles.dropdownItemText, { color: '#EF4444' }]}>Report</Text>
+                </Pressable>
               </View>
             </TouchableWithoutFeedback>
-          </Modal>
-        )}
-      </SafeAreaView>
-    </>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
@@ -421,13 +454,30 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 40,
   },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    padding: 0,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
   footerLoader: {
     paddingVertical: 20,
@@ -452,15 +502,15 @@ const styles = StyleSheet.create({
   adviceHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flex: 1,
-    minWidth: 0, // Allow shrinking
+    minWidth: 0,
   },
   adviceHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flexShrink: 0, // Don't shrink
+    gap: 12,
+    flexShrink: 0,
   },
   adviceBadge: {
     flexDirection: 'row',
@@ -486,52 +536,6 @@ const styles = StyleSheet.create({
   adviceContent: {
     fontSize: 15,
     lineHeight: 22,
-  },
-  imageThumbnails: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-  },
-  thumbnailWrapper: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  thumbnail: {
-    width: '100%',
-    height: '100%',
-  },
-  moreImagesOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  moreImagesText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  linkIndicatorText: {
-    fontSize: 12,
-    fontWeight: '500',
-    maxWidth: 200,
   },
   adviceFooter: {
     flexDirection: 'row',
@@ -576,35 +580,78 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
   },
+  clearSearchButton: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  clearSearchButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 
-  // Dropdown Menu styles
-  dropdownOverlay: {
+  // Dropdown Menu
+  menuOverlay: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   dropdownMenu: {
     position: 'absolute',
-    minWidth: 140,
+    minWidth: 150,
     borderRadius: 12,
+    paddingVertical: 8,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
-    overflow: 'hidden',
   },
   dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
     paddingHorizontal: 16,
-    gap: 10,
+    paddingVertical: 12,
+    gap: 12,
   },
-  dropdownText: {
+  dropdownItemText: {
     fontSize: 15,
     fontWeight: '500',
   },
   dropdownDivider: {
     height: 1,
     marginHorizontal: 12,
+  },
+
+  // Reported Card
+  reportedCard: {
+    minHeight: 120,
+    justifyContent: 'center',
+  },
+  reportedContent: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  reportedTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  reportedText: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  undoButton: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  undoButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

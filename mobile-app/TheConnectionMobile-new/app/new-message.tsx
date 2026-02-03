@@ -111,7 +111,7 @@ export default function NewMessageScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.replace('/(tabs)/messages')}
+            onPress={() => router.back()}
             style={styles.backButton}
           >
             <Ionicons name="close" size={28} color={colors.textPrimary} />

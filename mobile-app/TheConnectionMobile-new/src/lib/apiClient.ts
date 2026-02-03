@@ -81,7 +81,7 @@ apiClient.interceptors.request.use(
 );
 
 // Helper function to delay execution
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms));
 
 // Response interceptor for logging, error handling, and retry logic
 apiClient.interceptors.response.use(
@@ -91,78 +91,85 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
-    const config = error.config;
+    // CRITICAL: Wrap entire error handler in try-catch - interceptor must never throw
+    try {
+      const config = error.config;
 
-    // Retry logic for 429 (Too Many Requests) with exponential backoff
-    if (error.response?.status === 429 && config) {
-      // Initialize retry count
-      config._retryCount = config._retryCount || 0;
-      const maxRetries = 3;
+      // Retry logic for 429 (Too Many Requests) with exponential backoff
+      if (error.response?.status === 429 && config) {
+        // Initialize retry count
+        config._retryCount = config._retryCount || 0;
+        const maxRetries = 3;
 
-      if (config._retryCount < maxRetries) {
-        config._retryCount += 1;
-        const backoffDelay = Math.pow(2, config._retryCount) * 1000; // 2s, 4s, 8s
-        console.warn(`[API] Rate limited. Retrying in ${backoffDelay/1000}s... (attempt ${config._retryCount}/${maxRetries})`);
+        if (config._retryCount < maxRetries) {
+          config._retryCount += 1;
+          const backoffDelay = Math.pow(2, config._retryCount) * 1000; // 2s, 4s, 8s
+          console.warn(`[API] Rate limited. Retrying in ${backoffDelay/1000}s... (attempt ${config._retryCount}/${maxRetries})`);
 
-        await delay(backoffDelay);
-        return apiClient(config);
-      }
-    }
-
-    if (error.response) {
-      // Suppress expected errors that are handled gracefully in the UI
-      const message = error.response.data?.message || '';
-      const status = error.response.status;
-      const url = error.config?.url || '';
-
-      // Don't log these expected errors
-      const suppressedErrors = [
-        { status: 400, messageIncludes: 'Already a member' },
-        { status: 400, messageIncludes: 'already a member' },
-        { status: 400, messageIncludes: 'Already bookmarked' }, // Bookmark toggle behavior
-        { status: 400, messageIncludes: 'Already liked' }, // Like toggle behavior
-        { status: 403, messageIncludes: 'You do not have access to this private event' }, // Private events
-        { status: 403, messageIncludes: 'Only admins and moderators can view join requests' }, // Expected for non-admins
-        { status: 404, url: '/api/microblogs/trending/combined' }, // Backend endpoint not deployed yet
-        { status: 404, url: '/api/feed/explore' }, // Explore feed endpoint not deployed yet
-        { status: 404, url: '/api/qa-areas' }, // QA areas endpoint not deployed yet
-        { status: 404, url: '/api/qa-tags' }, // QA tags endpoint not deployed yet
-        { status: 404, url: '/my-rsvp' }, // my-rsvp endpoint not deployed yet
-        { status: 500, url: '/api/user/suggestions/friends' }, // Friend suggestions being deployed
-        { status: 429 }, // Rate limiting - handled by retry logic
-      ];
-
-      const shouldSuppress = suppressedErrors.some(
-        (suppressed) => {
-          if (suppressed.status !== status) return false;
-          if (suppressed.messageIncludes) {
-            return message.toLowerCase().includes(suppressed.messageIncludes.toLowerCase());
-          }
-          if (suppressed.url) {
-            return url.includes(suppressed.url);
-          }
-          // If only status is specified (no messageIncludes or url), suppress all errors with that status
-          return !suppressed.messageIncludes && !suppressed.url;
+          await delay(backoffDelay);
+          return apiClient(config);
         }
-      );
-
-      if (!shouldSuppress) {
-        console.error('[API Error]', status, url, error.response.data);
       }
-    } else {
-      console.error('[API Error]', error.message);
+
+      if (error.response) {
+        // Suppress expected errors that are handled gracefully in the UI
+        const message = String(error.response.data?.message ?? '');
+        const status = error.response.status;
+        // FIXED: Use nullish coalescing (??) to handle null values, not just undefined
+        const url = String(error.config?.url ?? '');
+
+        // Don't log these expected errors
+        const suppressedErrors = [
+          { status: 400, messageIncludes: 'Already a member' },
+          { status: 400, messageIncludes: 'already a member' },
+          { status: 400, messageIncludes: 'Already bookmarked' }, // Bookmark toggle behavior
+          { status: 400, messageIncludes: 'Already liked' }, // Like toggle behavior
+          { status: 400, url: '/api/library/posts/trending' }, // Trending endpoint - fallback handles this
+          { status: 403, messageIncludes: 'You do not have access to this private event' }, // Private events
+          { status: 403, messageIncludes: 'Only admins and moderators can view join requests' }, // Expected for non-admins
+          { status: 404, url: '/api/microblogs/trending/combined' }, // Backend endpoint not deployed yet
+          { status: 404, url: '/api/feed/explore' }, // Explore feed endpoint not deployed yet
+          { status: 404, url: '/api/qa-areas' }, // QA areas endpoint not deployed yet
+          { status: 404, url: '/api/qa-tags' }, // QA tags endpoint not deployed yet
+          { status: 404, url: '/my-rsvp' }, // my-rsvp endpoint not deployed yet
+          { status: 404, url: '/api/library/posts/trending' }, // Trending endpoint being deployed
+          { status: 404, url: '/nearby-users-count' }, // Nearby users count - server restart needed
+          { status: 500, url: '/api/user/suggestions/friends' }, // Friend suggestions being deployed
+          { status: 429 }, // Rate limiting - handled by retry logic
+        ];
+
+        const shouldSuppress = suppressedErrors.some(
+          (suppressed) => {
+            try {
+              if (suppressed.status !== status) return false;
+              if (suppressed.messageIncludes) {
+                return message.toLowerCase().includes(suppressed.messageIncludes.toLowerCase());
+              }
+              if (suppressed.url) {
+                // FIXED: Safe string check - url is guaranteed to be a string now
+                return url.includes(suppressed.url);
+              }
+              // If only status is specified (no messageIncludes or url), suppress all errors with that status
+              return !suppressed.messageIncludes && !suppressed.url;
+            } catch {
+              return false; // If any check fails, don't suppress
+            }
+          }
+        );
+
+        if (!shouldSuppress) {
+          console.error('[API Error]', status, url, error.response.data);
+        }
+      } else {
+        console.error('[API Error]', error.message);
+      }
+    } catch (interceptorError) {
+      // Log but don't throw - interceptor must be stable
+      console.error('[API Interceptor Error]', interceptorError);
     }
     return Promise.reject(error);
   }
 );
-
-// Search API
-export const searchAPI = {
-  search: (query: string, filter: 'all' | 'accounts' | 'communities' = 'all') =>
-    apiClient.get('/api/search', { params: { q: query, filter } }).then(res => res.data),
-  searchUsers: (query: string) =>
-    apiClient.get('/api/search', { params: { q: query, filter: 'accounts' } }).then(res => res.data),
-};
 
 // Posts API (Forum posts - supports anonymous posting)
 export const postsAPI = {
@@ -259,8 +266,6 @@ export const pollsAPI = {
 // Communities API
 export const communitiesAPI = {
   getAll: () => apiClient.get('/api/communities').then(res => res.data),
-  getActive: (limit?: number) =>
-    apiClient.get(`/api/communities/active${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
   getById: (id: number) => apiClient.get(`/api/communities/${id}`, {
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -290,8 +295,8 @@ export const communitiesAPI = {
   leave: (id: number) => apiClient.post(`/api/communities/${id}/leave`).then(res => res.data),
   getMembers: (id: number) => apiClient.get(`/api/communities/${id}/members`).then(res => res.data),
   getWallPosts: (id: number) => apiClient.get(`/api/communities/${id}/wall`).then(res => res.data),
-  createWallPost: (id: number, content: string) =>
-    apiClient.post(`/api/communities/${id}/wall`, { content }).then(res => res.data),
+  createWallPost: (id: number, content: string, imageUrl?: string) =>
+    apiClient.post(`/api/communities/${id}/wall`, { content, imageUrl }).then(res => res.data),
   deleteWallPost: (communityId: number, postId: number) =>
     apiClient.delete(`/api/communities/${communityId}/wall/${postId}`).then(res => res.data),
   updateMemberRole: (communityId: number, userId: number, role: 'member' | 'moderator') =>
@@ -317,7 +322,7 @@ export const communitiesAPI = {
   requestToJoin: (communityId: number) =>
     apiClient.post(`/api/communities/${communityId}/request-join`).then(res => res.data),
 
-  // Invitations
+  // Community Invitations
   inviteUser: (communityId: number, inviteeId: number, sendDm: boolean = true) =>
     apiClient.post(`/api/communities/${communityId}/invite-user`, { inviteeId, sendDm }).then(res => res.data),
   getPendingInvitations: () =>
@@ -363,6 +368,12 @@ export const followAPI = {
     apiClient.get(`/api/users/${userId}/profile`).then(res => res.data),
 };
 
+// Search API
+export const searchAPI = {
+  searchUsers: (query: string) =>
+    apiClient.get('/api/users', { params: { search: query } }).then(res => res.data),
+};
+
 // Events API
 export const eventsAPI = {
   getAll: () => apiClient.get('/api/events').then(res => res.data),
@@ -371,12 +382,12 @@ export const eventsAPI = {
     title: string;
     description: string;
     location?: string;
-    latitude?: number;
-    longitude?: number;
+    latitude?: string; // Backend expects strings (text columns)
+    longitude?: string;
     eventDate: string; // YYYY-MM-DD format
     startTime: string; // HH:MM:SS format
     endTime: string; // HH:MM:SS format
-    communityId: number; // Required
+    communityId?: number | null; // Optional - null for "The Connection" events (app-owner only)
     isPublic?: boolean; // true = visible on main Events page, false = private to community
   }) => apiClient.post('/api/events', data).then(res => res.data),
   update: (id: number, data: Partial<{
@@ -388,23 +399,15 @@ export const eventsAPI = {
     eventDate: string;
     startTime: string;
     endTime: string;
-    isPublic?: boolean;
   }>) => apiClient.patch(`/api/events/${id}`, data).then(res => res.data),
   delete: (id: number) => apiClient.delete(`/api/events/${id}`).then(res => res.data),
   rsvp: (id: number, status: string) =>
     apiClient.post(`/api/events/${id}/rsvp`, { status }).then(res => res.data),
-  // My Events - returns events user is hosting, going to, or maybe
-  getMy: () => apiClient.get('/api/events/my').then(res => res.data),
-  // Bookmarks
-  bookmark: (id: number) => apiClient.post(`/api/events/${id}/bookmark`).then(res => res.data),
-  unbookmark: (id: number) => apiClient.delete(`/api/events/${id}/bookmark`).then(res => res.data),
-  // Host-only management endpoints
-  getRsvpsManage: (id: number) => apiClient.get(`/api/events/${id}/rsvps/manage`).then(res => res.data),
-  cancel: (id: number) => apiClient.post(`/api/events/${id}/cancel`).then(res => res.data),
-  // Attendance confirmation
-  confirmAttendance: (id: number) => apiClient.post(`/api/events/${id}/confirm-attendance`).then(res => res.data),
-  getPendingConfirmations: () => apiClient.get('/api/events/pending-confirmations').then(res => res.data),
-  getAttendedEvents: (userId: number) => apiClient.get(`/api/users/${userId}/attended-events`).then(res => res.data),
+  getAttendees: (id: number) =>
+    apiClient.get(`/api/events/${id}/rsvps/manage`).then(res => res.data),
+  // Send announcement to all RSVPed attendees (host only)
+  announce: (id: number, message: string) =>
+    apiClient.post(`/api/events/${id}/announce`, { message }).then(res => res.data),
 
   // Event Invitations
   inviteUsers: (eventId: number, inviteeIds: number[], sendDm: boolean = true) =>

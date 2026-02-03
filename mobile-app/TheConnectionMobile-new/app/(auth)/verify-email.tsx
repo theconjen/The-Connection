@@ -176,7 +176,7 @@ export default function VerifyEmailScreen() {
 
           <TouchableOpacity
             style={[styles.secondaryButton, { borderColor: colors.secondaryButtonBorder }]}
-            onPress={() => router.replace('/(auth)/login')}
+            onPress={() => router.back()}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-back" size={18} color={colors.secondaryButtonText} style={styles.buttonIcon} />

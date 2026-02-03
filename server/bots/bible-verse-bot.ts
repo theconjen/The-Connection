@@ -117,7 +117,7 @@ async function getBotUserId(): Promise<number> {
 async function postVerse(userId: number, content: string): Promise<void> {
   try {
     await db.insert(microblogs).values({
-      userId,
+      authorId: userId,
       content,
       createdAt: new Date(),
     });
@@ -129,31 +129,37 @@ async function postVerse(userId: number, content: string): Promise<void> {
 }
 
 /**
- * Main function - Post a Bible verse
+ * Post a Bible verse - can be called from scheduler
+ */
+export async function postBibleVerse(): Promise<void> {
+  // Get bot user ID
+  const botUserId = await getBotUserId();
+
+  // Get random verse reference
+  const reference = getRandomVerseReference();
+
+  // Fetch verse from API
+  const verse = await fetchBibleVerse(reference);
+
+  if (!verse) {
+    throw new Error(`Failed to fetch verse: ${reference}`);
+  }
+
+  // Format post
+  const postContent = formatVersePost(verse);
+
+  // Post to feed
+  await postVerse(botUserId, postContent);
+
+  console.info(`[Bible Verse Bot] Posted ${verse.reference}`);
+}
+
+/**
+ * Main function - for standalone execution
  */
 async function main() {
-
   try {
-    // Get bot user ID
-    const botUserId = await getBotUserId();
-
-    // Get random verse reference
-    const reference = getRandomVerseReference();
-
-    // Fetch verse from API
-    const verse = await fetchBibleVerse(reference);
-
-    if (!verse) {
-      throw new Error(`Failed to fetch verse: ${reference}`);
-    }
-
-
-    // Format post
-    const postContent = formatVersePost(verse);
-
-    // Post to feed
-    await postVerse(botUserId, postContent);
-
+    await postBibleVerse();
     process.exit(0);
   } catch (error) {
     console.error('\n✗ Error:', error);
@@ -161,7 +167,8 @@ async function main() {
   }
 }
 
-// Run the bot
-main();
-
-export { main as postBibleVerse };
+// Only run main() when executed directly (not when imported)
+const isMainModule = typeof require !== 'undefined' && require.main === module;
+if (isMainModule) {
+  main();
+}

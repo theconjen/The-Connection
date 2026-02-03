@@ -100,10 +100,10 @@ export function ShareContentModal({
 
   // Search users for DM
   const { data: users = [], isLoading: loadingUsers } = useQuery({
-    queryKey: ['/api/users/search', searchQuery],
+    queryKey: ['/api/users', 'search', searchQuery],
     queryFn: async () => {
       if (!searchQuery.trim()) return [];
-      const response = await apiClient.get(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await apiClient.get(`/api/users?search=${encodeURIComponent(searchQuery)}`);
       return response.data.users || response.data || [];
     },
     enabled: visible && activeTab === 'dm' && searchQuery.length >= 2,
