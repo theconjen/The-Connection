@@ -321,6 +321,165 @@ router.get('/users/:userId/follow-status', requireAuth, async (req, res) => {
   }
 });
 
+// Get user activity (respects privacy settings)
+router.get('/users/:userId/activity', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const viewerId = getSessionUserId(req);
+    const isAdmin = req.session?.isAdmin === true;
+
+    if (!Number.isFinite(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check privacy: can this viewer see this profile's activity?
+    const isPrivate = user.profileVisibility === 'private' || user.profileVisibility === 'friends';
+    const isSelf = viewerId === userId;
+    let canViewActivity = isAdmin || isSelf || !isPrivate;
+
+    // For private accounts, check if viewer is an accepted follower
+    if (!canViewActivity && viewerId) {
+      canViewActivity = await storage.isUserFollowing(viewerId, userId);
+    }
+
+    if (!canViewActivity) {
+      return res.json({
+        activities: [],
+        isPrivate: true,
+        canViewActivity: false,
+      });
+    }
+
+    // Fetch activity data
+    const { db } = await import('../db');
+    const { communityMembers, communities, eventRsvps, events, userFollows, users } = await import('@shared/schema');
+    const { eq, desc, and } = await import('drizzle-orm');
+
+    const activities: any[] = [];
+
+    // 1. Community joins
+    try {
+      const communityJoins = await db
+        .select({
+          memberId: communityMembers.id,
+          communityId: communityMembers.communityId,
+          joinedAt: communityMembers.joinedAt,
+          communityName: communities.name,
+          communityIconName: communities.iconName,
+        })
+        .from(communityMembers)
+        .innerJoin(communities, eq(communityMembers.communityId, communities.id))
+        .where(eq(communityMembers.userId, userId))
+        .orderBy(desc(communityMembers.joinedAt))
+        .limit(20);
+
+      communityJoins.forEach((join) => {
+        activities.push({
+          id: `community-${join.memberId}`,
+          type: 'community_join',
+          icon: 'people',
+          iconColor: '#6366F1',
+          text: `Joined ${join.communityName}`,
+          date: join.joinedAt,
+          communityId: join.communityId,
+        });
+      });
+    } catch (error) {
+      console.error('[Activity] Error fetching community joins:', error);
+    }
+
+    // 2. Event RSVPs (going)
+    try {
+      const eventRsvpsData = await db
+        .select({
+          rsvpId: eventRsvps.id,
+          eventId: eventRsvps.eventId,
+          status: eventRsvps.status,
+          createdAt: eventRsvps.createdAt,
+          eventName: events.title,
+        })
+        .from(eventRsvps)
+        .innerJoin(events, eq(eventRsvps.eventId, events.id))
+        .where(and(
+          eq(eventRsvps.userId, userId),
+          eq(eventRsvps.status, 'going')
+        ))
+        .orderBy(desc(eventRsvps.createdAt))
+        .limit(20);
+
+      eventRsvpsData.forEach((rsvp) => {
+        activities.push({
+          id: `event-${rsvp.rsvpId}`,
+          type: 'event_rsvp',
+          icon: 'calendar',
+          iconColor: '#10B981',
+          text: `RSVP'd to ${rsvp.eventName}`,
+          date: rsvp.createdAt,
+          eventId: rsvp.eventId,
+        });
+      });
+    } catch (error) {
+      console.error('[Activity] Error fetching event RSVPs:', error);
+    }
+
+    // 3. New connections (following others)
+    try {
+      const connections = await db
+        .select({
+          followId: userFollows.id,
+          followingId: userFollows.followingId,
+          createdAt: userFollows.createdAt,
+          followingUsername: users.username,
+          followingDisplayName: users.displayName,
+        })
+        .from(userFollows)
+        .innerJoin(users, eq(userFollows.followingId, users.id))
+        .where(and(
+          eq(userFollows.followerId, userId),
+          eq(userFollows.status, 'accepted')
+        ))
+        .orderBy(desc(userFollows.createdAt))
+        .limit(20);
+
+      connections.forEach((conn) => {
+        const name = conn.followingDisplayName || conn.followingUsername;
+        activities.push({
+          id: `follow-${conn.followId}`,
+          type: 'follow',
+          icon: 'person-add',
+          iconColor: '#8B5CF6',
+          text: `Connected with ${name}`,
+          date: conn.createdAt,
+          userId: conn.followingId,
+        });
+      });
+    } catch (error) {
+      console.error('[Activity] Error fetching connections:', error);
+    }
+
+    // Sort all activities by date descending
+    activities.sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    res.json({
+      activities: activities.slice(0, 30),
+      isPrivate,
+      canViewActivity: true,
+    });
+  } catch (error) {
+    console.error('Error fetching user activity:', error);
+    res.status(500).json(buildErrorResponse('Error fetching user activity', error));
+  }
+});
+
 // Get user profile with stats (respects privacy settings)
 router.get('/users/:userId/profile', async (req, res) => {
   try {
