@@ -15,9 +15,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Save, Upload, Shield, Flame, Zap, List, BookOpen, FileText, Users, Library } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Upload, Shield, Flame, Zap, List, BookOpen, FileText, Users, Library, CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { MarkdownEditor } from '@/components/markdown-editor';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import type { RubricAuditReport, AutoFixSuggestion } from '@shared/rubricConfig';
 
 type Domain = 'apologetics' | 'polemics';
 
@@ -176,17 +181,47 @@ export default function LibraryCreatePage() {
     },
   });
 
-  // Publish mutation
+  // Rubric evaluation state
+  const [auditReport, setAuditReport] = useState<RubricAuditReport | null>(null);
+  const [autoFixSuggestions, setAutoFixSuggestions] = useState<AutoFixSuggestion[]>([]);
+  const [qualityPanelOpen, setQualityPanelOpen] = useState(false);
+  const [forcePublishOpen, setForcePublishOpen] = useState(false);
+  const [forcePublishReason, setForcePublishReason] = useState('');
+
+  // Load existing rubric report from server when editing
+  useEffect(() => {
+    if (existingPost?.rubricReport) {
+      setAuditReport(existingPost.rubricReport as RubricAuditReport);
+      setQualityPanelOpen(true);
+    }
+  }, [existingPost]);
+
+  // Publish mutation (handles 422 rubric failure)
   const publishMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/library/posts/${postId}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
-      if (!res.ok) throw new Error('Failed to publish post');
+      if (res.status === 422) {
+        const body = await res.json();
+        // Set the audit report and show panel
+        if (body.auditReport) {
+          setAuditReport(body.auditReport);
+          setQualityPanelOpen(true);
+        }
+        throw new Error('Post did not pass quality check. Review the issues below.');
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to publish post');
+      }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data.auditReport) {
+        setAuditReport(data.auditReport);
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
       toast({
         title: 'Success',
@@ -196,8 +231,101 @@ export default function LibraryCreatePage() {
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
+        title: 'Quality Check Failed',
         description: error.message || 'Failed to publish library post',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Evaluate mutation (dry-run)
+  const evaluateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/library/posts/${postId}/evaluate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to evaluate post');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setAuditReport(data.auditReport);
+      setQualityPanelOpen(true);
+      toast({
+        title: data.auditReport.passed ? 'Quality Check Passed' : 'Quality Check Issues Found',
+        description: `Score: ${data.auditReport.totalScore}/100`,
+        variant: data.auditReport.passed ? 'default' : 'destructive',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to run quality check',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Auto-fix mutation
+  const autoFixMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/library/posts/${postId}/auto-fix`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to generate suggestions');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setAutoFixSuggestions(data.suggestions || []);
+      toast({
+        title: 'Suggestions Ready',
+        description: `${data.suggestions?.length || 0} improvement suggestions generated`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to generate auto-fix suggestions',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Force-publish mutation (admin only)
+  const forcePublishMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      const res = await fetch(`/api/library/posts/${postId}/force-publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to force-publish');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setForcePublishOpen(false);
+      setForcePublishReason('');
+      queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
+      toast({
+        title: 'Force Published',
+        description: 'Post published with admin override.',
+      });
+      navigate(`/library/${postId}`);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to force-publish',
         variant: 'destructive',
       });
     },
@@ -371,6 +499,8 @@ export default function LibraryCreatePage() {
       </div>
     );
   }
+
+  const isAdmin = user?.role === 'admin' || user?.id === 19;
 
   const isSubmitting =
     createMutation.isPending || updateMutation.isPending || publishMutation.isPending;
@@ -608,6 +738,246 @@ export default function LibraryCreatePage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Quality Check Panel — only for user 19 (research team) posts */}
+      {isEdit && postId && (user?.id === 19 || isAdmin) && (
+        <Card className="mt-6">
+          <Collapsible open={qualityPanelOpen} onOpenChange={setQualityPanelOpen}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ShieldCheck className="h-5 w-5" />
+                    Quality Check
+                    {auditReport && !auditReport.skipped && (
+                      <Badge variant={auditReport.passed ? 'default' : 'destructive'} className="ml-2">
+                        {auditReport.passed ? 'Passed' : 'Failed'} — {auditReport.totalScore}/100
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  {qualityPanelOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4">
+                {/* Run Evaluation Button */}
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => evaluateMutation.mutate()}
+                    disabled={evaluateMutation.isPending}
+                  >
+                    {evaluateMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4" />
+                    )}
+                    {evaluateMutation.isPending ? 'Evaluating...' : 'Run Quality Check'}
+                  </Button>
+
+                  {auditReport && !auditReport.passed && !auditReport.skipped && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => autoFixMutation.mutate()}
+                      disabled={autoFixMutation.isPending}
+                    >
+                      {autoFixMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      {autoFixMutation.isPending ? 'Generating...' : 'Get Auto-Fix Suggestions'}
+                    </Button>
+                  )}
+
+                  {isAdmin && auditReport && !auditReport.passed && existingPost?.status !== 'published' && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="gap-2 ml-auto"
+                      onClick={() => setForcePublishOpen(true)}
+                    >
+                      <Shield className="h-4 w-4" />
+                      Force Publish
+                    </Button>
+                  )}
+                </div>
+
+                {/* Score Display */}
+                {auditReport && !auditReport.skipped && (
+                  <div className="space-y-4">
+                    {/* Overall Score Bar */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">Overall Score</span>
+                        <span className={`font-bold ${
+                          auditReport.totalScore >= 70 ? 'text-green-600' :
+                          auditReport.totalScore >= 50 ? 'text-amber-600' : 'text-red-600'
+                        }`}>
+                          {auditReport.totalScore}/100
+                        </span>
+                      </div>
+                      <Progress
+                        value={auditReport.totalScore}
+                        className={`h-3 ${
+                          auditReport.totalScore >= 70 ? '[&>div]:bg-green-500' :
+                          auditReport.totalScore >= 50 ? '[&>div]:bg-amber-500' : '[&>div]:bg-red-500'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Violations */}
+                    {auditReport.violations.length > 0 && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-2">
+                        <h4 className="font-medium text-red-800 flex items-center gap-2">
+                          <XCircle className="h-4 w-4" />
+                          Violations (must fix)
+                        </h4>
+                        <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                          {auditReport.violations.map((v, i) => (
+                            <li key={i}>{v}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Suggestions */}
+                    {auditReport.suggestions.length > 0 && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+                        <h4 className="font-medium text-amber-800 flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4" />
+                          Suggestions (optional improvements)
+                        </h4>
+                        <ul className="list-disc list-inside text-sm text-amber-700 space-y-1">
+                          {auditReport.suggestions.map((s, i) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Category Breakdown */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm">Category Breakdown</h4>
+                      {auditReport.categoryScores.map((cat) => (
+                        <Collapsible key={cat.categoryId}>
+                          <CollapsibleTrigger className="w-full">
+                            <div className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors">
+                              <span className="text-sm font-medium">{cat.categoryId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-medium ${
+                                  cat.score >= 70 ? 'text-green-600' :
+                                  cat.score >= 50 ? 'text-amber-600' : 'text-red-600'
+                                }`}>
+                                  {Math.round(cat.score)}/100
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  w: {cat.weight}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="pl-4 pb-2 space-y-2">
+                              <p className="text-sm text-muted-foreground">{cat.feedback}</p>
+                              {cat.criteriaResults.map((cr) => (
+                                <div key={cr.criteriaId} className="flex items-start gap-2 text-xs">
+                                  {cr.score >= cr.maxPoints * 0.7 ? (
+                                    <CheckCircle className="h-3 w-3 text-green-500 mt-0.5 shrink-0" />
+                                  ) : (
+                                    <XCircle className="h-3 w-3 text-red-500 mt-0.5 shrink-0" />
+                                  )}
+                                  <div>
+                                    <span className="font-medium">{cr.criteriaId.replace(/_/g, ' ')}</span>
+                                    <span className="text-muted-foreground"> ({cr.score}/{cr.maxPoints})</span>
+                                    {cr.feedback && <p className="text-muted-foreground mt-0.5">{cr.feedback}</p>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ))}
+                    </div>
+
+                    {/* Auto-Fix Suggestions */}
+                    {autoFixSuggestions.length > 0 && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                        <h4 className="font-medium text-blue-800 flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          Auto-Fix Suggestions
+                        </h4>
+                        <div className="space-y-3">
+                          {autoFixSuggestions.map((fix, i) => (
+                            <div key={i} className="text-sm border-l-2 border-blue-300 pl-3">
+                              <p className="font-medium text-blue-900">
+                                Field: <code className="bg-blue-100 px-1 rounded">{fix.field}</code>
+                              </p>
+                              <p className="text-blue-800">Issue: {fix.issue}</p>
+                              <p className="text-blue-700">Suggestion: {fix.suggestion}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {auditReport?.skipped && (
+                  <p className="text-sm text-muted-foreground">
+                    Quality check was skipped (no AI API key configured). Post may be published without evaluation.
+                  </p>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      )}
+
+      {/* Force Publish Dialog */}
+      <Dialog open={forcePublishOpen} onOpenChange={setForcePublishOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Force Publish Post</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This post did not pass the quality check (score: {auditReport?.totalScore}/100).
+              As an admin, you can override and publish it. Please provide a reason for the override.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="force-publish-reason">Override Reason</Label>
+              <Textarea
+                id="force-publish-reason"
+                placeholder="e.g., Reviewed manually and content meets standards..."
+                value={forcePublishReason}
+                onChange={(e) => setForcePublishReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setForcePublishOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => forcePublishMutation.mutate(forcePublishReason)}
+              disabled={!forcePublishReason.trim() || forcePublishMutation.isPending}
+            >
+              {forcePublishMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Force Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

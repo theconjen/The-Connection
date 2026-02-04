@@ -2134,6 +2134,13 @@ export const qaLibraryPosts = pgTable("qa_library_posts", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   publishedAt: timestamp("published_at"),
+  // Rubric evaluation fields
+  rubricVersion: text("rubric_version"),
+  rubricScore: integer("rubric_score"),
+  rubricReport: jsonb("rubric_report"),
+  rubricPassedAt: timestamp("rubric_passed_at"),
+  rubricReviewedBy: integer("rubric_reviewed_by").references(() => users.id, { onDelete: 'set null' }),
+  rubricOverrideReason: text("rubric_override_reason"),
 } as any, (table) => ({
   domainAreaTagIdx: index("qa_library_posts_domain_area_tag_idx").on(table.domain, table.areaId, table.tagId),
   statusPublishedIdx: index("qa_library_posts_status_published_idx").on(table.status, table.publishedAt),

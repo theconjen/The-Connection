@@ -663,6 +663,117 @@
 .border-sage-light { border-color: #7C8F78; }
 .border-terracotta { border-color: #B56A55; }
 
+/* TipTap rich text editor styles */
+.tiptap-content.ProseMirror {
+  padding: 0.75rem 1rem;
+  font-family: 'Figtree', 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.75;
+  color: hsl(var(--foreground));
+  overflow-y: auto;
+}
+
+.tiptap-content.ProseMirror:focus {
+  outline: none;
+}
+
+.tiptap-content.ProseMirror h1 {
+  font-family: 'Playfair Display', 'Merriweather', serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+.tiptap-content.ProseMirror h2 {
+  font-family: 'Playfair Display', 'Merriweather', serif;
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.35;
+}
+
+.tiptap-content.ProseMirror h3 {
+  font-family: 'Playfair Display', 'Merriweather', serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  line-height: 1.4;
+}
+
+.tiptap-content.ProseMirror p {
+  margin-bottom: 0.75rem;
+}
+
+.tiptap-content.ProseMirror strong {
+  font-weight: 700;
+}
+
+.tiptap-content.ProseMirror em {
+  font-style: italic;
+}
+
+.tiptap-content.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tiptap-content.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tiptap-content.ProseMirror li {
+  margin-bottom: 0.25rem;
+}
+
+.tiptap-content.ProseMirror li p {
+  margin-bottom: 0.25rem;
+}
+
+.tiptap-content.ProseMirror blockquote {
+  border-left: 3px solid hsl(var(--border));
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-bottom: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.tiptap-content.ProseMirror code {
+  background: hsl(var(--muted));
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875em;
+}
+
+.tiptap-content.ProseMirror a {
+  color: hsl(var(--link));
+  text-decoration: underline;
+}
+
+.tiptap-content.ProseMirror hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1.5rem 0;
+}
+
+/* Placeholder */
+.tiptap-content.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+  pointer-events: none;
+  height: 0;
+}
+
 /* Dark mode earth accent utilities */
 .dark .text-sage { color: #8FA888; }
 .dark .text-terracotta { color: #D47070; }

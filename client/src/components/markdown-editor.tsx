@@ -1,5 +1,10 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import LinkExtension from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+import { Markdown } from 'tiptap-markdown';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -15,7 +20,6 @@ import {
   TextQuote,
   Code,
 } from 'lucide-react';
-import { applyMarkdownAction, type MarkdownAction } from '@/lib/markdown-utils';
 
 interface MarkdownEditorProps {
   id?: string;
@@ -25,8 +29,10 @@ interface MarkdownEditorProps {
   rows?: number;
 }
 
+type ToolbarAction = 'bold' | 'italic' | 'heading2' | 'heading3' | 'bulletList' | 'numberedList' | 'link' | 'blockquote' | 'code';
+
 interface ToolbarButton {
-  action: MarkdownAction;
+  action: ToolbarAction;
   icon: React.ReactNode;
   label: string;
   shortcut?: string;
@@ -53,60 +59,100 @@ const toolbarGroups: ToolbarButton[][] = [
 ];
 
 export function MarkdownEditor({ id, value, onChange, placeholder, rows = 20 }: MarkdownEditorProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [tab, setTab] = useState<string>('write');
-  const pendingCursor = useRef<{ start: number; end: number } | null>(null);
+  const lastEmitted = useRef(value);
 
-  const applyAction = useCallback(
-    (action: MarkdownAction) => {
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-
-      const { newValue, newCursorStart, newCursorEnd } = applyMarkdownAction(
-        action,
-        value,
-        textarea.selectionStart,
-        textarea.selectionEnd,
-      );
-
-      onChange(newValue);
-      pendingCursor.current = { start: newCursorStart, end: newCursorEnd };
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+      }),
+      LinkExtension.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-blue-600 hover:text-blue-800 underline cursor-pointer',
+        },
+      }),
+      Placeholder.configure({
+        placeholder: placeholder?.replace(/&#10;/g, '\n') || 'Write your content here...',
+      }),
+      Markdown.configure({
+        html: false,
+        transformPastedText: true,
+        transformCopiedText: true,
+      }),
+    ],
+    content: value,
+    onUpdate: ({ editor }) => {
+      const md = editor.storage.markdown.getMarkdown();
+      lastEmitted.current = md;
+      onChange(md);
     },
-    [value, onChange],
+    editorProps: {
+      attributes: {
+        id: id || '',
+        class: 'tiptap-content focus:outline-none',
+        style: `min-height: ${(rows || 10) * 1.75}rem`,
+      },
+    },
+  });
+
+  // Sync external value changes (e.g., loading a post)
+  useEffect(() => {
+    if (!editor) return;
+    if (value !== lastEmitted.current) {
+      lastEmitted.current = value;
+      editor.commands.setContent(value);
+    }
+  }, [value, editor]);
+
+  const runAction = useCallback(
+    (action: ToolbarAction) => {
+      if (!editor) return;
+
+      const actions: Record<ToolbarAction, () => void> = {
+        bold: () => editor.chain().focus().toggleBold().run(),
+        italic: () => editor.chain().focus().toggleItalic().run(),
+        heading2: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+        heading3: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+        bulletList: () => editor.chain().focus().toggleBulletList().run(),
+        numberedList: () => editor.chain().focus().toggleOrderedList().run(),
+        blockquote: () => editor.chain().focus().toggleBlockquote().run(),
+        code: () => editor.chain().focus().toggleCode().run(),
+        link: () => {
+          const previousUrl = editor.getAttributes('link').href;
+          const url = window.prompt('URL', previousUrl || 'https://');
+          if (url === null) return;
+          if (url === '') {
+            editor.chain().focus().extendMarkRange('link').unsetLink().run();
+          } else {
+            editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+          }
+        },
+      };
+
+      actions[action]();
+    },
+    [editor],
   );
 
-  // Restore cursor position after React re-renders the textarea value
-  useEffect(() => {
-    if (pendingCursor.current && textareaRef.current) {
-      const { start, end } = pendingCursor.current;
-      pendingCursor.current = null;
-      requestAnimationFrame(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-          textarea.focus();
-          textarea.setSelectionRange(start, end);
-        }
-      });
-    }
-  }, [value]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      const mod = e.ctrlKey || e.metaKey;
-      if (!mod) return;
-
-      if (e.key === 'b') {
-        e.preventDefault();
-        applyAction('bold');
-      } else if (e.key === 'i') {
-        e.preventDefault();
-        applyAction('italic');
-      } else if (e.key === 'k') {
-        e.preventDefault();
-        applyAction('link');
+  const isActive = useCallback(
+    (action: ToolbarAction): boolean => {
+      if (!editor) return false;
+      switch (action) {
+        case 'bold': return editor.isActive('bold');
+        case 'italic': return editor.isActive('italic');
+        case 'heading2': return editor.isActive('heading', { level: 2 });
+        case 'heading3': return editor.isActive('heading', { level: 3 });
+        case 'bulletList': return editor.isActive('bulletList');
+        case 'numberedList': return editor.isActive('orderedList');
+        case 'blockquote': return editor.isActive('blockquote');
+        case 'code': return editor.isActive('code');
+        case 'link': return editor.isActive('link');
+        default: return false;
       }
     },
-    [applyAction],
+    [editor],
   );
 
   return (
@@ -129,10 +175,12 @@ export function MarkdownEditor({ id, value, onChange, placeholder, rows = 20 }: 
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => {
-                            applyAction(btn.action);
-                          }}
+                          className={`h-8 w-8 p-0 ${
+                            tab === 'write' && isActive(btn.action)
+                              ? 'bg-muted text-foreground'
+                              : ''
+                          }`}
+                          onClick={() => runAction(btn.action)}
                           disabled={tab !== 'write'}
                         >
                           {btn.icon}
@@ -163,26 +211,16 @@ export function MarkdownEditor({ id, value, onChange, placeholder, rows = 20 }: 
             </TabsList>
           </div>
 
-          {/* Write tab content */}
+          {/* Write tab content — TipTap WYSIWYG */}
           <TabsContent value="write" className="mt-0">
-            <textarea
-              ref={textareaRef}
-              id={id}
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              rows={rows}
-              className="w-full resize-y border-0 bg-background px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-              style={{ minHeight: `${(rows || 10) * 1.5}rem` }}
-            />
+            <EditorContent editor={editor} />
           </TabsContent>
 
-          {/* Preview tab content */}
+          {/* Preview tab content — final rendered markdown */}
           <TabsContent value="preview" className="mt-0">
             <div
               className="px-4 py-3 prose prose-sm max-w-none min-h-[10rem]"
-              style={{ minHeight: `${(rows || 10) * 1.5}rem` }}
+              style={{ minHeight: `${(rows || 10) * 1.75}rem` }}
             >
               {value ? (
                 <ReactMarkdown

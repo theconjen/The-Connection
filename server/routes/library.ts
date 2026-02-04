@@ -9,8 +9,14 @@
  * AUTHOR-ONLY ROUTES (requires canAuthorLibraryPosts permission):
  * - POST /api/library/posts - Create draft library post
  * - PATCH /api/library/posts/:id - Update library post
- * - POST /api/library/posts/:id/publish - Publish library post
+ * - POST /api/library/posts/:id/publish - Publish library post (rubric-gated)
  * - DELETE /api/library/posts/:id - Archive library post
+ * - POST /api/library/posts/:id/evaluate - Dry-run rubric evaluation
+ * - POST /api/library/posts/:id/auto-fix - Get auto-fix suggestions
+ *
+ * ADMIN-ONLY ROUTES:
+ * - POST /api/library/posts/:id/force-publish - Force-publish bypassing rubric
+ * - POST /api/library/posts/:id/re-evaluate - Re-evaluate published post
  */
 
 import { Router } from 'express';
@@ -19,6 +25,9 @@ import { requireAuth } from '../middleware/auth';
 import { requireSessionUserId, getSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
 import { z } from 'zod';
+import { evaluatePost, generateAutoFix } from '../services/rubricEvaluation';
+import { RUBRIC_CONFIG } from '@shared/rubricConfig';
+import { createAuditLog } from '../audit-logger';
 
 const router = Router();
 
@@ -333,6 +342,29 @@ router.post('/posts/:id/publish', requireAuth, async (req, res) => {
       });
     }
 
+    // Rubric evaluation only applies to user 19 (research team) posts.
+    // Other apologists are not held to the rubric standard.
+    const isResearchTeam = existingPost.authorUserId === 19;
+    let auditReport = null;
+
+    if (isResearchTeam) {
+      auditReport = await evaluatePost(existingPost, RUBRIC_CONFIG);
+
+      // Store the evaluation result on the post
+      await storage.updateLibraryPost(postId, {
+        rubricVersion: auditReport.version,
+        rubricScore: auditReport.totalScore,
+        rubricReport: auditReport,
+      }, authorUserId);
+
+      if (!auditReport.passed) {
+        return res.status(422).json({
+          error: 'Rubric evaluation failed',
+          auditReport,
+        });
+      }
+    }
+
     // Publish library post (ownership check happens inside)
     const post = await storage.publishLibraryPost(postId, authorUserId);
 
@@ -340,7 +372,14 @@ router.post('/posts/:id/publish', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Library post not found or you do not have permission to publish it' });
     }
 
-    res.json(post);
+    // Set rubricPassedAt on the published post (only if rubric was run)
+    if (isResearchTeam && auditReport) {
+      await storage.updateLibraryPost(postId, {
+        rubricPassedAt: new Date(),
+      }, authorUserId);
+    }
+
+    res.json({ ...post, ...(auditReport ? { rubricPassedAt: new Date(), auditReport } : {}) });
   } catch (error) {
     console.error('Error publishing library post:', error);
     res.status(500).json(buildErrorResponse('Error publishing library post', error));
@@ -381,6 +420,200 @@ router.delete('/posts/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error deleting library post:', error);
     res.status(500).json(buildErrorResponse('Error deleting library post', error));
+  }
+});
+
+// ============================================================================
+// RUBRIC EVALUATION ROUTES
+// ============================================================================
+
+/**
+ * POST /api/library/posts/:id/evaluate
+ * Dry-run rubric evaluation (does not change post status)
+ * Requires: canAuthorLibraryPosts permission
+ */
+router.post('/posts/:id/evaluate', requireAuth, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id, 10);
+    if (isNaN(postId)) {
+      return res.status(400).json({ error: 'Invalid post ID' });
+    }
+
+    const userId = requireSessionUserId(req);
+
+    const canAuthor = await storage.canAuthorLibraryPosts(userId);
+    if (!canAuthor) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const existingPost = await storage.getLibraryPost(postId, userId);
+    if (!existingPost) {
+      return res.status(404).json({ error: 'Library post not found' });
+    }
+
+    const auditReport = await evaluatePost(existingPost, RUBRIC_CONFIG);
+
+    // Persist the evaluation result on the post record
+    await storage.updateLibraryPost(postId, {
+      rubricVersion: auditReport.version,
+      rubricScore: auditReport.totalScore,
+      rubricReport: auditReport,
+    }, userId);
+
+    res.json({ auditReport });
+  } catch (error) {
+    console.error('Error evaluating library post:', error);
+    res.status(500).json(buildErrorResponse('Error evaluating library post', error));
+  }
+});
+
+/**
+ * POST /api/library/posts/:id/auto-fix
+ * Generate auto-fix suggestions for a failing post
+ * Requires: canAuthorLibraryPosts permission
+ */
+router.post('/posts/:id/auto-fix', requireAuth, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id, 10);
+    if (isNaN(postId)) {
+      return res.status(400).json({ error: 'Invalid post ID' });
+    }
+
+    const userId = requireSessionUserId(req);
+
+    const canAuthor = await storage.canAuthorLibraryPosts(userId);
+    if (!canAuthor) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const existingPost = await storage.getLibraryPost(postId, userId);
+    if (!existingPost) {
+      return res.status(404).json({ error: 'Library post not found' });
+    }
+
+    // Use the latest rubric report stored on the post
+    const latestReport = existingPost.rubricReport;
+    if (!latestReport) {
+      return res.status(400).json({ error: 'No rubric evaluation found. Run evaluation first.' });
+    }
+
+    const suggestions = await generateAutoFix(existingPost, latestReport as any, RUBRIC_CONFIG);
+
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('Error generating auto-fix suggestions:', error);
+    res.status(500).json(buildErrorResponse('Error generating auto-fix suggestions', error));
+  }
+});
+
+/**
+ * POST /api/library/posts/:id/force-publish
+ * Admin force-publish bypassing rubric score
+ * Requires: admin role or userId 19
+ */
+router.post('/posts/:id/force-publish', requireAuth, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id, 10);
+    if (isNaN(postId)) {
+      return res.status(400).json({ error: 'Invalid post ID' });
+    }
+
+    const userId = requireSessionUserId(req);
+
+    // Admin check
+    const user = await storage.getUser(userId);
+    const isAdmin = user?.role === 'admin' || userId === 19;
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Only admins can force-publish posts' });
+    }
+
+    const { reason } = z.object({ reason: z.string().min(1, 'Override reason is required') }).parse(req.body);
+
+    const existingPost = await storage.getLibraryPost(postId, userId);
+    if (!existingPost) {
+      return res.status(404).json({ error: 'Library post not found' });
+    }
+
+    // Publish the post
+    const post = await storage.publishLibraryPost(postId, userId);
+    if (!post) {
+      return res.status(404).json({ error: 'Failed to publish post' });
+    }
+
+    // Set override fields
+    await storage.updateLibraryPost(postId, {
+      rubricReviewedBy: userId,
+      rubricOverrideReason: reason,
+      rubricPassedAt: new Date(),
+    }, userId);
+
+    // Audit log
+    await createAuditLog({
+      userId,
+      username: user?.username || 'unknown',
+      action: 'admin_action',
+      entityType: 'library_post',
+      entityId: postId,
+      status: 'success',
+      details: {
+        adminAction: 'force_publish',
+        reason,
+        rubricScore: existingPost.rubricScore,
+      },
+      req,
+    });
+
+    res.json({ ...post, rubricOverrideReason: reason, rubricReviewedBy: userId });
+  } catch (error) {
+    console.error('Error force-publishing library post:', error);
+
+    if (error instanceof z.ZodError) {
+      return res.status(400).json(buildErrorResponse('Invalid request data', error));
+    }
+
+    res.status(500).json(buildErrorResponse('Error force-publishing library post', error));
+  }
+});
+
+/**
+ * POST /api/library/posts/:id/re-evaluate
+ * Re-evaluate an already-published post (admin only, informational)
+ * Does NOT unpublish the post
+ */
+router.post('/posts/:id/re-evaluate', requireAuth, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id, 10);
+    if (isNaN(postId)) {
+      return res.status(400).json({ error: 'Invalid post ID' });
+    }
+
+    const userId = requireSessionUserId(req);
+
+    // Admin check
+    const user = await storage.getUser(userId);
+    const isAdmin = user?.role === 'admin' || userId === 19;
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Only admins can re-evaluate published posts' });
+    }
+
+    const existingPost = await storage.getLibraryPost(postId, userId);
+    if (!existingPost) {
+      return res.status(404).json({ error: 'Library post not found' });
+    }
+
+    const auditReport = await evaluatePost(existingPost, RUBRIC_CONFIG);
+
+    // Update rubric fields without changing publish status
+    await storage.updateLibraryPost(postId, {
+      rubricVersion: auditReport.version,
+      rubricScore: auditReport.totalScore,
+      rubricReport: auditReport,
+    }, userId);
+
+    res.json({ auditReport });
+  } catch (error) {
+    console.error('Error re-evaluating library post:', error);
+    res.status(500).json(buildErrorResponse('Error re-evaluating library post', error));
   }
 });
 
