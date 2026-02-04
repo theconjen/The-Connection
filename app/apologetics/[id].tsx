@@ -37,6 +37,7 @@ import Markdown from "react-native-markdown-display";
 import { fetchBiblePassage, looksLikeBibleReference } from "../../src/lib/bibleApi";
 import { shareApologetics, buildApologeticsShareUrl } from "../../src/lib/shareUrls";
 import * as Clipboard from "expo-clipboard";
+import { ShareContentModal, ShareableContent } from "../../src/components/ShareContentModal";
 
 // Regex to detect Bible references in text (e.g., "Romans 8:28", "1 Corinthians 13:4-7", "(John 3:16)")
 const SCRIPTURE_REGEX = /\(?\b((?:1|2|3|I|II|III)\s*)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song\s*of\s*Solomon|Songs?|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s*\d+(?::\d+(?:-\d+)?)?(?:\s*-\s*\d+(?::\d+)?)?\)?/gi;
@@ -146,6 +147,8 @@ export default function ApologeticsDetailScreen() {
   const [verseData, setVerseData] = useState<{ reference: string; text: string; translation: string } | null>(null);
   const [verseLoading, setVerseLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
 
   // Fetch data first so handlers can use it
   const { data, isLoading, error } = useQuery({
@@ -299,6 +302,16 @@ export default function ApologeticsDetailScreen() {
               <Text style={styles.authorText}>{data.authorDisplayName}</Text>
             </View>
             <View style={styles.shareButtons}>
+              {/* Edit button for admins and verified apologists */}
+              {(user?.role === 'admin' || user?.isVerifiedApologeticsAnswerer) && (
+                <Pressable
+                  style={({ pressed }) => [styles.shareIconButton, pressed && { opacity: 0.7 }]}
+                  onPress={() => router.push(`/apologetics/edit/${data.id}` as any)}
+                  hitSlop={8}
+                >
+                  <Ionicons name="create-outline" size={20} color={colors.primary} />
+                </Pressable>
+              )}
               <Pressable
                 style={({ pressed }) => [styles.shareIconButton, pressed && { opacity: 0.7 }]}
                 onPress={handleCopyLink}
@@ -308,10 +321,17 @@ export default function ApologeticsDetailScreen() {
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.shareIconButton, pressed && { opacity: 0.7 }]}
+                onPress={() => setShowShareModal(true)}
+                hitSlop={8}
+              >
+                <Ionicons name="paper-plane-outline" size={20} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.shareIconButton, pressed && { opacity: 0.7 }]}
                 onPress={handleShare}
                 hitSlop={8}
               >
-                <Ionicons name="share-outline" size={20} color={colors.primary} />
+                <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
               </Pressable>
             </View>
           </View>
@@ -577,6 +597,18 @@ export default function ApologeticsDetailScreen() {
         onSettings={() => router.push("/settings")}
         onNotifications={() => router.push("/notifications")}
         onBookmarks={() => router.push("/bookmarks")}
+      />
+
+      {/* In-App Share Modal */}
+      <ShareContentModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        content={data ? {
+          type: 'apologetics',
+          id: data.id,
+          title: data.title,
+          preview: data.tldr || undefined,
+        } : null}
       />
     </SafeAreaView>
   );
