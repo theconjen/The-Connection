@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, ArrowLeft, Shield, Flame, ExternalLink, Edit, Calendar } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
 
 type LibraryPost = {
   id: number;
@@ -37,21 +38,7 @@ type LibraryPost = {
 export default function LibraryPostPage() {
   const [, params] = useRoute('/library/:id');
   const postId = params?.id ? parseInt(params.id, 10) : undefined;
-
-  // Fetch current user capabilities
-  const { data: meData } = useQuery<{
-    user: any;
-    capabilities: {
-      canAuthorApologeticsPosts: boolean;
-    };
-  }>({
-    queryKey: ['/api/me'],
-    queryFn: async () => {
-      const res = await fetch('/api/me');
-      if (!res.ok) throw new Error('Failed to fetch user data');
-      return res.json();
-    },
-  });
+  const { user } = useAuth();
 
   // Fetch library post
   const { data: post, isLoading } = useQuery<LibraryPost>({
@@ -64,10 +51,11 @@ export default function LibraryPostPage() {
     enabled: !isNaN(postId!),
   });
 
+  // Admins can edit any post; assigned apologists can edit their own
   const canEdit =
-    meData?.user?.role === 'admin' ||
-    (meData?.capabilities.canAuthorApologeticsPosts &&
-      post?.authorUserId === meData?.user?.id);
+    user?.role === 'admin' ||
+    ((user?.isVerifiedApologeticsAnswerer || user?.id === 19) &&
+      post?.authorUserId === user?.id);
 
   if (isLoading) {
     return (

@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Save, Upload, Shield, Flame, Zap, List, BookOpen, FileText, Users, Library } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
 
 type Domain = 'apologetics' | 'polemics';
 
@@ -56,23 +57,14 @@ export default function LibraryCreatePage() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, isLoading: isLoadingMe } = useAuth();
 
-  // Fetch current user capabilities
-  const { data: meData, isLoading: isLoadingMe } = useQuery<{
-    user: any;
-    capabilities: {
-      canAuthorApologeticsPosts: boolean;
-    };
-  }>({
-    queryKey: ['/api/me'],
-    queryFn: async () => {
-      const res = await fetch('/api/me');
-      if (!res.ok) throw new Error('Failed to fetch user data');
-      return res.json();
-    },
-  });
-
-  const canAuthor = meData?.capabilities?.canAuthorApologeticsPosts || false;
+  // Admins, verified apologists, and user 19 can author library posts
+  const canAuthor =
+    user?.role === 'admin' ||
+    user?.isVerifiedApologeticsAnswerer ||
+    user?.id === 19 ||
+    ((user as any)?.permissions?.includes?.('apologetics_post_access') ?? false);
 
   // Fetch existing post if editing
   const { data: existingPost, isLoading: isLoadingPost } = useQuery({
