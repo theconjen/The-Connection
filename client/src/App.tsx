@@ -62,6 +62,11 @@ const AdminApologistApplications = lazy(() => import("./pages/admin/apologist-sc
 const AdminApologeticsResources = lazy(() => import("./pages/admin/apologetics-resources"));
 const AdminAnalytics = lazy(() => import("./pages/admin/analytics"));
 
+// Library (Q&A Library posts)
+const LibraryPage = lazy(() => import("./pages/library-page"));
+const LibraryPostPage = lazy(() => import("./pages/library-post-page"));
+const LibraryCreatePage = lazy(() => import("./pages/library-create-page"));
+
 // Public preview pages (no auth required)
 const ApologeticsPreviewPage = lazy(() => import("./pages/public/apologetics-preview-page"));
 const EventPreviewPage = lazy(() => import("./pages/public/event-preview-page"));
@@ -128,6 +133,11 @@ function App() {
             <Route path="/apologetics" component={ApologeticsPage} />
             <Route path="/apologetics/apply" component={ApologistScholarApplication} />
             <Route path="/apologetics/:id" component={ApologeticsDetail} />
+
+            {/* Library (Q&A curated posts) */}
+            <Route path="/library/create" component={LibraryCreatePage} />
+            <Route path="/library/:id" component={LibraryPostPage} />
+            <Route path="/library" component={LibraryPage} />
 
             {/* Advice/Microblogs (Global Community) */}
             <Route path="/advice" component={MicroblogsPage} />
