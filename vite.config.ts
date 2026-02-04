@@ -45,6 +45,10 @@ export default async function defineConfig(): Promise<UserConfig> {
         '@assets': fileURLToPath(new URL('client/src/assets', import.meta.url)),
       },
     },
+    esbuild: {
+      drop: ['debugger'],
+      pure: ['console.log', 'console.info'],
+    },
     root: fileURLToPath(new URL('client', import.meta.url)),
     build: {
       outDir: fileURLToPath(new URL('dist/public', import.meta.url)),
@@ -64,14 +68,7 @@ export default async function defineConfig(): Promise<UserConfig> {
         }
       },
       target: 'es2020',
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          drop_console: true,
-          drop_debugger: true,
-          pure_funcs: ['console.log', 'console.info']
-        }
-      }
+      minify: 'esbuild'
     }
   }
 }
