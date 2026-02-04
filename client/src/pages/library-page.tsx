@@ -226,9 +226,9 @@ export default function LibraryPage() {
                     )}
                   </div>
                   <CardTitle className="line-clamp-2">{post.title}</CardTitle>
-                  {post.summary && (
+                  {(post.summary || post.tldr) && (
                     <CardDescription className="line-clamp-3 mt-2">
-                      {post.summary}
+                      {post.summary || post.tldr}
                     </CardDescription>
                   )}
                 </CardHeader>
