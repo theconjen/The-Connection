@@ -24,7 +24,9 @@
     "bots:create": "tsx server/bots/create-bot-users.ts",
     "bots:bible": "tsx server/bots/bible-verse-bot.ts",
     "bots:quotes": "tsx server/bots/theology-quote-bot.ts",
-    "bots:scheduler": "tsx server/bots/scheduler.ts"
+    "bots:scheduler": "tsx server/bots/scheduler.ts",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
