@@ -153,8 +153,14 @@ export default function LibraryCreatePage() {
       }
       return res.json();
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
+    onSuccess: (updatedPost) => {
+      // Use the PATCH response directly to avoid read-after-write staleness.
+      // Merge with existing cached data to preserve joined fields (area, tag, contributions).
+      queryClient.setQueryData(['/api/library/posts', postId], (old: any) => {
+        if (!old) return updatedPost;
+        return { ...old, ...updatedPost };
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
       toast({
         title: 'Success',
         description: 'Library post updated successfully!',
