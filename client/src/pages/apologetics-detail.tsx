@@ -37,6 +37,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "../hooks/use-auth";
+import { Edit } from "lucide-react";
 
 type LibraryPostSource = {
   author: string;
@@ -56,6 +58,7 @@ type LibraryPost = {
   bodyMarkdown: string;
   perspectives: string[];
   sources: LibraryPostSource[];
+  authorUserId: number;
   authorDisplayName: string;
   area?: { id: number; name: string };
   tag?: { id: number; name: string };
@@ -64,6 +67,7 @@ type LibraryPost = {
 export default function ApologeticsDetail() {
   const params = useParams();
   const postId = params.id;
+  const { user } = useAuth();
 
   const [perspectivesOpen, setPerspectivesOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -122,13 +126,25 @@ export default function ApologeticsDetail() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
-        <Button asChild variant="ghost" size="sm" className="mb-4">
-          <Link href="/apologetics">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Apologetics
-          </Link>
-        </Button>
+        {/* Back Button + Edit */}
+        <div className="flex items-center justify-between mb-4">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/apologetics">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Apologetics
+            </Link>
+          </Button>
+          {(user?.role === 'admin' ||
+            ((user?.isVerifiedApologeticsAnswerer || user?.id === 19) &&
+              post?.authorUserId === user?.id)) && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/library/create?id=${post.id}`}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
+          )}
+        </div>
 
         {/* Breadcrumb */}
         {(post.area || post.tag) && (
