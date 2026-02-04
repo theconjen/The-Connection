@@ -36,6 +36,7 @@ router.get('/', requireAuth, async (req, res) => {
       user.id === 19;
 
     const canAuthorApologeticsPosts =
+      user.role === 'admin' ||
       user.isVerifiedApologeticsAnswerer ||
       permissionStrings.includes('apologetics_post_access') ||
       user.id === 19;
@@ -48,6 +49,7 @@ router.get('/', requireAuth, async (req, res) => {
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
         profileImageUrl: user.profileImageUrl,
+        role: user.role || 'member',
         isVerifiedApologeticsAnswerer: user.isVerifiedApologeticsAnswerer || false,
       },
       permissions: permissionStrings,
