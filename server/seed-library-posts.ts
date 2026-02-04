@@ -7,6 +7,14 @@
  * Run with: npx tsx server/seed-library-posts.ts
  */
 
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Ensure DB is enabled for seed scripts
+if (!process.env.USE_DB) {
+  process.env.USE_DB = 'true';
+}
+
 import { db } from './db';
 import { qaAreas, qaTags, qaLibraryPosts } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
@@ -138,6 +146,11 @@ async function seedPost(post: LibraryPostSeed) {
 }
 
 async function main() {
+  if (!db) {
+    console.error('ERROR: Database not initialized. Make sure DATABASE_URL is set in your .env file.');
+    process.exit(1);
+  }
+
   console.info('='.repeat(60));
   console.info('Seeding Apologetics & Polemics Library Posts');
   console.info('='.repeat(60));
