@@ -404,46 +404,51 @@ function calculateAge(dob: Date): number {
 // Registration endpoint
 router.post('/auth/register', async (req, res) => {
   try {
-    const { email, username, password, firstName, lastName, dob } = req.body;
+    const { email, username, password, firstName, lastName, dob, ageConfirmed } = req.body;
 
     // Validation
     if (!email || !username || !password) {
       return res.status(400).json({ message: 'Email, username, and password are required' });
     }
 
-    // SECURITY: Age Assurance - DOB is required (Apple App Store requirement)
-    if (!dob) {
-      return res.status(400).json({ message: 'Date of birth is required' });
+    // SECURITY: Age Assurance - user must confirm they are 13+
+    if (!ageConfirmed) {
+      return res.status(400).json({ message: 'You must confirm that you are 13 years of age or older' });
     }
 
-    // Validate DOB format and value
-    const dobDate = new Date(dob);
-    if (isNaN(dobDate.getTime())) {
-      return res.status(400).json({ message: 'Invalid date of birth format. Use YYYY-MM-DD.' });
-    }
+    // If DOB is provided (optional), validate it
+    let dobString: string | undefined;
+    if (dob) {
+      const dobDate = new Date(dob);
+      if (isNaN(dobDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid date of birth format. Use YYYY-MM-DD.' });
+      }
 
-    // Check DOB is not in the future
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (dobDate > today) {
-      return res.status(400).json({ message: 'Date of birth cannot be in the future' });
-    }
+      // Check DOB is not in the future
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (dobDate > today) {
+        return res.status(400).json({ message: 'Date of birth cannot be in the future' });
+      }
 
-    // Check DOB is not unreasonably old (150 years)
-    const maxAge = new Date();
-    maxAge.setFullYear(maxAge.getFullYear() - 150);
-    if (dobDate < maxAge) {
-      return res.status(400).json({ message: 'Invalid date of birth' });
-    }
+      // Check DOB is not unreasonably old (150 years)
+      const maxAge = new Date();
+      maxAge.setFullYear(maxAge.getFullYear() - 150);
+      if (dobDate < maxAge) {
+        return res.status(400).json({ message: 'Invalid date of birth' });
+      }
 
-    // SECURITY: Calculate age and enforce 13+ requirement (COPPA compliance)
-    const age = calculateAge(dobDate);
-    if (age < 13) {
-      console.info('[REGISTRATION] Age restriction blocked signup for user under 13');
-      return res.status(403).json({
-        code: 'AGE_RESTRICTED',
-        message: 'You must be 13 or older to use this app.'
-      });
+      // If DOB is provided, also verify age is 13+
+      const age = calculateAge(dobDate);
+      if (age < 13) {
+        console.info('[REGISTRATION] Age restriction blocked signup for user under 13');
+        return res.status(403).json({
+          code: 'AGE_RESTRICTED',
+          message: 'You must be 13 or older to use this app.'
+        });
+      }
+
+      dobString = dobDate.toISOString().split('T')[0];
     }
 
     if (password.length < 8) {
@@ -464,9 +469,6 @@ router.post('/auth/register', async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Format DOB as YYYY-MM-DD string for database storage
-    const dobString = dobDate.toISOString().split('T')[0];
-
     // Create user with age assurance fields
     const user = await storage.createUser({
       email: email.trim().toLowerCase(),
@@ -475,7 +477,7 @@ router.post('/auth/register', async (req, res) => {
       firstName: firstName?.trim(),
       lastName: lastName?.trim(),
       emailVerified: false,
-      dateOfBirth: dobString,
+      ...(dobString ? { dateOfBirth: dobString } : {}),
       ageGatePassed: true,
       ageVerifiedAt: new Date(),
     } as any);

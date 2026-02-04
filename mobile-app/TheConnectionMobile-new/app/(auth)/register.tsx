@@ -34,6 +34,7 @@ export default function RegisterScreen() {
     password: '',
     confirmPassword: '',
     dateOfBirth: null as Date | null,
+    ageConfirmed: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -66,9 +67,9 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Age Assurance: DOB is required
-    if (!formData.dateOfBirth) {
-      Alert.alert('Date of Birth Required', 'Please enter your date of birth to continue.');
+    // Age Assurance: Must confirm 13+
+    if (!formData.ageConfirmed) {
+      Alert.alert('Age Confirmation Required', 'Please confirm that you are 13 years or older to continue.');
       return;
     }
 
@@ -84,8 +85,10 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     try {
-      // Format DOB as ISO date string (YYYY-MM-DD) to avoid timezone issues
-      const dobString = formData.dateOfBirth.toISOString().split('T')[0];
+      // Format DOB as ISO date string (YYYY-MM-DD) if provided (optional)
+      const dobString = formData.dateOfBirth
+        ? formData.dateOfBirth.toISOString().split('T')[0]
+        : undefined;
 
       const result = await register({
         email: formData.email.trim(),
@@ -94,6 +97,7 @@ export default function RegisterScreen() {
         firstName: formData.firstName.trim() || undefined,
         lastName: formData.lastName.trim() || undefined,
         dob: dobString,
+        ageConfirmed: true,
       });
 
       // Registration successful - show verification pending screen
@@ -293,9 +297,30 @@ export default function RegisterScreen() {
             </View>
           </View>
 
-          {/* Date of Birth - Required for Age Assurance */}
+          {/* Age Confirmation - Required */}
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setFormData({ ...formData, ageConfirmed: !formData.ageConfirmed })}
+            disabled={isLoading}
+            activeOpacity={0.7}
+          >
+            <View style={[
+              styles.checkbox,
+              { borderColor: colors.borderSubtle },
+              formData.ageConfirmed && { backgroundColor: colors.primary, borderColor: colors.primary }
+            ]}>
+              {formData.ageConfirmed && (
+                <Ionicons name="checkmark" size={16} color={colors.primaryForeground} />
+              )}
+            </View>
+            <Text style={styles.checkboxLabel}>
+              I confirm that I am 13 years of age or older *
+            </Text>
+          </TouchableOpacity>
+
+          {/* Date of Birth - Optional (for birthday notifications) */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date of Birth *</Text>
+            <Text style={styles.label}>Date of Birth (optional)</Text>
             <TouchableOpacity
               style={styles.datePickerButton}
               onPress={() => setShowDatePicker(true)}
@@ -316,7 +341,7 @@ export default function RegisterScreen() {
                 }
               </Text>
             </TouchableOpacity>
-            <Text style={styles.ageHint}>You must be 13 or older to use this app</Text>
+            <Text style={styles.ageHint}>Add your birthday to receive a special birthday message</Text>
           </View>
 
           {showDatePicker && (
@@ -517,6 +542,26 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   eyeIcon: {
     padding: 16,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textPrimary,
+    lineHeight: 20,
   },
   datePickerButton: {
     flexDirection: 'row',

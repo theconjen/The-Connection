@@ -37,7 +37,8 @@ const loginSchema = z.object({
 const registerSchema = insertUserSchema.extend({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Please enter a valid email address"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  dateOfBirth: z.string().optional(),
+  ageConfirmed: z.boolean().refine(val => val === true, "You must confirm you are 13 or older"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string().min(6, "Please confirm your password"),
 }).refine(data => data.password === data.confirmPassword, {
@@ -88,6 +89,7 @@ export default function AuthPage() {
       username: "",
       email: "",
       dateOfBirth: "",
+      ageConfirmed: false,
       displayName: "",
       password: "",
       confirmPassword: "",
@@ -100,12 +102,13 @@ export default function AuthPage() {
   };
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Omit confirmPassword as it's not in the InsertUser type
+    // Omit confirmPassword and ageConfirmed as they're not in the InsertUser type
     // Map dateOfBirth to dob for server compatibility
-    const { confirmPassword, dateOfBirth, ...rest } = data;
+    const { confirmPassword, dateOfBirth, ageConfirmed, ...rest } = data;
     const userData = {
       ...rest,
-      dob: dateOfBirth, // Server expects 'dob' field
+      dob: dateOfBirth || undefined, // Server accepts optional DOB
+      ageConfirmed: true,
     };
 
     auth.registerMutation.mutate(userData as InsertUser);
@@ -299,10 +302,30 @@ export default function AuthPage() {
                     />
                     <FormField
                       control={registerForm.control}
+                      name="ageConfirmed"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              className="h-5 w-5 rounded border-border accent-primary cursor-pointer"
+                            />
+                            <FormLabel className="cursor-pointer mb-0 font-normal">
+                              I confirm that I am 13 years of age or older *
+                            </FormLabel>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
                       name="dateOfBirth"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Date of Birth</FormLabel>
+                          <FormLabel>Date of Birth (optional)</FormLabel>
                           <FormControl>
                             <Input
                               type="date"
@@ -312,7 +335,7 @@ export default function AuthPage() {
                             />
                           </FormControl>
                           <p className="text-xs text-muted-foreground mt-1">
-                            You must be 13 or older to use this app
+                            Add your birthday to receive a special birthday message
                           </p>
                           <FormMessage />
                         </FormItem>
