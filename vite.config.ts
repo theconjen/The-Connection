@@ -53,22 +53,8 @@ export default async function defineConfig(): Promise<UserConfig> {
     build: {
       outDir: fileURLToPath(new URL('dist/public', import.meta.url)),
       emptyOutDir: true,
-      sourcemap: true, // Enable source maps for error tracking
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('react-dom') || id.includes('/react/')) return 'vendor-react';
-              if (id.includes('@radix-ui/')) return 'vendor-radix';
-              if (id.includes('@tiptap/') || id.includes('prosemirror') || id.includes('tiptap-markdown')) return 'vendor-tiptap';
-              if (id.includes('@tanstack/react-query') || id.includes('@tanstack/query-core')) return 'vendor-query';
-              if (id.includes('lucide-react')) return 'vendor-icons';
-            }
-          }
-        }
-      },
-      target: 'es2020',
-      minify: 'esbuild'
+      sourcemap: true,
+      target: 'es2020'
     }
   }
 }
