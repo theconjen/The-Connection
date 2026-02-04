@@ -100,22 +100,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "../dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            // Keep React together to avoid circular dependencies
-            if (id.includes('react-dom') || id.includes('react/') || id.match(/[/\\]react[/\\]/)) {
-              return 'vendor-react';
-            }
-            if (id.includes('lucide-react')) return 'vendor-lucide';
-            if (id.includes('@radix-ui') || id.includes('@radix')) return 'vendor-radix';
-            if (id.includes('date-fns')) return 'vendor-date-fns';
-            // Don't return a catch-all 'vendor' to avoid circular deps
-          }
-        },
-      },
-    },
+    rollupOptions: {},
     chunkSizeWarningLimit: 600,
   },
 });
