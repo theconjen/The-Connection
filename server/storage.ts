@@ -5976,8 +5976,16 @@ export class DbStorage implements IStorage {
       .limit(1);
 
     if (!existing) return null;
-    if (existing.authorUserId !== authorUserId && authorUserId !== 19) {
-      throw new Error('Unauthorized: only author can update post');
+
+    // Allow: post author, user 19 (research team), admins, verified apologists
+    const isOwner = existing.authorUserId === authorUserId;
+    const isResearchTeam = authorUserId === 19;
+    const user = await this.getUser(authorUserId);
+    const isAdmin = user?.role === 'admin';
+    const isApologist = user?.isVerifiedApologeticsAnswerer === true;
+
+    if (!isOwner && !isResearchTeam && !isAdmin && !isApologist) {
+      throw new Error('Unauthorized: only author, admin, or verified apologist can update post');
     }
 
     const updateData: any = {
@@ -6238,6 +6246,7 @@ export class DbStorage implements IStorage {
     if (userId === 19) return true;
 
     const user = await this.getUser(userId);
+    if (user?.role === 'admin') return true;
     if (user?.isVerifiedApologeticsAnswerer) return true;
 
     const hasPermission = await this.userHasPermission(userId, 'apologetics_post_access');

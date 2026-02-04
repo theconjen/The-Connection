@@ -15,10 +15,12 @@ if (!process.env.USE_DB) {
   process.env.USE_DB = 'true';
 }
 
-import { db } from './db';
-import { qaAreas, qaTags, qaLibraryPosts } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
-import { ALL_LIBRARY_POSTS, AREA_DEFINITIONS, type LibraryPostSeed } from './data/apologetics-library-content';
+// Dynamic imports so dotenv loads first
+const { db } = await import('./db');
+const { qaAreas, qaTags, qaLibraryPosts } = await import('@shared/schema');
+const { eq, and } = await import('drizzle-orm');
+const { ALL_LIBRARY_POSTS, AREA_DEFINITIONS } = await import('./data/apologetics-library-content');
+import type { LibraryPostSeed } from './data/apologetics-library-content';
 
 // Connection Research Team user ID
 const AUTHOR_USER_ID = 19;
