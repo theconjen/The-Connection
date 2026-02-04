@@ -65,6 +65,37 @@ router.get('/qa-areas', apologeticsLimiter, async (req, res) => {
   }
 });
 
+// GET /qa-tags - Get all QA tags for an area
+router.get('/qa-tags', apologeticsLimiter, async (req, res) => {
+  try {
+    const { areaId } = req.query;
+
+    if (!areaId || isNaN(Number(areaId))) {
+      return res.status(400).json({ message: 'areaId query parameter is required and must be a number' });
+    }
+
+    const { db } = await import('../db');
+    const { qaTags } = await import('@shared/schema');
+    const { eq, asc } = await import('drizzle-orm');
+
+    const tags = await db
+      .select({
+        id: qaTags.id,
+        name: qaTags.name,
+        slug: qaTags.slug,
+        areaId: qaTags.areaId,
+      })
+      .from(qaTags)
+      .where(eq(qaTags.areaId, Number(areaId)))
+      .orderBy(asc(qaTags.order));
+
+    return res.json(tags);
+  } catch (err) {
+    console.error('Error serving qa-tags:', err);
+    return res.status(500).json(buildErrorResponse('Error loading QA tags', err));
+  }
+});
+
 // GET /apologetics/feed - Get Q&A feed with filtering
 router.get('/apologetics/feed', apologeticsLimiter, async (req, res) => {
   try {
