@@ -153,9 +153,8 @@ export default function LibraryCreatePage() {
       }
       return res.json();
     },
-    onSuccess: (updatedPost) => {
-      queryClient.setQueryData(['/api/library/posts', postId], updatedPost);
-      queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
       toast({
         title: 'Success',
         description: 'Library post updated successfully!',
@@ -199,6 +198,14 @@ export default function LibraryCreatePage() {
   });
 
   const onSubmit = (formData: FormData) => {
+    console.info('[LIBRARY FORM] onSubmit called, formData:', {
+      domain: formData.domain,
+      title: formData.title,
+      tldr: formData.tldr?.slice(0, 50),
+      bodyMarkdownLength: formData.bodyMarkdown?.length,
+      keyPoints: formData.keyPoints?.slice(0, 100),
+    });
+
     // Parse key points (line-separated)
     const keyPoints = formData.keyPoints
       ?.split('\n')
@@ -270,6 +277,15 @@ export default function LibraryCreatePage() {
       perspectives,
       sources,
     };
+
+    console.info('[LIBRARY FORM] Submitting data:', {
+      isEdit,
+      postId,
+      dataKeys: Object.keys(data),
+      bodyMarkdownLength: data.bodyMarkdown?.length,
+      keyPointsCount: data.keyPoints?.length,
+      sourcesCount: data.sources?.length,
+    });
 
     if (isEdit) {
       updateMutation.mutate(data);
@@ -396,7 +412,14 @@ export default function LibraryCreatePage() {
           )}
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+            console.error('[LIBRARY FORM] Validation errors:', errors);
+            toast({
+              title: 'Validation Error',
+              description: Object.values(errors).map((e: any) => e.message).filter(Boolean).join(', ') || 'Please check your form fields',
+              variant: 'destructive',
+            });
+          })} className="space-y-6">
             {/* Domain */}
             <div className="space-y-2">
               <Label>Domain</Label>

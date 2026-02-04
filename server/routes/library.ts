@@ -244,16 +244,19 @@ router.post('/posts', requireAuth, async (req, res) => {
 router.patch('/posts/:id', requireAuth, async (req, res) => {
   try {
     const postId = parseInt(req.params.id, 10);
+    console.info(`[LIBRARY UPDATE] PATCH /posts/${postId} - request received, body keys:`, Object.keys(req.body));
 
     if (isNaN(postId)) {
       return res.status(400).json({ error: 'Invalid post ID' });
     }
 
     const authorUserId = requireSessionUserId(req);
+    console.info(`[LIBRARY UPDATE] authorUserId=${authorUserId}, postId=${postId}`);
 
     // Check author permission
     const canAuthor = await storage.canAuthorLibraryPosts(authorUserId);
     if (!canAuthor) {
+      console.info(`[LIBRARY UPDATE] REJECTED - user ${authorUserId} lacks author permission`);
       return res.status(403).json({
         error: 'Insufficient permissions to author library posts',
       });
@@ -261,19 +264,23 @@ router.patch('/posts/:id', requireAuth, async (req, res) => {
 
     // Validate request body
     const data = updateLibraryPostSchema.parse(req.body);
+    console.info(`[LIBRARY UPDATE] Zod validation passed, parsed keys:`, Object.keys(data));
 
     // Update library post (ownership check happens inside)
     const post = await storage.updateLibraryPost(postId, data, authorUserId);
 
     if (!post) {
+      console.info(`[LIBRARY UPDATE] REJECTED - post not found or ownership check failed`);
       return res.status(404).json({ error: 'Library post not found or you do not have permission to edit it' });
     }
 
+    console.info(`[LIBRARY UPDATE] SUCCESS - post ${postId} updated, title="${post.title}", bodyMarkdown length=${post.bodyMarkdown?.length}`);
     res.json(post);
   } catch (error) {
-    console.error('Error updating library post:', error);
+    console.error('[LIBRARY UPDATE] ERROR:', error);
 
     if (error instanceof z.ZodError) {
+      console.error('[LIBRARY UPDATE] Zod validation errors:', JSON.stringify(error.errors));
       return res.status(400).json(buildErrorResponse('Invalid request data', error));
     }
 
