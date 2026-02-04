@@ -65,9 +65,9 @@ export default function LibraryPostPage() {
   });
 
   const canEdit =
-    meData?.capabilities.canAuthorApologeticsPosts ||
     meData?.user?.role === 'admin' ||
-    meData?.user?.isVerifiedApologeticsAnswerer;
+    (meData?.capabilities.canAuthorApologeticsPosts &&
+      post?.authorUserId === meData?.user?.id);
 
   if (isLoading) {
     return (
