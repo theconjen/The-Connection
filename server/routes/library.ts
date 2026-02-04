@@ -42,7 +42,7 @@ const createLibraryPostSchema = z.object({
   tagId: z.number().int().positive().nullable().optional(),
   title: z.string().min(1).max(500),
   summary: z.string().max(1000).nullable().optional(),
-  tldr: z.string().max(500).nullable().optional(), // Optional for drafts
+  tldr: z.string().max(2000).nullable().optional(), // Optional for drafts
   keyPoints: z.array(z.string()).max(5).optional().default([]), // Optional for drafts
   scriptureRefs: z.array(z.string()).optional().default([]),
   bodyMarkdown: z.string().optional().default(''), // Optional for drafts
@@ -57,7 +57,7 @@ const createLibraryPostSchema = z.object({
 
 // Schema for publishing (strict - requires all fields for GotQuestions UX)
 const publishLibraryPostSchema = z.object({
-  tldr: z.string().min(1, 'Quick answer is required for publishing').max(500),
+  tldr: z.string().min(1, 'Quick answer is required for publishing').max(2000),
   keyPoints: z.array(z.string()).min(3, 'At least 3 key points required').max(5, 'Maximum 5 key points'),
   bodyMarkdown: z.string().min(1, 'Body content is required for publishing'),
 });
@@ -68,7 +68,7 @@ const updateLibraryPostSchema = z.object({
   tagId: z.number().int().positive().nullable().optional(),
   title: z.string().min(1).max(500).optional(),
   summary: z.string().max(1000).nullable().optional(),
-  tldr: z.string().max(500).nullable().optional(),
+  tldr: z.string().max(2000).nullable().optional(),
   keyPoints: z.array(z.string()).optional(),
   scriptureRefs: z.array(z.string()).optional(),
   bodyMarkdown: z.string().nullable().optional(),

@@ -25,7 +25,7 @@ type Domain = 'apologetics' | 'polemics';
 const formSchema = z.object({
   domain: z.enum(['apologetics', 'polemics']),
   title: z.string().min(1, 'Title is required').max(500),
-  tldr: z.string().max(500).optional(),
+  tldr: z.string().max(2000, 'Quick Answer must be 2000 characters or less').optional(),
   keyPoints: z.string().optional(),
   scriptureRefs: z.string().optional(),
   bodyMarkdown: z.string().optional(),
