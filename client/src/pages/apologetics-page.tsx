@@ -31,7 +31,8 @@ import {
   GraduationCap,
   BookOpen,
   ArrowRight,
-  X
+  X,
+  Pencil,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -57,6 +58,7 @@ type LibraryPostListItem = {
   title: string;
   tldr: string | null;
   perspectives: string[];
+  authorUserId: number;
   authorDisplayName: string;
   publishedAt: string | null;
   area?: { id: number; name: string; slug: string };
@@ -447,8 +449,23 @@ export default function ApologeticsPage() {
                         <ShieldCheck className="h-4 w-4 text-primary" />
                         <span>Verified Sources</span>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {post.authorDisplayName}
+                      <div className="flex items-center gap-3">
+                        {(user?.role === 'admin' ||
+                          ((user?.isVerifiedApologeticsAnswerer || user?.id === 19) &&
+                            post.authorUserId === user?.id)) && (
+                          <Link
+                            href={`/library/create?id=${post.id}`}
+                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                          >
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground hover:text-primary">
+                              <Pencil className="h-3.5 w-3.5 mr-1" />
+                              Edit
+                            </Button>
+                          </Link>
+                        )}
+                        <div className="text-sm text-muted-foreground">
+                          {post.authorDisplayName}
+                        </div>
                       </div>
                     </div>
 
