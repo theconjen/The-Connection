@@ -60,6 +60,7 @@ type LibraryPost = {
   bodyMarkdown: string;
   perspectives: string[];
   sources: LibraryPostSource[];
+  authorUserId: number;
   authorDisplayName: string;
   area?: { id: number; name: string };
   tag?: { id: number; name: string };
@@ -302,8 +303,8 @@ export default function ApologeticsDetailScreen() {
               <Text style={styles.authorText}>{data.authorDisplayName}</Text>
             </View>
             <View style={styles.shareButtons}>
-              {/* Edit button for admins and verified apologists */}
-              {(user?.role === 'admin' || user?.isVerifiedApologeticsAnswerer) && (
+              {/* Edit button for admins or the assigned apologist (author) */}
+              {(user?.role === 'admin' || (user?.isVerifiedApologeticsAnswerer && data.authorUserId === user?.id)) && (
                 <Pressable
                   style={({ pressed }) => [styles.shareIconButton, pressed && { opacity: 0.7 }]}
                   onPress={() => router.push(`/apologetics/edit/${data.id}` as any)}

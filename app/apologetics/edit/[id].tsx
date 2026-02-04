@@ -41,6 +41,7 @@ type LibraryPost = {
     year?: number;
     url?: string;
   }>;
+  authorUserId: number;
   authorDisplayName: string;
   status: string;
   area?: { id: number; name: string };
@@ -152,27 +153,6 @@ export default function EditApologeticsPostScreen() {
 
   const styles = getStyles(colors);
 
-  // Permission check
-  if (user && user.role !== "admin" && !user.isVerifiedApologeticsAnswerer) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar
-          barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-        />
-        <View style={styles.centerContainer}>
-          <Ionicons name="lock-closed" size={64} color={colors.textMuted} />
-          <Text style={styles.errorTitle}>Access Denied</Text>
-          <Text style={styles.errorBody}>
-            You need admin or verified apologist permissions to edit posts.
-          </Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.back()}>
-            <Text style={styles.primaryButtonText}>Go Back</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -200,6 +180,31 @@ export default function EditApologeticsPostScreen() {
             color={colors.textMuted}
           />
           <Text style={styles.errorTitle}>Post not found</Text>
+          <Pressable style={styles.primaryButton} onPress={() => router.back()}>
+            <Text style={styles.primaryButtonText}>Go Back</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Permission check: admins can edit any post, apologists can only edit their own
+  const isAdmin = user?.role === "admin";
+  const isAssignedApologist =
+    user?.isVerifiedApologeticsAnswerer && data.authorUserId === user?.id;
+
+  if (!isAdmin && !isAssignedApologist) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar
+          barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
+        />
+        <View style={styles.centerContainer}>
+          <Ionicons name="lock-closed" size={64} color={colors.textMuted} />
+          <Text style={styles.errorTitle}>Access Denied</Text>
+          <Text style={styles.errorBody}>
+            Only the assigned apologist or an admin can edit this post.
+          </Text>
           <Pressable style={styles.primaryButton} onPress={() => router.back()}>
             <Text style={styles.primaryButtonText}>Go Back</Text>
           </Pressable>
