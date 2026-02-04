@@ -88,7 +88,7 @@ export default function LibraryPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Library</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Apologetics</h1>
           <p className="text-lg text-gray-600">
             Curated articles on Christian apologetics and polemics
           </p>
@@ -195,8 +195,8 @@ export default function LibraryPage() {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No posts found</h3>
             <p className="text-gray-600 text-center max-w-md">
               {selectedDomain
-                ? `No ${selectedDomain} posts available yet`
-                : 'The library is empty'}
+                ? `No ${selectedDomain} articles available yet`
+                : 'No articles yet'}
             </p>
           </CardContent>
         </Card>

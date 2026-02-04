@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Save, Upload, Shield, Flame, Zap, List, BookOpen, FileText, Users, Library } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { MarkdownEditor } from '@/components/markdown-editor';
 
 type Domain = 'apologetics' | 'polemics';
 
@@ -146,10 +147,14 @@ export default function LibraryCreatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to update post');
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        throw new Error(errorBody?.error || 'Failed to update post');
+      }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedPost) => {
+      queryClient.setQueryData(['/api/library/posts', postId], updatedPost);
       queryClient.invalidateQueries({ queryKey: ['/api/library/posts'] });
       toast({
         title: 'Success',
@@ -491,19 +496,16 @@ export default function LibraryCreatePage() {
                 Detailed Answer (Markdown)
                 <span className="text-xs text-amber-600 font-normal">(required to publish)</span>
               </Label>
-              <Textarea
+              <MarkdownEditor
                 id="bodyMarkdown"
-                placeholder="## Introduction&#10;&#10;Write your detailed explanation here...&#10;&#10;## Historical Background&#10;&#10;Provide context...&#10;&#10;## Biblical Support&#10;&#10;Explain the scriptural basis...&#10;&#10;## Conclusion&#10;&#10;Summarize the key points..."
+                value={form.watch('bodyMarkdown') || ''}
+                onChange={(val) => form.setValue('bodyMarkdown', val, { shouldDirty: true })}
+                placeholder="## Introduction&#10;&#10;Write your detailed explanation here..."
                 rows={20}
-                className="font-mono text-sm"
-                {...form.register('bodyMarkdown')}
               />
               {form.formState.errors.bodyMarkdown && (
                 <p className="text-sm text-red-600">{form.formState.errors.bodyMarkdown.message}</p>
               )}
-              <p className="text-sm text-gray-600">
-                Use Markdown formatting: ## Headings, **bold**, *italic*, [link](url), - bullet points, etc.
-              </p>
             </div>
 
             {/* Perspectives */}
@@ -518,7 +520,7 @@ export default function LibraryCreatePage() {
                 {...form.register('perspectives')}
               />
               <p className="text-sm text-gray-600">
-                Different theological perspectives on this topic (shown in collapsible section).
+                Different theological perspectives on this topic.
               </p>
             </div>
 
