@@ -74,6 +74,20 @@ import {
   // polls tables
   polls, pollOptions, pollVotes,
   Poll, InsertPoll, PollOption, InsertPollOption, PollVote, InsertPollVote,
+  // organizations tables
+  organizations, organizationUsers,
+  orgBilling, userChurchAffiliations, orgMembershipRequests, orgMeetingRequests,
+  ordinationPrograms, ordinationApplications, ordinationReviews, organizationActivityLogs,
+  OrgBilling, InsertOrgBilling,
+  UserChurchAffiliation, InsertUserChurchAffiliation,
+  OrgMembershipRequest, InsertOrgMembershipRequest,
+  OrgMeetingRequest, InsertOrgMeetingRequest,
+  OrdinationProgram, InsertOrdinationProgram,
+  OrdinationApplication, InsertOrdinationApplication,
+  OrdinationReview, InsertOrdinationReview,
+  OrganizationActivityLog, InsertOrganizationActivityLog,
+  Organization, InsertOrganization,
+  OrganizationUser, InsertOrganizationUser,
 } from "@shared/schema";
 import { postVotes, commentVotes } from "@shared/schema";
 import { db } from "./db";
@@ -83,6 +97,7 @@ import { geocodeAddress } from "./geocoding";
 import softDelete from './db/softDelete';
 import { extractHashtags } from './utils/hashtagExtractor';
 import { extractKeywords } from './utils/keywordExtractor';
+import { isOrgBillingStatus, isOrgTier } from "../shared/orgTierPlans";
 
 function haversineDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRadians = (deg: number) => (deg * Math.PI) / 180;
@@ -100,6 +115,15 @@ function coerceCoordinate(value: unknown): number | null {
   if (value === undefined || value === null) return null;
   const parsed = typeof value === 'number' ? value : parseFloat(String(value));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function assertValidOrgBillingInput(data: { tier?: unknown; status?: unknown }) {
+  if (data.tier !== undefined && !isOrgTier(data.tier)) {
+    throw new Error('Invalid org billing tier');
+  }
+  if (data.status !== undefined && !isOrgBillingStatus(data.status)) {
+    throw new Error('Invalid org billing status');
+  }
 }
 
 // Add this safety utility class at the top of the file, after imports
@@ -517,6 +541,83 @@ export interface IStorage {
     cursor?: Date;
     limit: number;
   }): Promise<any[]>;
+
+  // ============================================================================
+  // ORGANIZATION METHODS
+  // ============================================================================
+
+  // Organization CRUD
+  getOrganization(id: number): Promise<any | undefined>;
+  getOrganizationBySlug(slug: string): Promise<any | undefined>;
+  createOrganization(org: any): Promise<any>;
+  updateOrganization(id: number, data: any): Promise<any>;
+  deleteOrganization(id: number): Promise<boolean>;
+
+  // Slug generation (server-side, collision-safe)
+  generateUniqueSlug(name: string): Promise<string>;
+
+  // Public directory (cursor-paginated)
+  getPublicOrganizations(options: {
+    limit?: number;
+    cursor?: string;
+    q?: string;
+    city?: string;
+    state?: string;
+    denomination?: string;
+  }): Promise<{ items: any[]; nextCursor: string | null }>;
+  searchOrganizations(searchTerm: string): Promise<any[]>;
+
+  // Billing (for tier enforcement)
+  getOrgBilling(orgId: number): Promise<any | undefined>;
+  createOrgBilling(billing: any): Promise<any>;
+  updateOrgBilling(orgId: number, data: any): Promise<any>;
+
+  // Membership
+  getOrganizationMembers(orgId: number): Promise<any[]>;
+  getOrganizationMember(orgId: number, userId: number): Promise<any | undefined>;
+  getUserOrganizations(userId: number): Promise<any[]>;
+  getUserRoleInOrg(orgId: number, userId: number): Promise<string | null>;
+  addOrganizationMember(member: any): Promise<any>;
+  updateOrganizationMemberRole(orgId: number, userId: number, role: string): Promise<any>;
+  removeOrganizationMember(orgId: number, userId: number): Promise<boolean>;
+  isOrganizationAdmin(orgId: number, userId: number): Promise<boolean>;
+  isOrganizationMember(orgId: number, userId: number): Promise<boolean>;
+
+  // Soft affiliations
+  hasAffiliation(orgId: number, userId: number): Promise<boolean>;
+  getUserChurchAffiliations(userId: number): Promise<any[]>;
+  addUserChurchAffiliation(affiliation: any): Promise<any>;
+  removeUserChurchAffiliation(userId: number, affiliationId: number): Promise<boolean>;
+
+  // Membership requests
+  getPendingMembershipRequest(orgId: number, userId: number): Promise<any | null>;
+  createMembershipRequest(request: any): Promise<any>;
+  getMembershipRequests(orgId: number): Promise<any[]>;
+  approveMembershipRequest(requestId: number, reviewerId: number): Promise<void>;
+  declineMembershipRequest(requestId: number, reviewerId: number): Promise<void>;
+
+  // Meeting requests
+  countOrgMeetingRequestsThisMonth(orgId: number): Promise<number>;
+  createMeetingRequest(request: any): Promise<any>;
+  getMeetingRequests(orgId: number): Promise<any[]>;
+  updateMeetingRequestStatus(requestId: number, status: string, closedBy?: number): Promise<void>;
+
+  // Ordination programs
+  getOrdinationPrograms(orgId: number): Promise<any[]>;
+  getOrdinationProgram(id: number): Promise<any | undefined>;
+  createOrdinationProgram(program: any): Promise<any>;
+  updateOrdinationProgram(id: number, data: any): Promise<any>;
+
+  // Ordination applications
+  getOrdinationApplications(orgId: number): Promise<any[]>;
+  getUserOrdinationApplications(userId: number): Promise<any[]>;
+  createOrdinationApplication(app: any): Promise<any>;
+  getOrdinationReviews(applicationId: number): Promise<any[]>;
+  createOrdinationReview(review: any): Promise<any>;
+
+  // Activity logs (admin-only, safe metadata)
+  logOrganizationActivity(log: any): Promise<void>;
+  getOrganizationActivityLogs(orgId: number, limit?: number): Promise<any[]>;
 }
 
 // In-memory storage implementation
@@ -2185,6 +2286,61 @@ export class MemStorage implements IStorage {
   }): Promise<any[]> {
     return this.data.microblogs;
   }
+
+  // ============================================================================
+  // ORGANIZATION METHODS (MemStorage stubs)
+  // ============================================================================
+
+  async getOrganization(_id: number): Promise<any | undefined> { return undefined; }
+  async getOrganizationBySlug(_slug: string): Promise<any | undefined> { return undefined; }
+  async createOrganization(org: any): Promise<any> { return { id: this.nextId++, ...org }; }
+  async updateOrganization(_id: number, data: any): Promise<any> { return data; }
+  async deleteOrganization(_id: number): Promise<boolean> { return true; }
+  async generateUniqueSlug(name: string): Promise<string> { return name.toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
+  async getPublicOrganizations(_options: any): Promise<{ items: any[]; nextCursor: string | null }> { return { items: [], nextCursor: null }; }
+  async searchOrganizations(_searchTerm: string): Promise<any[]> { return []; }
+  async getOrgBilling(_orgId: number): Promise<any | undefined> { return undefined; }
+  async createOrgBilling(billing: any): Promise<any> {
+    assertValidOrgBillingInput(billing ?? {});
+    return { id: this.nextId++, ...billing };
+  }
+  async updateOrgBilling(_orgId: number, data: any): Promise<any> {
+    assertValidOrgBillingInput(data ?? {});
+    return data;
+  }
+  async getOrganizationMembers(_orgId: number): Promise<any[]> { return []; }
+  async getOrganizationMember(_orgId: number, _userId: number): Promise<any | undefined> { return undefined; }
+  async getUserOrganizations(_userId: number): Promise<any[]> { return []; }
+  async getUserRoleInOrg(_orgId: number, _userId: number): Promise<string | null> { return null; }
+  async addOrganizationMember(member: any): Promise<any> { return { id: this.nextId++, ...member }; }
+  async updateOrganizationMemberRole(_orgId: number, _userId: number, role: string): Promise<any> { return { role }; }
+  async removeOrganizationMember(_orgId: number, _userId: number): Promise<boolean> { return true; }
+  async isOrganizationAdmin(_orgId: number, _userId: number): Promise<boolean> { return false; }
+  async isOrganizationMember(_orgId: number, _userId: number): Promise<boolean> { return false; }
+  async hasAffiliation(_orgId: number, _userId: number): Promise<boolean> { return false; }
+  async getUserChurchAffiliations(_userId: number): Promise<any[]> { return []; }
+  async addUserChurchAffiliation(affiliation: any): Promise<any> { return { id: this.nextId++, ...affiliation }; }
+  async removeUserChurchAffiliation(_userId: number, _affiliationId: number): Promise<boolean> { return true; }
+  async getPendingMembershipRequest(_orgId: number, _userId: number): Promise<any | null> { return null; }
+  async createMembershipRequest(request: any): Promise<any> { return { id: this.nextId++, ...request }; }
+  async getMembershipRequests(_orgId: number): Promise<any[]> { return []; }
+  async approveMembershipRequest(_requestId: number, _reviewerId: number): Promise<void> {}
+  async declineMembershipRequest(_requestId: number, _reviewerId: number): Promise<void> {}
+  async countOrgMeetingRequestsThisMonth(_orgId: number): Promise<number> { return 0; }
+  async createMeetingRequest(request: any): Promise<any> { return { id: this.nextId++, ...request }; }
+  async getMeetingRequests(_orgId: number): Promise<any[]> { return []; }
+  async updateMeetingRequestStatus(_requestId: number, _status: string, _closedBy?: number): Promise<void> {}
+  async getOrdinationPrograms(_orgId: number): Promise<any[]> { return []; }
+  async getOrdinationProgram(_id: number): Promise<any | undefined> { return undefined; }
+  async createOrdinationProgram(program: any): Promise<any> { return { id: this.nextId++, ...program }; }
+  async updateOrdinationProgram(_id: number, data: any): Promise<any> { return data; }
+  async getOrdinationApplications(_orgId: number): Promise<any[]> { return []; }
+  async getUserOrdinationApplications(_userId: number): Promise<any[]> { return []; }
+  async createOrdinationApplication(app: any): Promise<any> { return { id: this.nextId++, ...app }; }
+  async getOrdinationReviews(_applicationId: number): Promise<any[]> { return []; }
+  async createOrdinationReview(review: any): Promise<any> { return { id: this.nextId++, ...review }; }
+  async logOrganizationActivity(_log: any): Promise<void> {}
+  async getOrganizationActivityLogs(_orgId: number, _limit?: number): Promise<any[]> { return []; }
 }
 
 // Database-backed storage implementation
@@ -6471,6 +6627,479 @@ export class DbStorage implements IStorage {
       .limit(options?.limit || 20);
 
     return results;
+  }
+
+  // ============================================================================
+  // ORGANIZATION METHODS
+  // ============================================================================
+
+  // Organization CRUD
+  async getOrganization(id: number): Promise<Organization | undefined> {
+    const result = await db.select().from(organizations).where(eq(organizations.id, id));
+    return result[0];
+  }
+
+  async getOrganizationBySlug(slug: string): Promise<Organization | undefined> {
+    const result = await db.select().from(organizations).where(eq(organizations.slug, slug));
+    return result[0];
+  }
+
+  async createOrganization(org: InsertOrganization): Promise<Organization> {
+    const [result] = await db.insert(organizations).values(org).returning();
+    return result;
+  }
+
+  async updateOrganization(id: number, data: Partial<Organization>): Promise<Organization> {
+    const [result] = await db.update(organizations)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(organizations.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteOrganization(id: number): Promise<boolean> {
+    const result = await db.delete(organizations).where(eq(organizations.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Slug generation (server-side, collision-safe)
+  async generateUniqueSlug(name: string): Promise<string> {
+    const baseSlug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 50);
+
+    let slug = baseSlug;
+    let counter = 2;
+
+    while (true) {
+      const existing = await db.select({ id: organizations.id })
+        .from(organizations)
+        .where(eq(organizations.slug, slug))
+        .limit(1);
+
+      if (existing.length === 0) {
+        return slug;
+      }
+
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+  }
+
+  // Public directory (cursor-paginated)
+  async getPublicOrganizations(options: {
+    limit?: number;
+    cursor?: string;
+    q?: string;
+    city?: string;
+    state?: string;
+    denomination?: string;
+  }): Promise<{ items: Organization[]; nextCursor: string | null }> {
+    const limit = options.limit || 20;
+    const conditions: any[] = [];
+
+    if (options.q) {
+      const term = `%${options.q}%`;
+      conditions.push(or(
+        ilike(organizations.name, term),
+        ilike(organizations.description, term)
+      ));
+    }
+
+    if (options.city) {
+      conditions.push(ilike(organizations.city, options.city));
+    }
+
+    if (options.state) {
+      conditions.push(eq(organizations.state, options.state));
+    }
+
+    if (options.denomination) {
+      conditions.push(eq(organizations.denomination, options.denomination));
+    }
+
+    if (options.cursor) {
+      // Cursor is the ID of the last item
+      const cursorId = parseInt(options.cursor, 10);
+      if (!isNaN(cursorId)) {
+        conditions.push(gt(organizations.id, cursorId));
+      }
+    }
+
+    let query = db.select().from(organizations);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const items = await query
+      .orderBy(asc(organizations.id))
+      .limit(limit + 1);
+
+    let nextCursor: string | null = null;
+    if (items.length > limit) {
+      const lastItem = items.pop();
+      nextCursor = lastItem?.id.toString() || null;
+    }
+
+    return { items, nextCursor };
+  }
+
+  async searchOrganizations(searchTerm: string): Promise<Organization[]> {
+    const term = `%${searchTerm}%`;
+    return await db.select()
+      .from(organizations)
+      .where(or(
+        ilike(organizations.name, term),
+        ilike(organizations.description, term),
+        ilike(organizations.city, term)
+      ))
+      .limit(20);
+  }
+
+  // Billing (for tier enforcement)
+  async getOrgBilling(orgId: number): Promise<OrgBilling | undefined> {
+    const result = await db.select()
+      .from(orgBilling)
+      .where(eq(orgBilling.organizationId, orgId));
+    return result[0];
+  }
+
+  async createOrgBilling(billing: InsertOrgBilling): Promise<OrgBilling> {
+    assertValidOrgBillingInput(billing ?? {});
+    const [result] = await db.insert(orgBilling).values(billing).returning();
+    return result;
+  }
+
+  async updateOrgBilling(orgId: number, data: Partial<OrgBilling>): Promise<OrgBilling> {
+    assertValidOrgBillingInput(data ?? {});
+    const [result] = await db.update(orgBilling)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(orgBilling.organizationId, orgId))
+      .returning();
+    return result;
+  }
+
+  // Membership
+  async getOrganizationMembers(orgId: number): Promise<(OrganizationUser & { user: User })[]> {
+    const result = await db.select({
+      id: organizationUsers.id,
+      organizationId: organizationUsers.organizationId,
+      userId: organizationUsers.userId,
+      role: organizationUsers.role,
+      joinedAt: organizationUsers.joinedAt,
+      user: users
+    })
+      .from(organizationUsers)
+      .innerJoin(users, eq(users.id, organizationUsers.userId))
+      .where(eq(organizationUsers.organizationId, orgId));
+
+    return result as any;
+  }
+
+  async getOrganizationMember(orgId: number, userId: number): Promise<OrganizationUser | undefined> {
+    const result = await db.select()
+      .from(organizationUsers)
+      .where(and(
+        eq(organizationUsers.organizationId, orgId),
+        eq(organizationUsers.userId, userId)
+      ));
+    return result[0];
+  }
+
+  async getUserOrganizations(userId: number): Promise<Organization[]> {
+    const result = await db.select({
+      organization: organizations
+    })
+      .from(organizationUsers)
+      .innerJoin(organizations, eq(organizations.id, organizationUsers.organizationId))
+      .where(eq(organizationUsers.userId, userId));
+
+    return result.map(r => r.organization);
+  }
+
+  async getUserRoleInOrg(orgId: number, userId: number): Promise<string | null> {
+    const result = await db.select({ role: organizationUsers.role })
+      .from(organizationUsers)
+      .where(and(
+        eq(organizationUsers.organizationId, orgId),
+        eq(organizationUsers.userId, userId)
+      ));
+    return result[0]?.role || null;
+  }
+
+  async addOrganizationMember(member: InsertOrganizationUser): Promise<OrganizationUser> {
+    const [result] = await db.insert(organizationUsers).values(member).returning();
+    return result;
+  }
+
+  async updateOrganizationMemberRole(orgId: number, userId: number, role: string): Promise<OrganizationUser> {
+    const [result] = await db.update(organizationUsers)
+      .set({ role })
+      .where(and(
+        eq(organizationUsers.organizationId, orgId),
+        eq(organizationUsers.userId, userId)
+      ))
+      .returning();
+    return result;
+  }
+
+  async removeOrganizationMember(orgId: number, userId: number): Promise<boolean> {
+    const result = await db.delete(organizationUsers)
+      .where(and(
+        eq(organizationUsers.organizationId, orgId),
+        eq(organizationUsers.userId, userId)
+      ));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async isOrganizationAdmin(orgId: number, userId: number): Promise<boolean> {
+    const role = await this.getUserRoleInOrg(orgId, userId);
+    return role === 'owner' || role === 'admin';
+  }
+
+  async isOrganizationMember(orgId: number, userId: number): Promise<boolean> {
+    const result = await db.select({ id: organizationUsers.id })
+      .from(organizationUsers)
+      .where(and(
+        eq(organizationUsers.organizationId, orgId),
+        eq(organizationUsers.userId, userId)
+      ))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  // Soft affiliations
+  async hasAffiliation(orgId: number, userId: number): Promise<boolean> {
+    const result = await db.select({ id: userChurchAffiliations.id })
+      .from(userChurchAffiliations)
+      .where(and(
+        eq(userChurchAffiliations.organizationId, orgId),
+        eq(userChurchAffiliations.userId, userId)
+      ))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getUserChurchAffiliations(userId: number): Promise<UserChurchAffiliation[]> {
+    return await db.select()
+      .from(userChurchAffiliations)
+      .where(eq(userChurchAffiliations.userId, userId))
+      .orderBy(desc(userChurchAffiliations.createdAt));
+  }
+
+  async addUserChurchAffiliation(affiliation: InsertUserChurchAffiliation): Promise<UserChurchAffiliation> {
+    const [result] = await db.insert(userChurchAffiliations).values(affiliation).returning();
+    return result;
+  }
+
+  async removeUserChurchAffiliation(userId: number, affiliationId: number): Promise<boolean> {
+    const result = await db.delete(userChurchAffiliations)
+      .where(and(
+        eq(userChurchAffiliations.id, affiliationId),
+        eq(userChurchAffiliations.userId, userId)
+      ));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Membership requests
+  async getPendingMembershipRequest(orgId: number, userId: number): Promise<OrgMembershipRequest | null> {
+    const result = await db.select()
+      .from(orgMembershipRequests)
+      .where(and(
+        eq(orgMembershipRequests.organizationId, orgId),
+        eq(orgMembershipRequests.userId, userId),
+        eq(orgMembershipRequests.status, 'pending')
+      ))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async createMembershipRequest(request: InsertOrgMembershipRequest): Promise<OrgMembershipRequest> {
+    const [result] = await db.insert(orgMembershipRequests).values(request).returning();
+    return result;
+  }
+
+  async getMembershipRequests(orgId: number): Promise<OrgMembershipRequest[]> {
+    return await db.select()
+      .from(orgMembershipRequests)
+      .where(eq(orgMembershipRequests.organizationId, orgId))
+      .orderBy(desc(orgMembershipRequests.requestedAt));
+  }
+
+  async approveMembershipRequest(requestId: number, reviewerId: number): Promise<void> {
+    // Get the request
+    const [request] = await db.select()
+      .from(orgMembershipRequests)
+      .where(eq(orgMembershipRequests.id, requestId));
+
+    if (!request) return;
+
+    // Update request status
+    await db.update(orgMembershipRequests)
+      .set({
+        status: 'approved',
+        reviewedAt: new Date(),
+        reviewedByUserId: reviewerId
+      })
+      .where(eq(orgMembershipRequests.id, requestId));
+
+    // Add as member
+    await db.insert(organizationUsers)
+      .values({
+        organizationId: request.organizationId,
+        userId: request.userId,
+        role: 'member'
+      })
+      .onConflictDoNothing();
+  }
+
+  async declineMembershipRequest(requestId: number, reviewerId: number): Promise<void> {
+    await db.update(orgMembershipRequests)
+      .set({
+        status: 'declined',
+        reviewedAt: new Date(),
+        reviewedByUserId: reviewerId
+      })
+      .where(eq(orgMembershipRequests.id, requestId));
+  }
+
+  // Meeting requests
+  async countOrgMeetingRequestsThisMonth(orgId: number): Promise<number> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(orgMeetingRequests)
+      .where(and(
+        eq(orgMeetingRequests.organizationId, orgId),
+        gt(orgMeetingRequests.createdAt, startOfMonth)
+      ));
+
+    return Number(result[0]?.count || 0);
+  }
+
+  async createMeetingRequest(request: InsertOrgMeetingRequest): Promise<OrgMeetingRequest> {
+    const [result] = await db.insert(orgMeetingRequests).values(request).returning();
+    return result;
+  }
+
+  async getMeetingRequests(orgId: number): Promise<OrgMeetingRequest[]> {
+    return await db.select()
+      .from(orgMeetingRequests)
+      .where(eq(orgMeetingRequests.organizationId, orgId))
+      .orderBy(desc(orgMeetingRequests.createdAt));
+  }
+
+  async updateMeetingRequestStatus(requestId: number, status: string, closedBy?: number): Promise<void> {
+    const updateData: any = {
+      status,
+      updatedAt: new Date()
+    };
+
+    if (status === 'closed' && closedBy) {
+      updateData.closedAt = new Date();
+      updateData.closedByUserId = closedBy;
+    }
+
+    await db.update(orgMeetingRequests)
+      .set(updateData)
+      .where(eq(orgMeetingRequests.id, requestId));
+  }
+
+  // Ordination programs
+  async getOrdinationPrograms(orgId: number): Promise<OrdinationProgram[]> {
+    return await db.select()
+      .from(ordinationPrograms)
+      .where(eq(ordinationPrograms.organizationId, orgId))
+      .orderBy(desc(ordinationPrograms.createdAt));
+  }
+
+  async getOrdinationProgram(id: number): Promise<OrdinationProgram | undefined> {
+    const result = await db.select()
+      .from(ordinationPrograms)
+      .where(eq(ordinationPrograms.id, id));
+    return result[0];
+  }
+
+  async createOrdinationProgram(program: InsertOrdinationProgram): Promise<OrdinationProgram> {
+    const [result] = await db.insert(ordinationPrograms).values(program).returning();
+    return result;
+  }
+
+  async updateOrdinationProgram(id: number, data: Partial<OrdinationProgram>): Promise<OrdinationProgram> {
+    const [result] = await db.update(ordinationPrograms)
+      .set(data)
+      .where(eq(ordinationPrograms.id, id))
+      .returning();
+    return result;
+  }
+
+  // Ordination applications
+  async getOrdinationApplications(orgId: number): Promise<OrdinationApplication[]> {
+    // Get applications for all programs belonging to this org
+    const programs = await this.getOrdinationPrograms(orgId);
+    const programIds = programs.map(p => p.id);
+
+    if (programIds.length === 0) return [];
+
+    return await db.select()
+      .from(ordinationApplications)
+      .where(inArray(ordinationApplications.programId, programIds))
+      .orderBy(desc(ordinationApplications.submittedAt));
+  }
+
+  async getUserOrdinationApplications(userId: number): Promise<OrdinationApplication[]> {
+    return await db.select()
+      .from(ordinationApplications)
+      .where(eq(ordinationApplications.userId, userId))
+      .orderBy(desc(ordinationApplications.submittedAt));
+  }
+
+  async createOrdinationApplication(app: InsertOrdinationApplication): Promise<OrdinationApplication> {
+    const [result] = await db.insert(ordinationApplications).values(app).returning();
+    return result;
+  }
+
+  async getOrdinationReviews(applicationId: number): Promise<OrdinationReview[]> {
+    return await db.select()
+      .from(ordinationReviews)
+      .where(eq(ordinationReviews.applicationId, applicationId))
+      .orderBy(desc(ordinationReviews.createdAt));
+  }
+
+  async createOrdinationReview(review: InsertOrdinationReview): Promise<OrdinationReview> {
+    const [result] = await db.insert(ordinationReviews).values(review).returning();
+
+    // Update application status based on review decision
+    const statusMap: Record<string, string> = {
+      'approve': 'approved',
+      'reject': 'rejected',
+      'request_info': 'under_review'
+    };
+
+    await db.update(ordinationApplications)
+      .set({
+        status: statusMap[review.decision] || 'under_review',
+        updatedAt: new Date()
+      })
+      .where(eq(ordinationApplications.id, review.applicationId));
+
+    return result;
+  }
+
+  // Activity logs (admin-only, safe metadata)
+  async logOrganizationActivity(log: InsertOrganizationActivityLog): Promise<void> {
+    await db.insert(organizationActivityLogs).values(log);
+  }
+
+  async getOrganizationActivityLogs(orgId: number, limit: number = 50): Promise<OrganizationActivityLog[]> {
+    return await db.select()
+      .from(organizationActivityLogs)
+      .where(eq(organizationActivityLogs.organizationId, orgId))
+      .orderBy(desc(organizationActivityLogs.createdAt))
+      .limit(limit);
   }
 }
 

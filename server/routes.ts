@@ -113,6 +113,16 @@ import wellKnownRoutes from './routes/well-known';
 import clergyVerificationRoutes from './routes/clergy-verification';
 import { ogMetaMiddleware } from './middleware/og-meta';
 
+// Organization feature routes
+import orgsPublicRoutes from './routes/orgs-public';
+import myChurchesRoutes from './routes/my-churches';
+import membershipRequestsRoutes from './routes/membership-requests';
+import meetingRequestsRoutes from './routes/meeting-requests';
+import leaderInboxRoutes from './routes/leader-inbox';
+import userEntitlementsRoutes from './routes/user-entitlements';
+import ordinationsRoutes from './routes/ordinations';
+import orgAdminRoutes from './routes/org-admin';
+
 declare module 'express-session' {
   interface SessionData {
     userId?: number;
@@ -576,8 +586,19 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   }
 
   if (FEATURES.ORGS) {
+    // Legacy organization routes
     app.use('/api/organizations', organizationRoutes);
     app.use('/api/clergy-verification', clergyVerificationRoutes);
+
+    // New organization feature routes
+    app.use('/api/orgs', orgsPublicRoutes);           // Public directory and profiles
+    app.use('/api/me/churches', myChurchesRoutes);    // Soft affiliations
+    app.use('/api/orgs', membershipRequestsRoutes);   // Membership requests (mounted under /api/orgs/:slug/*)
+    app.use('/api/orgs', meetingRequestsRoutes);      // Meeting requests (mounted under /api/orgs/:slug/*)
+    app.use('/api/leader-inbox', leaderInboxRoutes);  // Leader inbox
+    app.use('/api/me', userEntitlementsRoutes);       // User entitlements
+    app.use('/api/ordinations', ordinationsRoutes);   // Ordination programs and applications
+    app.use('/api/org-admin', orgAdminRoutes);        // Steward Console (org admin)
   }
 
   if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {

@@ -2,6 +2,7 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, 
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { ORG_TIER_VALUES, ORG_BILLING_STATUSES } from "../../../shared/orgTierPlans";
 
 // Session storage table for authentication
 export const sessions = pgTable(
@@ -111,9 +112,10 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  slug: text("slug").unique(), // URL-friendly identifier, nullable for migration then NOT NULL
   description: text("description"),
   adminUserId: integer("admin_user_id").notNull().references(() => users.id),
-  plan: text("plan").default("free"), // free, standard, premium
+  plan: text("plan").default("free"), // free, stewardship, partner (legacy - use orgBilling for new code)
   website: text("website"),
   email: text("email"), // Contact email for the organization
   logoUrl: text("logo_url"), // Organization logo/avatar
@@ -128,12 +130,16 @@ export const organizations = pgTable("organizations", {
   zipCode: text("zip_code"),
   phone: text("phone"),
   denomination: text("denomination"),
+  // Visibility controls for public directory
+  showPhone: boolean("show_phone").default(false),
+  showAddress: boolean("show_address").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 } as any);
 
 export const insertOrganizationSchema = createInsertSchema(organizations).pick({
   name: true,
+  slug: true,
   description: true,
   adminUserId: true,
   website: true,
@@ -150,14 +156,18 @@ export const insertOrganizationSchema = createInsertSchema(organizations).pick({
   zipCode: true,
   phone: true,
   denomination: true,
+  showPhone: true,
+  showAddress: true,
 } as any);
 
 // Organization members table
+// Roles: owner (creator/primary admin), admin, moderator, member
+// Note: "visitor" and "attendee" are computed at runtime, not stored here
 export const organizationUsers = pgTable("organization_users", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").notNull().references(() => organizations.id),
   userId: integer("user_id").notNull().references(() => users.id),
-  role: text("role").default("member"), // admin, pastor, leader, member
+  role: text("role").default("member"), // owner, admin, moderator, member
   joinedAt: timestamp("joined_at").defaultNow(),
 } as any);
 
@@ -200,6 +210,8 @@ export const communities = pgTable("communities", {
   lastActivityAt: timestamp("last_activity_at"), // Updated when post/event/chat happens
   recentPostCount: integer("recent_post_count").default(0), // Posts in last 7 days
   upcomingEventCount: integer("upcoming_event_count").default(0), // Events in next 30 days
+  // Organization association
+  organizationId: integer("organization_id").references(() => organizations.id), // Nullable - for org-owned communities
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   createdBy: integer("created_by").references(() => users.id),
@@ -1217,6 +1229,7 @@ export const events = pgTable("events", {
   longitude: text("longitude"), // For map integration
   communityId: integer("community_id").references(() => communities.id), // Nullable - admin can create events for "The Connection" without a community
   groupId: integer("group_id").references(() => groups.id),
+  organizationId: integer("organization_id").references(() => organizations.id), // Nullable - for org-owned events
   creatorId: integer("creator_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   // deletedAt: timestamp("deleted_at"), // Not in actual DB table
@@ -1244,6 +1257,7 @@ export const insertEventSchema = createInsertSchema(events).pick({
   longitude: true,
   communityId: true,
   groupId: true,
+  organizationId: true,
   creatorId: true,
 } as any);
 
@@ -1317,9 +1331,10 @@ export const prayerRequests = pgTable("prayer_requests", {
   title: text("title").notNull(),
   content: text("content").notNull(),
   isAnonymous: boolean("is_anonymous").default(false),
-  privacyLevel: text("privacy_level").notNull(), // public, friends-only, group-only, community-only
+  privacyLevel: text("privacy_level").notNull(), // public, friends-only, group-only, community-only, organization-only
   groupId: integer("group_id").references(() => groups.id),
   communityId: integer("community_id").references(() => communities.id),
+  organizationId: integer("organization_id").references(() => organizations.id), // Nullable - for org-owned prayer requests
   authorId: integer("author_id").notNull().references(() => users.id),
   prayerCount: integer("prayer_count").default(0),
   isAnswered: boolean("is_answered").default(false),
@@ -1335,6 +1350,7 @@ export const insertPrayerRequestSchema = createInsertSchema(prayerRequests).pick
   privacyLevel: true,
   groupId: true,
   communityId: true,
+  organizationId: true,
   authorId: true,
 } as any);
 
@@ -2358,3 +2374,222 @@ export type InsertQuestionAssignment = typeof questionAssignments.$inferInsert;
 
 export type QuestionMessage = typeof questionMessages.$inferSelect;
 export type InsertQuestionMessage = typeof questionMessages.$inferInsert;
+
+// ============================================================================
+// ORGANIZATIONS - Extended Features
+// ============================================================================
+
+// Organization Billing - Manages subscription tier and billing status
+// Tier enforcement is server-only; clients receive only boolean capabilities
+export const orgBilling = pgTable("org_billing", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id).unique(),
+  tier: text("tier").default("free"), // free, stewardship, partner
+  status: text("status").default("inactive"), // inactive, trialing, active, past_due, canceled
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_org_billing_org").on(table.organizationId),
+]);
+
+export const insertOrgBillingSchema = createInsertSchema(orgBilling).pick({
+  organizationId: true,
+  tier: true,
+  status: true,
+  stripeCustomerId: true,
+  stripeSubscriptionId: true,
+  currentPeriodStart: true,
+  currentPeriodEnd: true,
+} as any).extend({
+  tier: z.enum(ORG_TIER_VALUES),
+  status: z.enum(ORG_BILLING_STATUSES),
+});
+
+export type OrgBilling = typeof orgBilling.$inferSelect;
+export type InsertOrgBilling = typeof orgBilling.$inferInsert;
+
+// User Church Affiliations - Soft affiliations ("my churches")
+// XOR constraint: either organizationId OR freeTextName, not both
+export const userChurchAffiliations = pgTable("user_church_affiliations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  organizationId: integer("organization_id").references(() => organizations.id),
+  freeTextName: text("free_text_name"), // For churches not in the system
+  roleLabel: text("role_label"), // User-defined label like "Member", "Deacon", etc.
+  visibility: text("visibility").default("public"), // public, private
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserChurchAffiliationSchema = createInsertSchema(userChurchAffiliations).pick({
+  userId: true,
+  organizationId: true,
+  freeTextName: true,
+  roleLabel: true,
+  visibility: true,
+} as any);
+
+export type UserChurchAffiliation = typeof userChurchAffiliations.$inferSelect;
+export type InsertUserChurchAffiliation = typeof userChurchAffiliations.$inferInsert;
+
+// Organization Membership Requests - Attendee requesting to become member
+export const orgMembershipRequests = pgTable("org_membership_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  status: text("status").default("pending"), // pending, approved, declined
+  requestedAt: timestamp("requested_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedByUserId: integer("reviewed_by_user_id").references(() => users.id),
+  notes: text("notes"),
+}, (table) => [
+  // Only one pending request per user per org
+  index("idx_org_membership_requests_org_user").on(table.organizationId, table.userId),
+]);
+
+export const insertOrgMembershipRequestSchema = createInsertSchema(orgMembershipRequests).pick({
+  organizationId: true,
+  userId: true,
+  status: true,
+  notes: true,
+} as any);
+
+export type OrgMembershipRequest = typeof orgMembershipRequests.$inferSelect;
+export type InsertOrgMembershipRequest = typeof orgMembershipRequests.$inferInsert;
+
+// Organization Meeting Requests - Pastoral care/appointment requests
+export const orgMeetingRequests = pgTable("org_meeting_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  requesterId: integer("requester_id").notNull().references(() => users.id),
+  reason: text("reason").notNull(),
+  status: text("status").default("new"), // new, in_progress, closed
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  closedAt: timestamp("closed_at"),
+  closedByUserId: integer("closed_by_user_id").references(() => users.id),
+  notes: text("notes"), // Internal notes from staff
+}, (table) => [
+  index("idx_org_meeting_requests_org").on(table.organizationId),
+  index("idx_org_meeting_requests_status").on(table.status),
+  index("idx_org_meeting_requests_created").on(table.createdAt),
+]);
+
+export const insertOrgMeetingRequestSchema = createInsertSchema(orgMeetingRequests).pick({
+  organizationId: true,
+  requesterId: true,
+  reason: true,
+  status: true,
+  notes: true,
+} as any);
+
+export type OrgMeetingRequest = typeof orgMeetingRequests.$inferSelect;
+export type InsertOrgMeetingRequest = typeof orgMeetingRequests.$inferInsert;
+
+// Ordination Programs - Configurable ordination tracks with form schemas
+export const ordinationPrograms = pgTable("ordination_programs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  enabled: boolean("enabled").default(true),
+  title: text("title").notNull(),
+  description: text("description"),
+  formSchema: jsonb("form_schema"), // JSON schema for application form
+  schemaVersion: integer("schema_version").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_ordination_programs_org").on(table.organizationId),
+]);
+
+export const insertOrdinationProgramSchema = createInsertSchema(ordinationPrograms).pick({
+  organizationId: true,
+  enabled: true,
+  title: true,
+  description: true,
+  formSchema: true,
+  schemaVersion: true,
+} as any);
+
+export type OrdinationProgram = typeof ordinationPrograms.$inferSelect;
+export type InsertOrdinationProgram = typeof ordinationPrograms.$inferInsert;
+
+// Ordination Applications - User applications with schema snapshot
+export const ordinationApplications = pgTable("ordination_applications", {
+  id: serial("id").primaryKey(),
+  programId: integer("program_id").notNull().references(() => ordinationPrograms.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  status: text("status").default("pending"), // pending, under_review, approved, rejected
+  answers: jsonb("answers").notNull(), // User's form responses
+  programSchemaVersion: integer("program_schema_version").notNull(), // Version at time of submission
+  programSchemaSnapshot: jsonb("program_schema_snapshot").notNull(), // Snapshot of form schema at submission
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_ordination_applications_program").on(table.programId),
+  index("idx_ordination_applications_user").on(table.userId),
+  index("idx_ordination_applications_status").on(table.status),
+]);
+
+export const insertOrdinationApplicationSchema = createInsertSchema(ordinationApplications).pick({
+  programId: true,
+  userId: true,
+  status: true,
+  answers: true,
+  programSchemaVersion: true,
+  programSchemaSnapshot: true,
+} as any);
+
+export type OrdinationApplication = typeof ordinationApplications.$inferSelect;
+export type InsertOrdinationApplication = typeof ordinationApplications.$inferInsert;
+
+// Ordination Reviews - Review decisions on applications
+export const ordinationReviews = pgTable("ordination_reviews", {
+  id: serial("id").primaryKey(),
+  applicationId: integer("application_id").notNull().references(() => ordinationApplications.id),
+  reviewerUserId: integer("reviewer_user_id").notNull().references(() => users.id),
+  decision: text("decision").notNull(), // approve, reject, request_info
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_ordination_reviews_application").on(table.applicationId),
+]);
+
+export const insertOrdinationReviewSchema = createInsertSchema(ordinationReviews).pick({
+  applicationId: true,
+  reviewerUserId: true,
+  decision: true,
+  notes: true,
+} as any);
+
+export type OrdinationReview = typeof ordinationReviews.$inferSelect;
+export type InsertOrdinationReview = typeof ordinationReviews.$inferInsert;
+
+// Organization Activity Logs - Audit trail for admin actions
+// Metadata should NOT include sensitive data (emails, tokens, etc.)
+export const organizationActivityLogs = pgTable("organization_activity_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  actorId: integer("actor_id").notNull().references(() => users.id),
+  action: text("action").notNull(), // e.g., "member.added", "settings.updated", "event.created"
+  targetType: text("target_type"), // e.g., "user", "event", "community"
+  targetId: integer("target_id"),
+  metadata: jsonb("metadata"), // Safe metadata only, no PII
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_org_activity_org_created").on(table.organizationId, table.createdAt),
+  index("idx_org_activity_created").on(table.createdAt),
+]);
+
+export const insertOrganizationActivityLogSchema = createInsertSchema(organizationActivityLogs).pick({
+  organizationId: true,
+  actorId: true,
+  action: true,
+  targetType: true,
+  targetId: true,
+  metadata: true,
+} as any);
+
+export type OrganizationActivityLog = typeof organizationActivityLogs.$inferSelect;
+export type InsertOrganizationActivityLog = typeof organizationActivityLogs.$inferInsert;
