@@ -65,6 +65,10 @@ const AdminAnalytics = lazy(() => import("./pages/admin/analytics"));
 // Organization admin (Steward Console - web-only)
 const OrganizationAdminPage = lazy(() => import("./pages/organization-admin-page"));
 
+// Organization public pages (Commons)
+const OrganizationsDirectoryPage = lazy(() => import("./pages/organizations-directory-page"));
+const OrganizationProfilePage = lazy(() => import("./pages/organization-profile-page"));
+
 // Library (Q&A Library posts)
 const LibraryPage = lazy(() => import("./pages/library-page"));
 const LibraryPostPage = lazy(() => import("./pages/library-post-page"));
@@ -188,6 +192,10 @@ function App() {
 
             {/* Organization Admin (Steward Console - web-only) */}
             <Route path="/org-admin/:orgId" component={OrganizationAdminPage} />
+
+            {/* Organization Public (Commons) */}
+            <Route path="/orgs/:slug" component={OrganizationProfilePage} />
+            <Route path="/orgs" component={OrganizationsDirectoryPage} />
 
             <Route component={NotFound} />
           </Switch>
