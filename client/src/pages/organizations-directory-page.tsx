@@ -65,8 +65,8 @@ const DENOMINATIONS = [
 export default function OrganizationsDirectoryPage() {
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [stateFilter, setStateFilter] = useState<string>("");
-  const [denominationFilter, setDenominationFilter] = useState<string>("");
+  const [stateFilter, setStateFilter] = useState<string>("all");
+  const [denominationFilter, setDenominationFilter] = useState<string>("all");
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -83,8 +83,8 @@ export default function OrganizationsDirectoryPage() {
       const params = new URLSearchParams();
       if (pageParam) params.set("cursor", pageParam as string);
       if (debouncedSearch) params.set("q", debouncedSearch);
-      if (stateFilter) params.set("state", stateFilter);
-      if (denominationFilter) params.set("denomination", denominationFilter);
+      if (stateFilter && stateFilter !== "all") params.set("state", stateFilter);
+      if (denominationFilter && denominationFilter !== "all") params.set("denomination", denominationFilter);
 
       const response = await fetch(`/api/orgs/directory?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch directory");
@@ -95,12 +95,12 @@ export default function OrganizationsDirectoryPage() {
   });
 
   const allOrganizations = data?.pages.flatMap((page) => page.items) ?? [];
-  const hasActiveFilters = searchQuery || stateFilter || denominationFilter;
+  const hasActiveFilters = searchQuery || (stateFilter && stateFilter !== "all") || (denominationFilter && denominationFilter !== "all");
 
   const clearFilters = () => {
     setSearchQuery("");
-    setStateFilter("");
-    setDenominationFilter("");
+    setStateFilter("all");
+    setDenominationFilter("all");
   };
 
   // Infinite scroll handler
@@ -151,7 +151,7 @@ export default function OrganizationsDirectoryPage() {
                   <SelectValue placeholder="State" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All States</SelectItem>
+                  <SelectItem value="all">All States</SelectItem>
                   {US_STATES.map((state) => (
                     <SelectItem key={state} value={state}>
                       {state}
@@ -167,7 +167,7 @@ export default function OrganizationsDirectoryPage() {
                   <SelectValue placeholder="Denomination" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Denominations</SelectItem>
+                  <SelectItem value="all">All Denominations</SelectItem>
                   {DENOMINATIONS.map((denom) => (
                     <SelectItem key={denom} value={denom}>
                       {denom}

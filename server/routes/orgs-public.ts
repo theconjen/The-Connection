@@ -9,7 +9,7 @@ import { Router, Request, Response } from 'express';
 import { storage } from '../storage';
 import { computeOrgCapabilities } from '../services/orgTierService';
 import { getSessionUserId } from '../utils/session';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
 const router = Router();
 
