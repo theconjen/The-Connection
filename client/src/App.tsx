@@ -68,6 +68,7 @@ const OrganizationAdminPage = lazy(() => import("./pages/organization-admin-page
 // Organization public pages (Commons)
 const OrganizationsDirectoryPage = lazy(() => import("./pages/organizations-directory-page"));
 const OrganizationProfilePage = lazy(() => import("./pages/organization-profile-page"));
+const ChurchSignupPage = lazy(() => import("./pages/church-signup-page"));
 
 // Library (Q&A Library posts)
 const LibraryPage = lazy(() => import("./pages/library-page"));
@@ -196,6 +197,7 @@ function App() {
             {/* Organization Public (Commons) */}
             <Route path="/orgs" component={OrganizationsDirectoryPage} />
             <Route path="/orgs/:slug" component={OrganizationProfilePage} />
+            <Route path="/church-signup" component={ChurchSignupPage} />
 
             <Route component={NotFound} />
           </Switch>
