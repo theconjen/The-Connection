@@ -26,6 +26,7 @@
     "bots:quotes": "tsx server/bots/theology-quote-bot.ts",
     "bots:scheduler": "tsx server/bots/scheduler.ts",
     "db:push": "drizzle-kit push --force",
+    "db:push:ci": "drizzle-kit push --force </dev/null",
     "db:generate": "drizzle-kit generate"
   },
   "devDependencies": {

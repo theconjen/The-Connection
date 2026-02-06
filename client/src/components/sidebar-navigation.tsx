@@ -14,7 +14,8 @@ import {
   HelpCircle,
   Shield,
   Heart,
-  Lightbulb
+  Lightbulb,
+  Church
 } from "lucide-react";
 
 interface SidebarNavigationProps {
@@ -30,6 +31,7 @@ export default function SidebarNavigation({ currentPath, collapsed = false }: Si
   const mainNavItems = [
     { icon: <Home className="h-5 w-5" />, label: "Home", path: "/", color: "text-[#5C6B5E]" },
     { icon: <Users className="h-5 w-5" />, label: "Community", path: "/communities", color: "text-[#7C6B78]" },
+    { icon: <Church className="h-5 w-5" />, label: "Churches", path: "/orgs", color: "text-[#6B7C8F]" },
     { icon: <Lightbulb className="h-5 w-5" />, label: "Advice", path: "/advice", color: "text-[#D97706]" },
     { icon: <Calendar className="h-5 w-5" />, label: "Events", path: "/events", color: "text-[#B56A55]" },
     { icon: <BookOpen className="h-5 w-5" />, label: "Apologetics", path: "/apologetics", color: "text-[#7C8F78]" },

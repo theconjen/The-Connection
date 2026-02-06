@@ -13,6 +13,72 @@ import { z } from 'zod/v4';
 
 const router = Router();
 
+type PublicOrganizationDTO = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  logoUrl: string | null;
+  website: string | null;
+  mission: string | null;
+  serviceTimes: string | null;
+  socialMedia: string | null;
+  foundedDate: string | null;
+  congregationSize: number | null;
+  denomination: string | null;
+  city: string | null;
+  state: string | null;
+  publicPhone: string | null;
+  publicAddress: string | null;
+  publicZipCode: string | null;
+};
+
+const publicOrganizationKeys = new Set<keyof PublicOrganizationDTO>([
+  'id',
+  'name',
+  'slug',
+  'description',
+  'logoUrl',
+  'website',
+  'mission',
+  'serviceTimes',
+  'socialMedia',
+  'foundedDate',
+  'congregationSize',
+  'denomination',
+  'city',
+  'state',
+  'publicPhone',
+  'publicAddress',
+  'publicZipCode',
+]);
+
+const forbiddenPublicOrgKeys = [
+  'email',
+  'tier',
+  'plan',
+  'billing',
+  'adminUserId',
+  'phone',
+  'address',
+  'zipCode',
+];
+
+function assertPublicOrganizationDTO(dto: Record<string, unknown>) {
+  if (process.env.NODE_ENV === 'production') return;
+  for (const key of Object.keys(dto)) {
+    if (key.startsWith('stripe')) {
+      throw new Error(`Public organization DTO contains forbidden key: ${key}`);
+    }
+    if (forbiddenPublicOrgKeys.includes(key)) {
+      throw new Error(`Public organization DTO contains forbidden key: ${key}`);
+    }
+    if (!publicOrganizationKeys.has(key as keyof PublicOrganizationDTO)) {
+      throw new Error(`Public organization DTO contains unexpected key: ${key}`);
+    }
+  }
+}
+
 /**
  * GET /api/orgs/search - Quick search organizations
  */
@@ -119,7 +185,7 @@ router.get('/:slug', async (req: Request, res: Response) => {
     });
 
     // Build public organization object
-    const publicOrganization = {
+    const publicOrganization: PublicOrganizationDTO = {
       id: org.id,
       name: org.name,
       slug: org.slug,
@@ -139,6 +205,7 @@ router.get('/:slug', async (req: Request, res: Response) => {
       publicAddress: org.showAddress ? org.address : null,
       publicZipCode: org.showAddress ? org.zipCode : null,
     };
+    assertPublicOrganizationDTO(publicOrganization as Record<string, unknown>);
 
     // TODO: Fetch communities filtered by capabilities
     // For now, return empty arrays

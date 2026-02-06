@@ -38,6 +38,7 @@ import { shareApologetics, buildApologeticsShareUrl } from "../../src/lib/shareU
 import * as Clipboard from "expo-clipboard";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
 import { ShareContentModal, ShareableContent } from "../../src/components/ShareContentModal";
+import { useLeaderEntitlements } from "../../src/queries/churches";
 
 // Regex to detect Bible references in text (e.g., "Romans 8:28", "1 Corinthians 13:4-7", "(John 3:16)")
 const SCRIPTURE_REGEX = /\(?\b((?:1|2|3|I|II|III)\s*)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song\s*of\s*Solomon|Songs?|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s*\d+(?::\d+(?:-\d+)?)?(?:\s*-\s*\d+(?::\d+)?)?\)?/gi;
@@ -140,6 +141,8 @@ export default function ApologeticsDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors, colorScheme } = useTheme();
   const { user } = useAuth();
+  const { data: leaderEntitlements } = useLeaderEntitlements();
+  const hasLeaderInboxAccess = leaderEntitlements?.showLeaderInbox || false;
 
   const [perspectivesExpanded, setPerspectivesExpanded] = useState(false);
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
@@ -587,6 +590,9 @@ export default function ApologeticsDetailScreen() {
         hasInboxAccess={user?.role === 'admin' || user?.role === 'apologist'}
         onUserPress={(userId) => router.push(`/profile/${userId}` as any)}
         onAdvicePress={(adviceId) => router.push(`/advice/${adviceId}` as any)}
+        onMyChurches={() => router.push("/my-churches" as any)}
+        onLeaderInbox={() => router.push("/leader-inbox" as any)}
+        hasLeaderInboxAccess={hasLeaderInboxAccess}
       />
 
       {/* In-App Share Modal */}

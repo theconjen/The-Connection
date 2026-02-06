@@ -822,7 +822,7 @@ export default function SettingsPage() {
                   <h3 className="text-lg font-semibold mb-2">No Church Account</h3>
                   <p className="text-gray-600 mb-4">
                     Create a church account to access advanced features like member management,
-                    event planning, and premium tools.
+                    event planning, and more.
                   </p>
                   <Button>
                     Create Church Account

@@ -254,7 +254,6 @@ export default function ChurchSignupPage() {
                 <li>• Event planning and RSVP tracking</li>
                 <li>• Prayer request system</li>
                 <li>• Bible study tools and resources</li>
-                <li>• Livestream capabilities (premium plans)</li>
                 <li>• Analytics and engagement insights</li>
               </ul>
             </div>

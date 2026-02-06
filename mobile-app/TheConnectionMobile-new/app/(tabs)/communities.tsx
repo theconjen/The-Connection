@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "../../src/lib/apiClient";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
+import { useLeaderEntitlements } from "../../src/queries/churches";
 
 export default function CommunitiesTab() {
   const router = useRouter();
@@ -14,6 +15,10 @@ export default function CommunitiesTab() {
 
   // Check if user has inbox access permission
   const hasInboxAccess = user?.permissions?.includes('inbox_access') || false;
+
+  // Check if user has leader inbox access
+  const { data: leaderEntitlements } = useLeaderEntitlements();
+  const hasLeaderInboxAccess = leaderEntitlements?.showLeaderInbox || false;
 
   // Fetch unread notifications count
   const { data: unreadNotificationCount = 0 } = useQuery<number>({
@@ -93,6 +98,9 @@ export default function CommunitiesTab() {
       onSearch={() => router.push("/search")}
       onUserPress={(userId) => router.push(`/(tabs)/profile?userId=${userId}`)}
       onAdvicePress={(adviceId) => router.push(`/advice/${adviceId}`)}
+      onMyChurches={() => router.push("/my-churches")}
+      onLeaderInbox={() => router.push("/leader-inbox")}
+      hasLeaderInboxAccess={hasLeaderInboxAccess}
     />
   </>
   );

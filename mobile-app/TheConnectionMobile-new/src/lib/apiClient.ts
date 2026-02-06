@@ -426,6 +426,74 @@ export const eventsAPI = {
     apiClient.post(`/api/events/${eventId}/invite-nearby`, { radiusMiles, sendNotifications }).then(res => res.data),
 };
 
+// Organizations/Churches API (Commons)
+export const orgsAPI = {
+  // Public directory (cursor-paginated)
+  getDirectory: (options?: {
+    cursor?: string;
+    q?: string;
+    state?: string;
+    denomination?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (options?.cursor) params.append('cursor', options.cursor);
+    if (options?.q) params.append('q', options.q);
+    if (options?.state) params.append('state', options.state);
+    if (options?.denomination) params.append('denomination', options.denomination);
+    if (options?.limit) params.append('limit', options.limit.toString());
+    const queryString = params.toString();
+    return apiClient.get(`/api/orgs/directory${queryString ? `?${queryString}` : ''}`).then(res => res.data);
+  },
+  // Public profile with capabilities
+  getBySlug: (slug: string) =>
+    apiClient.get(`/api/orgs/${slug}`).then(res => res.data),
+  // Search organizations
+  search: (query: string) =>
+    apiClient.get(`/api/orgs/search?q=${encodeURIComponent(query)}`).then(res => res.data),
+  // Request membership
+  requestMembership: (slug: string) =>
+    apiClient.post(`/api/orgs/${slug}/request-membership`).then(res => res.data),
+  // Request meeting
+  requestMeeting: (slug: string, reason: string) =>
+    apiClient.post(`/api/orgs/${slug}/request-meeting`, { reason }).then(res => res.data),
+};
+
+// My Churches API (Soft affiliations)
+export const myChurchesAPI = {
+  // Get user's affiliated churches
+  getAll: () =>
+    apiClient.get('/api/me/churches').then(res => res.data),
+  // Add a church to my list
+  add: (data: { organizationId?: number; freeTextName?: string }) =>
+    apiClient.post('/api/me/churches', data).then(res => res.data),
+  // Remove a church from my list
+  remove: (affiliationId: number) =>
+    apiClient.delete(`/api/me/churches/${affiliationId}`).then(res => res.data),
+};
+
+// Leader Inbox API
+export const leaderInboxAPI = {
+  // Get entitlements (determines what user sees)
+  getEntitlements: () =>
+    apiClient.get('/api/me/inbox-entitlements').then(res => res.data),
+  // Get pending membership requests
+  getMembershipRequests: () =>
+    apiClient.get('/api/leader-inbox/memberships').then(res => res.data),
+  // Approve membership request
+  approveMembership: (requestId: number) =>
+    apiClient.post(`/api/leader-inbox/memberships/${requestId}/approve`).then(res => res.data),
+  // Decline membership request
+  declineMembership: (requestId: number) =>
+    apiClient.post(`/api/leader-inbox/memberships/${requestId}/decline`).then(res => res.data),
+  // Get meeting requests
+  getMeetingRequests: () =>
+    apiClient.get('/api/leader-inbox/meetings').then(res => res.data),
+  // Update meeting request status
+  updateMeetingStatus: (requestId: number, status: 'in_progress' | 'closed', notes?: string) =>
+    apiClient.patch(`/api/leader-inbox/meetings/${requestId}`, { status, notes }).then(res => res.data),
+};
+
 // Safety & Moderation API
 export const safetyAPI = {
   // Report content (posts, microblogs, communities, events, etc.)

@@ -20,6 +20,10 @@ interface MenuDrawerProps {
   onSearch?: () => void;
   onUserPress?: (userId: number) => void;
   onAdvicePress?: (adviceId: number) => void;
+  // Churches/Organizations
+  onMyChurches?: () => void;
+  onLeaderInbox?: () => void;
+  hasLeaderInboxAccess?: boolean;
 }
 
 interface UserSearchResult {
@@ -51,7 +55,7 @@ interface AdviceSearchResult {
 
 type SearchResult = UserSearchResult | AdviceSearchResult;
 
-export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onInbox, hasInboxAccess, onSearch, onUserPress, onAdvicePress }: MenuDrawerProps) {
+export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onInbox, hasInboxAccess, onSearch, onUserPress, onAdvicePress, onMyChurches, onLeaderInbox, hasLeaderInboxAccess }: MenuDrawerProps) {
   const { colors, theme, setTheme } = useTheme();
   const styles = getStyles(colors, theme);
 
@@ -299,6 +303,36 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                     >
                       <Ionicons name="mail-outline" size={24} color={colors.accent} />
                       <Text style={styles.menuItemText}>Q&A Inbox</Text>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                    </Pressable>
+                  )}
+
+                  {/* My Churches - Always show if handler provided */}
+                  {onMyChurches && (
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={() => {
+                        onClose();
+                        onMyChurches();
+                      }}
+                    >
+                      <Ionicons name="home-outline" size={24} color={colors.textPrimary} />
+                      <Text style={styles.menuItemText}>My Churches</Text>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                    </Pressable>
+                  )}
+
+                  {/* Leader Inbox - Only show if user has leadership access */}
+                  {hasLeaderInboxAccess && onLeaderInbox && (
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={() => {
+                        onClose();
+                        onLeaderInbox();
+                      }}
+                    >
+                      <Ionicons name="people-outline" size={24} color={colors.accent} />
+                      <Text style={styles.menuItemText}>Leader Inbox</Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                     </Pressable>
                   )}
