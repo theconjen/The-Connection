@@ -126,7 +126,6 @@ router.get('/:slug', async (req: Request, res: Response) => {
       description: org.description,
       logoUrl: org.logoUrl,
       website: org.website,
-      email: org.email,
       mission: org.mission,
       serviceTimes: org.serviceTimes,
       socialMedia: org.socialMedia,
@@ -136,9 +135,9 @@ router.get('/:slug', async (req: Request, res: Response) => {
       city: org.city,
       state: org.state,
       // Only show phone/address if org has enabled them
-      phone: org.showPhone ? org.phone : null,
-      address: org.showAddress ? org.address : null,
-      zipCode: org.showAddress ? org.zipCode : null,
+      publicPhone: org.showPhone ? org.phone : null,
+      publicAddress: org.showAddress ? org.address : null,
+      publicZipCode: org.showAddress ? org.zipCode : null,
     };
 
     // TODO: Fetch communities filtered by capabilities

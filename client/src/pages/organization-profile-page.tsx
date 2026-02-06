@@ -19,7 +19,6 @@ import {
   Church,
   MapPin,
   Globe,
-  Mail,
   Phone,
   Clock,
   Users,
@@ -47,12 +46,11 @@ interface PublicOrganization {
   description?: string | null;
   logoUrl?: string | null;
   website?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
+  publicPhone?: string | null;
+  publicAddress?: string | null;
   city?: string | null;
   state?: string | null;
-  zipCode?: string | null;
+  publicZipCode?: string | null;
   denomination?: string | null;
   mission?: string | null;
   serviceTimes?: string | null;
@@ -447,42 +445,32 @@ export default function OrganizationProfilePage() {
                 </a>
               )}
 
-              {org.email && (
+              {org.publicPhone && (
                 <a
-                  href={`mailto:${org.email}`}
-                  className="flex items-center gap-2 text-sm hover:underline"
-                >
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{org.email}</span>
-                </a>
-              )}
-
-              {org.phone && (
-                <a
-                  href={`tel:${org.phone}`}
+                  href={`tel:${org.publicPhone}`}
                   className="flex items-center gap-2 text-sm hover:underline"
                 >
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{org.phone}</span>
+                  <span>{org.publicPhone}</span>
                 </a>
               )}
 
-              {org.address && (
+              {org.publicAddress && (
                 <div className="flex items-start gap-2 text-sm">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p>{org.address}</p>
-                    {(org.city || org.state || org.zipCode) && (
+                    <p>{org.publicAddress}</p>
+                    {(org.city || org.state || org.publicZipCode) && (
                       <p>
                         {[org.city, org.state].filter(Boolean).join(", ")}
-                        {org.zipCode && ` ${org.zipCode}`}
+                        {org.publicZipCode && ` ${org.publicZipCode}`}
                       </p>
                     )}
                   </div>
                 </div>
               )}
 
-              {!org.website && !org.email && !org.phone && !org.address && (
+              {!org.website && !org.publicPhone && !org.publicAddress && (
                 <p className="text-sm text-muted-foreground">
                   No contact information available
                 </p>

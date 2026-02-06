@@ -25,7 +25,7 @@
     "bots:bible": "tsx server/bots/bible-verse-bot.ts",
     "bots:quotes": "tsx server/bots/theology-quote-bot.ts",
     "bots:scheduler": "tsx server/bots/scheduler.ts",
-    "db:push": "drizzle-kit push",
+    "db:push": "drizzle-kit push --force",
     "db:generate": "drizzle-kit generate"
   },
   "devDependencies": {
