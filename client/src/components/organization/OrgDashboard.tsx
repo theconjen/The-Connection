@@ -1,18 +1,15 @@
 /**
  * Organization Dashboard - Main admin overview
- * Shows stats, quick actions, and tier info (admin-only)
+ * Shows stats and quick actions (admin-only)
  */
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, UserPlus, Calendar, Settings, Activity } from "lucide-react";
 
 interface OrgDashboardProps {
-  orgId: number;
   orgName: string;
-  tier: string;
   stats: {
     memberCount: number;
     pendingMembershipCount: number;
@@ -22,9 +19,7 @@ interface OrgDashboardProps {
 }
 
 export function OrgDashboard({
-  orgId,
   orgName,
-  tier,
   stats,
   isLoading,
   onNavigate,
@@ -42,9 +37,6 @@ export function OrgDashboard({
     );
   }
 
-  const tierLabel = tier === 'free' ? 'Free' : tier === 'stewardship' ? 'Stewardship' : 'Partner';
-  const tierVariant = tier === 'free' ? 'secondary' : tier === 'stewardship' ? 'default' : 'default';
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -52,7 +44,6 @@ export function OrgDashboard({
           <h2 className="text-2xl font-bold tracking-tight">{orgName}</h2>
           <p className="text-muted-foreground">Steward Console</p>
         </div>
-        <Badge variant={tierVariant}>{tierLabel} Plan</Badge>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -128,36 +119,6 @@ export function OrgDashboard({
               <Settings className="mr-2 h-4 w-4" />
               Update Settings
             </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Plan</CardTitle>
-            <CardDescription>Current subscription tier</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Plan</span>
-                <Badge variant={tierVariant}>{tierLabel}</Badge>
-              </div>
-              {tier === 'free' && (
-                <p className="text-sm text-muted-foreground">
-                  Upgrade to unlock pastoral appointments, ordination programs, and more.
-                </p>
-              )}
-              {tier === 'stewardship' && (
-                <p className="text-sm text-muted-foreground">
-                  You have access to pastoral appointments. Upgrade to Partner for ordination programs.
-                </p>
-              )}
-              {tier === 'partner' && (
-                <p className="text-sm text-muted-foreground">
-                  You have full access to all features including ordination programs.
-                </p>
-              )}
-            </div>
           </CardContent>
         </Card>
       </div>

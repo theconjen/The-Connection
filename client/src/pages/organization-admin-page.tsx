@@ -236,8 +236,12 @@ export default function OrganizationAdminPage() {
     );
   }
 
-  const { organization, tier, stats } = dashboardData;
-  const hasOrdinationsFeature = tier === "partner";
+  const { organization, entitlements, stats } = dashboardData as {
+    organization: any;
+    entitlements?: { canManageOrdinations?: boolean };
+    stats: { memberCount: number; pendingMembershipCount: number };
+  };
+  const hasOrdinationsFeature = !!entitlements?.canManageOrdinations;
 
   return (
     <div className="container max-w-6xl py-8">
@@ -283,9 +287,7 @@ export default function OrganizationAdminPage() {
 
         <TabsContent value="dashboard">
           <OrgDashboard
-            orgId={numericOrgId}
             orgName={organization.name}
-            tier={tier}
             stats={stats}
             onNavigate={setActiveTab}
           />

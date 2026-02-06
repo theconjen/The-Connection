@@ -36,6 +36,9 @@ router.get('/:orgId', requireOrgAdminOr404(), async (req: Request, res: Response
       hasPrivateCommunities: await requireOrgFeature(org.id, 'org.communities.private'),
       hasOrdinations: await requireOrgFeature(org.id, 'org.ordinations'),
     };
+    const entitlements = {
+      canManageOrdinations: features.hasOrdinations,
+    };
 
     const organization = {
       id: org.id,
@@ -66,6 +69,7 @@ router.get('/:orgId', requireOrgAdminOr404(), async (req: Request, res: Response
     res.json({
       organization,
       features,
+      entitlements,
       stats: {
         memberCount: members.length,
         pendingMembershipCount: pendingMemberships.length,

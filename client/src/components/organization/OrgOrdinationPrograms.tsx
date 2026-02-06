@@ -1,5 +1,5 @@
 /**
- * Organization Ordination Programs - Manage ordination programs (Partner tier)
+ * Organization Ordination Programs - Manage ordination programs
  */
 
 import { useState } from "react";
@@ -117,10 +117,10 @@ export function OrgOrdinationPrograms({
         <CardContent>
           <div className="text-center py-8">
             <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-medium mb-2">Partner Plan Required</h3>
+            <h3 className="font-medium mb-2">Ordination programs are unavailable</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Ordination programs are available on the Partner plan. Upgrade to create
-              custom ordination programs with application forms.
+              Your organization does not currently have access to ordination programs.
+              Please contact support if you believe this is a mistake.
             </p>
           </div>
         </CardContent>
