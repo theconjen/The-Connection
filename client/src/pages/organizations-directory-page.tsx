@@ -278,6 +278,19 @@ export default function OrganizationsDirectoryPage() {
           )}
         </>
       )}
+
+      {/* Subtle CTA for church registration */}
+      <div className="mt-12 pt-8 border-t border-border/50">
+        <p className="text-center text-sm text-muted-foreground">
+          Don't see your church?{" "}
+          <a
+            href="/church-signup"
+            className="text-primary hover:underline"
+          >
+            Register your organization
+          </a>
+        </p>
+      </div>
     </div>
   );
 }
