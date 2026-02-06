@@ -32,21 +32,13 @@ router.post("/", async (req, res) => {
       .returning();
 
     // Add the creator as owner (highest role per our plan)
+    // Note: Owner does NOT automatically get clergy badge - they must claim pastor role
     await db.insert(organizationUsers)
       .values({
         organizationId: organization.id,
         userId: currentUserId,
         role: "owner"
       });
-
-    // Grant clergy badge to the church creator (pastor/owner)
-    await db.update(users)
-      .set({
-        isVerifiedClergy: true,
-        clergyVerifiedAt: new Date(),
-        clergyVerifiedByOrgId: organization.id
-      } as any)
-      .where(eq(users.id, currentUserId));
 
     res.json(organization);
   } catch (error) {
@@ -308,6 +300,120 @@ router.patch("/:id/plan", async (req, res) => {
   }
 });
 
+// Owner claims pastor role for themselves (grants clergy badge)
+router.post("/:id/claim-pastor", async (req, res) => {
+  try {
+    const organizationId = parseInt(req.params.id);
+    const currentUserId = requireSessionUserId(req);
+
+    // Check if current user is owner of the organization
+    const ownerCheck = await db
+      .select()
+      .from(organizationUsers)
+      .where(and(
+        eq(organizationUsers.organizationId, organizationId),
+        eq(organizationUsers.userId, currentUserId),
+        eq(organizationUsers.role, "owner")
+      ))
+      .limit(1);
+
+    if (ownerCheck.length === 0) {
+      return res.status(403).json({ message: "Only the owner can claim pastor status" });
+    }
+
+    // Check if user already has clergy badge
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, currentUserId))
+      .limit(1);
+
+    if (user && (user as any).isVerifiedClergy) {
+      return res.status(400).json({ message: "You already have clergy verification" });
+    }
+
+    // Grant clergy badge to the owner
+    await db.update(users)
+      .set({
+        isVerifiedClergy: true,
+        clergyVerifiedAt: new Date(),
+        clergyVerifiedByOrgId: organizationId
+      } as any)
+      .where(eq(users.id, currentUserId));
+
+    res.json({
+      success: true,
+      message: "Pastor status claimed successfully. You now have the clergy badge."
+    });
+  } catch (error) {
+    console.error("Error claiming pastor status:", error);
+    res.status(500).json(buildErrorResponse("Failed to claim pastor status", error));
+  }
+});
+
+// Owner assigns pastor role to a member (grants them clergy badge)
+router.post("/:id/assign-pastor/:userId", async (req, res) => {
+  try {
+    const organizationId = parseInt(req.params.id);
+    const targetUserId = parseInt(req.params.userId);
+    const currentUserId = requireSessionUserId(req);
+
+    // Check if current user is owner of the organization
+    const ownerCheck = await db
+      .select()
+      .from(organizationUsers)
+      .where(and(
+        eq(organizationUsers.organizationId, organizationId),
+        eq(organizationUsers.userId, currentUserId),
+        eq(organizationUsers.role, "owner")
+      ))
+      .limit(1);
+
+    if (ownerCheck.length === 0) {
+      return res.status(403).json({ message: "Only the owner can assign pastor status" });
+    }
+
+    // Check if target user is a member of the organization
+    const memberCheck = await db
+      .select()
+      .from(organizationUsers)
+      .where(and(
+        eq(organizationUsers.organizationId, organizationId),
+        eq(organizationUsers.userId, targetUserId)
+      ))
+      .limit(1);
+
+    if (memberCheck.length === 0) {
+      return res.status(400).json({ message: "User must be a member of the organization" });
+    }
+
+    // Grant clergy badge to the target user
+    await db.update(users)
+      .set({
+        isVerifiedClergy: true,
+        clergyVerifiedAt: new Date(),
+        clergyVerifiedByOrgId: organizationId
+      } as any)
+      .where(eq(users.id, targetUserId));
+
+    // Update their role to admin (pastor-level access)
+    await db.update(organizationUsers)
+      .set({ role: "admin" })
+      .where(and(
+        eq(organizationUsers.organizationId, organizationId),
+        eq(organizationUsers.userId, targetUserId)
+      ));
+
+    res.json({
+      success: true,
+      message: "Pastor role assigned successfully. They now have the clergy badge."
+    });
+  } catch (error) {
+    console.error("Error assigning pastor status:", error);
+    res.status(500).json(buildErrorResponse("Failed to assign pastor status", error));
+  }
+});
+
 // Update member role
 router.patch("/:id/members/:userId", async (req, res) => {
   try {
@@ -319,30 +425,34 @@ router.patch("/:id/members/:userId", async (req, res) => {
       return;
     }
 
-    // Validate role
-    const validRoles = ['admin', 'pastor', 'leader', 'member'];
+    // Validate role (owner/admin/moderator/member per plan)
+    const validRoles = ['owner', 'admin', 'moderator', 'member'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
     }
 
-    // Check if current user is admin of the organization
+    // Check if current user is owner or admin of the organization
     const adminCheck = await db
       .select()
       .from(organizationUsers)
       .where(and(
         eq(organizationUsers.organizationId, organizationId),
-        eq(organizationUsers.userId, currentUserId),
-        eq(organizationUsers.role, "admin")
+        eq(organizationUsers.userId, currentUserId)
       ))
       .limit(1);
 
-    if (adminCheck.length === 0) {
-      return res.status(403).json({ message: "Admin privileges required" });
+    if (adminCheck.length === 0 || !['owner', 'admin'].includes(adminCheck[0].role || '')) {
+      return res.status(403).json({ message: "Owner or admin privileges required" });
     }
 
     // Don't allow changing your own role
     if (memberUserId === currentUserId) {
       return res.status(400).json({ message: "Cannot change your own role" });
+    }
+
+    // Only owner can assign owner role
+    if (role === 'owner' && adminCheck[0].role !== 'owner') {
+      return res.status(403).json({ message: "Only owner can transfer ownership" });
     }
 
     const [updatedMembership] = await db
