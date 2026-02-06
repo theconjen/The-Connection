@@ -39,6 +39,15 @@ router.post("/", async (req, res) => {
         role: "owner"
       });
 
+    // Grant clergy badge to the church creator (pastor/owner)
+    await db.update(users)
+      .set({
+        isVerifiedClergy: true,
+        clergyVerifiedAt: new Date(),
+        clergyVerifiedByOrgId: organization.id
+      } as any)
+      .where(eq(users.id, currentUserId));
+
     res.json(organization);
   } catch (error) {
     console.error("Error creating organization:", error);

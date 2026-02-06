@@ -7,7 +7,7 @@ import {
   users
 } from "@shared/schema";
 import { eq, and, or, inArray } from "drizzle-orm";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { buildErrorResponse } from "../utils/errors";
 import { requireSessionUserId } from "../utils/session";
 import { requireAuth } from "../middleware/auth";
