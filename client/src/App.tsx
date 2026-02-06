@@ -194,8 +194,8 @@ function App() {
             <Route path="/org-admin/:orgId" component={OrganizationAdminPage} />
 
             {/* Organization Public (Commons) */}
-            <Route path="/orgs/:slug" component={OrganizationProfilePage} />
             <Route path="/orgs" component={OrganizationsDirectoryPage} />
+            <Route path="/orgs/:slug" component={OrganizationProfilePage} />
 
             <Route component={NotFound} />
           </Switch>
