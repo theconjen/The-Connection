@@ -2,11 +2,12 @@ import express from "express";
 import { db } from "../db";
 import { organizations, organizationUsers, users } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { insertOrganizationSchema, insertOrganizationUserSchema } from "@shared/schema";
 import { buildErrorResponse } from "../utils/errors";
 import { getSessionUserId, requireSessionUserId } from "../utils/session";
 import { requireAuth } from "../middleware/auth";
+import { storage } from "../storage";
 
 const router = express.Router();
 
@@ -16,8 +17,13 @@ router.use(requireAuth);
 router.post("/", async (req, res) => {
   try {
     const currentUserId = requireSessionUserId(req);
+
+    // Generate a unique slug from the name
+    const slug = await storage.generateUniqueSlug(req.body.name || "church");
+
     const data = insertOrganizationSchema.parse({
       ...req.body,
+      slug,
       adminUserId: currentUserId
     });
 
@@ -25,12 +31,12 @@ router.post("/", async (req, res) => {
       .values(data)
       .returning();
 
-    // Add the creator as admin member
+    // Add the creator as owner (highest role per our plan)
     await db.insert(organizationUsers)
       .values({
         organizationId: organization.id,
         userId: currentUserId,
-        role: "admin"
+        role: "owner"
       });
 
     res.json(organization);

@@ -9,7 +9,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { useToast } from "../hooks/use-toast";
 import { Church, ArrowLeft } from "lucide-react";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 const createOrganizationSchema = z.object({
   name: z.string().min(3, "Organization name must be at least 3 characters"),
@@ -51,11 +51,13 @@ export default function ChurchSignupPage() {
     },
     onSuccess: (organization) => {
       queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orgs/directory"] });
       toast({
         title: "Success!",
         description: "Your church account has been created successfully.",
       });
-      navigate(`/organizations/${organization.id}`);
+      // Navigate to the public org profile using slug
+      navigate(`/orgs/${organization.slug}`);
     },
     onError: (error: any) => {
       toast({
@@ -97,13 +99,13 @@ export default function ChurchSignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#f5f7f5] to-[#eef2ee] flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="mb-6 flex items-center gap-4">
           <Button
             variant="ghost"
             onClick={() => navigate("/")}
-            className="text-purple-600 hover:text-purple-700"
+            className="text-[#5C6B5E] hover:text-[#4a5a4c]"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
@@ -112,7 +114,7 @@ export default function ChurchSignupPage() {
 
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center pb-8">
-            <div className="mx-auto w-16 h-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center mb-4">
+            <div className="mx-auto w-16 h-16 bg-[#5C6B5E] rounded-full flex items-center justify-center mb-4">
               <Church className="w-8 h-8 text-white" />
             </div>
             <CardTitle className="text-2xl font-bold text-gray-900">
@@ -239,16 +241,16 @@ export default function ChurchSignupPage() {
                 <Button
                   type="submit"
                   disabled={createOrganizationMutation.isPending}
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  className="w-full bg-[#5C6B5E] hover:bg-[#4a5a4c]"
                 >
                   {createOrganizationMutation.isPending ? "Creating Account..." : "Create Church Account"}
                 </Button>
               </div>
             </form>
 
-            <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-semibold text-blue-900 mb-2">What's Included with Your Church Account:</h4>
-              <ul className="text-sm text-blue-800 space-y-1">
+            <div className="mt-8 p-4 bg-[#f0f4f0] rounded-lg border border-[#d4ddd4]">
+              <h4 className="font-semibold text-[#3d4a3d] mb-2">What's Included with Your Church Account:</h4>
+              <ul className="text-sm text-[#5C6B5E] space-y-1">
                 <li>• Dedicated church community space</li>
                 <li>• Member management and roles</li>
                 <li>• Event planning and RSVP tracking</li>
