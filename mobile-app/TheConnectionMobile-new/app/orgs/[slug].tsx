@@ -32,6 +32,7 @@ import {
   useRemoveChurch,
   useRequestMembership,
   useRequestMeeting,
+  PublicLeader,
 } from '../../src/queries/churches';
 
 // Role labels for display
@@ -42,6 +43,38 @@ const roleLabels: Record<string, string> = {
   moderator: 'Moderator',
   admin: 'Admin',
   owner: 'Owner',
+};
+
+// Get initials from name
+const getInitials = (name: string): string => {
+  return name
+    .split(' ')
+    .map(part => part.charAt(0))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+// Format video duration (seconds to MM:SS or HH:MM:SS)
+const formatDuration = (seconds: number): string => {
+  if (!seconds || seconds < 0) return '0:00';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Format sermon date
+const formatSermonDate = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
 };
 
 export default function OrganizationProfileScreen() {
@@ -55,6 +88,7 @@ export default function OrganizationProfileScreen() {
 
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingReason, setMeetingReason] = useState('');
+  const [selectedLeader, setSelectedLeader] = useState<PublicLeader | null>(null);
 
   // Fetch org profile with capabilities
   const { data, isLoading, error, refetch, isRefetching } = useOrgProfile(slug);
@@ -320,6 +354,104 @@ export default function OrganizationProfileScreen() {
           </View>
         )}
 
+        {/* Leadership Team */}
+        {data.leaders && data.leaders.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="people-outline" size={20} color={colors.textPrimary} />
+              <Text style={styles.sectionTitle}>Leadership Team</Text>
+            </View>
+            <View style={styles.leadersGrid}>
+              {data.leaders
+                .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id)
+                .slice(0, 4)
+                .map((leader) => (
+                  <Pressable
+                    key={leader.id}
+                    style={styles.leaderCard}
+                    onPress={() => setSelectedLeader(leader)}
+                  >
+                    {leader.photoUrl ? (
+                      <Image source={{ uri: leader.photoUrl }} style={styles.leaderAvatar} />
+                    ) : (
+                      <View style={[styles.leaderAvatar, styles.leaderAvatarPlaceholder]}>
+                        <Text style={styles.leaderInitials}>{getInitials(leader.name)}</Text>
+                      </View>
+                    )}
+                    <View style={styles.leaderInfo}>
+                      <Text style={styles.leaderName} numberOfLines={1}>{leader.name}</Text>
+                      {leader.title && (
+                        <Text style={styles.leaderTitle} numberOfLines={1}>{leader.title}</Text>
+                      )}
+                      {leader.bio && (
+                        <Text style={styles.leaderBio} numberOfLines={2}>{leader.bio}</Text>
+                      )}
+                    </View>
+                  </Pressable>
+                ))}
+            </View>
+            <Pressable
+              style={styles.viewAllButton}
+              onPress={() => router.push(`/orgs/${slug}/about`)}
+            >
+              <Text style={styles.viewAllText}>Meet the Team</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+            </Pressable>
+          </View>
+        )}
+
+        {/* Sermons */}
+        {data.sermons && data.sermons.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="videocam-outline" size={20} color={colors.textPrimary} />
+              <Text style={styles.sectionTitle}>Sermons</Text>
+            </View>
+            <View style={styles.sermonsGrid}>
+              {data.sermons.slice(0, 6).map((sermon: any) => (
+                <Pressable
+                  key={sermon.id}
+                  style={styles.sermonCard}
+                  onPress={() => router.push(`/sermons/${sermon.id}`)}
+                >
+                  <View style={styles.sermonThumbnailContainer}>
+                    {sermon.thumbnailUrl ? (
+                      <Image source={{ uri: sermon.thumbnailUrl }} style={styles.sermonThumbnail} />
+                    ) : (
+                      <View style={[styles.sermonThumbnail, styles.sermonThumbnailPlaceholder]}>
+                        <Ionicons name="videocam" size={24} color={colors.textMuted} />
+                      </View>
+                    )}
+                    {sermon.duration && (
+                      <View style={styles.durationBadge}>
+                        <Text style={styles.durationText}>{formatDuration(sermon.duration)}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.sermonInfo}>
+                    <Text style={styles.sermonTitle} numberOfLines={2}>{sermon.title}</Text>
+                    {sermon.speaker && (
+                      <Text style={styles.sermonSpeaker} numberOfLines={1}>{sermon.speaker}</Text>
+                    )}
+                    {sermon.sermonDate && (
+                      <Text style={styles.sermonDate}>{formatSermonDate(sermon.sermonDate)}</Text>
+                    )}
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+            {data.sermons.length > 6 && (
+              <Pressable
+                style={styles.viewAllButton}
+                onPress={() => router.push(`/orgs/${slug}/sermons`)}
+              >
+                <Text style={styles.viewAllText}>View All Sermons</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+              </Pressable>
+            )}
+          </View>
+        )}
+
         {/* Communities */}
         {data.communities && data.communities.length > 0 && (
           <View style={styles.section}>
@@ -441,6 +573,46 @@ export default function OrganizationProfileScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Leader Detail Modal */}
+      <Modal
+        visible={!!selectedLeader}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedLeader(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSelectedLeader(null)}>
+          <Pressable style={styles.leaderModalContent} onPress={(e) => e.stopPropagation()}>
+            {selectedLeader && (
+              <>
+                <View style={styles.leaderModalHeader}>
+                  {selectedLeader.photoUrl ? (
+                    <Image source={{ uri: selectedLeader.photoUrl }} style={styles.leaderModalAvatar} />
+                  ) : (
+                    <View style={[styles.leaderModalAvatar, styles.leaderAvatarPlaceholder]}>
+                      <Text style={styles.leaderModalInitials}>{getInitials(selectedLeader.name)}</Text>
+                    </View>
+                  )}
+                  <View style={styles.leaderModalInfo}>
+                    <Text style={styles.leaderModalName}>{selectedLeader.name}</Text>
+                    {selectedLeader.title && (
+                      <Text style={styles.leaderModalTitle}>{selectedLeader.title}</Text>
+                    )}
+                  </View>
+                </View>
+                {selectedLeader.bio && (
+                  <ScrollView style={styles.leaderModalBioScroll}>
+                    <Text style={styles.leaderModalBio}>{selectedLeader.bio}</Text>
+                  </ScrollView>
+                )}
+                <Pressable style={styles.leaderModalClose} onPress={() => setSelectedLeader(null)}>
+                  <Text style={styles.leaderModalCloseText}>Close</Text>
+                </Pressable>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -775,5 +947,184 @@ const getStyles = (colors: any, colorScheme: string) =>
     },
     disabledButton: {
       opacity: 0.6,
+    },
+    // Leader styles
+    leadersGrid: {
+      gap: 12,
+    },
+    leaderCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colorScheme === 'dark' ? colors.surfaceMuted : '#FFFFFF',
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+      gap: 12,
+    },
+    leaderAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+    },
+    leaderAvatarPlaceholder: {
+      backgroundColor: colors.primary + '20',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    leaderInitials: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    leaderInfo: {
+      flex: 1,
+    },
+    leaderName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    leaderTitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    leaderBio: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 6,
+      lineHeight: 18,
+    },
+    // Leader Modal
+    leaderModalContent: {
+      width: '100%',
+      maxWidth: 400,
+      maxHeight: '80%',
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 20,
+    },
+    leaderModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      marginBottom: 16,
+    },
+    leaderModalAvatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+    },
+    leaderModalInitials: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    leaderModalInfo: {
+      flex: 1,
+    },
+    leaderModalName: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    leaderModalTitle: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    leaderModalBioScroll: {
+      maxHeight: 200,
+    },
+    leaderModalBio: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      lineHeight: 22,
+    },
+    leaderModalClose: {
+      marginTop: 20,
+      paddingVertical: 12,
+      alignItems: 'center',
+      borderRadius: 8,
+      backgroundColor: colors.surfaceMuted,
+    },
+    leaderModalCloseText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    // Sermon styles
+    sermonsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    sermonCard: {
+      width: '47%',
+      backgroundColor: colorScheme === 'dark' ? colors.surfaceMuted : '#FFFFFF',
+      borderRadius: 12,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+    },
+    sermonThumbnailContainer: {
+      position: 'relative',
+      aspectRatio: 16 / 9,
+    },
+    sermonThumbnail: {
+      width: '100%',
+      height: '100%',
+    },
+    sermonThumbnailPlaceholder: {
+      backgroundColor: colors.surfaceMuted,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    durationBadge: {
+      position: 'absolute',
+      bottom: 6,
+      right: 6,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    durationText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+    sermonInfo: {
+      padding: 10,
+    },
+    sermonTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      lineHeight: 18,
+    },
+    sermonSpeaker: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    sermonDate: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    viewAllButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 16,
+      paddingVertical: 12,
+      gap: 4,
+    },
+    viewAllText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
     },
   });

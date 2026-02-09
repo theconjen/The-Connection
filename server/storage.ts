@@ -75,10 +75,11 @@ import {
   polls, pollOptions, pollVotes,
   Poll, InsertPoll, PollOption, InsertPollOption, PollVote, InsertPollVote,
   // organizations tables
-  organizations, organizationUsers,
+  organizations, organizationUsers, organizationLeaders,
   orgBilling, userChurchAffiliations, orgMembershipRequests, orgMeetingRequests,
   ordinationPrograms, ordinationApplications, ordinationReviews, organizationActivityLogs,
   OrgBilling, InsertOrgBilling,
+  OrganizationLeader, InsertOrganizationLeader,
   UserChurchAffiliation, InsertUserChurchAffiliation,
   OrgMembershipRequest, InsertOrgMembershipRequest,
   OrgMeetingRequest, InsertOrgMeetingRequest,
@@ -88,6 +89,9 @@ import {
   OrganizationActivityLog, InsertOrganizationActivityLog,
   Organization, InsertOrganization,
   OrganizationUser, InsertOrganizationUser,
+  // Sermons
+  sermons, sermonViews,
+  Sermon, InsertSermon, SermonView, InsertSermonView,
 } from "@shared/schema";
 import { postVotes, commentVotes } from "@shared/schema";
 import { db } from "./db";
@@ -615,9 +619,28 @@ export interface IStorage {
   getOrdinationReviews(applicationId: number): Promise<any[]>;
   createOrdinationReview(review: any): Promise<any>;
 
+  // Organization leaders (About / Leadership section)
+  getOrganizationLeaders(orgId: number): Promise<any[]>;
+  getOrganizationLeader(id: number): Promise<any | undefined>;
+  createOrganizationLeader(data: any): Promise<any>;
+  updateOrganizationLeader(id: number, orgId: number, data: any): Promise<any>;
+  deleteOrganizationLeader(id: number, orgId: number): Promise<boolean>;
+
   // Activity logs (admin-only, safe metadata)
   logOrganizationActivity(log: any): Promise<void>;
   getOrganizationActivityLogs(orgId: number, limit?: number): Promise<any[]>;
+
+  // Sermons (org video library)
+  createSermon(data: any): Promise<any>;
+  listOrgSermons(orgId: number, opts?: { includeDeleted?: boolean }): Promise<any[]>;
+  getSermonById(id: number): Promise<any | undefined>;
+  updateSermon(id: number, data: any): Promise<any>;
+  softDeleteSermon(id: number): Promise<boolean>;
+  incrementSermonView(sermonId: number, userId?: number, watchDuration?: number, completed?: boolean): Promise<void>;
+  countOrgSermons(orgId: number): Promise<number>;
+  updateSermonByMuxAssetId(muxAssetId: string, data: any): Promise<any | undefined>;
+  updateSermonByMuxUploadId(muxUploadId: string, data: any): Promise<any | undefined>;
+  getPublicOrgSermons(orgId: number, viewerIsMember: boolean): Promise<any[]>;
 }
 
 // In-memory storage implementation
@@ -2341,6 +2364,25 @@ export class MemStorage implements IStorage {
   async createOrdinationReview(review: any): Promise<any> { return { id: this.nextId++, ...review }; }
   async logOrganizationActivity(_log: any): Promise<void> {}
   async getOrganizationActivityLogs(_orgId: number, _limit?: number): Promise<any[]> { return []; }
+
+  // Organization leaders (MemStorage stubs)
+  async getOrganizationLeaders(_orgId: number): Promise<any[]> { return []; }
+  async getOrganizationLeader(_id: number): Promise<any | undefined> { return undefined; }
+  async createOrganizationLeader(data: any): Promise<any> { return { id: this.nextId++, ...data }; }
+  async updateOrganizationLeader(_id: number, _orgId: number, data: any): Promise<any> { return data; }
+  async deleteOrganizationLeader(_id: number, _orgId: number): Promise<boolean> { return true; }
+
+  // Sermons (MemStorage stubs)
+  async createSermon(data: any): Promise<any> { return { id: this.nextId++, ...data }; }
+  async listOrgSermons(_orgId: number, _opts?: { includeDeleted?: boolean }): Promise<any[]> { return []; }
+  async getSermonById(_id: number): Promise<any | undefined> { return undefined; }
+  async updateSermon(_id: number, data: any): Promise<any> { return data; }
+  async softDeleteSermon(_id: number): Promise<boolean> { return true; }
+  async incrementSermonView(_sermonId: number, _userId?: number, _watchDuration?: number, _completed?: boolean): Promise<void> {}
+  async countOrgSermons(_orgId: number): Promise<number> { return 0; }
+  async updateSermonByMuxAssetId(_muxAssetId: string, data: any): Promise<any | undefined> { return data; }
+  async updateSermonByMuxUploadId(_muxUploadId: string, data: any): Promise<any | undefined> { return data; }
+  async getPublicOrgSermons(_orgId: number, _viewerIsMember: boolean): Promise<any[]> { return []; }
 }
 
 // Database-backed storage implementation
@@ -7100,6 +7142,150 @@ export class DbStorage implements IStorage {
       .where(eq(organizationActivityLogs.organizationId, orgId))
       .orderBy(desc(organizationActivityLogs.createdAt))
       .limit(limit);
+  }
+
+  // Organization leaders (About / Leadership section)
+  async getOrganizationLeaders(orgId: number): Promise<OrganizationLeader[]> {
+    return await db.select()
+      .from(organizationLeaders)
+      .where(eq(organizationLeaders.organizationId, orgId))
+      .orderBy(asc(organizationLeaders.sortOrder), asc(organizationLeaders.id));
+  }
+
+  async getOrganizationLeader(id: number): Promise<OrganizationLeader | undefined> {
+    const result = await db.select()
+      .from(organizationLeaders)
+      .where(eq(organizationLeaders.id, id));
+    return result[0];
+  }
+
+  async createOrganizationLeader(data: InsertOrganizationLeader): Promise<OrganizationLeader> {
+    const [result] = await db.insert(organizationLeaders).values(data).returning();
+    return result;
+  }
+
+  async updateOrganizationLeader(id: number, orgId: number, data: Partial<OrganizationLeader>): Promise<OrganizationLeader> {
+    // Ensure we only update leaders belonging to the specified org (cross-org protection)
+    const [result] = await db.update(organizationLeaders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(
+        eq(organizationLeaders.id, id),
+        eq(organizationLeaders.organizationId, orgId)
+      ))
+      .returning();
+    return result;
+  }
+
+  async deleteOrganizationLeader(id: number, orgId: number): Promise<boolean> {
+    // Ensure we only delete leaders belonging to the specified org (cross-org protection)
+    const result = await db.delete(organizationLeaders)
+      .where(and(
+        eq(organizationLeaders.id, id),
+        eq(organizationLeaders.organizationId, orgId)
+      ));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // ==========================================================================
+  // SERMONS (Org Video Library with Mux)
+  // ==========================================================================
+
+  async createSermon(data: InsertSermon): Promise<Sermon> {
+    const [sermon] = await db.insert(sermons).values(data).returning();
+    return sermon;
+  }
+
+  async listOrgSermons(orgId: number, opts?: { includeDeleted?: boolean }): Promise<Sermon[]> {
+    const conditions = [eq(sermons.organizationId, orgId)];
+    if (!opts?.includeDeleted) {
+      conditions.push(isNull(sermons.deletedAt));
+    }
+    return await db.select()
+      .from(sermons)
+      .where(and(...conditions))
+      .orderBy(desc(sermons.publishedAt), desc(sermons.createdAt));
+  }
+
+  async getSermonById(id: number): Promise<Sermon | undefined> {
+    const result = await db.select()
+      .from(sermons)
+      .where(and(eq(sermons.id, id), isNull(sermons.deletedAt)));
+    return result[0];
+  }
+
+  async updateSermon(id: number, data: Partial<Sermon>): Promise<Sermon> {
+    const [sermon] = await db.update(sermons)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(sermons.id, id))
+      .returning();
+    return sermon;
+  }
+
+  async softDeleteSermon(id: number): Promise<boolean> {
+    const [result] = await db.update(sermons)
+      .set({ deletedAt: new Date() })
+      .where(eq(sermons.id, id))
+      .returning();
+    return !!result;
+  }
+
+  async incrementSermonView(sermonId: number, userId?: number, watchDuration?: number, completed?: boolean): Promise<void> {
+    // Increment view count on sermon
+    await db.update(sermons)
+      .set({ viewCount: sql`${sermons.viewCount} + 1` })
+      .where(eq(sermons.id, sermonId));
+
+    // Record view details
+    await db.insert(sermonViews).values({
+      sermonId,
+      userId: userId || null,
+      watchDuration: watchDuration || null,
+      completed: completed || false,
+    });
+  }
+
+  async countOrgSermons(orgId: number): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(sermons)
+      .where(and(
+        eq(sermons.organizationId, orgId),
+        isNull(sermons.deletedAt)
+      ));
+    return Number(result[0]?.count ?? 0);
+  }
+
+  async updateSermonByMuxAssetId(muxAssetId: string, data: Partial<Sermon>): Promise<Sermon | undefined> {
+    const [sermon] = await db.update(sermons)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(sermons.muxAssetId, muxAssetId))
+      .returning();
+    return sermon;
+  }
+
+  async updateSermonByMuxUploadId(muxUploadId: string, data: Partial<Sermon>): Promise<Sermon | undefined> {
+    const [sermon] = await db.update(sermons)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(sermons.muxUploadId, muxUploadId))
+      .returning();
+    return sermon;
+  }
+
+  async getPublicOrgSermons(orgId: number, viewerIsMember: boolean): Promise<Sermon[]> {
+    // Filter by privacy level based on viewer's membership status
+    const privacyConditions = viewerIsMember
+      ? or(eq(sermons.privacyLevel, 'public'), eq(sermons.privacyLevel, 'members'))
+      : eq(sermons.privacyLevel, 'public');
+
+    return await db.select()
+      .from(sermons)
+      .where(and(
+        eq(sermons.organizationId, orgId),
+        isNull(sermons.deletedAt),
+        eq(sermons.status, 'ready'),
+        privacyConditions
+        // Note: 'unlisted' is never included in lists
+      ))
+      .orderBy(desc(sermons.publishedAt), desc(sermons.createdAt));
   }
 }
 

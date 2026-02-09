@@ -68,12 +68,16 @@ const OrganizationAdminPage = lazy(() => import("./pages/organization-admin-page
 // Organization public pages (Commons)
 const OrganizationsDirectoryPage = lazy(() => import("./pages/organizations-directory-page"));
 const OrganizationProfilePage = lazy(() => import("./pages/organization-profile-page"));
+const OrganizationAboutPage = lazy(() => import("./pages/organization-about-page"));
 const ChurchSignupPage = lazy(() => import("./pages/church-signup-page"));
 
 // Library (Q&A Library posts)
 const LibraryPage = lazy(() => import("./pages/library-page"));
 const LibraryPostPage = lazy(() => import("./pages/library-post-page"));
 const LibraryCreatePage = lazy(() => import("./pages/library-create-page"));
+
+// Sermons
+const SermonPage = lazy(() => import("./pages/sermon-page"));
 
 // Public preview pages (no auth required)
 const ApologeticsPreviewPage = lazy(() => import("./pages/public/apologetics-preview-page"));
@@ -196,8 +200,12 @@ function App() {
 
             {/* Organization Public (Commons) */}
             <Route path="/orgs" component={OrganizationsDirectoryPage} />
+            <Route path="/orgs/:slug/about" component={OrganizationAboutPage} />
             <Route path="/orgs/:slug" component={OrganizationProfilePage} />
             <Route path="/church-signup" component={ChurchSignupPage} />
+
+            {/* Sermons */}
+            <Route path="/sermons/:id" component={SermonPage} />
 
             <Route component={NotFound} />
           </Switch>

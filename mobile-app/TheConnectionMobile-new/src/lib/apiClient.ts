@@ -472,6 +472,13 @@ export const myChurchesAPI = {
     apiClient.delete(`/api/me/churches/${affiliationId}`).then(res => res.data),
 };
 
+// Sermons API (Video playback)
+export const sermonsAPI = {
+  // Get playback data for a sermon
+  getPlayback: (sermonId: number) =>
+    apiClient.get(`/api/sermons/${sermonId}/playback`).then(res => res.data),
+};
+
 // Leader Inbox API
 export const leaderInboxAPI = {
   // Get entitlements (determines what user sees)

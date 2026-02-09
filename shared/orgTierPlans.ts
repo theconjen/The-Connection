@@ -13,7 +13,9 @@ export type OrgTierFeature =
   | 'org.pastoral.appointmentRequests'
   | 'org.wall.private'
   | 'org.communities.private'
-  | 'org.ordinations';
+  | 'org.ordinations'
+  | 'org.sermons'
+  | 'org.sermons.noAds'; // Viewers don't see ads (stewardship/partner only)
 
 export interface OrgTierPlan {
   features: OrgTierFeature[];
@@ -22,17 +24,19 @@ export interface OrgTierPlan {
 
 export const ORG_TIER_PLANS: Record<OrgTier, OrgTierPlan> = {
   free: {
-    features: [],
+    features: ['org.sermons'], // Can upload, but viewers see ads
     limits: {
       meetingRequestsPerMonth: 0,
       ordinationPrograms: 0,
+      sermons: 10,
     }
   },
   stewardship: {
-    features: ['org.pastoral.appointmentRequests'],
+    features: ['org.pastoral.appointmentRequests', 'org.sermons', 'org.sermons.noAds'],
     limits: {
       meetingRequestsPerMonth: 50,
       ordinationPrograms: 1,
+      sermons: 100,
     }
   },
   partner: {
@@ -40,11 +44,14 @@ export const ORG_TIER_PLANS: Record<OrgTier, OrgTierPlan> = {
       'org.pastoral.appointmentRequests',
       'org.wall.private',
       'org.communities.private',
-      'org.ordinations'
+      'org.ordinations',
+      'org.sermons',
+      'org.sermons.noAds'
     ],
     limits: {
       meetingRequestsPerMonth: -1, // unlimited
       ordinationPrograms: -1, // unlimited
+      sermons: -1, // unlimited
     }
   }
 };
@@ -70,6 +77,13 @@ export interface OrgCapabilities {
   canViewPrivateWall: boolean;
   canViewPrivateCommunities: boolean;
   hasPendingMembershipRequest: boolean;
+  // Sermon/video capabilities (never expose tier - only booleans)
+  canViewSermons: boolean; // true when org has sermons feature enabled
+  canCreateSermon: boolean; // true when org admin AND org has sermons feature enabled
+  canManageSermons: boolean; // owner/admin only (CRUD on existing sermons)
+  canUploadVideos: boolean; // Org admin/owner/moderator can upload
+  viewerSermonAdsEnabled: boolean; // true for free tier viewers, server-computed
+  sermonUploadLimit: number;
 }
 
 /**

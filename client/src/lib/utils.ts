@@ -48,6 +48,25 @@ export function formatDateForDisplay(date: Date | string | null, formatStr = "MM
 export function truncateText(str: string, length: number): string {
   if (!str) return "";
   if (str.length <= length) return str;
-  
+
   return str.substring(0, length) + "...";
+}
+
+/**
+ * Format duration in seconds to human-readable format
+ * @param seconds Duration in seconds
+ * @returns Formatted duration string (e.g., "1:23:45" or "12:34")
+ */
+export function formatDuration(seconds: number): string {
+  if (!seconds || seconds < 0) return "0:00";
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }

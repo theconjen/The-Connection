@@ -9,3 +9,5 @@ export { OrgMembers } from "./OrgMembers";
 export { OrgMembershipRequests } from "./OrgMembershipRequests";
 export { OrgActivityLog } from "./OrgActivityLog";
 export { OrgOrdinationPrograms } from "./OrgOrdinationPrograms";
+export { OrgLeaders } from "./OrgLeaders";
+export { OrgSermons } from "./OrgSermons";

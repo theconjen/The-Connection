@@ -10,8 +10,9 @@ import { storage } from '../storage';
 import { requireAuth } from '../middleware/auth';
 import { requireOrgAdminOr404, requireOrgModeratorOr404 } from '../middleware/org-admin';
 import { requireSessionUserId } from '../utils/session';
-import { requireOrgFeature, getOrgLimit } from '../services/orgTierService';
-import { z } from 'zod/v4';
+import { requireOrgFeature, getOrgLimit, getOrgSermonPolicy } from '../services/orgTierService';
+import { createDirectUpload, getUploadStatus } from '../services/muxService';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -466,6 +467,445 @@ router.post('/:orgId/ordination-applications/:appId/review', requireOrgAdminOr40
     }
     console.error('Error reviewing ordination application:', error);
     res.status(500).json({ error: 'Failed to submit review' });
+  }
+});
+
+// ============================================================================
+// ORGANIZATION LEADERS (About / Leadership section)
+// ============================================================================
+
+/**
+ * GET /api/org-admin/:orgId/leaders - Get all leaders for the organization
+ */
+router.get('/:orgId/leaders', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const leaders = await storage.getOrganizationLeaders(org.id);
+    res.json(leaders);
+  } catch (error) {
+    console.error('Error fetching organization leaders:', error);
+    res.status(500).json({ error: 'Failed to fetch leaders' });
+  }
+});
+
+/**
+ * POST /api/org-admin/:orgId/leaders - Create a new leader
+ */
+router.post('/:orgId/leaders', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+
+    const schema = z.object({
+      name: z.string().min(1).max(200),
+      title: z.string().max(200).optional().nullable(),
+      bio: z.string().max(2000).optional().nullable(),
+      photoUrl: z.string().url().optional().nullable(),
+      isPublic: z.boolean().optional().default(true),
+      sortOrder: z.number().min(0).optional().default(0),
+    });
+
+    const data = schema.parse(req.body);
+
+    const leader = await storage.createOrganizationLeader({
+      organizationId: org.id,
+      name: data.name,
+      title: data.title || null,
+      bio: data.bio || null,
+      photoUrl: data.photoUrl || null,
+      isPublic: data.isPublic,
+      sortOrder: data.sortOrder,
+    });
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'leader.created',
+      targetType: 'organization_leader',
+      targetId: leader.id,
+      metadata: { name: data.name },
+    });
+
+    res.status(201).json(leader);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request', details: error.errors });
+    }
+    console.error('Error creating organization leader:', error);
+    res.status(500).json({ error: 'Failed to create leader' });
+  }
+});
+
+/**
+ * PATCH /api/org-admin/:orgId/leaders/:id - Update a leader
+ */
+router.patch('/:orgId/leaders/:id', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+    const leaderId = parseInt(req.params.id, 10);
+
+    if (isNaN(leaderId)) {
+      return res.status(404).json({ error: 'Leader not found' });
+    }
+
+    // Check if leader exists and belongs to this org
+    const existingLeader = await storage.getOrganizationLeader(leaderId);
+    if (!existingLeader || existingLeader.organizationId !== org.id) {
+      return res.status(404).json({ error: 'Leader not found' });
+    }
+
+    const schema = z.object({
+      name: z.string().min(1).max(200).optional(),
+      title: z.string().max(200).optional().nullable(),
+      bio: z.string().max(2000).optional().nullable(),
+      photoUrl: z.string().url().optional().nullable(),
+      isPublic: z.boolean().optional(),
+      sortOrder: z.number().min(0).optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const updated = await storage.updateOrganizationLeader(leaderId, org.id, data);
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'leader.updated',
+      targetType: 'organization_leader',
+      targetId: leaderId,
+      metadata: { fields: Object.keys(data) },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request', details: error.errors });
+    }
+    console.error('Error updating organization leader:', error);
+    res.status(500).json({ error: 'Failed to update leader' });
+  }
+});
+
+/**
+ * DELETE /api/org-admin/:orgId/leaders/:id - Delete a leader
+ */
+router.delete('/:orgId/leaders/:id', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+    const leaderId = parseInt(req.params.id, 10);
+
+    if (isNaN(leaderId)) {
+      return res.status(404).json({ error: 'Leader not found' });
+    }
+
+    // Check if leader exists and belongs to this org
+    const existingLeader = await storage.getOrganizationLeader(leaderId);
+    if (!existingLeader || existingLeader.organizationId !== org.id) {
+      return res.status(404).json({ error: 'Leader not found' });
+    }
+
+    const deleted = await storage.deleteOrganizationLeader(leaderId, org.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Leader not found' });
+    }
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'leader.deleted',
+      targetType: 'organization_leader',
+      targetId: leaderId,
+      metadata: { name: existingLeader.name },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting organization leader:', error);
+    res.status(500).json({ error: 'Failed to delete leader' });
+  }
+});
+
+// ============================================================================
+// SERMONS (Org Video Library with Mux)
+// ============================================================================
+
+/**
+ * GET /api/org-admin/:orgId/sermons - Get all sermons for the organization
+ */
+router.get('/:orgId/sermons', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const sermons = await storage.listOrgSermons(org.id);
+    res.json(sermons);
+  } catch (error) {
+    console.error('Error fetching organization sermons:', error);
+    res.status(500).json({ error: 'Failed to fetch sermons' });
+  }
+});
+
+/**
+ * POST /api/org-admin/:orgId/sermons - Create a new sermon entry
+ *
+ * Gate: requires org.sermons feature enabled.
+ * Returns 404 if feature not enabled (concealment pattern).
+ */
+router.post('/:orgId/sermons', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+
+    // Gate: check if org has sermons feature enabled
+    const hasSermonsFeature = await requireOrgFeature(org.id, 'org.sermons');
+    if (!hasSermonsFeature) {
+      // Return 404 to conceal feature existence (matches org-admin concealment pattern)
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Check upload limit
+    const policy = await getOrgSermonPolicy(org.id);
+    if (policy.uploadLimit !== -1) {
+      const currentCount = await storage.countOrgSermons(org.id);
+      if (currentCount >= policy.uploadLimit) {
+        return res.status(400).json({
+          error: 'Sermon upload limit reached',
+        });
+      }
+    }
+
+    const schema = z.object({
+      title: z.string().min(1).max(200),
+      description: z.string().max(5000).optional(),
+      speaker: z.string().max(200).optional(),
+      sermonDate: z.string().optional(),
+      series: z.string().max(200).optional(),
+      privacyLevel: z.enum(['public', 'members', 'unlisted']).optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const sermon = await storage.createSermon({
+      organizationId: org.id,
+      creatorId: userId,
+      title: data.title,
+      description: data.description || null,
+      speaker: data.speaker || null,
+      sermonDate: data.sermonDate || null,
+      series: data.series || null,
+      privacyLevel: data.privacyLevel || 'public',
+      status: 'pending',
+    });
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'sermon.created',
+      targetType: 'sermon',
+      targetId: sermon.id,
+      metadata: { title: sermon.title },
+    });
+
+    res.status(201).json(sermon);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Error creating sermon:', error);
+    res.status(500).json({ error: 'Failed to create sermon' });
+  }
+});
+
+/**
+ * POST /api/org-admin/:orgId/sermons/:id/upload-url - Get Mux direct upload URL
+ *
+ * Gate: requires org.sermons feature enabled.
+ * Returns 404 if feature not enabled (concealment pattern).
+ */
+router.post('/:orgId/sermons/:id/upload-url', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+    const sermonId = parseInt(req.params.id, 10);
+
+    if (isNaN(sermonId)) {
+      return res.status(404).json({ error: 'Sermon not found' });
+    }
+
+    // Gate: check if org has sermons feature enabled
+    const hasSermonsFeature = await requireOrgFeature(org.id, 'org.sermons');
+    if (!hasSermonsFeature) {
+      // Return 404 to conceal feature existence (matches org-admin concealment pattern)
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Check if sermon exists and belongs to this org
+    const sermon = await storage.getSermonById(sermonId);
+    if (!sermon || sermon.organizationId !== org.id) {
+      return res.status(404).json({ error: 'Sermon not found' });
+    }
+
+    // Create Mux direct upload
+    const { uploadUrl, uploadId } = await createDirectUpload({
+      orgId: org.id,
+      title: sermon.title,
+      creatorId: userId,
+    });
+
+    // Store upload ID on sermon
+    await storage.updateSermon(sermonId, {
+      muxUploadId: uploadId,
+      status: 'pending',
+    });
+
+    res.json({ uploadUrl });
+  } catch (error) {
+    console.error('Error creating upload URL:', error);
+    res.status(500).json({ error: 'Failed to create upload URL' });
+  }
+});
+
+/**
+ * GET /api/org-admin/:orgId/sermons/:id/status - Check upload/processing status
+ */
+router.get('/:orgId/sermons/:id/status', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const sermonId = parseInt(req.params.id, 10);
+
+    if (isNaN(sermonId)) {
+      return res.status(404).json({ error: 'Sermon not found' });
+    }
+
+    const sermon = await storage.getSermonById(sermonId);
+    if (!sermon || sermon.organizationId !== org.id) {
+      return res.status(404).json({ error: 'Sermon not found' });
+    }
+
+    // If we have an upload ID but no asset ID, check upload status
+    if (sermon.muxUploadId && !sermon.muxAssetId) {
+      try {
+        const uploadStatus = await getUploadStatus(sermon.muxUploadId);
+        if (uploadStatus.assetId && uploadStatus.status === 'asset_created') {
+          // Update with asset ID
+          await storage.updateSermon(sermonId, {
+            muxAssetId: uploadStatus.assetId,
+            status: 'processing',
+          });
+        }
+      } catch {
+        // Ignore status check errors
+      }
+    }
+
+    // Return current status
+    const updatedSermon = await storage.getSermonById(sermonId);
+    res.json({
+      status: updatedSermon?.status || 'pending',
+      muxAssetId: updatedSermon?.muxAssetId,
+      muxPlaybackId: updatedSermon?.muxPlaybackId,
+      duration: updatedSermon?.duration,
+      thumbnailUrl: updatedSermon?.thumbnailUrl,
+    });
+  } catch (error) {
+    console.error('Error checking sermon status:', error);
+    res.status(500).json({ error: 'Failed to check status' });
+  }
+});
+
+/**
+ * PATCH /api/org-admin/:orgId/sermons/:id - Update a sermon
+ */
+router.patch('/:orgId/sermons/:id', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+    const sermonId = parseInt(req.params.id, 10);
+
+    if (isNaN(sermonId)) {
+      return res.status(404).json({ error: 'Sermon not found' });
+    }
+
+    const sermon = await storage.getSermonById(sermonId);
+    if (!sermon || sermon.organizationId !== org.id) {
+      return res.status(404).json({ error: 'Sermon not found' });
+    }
+
+    const schema = z.object({
+      title: z.string().min(1).max(200).optional(),
+      description: z.string().max(5000).optional().nullable(),
+      speaker: z.string().max(200).optional().nullable(),
+      sermonDate: z.string().optional().nullable(),
+      series: z.string().max(200).optional().nullable(),
+      privacyLevel: z.enum(['public', 'members', 'unlisted']).optional(),
+      publishedAt: z.string().optional().nullable(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const updated = await storage.updateSermon(sermonId, data);
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'sermon.updated',
+      targetType: 'sermon',
+      targetId: sermonId,
+      metadata: { title: updated.title },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Error updating sermon:', error);
+    res.status(500).json({ error: 'Failed to update sermon' });
+  }
+});
+
+/**
+ * DELETE /api/org-admin/:orgId/sermons/:id - Soft delete a sermon
+ */
+router.delete('/:orgId/sermons/:id', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+    const sermonId = parseInt(req.params.id, 10);
+
+    if (isNaN(sermonId)) {
+      return res.status(404).json({ error: 'Sermon not found' });
+    }
+
+    const sermon = await storage.getSermonById(sermonId);
+    if (!sermon || sermon.organizationId !== org.id) {
+      return res.status(404).json({ error: 'Sermon not found' });
+    }
+
+    const deleted = await storage.softDeleteSermon(sermonId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Sermon not found' });
+    }
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'sermon.deleted',
+      targetType: 'sermon',
+      targetId: sermonId,
+      metadata: { title: sermon.title },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting sermon:', error);
+    res.status(500).json({ error: 'Failed to delete sermon' });
   }
 });
 

@@ -94,6 +94,25 @@ export async function isWithinOrgLimit(
 }
 
 /**
+ * Get sermon-specific policy for an organization
+ *
+ * Returns booleans and numbers only - never tier names
+ */
+export async function getOrgSermonPolicy(orgId: number): Promise<{
+  uploadLimit: number;
+  viewerAdsRequired: boolean;
+}> {
+  const tier = await getEffectiveOrgTier(orgId);
+  const plan = ORG_TIER_PLANS[tier];
+
+  return {
+    uploadLimit: plan.limits.sermons ?? 10,
+    // Viewers see ads if org doesn't have noAds feature
+    viewerAdsRequired: !plan.features.includes('org.sermons.noAds'),
+  };
+}
+
+/**
  * Compute capabilities for a viewer of an organization
  *
  * Returns ONLY booleans - never exposes tier information
@@ -124,10 +143,14 @@ export async function computeOrgCapabilities(params: {
 
   // Get tier features
   const hasPastoralAppointments = await requireOrgFeature(orgId, 'org.pastoral.appointmentRequests');
+  const hasSermonsFeature = await requireOrgFeature(orgId, 'org.sermons');
 
   // Get meeting request limits
   const meetingLimit = await getOrgLimit(orgId, 'meetingRequestsPerMonth');
   const currentMeetingCount = await storage.countOrgMeetingRequestsThisMonth(orgId);
+
+  // Get sermon policy
+  const sermonPolicy = await getOrgSermonPolicy(orgId);
 
   // Determine user role label
   // Priority: stored role > attendee (if affiliated) > visitor
@@ -151,6 +174,10 @@ export async function computeOrgCapabilities(params: {
   // Check if within meeting limit
   const withinMeetingLimit = meetingLimit === -1 || currentMeetingCount < meetingLimit;
 
+  // Admin roles that can manage sermons
+  const adminRoles: UserOrgRole[] = ['admin', 'owner'];
+  const isOrgAdmin = adminRoles.includes(userRole);
+
   // Compute booleans
   return {
     userRole,
@@ -163,6 +190,16 @@ export async function computeOrgCapabilities(params: {
     canViewPrivateCommunities: hasMemberAccess,
     // Pending request status
     hasPendingMembershipRequest: !!pendingRequest,
+    // Sermon/video capabilities
+    // canViewSermons: viewer may see sermons UI; server may still filter sermon list by privacyLevel
+    // Ad logic (viewerSermonAdsEnabled) computed server-side from billing/tier; clients never see tier names
+    canViewSermons: true,
+    // canCreateSermon: true when org admin AND org has sermons feature enabled
+    canCreateSermon: isOrgAdmin && hasSermonsFeature,
+    canManageSermons: isOrgAdmin,
+    canUploadVideos: isOrgAdmin,
+    viewerSermonAdsEnabled: sermonPolicy.viewerAdsRequired,
+    sermonUploadLimit: sermonPolicy.uploadLimit,
   };
 }
 

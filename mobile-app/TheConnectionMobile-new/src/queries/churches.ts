@@ -4,7 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { orgsAPI, myChurchesAPI, leaderInboxAPI } from '../lib/apiClient';
+import { orgsAPI, myChurchesAPI, leaderInboxAPI, sermonsAPI } from '../lib/apiClient';
 
 // Types matching server responses (capabilities are BOOLEAN-only, never tier)
 export interface OrgCapabilities {
@@ -14,6 +14,13 @@ export interface OrgCapabilities {
   canViewPrivateWall: boolean;
   canViewPrivateCommunities: boolean;
   hasPendingMembershipRequest: boolean;
+  // Sermon/video capabilities (server-computed, never expose tier)
+  canViewSermons: boolean;
+  canCreateSermon: boolean;
+  canManageSermons: boolean;
+  canUploadVideos: boolean;
+  viewerSermonAdsEnabled: boolean;
+  sermonUploadLimit: number;
 }
 
 export interface PublicOrganization {
@@ -34,11 +41,77 @@ export interface PublicOrganization {
   congregationSize?: number | null;
 }
 
+export interface PublicLeader {
+  id: number;
+  name: string;
+  title: string | null;
+  bio: string | null;
+  photoUrl: string | null;
+  sortOrder: number;
+}
+
+export interface PublicSermon {
+  id: number;
+  title: string;
+  thumbnailUrl: string | null;
+  duration: number | null;
+  sermonDate: string | null;
+  speaker: string | null;
+  series: string | null;
+}
+
+// Minimal public community DTO - safe fields only
+export interface PublicCommunity {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  iconName: string | null;
+  iconColor: string | null;
+  memberCount: number;
+  isPrivate: boolean;
+}
+
+// Minimal public event DTO - safe fields only
+export interface PublicEvent {
+  id: number;
+  title: string;
+  description: string | null;
+  location: string | null;
+  eventDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  imageUrl: string | null;
+}
+
+export interface SermonPlaybackResponse {
+  sermon: {
+    id: number;
+    title: string;
+    description?: string | null;
+    speaker?: string | null;
+    sermonDate?: string | null;
+    series?: string | null;
+    thumbnailUrl?: string | null;
+    duration?: number | null;
+  };
+  playback: {
+    hlsUrl: string;
+    posterUrl?: string | null;
+  };
+  ads: {
+    enabled: boolean;
+    tagUrl?: string | null;
+  };
+}
+
 export interface OrgProfileResponse {
   organization: PublicOrganization;
   capabilities: OrgCapabilities;
-  communities: any[];
-  upcomingEvents: any[];
+  communities: PublicCommunity[];
+  upcomingEvents: PublicEvent[];
+  leaders: PublicLeader[];
+  sermons: PublicSermon[];
 }
 
 export interface ChurchAffiliation {
@@ -123,6 +196,14 @@ export function useOrgProfile(slug: string) {
     queryKey: ['org-profile', slug],
     queryFn: () => orgsAPI.getBySlug(slug),
     enabled: !!slug,
+  });
+}
+
+export function useSermonPlayback(sermonId: number) {
+  return useQuery<SermonPlaybackResponse>({
+    queryKey: ['sermon-playback', sermonId],
+    queryFn: () => sermonsAPI.getPlayback(sermonId),
+    enabled: !!sermonId,
   });
 }
 

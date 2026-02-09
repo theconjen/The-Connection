@@ -131,10 +131,12 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-font",
-      "./plugins/withRemoveBundleCompression"
+      "./plugins/withRemoveBundleCompression",
+      "./plugins/withMuxJWPlayer"
     ],
     "extra": {
       "apiBase": "https://api.theconnection.app",
+      "muxDataEnvKey": "",
       "router": {
         "origin": "https://app.theconnection.app"
       },

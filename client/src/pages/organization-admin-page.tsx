@@ -19,8 +19,10 @@ import {
   OrgMembershipRequests,
   OrgActivityLog,
   OrgOrdinationPrograms,
+  OrgLeaders,
+  OrgSermons,
 } from "@/components/organization";
-import { ArrowLeft, LayoutDashboard, Settings, Users, UserPlus, Activity, FileText } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Settings, Users, UserPlus, Activity, FileText, User, Video } from "lucide-react";
 
 export default function OrganizationAdminPage() {
   const { orgId } = useParams<{ orgId: string }>();
@@ -99,6 +101,32 @@ export default function OrganizationAdminPage() {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch programs");
+      return response.json();
+    },
+    enabled: !!numericOrgId && !!user,
+  });
+
+  // Fetch leaders
+  const { data: leaders = [], isLoading: isLeadersLoading } = useQuery({
+    queryKey: ["/api/org-admin", numericOrgId, "leaders"],
+    queryFn: async () => {
+      const response = await fetch(`/api/org-admin/${numericOrgId}/leaders`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch leaders");
+      return response.json();
+    },
+    enabled: !!numericOrgId && !!user,
+  });
+
+  // Fetch sermons
+  const { data: sermons = [], isLoading: isSermonsLoading } = useQuery({
+    queryKey: ["/api/org-admin", numericOrgId, "sermons"],
+    queryFn: async () => {
+      const response = await fetch(`/api/org-admin/${numericOrgId}/sermons`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch sermons");
       return response.json();
     },
     enabled: !!numericOrgId && !!user,
@@ -202,6 +230,126 @@ export default function OrganizationAdminPage() {
     },
   });
 
+  // Create leader mutation
+  const createLeaderMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", `/api/org-admin/${numericOrgId}/leaders`, data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to add leader");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "leaders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "activity"] });
+    },
+  });
+
+  // Update leader mutation
+  const updateLeaderMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const response = await apiRequest("PATCH", `/api/org-admin/${numericOrgId}/leaders/${id}`, data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to update leader");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "leaders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "activity"] });
+    },
+  });
+
+  // Delete leader mutation
+  const deleteLeaderMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/org-admin/${numericOrgId}/leaders/${id}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to remove leader");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "leaders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "activity"] });
+    },
+  });
+
+  // Create sermon mutation
+  const createSermonMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", `/api/org-admin/${numericOrgId}/sermons`, data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create sermon");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "sermons"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "activity"] });
+    },
+  });
+
+  // Get sermon upload URL mutation
+  const getUploadUrlMutation = useMutation({
+    mutationFn: async (sermonId: number) => {
+      const response = await apiRequest("POST", `/api/org-admin/${numericOrgId}/sermons/${sermonId}/upload-url`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to get upload URL");
+      }
+      return response.json();
+    },
+  });
+
+  // Update sermon mutation
+  const updateSermonMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const response = await apiRequest("PATCH", `/api/org-admin/${numericOrgId}/sermons/${id}`, data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to update sermon");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "sermons"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "activity"] });
+    },
+  });
+
+  // Delete sermon mutation
+  const deleteSermonMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/org-admin/${numericOrgId}/sermons/${id}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete sermon");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "sermons"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "activity"] });
+    },
+  });
+
+  // Refresh sermon status
+  const refreshSermonStatus = async (sermonId: number) => {
+    try {
+      await fetch(`/api/org-admin/${numericOrgId}/sermons/${sermonId}/status`, {
+        credentials: "include",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", numericOrgId, "sermons"] });
+    } catch {
+      // Ignore errors
+    }
+  };
+
   // Find current user's role in the org
   const currentUserRole = members.find((m: any) => m.userId === user?.id)?.role || "member";
 
@@ -238,7 +386,11 @@ export default function OrganizationAdminPage() {
 
   const { organization, entitlements, stats } = dashboardData as {
     organization: any;
-    entitlements?: { canManageOrdinations?: boolean };
+    entitlements?: {
+      canManageOrdinations?: boolean;
+      canUploadSermons?: boolean;
+      sermonLimit?: number;
+    };
     stats: { memberCount: number; pendingMembershipCount: number };
   };
   const hasOrdinationsFeature = !!entitlements?.canManageOrdinations;
@@ -270,6 +422,14 @@ export default function OrganizationAdminPage() {
                 {stats.pendingMembershipCount}
               </span>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="leaders" className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Leaders
+          </TabsTrigger>
+          <TabsTrigger value="sermons" className="flex items-center gap-2">
+            <Video className="h-4 w-4" />
+            Sermons
           </TabsTrigger>
           <TabsTrigger value="ordinations" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -318,6 +478,45 @@ export default function OrganizationAdminPage() {
             onDecline={async (requestId) => {
               await declineMembershipMutation.mutateAsync(requestId);
             }}
+          />
+        </TabsContent>
+
+        <TabsContent value="leaders">
+          <OrgLeaders
+            leaders={leaders}
+            isLoading={isLeadersLoading}
+            onCreate={async (data) => {
+              await createLeaderMutation.mutateAsync(data);
+            }}
+            onUpdate={async (id, data) => {
+              await updateLeaderMutation.mutateAsync({ id, data });
+            }}
+            onDelete={async (id) => {
+              await deleteLeaderMutation.mutateAsync(id);
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="sermons">
+          <OrgSermons
+            orgId={numericOrgId}
+            sermons={sermons}
+            isLoading={isSermonsLoading}
+            canUpload={entitlements?.canUploadSermons ?? true}
+            uploadLimit={entitlements?.sermonLimit ?? 10}
+            onCreate={async (data) => {
+              return await createSermonMutation.mutateAsync(data);
+            }}
+            onGetUploadUrl={async (sermonId) => {
+              return await getUploadUrlMutation.mutateAsync(sermonId);
+            }}
+            onUpdate={async (id, data) => {
+              await updateSermonMutation.mutateAsync({ id, data });
+            }}
+            onDelete={async (id) => {
+              await deleteSermonMutation.mutateAsync(id);
+            }}
+            onRefreshStatus={refreshSermonStatus}
           />
         </TabsContent>
 

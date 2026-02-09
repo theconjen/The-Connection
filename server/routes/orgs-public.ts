@@ -33,6 +33,121 @@ type PublicOrganizationDTO = {
   publicZipCode: string | null;
 };
 
+// Public leader DTO - only safe fields for public display
+type PublicLeaderDTO = {
+  id: number;
+  name: string;
+  title: string | null;
+  bio: string | null;
+  photoUrl: string | null;
+  sortOrder: number;
+};
+
+// Public sermon DTO - only safe fields for public display
+type PublicSermonDTO = {
+  id: number;
+  title: string;
+  description: string | null;
+  speaker: string | null;
+  sermonDate: string | null;
+  series: string | null;
+  thumbnailUrl: string | null;
+  duration: number | null;
+};
+
+// Public community DTO - only safe fields for public display
+type PublicCommunityDTO = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  iconName: string | null;
+  iconColor: string | null;
+  memberCount: number;
+  isPrivate: boolean;
+};
+
+// Public event DTO - only safe fields for public display
+type PublicEventDTO = {
+  id: number;
+  title: string;
+  description: string | null;
+  location: string | null;
+  eventDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  imageUrl: string | null;
+};
+
+const publicLeaderKeys = new Set<keyof PublicLeaderDTO>([
+  'id',
+  'name',
+  'title',
+  'bio',
+  'photoUrl',
+  'sortOrder',
+]);
+
+const forbiddenLeaderKeys = [
+  'email',
+  'phone',
+  'address',
+  'organizationId',
+  'isPublic',
+  'createdAt',
+  'updatedAt',
+];
+
+const publicSermonKeys = new Set<keyof PublicSermonDTO>([
+  'id',
+  'title',
+  'description',
+  'speaker',
+  'sermonDate',
+  'series',
+  'thumbnailUrl',
+  'duration',
+]);
+
+const forbiddenSermonKeys = [
+  'organizationId',
+  'creatorId',
+  'muxAssetId',
+  'muxPlaybackId',
+  'muxUploadId',
+  'status',
+  'privacyLevel',
+  'viewCount',
+  'createdAt',
+  'updatedAt',
+  'deletedAt',
+  'publishedAt',
+];
+
+function assertPublicSermonDTO(dto: Record<string, unknown>) {
+  if (process.env.NODE_ENV === 'production') return;
+  for (const key of Object.keys(dto)) {
+    if (forbiddenSermonKeys.includes(key)) {
+      throw new Error(`Public sermon DTO contains forbidden key: ${key}`);
+    }
+    if (!publicSermonKeys.has(key as keyof PublicSermonDTO)) {
+      throw new Error(`Public sermon DTO contains unexpected key: ${key}`);
+    }
+  }
+}
+
+function assertPublicLeaderDTO(dto: Record<string, unknown>) {
+  if (process.env.NODE_ENV === 'production') return;
+  for (const key of Object.keys(dto)) {
+    if (forbiddenLeaderKeys.includes(key)) {
+      throw new Error(`Public leader DTO contains forbidden key: ${key}`);
+    }
+    if (!publicLeaderKeys.has(key as keyof PublicLeaderDTO)) {
+      throw new Error(`Public leader DTO contains unexpected key: ${key}`);
+    }
+  }
+}
+
 const publicOrganizationKeys = new Set<keyof PublicOrganizationDTO>([
   'id',
   'name',
@@ -207,14 +322,52 @@ router.get('/:slug', async (req: Request, res: Response) => {
     };
     assertPublicOrganizationDTO(publicOrganization as Record<string, unknown>);
 
+    // Fetch leaders (public only, ordered by sortOrder then id)
+    const allLeaders = await storage.getOrganizationLeaders(org.id);
+    const publicLeaders: PublicLeaderDTO[] = allLeaders
+      .filter(leader => leader.isPublic)
+      .map(leader => {
+        const dto: PublicLeaderDTO = {
+          id: leader.id,
+          name: leader.name,
+          title: leader.title,
+          bio: leader.bio,
+          photoUrl: leader.photoUrl,
+          sortOrder: leader.sortOrder ?? 0,
+        };
+        assertPublicLeaderDTO(dto as Record<string, unknown>);
+        return dto;
+      });
+
     // TODO: Fetch communities filtered by capabilities
-    // For now, return empty arrays
-    const communities: any[] = [];
-    const upcomingEvents: any[] = [];
+    // For now, return typed empty arrays (never undefined)
+    const communities: PublicCommunityDTO[] = [];
+    const upcomingEvents: PublicEventDTO[] = [];
+
+    // Fetch public sermons (filtered by viewer's member status)
+    const memberRoles = ['member', 'moderator', 'admin', 'owner'];
+    const viewerIsMember = memberRoles.includes(capabilities.userRole);
+    const allSermons = await storage.getPublicOrgSermons(org.id, viewerIsMember);
+    const publicSermons: PublicSermonDTO[] = allSermons.map(sermon => {
+      const dto: PublicSermonDTO = {
+        id: sermon.id,
+        title: sermon.title,
+        description: sermon.description,
+        speaker: sermon.speaker,
+        sermonDate: sermon.sermonDate,
+        series: sermon.series,
+        thumbnailUrl: sermon.thumbnailUrl,
+        duration: sermon.duration,
+      };
+      assertPublicSermonDTO(dto as Record<string, unknown>);
+      return dto;
+    });
 
     res.json({
       organization: publicOrganization,
       capabilities,
+      leaders: publicLeaders,
+      sermons: publicSermons,
       communities,
       upcomingEvents,
     });

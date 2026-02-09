@@ -3,8 +3,15 @@
  * Public church/organization profile with capabilities-based UI
  */
 
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useParams, useLocation } from "wouter";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
+import { getInitials, formatDuration } from "@/lib/utils";
 import {
   Church,
   MapPin,
@@ -28,6 +36,8 @@ import {
   Calendar,
   Settings,
   ExternalLink,
+  Video,
+  Play,
 } from "lucide-react";
 
 interface OrgCapabilities {
@@ -37,6 +47,13 @@ interface OrgCapabilities {
   canViewPrivateWall: boolean;
   canViewPrivateCommunities: boolean;
   hasPendingMembershipRequest: boolean;
+  // Sermon/video capabilities (server-computed, never expose tier)
+  canViewSermons: boolean;
+  canCreateSermon: boolean;
+  canManageSermons: boolean;
+  canUploadVideos: boolean;
+  viewerSermonAdsEnabled: boolean;
+  sermonUploadLimit: number;
 }
 
 interface PublicOrganization {
@@ -59,11 +76,57 @@ interface PublicOrganization {
   congregationSize?: number | null;
 }
 
+interface PublicLeader {
+  id: number;
+  name: string;
+  title: string | null;
+  bio: string | null;
+  photoUrl: string | null;
+  sortOrder: number;
+}
+
+interface PublicSermon {
+  id: number;
+  title: string;
+  description: string | null;
+  speaker: string | null;
+  sermonDate: string | null;
+  series: string | null;
+  thumbnailUrl: string | null;
+  duration: number | null;
+}
+
+// Minimal public community DTO - safe fields only
+interface PublicCommunity {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  iconName: string | null;
+  iconColor: string | null;
+  memberCount: number;
+  isPrivate: boolean;
+}
+
+// Minimal public event DTO - safe fields only
+interface PublicEvent {
+  id: number;
+  title: string;
+  description: string | null;
+  location: string | null;
+  eventDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  imageUrl: string | null;
+}
+
 interface OrgProfileResponse {
   organization: PublicOrganization;
   capabilities: OrgCapabilities;
-  communities: any[];
-  upcomingEvents: any[];
+  leaders: PublicLeader[];
+  sermons: PublicSermon[];
+  communities: PublicCommunity[];
+  upcomingEvents: PublicEvent[];
 }
 
 const roleLabels: Record<string, string> = {
@@ -81,6 +144,7 @@ export default function OrganizationProfilePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedLeader, setSelectedLeader] = useState<PublicLeader | null>(null);
 
   const { data, isLoading, error } = useQuery<OrgProfileResponse>({
     queryKey: ["/api/orgs", slug],
@@ -396,6 +460,125 @@ export default function OrganizationProfilePage() {
             </Card>
           )}
 
+          {/* Leadership Team */}
+          {data.leaders && data.leaders.length > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Leadership Team
+                  </CardTitle>
+                  <CardDescription>
+                    Meet our pastors and staff
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/orgs/${slug}/about`)}
+                >
+                  View All
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {data.leaders
+                    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
+                    .map((leader) => (
+                      <div
+                        key={leader.id}
+                        className="flex items-start gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => setSelectedLeader(leader)}
+                      >
+                        <Avatar className="h-14 w-14">
+                          <AvatarImage src={leader.photoUrl || undefined} />
+                          <AvatarFallback className="text-lg">
+                            {getInitials(leader.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{leader.name}</p>
+                          {leader.title && (
+                            <p className="text-sm text-muted-foreground">
+                              {leader.title}
+                            </p>
+                          )}
+                          {leader.bio && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {leader.bio}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Sermons */}
+          {data.sermons && data.sermons.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Video className="h-5 w-5" />
+                  Sermons
+                </CardTitle>
+                <CardDescription>
+                  Watch recent sermons and messages
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {data.sermons.map((sermon) => (
+                    <div
+                      key={sermon.id}
+                      className="group cursor-pointer"
+                      onClick={() => navigate(`/sermons/${sermon.id}`)}
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative aspect-video bg-muted rounded-lg overflow-hidden mb-2">
+                        {sermon.thumbnailUrl ? (
+                          <img
+                            src={sermon.thumbnailUrl}
+                            alt={sermon.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Video className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        {/* Play overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                            <Play className="h-5 w-5 text-primary ml-1" />
+                          </div>
+                        </div>
+                        {/* Duration badge */}
+                        {sermon.duration && (
+                          <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+                            {formatDuration(sermon.duration)}
+                          </span>
+                        )}
+                      </div>
+                      {/* Info */}
+                      <h3 className="font-medium line-clamp-2 group-hover:text-primary transition-colors">
+                        {sermon.title}
+                      </h3>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                        {sermon.speaker && <span>{sermon.speaker}</span>}
+                        {sermon.speaker && sermon.sermonDate && <span>•</span>}
+                        {sermon.sermonDate && <span>{sermon.sermonDate}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Communities */}
           {data.communities.length > 0 && (
             <Card>
@@ -494,6 +677,39 @@ export default function OrganizationProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Leader Detail Dialog */}
+      <Dialog open={!!selectedLeader} onOpenChange={(open) => !open && setSelectedLeader(null)}>
+        <DialogContent className="sm:max-w-md">
+          {selectedLeader && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={selectedLeader.photoUrl || undefined} />
+                    <AvatarFallback className="text-xl">
+                      {getInitials(selectedLeader.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <DialogTitle>{selectedLeader.name}</DialogTitle>
+                    {selectedLeader.title && (
+                      <DialogDescription>{selectedLeader.title}</DialogDescription>
+                    )}
+                  </div>
+                </div>
+              </DialogHeader>
+              {selectedLeader.bio && (
+                <div className="mt-4">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {selectedLeader.bio}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

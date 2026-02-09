@@ -177,6 +177,35 @@ export const insertOrganizationUserSchema = createInsertSchema(organizationUsers
   role: true,
 } as any);
 
+// Organization leaders table (About / Leadership section)
+// For displaying pastors, staff, and leadership team on public profile
+export const organizationLeaders = pgTable("organization_leaders", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  name: text("name").notNull(),
+  title: text("title"), // e.g., "Senior Pastor", "Youth Director"
+  bio: text("bio"),
+  photoUrl: text("photo_url"),
+  isPublic: boolean("is_public").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"), // Soft delete
+});
+
+export const insertOrganizationLeaderSchema = createInsertSchema(organizationLeaders).pick({
+  organizationId: true,
+  name: true,
+  title: true,
+  bio: true,
+  photoUrl: true,
+  isPublic: true,
+  sortOrder: true,
+} as any);
+
+export type OrganizationLeader = typeof organizationLeaders.$inferSelect;
+export type InsertOrganizationLeader = typeof organizationLeaders.$inferInsert;
+
 // Communities table schema
 export const communities = pgTable("communities", {
   id: serial("id").primaryKey(),
@@ -2593,3 +2622,80 @@ export const insertOrganizationActivityLogSchema = createInsertSchema(organizati
 
 export type OrganizationActivityLog = typeof organizationActivityLogs.$inferSelect;
 export type InsertOrganizationActivityLog = typeof organizationActivityLogs.$inferInsert;
+
+// =============================================================================
+// SERMONS (Org Video Library with Mux)
+// =============================================================================
+
+// Sermons table - org-owned video content
+export const sermons = pgTable("sermons", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  creatorId: integer("creator_id").notNull().references(() => users.id),
+
+  // Content metadata
+  title: text("title").notNull(),
+  description: text("description"),
+  speaker: text("speaker"),
+  sermonDate: date("sermon_date"),
+  series: text("series"),
+
+  // Mux video integration
+  muxAssetId: text("mux_asset_id"),
+  muxPlaybackId: text("mux_playback_id"),
+  muxUploadId: text("mux_upload_id"),
+  duration: integer("duration"), // seconds
+  thumbnailUrl: text("thumbnail_url"),
+  status: text("status").default("pending"), // pending|processing|ready|error
+
+  // Visibility and privacy
+  privacyLevel: text("privacy_level").default("public"), // public|members|unlisted
+  viewCount: integer("view_count").default(0),
+
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"), // Soft delete
+  publishedAt: timestamp("published_at"),
+}, (table) => [
+  index("idx_sermons_org").on(table.organizationId),
+  index("idx_sermons_status").on(table.status),
+  index("idx_sermons_published").on(table.publishedAt),
+]);
+
+export const insertSermonSchema = createInsertSchema(sermons).pick({
+  organizationId: true,
+  creatorId: true,
+  title: true,
+  description: true,
+  speaker: true,
+  sermonDate: true,
+  series: true,
+  muxAssetId: true,
+  muxPlaybackId: true,
+  muxUploadId: true,
+  duration: true,
+  thumbnailUrl: true,
+  status: true,
+  privacyLevel: true,
+  publishedAt: true,
+} as any);
+
+export type Sermon = typeof sermons.$inferSelect;
+export type InsertSermon = typeof sermons.$inferInsert;
+
+// Sermon views - analytics for video consumption
+export const sermonViews = pgTable("sermon_views", {
+  id: serial("id").primaryKey(),
+  sermonId: integer("sermon_id").notNull().references(() => sermons.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").references(() => users.id),
+  watchDuration: integer("watch_duration"), // seconds
+  completed: boolean("completed").default(false),
+  viewedAt: timestamp("viewed_at").defaultNow(),
+}, (table) => [
+  index("idx_sermon_views_sermon").on(table.sermonId),
+  index("idx_sermon_views_user").on(table.userId),
+]);
+
+export type SermonView = typeof sermonViews.$inferSelect;
+export type InsertSermonView = typeof sermonViews.$inferInsert;

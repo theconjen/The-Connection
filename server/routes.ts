@@ -122,6 +122,8 @@ import leaderInboxRoutes from './routes/leader-inbox';
 import userEntitlementsRoutes from './routes/user-entitlements';
 import ordinationsRoutes from './routes/ordinations';
 import orgAdminRoutes from './routes/org-admin';
+import sermonsRoutes from './routes/sermons';
+import muxWebhookRoutes from './routes/webhooks-mux';
 
 declare module 'express-session' {
   interface SessionData {
@@ -599,6 +601,8 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api/me', userEntitlementsRoutes);       // User entitlements
     app.use('/api/ordinations', ordinationsRoutes);   // Ordination programs and applications
     app.use('/api/org-admin', orgAdminRoutes);        // Steward Console (org admin)
+    app.use('/api/sermons', sermonsRoutes);           // Public sermon playback
+    app.use('/api/webhooks/mux', muxWebhookRoutes);   // Mux video webhooks
   }
 
   if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {
