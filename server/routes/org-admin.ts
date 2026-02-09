@@ -25,6 +25,10 @@ router.use(requireAuth);
 router.get('/:orgId', requireOrgAdminOr404(), async (req: Request, res: Response) => {
   try {
     const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+
+    // Get user role
+    const userRole = await storage.getUserRoleInOrg(org.id, userId);
 
     // Get counts
     const members = await storage.getOrganizationMembers(org.id);
@@ -69,6 +73,7 @@ router.get('/:orgId', requireOrgAdminOr404(), async (req: Request, res: Response
 
     res.json({
       organization,
+      userRole,
       features,
       entitlements,
       stats: {
@@ -906,6 +911,30 @@ router.delete('/:orgId/sermons/:id', requireOrgAdminOr404(), async (req: Request
   } catch (error) {
     console.error('Error deleting sermon:', error);
     res.status(500).json({ error: 'Failed to delete sermon' });
+  }
+});
+
+/**
+ * DELETE /api/org-admin/:orgId - Delete the organization (owner only)
+ */
+router.delete('/:orgId', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+
+    // Only the owner can delete the organization
+    const userRole = await storage.getUserRoleInOrg(org.id, userId);
+    if (userRole !== 'owner') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Delete the organization
+    await storage.deleteOrganization(org.id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting organization:', error);
+    res.status(500).json({ error: 'Failed to delete organization' });
   }
 });
 

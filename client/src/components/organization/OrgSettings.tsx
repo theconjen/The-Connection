@@ -14,7 +14,18 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Save, Trash2 } from "lucide-react";
 
 const orgSettingsSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
@@ -59,11 +70,30 @@ interface OrgSettingsProps {
   organization: Organization;
   isLoading?: boolean;
   onSave: (data: Partial<OrgSettingsForm>) => Promise<void>;
+  onDelete?: () => Promise<void>;
+  isOwner?: boolean;
 }
 
-export function OrgSettings({ organization, isLoading, onSave }: OrgSettingsProps) {
+export function OrgSettings({ organization, isLoading, onSave, onDelete, isOwner }: OrgSettingsProps) {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    setIsDeleting(true);
+    try {
+      await onDelete();
+    } catch (error) {
+      toast({
+        title: "Failed to delete organization",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const form = useForm<OrgSettingsForm>({
     resolver: zodResolver(orgSettingsSchema),
@@ -322,6 +352,53 @@ export function OrgSettings({ organization, isLoading, onSave }: OrgSettingsProp
           )}
         </Button>
       </div>
+
+      {isOwner && onDelete && (
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+            <CardDescription>
+              Irreversible actions that affect your entire organization
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="font-medium">Delete Organization</p>
+                <p className="text-sm text-muted-foreground">
+                  Permanently delete this organization and all its data
+                </p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={isDeleting}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Organization</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{organization.name}"? This action cannot be undone.
+                      All members, leaders, sermons, and other data will be permanently removed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isDeleting ? "Deleting..." : "Delete Organization"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </form>
   );
 }

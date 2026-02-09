@@ -147,6 +147,24 @@ export default function OrganizationAdminPage() {
     },
   });
 
+  // Delete organization mutation
+  const deleteOrgMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", `/api/org-admin/${numericOrgId}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete organization");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orgs/directory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/inbox-entitlements"] });
+      navigate("/orgs");
+    },
+  });
+
   // Update member role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
@@ -384,8 +402,9 @@ export default function OrganizationAdminPage() {
     );
   }
 
-  const { organization, entitlements, stats } = dashboardData as {
+  const { organization, userRole, entitlements, stats } = dashboardData as {
     organization: any;
+    userRole: string | null;
     entitlements?: {
       canManageOrdinations?: boolean;
       canUploadSermons?: boolean;
@@ -394,6 +413,7 @@ export default function OrganizationAdminPage() {
     stats: { memberCount: number; pendingMembershipCount: number };
   };
   const hasOrdinationsFeature = !!entitlements?.canManageOrdinations;
+  const isOwner = userRole === 'owner';
 
   return (
     <div className="container max-w-6xl py-8">
@@ -534,8 +554,12 @@ export default function OrganizationAdminPage() {
         <TabsContent value="settings">
           <OrgSettings
             organization={organization}
+            isOwner={isOwner}
             onSave={async (data) => {
               await updateSettingsMutation.mutateAsync(data);
+            }}
+            onDelete={async () => {
+              await deleteOrgMutation.mutateAsync();
             }}
           />
         </TabsContent>
