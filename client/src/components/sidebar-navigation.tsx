@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { useAuth, AuthContextType } from "../hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { ThemeToggle } from "./ui/theme-toggle";
 import {
   Home,
@@ -15,7 +16,8 @@ import {
   Shield,
   Heart,
   Lightbulb,
-  Church
+  Church,
+  LayoutDashboard
 } from "lucide-react";
 
 interface SidebarNavigationProps {
@@ -26,6 +28,23 @@ interface SidebarNavigationProps {
 export default function SidebarNavigation({ currentPath, collapsed = false }: SidebarNavigationProps) {
   const { user } = useAuth() as AuthContextType;
   const isAdmin = user && user.isAdmin;
+
+  // Fetch leader entitlements to show Church Dashboard for org admins
+  const { data: leaderEntitlements } = useQuery<{
+    showLeaderInbox: boolean;
+    leaderOrgs: number[];
+  }>({
+    queryKey: ["/api/me/inbox-entitlements"],
+    queryFn: async () => {
+      const res = await fetch("/api/me/inbox-entitlements", { credentials: "include" });
+      if (!res.ok) return { showLeaderInbox: false, leaderOrgs: [] };
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  const hasChurchDashboard = leaderEntitlements?.leaderOrgs && leaderEntitlements.leaderOrgs.length > 0;
+  const primaryOrgId = leaderEntitlements?.leaderOrgs?.[0];
 
   // Navigation structure matching mobile app tabs
   const mainNavItems = [
@@ -167,6 +186,32 @@ export default function SidebarNavigation({ currentPath, collapsed = false }: Si
           ))}
         </nav>
       </div>
+
+      {/* Church Dashboard Section - For org admins/owners */}
+      {hasChurchDashboard && primaryOrgId && (
+        <div className="space-y-1 mb-6">
+          {!collapsed && (
+            <h3 className="px-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">
+              Church
+            </h3>
+          )}
+          <nav className="space-y-1">
+            <Link href={`/org-admin/${primaryOrgId}`}>
+              <div
+                className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} rounded-xl ${collapsed ? 'p-3' : 'px-4 py-3'} cursor-pointer text-sm transition-all ${
+                  currentPath.startsWith("/org-admin")
+                    ? "bg-muted text-foreground font-medium"
+                    : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}
+                title={collapsed ? "Church Dashboard" : undefined}
+              >
+                <LayoutDashboard className="h-5 w-5" />
+                {!collapsed && "Church Dashboard"}
+              </div>
+            </Link>
+          </nav>
+        </div>
+      )}
 
       {/* Admin Section */}
       {isAdmin && (
