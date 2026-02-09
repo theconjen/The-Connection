@@ -32,7 +32,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, User, GripVertical, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, User, GripVertical, Eye, EyeOff, Camera, X } from "lucide-react";
+import { PhotoUploader } from "@/components/PhotoUploader";
 import { getInitials } from "@/lib/utils";
 
 interface Leader {
@@ -341,14 +342,38 @@ export function OrgLeaders({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="photoUrl">Photo URL</Label>
-                <Input
-                  id="photoUrl"
-                  type="url"
-                  value={formData.photoUrl}
-                  onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
-                  placeholder="https://example.com/photo.jpg"
-                />
+                <Label>Photo</Label>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={formData.photoUrl || undefined} />
+                    <AvatarFallback>
+                      {formData.name ? getInitials(formData.name) : <User className="h-6 w-6" />}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col gap-2">
+                    <PhotoUploader
+                      uploadType="general"
+                      onUploadSuccess={(url) => setFormData({ ...formData, photoUrl: url })}
+                    >
+                      <Button type="button" variant="outline" size="sm">
+                        <Camera className="h-4 w-4 mr-2" />
+                        {formData.photoUrl ? "Change Photo" : "Upload Photo"}
+                      </Button>
+                    </PhotoUploader>
+                    {formData.photoUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground"
+                        onClick={() => setFormData({ ...formData, photoUrl: "" })}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sortOrder">Display Order</Label>
