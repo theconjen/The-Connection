@@ -938,4 +938,86 @@ router.delete('/:orgId', requireOrgAdminOr404(), async (req: Request, res: Respo
   }
 });
 
+/**
+ * GET /api/org-admin/:orgId/billing - Get organization billing/plan info
+ * Returns current tier and status (owner only)
+ */
+router.get('/:orgId/billing', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+
+    // Only the owner can view billing
+    const userRole = await storage.getUserRoleInOrg(org.id, userId);
+    if (userRole !== 'owner') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    const billing = await storage.getOrgBilling(org.id);
+
+    // Return current plan info (no Stripe details to client)
+    res.json({
+      tier: billing?.tier || 'free',
+      status: billing?.status || 'inactive',
+    });
+  } catch (error) {
+    console.error('Error fetching billing:', error);
+    res.status(500).json({ error: 'Failed to fetch billing info' });
+  }
+});
+
+/**
+ * PATCH /api/org-admin/:orgId/billing - Update organization plan (owner only)
+ * In production, this would go through Stripe. For development, direct update.
+ */
+router.patch('/:orgId/billing', requireOrgAdminOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+
+    // Only the owner can change the plan
+    const userRole = await storage.getUserRoleInOrg(org.id, userId);
+    if (userRole !== 'owner') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    const schema = z.object({
+      tier: z.enum(['free', 'stewardship', 'partner']),
+    });
+    const { tier } = schema.parse(req.body);
+
+    // Get or create billing record
+    let billing = await storage.getOrgBilling(org.id);
+
+    if (billing) {
+      // Update existing billing
+      await storage.updateOrgBilling(org.id, {
+        tier,
+        status: tier === 'free' ? 'inactive' : 'active',
+      });
+    } else {
+      // Create new billing record
+      await storage.createOrgBilling({
+        organizationId: org.id,
+        tier,
+        status: tier === 'free' ? 'inactive' : 'active',
+      });
+    }
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'plan_changed',
+      targetType: 'billing',
+      metadata: { newTier: tier },
+    });
+
+    res.json({ success: true, tier });
+  } catch (error) {
+    console.error('Error updating billing:', error);
+    res.status(500).json({ error: 'Failed to update plan' });
+  }
+});
+
 export default router;

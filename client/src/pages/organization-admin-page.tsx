@@ -21,8 +21,9 @@ import {
   OrgOrdinationPrograms,
   OrgLeaders,
   OrgSermons,
+  OrgPlanSelector,
 } from "@/components/organization";
-import { ArrowLeft, LayoutDashboard, Settings, Users, UserPlus, Activity, FileText, User, Video } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Settings, Users, UserPlus, Activity, FileText, User, Video, CreditCard } from "lucide-react";
 
 export default function OrganizationAdminPage() {
   const { orgId } = useParams<{ orgId: string }>();
@@ -459,6 +460,12 @@ export default function OrganizationAdminPage() {
             <Settings className="h-4 w-4" />
             Settings
           </TabsTrigger>
+          {isOwner && (
+            <TabsTrigger value="plan" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Plan
+            </TabsTrigger>
+          )}
           <TabsTrigger value="activity" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             Activity
@@ -563,6 +570,12 @@ export default function OrganizationAdminPage() {
             }}
           />
         </TabsContent>
+
+        {isOwner && (
+          <TabsContent value="plan">
+            <OrgPlanSelector orgId={numericOrgId} />
+          </TabsContent>
+        )}
 
         <TabsContent value="activity">
           <OrgActivityLog

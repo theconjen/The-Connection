@@ -11,3 +11,4 @@ export { OrgActivityLog } from "./OrgActivityLog";
 export { OrgOrdinationPrograms } from "./OrgOrdinationPrograms";
 export { OrgLeaders } from "./OrgLeaders";
 export { OrgSermons } from "./OrgSermons";
+export { OrgPlanSelector } from "./OrgPlanSelector";
