@@ -8,6 +8,6 @@
     "build": "node ../scripts/build-server.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.70.1"
+    "@anthropic-ai/sdk": "^0.74.0"
   }
 }

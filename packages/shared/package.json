@@ -18,12 +18,12 @@
   },
   "dependencies": {
     "date-fns": "^4.1.0",
-    "i18next": "^25.8.0",
-    "i18next-icu": "^2.4.2",
+    "i18next": "^25.8.4",
+    "i18next-icu": "^2.4.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/node": "^24.10.9",
+    "@types/node": "^24.10.12",
     "typescript": "~5.9.3"
   }
 }
