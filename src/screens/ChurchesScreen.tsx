@@ -63,13 +63,13 @@ const CHURCH_TRADITIONS = [
       // Baptist
       'Baptist', 'Southern Baptist', 'American Baptist', 'First Baptist',
       // Methodist
-      'Methodist', 'United Methodist', 'African Methodist Episcopal',
+      'African Methodist Episcopal',
       // Lutheran
-      'Lutheran', 'ELCA',
+      'Lutheran',
       // Presbyterian
-      'Presbyterian', 'PCA', 'PCUSA',
+      'Presbyterian', 'PCA',
       // Anglican
-      'Anglican', 'Episcopal',
+      'Anglican',
       // Reformed
       'Reformed', 'Dutch Reformed',
       // Pentecostal / Charismatic
@@ -81,7 +81,7 @@ const CHURCH_TRADITIONS = [
       // Other Protestant
       'Evangelical Free', 'Evangelical Covenant',
       'Christian & Missionary Alliance',
-      'Congregational', 'United Church of Christ',
+      'Congregational',
       'Mennonite', 'Brethren',
     ],
   },
