@@ -230,6 +230,15 @@ router.get('/search', async (req: Request, res: Response) => {
  */
 router.get('/filters', async (_req: Request, res: Response) => {
   try {
+    // Church types (major Christian traditions)
+    const churchTypes = [
+      { id: 'protestant', label: 'Protestant', denominations: ['Baptist', 'Methodist', 'Lutheran', 'Presbyterian', 'Pentecostal', 'Episcopal', 'Church of Christ', 'Assembly of God', 'Seventh-day Adventist', 'Church of God', 'Nazarene', 'Reformed', 'Anglican', 'Mennonite', 'Non-Denominational'] },
+      { id: 'evangelical', label: 'Evangelical', denominations: ['Baptist', 'Pentecostal', 'Assembly of God', 'Church of God', 'Nazarene', 'Charismatic', 'Non-Denominational', 'Evangelical'] },
+      { id: 'catholic', label: 'Catholic', denominations: ['Catholic', 'Roman Catholic'] },
+      { id: 'orthodox', label: 'Orthodox', denominations: ['Orthodox', 'Eastern Orthodox', 'Greek Orthodox', 'Russian Orthodox', 'Coptic Orthodox'] },
+      { id: 'church-of-east', label: 'Church of the East', denominations: ['Assyrian Church of the East', 'Chaldean Catholic', 'Church of the East'] },
+    ];
+
     // Common denominations in order of prevalence
     const denominations = [
       'Non-Denominational',
@@ -263,7 +272,7 @@ router.get('/filters', async (_req: Request, res: Response) => {
       'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
     ];
 
-    res.json({ denominations, states });
+    res.json({ churchTypes, denominations, states });
   } catch (error) {
     console.error('Error fetching filters:', error);
     res.status(500).json({ error: 'Failed to fetch filters' });
