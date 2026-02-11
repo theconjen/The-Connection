@@ -1,9 +1,9 @@
 /**
- * Churches Directory Screen
- * Browse and search for churches
+ * Churches Screen
+ * Connect with local churches and faith communities
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -18,6 +18,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { Text } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +31,27 @@ interface ChurchesScreenProps {
   onChurchPress: (church: ChurchListItem) => void;
 }
 
+// State name to abbreviation map
+const STATE_ABBREVS: Record<string, string> = {
+  'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+  'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
+  'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
+  'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+  'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
+  'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+  'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
+  'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+  'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
+  'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY',
+};
+
+const getStateAbbreviation = (stateName: string): string | null => {
+  if (!stateName) return null;
+  // If already an abbreviation
+  if (stateName.length === 2) return stateName.toUpperCase();
+  return STATE_ABBREVS[stateName] || null;
+};
+
 export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
@@ -39,6 +61,8 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ city: string; state: string } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
 
   // Invite form state
   const [inviteForm, setInviteForm] = useState({
@@ -49,8 +73,39 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
     churchWebsite: '',
   });
 
+  // Get user's location on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          const [place] = await Location.reverseGeocodeAsync({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+          if (place?.city && place?.region) {
+            setUserLocation({ city: place.city, state: place.region });
+            // Auto-filter to user's state if no filter selected
+            if (!selectedState) {
+              // Get state abbreviation
+              const stateAbbrev = getStateAbbreviation(place.region);
+              if (stateAbbrev) {
+                setSelectedState(stateAbbrev);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Location error:', error);
+      } finally {
+        setLocationLoading(false);
+      }
+    })();
+  }, []);
+
   // Debounce search
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
     }, 300);
@@ -105,7 +160,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
   });
 
   const churches = data?.pages.flatMap((page) => page.items) ?? [];
-  const activeFiltersCount = (selectedDenomination ? 1 : 0) + (selectedState ? 1 : 0);
+  const hasActiveFilters = !!(selectedDenomination || (selectedState && selectedState !== getStateAbbreviation(userLocation?.state || '')));
 
   const handleLoadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -113,46 +168,78 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const renderChurchCard = ({ item }: { item: ChurchListItem }) => (
-    <Pressable
-      style={[styles.churchCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
-      onPress={() => onChurchPress(item)}
-    >
-      <View style={styles.churchContent}>
-        {item.logoUrl ? (
-          <Image source={{ uri: item.logoUrl }} style={styles.churchLogo} />
-        ) : (
-          <View style={[styles.churchLogoPlaceholder, { backgroundColor: colors.primary + '20' }]}>
-            <Ionicons name="business" size={28} color={colors.primary} />
-          </View>
-        )}
-        <View style={styles.churchInfo}>
-          <Text style={[styles.churchName, { color: colors.textPrimary }]} numberOfLines={1}>
-            {item.name}
-          </Text>
-          {(item.city || item.state) && (
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.churchLocation, { color: colors.textSecondary }]} numberOfLines={1}>
-                {[item.city, item.state].filter(Boolean).join(', ')}
-              </Text>
+  const renderChurchCard = ({ item }: { item: ChurchListItem }) => {
+    const isNearby = userLocation && item.city?.toLowerCase() === userLocation.city.toLowerCase();
+
+    return (
+      <Pressable
+        style={[styles.churchCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+        onPress={() => onChurchPress(item)}
+      >
+        {/* Logo and main info */}
+        <View style={styles.churchCardTop}>
+          {item.logoUrl ? (
+            <Image source={{ uri: item.logoUrl }} style={styles.churchLogo} />
+          ) : (
+            <View style={[styles.churchLogoPlaceholder, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="people" size={24} color={colors.primary} />
             </View>
           )}
-          {item.denomination && (
-            <Text style={[styles.churchDenomination, { color: colors.textMuted }]} numberOfLines={1}>
-              {item.denomination}
+          <View style={styles.churchMainInfo}>
+            <Text style={[styles.churchName, { color: colors.textPrimary }]} numberOfLines={1}>
+              {item.name}
             </Text>
-          )}
-          {item.description && (
-            <Text style={[styles.churchDescription, { color: colors.textSecondary }]} numberOfLines={2}>
-              {item.description}
-            </Text>
-          )}
+            <View style={styles.churchMeta}>
+              {(item.city || item.state) && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+                  <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                    {[item.city, item.state].filter(Boolean).join(', ')}
+                  </Text>
+                </View>
+              )}
+              {item.denomination && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="bookmark-outline" size={13} color={colors.textSecondary} />
+                  <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                    {item.denomination}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-      </View>
-    </Pressable>
-  );
+
+        {/* Description if available */}
+        {item.description && (
+          <Text style={[styles.churchDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
+
+        {/* Community indicators */}
+        <View style={styles.churchCardBottom}>
+          <View style={styles.communityIndicators}>
+            {item.congregationSize && item.congregationSize > 0 && (
+              <View style={[styles.indicator, { backgroundColor: colors.surfaceMuted }]}>
+                <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+                <Text style={[styles.indicatorText, { color: colors.textSecondary }]}>
+                  {item.congregationSize < 100 ? 'Small' : item.congregationSize < 500 ? 'Medium' : 'Large'} community
+                </Text>
+              </View>
+            )}
+            {isNearby && (
+              <View style={[styles.indicator, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="navigate" size={12} color={colors.primary} />
+                <Text style={[styles.indicatorText, { color: colors.primary }]}>Near you</Text>
+              </View>
+            )}
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </View>
+      </Pressable>
+    );
+  };
 
   const clearFilters = () => {
     setSelectedDenomination(null);
@@ -172,20 +259,28 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
 
   const renderEmpty = () => {
     if (isLoading) return null;
+    const hasFilters = debouncedQuery || selectedDenomination || selectedState;
+
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="business-outline" size={64} color={colors.textMuted} />
+        <View style={[styles.emptyIcon, { backgroundColor: colors.surfaceMuted }]}>
+          <Ionicons name="people-outline" size={40} color={colors.textMuted} />
+        </View>
         <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-          {debouncedQuery || selectedDenomination || selectedState ? 'No churches found' : 'No churches yet'}
+          {hasFilters ? 'No churches found' : 'Discover local churches'}
         </Text>
         <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-          {debouncedQuery || selectedDenomination || selectedState
-            ? 'Try adjusting your search or filters'
-            : 'Churches will appear here once they join the platform'}
+          {hasFilters
+            ? 'Try adjusting your search or expanding your area'
+            : 'Connect with faith communities in your area'}
         </Text>
-        {(selectedDenomination || selectedState) && (
-          <Pressable style={[styles.clearFiltersButton, { borderColor: colors.primary }]} onPress={clearFilters}>
-            <Text style={{ color: colors.primary, fontWeight: '600' }}>Clear Filters</Text>
+        {hasFilters ? (
+          <Pressable style={[styles.emptyButton, { backgroundColor: colors.primary }]} onPress={clearFilters}>
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Clear filters</Text>
+          </Pressable>
+        ) : (
+          <Pressable style={[styles.emptyButton, { backgroundColor: colors.primary }]} onPress={() => setShowInviteModal(true)}>
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Invite your church</Text>
           </Pressable>
         )}
       </View>
@@ -194,30 +289,33 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
 
   const renderFooter = () => {
     return (
-      <View>
+      <View style={styles.footer}>
         {isFetchingNextPage && (
           <View style={styles.footerLoader}>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
         )}
-        {/* Can't find your church CTA */}
-        <View style={[styles.inviteCTA, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-          <Ionicons name="help-circle-outline" size={24} color={colors.primary} />
-          <View style={styles.inviteCTAText}>
-            <Text style={[styles.inviteCTATitle, { color: colors.textPrimary }]}>
-              Can't find your church?
-            </Text>
-            <Text style={[styles.inviteCTASubtitle, { color: colors.textSecondary }]}>
-              We'll reach out and invite them to join
-            </Text>
-          </View>
+        {/* Invite CTA - only show if we have results */}
+        {churches.length > 0 && (
           <Pressable
-            style={[styles.inviteButton, { backgroundColor: colors.primary }]}
+            style={[styles.inviteCTA, { borderColor: colors.borderSubtle }]}
             onPress={() => setShowInviteModal(true)}
           >
-            <Text style={{ color: colors.primaryForeground, fontWeight: '600', fontSize: 14 }}>Invite</Text>
+            <View style={[styles.inviteIconCircle, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="add" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.inviteCTAText}>
+              <Text style={[styles.inviteCTATitle, { color: colors.textPrimary }]}>
+                Don't see your church?
+              </Text>
+              <Text style={[styles.inviteCTASubtitle, { color: colors.textSecondary }]}>
+                Invite them to join The Connection
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </Pressable>
-        </View>
+        )}
+        <View style={{ height: 20 }} />
       </View>
     );
   };
@@ -229,106 +327,110 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
         <Pressable onPress={onBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Churches</Text>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Find a Church</Text>
+          {userLocation && !locationLoading && (
+            <View style={styles.locationIndicator}>
+              <Ionicons name="location" size={12} color={colors.primary} />
+              <Text style={[styles.locationText, { color: colors.primary }]}>
+                {userLocation.city}, {userLocation.state}
+              </Text>
+            </View>
+          )}
+        </View>
         <View style={styles.headerSpacer} />
       </View>
 
       {/* Search Bar */}
-      <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-        <Ionicons name="search" size={20} color={colors.textSecondary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.textPrimary }]}
-          placeholder="Search churches..."
-          placeholderTextColor={colors.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {searchQuery.length > 0 && (
-          <Pressable onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-          </Pressable>
-        )}
+      <View style={styles.searchRow}>
+        <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+            placeholder="Search by name or city..."
+            placeholderTextColor={colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </Pressable>
+          )}
+        </View>
         <Pressable
-          style={[styles.filterButton, activeFiltersCount > 0 && { backgroundColor: colors.primary + '20' }]}
+          style={[
+            styles.filterToggle,
+            { backgroundColor: colors.surface, borderColor: hasActiveFilters ? colors.primary : colors.borderSubtle },
+          ]}
           onPress={() => setShowFilters(!showFilters)}
         >
-          <Ionicons name="options-outline" size={20} color={activeFiltersCount > 0 ? colors.primary : colors.textSecondary} />
-          {activeFiltersCount > 0 && (
-            <View style={[styles.filterBadge, { backgroundColor: colors.primary }]}>
-              <Text style={{ color: colors.primaryForeground, fontSize: 10, fontWeight: '700' }}>{activeFiltersCount}</Text>
-            </View>
-          )}
+          <Ionicons name="options-outline" size={20} color={hasActiveFilters ? colors.primary : colors.textSecondary} />
         </Pressable>
       </View>
 
       {/* Filter Panel */}
       {showFilters && (
         <View style={[styles.filterPanel, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-          {/* Denomination Filter */}
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Denomination</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          {/* Quick filters row */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickFilters}>
+            {/* Near me chip */}
+            {userLocation && (
               <Pressable
                 style={[
-                  styles.filterChip,
-                  { borderColor: !selectedDenomination ? colors.primary : colors.borderSubtle },
-                  !selectedDenomination && { backgroundColor: colors.primary + '15' },
+                  styles.quickChip,
+                  { borderColor: selectedState === getStateAbbreviation(userLocation.state) ? colors.primary : colors.borderSubtle },
+                  selectedState === getStateAbbreviation(userLocation.state) && { backgroundColor: colors.primary + '15' },
                 ]}
-                onPress={() => setSelectedDenomination(null)}
+                onPress={() => {
+                  const abbrev = getStateAbbreviation(userLocation.state);
+                  setSelectedState(selectedState === abbrev ? null : abbrev);
+                }}
               >
-                <Text style={{ color: !selectedDenomination ? colors.primary : colors.textSecondary, fontSize: 13 }}>All</Text>
+                <Ionicons name="navigate" size={14} color={selectedState === getStateAbbreviation(userLocation.state) ? colors.primary : colors.textSecondary} />
+                <Text style={{ color: selectedState === getStateAbbreviation(userLocation.state) ? colors.primary : colors.textSecondary, fontSize: 13, fontWeight: '500' }}>
+                  Near me
+                </Text>
               </Pressable>
-              {filtersData?.denominations.slice(0, 8).map((denom) => (
-                <Pressable
-                  key={denom}
-                  style={[
-                    styles.filterChip,
-                    { borderColor: selectedDenomination === denom ? colors.primary : colors.borderSubtle },
-                    selectedDenomination === denom && { backgroundColor: colors.primary + '15' },
-                  ]}
-                  onPress={() => setSelectedDenomination(selectedDenomination === denom ? null : denom)}
-                >
-                  <Text style={{ color: selectedDenomination === denom ? colors.primary : colors.textSecondary, fontSize: 13 }}>
-                    {denom}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
+            )}
+            {/* All states chip */}
+            <Pressable
+              style={[
+                styles.quickChip,
+                { borderColor: !selectedState ? colors.primary : colors.borderSubtle },
+                !selectedState && { backgroundColor: colors.primary + '15' },
+              ]}
+              onPress={() => setSelectedState(null)}
+            >
+              <Text style={{ color: !selectedState ? colors.primary : colors.textSecondary, fontSize: 13 }}>All states</Text>
+            </Pressable>
+            {/* Popular denominations */}
+            {filtersData?.denominations.slice(0, 5).map((denom) => (
+              <Pressable
+                key={denom}
+                style={[
+                  styles.quickChip,
+                  { borderColor: selectedDenomination === denom ? colors.primary : colors.borderSubtle },
+                  selectedDenomination === denom && { backgroundColor: colors.primary + '15' },
+                ]}
+                onPress={() => setSelectedDenomination(selectedDenomination === denom ? null : denom)}
+              >
+                <Text style={{ color: selectedDenomination === denom ? colors.primary : colors.textSecondary, fontSize: 13 }}>
+                  {denom}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
 
-          {/* State Filter */}
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>State</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              <Pressable
-                style={[
-                  styles.filterChip,
-                  { borderColor: !selectedState ? colors.primary : colors.borderSubtle },
-                  !selectedState && { backgroundColor: colors.primary + '15' },
-                ]}
-                onPress={() => setSelectedState(null)}
-              >
-                <Text style={{ color: !selectedState ? colors.primary : colors.textSecondary, fontSize: 13 }}>All</Text>
-              </Pressable>
-              {filtersData?.states.map((state) => (
-                <Pressable
-                  key={state}
-                  style={[
-                    styles.filterChip,
-                    { borderColor: selectedState === state ? colors.primary : colors.borderSubtle },
-                    selectedState === state && { backgroundColor: colors.primary + '15' },
-                  ]}
-                  onPress={() => setSelectedState(selectedState === state ? null : state)}
-                >
-                  <Text style={{ color: selectedState === state ? colors.primary : colors.textSecondary, fontSize: 13 }}>
-                    {state}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
+          {/* Clear filters if any active */}
+          {hasActiveFilters && (
+            <Pressable style={styles.clearFiltersRow} onPress={clearFilters}>
+              <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Clear filters</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -506,8 +608,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   backButton: {
@@ -516,84 +618,132 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
+  headerCenter: {
     flex: 1,
-    fontSize: 20,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    textAlign: 'center',
+  },
+  locationIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  locationText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   headerSpacer: {
     width: 40,
   },
-  searchContainer: {
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     gap: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    paddingVertical: 4,
+    fontSize: 15,
+    paddingVertical: 2,
   },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  churchCard: {
-    borderRadius: 12,
+  filterToggle: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  churchContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-  },
-  churchLogo: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-  },
-  churchLogoPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  churchInfo: {
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+  churchCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 14,
+  },
+  churchCardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  churchLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+  },
+  churchLogoPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  churchMainInfo: {
     flex: 1,
     marginLeft: 12,
-    marginRight: 8,
   },
   churchName: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  locationRow: {
+  churchMeta: {
+    gap: 4,
+  },
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 2,
   },
-  churchLocation: {
+  metaText: {
     fontSize: 13,
-  },
-  churchDenomination: {
-    fontSize: 12,
-    marginBottom: 4,
   },
   churchDescription: {
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
+    marginTop: 10,
+  },
+  churchCardBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  communityIndicators: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  indicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  indicatorText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
@@ -632,10 +782,17 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
     paddingHorizontal: 32,
   },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginTop: 16,
     textAlign: 'center',
   },
   emptySubtitle: {
@@ -644,88 +801,72 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  emptyButton: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  footer: {
+    paddingTop: 8,
+  },
   footerLoader: {
-    paddingVertical: 20,
+    paddingVertical: 16,
     alignItems: 'center',
-  },
-  clearFiltersButton: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  filterButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   filterPanel: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
-  filterSection: {
-    marginBottom: 12,
+  quickFilters: {
+    paddingVertical: 4,
+    gap: 8,
   },
-  filterLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  filterScroll: {
+  quickChip: {
     flexDirection: 'row',
-  },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderWidth: 1,
-    marginRight: 8,
+  },
+  clearFiltersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
   },
   inviteCTA: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 24,
-    padding: 16,
+    marginTop: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
+    borderStyle: 'dashed',
     gap: 12,
+  },
+  inviteIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inviteCTAText: {
     flex: 1,
   },
   inviteCTATitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 2,
   },
   inviteCTASubtitle: {
-    fontSize: 13,
-  },
-  inviteButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    fontSize: 12,
   },
   modalContainer: {
     flex: 1,
