@@ -67,7 +67,7 @@ const CHURCH_TRADITIONS = [
       // Lutheran
       'Lutheran',
       // Presbyterian
-      'Presbyterian', 'PCA',
+      'Presbyterian', 'PCA', 'Orthodox Presbyterian',
       // Anglican
       'Anglican',
       // Reformed
