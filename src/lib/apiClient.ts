@@ -28,7 +28,7 @@ export const getApiBase = getApiBaseUrl;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000, // 30 seconds - production server can be slow on cold start
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
