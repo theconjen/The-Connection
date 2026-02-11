@@ -58,28 +58,31 @@ const CHURCH_TRADITIONS = [
     id: 'protestant',
     label: 'Protestant',
     denominations: [
+      // Evangelical
+      'Evangelical', 'Non-Denominational', 'Bible Church',
+      // Baptist
       'Baptist', 'Southern Baptist', 'American Baptist',
+      // Methodist
       'Methodist', 'United Methodist', 'African Methodist Episcopal',
+      // Lutheran
       'Lutheran', 'ELCA',
+      // Presbyterian
       'Presbyterian', 'PCA', 'PCUSA',
+      // Anglican
       'Anglican', 'Episcopal',
+      // Reformed
       'Reformed', 'Dutch Reformed',
-      'Congregational', 'United Church of Christ',
-      'Mennonite', 'Brethren',
-    ],
-  },
-  {
-    id: 'evangelical',
-    label: 'Evangelical',
-    denominations: [
-      'Non-Denominational', 'Bible Church',
-      'Baptist', 'Southern Baptist',
+      // Pentecostal / Charismatic
       'Pentecostal', 'Assembly of God', 'Foursquare',
       'Church of God', 'Church of God in Christ',
-      'Nazarene', 'Wesleyan', 'Holiness',
       'Charismatic', 'Vineyard',
+      // Wesleyan / Holiness
+      'Nazarene', 'Wesleyan', 'Holiness',
+      // Other Protestant
       'Evangelical Free', 'Evangelical Covenant',
       'Christian & Missionary Alliance',
+      'Congregational', 'United Church of Christ',
+      'Mennonite', 'Brethren',
     ],
   },
   {
