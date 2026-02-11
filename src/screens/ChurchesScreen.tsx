@@ -52,6 +52,15 @@ const getStateAbbreviation = (stateName: string): string | null => {
   return STATE_ABBREVS[stateName] || null;
 };
 
+// Default church types (fallback if API doesn't return them)
+const DEFAULT_CHURCH_TYPES = [
+  { id: 'protestant', label: 'Protestant', denominations: ['Baptist', 'Methodist', 'Lutheran', 'Presbyterian', 'Pentecostal', 'Non-Denominational'] },
+  { id: 'evangelical', label: 'Evangelical', denominations: ['Baptist', 'Pentecostal', 'Assembly of God', 'Non-Denominational', 'Evangelical'] },
+  { id: 'catholic', label: 'Catholic', denominations: ['Catholic', 'Roman Catholic'] },
+  { id: 'orthodox', label: 'Orthodox', denominations: ['Orthodox', 'Eastern Orthodox', 'Greek Orthodox'] },
+  { id: 'church-of-east', label: 'Church of the East', denominations: ['Assyrian Church of the East', 'Chaldean Catholic'] },
+];
+
 export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
@@ -119,13 +128,15 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
     queryFn: () => churchesAPI.getFilters(),
   });
 
+  // Use API church types or fallback to defaults
+  const churchTypes = filtersData?.churchTypes?.length ? filtersData.churchTypes : DEFAULT_CHURCH_TYPES;
+
   // Get denominations for selected church type
   const getFilterDenomination = () => {
     if (selectedDenomination) return selectedDenomination;
-    if (selectedChurchType && filtersData?.churchTypes) {
-      const type = filtersData.churchTypes.find(t => t.id === selectedChurchType);
-      // Return first denomination as filter (server will need to support multiple)
-      // For now, we'll use the type label as denomination hint
+    if (selectedChurchType) {
+      const type = churchTypes.find(t => t.id === selectedChurchType);
+      // Return the type label as denomination filter
       return type?.label || undefined;
     }
     return undefined;
@@ -401,7 +412,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
               >
                 <Text style={{ color: !selectedChurchType ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '500' }}>All</Text>
               </Pressable>
-              {filtersData?.churchTypes?.map((type) => (
+              {churchTypes.map((type) => (
                 <Pressable
                   key={type.id}
                   style={[
