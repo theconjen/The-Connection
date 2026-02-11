@@ -57,6 +57,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [selectedChurchType, setSelectedChurchType] = useState<string | null>(null);
   const [selectedDenomination, setSelectedDenomination] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -118,6 +119,18 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
     queryFn: () => churchesAPI.getFilters(),
   });
 
+  // Get denominations for selected church type
+  const getFilterDenomination = () => {
+    if (selectedDenomination) return selectedDenomination;
+    if (selectedChurchType && filtersData?.churchTypes) {
+      const type = filtersData.churchTypes.find(t => t.id === selectedChurchType);
+      // Return first denomination as filter (server will need to support multiple)
+      // For now, we'll use the type label as denomination hint
+      return type?.label || undefined;
+    }
+    return undefined;
+  };
+
   // Fetch churches with infinite scroll
   const {
     data,
@@ -129,13 +142,13 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
     refetch,
     isRefetching,
   } = useInfiniteQuery({
-    queryKey: ['churches', 'directory', debouncedQuery, selectedDenomination, selectedState],
+    queryKey: ['churches', 'directory', debouncedQuery, selectedChurchType, selectedDenomination, selectedState],
     queryFn: async ({ pageParam }) => {
       return churchesAPI.getDirectory({
         limit: 20,
         cursor: pageParam,
         q: debouncedQuery || undefined,
-        denomination: selectedDenomination || undefined,
+        denomination: getFilterDenomination(),
         state: selectedState || undefined,
       });
     },
@@ -160,7 +173,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
   });
 
   const churches = data?.pages.flatMap((page) => page.items) ?? [];
-  const hasActiveFilters = !!(selectedDenomination || (selectedState && selectedState !== getStateAbbreviation(userLocation?.state || '')));
+  const hasActiveFilters = !!(selectedChurchType || selectedDenomination || (selectedState && selectedState !== getStateAbbreviation(userLocation?.state || '')));
 
   const handleLoadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -242,6 +255,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
   };
 
   const clearFilters = () => {
+    setSelectedChurchType(null);
     setSelectedDenomination(null);
     setSelectedState(null);
   };
@@ -373,62 +387,79 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
 
       {/* Filter Panel */}
       {showFilters && (
-        <View style={[styles.filterPanel, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-          {/* Quick filters row */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickFilters}>
-            {/* Near me chip */}
-            {userLocation && (
+        <View style={styles.filterPanel}>
+          {/* Church Types - Primary filter row */}
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterSectionLabel, { color: colors.textMuted }]}>Tradition</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
               <Pressable
                 style={[
-                  styles.quickChip,
-                  { borderColor: selectedState === getStateAbbreviation(userLocation.state) ? colors.primary : colors.borderSubtle },
-                  selectedState === getStateAbbreviation(userLocation.state) && { backgroundColor: colors.primary + '15' },
+                  styles.typeChip,
+                  { backgroundColor: !selectedChurchType ? colors.primary : colors.surface, borderColor: colors.borderSubtle },
                 ]}
-                onPress={() => {
-                  const abbrev = getStateAbbreviation(userLocation.state);
-                  setSelectedState(selectedState === abbrev ? null : abbrev);
-                }}
+                onPress={() => setSelectedChurchType(null)}
               >
-                <Ionicons name="navigate" size={14} color={selectedState === getStateAbbreviation(userLocation.state) ? colors.primary : colors.textSecondary} />
-                <Text style={{ color: selectedState === getStateAbbreviation(userLocation.state) ? colors.primary : colors.textSecondary, fontSize: 13, fontWeight: '500' }}>
-                  Near me
-                </Text>
+                <Text style={{ color: !selectedChurchType ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '500' }}>All</Text>
               </Pressable>
-            )}
-            {/* All states chip */}
-            <Pressable
-              style={[
-                styles.quickChip,
-                { borderColor: !selectedState ? colors.primary : colors.borderSubtle },
-                !selectedState && { backgroundColor: colors.primary + '15' },
-              ]}
-              onPress={() => setSelectedState(null)}
-            >
-              <Text style={{ color: !selectedState ? colors.primary : colors.textSecondary, fontSize: 13 }}>All states</Text>
-            </Pressable>
-            {/* Popular denominations */}
-            {filtersData?.denominations.slice(0, 5).map((denom) => (
+              {filtersData?.churchTypes?.map((type) => (
+                <Pressable
+                  key={type.id}
+                  style={[
+                    styles.typeChip,
+                    { backgroundColor: selectedChurchType === type.id ? colors.primary : colors.surface, borderColor: colors.borderSubtle },
+                  ]}
+                  onPress={() => setSelectedChurchType(selectedChurchType === type.id ? null : type.id)}
+                >
+                  <Text style={{ color: selectedChurchType === type.id ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '500' }}>
+                    {type.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Location filter row */}
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterSectionLabel, { color: colors.textMuted }]}>Location</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
+              {/* Near me chip */}
+              {userLocation && (
+                <Pressable
+                  style={[
+                    styles.locationChip,
+                    { borderColor: selectedState === getStateAbbreviation(userLocation.state) ? colors.primary : colors.borderSubtle },
+                    selectedState === getStateAbbreviation(userLocation.state) && { backgroundColor: colors.primary + '15' },
+                  ]}
+                  onPress={() => {
+                    const abbrev = getStateAbbreviation(userLocation.state);
+                    setSelectedState(selectedState === abbrev ? null : abbrev);
+                  }}
+                >
+                  <Ionicons name="navigate" size={14} color={selectedState === getStateAbbreviation(userLocation.state) ? colors.primary : colors.textSecondary} />
+                  <Text style={{ color: selectedState === getStateAbbreviation(userLocation.state) ? colors.primary : colors.textSecondary, fontSize: 13 }}>
+                    Near me
+                  </Text>
+                </Pressable>
+              )}
+              {/* All locations chip */}
               <Pressable
-                key={denom}
                 style={[
-                  styles.quickChip,
-                  { borderColor: selectedDenomination === denom ? colors.primary : colors.borderSubtle },
-                  selectedDenomination === denom && { backgroundColor: colors.primary + '15' },
+                  styles.locationChip,
+                  { borderColor: !selectedState ? colors.primary : colors.borderSubtle },
+                  !selectedState && { backgroundColor: colors.primary + '15' },
                 ]}
-                onPress={() => setSelectedDenomination(selectedDenomination === denom ? null : denom)}
+                onPress={() => setSelectedState(null)}
               >
-                <Text style={{ color: selectedDenomination === denom ? colors.primary : colors.textSecondary, fontSize: 13 }}>
-                  {denom}
-                </Text>
+                <Text style={{ color: !selectedState ? colors.primary : colors.textSecondary, fontSize: 13 }}>Anywhere</Text>
               </Pressable>
-            ))}
-          </ScrollView>
+            </ScrollView>
+          </View>
 
           {/* Clear filters if any active */}
           {hasActiveFilters && (
             <Pressable style={styles.clearFiltersRow} onPress={clearFilters}>
               <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Clear filters</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Clear all filters</Text>
             </Pressable>
           )}
         </View>
@@ -816,13 +847,28 @@ const styles = StyleSheet.create({
   },
   filterPanel: {
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 12,
   },
-  quickFilters: {
-    paddingVertical: 4,
+  filterSection: {
+    marginBottom: 12,
+  },
+  filterSectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  filterChips: {
     gap: 8,
   },
-  quickChip: {
+  typeChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  locationChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -836,7 +882,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
+    paddingTop: 4,
   },
   inviteCTA: {
     flexDirection: 'row',

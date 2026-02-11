@@ -79,7 +79,14 @@ export interface ChurchDirectoryResponse {
   nextCursor: string | null;
 }
 
+export interface ChurchType {
+  id: string;
+  label: string;
+  denominations: string[];
+}
+
 export interface ChurchFilters {
+  churchTypes: ChurchType[];
   denominations: string[];
   states: string[];
 }
