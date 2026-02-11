@@ -136,7 +136,14 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-font",
-      "./plugins/withRemoveBundleCompression"
+      "./plugins/withRemoveBundleCompression",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "the-connection",
+          "project": "the-connection"
+        }
+      ]
     ],
     "extra": {
       "apiBase": "https://api.theconnection.app",
