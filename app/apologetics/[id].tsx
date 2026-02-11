@@ -598,6 +598,7 @@ export default function ApologeticsDetailScreen() {
         onSettings={() => router.push("/settings")}
         onNotifications={() => router.push("/notifications")}
         onBookmarks={() => router.push("/bookmarks")}
+        onChurches={() => router.push("/churches")}
       />
 
       {/* In-App Share Modal */}

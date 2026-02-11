@@ -15,6 +15,7 @@ interface MenuDrawerProps {
   onSettings: () => void;
   onNotifications: () => void;
   onBookmarks: () => void;
+  onChurches?: () => void;
   onInbox?: () => void;
   hasInboxAccess?: boolean;
   onSearch?: () => void;
@@ -32,7 +33,7 @@ interface SearchResult {
   dmPrivacyReason?: string;
 }
 
-export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onInbox, hasInboxAccess, onSearch, onUserPress }: MenuDrawerProps) {
+export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBookmarks, onChurches, onInbox, hasInboxAccess, onSearch, onUserPress }: MenuDrawerProps) {
   const { colors, theme, setTheme } = useTheme();
   const styles = getStyles(colors, theme);
 
@@ -217,6 +218,21 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                     <Text style={styles.menuItemText}>Bookmarks</Text>
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                   </Pressable>
+
+                  {/* Churches Directory */}
+                  {onChurches && (
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={() => {
+                        onClose();
+                        onChurches();
+                      }}
+                    >
+                      <Ionicons name="business-outline" size={24} color={colors.textPrimary} />
+                      <Text style={styles.menuItemText}>Churches</Text>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                    </Pressable>
+                  )}
 
                   {/* Q&A Inbox - Only show if user has inbox_access permission */}
                   {hasInboxAccess && onInbox && (

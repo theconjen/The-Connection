@@ -89,6 +89,7 @@ export default function CommunitiesTab() {
       onSettings={() => router.push("/settings")}
       onNotifications={() => router.push("/notifications")}
       onBookmarks={() => router.push("/bookmarks")}
+      onChurches={() => router.push("/churches")}
       onInbox={() => router.push("/questions/inbox")}
       hasInboxAccess={hasInboxAccess}
       onSearch={() => router.push("/search")}
