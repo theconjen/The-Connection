@@ -247,23 +247,21 @@ export default function AdviceListScreen() {
         onPress={() => router.push({ pathname: '/advice/[id]' as any, params: { id: item.id.toString() } })}
       >
         <View style={styles.adviceHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={[styles.adviceBadge, { backgroundColor: '#EC489915' }]}>
-              <Ionicons name="help-circle" size={14} color="#EC4899" />
-              <Text style={[styles.adviceBadgeText, { color: '#EC4899' }]}>
-                Seeking Advice
+          <View style={styles.adviceHeaderLeft}>
+            {item.anonymousNickname ? (
+              <Text style={[styles.adviceNickname, { color: colors.textPrimary }]} numberOfLines={1}>
+                {item.anonymousNickname}
               </Text>
-            </View>
-            {item.anonymousNickname && (
+            ) : (
               <Text style={[styles.adviceNickname, { color: colors.textSecondary }]}>
-                from {item.anonymousNickname}
+                Anonymous
               </Text>
             )}
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text style={[styles.adviceTime, { color: colors.textMuted }]}>
-              {timeAgo}
+              · {timeAgo.replace('about ', '')}
             </Text>
+          </View>
+          <View style={styles.adviceHeaderRight}>
             <Pressable onPress={() => handleBookmark(item.id, isBookmarked)} hitSlop={8}>
               <Ionicons
                 name={isBookmarked ? "bookmark" : "bookmark-outline"}
@@ -307,10 +305,11 @@ export default function AdviceListScreen() {
                 {item.commentCount || item.replyCount || 0}
               </Text>
             </View>
+            <View style={[styles.adviceBadge, { backgroundColor: '#FDF2F8' }]}>
+              <Ionicons name="help-circle" size={12} color="#EC4899" />
+              <Text style={[styles.adviceBadgeText, { color: '#EC4899' }]}>Seeking Advice</Text>
+            </View>
           </View>
-          <Text style={[styles.adviceCta, { color: colors.primary }]}>
-            Share your thoughts
-          </Text>
         </View>
       </Pressable>
     );
@@ -498,6 +497,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
+    gap: 8,
+  },
+  adviceHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+  },
+  adviceHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 0,
   },
   adviceBadge: {
     flexDirection: 'row',
@@ -514,6 +527,8 @@ const styles = StyleSheet.create({
   adviceNickname: {
     fontSize: 12,
     fontStyle: 'italic',
+    flexShrink: 1,
+    minWidth: 0,
   },
   adviceTime: {
     fontSize: 12,

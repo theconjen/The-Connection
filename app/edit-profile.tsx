@@ -15,16 +15,19 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTheme } from '../src/contexts/ThemeContext';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useUserProfile } from '../src/queries/follow';
 import apiClient from '../src/lib/apiClient';
 import * as ImagePicker from 'expo-image-picker';
+import { churchesAPI, ChurchListItem } from '../src/queries/churches';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -48,6 +51,34 @@ export default function EditProfileScreen() {
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
+  // Church affiliation state
+  const [showChurchModal, setShowChurchModal] = useState(false);
+  const [churchSearchQuery, setChurchSearchQuery] = useState('');
+  const [selectedChurch, setSelectedChurch] = useState<ChurchListItem | null>(null);
+  const [affiliationType, setAffiliationType] = useState<'attending' | 'member'>('attending');
+  const [customChurchName, setCustomChurchName] = useState('');
+
+  // Fetch user's current church affiliation
+  const { data: affiliationData } = useQuery({
+    queryKey: ['church-affiliation'],
+    queryFn: () => churchesAPI.getMyAffiliation(),
+  });
+
+  // Search churches
+  const { data: searchResults, isLoading: isSearching } = useQuery({
+    queryKey: ['church-search', churchSearchQuery],
+    queryFn: () => churchesAPI.search(churchSearchQuery),
+    enabled: churchSearchQuery.length >= 2,
+  });
+
+  // Update church affiliation mutation
+  const updateAffiliationMutation = useMutation({
+    mutationFn: churchesAPI.setAffiliation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['church-affiliation'] });
+    },
+  });
+
   // Update form data when profile data is loaded
   useEffect(() => {
     if (profileData?.user) {
@@ -65,6 +96,31 @@ export default function EditProfileScreen() {
       setProfileImage(userData.profileImageUrl || null);
     }
   }, [profileData]);
+
+  // Update church affiliation state when data is loaded
+  useEffect(() => {
+    if (affiliationData?.affiliation) {
+      const aff = affiliationData.affiliation;
+      setAffiliationType(aff.affiliationType);
+      if (aff.organization) {
+        setSelectedChurch({
+          id: aff.organization.id,
+          name: aff.organization.name,
+          slug: aff.organization.slug,
+          description: null,
+          logoUrl: aff.organization.logoUrl,
+          city: aff.organization.city,
+          state: aff.organization.state,
+          denomination: aff.organization.denomination,
+          congregationSize: null,
+        });
+        setCustomChurchName('');
+      } else if (aff.customChurchName) {
+        setSelectedChurch(null);
+        setCustomChurchName(aff.customChurchName);
+      }
+    }
+  }, [affiliationData]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -104,13 +160,49 @@ export default function EditProfileScreen() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.displayName.trim()) {
       Alert.alert('Required Field', 'Please enter your display name');
       return;
     }
 
+    // Save church affiliation if changed
+    if (selectedChurch || customChurchName) {
+      try {
+        await updateAffiliationMutation.mutateAsync({
+          organizationId: selectedChurch?.id || null,
+          customChurchName: selectedChurch ? null : customChurchName,
+          affiliationType,
+        });
+        // Update homeChurch in form data to match
+        formData.homeChurch = selectedChurch?.name || customChurchName;
+      } catch (error) {
+        console.error('Failed to update church affiliation:', error);
+      }
+    }
+
     updateProfileMutation.mutate(formData);
+  };
+
+  const handleSelectChurch = (church: ChurchListItem) => {
+    setSelectedChurch(church);
+    setCustomChurchName('');
+    setShowChurchModal(false);
+    setChurchSearchQuery('');
+  };
+
+  const handleUseCustomChurch = () => {
+    if (churchSearchQuery.trim()) {
+      setCustomChurchName(churchSearchQuery.trim());
+      setSelectedChurch(null);
+      setShowChurchModal(false);
+      setChurchSearchQuery('');
+    }
+  };
+
+  const clearChurchSelection = () => {
+    setSelectedChurch(null);
+    setCustomChurchName('');
   };
 
   const updateField = (field: string, value: string) => {
@@ -235,13 +327,78 @@ export default function EditProfileScreen() {
 
           <View style={styles.field}>
             <Text style={styles.label}>Home Church</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Your local church"
-              placeholderTextColor={colors.textMuted}
-              value={formData.homeChurch}
-              onChangeText={(text) => updateField('homeChurch', text)}
-            />
+            <Pressable
+              style={[styles.input, styles.churchSelector]}
+              onPress={() => setShowChurchModal(true)}
+            >
+              {selectedChurch ? (
+                <View style={styles.selectedChurchRow}>
+                  <View style={styles.selectedChurchInfo}>
+                    <Text style={[styles.selectedChurchName, { color: colors.textPrimary }]}>
+                      {selectedChurch.name}
+                    </Text>
+                    {(selectedChurch.city || selectedChurch.state) && (
+                      <Text style={[styles.selectedChurchLocation, { color: colors.textSecondary }]}>
+                        {[selectedChurch.city, selectedChurch.state].filter(Boolean).join(', ')}
+                      </Text>
+                    )}
+                  </View>
+                  <Pressable onPress={clearChurchSelection} hitSlop={8}>
+                    <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                  </Pressable>
+                </View>
+              ) : customChurchName ? (
+                <View style={styles.selectedChurchRow}>
+                  <View style={styles.selectedChurchInfo}>
+                    <Text style={[styles.selectedChurchName, { color: colors.textPrimary }]}>
+                      {customChurchName}
+                    </Text>
+                    <Text style={[styles.selectedChurchLocation, { color: colors.textMuted }]}>
+                      (Not on platform yet)
+                    </Text>
+                  </View>
+                  <Pressable onPress={clearChurchSelection} hitSlop={8}>
+                    <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                  </Pressable>
+                </View>
+              ) : (
+                <Text style={{ color: colors.textMuted }}>Search or enter your church</Text>
+              )}
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </Pressable>
+
+            {/* Affiliation Type Toggle */}
+            {(selectedChurch || customChurchName) && (
+              <View style={styles.affiliationToggle}>
+                <Text style={[styles.affiliationLabel, { color: colors.textSecondary }]}>I am:</Text>
+                <View style={styles.affiliationButtons}>
+                  <Pressable
+                    style={[
+                      styles.affiliationButton,
+                      { borderColor: affiliationType === 'attending' ? colors.primary : colors.borderSubtle },
+                      affiliationType === 'attending' && { backgroundColor: colors.primary + '15' },
+                    ]}
+                    onPress={() => setAffiliationType('attending')}
+                  >
+                    <Text style={{ color: affiliationType === 'attending' ? colors.primary : colors.textSecondary, fontWeight: '500' }}>
+                      Attending
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.affiliationButton,
+                      { borderColor: affiliationType === 'member' ? colors.primary : colors.borderSubtle },
+                      affiliationType === 'member' && { backgroundColor: colors.primary + '15' },
+                    ]}
+                    onPress={() => setAffiliationType('member')}
+                  >
+                    <Text style={{ color: affiliationType === 'member' ? colors.primary : colors.textSecondary, fontWeight: '500' }}>
+                      Member
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </View>
 
           <View style={styles.field}>
@@ -299,6 +456,98 @@ export default function EditProfileScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Church Search Modal */}
+      <Modal
+        visible={showChurchModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowChurchModal(false)}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          {/* Modal Header */}
+          <View style={[styles.modalHeader, { borderBottomColor: colors.borderSubtle }]}>
+            <Pressable onPress={() => setShowChurchModal(false)} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
+            </Pressable>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Find Your Church</Text>
+            <View style={styles.modalCloseButton} />
+          </View>
+
+          {/* Search Input */}
+          <View style={[styles.modalSearchContainer, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} />
+            <TextInput
+              style={[styles.modalSearchInput, { color: colors.textPrimary }]}
+              placeholder="Search churches..."
+              placeholderTextColor={colors.textMuted}
+              value={churchSearchQuery}
+              onChangeText={setChurchSearchQuery}
+              autoFocus
+            />
+            {churchSearchQuery.length > 0 && (
+              <Pressable onPress={() => setChurchSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Results */}
+          {isSearching ? (
+            <View style={styles.modalLoading}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : searchResults && searchResults.length > 0 ? (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[styles.churchResultItem, { borderBottomColor: colors.borderSubtle }]}
+                  onPress={() => handleSelectChurch(item)}
+                >
+                  <View style={styles.churchResultInfo}>
+                    <Text style={[styles.churchResultName, { color: colors.textPrimary }]}>{item.name}</Text>
+                    {(item.city || item.state) && (
+                      <Text style={[styles.churchResultLocation, { color: colors.textSecondary }]}>
+                        {[item.city, item.state].filter(Boolean).join(', ')}
+                      </Text>
+                    )}
+                    {item.denomination && (
+                      <Text style={[styles.churchResultDenom, { color: colors.textMuted }]}>{item.denomination}</Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </Pressable>
+              )}
+              contentContainerStyle={styles.modalResultsList}
+            />
+          ) : churchSearchQuery.length >= 2 ? (
+            <View style={styles.modalEmpty}>
+              <Ionicons name="business-outline" size={48} color={colors.textMuted} />
+              <Text style={[styles.modalEmptyText, { color: colors.textSecondary }]}>
+                No churches found for "{churchSearchQuery}"
+              </Text>
+              <Pressable
+                style={[styles.useCustomButton, { backgroundColor: colors.primary }]}
+                onPress={handleUseCustomChurch}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Use "{churchSearchQuery}" anyway</Text>
+              </Pressable>
+              <Text style={[styles.modalHint, { color: colors.textMuted }]}>
+                Your church may not be on the platform yet
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.modalEmpty}>
+              <Ionicons name="search-outline" size={48} color={colors.textMuted} />
+              <Text style={[styles.modalEmptyText, { color: colors.textSecondary }]}>
+                Type at least 2 characters to search
+              </Text>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -435,5 +684,135 @@ const getStyles = (colors: any) =>
       fontSize: 13,
       color: colors.textSecondary,
       lineHeight: 18,
+    },
+    // Church selector styles
+    churchSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    selectedChurchRow: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    selectedChurchInfo: {
+      flex: 1,
+    },
+    selectedChurchName: {
+      fontSize: 15,
+      fontWeight: '500',
+    },
+    selectedChurchLocation: {
+      fontSize: 13,
+      marginTop: 2,
+    },
+    affiliationToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      gap: 12,
+    },
+    affiliationLabel: {
+      fontSize: 14,
+    },
+    affiliationButtons: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    affiliationButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+    },
+    // Modal styles
+    modalContainer: {
+      flex: 1,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+    },
+    modalCloseButton: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalTitle: {
+      flex: 1,
+      fontSize: 18,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    modalSearchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 16,
+      marginVertical: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      gap: 8,
+    },
+    modalSearchInput: {
+      flex: 1,
+      fontSize: 16,
+      paddingVertical: 4,
+    },
+    modalLoading: {
+      padding: 40,
+      alignItems: 'center',
+    },
+    modalResultsList: {
+      paddingHorizontal: 16,
+    },
+    churchResultItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+    },
+    churchResultInfo: {
+      flex: 1,
+    },
+    churchResultName: {
+      fontSize: 16,
+      fontWeight: '500',
+    },
+    churchResultLocation: {
+      fontSize: 14,
+      marginTop: 2,
+    },
+    churchResultDenom: {
+      fontSize: 13,
+      marginTop: 2,
+    },
+    modalEmpty: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 32,
+      gap: 12,
+    },
+    modalEmptyText: {
+      fontSize: 15,
+      textAlign: 'center',
+    },
+    useCustomButton: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 8,
+      marginTop: 8,
+    },
+    modalHint: {
+      fontSize: 13,
+      textAlign: 'center',
     },
   });

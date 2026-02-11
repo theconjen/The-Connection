@@ -371,7 +371,7 @@ export const followAPI = {
 // Search API
 export const searchAPI = {
   searchUsers: (query: string) =>
-    apiClient.get('/api/users/search', { params: { q: query } }).then(res => res.data),
+    apiClient.get('/api/users', { params: { search: query } }).then(res => res.data),
 };
 
 // Events API

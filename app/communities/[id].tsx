@@ -794,7 +794,7 @@ export default function CommunityDetailScreen() {
                           placeholder="Share with the community..."
                           placeholderTextColor={colors.mutedForeground}
                           multiline
-                          maxLength={280}
+                          maxLength={500}
                           textAlignVertical="top"
                         />
                       </View>
@@ -851,10 +851,10 @@ export default function CommunityDetailScreen() {
                       <View style={styles.charCountContainer}>
                         <Text style={[
                           styles.charCount,
-                          newPostContent.length > 260 && styles.charCountWarning,
-                          newPostContent.length === 280 && styles.charCountError
+                          newPostContent.length > 450 && styles.charCountWarning,
+                          newPostContent.length === 500 && styles.charCountError
                         ]}>
-                          {newPostContent.length}/280
+                          {newPostContent.length}/500
                         </Text>
                       </View>
                       <TouchableOpacity
@@ -1199,9 +1199,9 @@ export default function CommunityDetailScreen() {
         {/* Prayer Requests Tab */}
         {activeTab === 'prayers' && (
           <View style={styles.tabContent}>
-            {!canViewContent ? (
+            {!community.isMember ? (
               <PrivateContentPlaceholder
-                title="Private Prayer Requests"
+                title="Members Only"
                 message="Join the community to share and pray for others."
                 colors={colors}
               />
@@ -1351,10 +1351,10 @@ export default function CommunityDetailScreen() {
           style={styles.content}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
-          {!canViewContent ? (
+          {!community.isMember ? (
             <View style={styles.tabContent}>
               <PrivateContentPlaceholder
-                title="Private Chat"
+                title="Members Only"
                 message="Join the community to participate in chat discussions."
                 colors={colors}
               />

@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Text, useTheme } from '../theme';
 import { AppHeader } from './AppHeader';
 import { ChannelCard, AddChannelCard, Channel } from './ChannelCard';
@@ -762,6 +763,7 @@ export function CommunitiesScreen({
   onStartHerePress,
 }: CommunitiesScreenProps) {
   const { colors, spacing, radii, colorScheme } = useTheme();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
@@ -1253,14 +1255,48 @@ export function CommunitiesScreen({
           {!isLoading && !error && (
             <View style={{ gap: spacing.sm }}>
               {filteredCommunities.length === 0 ? (
-                <View style={{ alignItems: 'center', padding: spacing.xl }}>
-                  <Ionicons name="search" size={48} color={colors.textMuted} />
-                  <Text style={{ marginTop: spacing.sm, color: colors.textMuted }}>
-                    No communities found
+                <View style={{ alignItems: 'center', padding: spacing.xl, gap: spacing.md }}>
+                  <View
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      backgroundColor: colors.primary + '15',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: spacing.xs,
+                    }}
+                  >
+                    <Ionicons name="sparkles" size={28} color={colors.primary} />
+                  </View>
+                  <Text style={{ fontSize: 18, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' }}>
+                    Be the First to Start Something
                   </Text>
-                  <Text style={{ marginTop: spacing.xs, color: colors.textMuted, fontSize: 12 }}>
-                    Try adjusting your filters
+                  <Text style={{ fontSize: 14, lineHeight: 21, color: colors.textMuted, textAlign: 'center', paddingHorizontal: spacing.md }}>
+                    We don't have a community that matches yet, but maybe that's not a coincidence.
+                    Perhaps God is calling you to start something new in your area.
                   </Text>
+                  <Text style={{ fontSize: 13, fontStyle: 'italic', lineHeight: 20, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg, marginTop: spacing.xs }}>
+                    "For we are God's handiwork, created in Christ Jesus to do good works,
+                    which God prepared in advance for us to do." — Ephesians 2:10
+                  </Text>
+                  <Pressable
+                    onPress={() => router.push('/create/community')}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: colors.primary,
+                      paddingVertical: 12,
+                      paddingHorizontal: 24,
+                      borderRadius: 10,
+                      gap: 8,
+                      marginTop: spacing.sm,
+                    }}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Create a Community</Text>
+                  </Pressable>
                 </View>
               ) : (
                 filteredCommunities.map((community) => {

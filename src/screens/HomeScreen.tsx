@@ -1092,7 +1092,9 @@ export default function HomeScreen({
         <TouchableWithoutFeedback onPress={() => setAdviceMenuPost(null)}>
           <View style={styles.menuOverlay}>
             <TouchableWithoutFeedback>
-              <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: adviceMenuPosition.top, right: adviceMenuPosition.right }]}>
+              <View
+                style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: adviceMenuPosition.top, right: adviceMenuPosition.right }]}
+              >
                 <Pressable style={styles.dropdownItem} onPress={handleShareAdvice}>
                   <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
                   <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>
@@ -1118,7 +1120,9 @@ export default function HomeScreen({
         <TouchableWithoutFeedback onPress={() => setArticleMenuPost(null)}>
           <View style={styles.menuOverlay}>
             <TouchableWithoutFeedback>
-              <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: articleMenuPosition.top, right: articleMenuPosition.right }]}>
+              <View
+                style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: articleMenuPosition.top, right: articleMenuPosition.right }]}
+              >
                 <Pressable style={styles.dropdownItem} onPress={handleShareArticle}>
                   <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
                   <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>

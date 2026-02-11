@@ -56,6 +56,11 @@
         "android.permission.RECORD_AUDIO"
       ],
       "package": "app.theconnection.mobile",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyByqf8YN6wmJ5EiUZgAWV6OXXtbCEj_02M"
+        }
+      },
       "intentFilters": [
         {
           "action": "VIEW",

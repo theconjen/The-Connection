@@ -36,6 +36,17 @@ import {
 } from '../queries/follow';
 // Colors now come from useTheme() - see colors.primary usage below
 import { fetchBiblePassage, looksLikeBibleReference } from '../lib/bibleApi';
+import apiClient from '../lib/apiClient';
+import { formatDistanceToNow } from 'date-fns';
+
+// Helper to format activity dates
+const formatActivityDate = (date: Date) => {
+  try {
+    return formatDistanceToNow(date, { addSuffix: true }).replace('about ', '');
+  } catch {
+    return '';
+  }
+};
 
 // Custom church icon
 const ChurchIcon = require('../../assets/church-icon.png');
@@ -65,6 +76,16 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   // Fetch user profile data
   const { data: profile, isLoading, error, refetch } = useUserProfile(targetUserId);
   const { data: followStatus } = useFollowStatus(targetUserId);
+
+  // Fetch user activity
+  const { data: activityData, isLoading: isActivityLoading, refetch: refetchActivity } = useQuery({
+    queryKey: ['userActivity', targetUserId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/users/${targetUserId}/activity`);
+      return response.data;
+    },
+    enabled: !!targetUserId && activeTab === 'advice',
+  });
 
   // Debug logging
   React.useEffect(() => {
@@ -105,6 +126,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
     await Promise.all([
       refetch(),        // Refresh local profile query
       refreshAuth(),    // Refresh global user state
+      refetchActivity(), // Refresh activity
     ]);
     setRefreshing(false);
   };
@@ -459,12 +481,12 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               onPress={() => setActiveTab('advice')}
             >
               <Ionicons
-                name="chatbubbles-outline"
+                name="time-outline"
                 size={20}
                 color={activeTab === 'advice' ? colors.primary : colors.textSecondary}
               />
               <Text style={[styles.tabText, { color: activeTab === 'advice' ? colors.primary : colors.textSecondary }]}>
-                My Advice
+                My Activity
               </Text>
             </Pressable>
           )}
@@ -518,77 +540,51 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
           {activeTab === 'advice' && (
             <View style={styles.postsContainer}>
-              {/* Show advice questions (microblogs with topic=QUESTION) - tappable for editing */}
-              {recentMicroblogs && recentMicroblogs.filter((m: any) => m.topic === 'QUESTION').length > 0 ? (
-                recentMicroblogs.filter((m: any) => m.topic === 'QUESTION').map((microblog: any) => (
+              {/* Show user activity - community joins, event RSVPs, connections */}
+              {isActivityLoading ? (
+                <View style={styles.emptyState}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : activityData?.activities && activityData.activities.length > 0 ? (
+                activityData.activities.map((activity: any) => (
                   <Pressable
-                    key={`advice-${microblog.id}`}
+                    key={activity.id}
                     style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
-                    onPress={() => router.push(`/advice/${microblog.id}` as any)}
+                    onPress={() => {
+                      if (activity.type === 'community_join' && activity.communityId) {
+                        router.push(`/communities/${activity.communityId}`);
+                      } else if (activity.type === 'event_rsvp' && activity.eventId) {
+                        router.push(`/events/${activity.eventId}`);
+                      } else if (activity.type === 'follow' && activity.userId) {
+                        router.push(`/profile/${activity.userId}`);
+                      }
+                    }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <View style={{ backgroundColor: '#EC489915', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="chatbubbles" size={14} color="#EC4899" />
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#EC4899' }}>Advice Request</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: `${activity.iconColor}15`, justifyContent: 'center', alignItems: 'center' }}>
+                        <Ionicons name={activity.icon as any} size={18} color={activity.iconColor} />
                       </View>
-                      {/* Edit button */}
-                      <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          router.push(`/advice/edit/${microblog.id}` as any);
-                        }}
-                        hitSlop={8}
-                        style={{ padding: 4 }}
-                      >
-                        <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
-                      </Pressable>
-                    </View>
-                    <Text style={[styles.postContent, { color: colors.textPrimary }]} numberOfLines={4}>
-                      {microblog.content}
-                    </Text>
-                    {/* Show nickname/city if set */}
-                    {(microblog.anonymousNickname || microblog.anonymousCity) && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, opacity: 0.7 }}>
-                        {microblog.anonymousNickname && (
-                          <Text style={{ fontSize: 12, color: colors.textSecondary }}>
-                            as {microblog.anonymousNickname}
-                          </Text>
-                        )}
-                        {microblog.anonymousCity && (
-                          <Text style={{ fontSize: 12, color: colors.textMuted }}>
-                            from {microblog.anonymousCity}
-                          </Text>
-                        )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.postContent, { color: colors.textPrimary, marginBottom: 2 }]}>
+                          {activity.text}
+                        </Text>
+                        <Text style={[styles.postMeta, { color: colors.textMuted }]}>
+                          {formatActivityDate(new Date(activity.date))}
+                        </Text>
                       </View>
-                    )}
-                    <View style={styles.postFooter}>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {new Date(microblog.createdAt).toLocaleDateString()}
-                      </Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {microblog.replyCount || microblog.commentCount || 0} replies
-                      </Text>
+                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ opacity: 0.5 }} />
                     </View>
                   </Pressable>
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="chatbubbles-outline" size={48} color={colors.textSecondary} />
+                  <Ionicons name="time-outline" size={48} color={colors.textSecondary} />
                   <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
-                    No advice requests yet
+                    No activity yet
                   </Text>
                   <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                    Your private advice requests will appear here.
+                    Your community joins, event RSVPs, and connections will appear here.
                   </Text>
-                  <Pressable
-                    style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
-                    onPress={() => router.push('/create/advice' as any)}
-                  >
-                    <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
-                      Ask for Advice
-                    </Text>
-                  </Pressable>
                 </View>
               )}
             </View>

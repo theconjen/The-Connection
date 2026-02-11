@@ -15,6 +15,8 @@ import {
   Alert,
   Modal,
   TouchableWithoutFeedback,
+  Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +44,8 @@ interface AdvicePost {
   isLiked?: boolean;
   isBookmarked?: boolean;
   anonymousNickname?: string;
+  imageUrls?: string[];
+  sourceUrl?: string;
 }
 
 export default function AdviceListScreen() {
@@ -204,23 +208,21 @@ export default function AdviceListScreen() {
         onPress={() => router.push({ pathname: '/advice/[id]' as any, params: { id: item.id.toString() } })}
       >
         <View style={styles.adviceHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={[styles.adviceBadge, { backgroundColor: '#EC489915' }]}>
-              <Ionicons name="help-circle" size={14} color="#EC4899" />
-              <Text style={[styles.adviceBadgeText, { color: '#EC4899' }]}>
-                Seeking Advice
+          <View style={styles.adviceHeaderLeft}>
+            {item.anonymousNickname ? (
+              <Text style={[styles.adviceNickname, { color: colors.textPrimary }]} numberOfLines={1}>
+                {item.anonymousNickname}
               </Text>
-            </View>
-            {item.anonymousNickname && (
+            ) : (
               <Text style={[styles.adviceNickname, { color: colors.textSecondary }]}>
-                from {item.anonymousNickname}
+                Anonymous
               </Text>
             )}
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={[styles.adviceTime, { color: colors.textMuted }]}>
-              {timeAgo}
+              · {timeAgo.replace('about ', '')}
             </Text>
+          </View>
+          <View style={styles.adviceHeaderRight}>
             <Pressable onPress={(e) => { e.stopPropagation(); handleBookmark(item.id, isBookmarked); }} hitSlop={8}>
               <Ionicons
                 name={isBookmarked ? "bookmark" : "bookmark-outline"}
@@ -237,6 +239,32 @@ export default function AdviceListScreen() {
         <Text style={[styles.adviceContent, { color: colors.textPrimary }]} numberOfLines={4}>
           {item.content}
         </Text>
+
+        {/* Image Thumbnails */}
+        {item.imageUrls && item.imageUrls.length > 0 && (
+          <View style={styles.imageThumbnails}>
+            {item.imageUrls.slice(0, 3).map((url, index) => (
+              <View key={index} style={styles.thumbnailWrapper}>
+                <Image source={{ uri: url }} style={styles.thumbnail} resizeMode="cover" />
+                {index === 2 && item.imageUrls && item.imageUrls.length > 3 && (
+                  <View style={styles.moreImagesOverlay}>
+                    <Text style={styles.moreImagesText}>+{item.imageUrls.length - 3}</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Link Indicator */}
+        {item.sourceUrl && (
+          <View style={[styles.linkIndicator, { backgroundColor: `${colors.primary}10` }]}>
+            <Ionicons name="link" size={14} color={colors.primary} />
+            <Text style={[styles.linkIndicatorText, { color: colors.primary }]} numberOfLines={1}>
+              {item.sourceUrl.replace(/^https?:\/\//, '').split('/')[0]}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.adviceFooter}>
           <View style={styles.adviceStats}>
@@ -260,10 +288,11 @@ export default function AdviceListScreen() {
                 {item.commentCount || item.replyCount || 0}
               </Text>
             </View>
+            <View style={[styles.adviceBadge, { backgroundColor: '#FDF2F8' }]}>
+              <Ionicons name="help-circle" size={12} color="#EC4899" />
+              <Text style={[styles.adviceBadgeText, { color: '#EC4899' }]}>Seeking Advice</Text>
+            </View>
           </View>
-          <Text style={[styles.adviceCta, { color: colors.primary }]}>
-            Share your thoughts
-          </Text>
         </View>
       </Pressable>
     );
@@ -418,6 +447,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
+    gap: 8,
+  },
+  adviceHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0, // Allow shrinking
+  },
+  adviceHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0, // Don't shrink
   },
   adviceBadge: {
     flexDirection: 'row',
@@ -434,6 +477,8 @@ const styles = StyleSheet.create({
   adviceNickname: {
     fontSize: 12,
     fontStyle: 'italic',
+    flexShrink: 1,
+    minWidth: 0,
   },
   adviceTime: {
     fontSize: 12,
@@ -441,6 +486,52 @@ const styles = StyleSheet.create({
   adviceContent: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  imageThumbnails: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  thumbnailWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  moreImagesOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreImagesText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  linkIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  linkIndicatorText: {
+    fontSize: 12,
+    fontWeight: '500',
+    maxWidth: 200,
   },
   adviceFooter: {
     flexDirection: 'row',

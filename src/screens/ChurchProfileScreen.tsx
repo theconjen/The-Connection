@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { churchesAPI, ChurchLeader, ChurchSermon } from '../queries/churches';
 
 interface ChurchProfileScreenProps {
@@ -28,6 +29,7 @@ interface ChurchProfileScreenProps {
 
 export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) {
   const { colors } = useTheme();
+  const router = useRouter();
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['church', slug],
@@ -91,6 +93,7 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
     <Pressable
       key={sermon.id}
       style={[styles.sermonCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+      onPress={() => router.push(`/sermons/${sermon.id}`)}
     >
       <View style={styles.sermonContent}>
         {sermon.thumbnailUrl ? (

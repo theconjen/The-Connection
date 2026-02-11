@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { eventsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { ShareContentModal, ShareableContent } from '../../src/components/ShareContentModal';
 
 // API expects these exact values
 type RSVPStatus = 'going' | 'maybe' | 'not_going';
@@ -71,6 +72,7 @@ export default function EventDetailScreen() {
   const [flyerHeight, setFlyerHeight] = useState<number>(200); // Dynamic height based on image aspect ratio
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [announcementMessage, setAnnouncementMessage] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Check if current user is the host
   const isHost = (event: Event | undefined) => {
@@ -450,13 +452,16 @@ export default function EventDetailScreen() {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Event Details</Text>
-        {isHost(event) ? (
-          <TouchableOpacity onPress={handleManagePress} style={styles.manageButton}>
-            <Text style={styles.manageButtonText}>Manage</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity onPress={() => setShowShareModal(true)} style={{ padding: 4 }}>
+            <Ionicons name="paper-plane-outline" size={22} color={colors.primary} />
           </TouchableOpacity>
-        ) : (
-          <View style={{ width: 60 }} />
-        )}
+          {isHost(event) && (
+            <TouchableOpacity onPress={handleManagePress} style={styles.manageButton}>
+              <Text style={styles.manageButtonText}>Manage</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -749,6 +754,18 @@ export default function EventDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* In-App Share Modal */}
+      <ShareContentModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        content={event ? {
+          type: 'event',
+          id: eventId,
+          title: event.title,
+          preview: event.description ? (event.description.length > 150 ? event.description.substring(0, 150) + '...' : event.description) : undefined,
+        } : null}
+      />
     </View>
   );
 }

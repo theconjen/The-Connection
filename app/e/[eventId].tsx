@@ -60,7 +60,7 @@ export default function EventDeepLink() {
           {error}
         </Text>
         <TouchableOpacity
-          onPress={() => router.replace('/(tabs)/events')}
+          onPress={() => router.push('/(tabs)/events')}
           style={{ backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8 }}
         >
           <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Go to Events</Text>

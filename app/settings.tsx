@@ -28,6 +28,9 @@ export default function SettingsScreen() {
   const [isPrivateAccount, setIsPrivateAccount] = React.useState(
     user?.profileVisibility === 'private'
   );
+  const [showActivity, setShowActivity] = React.useState(
+    user?.showActivity !== false // Default to true if not set
+  );
 
   // Birthday state
   const [showDatePicker, setShowDatePicker] = React.useState(false);
@@ -117,6 +120,28 @@ export default function SettingsScreen() {
   const handlePrivacyToggle = (value: boolean) => {
     setIsPrivateAccount(value);
     updatePrivacyMutation.mutate(value);
+  };
+
+  const updateActivityMutation = useMutation({
+    mutationFn: async (show: boolean) => {
+      const response = await apiClient.patch('/api/user/settings', {
+        showActivity: show,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to update activity setting';
+      Alert.alert('Error', message);
+      setShowActivity(!showActivity);
+    },
+  });
+
+  const handleActivityToggle = (value: boolean) => {
+    setShowActivity(value);
+    updateActivityMutation.mutate(value);
   };
 
   const handleThemePress = () => {
@@ -324,6 +349,19 @@ export default function SettingsScreen() {
                 onValueChange={handlePrivacyToggle}
                 trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
                 disabled={updatePrivacyMutation.isPending}
+              />
+            }
+          />
+          <SettingsItem
+            icon="time-outline"
+            label="Show My Activity"
+            showArrow={false}
+            rightElement={
+              <Switch
+                value={showActivity}
+                onValueChange={handleActivityToggle}
+                trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
+                disabled={updateActivityMutation.isPending}
               />
             }
           />

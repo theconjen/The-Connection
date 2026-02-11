@@ -1,6 +1,7 @@
 /**
  * Ask for Advice Screen - Anonymous question posting
  * Pre-configured with QUESTION topic for advice/support requests
+ * Supports photo and link attachments
  */
 
 import React, { useState } from 'react';
@@ -14,6 +15,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +24,7 @@ import { microblogsAPI } from '../../src/lib/apiClient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function CreateAdviceScreen() {
   const router = useRouter();
@@ -29,9 +33,61 @@ export default function CreateAdviceScreen() {
   const [content, setContent] = useState('');
   const [nickname, setNickname] = useState('');
   const [city, setCity] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [showLinkInput, setShowLinkInput] = useState(false);
 
   const MAX_LENGTH = 5000; // Extended limit for detailed advice questions
   const MAX_NICKNAME_LENGTH = 30;
+  const MAX_IMAGES = 4;
+
+  // Image picker function
+  const pickImages = async () => {
+    if (selectedImages.length >= MAX_IMAGES) {
+      Alert.alert('Limit Reached', `You can only add up to ${MAX_IMAGES} images per post`);
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library to add images.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_IMAGES - selectedImages.length,
+      allowsEditing: false,
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets) {
+      const newImages = result.assets
+        .filter(asset => asset.base64)
+        .map(asset => {
+          const extension = asset.uri.split('.').pop()?.toLowerCase() || 'jpeg';
+          const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+          return `data:${mimeType};base64,${asset.base64}`;
+        });
+      setSelectedImages(prev => [...prev, ...newImages].slice(0, MAX_IMAGES));
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Validate URL format
+  const isValidUrl = (url: string) => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: (data: any) => microblogsAPI.create(data),
@@ -41,6 +97,7 @@ export default function CreateAdviceScreen() {
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
       queryClient.invalidateQueries({ queryKey: ['home-feed'] });
       queryClient.invalidateQueries({ queryKey: ['advice-feed'] });
+      queryClient.invalidateQueries({ queryKey: ['advice-list'] });
       Alert.alert('Posted', 'Your question has been shared with the community.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -63,12 +120,20 @@ export default function CreateAdviceScreen() {
       return;
     }
 
+    // Validate URL if provided
+    if (sourceUrl.trim() && !isValidUrl(sourceUrl.trim())) {
+      Alert.alert('Error', 'Please enter a valid URL (e.g., https://example.com)');
+      return;
+    }
+
     // Create microblog with QUESTION topic
     createMutation.mutate({
       content: content.trim(),
       topic: 'QUESTION',
       anonymousNickname: nickname.trim() || undefined,
       anonymousCity: city.trim() || undefined,
+      imageUrls: selectedImages.length > 0 ? selectedImages : undefined,
+      sourceUrl: sourceUrl.trim() || undefined,
     });
   };
 
@@ -111,7 +176,7 @@ export default function CreateAdviceScreen() {
           <View style={[styles.infoBanner, { backgroundColor: `${colors.primary}10` }]}>
             <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              Share your question with the community. Your post will appear in the Advice section.
+              Share your question with the community. Attach photos of sermons, articles, or anything you'd like advice on.
             </Text>
           </View>
 
@@ -173,12 +238,97 @@ export default function CreateAdviceScreen() {
               placeholder="What would you like advice on? Share your situation or question..."
               placeholderTextColor={colors.textMuted}
               multiline
-              maxLength={MAX_LENGTH + 50} // Allow typing over to show warning
+              maxLength={MAX_LENGTH + 50}
               value={content}
               onChangeText={setContent}
               autoFocus
             />
           </View>
+
+          {/* Image Previews */}
+          {selectedImages.length > 0 && (
+            <View style={styles.imagesContainer}>
+              <View style={styles.imagesGrid}>
+                {selectedImages.map((imageUri, index) => (
+                  <View key={index} style={[
+                    styles.imageWrapper,
+                    selectedImages.length === 1 && styles.singleImageWrapper,
+                    selectedImages.length === 2 && styles.doubleImageWrapper,
+                  ]}>
+                    <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
+                    <TouchableOpacity
+                      style={styles.removeImageButton}
+                      onPress={() => removeImage(index)}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Attachment Buttons */}
+          <View style={styles.attachmentRow}>
+            <TouchableOpacity
+              style={[styles.attachButton, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+              onPress={pickImages}
+            >
+              <Ionicons name="image-outline" size={20} color={colors.primary} />
+              <Text style={[styles.attachButtonText, { color: colors.primary }]}>
+                {selectedImages.length > 0 ? `Photos (${selectedImages.length}/${MAX_IMAGES})` : 'Add Photo'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.attachButton,
+                { backgroundColor: colors.surface, borderColor: showLinkInput || sourceUrl ? colors.primary : colors.borderSubtle }
+              ]}
+              onPress={() => setShowLinkInput(!showLinkInput)}
+            >
+              <Ionicons name="link-outline" size={20} color={sourceUrl ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.attachButtonText, { color: sourceUrl ? colors.primary : colors.textSecondary }]}>
+                {sourceUrl ? 'Link Added' : 'Add Link'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Link Input - appears below Add Link button */}
+          {showLinkInput && (
+            <View style={styles.linkInputContainer}>
+              <View style={[styles.linkInputWrapper, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+                <Ionicons name="link" size={18} color={colors.primary} />
+                <TextInput
+                  style={[styles.linkInput, { color: colors.textPrimary }]}
+                  placeholder="Paste a link here..."
+                  placeholderTextColor={colors.textMuted}
+                  value={sourceUrl}
+                  onChangeText={setSourceUrl}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                  autoFocus
+                />
+                {sourceUrl ? (
+                  <TouchableOpacity onPress={() => setSourceUrl('')}>
+                    <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              {sourceUrl && isValidUrl(sourceUrl) && (
+                <TouchableOpacity
+                  style={styles.previewLink}
+                  onPress={() => Linking.openURL(sourceUrl)}
+                >
+                  <Ionicons name="open-outline" size={14} color={colors.primary} />
+                  <Text style={[styles.previewLinkText, { color: colors.primary }]} numberOfLines={1}>
+                    {sourceUrl}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* Character Count */}
           <View style={styles.footer}>
@@ -207,7 +357,11 @@ export default function CreateAdviceScreen() {
             </View>
             <View style={styles.tipRow}>
               <Ionicons name="checkmark-circle" size={16} color={colors.textMuted} />
-              <Text style={[styles.tipText, { color: colors.textMuted }]}>Share relevant context</Text>
+              <Text style={[styles.tipText, { color: colors.textMuted }]}>Attach photos of sermons or content you're asking about</Text>
+            </View>
+            <View style={styles.tipRow}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.textMuted} />
+              <Text style={[styles.tipText, { color: colors.textMuted }]}>Include links to articles or videos for context</Text>
             </View>
             <View style={styles.tipRow}>
               <Ionicons name="checkmark-circle" size={16} color={colors.textMuted} />
@@ -298,9 +452,91 @@ const styles = StyleSheet.create({
   input: {
     fontSize: 17,
     lineHeight: 24,
-    minHeight: 150,
+    minHeight: 120,
     textAlignVertical: 'top',
     paddingTop: 0,
+  },
+  linkInputContainer: {
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  linkInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  linkInput: {
+    flex: 1,
+    fontSize: 15,
+  },
+  previewLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    paddingLeft: 4,
+  },
+  previewLinkText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  imagesContainer: {
+    paddingHorizontal: 16,
+    marginTop: 16,
+  },
+  imagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  imageWrapper: {
+    width: '48%',
+    height: 150,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  singleImageWrapper: {
+    width: '100%',
+    height: 200,
+  },
+  doubleImageWrapper: {
+    width: '48%',
+    height: 150,
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 12,
+  },
+  attachmentRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
+    marginTop: 16,
+  },
+  attachButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  attachButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
@@ -318,6 +554,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderTopWidth: 1,
     gap: 8,
+    paddingBottom: 40,
   },
   tipsTitle: {
     fontSize: 13,

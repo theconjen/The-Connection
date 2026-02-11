@@ -27,7 +27,6 @@ import {
   saveLastKnownCoords,
   saveSelectedTopics,
   setStartHereCompleted,
-  getSelectedTopics,
   getLocationPermissionGranted,
 } from '../src/utils/onboardingPrefs';
 import {
@@ -162,7 +161,7 @@ export default function StartHereScreen() {
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
 
-  // Categories state
+  // Categories state - always start fresh, don't load saved preferences
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const MIN_CATEGORIES = 3;
   const MAX_CATEGORIES = 5;
@@ -191,24 +190,9 @@ export default function StartHereScreen() {
   }, [selectedCategories, allCommunitiesData]);
 
   const loadInitialState = async () => {
-    const [savedCategories, locationGranted] = await Promise.all([
-      getSelectedTopics(),
-      getLocationPermissionGranted(),
-    ]);
-
-    // Only load categories that are still valid (in case categories were updated)
-    if (savedCategories.length > 0) {
-      const validCategories = savedCategories.filter(cat =>
-        AVAILABLE_CATEGORIES.includes(cat as any)
-      );
-      // If old categories don't match new ones, clear storage
-      if (validCategories.length !== savedCategories.length) {
-        await saveSelectedTopics(validCategories);
-      }
-      if (validCategories.length > 0) {
-        setSelectedCategories(validCategories);
-      }
-    }
+    // Only check location permission status, don't load saved categories
+    // User should select categories fresh each time they visit Start Here
+    const locationGranted = await getLocationPermissionGranted();
 
     if (locationGranted) {
       const hasPermission = await hasLocationPermission();
@@ -270,6 +254,42 @@ export default function StartHereScreen() {
     return score;
   };
 
+  // Check if a community should be excluded based on gender selection
+  const shouldExcludeByGender = (community: Community, categories: string[]): boolean => {
+    const communityGender = community.gender?.toLowerCase() || '';
+    const communityName = community.name.toLowerCase();
+    const communityDesc = (community.description || '').toLowerCase();
+
+    // Check if user selected Women
+    if (categories.includes('Women')) {
+      // Exclude men's only communities
+      if (communityGender.includes("men's only") || communityGender.includes('men only')) {
+        return true;
+      }
+      // Also check name/description for men's groups
+      if ((communityName.includes("men's") || communityName.includes('mens ') || communityName.includes(' men ')) &&
+          !communityName.includes("women")) {
+        return true;
+      }
+    }
+
+    // Check if user selected Men
+    if (categories.includes('Men')) {
+      // Exclude women's only communities
+      if (communityGender.includes("women's only") || communityGender.includes('women only')) {
+        return true;
+      }
+      // Also check name/description for women's groups
+      if ((communityName.includes("women's") || communityName.includes('womens ') ||
+           communityName.includes(' women ') || communityName.includes('moms') || communityName.includes('ladies')) &&
+          !communityName.includes("men")) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   const filterCommunitiesByCategories = (allCommunities: Community[], categories: string[]) => {
     if (categories.length === 0) {
       // No categories selected, show top communities by member count
@@ -280,8 +300,11 @@ export default function StartHereScreen() {
       return;
     }
 
+    // First, filter out communities that conflict with gender selection
+    const filteredByGender = allCommunities.filter(c => !shouldExcludeByGender(c, categories));
+
     // Score and sort communities by relevance to selected categories
-    const scoredCommunities = allCommunities.map(c => ({
+    const scoredCommunities = filteredByGender.map(c => ({
       community: c,
       score: calculateRelevanceScore(c, categories),
     }));
@@ -298,9 +321,9 @@ export default function StartHereScreen() {
       .slice(0, 6)
       .map(s => s.community);
 
-    // If we don't have enough matches, add popular communities
+    // If we don't have enough matches, add popular communities (still respecting gender filter)
     if (matched.length < 4) {
-      const remaining = allCommunities
+      const remaining = filteredByGender
         .filter(c => !matched.find(m => m.id === c.id))
         .sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))
         .slice(0, 6 - matched.length);
@@ -691,9 +714,29 @@ export default function StartHereScreen() {
               })}
             </View>
           ) : (
-            <Text style={[styles.noCommunities, { color: colors.textMuted }]}>
-              No communities available yet.
-            </Text>
+            <View style={styles.noCommunitiesContainer}>
+              <View style={[styles.inspireIcon, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="sparkles" size={28} color={colors.primary} />
+              </View>
+              <Text style={[styles.inspireTitle, { color: colors.textPrimary }]}>
+                Be the First to Start Something
+              </Text>
+              <Text style={[styles.inspireText, { color: colors.textMuted }]}>
+                We don't have a community that matches yet, but maybe that's not a coincidence.
+                Perhaps God is calling you to start something new in your area.
+              </Text>
+              <Text style={[styles.inspireVerse, { color: colors.textSecondary }]}>
+                "For we are God's handiwork, created in Christ Jesus to do good works,
+                which God prepared in advance for us to do." — Ephesians 2:10
+              </Text>
+              <Pressable
+                style={[styles.createButton, { backgroundColor: colors.primary }]}
+                onPress={() => router.push('/create/community')}
+              >
+                <Ionicons name="add-circle-outline" size={20} color="#fff" />
+                <Text style={styles.createButtonText}>Create a Community</Text>
+              </Pressable>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -921,6 +964,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     padding: 20,
+  },
+  noCommunitiesContainer: {
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  inspireIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  inspireTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  inspireText: {
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+  inspireVerse: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    gap: 8,
+    marginTop: 8,
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   // Footer styles
   footer: {

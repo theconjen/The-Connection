@@ -19,6 +19,8 @@ import {
   Pressable,
   Modal,
   TouchableWithoutFeedback,
+  Linking,
+  Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -29,6 +31,7 @@ import { Text } from '../../src/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { shareAdvice, shareAdviceResponse } from '../../src/lib/shareUrls';
+import { ShareContentModal, ShareableContent } from '../../src/components/ShareContentModal';
 
 // Get avatar URL with fallback to UI Avatars
 function getAvatarUrl(author?: any): string {
@@ -78,6 +81,8 @@ export default function AdviceDetailScreen() {
   const [responseMenuPosition, setResponseMenuPosition] = useState({ y: 0 });
   const [isPostReported, setIsPostReported] = useState(false);
   const [reportedResponses, setReportedResponses] = useState<Set<number>>(new Set());
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareContent, setShareContent] = useState<ShareableContent | null>(null);
 
   const adviceId = parseInt(id || '0');
 
@@ -218,6 +223,32 @@ export default function AdviceDetailScreen() {
     if (!result.success && result.error !== 'Share dismissed') {
       Alert.alert('Error', 'Failed to share. Please try again.');
     }
+  };
+
+  // Handle in-app sharing of the main advice post
+  const handleInAppSharePost = () => {
+    setMenuVisible(false);
+    const preview = advicePost?.content || '';
+    setShareContent({
+      type: 'advice',
+      id: adviceId,
+      title: advicePost?.anonymousNickname ? `Advice from ${advicePost.anonymousNickname}` : 'Advice Post',
+      preview: preview.length > 150 ? preview.substring(0, 150) + '...' : preview,
+    });
+    setShowShareModal(true);
+  };
+
+  // Handle in-app sharing of a response
+  const handleInAppShareResponse = (response: any) => {
+    setResponseMenuVisible(null);
+    const authorName = response.author?.displayName || response.author?.username || 'User';
+    setShareContent({
+      type: 'advice',
+      id: adviceId,
+      title: `Response from ${authorName}`,
+      preview: response.content.length > 150 ? response.content.substring(0, 150) + '...' : response.content,
+    });
+    setShowShareModal(true);
   };
 
   // Handle report for main post
@@ -399,6 +430,43 @@ export default function AdviceDetailScreen() {
                 {/* Content */}
                 <Text style={styles.postContent}>{advicePost.content}</Text>
 
+                {/* Attached Images */}
+                {advicePost.imageUrls && advicePost.imageUrls.length > 0 && (
+                  <View style={styles.attachedImages}>
+                    {advicePost.imageUrls.map((imageUrl: string, index: number) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.attachedImageWrapper,
+                          advicePost.imageUrls.length === 1 && styles.singleAttachedImage,
+                        ]}
+                        onPress={() => {/* Could open image viewer */}}
+                        activeOpacity={0.9}
+                      >
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={styles.attachedImage}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {/* Attached Link */}
+                {advicePost.sourceUrl && (
+                  <TouchableOpacity
+                    style={[styles.linkPreview, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}
+                    onPress={() => Linking.openURL(advicePost.sourceUrl)}
+                  >
+                    <Ionicons name="link" size={16} color={colors.primary} />
+                    <Text style={[styles.linkPreviewText, { color: colors.primary }]} numberOfLines={1}>
+                      {advicePost.sourceUrl}
+                    </Text>
+                    <Ionicons name="open-outline" size={14} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
+
                 {/* Tags */}
                 {advicePost.tags && advicePost.tags.length > 0 && (
                   <View style={styles.tagsContainer}>
@@ -568,9 +636,14 @@ export default function AdviceDetailScreen() {
                     }
                   ]}
                 >
+                  <Pressable style={styles.dropdownItem} onPress={handleInAppSharePost}>
+                    <Ionicons name="paper-plane-outline" size={18} color={colors.textPrimary} />
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Send to...</Text>
+                  </Pressable>
+                  <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
                   <Pressable style={styles.dropdownItem} onPress={handleSharePost}>
                     <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
-                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share</Text>
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share External</Text>
                   </Pressable>
                   <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
                   <Pressable style={styles.dropdownItem} onPress={handleReportPost}>
@@ -607,11 +680,22 @@ export default function AdviceDetailScreen() {
                     style={styles.dropdownItem}
                     onPress={() => {
                       const response = responses.find((r: any) => r.id === responseMenuVisible);
+                      if (response) handleInAppShareResponse(response);
+                    }}
+                  >
+                    <Ionicons name="paper-plane-outline" size={18} color={colors.textPrimary} />
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Send to...</Text>
+                  </Pressable>
+                  <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                  <Pressable
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      const response = responses.find((r: any) => r.id === responseMenuVisible);
                       if (response) handleShareResponse(response);
                     }}
                   >
                     <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
-                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share</Text>
+                    <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>Share External</Text>
                   </Pressable>
                   <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
                   <Pressable
@@ -629,6 +713,16 @@ export default function AdviceDetailScreen() {
             </TouchableWithoutFeedback>
           </Modal>
         )}
+
+        {/* In-App Share Modal */}
+        <ShareContentModal
+          visible={showShareModal}
+          onClose={() => {
+            setShowShareModal(false);
+            setShareContent(null);
+          }}
+          content={shareContent}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -744,6 +838,39 @@ const getStyles = (colors: any, theme: string) => {
       color: colors.textPrimary || colors.text,
       lineHeight: 26,
       marginTop: 8,
+    },
+    attachedImages: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 12,
+    },
+    attachedImageWrapper: {
+      width: (Dimensions.get('window').width - 48) / 2,
+      height: 150,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    singleAttachedImage: {
+      width: Dimensions.get('window').width - 32,
+      height: 220,
+    },
+    attachedImage: {
+      width: '100%',
+      height: '100%',
+    },
+    linkPreview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    linkPreviewText: {
+      flex: 1,
+      fontSize: 14,
     },
     tagsContainer: {
       flexDirection: 'row',
