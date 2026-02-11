@@ -56,7 +56,7 @@ const CHURCH_TRADITIONS = [
       'Presbyterian', 'PCA', 'Orthodox Presbyterian',
       'Anglican',
       'Reformed', 'Dutch Reformed',
-      'Pentecostal', 'Assembly of God', 'Foursquare',
+      'Pentecostal', 'Assembly of God',
       'Church of God', 'Church of God in Christ',
       'Charismatic', 'Vineyard',
       'Nazarene', 'Wesleyan', 'Holiness',

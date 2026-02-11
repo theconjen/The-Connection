@@ -95,7 +95,7 @@ export const users = pgTable("users", {
   // Clergy verification fields
   isVerifiedClergy: boolean("is_verified_clergy").default(false),
   clergyVerifiedAt: timestamp("clergy_verified_at"),
-  clergyVerifiedByOrgId: integer("clergy_verified_by_org_id").references(() => organizations.id),
+  clergyVerifiedByOrgId: integer("clergy_verified_by_org_id").references(() => organizations.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -165,8 +165,8 @@ export const insertOrganizationSchema = createInsertSchema(organizations).pick({
 // Note: "visitor" and "attendee" are computed at runtime, not stored here
 export const organizationUsers = pgTable("organization_users", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").notNull().references(() => organizations.id),
-  userId: integer("user_id").notNull().references(() => users.id),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   role: text("role").default("member"), // owner, admin, moderator, member
   joinedAt: timestamp("joined_at").defaultNow(),
 } as any);
@@ -241,7 +241,7 @@ export const churchInvitationRequests = pgTable("church_invitation_requests", {
   // Status: pending, sent, accepted, declined
   status: text("status").notNull().default("pending"),
   // If the church signs up, link to their organization
-  resultingOrgId: integer("resulting_org_id").references(() => organizations.id),
+  resultingOrgId: integer("resulting_org_id").references(() => organizations.id, { onDelete: 'set null' }),
   sentAt: timestamp("sent_at"),
   respondedAt: timestamp("responded_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -287,7 +287,7 @@ export const communities = pgTable("communities", {
   recentPostCount: integer("recent_post_count").default(0), // Posts in last 7 days
   upcomingEventCount: integer("upcoming_event_count").default(0), // Events in next 30 days
   // Organization association
-  organizationId: integer("organization_id").references(() => organizations.id), // Nullable - for org-owned communities
+  organizationId: integer("organization_id").references(() => organizations.id, { onDelete: 'set null' }), // Nullable - for org-owned communities
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   createdBy: integer("created_by").references(() => users.id),
@@ -1320,7 +1320,7 @@ export const events = pgTable("events", {
   longitude: text("longitude"), // For map integration
   communityId: integer("community_id").references(() => communities.id), // Nullable - admin can create events for "The Connection" without a community
   groupId: integer("group_id").references(() => groups.id),
-  organizationId: integer("organization_id").references(() => organizations.id), // Nullable - for org-owned events
+  organizationId: integer("organization_id").references(() => organizations.id, { onDelete: 'set null' }), // Nullable - for org-owned events
   creatorId: integer("creator_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   // deletedAt: timestamp("deleted_at"), // Not in actual DB table
@@ -1425,7 +1425,7 @@ export const prayerRequests = pgTable("prayer_requests", {
   privacyLevel: text("privacy_level").notNull(), // public, friends-only, group-only, community-only, organization-only
   groupId: integer("group_id").references(() => groups.id),
   communityId: integer("community_id").references(() => communities.id),
-  organizationId: integer("organization_id").references(() => organizations.id), // Nullable - for org-owned prayer requests
+  organizationId: integer("organization_id").references(() => organizations.id, { onDelete: 'set null' }), // Nullable - for org-owned prayer requests
   authorId: integer("author_id").notNull().references(() => users.id),
   prayerCount: integer("prayer_count").default(0),
   isAnswered: boolean("is_answered").default(false),
@@ -2421,8 +2421,8 @@ export const insertQuestionMessageSchema = createInsertSchema(questionMessages).
 // Clergy Verification Requests - organizations can vouch for pastors/priests
 export const clergyVerificationRequests = pgTable("clergy_verification_requests", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }),
   status: text("status").notNull().default("pending"), // pending, approved, rejected
   requestedAt: timestamp("requested_at").defaultNow(),
   reviewedAt: timestamp("reviewed_at"),
@@ -2474,7 +2474,7 @@ export type InsertQuestionMessage = typeof questionMessages.$inferInsert;
 // Tier enforcement is server-only; clients receive only boolean capabilities
 export const orgBilling = pgTable("org_billing", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").notNull().references(() => organizations.id).unique(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }).unique(),
   tier: text("tier").default("free"), // free, stewardship, partner
   status: text("status").default("inactive"), // inactive, trialing, active, past_due, canceled
   stripeCustomerId: text("stripe_customer_id"),
@@ -2507,8 +2507,8 @@ export type InsertOrgBilling = typeof orgBilling.$inferInsert;
 // Organization Membership Requests - Attendee requesting to become member
 export const orgMembershipRequests = pgTable("org_membership_requests", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").notNull().references(() => organizations.id),
-  userId: integer("user_id").notNull().references(() => users.id),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   status: text("status").default("pending"), // pending, approved, declined
   requestedAt: timestamp("requested_at").defaultNow(),
   reviewedAt: timestamp("reviewed_at"),
@@ -2532,8 +2532,8 @@ export type InsertOrgMembershipRequest = typeof orgMembershipRequests.$inferInse
 // Organization Meeting Requests - Pastoral care/appointment requests
 export const orgMeetingRequests = pgTable("org_meeting_requests", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").notNull().references(() => organizations.id),
-  requesterId: integer("requester_id").notNull().references(() => users.id),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  requesterId: integer("requester_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   reason: text("reason").notNull(),
   status: text("status").default("new"), // new, in_progress, closed
   createdAt: timestamp("created_at").defaultNow(),
@@ -2561,7 +2561,7 @@ export type InsertOrgMeetingRequest = typeof orgMeetingRequests.$inferInsert;
 // Ordination Programs - Configurable ordination tracks with form schemas
 export const ordinationPrograms = pgTable("ordination_programs", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }),
   enabled: boolean("enabled").default(true),
   title: text("title").notNull(),
   description: text("description"),
@@ -2587,8 +2587,8 @@ export type InsertOrdinationProgram = typeof ordinationPrograms.$inferInsert;
 // Ordination Applications - User applications with schema snapshot
 export const ordinationApplications = pgTable("ordination_applications", {
   id: serial("id").primaryKey(),
-  programId: integer("program_id").notNull().references(() => ordinationPrograms.id),
-  userId: integer("user_id").notNull().references(() => users.id),
+  programId: integer("program_id").notNull().references(() => ordinationPrograms.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   status: text("status").default("pending"), // pending, under_review, approved, rejected
   answers: jsonb("answers").notNull(), // User's form responses
   programSchemaVersion: integer("program_schema_version").notNull(), // Version at time of submission
@@ -2616,8 +2616,8 @@ export type InsertOrdinationApplication = typeof ordinationApplications.$inferIn
 // Ordination Reviews - Review decisions on applications
 export const ordinationReviews = pgTable("ordination_reviews", {
   id: serial("id").primaryKey(),
-  applicationId: integer("application_id").notNull().references(() => ordinationApplications.id),
-  reviewerUserId: integer("reviewer_user_id").notNull().references(() => users.id),
+  applicationId: integer("application_id").notNull().references(() => ordinationApplications.id, { onDelete: 'cascade' }),
+  reviewerUserId: integer("reviewer_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   decision: text("decision").notNull(), // approve, reject, request_info
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -2639,8 +2639,8 @@ export type InsertOrdinationReview = typeof ordinationReviews.$inferInsert;
 // Metadata should NOT include sensitive data (emails, tokens, etc.)
 export const organizationActivityLogs = pgTable("organization_activity_logs", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").notNull().references(() => organizations.id),
-  actorId: integer("actor_id").notNull().references(() => users.id),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  actorId: integer("actor_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   action: text("action").notNull(), // e.g., "member.added", "settings.updated", "event.created"
   targetType: text("target_type"), // e.g., "user", "event", "community"
   targetId: integer("target_id"),
