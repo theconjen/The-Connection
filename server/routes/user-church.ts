@@ -214,4 +214,60 @@ router.get('/church-invitation-requests', requireAuth, async (req: Request, res:
   }
 });
 
+/**
+ * GET /api/user/church-bulletin - Get church bulletin data for user's affiliated church
+ * Returns church info, upcoming events, and recent sermons for the home screen bulletin section
+ */
+router.get('/church-bulletin', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = requireSessionUserId(req);
+    const affiliation = await storage.getUserChurchAffiliation(userId);
+
+    if (!affiliation?.organizationId) {
+      return res.json({ hasBulletin: false });
+    }
+
+    const org = await storage.getOrganization(affiliation.organizationId);
+    if (!org) {
+      return res.json({ hasBulletin: false });
+    }
+
+    // Check if user is a member of the org (for sermon visibility)
+    const isMember = await storage.isOrganizationMember(org.id, userId);
+
+    const [upcomingEvents, recentSermons] = await Promise.all([
+      storage.getUpcomingOrgEvents(affiliation.organizationId, 5),
+      storage.getPublicOrgSermons(affiliation.organizationId, isMember),
+    ]);
+
+    res.json({
+      hasBulletin: true,
+      church: {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        logoUrl: org.logoUrl,
+        serviceTimes: org.serviceTimes,
+      },
+      upcomingEvents: upcomingEvents.slice(0, 3).map((e) => ({
+        id: e.id,
+        title: e.title,
+        eventDate: e.eventDate,
+        startTime: e.startTime,
+        location: e.location,
+      })),
+      recentSermons: recentSermons.slice(0, 3).map((s) => ({
+        id: s.id,
+        title: s.title,
+        speaker: s.speaker,
+        thumbnailUrl: s.thumbnailUrl,
+        sermonDate: s.sermonDate,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching church bulletin:', error);
+    res.status(500).json({ error: 'Failed to fetch church bulletin' });
+  }
+});
+
 export default router;

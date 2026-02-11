@@ -600,6 +600,13 @@ export interface IStorage {
   getUserChurchAffiliations(userId: number): Promise<any[]>;
   addUserChurchAffiliation(affiliation: any): Promise<any>;
   removeUserChurchAffiliation(userId: number, affiliationId: number): Promise<boolean>;
+  getConnectionsAttendingOrg(userId: number, orgId: number): Promise<{
+    id: number;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    affiliationType: string;
+  }[]>;
 
   // Membership requests
   getPendingMembershipRequest(orgId: number, userId: number): Promise<any | null>;
@@ -649,6 +656,7 @@ export interface IStorage {
   updateSermonByMuxAssetId(muxAssetId: string, data: any): Promise<any | undefined>;
   updateSermonByMuxUploadId(muxUploadId: string, data: any): Promise<any | undefined>;
   getPublicOrgSermons(orgId: number, viewerIsMember: boolean): Promise<any[]>;
+  getUpcomingOrgEvents(orgId: number, limit?: number): Promise<Event[]>;
 }
 
 // In-memory storage implementation
@@ -2364,6 +2372,7 @@ export class MemStorage implements IStorage {
   async getUserChurchAffiliations(_userId: number): Promise<any[]> { return []; }
   async addUserChurchAffiliation(affiliation: any): Promise<any> { return { id: this.nextId++, ...affiliation }; }
   async removeUserChurchAffiliation(_userId: number, _affiliationId: number): Promise<boolean> { return true; }
+  async getConnectionsAttendingOrg(_userId: number, _orgId: number): Promise<{ id: number; username: string; displayName: string | null; avatarUrl: string | null; affiliationType: string; }[]> { return []; }
   async getPendingMembershipRequest(_orgId: number, _userId: number): Promise<any | null> { return null; }
   async createMembershipRequest(request: any): Promise<any> { return { id: this.nextId++, ...request }; }
   async getMembershipRequests(_orgId: number): Promise<any[]> { return []; }
@@ -2403,6 +2412,7 @@ export class MemStorage implements IStorage {
   async updateSermonByMuxAssetId(_muxAssetId: string, data: any): Promise<any | undefined> { return data; }
   async updateSermonByMuxUploadId(_muxUploadId: string, data: any): Promise<any | undefined> { return data; }
   async getPublicOrgSermons(_orgId: number, _viewerIsMember: boolean): Promise<any[]> { return []; }
+  async getUpcomingOrgEvents(_orgId: number, _limit?: number): Promise<Event[]> { return []; }
 }
 
 // Database-backed storage implementation
@@ -7073,6 +7083,51 @@ export class DbStorage implements IStorage {
     return result[0] || null;
   }
 
+  async getConnectionsAttendingOrg(userId: number, orgId: number): Promise<{
+    id: number;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    affiliationType: string;
+  }[]> {
+    // Find mutual follows (connections) who have an affiliation with this org
+    // A connection is someone you follow AND who follows you back (accepted status)
+    const result = await db.select({
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName,
+      avatarUrl: users.avatarUrl,
+      affiliationType: userChurchAffiliations.affiliationType,
+    })
+      .from(users)
+      .innerJoin(userChurchAffiliations, eq(userChurchAffiliations.userId, users.id))
+      .innerJoin(
+        // Subquery: user follows them
+        db.select({ followingId: userFollows.followingId })
+          .from(userFollows)
+          .where(and(
+            eq(userFollows.followerId, userId),
+            eq(userFollows.status, 'accepted')
+          ))
+          .as('user_follows_them'),
+        eq(users.id, sql`user_follows_them.following_id`)
+      )
+      .innerJoin(
+        // Subquery: they follow user back
+        db.select({ followerId: userFollows.followerId })
+          .from(userFollows)
+          .where(and(
+            eq(userFollows.followingId, userId),
+            eq(userFollows.status, 'accepted')
+          ))
+          .as('they_follow_user'),
+        eq(users.id, sql`they_follow_user.follower_id`)
+      )
+      .where(eq(userChurchAffiliations.organizationId, orgId));
+
+    return result;
+  }
+
   // Church invitation requests (for inviting churches to join the platform)
   async createChurchInvitationRequest(request: InsertChurchInvitationRequest): Promise<ChurchInvitationRequest> {
     const [result] = await db.insert(churchInvitationRequests).values(request).returning();
@@ -7454,6 +7509,18 @@ export class DbStorage implements IStorage {
         // Note: 'unlisted' is never included in lists
       ))
       .orderBy(desc(sermons.publishedAt), desc(sermons.createdAt));
+  }
+
+  async getUpcomingOrgEvents(orgId: number, limit: number = 10): Promise<Event[]> {
+    const today = new Date().toISOString().split('T')[0];
+    return await db.select()
+      .from(events)
+      .where(and(
+        eq(events.organizationId, orgId),
+        gt(events.eventDate, today)
+      ))
+      .orderBy(asc(events.eventDate), asc(events.startTime))
+      .limit(limit);
   }
 }
 
