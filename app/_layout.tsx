@@ -15,6 +15,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import apiClient from '../src/lib/apiClient';
 import { VideoSplash } from '../src/components/VideoSplash';
 import { BirthdayCelebration } from '../src/components/BirthdayCelebration';
+import { initSentry, setSentryUser, clearSentryUser } from '../src/lib/sentry';
+
+// Initialize Sentry as early as possible
+initSentry();
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -82,6 +86,19 @@ function RootLayoutNav() {
       });
     }
   }, [user, isLoading, queryClient]);
+
+  // Set/clear Sentry user context when auth state changes
+  useEffect(() => {
+    if (user) {
+      setSentryUser({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      });
+    } else {
+      clearSentryUser();
+    }
+  }, [user]);
 
   // Handle authentication routing
   useEffect(() => {

@@ -103,7 +103,6 @@ export default function AdviceDetailScreen() {
         const response = await apiClient.get(`/api/microblogs/${adviceId}/comments`);
         return Array.isArray(response.data) ? response.data : [];
       } catch (error) {
-        console.error('Error fetching advice responses:', error);
         return [];
       }
     },
@@ -271,7 +270,6 @@ export default function AdviceDetailScreen() {
                 reason: 'inappropriate_content',
               });
             } catch (error) {
-              console.error('Error reporting post:', error);
             }
           },
         },
@@ -304,7 +302,6 @@ export default function AdviceDetailScreen() {
                 description: 'Comment/response on advice post',
               });
             } catch (error) {
-              console.error('Error reporting response:', error);
             }
           },
         },

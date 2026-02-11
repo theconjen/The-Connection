@@ -98,7 +98,6 @@ export default function FaithBackgroundScreen() {
       // Navigate to feed
       router.replace('/(tabs)/home');
     } catch (error) {
-      console.error('Error skipping onboarding:', error);
       Alert.alert('Error', 'Failed to skip onboarding. Please try again.');
     } finally {
       setIsSkipping(false);
@@ -118,7 +117,6 @@ export default function FaithBackgroundScreen() {
 
       router.push('/(onboarding)/community-discovery');
     } catch (error) {
-      console.error('Error saving faith data:', error);
       Alert.alert('Error', 'Failed to save data');
     } finally {
       setIsLoading(false);

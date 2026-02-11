@@ -197,7 +197,6 @@ export default function AdviceListScreen() {
               reason: 'inappropriate_content',
             });
           } catch (error) {
-            console.error('Error reporting content:', error);
           }
         }},
       ]

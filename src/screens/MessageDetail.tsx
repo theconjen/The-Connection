@@ -19,11 +19,12 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Avatar } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
-import { useConversationMessages, useSendMessage, useMarkAsRead } from '../queries/messages';
+import { useConversationMessages, useSendMessage, useMarkAsRead, useDeleteMessage } from '../queries/messages';
 import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
-import apiClient from '../lib/apiClient';
+import apiClient, { messagesAPI } from '../lib/apiClient';
+import { GIF_CONFIG } from '../config';
 
 // ============================================================================
 // TYPES
@@ -486,17 +487,15 @@ function GifPicker({ visible, onClose, onSelectGif, colors }: GifPickerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Tenor API key (Google's GIF service - more reliable than Giphy public key)
-  const TENOR_API_KEY = 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ'; // Public/demo key
-
   const searchGifs = useCallback(async (query: string) => {
     setLoading(true);
     setError(null);
 
     try {
+      const { apiKey, baseUrl } = GIF_CONFIG.tenor;
       const endpoint = query.trim()
-        ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${TENOR_API_KEY}&limit=30&media_filter=gif`
-        : `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=30&media_filter=gif`;
+        ? `${baseUrl}/search?q=${encodeURIComponent(query)}&key=${apiKey}&limit=30&media_filter=gif`
+        : `${baseUrl}/featured?key=${apiKey}&limit=30&media_filter=gif`;
 
       const response = await fetch(endpoint);
 
@@ -512,7 +511,6 @@ function GifPicker({ visible, onClose, onSelectGif, colors }: GifPickerProps) {
         setGifs([]);
       }
     } catch (err) {
-      console.error('Error loading GIFs:', err);
       setError('Failed to load GIFs. Please try again.');
       setGifs([]);
     }
@@ -783,6 +781,7 @@ export function MessageDetail({
   const { data: messages, isLoading, isError, refetch } = useConversationMessages(conversationId);
   const sendMessageMutation = useSendMessage();
   const markAsReadMutation = useMarkAsRead();
+  const deleteMessageMutation = useDeleteMessage();
 
   // Extract otherUser from messages if not provided as prop
   const otherUser = React.useMemo(() => {
@@ -881,8 +880,14 @@ export function MessageDetail({
   };
 
   const handleMute = async () => {
+    if (!otherUser?.id) return;
+
     try {
-      // TODO: Implement mute API
+      if (isMuted) {
+        await messagesAPI.unmuteConversation(otherUser.id);
+      } else {
+        await messagesAPI.muteConversation(otherUser.id);
+      }
       setIsMuted(!isMuted);
       Alert.alert(
         isMuted ? 'Unmuted' : 'Muted',
@@ -892,6 +897,15 @@ export function MessageDetail({
       Alert.alert('Error', 'Failed to update notification settings.');
     }
   };
+
+  // Check if conversation is muted on mount
+  useEffect(() => {
+    if (otherUser?.id) {
+      messagesAPI.isMuted(otherUser.id)
+        .then(data => setIsMuted(data.isMuted || false))
+        .catch(() => {}); // Silently fail
+    }
+  }, [otherUser?.id]);
 
   const handleBlock = () => {
     Alert.alert(
@@ -952,7 +966,6 @@ export function MessageDetail({
         return newSet;
       });
     } catch (error) {
-      console.error('Error toggling reaction:', error);
       // Optionally show a toast or alert
     }
   }, []);
@@ -980,8 +993,22 @@ export function MessageDetail({
             Clipboard.setString(message.content);
             Alert.alert('Copied', 'Message copied to clipboard');
           } else if (buttonIndex === 1 && isMyMessage) {
-            // TODO: Implement delete
-            Alert.alert('Delete', 'Delete functionality coming soon');
+            Alert.alert(
+              'Delete Message',
+              'Are you sure you want to delete this message?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: () => {
+                    if (typeof message.id === 'number') {
+                      deleteMessageMutation.mutate(message.id);
+                    }
+                  },
+                },
+              ]
+            );
           } else if (buttonIndex === 1 && !isMyMessage) {
             setShowReportModal(true);
           }
@@ -997,7 +1024,28 @@ export function MessageDetail({
             Alert.alert('Copied', 'Message copied to clipboard');
           }},
           ...(isMyMessage
-            ? [{ text: 'Delete Message', style: 'destructive' as const, onPress: () => Alert.alert('Delete', 'Delete functionality coming soon') }]
+            ? [{
+                text: 'Delete Message',
+                style: 'destructive' as const,
+                onPress: () => {
+                  Alert.alert(
+                    'Delete Message',
+                    'Are you sure you want to delete this message?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          if (typeof message.id === 'number') {
+                            deleteMessageMutation.mutate(message.id);
+                          }
+                        },
+                      },
+                    ]
+                  );
+                },
+              }]
             : [{ text: 'Report Message', onPress: () => setShowReportModal(true) }]
           ),
           { text: 'Cancel', style: 'cancel' as const },

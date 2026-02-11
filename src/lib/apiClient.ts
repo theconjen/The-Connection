@@ -10,14 +10,11 @@ const getApiBaseUrl = () => {
   // Always use Render backend (no localhost fallback)
   const configApiBase = Constants.expoConfig?.extra?.apiBase;
   if (configApiBase) {
-    console.info('[API] Using Render backend:', configApiBase);
     return configApiBase;
   }
 
   // Hardcoded fallback to Render backend (never localhost)
-  const renderUrl = 'https://api.theconnection.app';
-  console.info('[API] Using hardcoded Render backend:', renderUrl);
-  return renderUrl;
+  return 'https://api.theconnection.app';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -52,28 +49,13 @@ apiClient.interceptors.request.use(
       // Mobile apps use JWT token ONLY (no session cookies)
       const authToken = await SecureStore.getItemAsync('auth_token');
       if (authToken) {
-        // Validate token format (JWT has 3 parts: header.payload.signature)
-        const tokenParts = authToken.split('.');
-        if (tokenParts.length !== 3) {
-          console.error('[API] ⚠️ MALFORMED JWT TOKEN - Expected 3 parts, got:', tokenParts.length);
-          console.error('[API] Token preview:', authToken.substring(0, 50) + '...');
-          console.error('[API] User needs to log out and log back in to get a fresh token');
-        } else {
-          console.info('[API] ✓ Valid JWT token format (3 parts)');
-        }
-
         config.headers['Authorization'] = `Bearer ${authToken}`;
-        console.info('[API] Using JWT token for auth');
-      } else {
-        console.warn('[API] No JWT token found - user may not be authenticated');
       }
 
       // Do NOT send session cookies - mobile apps use JWT tokens exclusively
       // Session cookies cause the backend to ignore JWT tokens
-
-      console.info('[API Request]', config.method?.toUpperCase(), config.url);
     } catch (error) {
-      console.error('Error reading auth credentials:', error);
+      // Silent fail - auth will fail server-side if needed
     }
     return config;
   },
@@ -83,10 +65,9 @@ apiClient.interceptors.request.use(
 // Helper function to delay execution
 const delay = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms));
 
-// Response interceptor for logging, error handling, and retry logic
+// Response interceptor for error handling and retry logic
 apiClient.interceptors.response.use(
   async (response) => {
-    console.info('[API Response]', response.status, response.config.url);
     // Mobile apps use JWT tokens only - do NOT capture session cookies
     return response;
   },
@@ -104,7 +85,6 @@ apiClient.interceptors.response.use(
         if (config._retryCount < maxRetries) {
           config._retryCount += 1;
           const backoffDelay = Math.pow(2, config._retryCount) * 1000; // 2s, 4s, 8s
-          console.warn(`[API] Rate limited. Retrying in ${backoffDelay/1000}s... (attempt ${config._retryCount}/${maxRetries})`);
 
           await delay(backoffDelay);
           return apiClient(config);
@@ -157,15 +137,10 @@ apiClient.interceptors.response.use(
           }
         );
 
-        if (!shouldSuppress) {
-          console.error('[API Error]', status, url, error.response.data);
-        }
-      } else {
-        console.error('[API Error]', error.message);
+        // Error logging removed for production - errors handled by UI
       }
     } catch (interceptorError) {
-      // Log but don't throw - interceptor must be stable
-      console.error('[API Interceptor Error]', interceptorError);
+      // Interceptor must be stable - silent fail
     }
     return Promise.reject(error);
   }
@@ -283,14 +258,7 @@ export const communitiesAPI = {
     location?: string;
     latitude?: number;
     longitude?: number;
-  }) => {
-    return apiClient.post('/api/communities', data).then(res => {
-      return res.data;
-    }).catch(err => {
-      console.error('API: Create community failed:', err.response?.status, err.response?.data);
-      throw err;
-    });
-  },
+  }) => apiClient.post('/api/communities', data).then(res => res.data),
   join: (id: number) => apiClient.post(`/api/communities/${id}/join`).then(res => res.data),
   leave: (id: number) => apiClient.post(`/api/communities/${id}/leave`).then(res => res.data),
   getMembers: (id: number) => apiClient.get(`/api/communities/${id}/members`).then(res => res.data),
@@ -342,6 +310,14 @@ export const messagesAPI = {
   markConversationRead: (otherUserId: number) =>
     apiClient.post(`/api/messages/mark-conversation-read/${otherUserId}`).then(res => res.data),
   getUnreadCount: () => apiClient.get('/api/messages/unread-count').then(res => res.data),
+  deleteMessage: (messageId: number) =>
+    apiClient.delete(`/api/messages/${messageId}`).then(res => res.data),
+  muteConversation: (userId: number) =>
+    apiClient.post(`/api/messages/mute/${userId}`).then(res => res.data),
+  unmuteConversation: (userId: number) =>
+    apiClient.delete(`/api/messages/mute/${userId}`).then(res => res.data),
+  isMuted: (userId: number) =>
+    apiClient.get(`/api/messages/mute/${userId}`).then(res => res.data),
 };
 
 // Community Chat API
@@ -456,6 +432,66 @@ export const safetyAPI = {
   // Get list of blocked users
   getBlockedUsers: () =>
     apiClient.get('/api/blocked-users').then(res => res.data),
+};
+
+// Sermons API (Video playback with MUX + JW Player)
+export const sermonsAPI = {
+  // Get playback data for a sermon (includes HLS URL and ads config)
+  getPlayback: (sermonId: number) =>
+    apiClient.get(`/api/sermons/${sermonId}/playback`).then(res => res.data),
+};
+
+// Upload API for profile pictures, event images, etc.
+export const uploadAPI = {
+  // Upload profile picture - returns the URL of the uploaded image
+  uploadProfilePicture: async (imageUri: string, fileName?: string): Promise<{ url: string }> => {
+    const formData = new FormData();
+
+    // Get file extension from URI
+    const uriParts = imageUri.split('.');
+    const fileType = uriParts[uriParts.length - 1] || 'jpg';
+    const mimeType = `image/${fileType === 'jpg' ? 'jpeg' : fileType}`;
+    const name = fileName || `profile-${Date.now()}.${fileType}`;
+
+    // Append file as form data
+    formData.append('image', {
+      uri: imageUri,
+      name,
+      type: mimeType,
+    } as any);
+
+    const response = await apiClient.post('/api/upload/profile-picture', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
+  },
+
+  // Upload event image
+  uploadEventImage: async (imageUri: string, fileName?: string): Promise<{ url: string }> => {
+    const formData = new FormData();
+
+    const uriParts = imageUri.split('.');
+    const fileType = uriParts[uriParts.length - 1] || 'jpg';
+    const mimeType = `image/${fileType === 'jpg' ? 'jpeg' : fileType}`;
+    const name = fileName || `event-${Date.now()}.${fileType}`;
+
+    formData.append('image', {
+      uri: imageUri,
+      name,
+      type: mimeType,
+    } as any);
+
+    const response = await apiClient.post('/api/upload/event-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
+  },
 };
 
 export default apiClient;

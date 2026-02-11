@@ -90,7 +90,6 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   // Debug logging
   React.useEffect(() => {
     if (profile) {
-      console.log('[ProfileScreen] User fields:', {
         location: profile.user?.location,
         denomination: profile.user?.denomination,
         homeChurch: profile.user?.homeChurch,
@@ -204,7 +203,6 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
         ]);
         Alert.alert('Success', 'Profile picture updated!');
       } catch (error) {
-        console.error('Error updating avatar:', error);
         Alert.alert('Error', 'Failed to update profile picture. Please try again.');
       }
     }

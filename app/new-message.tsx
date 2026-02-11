@@ -52,18 +52,15 @@ export default function NewMessageScreen() {
   const handleUserSelect = (user: any) => {
     // Validate user ID before navigation
     if (!user || !user.id) {
-      console.error('Cannot navigate: Invalid user', user);
       return;
     }
 
     const userId = String(user.id);
-    console.info('Navigating to message screen with userId:', userId);
 
     // Navigate to message detail with the selected user
     try {
       router.push(`/messages/${userId}`);
     } catch (error) {
-      console.error('Navigation error:', error);
     }
   };
 

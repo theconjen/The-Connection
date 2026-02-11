@@ -25,7 +25,7 @@ import { useAuth } from '../src/contexts/AuthContext';
 import { useTheme } from '../src/contexts/ThemeContext';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useUserProfile } from '../src/queries/follow';
-import apiClient from '../src/lib/apiClient';
+import apiClient, { uploadAPI } from '../src/lib/apiClient';
 import * as ImagePicker from 'expo-image-picker';
 import { churchesAPI, ChurchListItem } from '../src/queries/churches';
 
@@ -50,6 +50,8 @@ export default function EditProfileScreen() {
   });
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Church affiliation state
   const [showChurchModal, setShowChurchModal] = useState(false);
@@ -155,14 +157,35 @@ export default function EditProfileScreen() {
     });
 
     if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
-      // TODO: Upload image to server
+      const localUri = result.assets[0].uri;
+      setProfileImage(localUri);
+
+      // Upload image to server
+      setIsUploadingImage(true);
+      try {
+        const uploadResult = await uploadAPI.uploadProfilePicture(localUri);
+        setUploadedImageUrl(uploadResult.url);
+      } catch (error: any) {
+        Alert.alert(
+          'Upload Failed',
+          error.response?.data?.error || error.message || 'Failed to upload image. Please try again.'
+        );
+        // Revert to previous image on failure
+        setProfileImage(profileData?.user?.profileImageUrl || null);
+      } finally {
+        setIsUploadingImage(false);
+      }
     }
   };
 
   const handleSave = async () => {
     if (!formData.displayName.trim()) {
       Alert.alert('Required Field', 'Please enter your display name');
+      return;
+    }
+
+    if (isUploadingImage) {
+      Alert.alert('Please Wait', 'Image is still uploading...');
       return;
     }
 
@@ -177,11 +200,16 @@ export default function EditProfileScreen() {
         // Update homeChurch in form data to match
         formData.homeChurch = selectedChurch?.name || customChurchName;
       } catch (error) {
-        console.error('Failed to update church affiliation:', error);
       }
     }
 
-    updateProfileMutation.mutate(formData);
+    // Include uploaded image URL if available
+    const profileData = {
+      ...formData,
+      ...(uploadedImageUrl && { profileImageUrl: uploadedImageUrl }),
+    };
+
+    updateProfileMutation.mutate(profileData);
   };
 
   const handleSelectChurch = (church: ChurchListItem) => {
@@ -241,10 +269,10 @@ export default function EditProfileScreen() {
         <Pressable
           onPress={handleSave}
           style={styles.headerButton}
-          disabled={updateProfileMutation.isPending}
+          disabled={updateProfileMutation.isPending || isUploadingImage}
         >
-          <Text style={[styles.saveText, updateProfileMutation.isPending && styles.saveTextDisabled]}>
-            {updateProfileMutation.isPending ? 'Saving...' : 'Save'}
+          <Text style={[styles.saveText, (updateProfileMutation.isPending || isUploadingImage) && styles.saveTextDisabled]}>
+            {isUploadingImage ? 'Uploading...' : updateProfileMutation.isPending ? 'Saving...' : 'Save'}
           </Text>
         </Pressable>
       </View>
@@ -252,7 +280,7 @@ export default function EditProfileScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Photo */}
         <View style={styles.photoSection}>
-          <Pressable onPress={handlePickImage} style={styles.photoContainer}>
+          <Pressable onPress={handlePickImage} style={styles.photoContainer} disabled={isUploadingImage}>
             {profileImage ? (
               <Image source={{ uri: profileImage }} style={styles.photo} />
             ) : (
@@ -261,10 +289,16 @@ export default function EditProfileScreen() {
               </View>
             )}
             <View style={styles.photoOverlay}>
-              <Ionicons name="camera" size={24} color="#fff" />
+              {isUploadingImage ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="camera" size={24} color="#fff" />
+              )}
             </View>
           </Pressable>
-          <Text style={styles.photoLabel}>Change Photo</Text>
+          <Text style={styles.photoLabel}>
+            {isUploadingImage ? 'Uploading...' : 'Change Photo'}
+          </Text>
         </View>
 
         {/* Basic Information */}

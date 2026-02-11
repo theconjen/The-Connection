@@ -43,7 +43,6 @@ export function NotificationSettingsScreen() {
         notifyFeed: user.notifyFeed ?? true,
       });
     } catch (error) {
-      console.error('Error loading notification preferences:', error);
     } finally {
       setLoading(false);
     }
@@ -58,9 +57,7 @@ export function NotificationSettingsScreen() {
       // Send update to server
       await apiClient.put('/user', { [key]: value });
 
-      console.info(`[NotificationSettings] Updated ${key} to ${value}`);
     } catch (error) {
-      console.error('Error updating notification preference:', error);
       // Revert on error
       setPreferences(prev => ({ ...prev, [key]: !value }));
     } finally {

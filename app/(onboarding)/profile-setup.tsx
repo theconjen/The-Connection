@@ -62,7 +62,6 @@ export default function ProfileSetupScreen() {
         setProfileImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
   };
@@ -81,7 +80,6 @@ export default function ProfileSetupScreen() {
       // Navigate to feed
       router.replace('/(tabs)/home');
     } catch (error) {
-      console.error('Error skipping onboarding:', error);
       Alert.alert('Error', 'Failed to skip onboarding. Please try again.');
     } finally {
       setIsSkipping(false);
@@ -107,7 +105,6 @@ export default function ProfileSetupScreen() {
 
       router.push('/(onboarding)/faith-background');
     } catch (error) {
-      console.error('Error saving profile data:', error);
       Alert.alert('Error', 'Failed to save profile data');
     } finally {
       setIsLoading(false);

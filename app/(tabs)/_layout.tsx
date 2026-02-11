@@ -20,9 +20,6 @@ export default function TabsLayout() {
   const hasInboxAccess = user?.permissions?.includes('inbox_access') || false;
 
   // Debug logging for inbox access
-  console.info('[Tab Layout] User:', user?.username);
-  console.info('[Tab Layout] Permissions:', user?.permissions);
-  console.info('[Tab Layout] Has Inbox Access:', hasInboxAccess);
 
   // Earth-forward icon colors - warm, grounded palette
   const iconColors = {

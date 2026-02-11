@@ -54,11 +54,8 @@ export default function MessagesScreen({
   // Log error for debugging and check auth status
   useEffect(() => {
     if (error) {
-      console.error('[Messages] Failed to load conversations:', error);
-      console.error('[Messages] User auth status:', { userId: user?.id, username: user?.username });
       const status = (error as any)?.response?.status;
       if (status === 401) {
-        console.error('[Messages] Authentication error - user may need to log in');
       }
     }
   }, [error, user]);

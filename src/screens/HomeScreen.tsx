@@ -35,6 +35,8 @@ import { AppHeader } from './AppHeader';
 import { PostCard } from './PostCard';
 import { formatDistanceToNow } from 'date-fns';
 import { shareAdvice, shareApologetics } from '../lib/shareUrls';
+import { churchesAPI, ChurchBulletinData } from '../queries/churches';
+import { ChurchBulletinSection } from '../components/ChurchBulletinSection';
 
 // ============================================================================
 // TYPES
@@ -91,8 +93,8 @@ interface AdvicePost {
 }
 
 interface HomeFeedItem {
-  type: 'community_post' | 'apologetics_article' | 'advice_post' | 'section_header';
-  data: CommunityPost | ApologeticsArticle | AdvicePost | { title: string };
+  type: 'community_post' | 'apologetics_article' | 'advice_post' | 'section_header' | 'church_bulletin';
+  data: CommunityPost | ApologeticsArticle | AdvicePost | { title: string } | ChurchBulletinData;
   id: string;
 }
 
@@ -228,9 +230,18 @@ function useJoinedCommunities() {
 
 // Combined hook to build the feed items with infinite scroll support
 function useHomeFeed() {
+  const { user } = useAuth();
   const adviceQuery = useAdviceFeed();
   const communityQuery = useCommunityFeed();
   const articlesQuery = useArticles();
+
+  // Church bulletin query - for users with church affiliation
+  const bulletinQuery = useQuery({
+    queryKey: ['church-bulletin', user?.id],
+    queryFn: () => churchesAPI.getMyChurchBulletin(),
+    enabled: !!user,
+    staleTime: 60000, // 1 minute
+  });
 
   const isLoading = adviceQuery.isLoading || communityQuery.isLoading || articlesQuery.isLoading;
   const isRefetching = adviceQuery.isRefetching || communityQuery.isRefetching || articlesQuery.isRefetching;
@@ -242,8 +253,9 @@ function useHomeFeed() {
       adviceQuery.refetch(),
       communityQuery.refetch(),
       articlesQuery.refetch(),
+      bulletinQuery.refetch(),
     ]);
-  }, [adviceQuery, communityQuery, articlesQuery]);
+  }, [adviceQuery, communityQuery, articlesQuery, bulletinQuery]);
 
   const fetchNextPage = useCallback(() => {
     // First load more advice, then community posts
@@ -268,7 +280,11 @@ function useHomeFeed() {
   // Articles (max 3)
   const articles = articlesQuery.data || [];
 
-  // Build vertical feed items (Your Communities + Grow Your Faith)
+  // Church bulletin data
+  const bulletinData = bulletinQuery.data;
+  const showBulletin = bulletinData?.hasBulletin === true;
+
+  // Build vertical feed items (Your Communities + conditional bottom section)
   const verticalFeedItems = useMemo(() => {
     const items: HomeFeedItem[] = [];
 
@@ -289,8 +305,21 @@ function useHomeFeed() {
       });
     }
 
-    // Grow Your Faith section (limited to 3 articles, no infinite scroll)
-    if (articles.length > 0) {
+    // Conditional bottom section: My Church OR Grow Your Faith
+    if (showBulletin && bulletinData) {
+      // Show church bulletin
+      items.push({
+        type: 'section_header',
+        data: { title: 'My Church' },
+        id: 'header-bulletin',
+      });
+      items.push({
+        type: 'church_bulletin',
+        data: bulletinData,
+        id: 'church-bulletin',
+      });
+    } else if (articles.length > 0) {
+      // Fallback: Grow Your Faith section (limited to 3 articles)
       items.push({
         type: 'section_header',
         data: { title: 'Grow Your Faith' },
@@ -307,11 +336,12 @@ function useHomeFeed() {
     }
 
     return items;
-  }, [communityPosts, articles]);
+  }, [communityPosts, articles, showBulletin, bulletinData]);
 
   return {
     advicePosts,       // For horizontal carousel
     verticalFeedItems, // For vertical list
+    bulletinData,      // For rendering church bulletin
     isLoading,
     isRefetching,
     isFetchingNextPage,
@@ -777,7 +807,6 @@ export default function HomeScreen({
               reason: 'inappropriate_content',
             });
           } catch (error) {
-            console.error('Error reporting content:', error);
           }
         }},
       ]
@@ -824,7 +853,6 @@ export default function HomeScreen({
               reason: 'inappropriate_content',
             });
           } catch (error) {
-            console.error('Error reporting content:', error);
           }
         }},
       ]
@@ -1027,6 +1055,18 @@ export default function HomeScreen({
             onMenuPress={(e) => showArticleMenu(article, e)}
             isReported={reportedArticles.has(article.id)}
             onUndoReport={() => handleUndoReportArticle(article.id)}
+          />
+        );
+
+      case 'church_bulletin':
+        const bulletin = item.data as ChurchBulletinData;
+        return (
+          <ChurchBulletinSection
+            bulletin={bulletin}
+            colors={colors}
+            onChurchPress={() => router.push(`/churches/${bulletin.church?.slug}` as any)}
+            onEventPress={(eventId) => router.push({ pathname: '/events/[id]' as any, params: { id: eventId.toString() } })}
+            onSermonPress={(sermonId) => router.push({ pathname: '/sermons/[id]' as any, params: { id: sermonId.toString() } })}
           />
         );
 

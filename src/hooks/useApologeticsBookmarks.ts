@@ -27,7 +27,6 @@ export function useApologeticsBookmarks() {
         setCachedBookmarks(new Set(bookmarks));
       }
     } catch (error) {
-      console.error('Error loading cached bookmarks:', error);
     }
   };
 

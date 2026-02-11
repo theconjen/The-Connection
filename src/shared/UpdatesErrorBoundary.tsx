@@ -52,7 +52,6 @@ export function UpdatesErrorBoundary({ children }: UpdatesErrorBoundaryProps) {
             } else {
             }
           } catch (err) {
-            console.error('[Updates] Error during update check:', err);
             // Don't throw - just log and continue
           }
         })();
@@ -62,7 +61,6 @@ export function UpdatesErrorBoundary({ children }: UpdatesErrorBoundaryProps) {
 
         setIsReady(true);
       } catch (err) {
-        console.error('[Updates] Fatal error during setup:', err);
         // Even if there's an error, set ready so app can continue
         // Better to run with potentially stale code than crash
         setError('Update check failed, running with cached version');
@@ -85,7 +83,6 @@ export function UpdatesErrorBoundary({ children }: UpdatesErrorBoundaryProps) {
 
   // Show error if one occurred (but still render children)
   if (error) {
-    console.warn('[Updates]', error);
     // Don't block the UI - just log the error
   }
 

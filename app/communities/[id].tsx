@@ -94,9 +94,7 @@ export default function CommunityDetailScreen() {
   const { data: community, isLoading: communityLoading, refetch: refetchCommunity } = useQuery<Community>({
     queryKey: ['community', communityId],
     queryFn: async () => {
-      console.log(`[FRONTEND] Fetching community ${communityId}`);
       const result = await communitiesAPI.getById(communityId);
-      console.log(`[FRONTEND] Community data:`, {
         id: result.id,
         name: result.name,
         isMember: result.isMember,
@@ -250,13 +248,10 @@ export default function CommunityDetailScreen() {
   // Join/Leave mutations
   const joinMutation = useMutation({
     mutationFn: async () => {
-      console.log(`[FRONTEND] Attempting to join community ${communityId}`);
       const result = await communitiesAPI.join(communityId);
-      console.log(`[FRONTEND] Join response:`, result);
       return result;
     },
     onSuccess: async (data) => {
-      console.log(`[FRONTEND] Join successful, data:`, data);
       // Invalidate and refetch to get the correct role from backend (owner if first member)
       await queryClient.invalidateQueries({ queryKey: ['community', communityId] });
       await queryClient.invalidateQueries({ queryKey: ['communities'] });
@@ -264,7 +259,6 @@ export default function CommunityDetailScreen() {
 
       // Refetch the community to get updated data with correct role
       const refetchResult = await queryClient.refetchQueries({ queryKey: ['community', communityId] });
-      console.log(`[FRONTEND] Refetch result:`, refetchResult);
 
       // Show appropriate welcome message based on role
       const communityName = community?.name || 'this community';
@@ -277,10 +271,8 @@ export default function CommunityDetailScreen() {
       }
     },
     onError: async (error: any) => {
-      console.log(`[FRONTEND] Join error:`, error.response?.data);
       // If already a member, refetch to get correct role
       if (error.response?.data?.message?.includes('Already a member')) {
-        console.log(`[FRONTEND] Already a member, refetching community data`);
         // Refetch the community to get updated data with correct role
         await queryClient.invalidateQueries({ queryKey: ['community', communityId] });
         await queryClient.invalidateQueries({ queryKey: ['communities'] });
@@ -289,7 +281,6 @@ export default function CommunityDetailScreen() {
 
         Alert.alert('Already joined', 'You are already a member!');
       } else {
-        console.error(`[FRONTEND] Join failed:`, error);
         Alert.alert('Error', error.response?.data?.message || 'Failed to join community');
       }
     },
@@ -503,7 +494,6 @@ export default function CommunityDetailScreen() {
         }
         imageUrl = `data:${mimeType};base64,${base64}`;
       } catch (error) {
-        console.error('Error reading media:', error);
         Alert.alert('Error', 'Failed to process media');
         return;
       }
@@ -533,7 +523,6 @@ export default function CommunityDetailScreen() {
         setSelectedMedia({ uri: asset.uri, type: isVideo ? 'video' : 'image' });
       }
     } catch (error) {
-      console.error('Error picking media:', error);
       Alert.alert('Error', 'Failed to pick media');
     }
   };
@@ -559,7 +548,6 @@ export default function CommunityDetailScreen() {
       if (error?.message?.includes('Camera not available')) {
         Alert.alert('Camera Unavailable', 'Camera is not available on the simulator. Use a physical device or pick from library.');
       } else {
-        console.error('Error taking photo:', error);
         Alert.alert('Error', 'Failed to take photo');
       }
     }

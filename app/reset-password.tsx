@@ -150,14 +150,12 @@ export default function ResetPasswordScreen() {
         Alert.alert('Clipboard Empty', 'Please copy the reset link from your email first.');
       }
     } catch (error) {
-      console.log('[RESET_PASSWORD] Clipboard error:', error);
       Alert.alert('Error', 'Could not access clipboard. Please paste the token manually.');
     }
   };
 
   // Debug logging (dev only)
   if (__DEV__) {
-    console.log('[RESET_PASSWORD] Initial params:', {
       rawToken: params.token?.substring(0, 10) + '...',
       tokenLen: params.token?.length,
       normalizedTokenLen: initialToken.length,
@@ -187,14 +185,12 @@ export default function ResetPasswordScreen() {
 
     // (E) Set up timeout - if verify takes > 8s, allow submit with warning
     const timeoutId = setTimeout(() => {
-      console.log('[RESET_PASSWORD][VERIFY] stage=TIMEOUT requestId=' + requestId);
       setVerifyTimedOut(true);
       setIsVerifying(false);
       // Don't set error - allow user to proceed with warning
     }, VERIFY_TIMEOUT_MS);
 
     try {
-      console.log('[RESET_PASSWORD][VERIFY] stage=START requestId=' + requestId + ' tokenLen=' + tokenToValidate.length);
 
       const response = await apiClient.get(`/api/password-reset/verify/${tokenToValidate}`, {
         headers: { 'x-request-id': requestId },
@@ -204,7 +200,6 @@ export default function ResetPasswordScreen() {
 
       clearTimeout(timeoutId);
 
-      console.log('[RESET_PASSWORD][VERIFY] stage=RESULT requestId=' + requestId + ' valid=' + response.data.valid);
 
       if (response.data.valid) {
         setIsTokenVerified(true);
@@ -224,14 +219,12 @@ export default function ResetPasswordScreen() {
 
       // Ignore aborted requests (user typed more)
       if (error?.name === 'AbortError' || error?.name === 'CanceledError') {
-        console.log('[RESET_PASSWORD][VERIFY] stage=ABORTED requestId=' + requestId);
         return;
       }
 
       const errorCode = error?.response?.data?.code || 'UNKNOWN';
       const serverRequestId = error?.response?.data?.requestId || 'none';
 
-      console.log('[RESET_PASSWORD][VERIFY] stage=ERROR requestId=' + requestId + ' serverRequestId=' + serverRequestId + ' code=' + errorCode);
 
       setIsTokenVerified(false);
 
@@ -329,14 +322,6 @@ export default function ResetPasswordScreen() {
     const baseURL = apiClient.defaults.baseURL;
 
     // Debug logging - ALWAYS log for password reset debugging (safe info only)
-    console.log('[RESET_PASSWORD] ========== SUBMIT START ==========');
-    console.log('[RESET_PASSWORD] x-request-id:', requestId);
-    console.log('[RESET_PASSWORD] baseURL:', baseURL);
-    console.log('[RESET_PASSWORD] tokenLen:', normalizedToken.length);
-    console.log('[RESET_PASSWORD] tokenIsHex:', TOKEN_REGEX.test(normalizedToken));
-    console.log('[RESET_PASSWORD] tokenPrefix:', normalizedToken.substring(0, 6));
-    console.log('[RESET_PASSWORD] tokenSuffix:', normalizedToken.substring(normalizedToken.length - 6));
-    console.log('[RESET_PASSWORD] ===================================');
 
     try {
       const response = await apiClient.post('/api/password-reset/reset', {
@@ -348,7 +333,6 @@ export default function ResetPasswordScreen() {
         }
       });
 
-      console.log('[RESET_PASSWORD] ✅ SUCCESS x-request-id:', requestId, 'status:', response.status);
 
       setIsSuccess(true);
     } catch (error: any) {
@@ -357,16 +341,9 @@ export default function ResetPasswordScreen() {
       const serverRequestId = errorData?.requestId || 'none';
 
       // Log correlation info for debugging
-      console.log('[RESET_PASSWORD] ❌ ERROR');
-      console.log('[RESET_PASSWORD] client x-request-id:', requestId);
-      console.log('[RESET_PASSWORD] server requestId:', serverRequestId);
-      console.log('[RESET_PASSWORD] status:', error?.response?.status);
-      console.log('[RESET_PASSWORD] code:', errorCode);
-      console.log('[RESET_PASSWORD] error:', errorData?.error);
 
       // Diagnostics only present in dev/debug mode
       if (errorData?.diagnostics) {
-        console.log('[RESET_PASSWORD] diagnostics:', JSON.stringify(errorData.diagnostics));
       }
 
       // Handle structured error responses

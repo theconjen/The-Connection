@@ -207,7 +207,6 @@ export default function AskQuestionScreen() {
       setSelectedArea(null);
       setSelectedTag(null);
     } catch (error) {
-      console.error('Error fetching areas:', error);
       Alert.alert('Error', 'Failed to load areas');
     } finally {
       setLoading(false);
@@ -220,7 +219,6 @@ export default function AskQuestionScreen() {
       setTags(response.data);
       setSelectedTag(null);
     } catch (error) {
-      console.error('Error fetching tags:', error);
       Alert.alert('Error', 'Failed to load tags');
     }
   };
@@ -256,7 +254,6 @@ export default function AskQuestionScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('Error submitting question:', error);
       Alert.alert('Error', error.response?.data?.message || 'Failed to submit question');
     } finally {
       setSubmitting(false);

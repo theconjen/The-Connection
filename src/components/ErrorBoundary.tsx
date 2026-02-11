@@ -54,7 +54,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Log to console in development
     if (__DEV__) {
-      console.error('Error caught by boundary:', error, errorInfo);
     }
   }
 

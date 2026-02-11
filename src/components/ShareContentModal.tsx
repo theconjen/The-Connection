@@ -172,7 +172,6 @@ export function ShareContentModal({
         [{ text: 'OK', onPress: () => { onClose(); onShareComplete?.(); } }]
       );
     } catch (error: any) {
-      console.error('Share to community error:', error);
       Alert.alert('Error', error.response?.data?.message || 'Failed to share to community');
     } finally {
       setIsSharing(false);
@@ -199,7 +198,6 @@ export function ShareContentModal({
         [{ text: 'OK', onPress: () => { onClose(); onShareComplete?.(); } }]
       );
     } catch (error: any) {
-      console.error('Share via DM error:', error);
       Alert.alert('Error', error.response?.data?.message || 'Failed to send message');
     } finally {
       setIsSharing(false);

@@ -73,7 +73,6 @@ export default function EditAdviceScreen() {
       ]);
     },
     onError: (error: any) => {
-      console.error('Advice update error:', error);
       const errorMessage = error?.response?.data?.message || 'Failed to update advice request';
       Alert.alert('Error', errorMessage);
     },
@@ -94,7 +93,6 @@ export default function EditAdviceScreen() {
       ]);
     },
     onError: (error: any) => {
-      console.error('Delete error:', error);
       Alert.alert('Error', 'Failed to delete advice request');
     },
   });

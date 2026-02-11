@@ -22,7 +22,6 @@ export default function ChatScreen() {
         const response = await apiClient.get(`/api/users/${otherUserId}/profile`);
         return response.data;
       } catch (error) {
-        console.error('[ChatScreen] Error fetching profile:', error);
         return null;
       }
     },

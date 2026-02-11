@@ -46,7 +46,6 @@ export const useConversations = () => {
         const conversations = await messagesAPI.getConversations();
         return conversations;
       } catch (error: any) {
-        console.error('[Messages] Error loading conversations:', {
           status: error?.response?.status,
           message: error?.response?.data?.message || error?.message,
           url: error?.config?.url,
@@ -95,5 +94,17 @@ export const useUnreadCount = () => {
     queryKey: ['unread-count'],
     queryFn: messagesAPI.getUnreadCount,
     refetchInterval: 30000, // Poll every 30 seconds
+  });
+};
+
+export const useDeleteMessage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: number) => messagesAPI.deleteMessage(messageId),
+    onSuccess: () => {
+      // Invalidate all message queries to refetch
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
   });
 };

@@ -44,7 +44,6 @@ export default function PrayerDetailScreen() {
         const response = await apiClient.get(`/api/prayer-requests/${prayerId}/comments`);
         return Array.isArray(response.data) ? response.data : [];
       } catch (error) {
-        console.error('Error fetching comments:', error);
         return [];
       }
     },

@@ -21,8 +21,6 @@ export function initSentry() {
   const dsn = Constants.expoConfig?.extra?.sentryDsn || process.env.EXPO_PUBLIC_SENTRY_DSN;
 
   if (!dsn) {
-    console.warn('⚠️  Sentry DSN not configured - error tracking disabled');
-    console.warn('   Set EXPO_PUBLIC_SENTRY_DSN in .env or app.json extra.sentryDsn');
     return;
   }
 
@@ -104,9 +102,7 @@ export function initSentry() {
       sessionTrackingIntervalMillis: 30000, // 30 seconds
     });
 
-    console.info('✅ Sentry (mobile) initialized successfully');
   } catch (error) {
-    console.error('❌ Failed to initialize Sentry:', error);
   }
 }
 

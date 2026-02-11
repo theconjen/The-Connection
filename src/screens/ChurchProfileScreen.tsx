@@ -3,7 +3,7 @@
  * View church details, leaders, and sermons
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   ScrollView,
@@ -13,12 +13,16 @@ import {
   ActivityIndicator,
   Linking,
   RefreshControl,
+  ActionSheetIOS,
+  Platform,
+  Alert,
+  Modal,
 } from 'react-native';
 import { Text } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { churchesAPI, ChurchLeader, ChurchSermon } from '../queries/churches';
 
@@ -30,15 +34,56 @@ interface ChurchProfileScreenProps {
 export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) {
   const { colors } = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [showAffiliationModal, setShowAffiliationModal] = useState(false);
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['church', slug],
     queryFn: () => churchesAPI.getBySlug(slug),
   });
 
+  // Get user's current church affiliation
+  const { data: affiliationData } = useQuery({
+    queryKey: ['my-church-affiliation'],
+    queryFn: () => churchesAPI.getMyAffiliation(),
+  });
+
+  // Get connections who attend this church
+  const { data: connectionsData } = useQuery({
+    queryKey: ['church-connections', data?.organization?.id],
+    queryFn: () => churchesAPI.getConnectionsAttending(data!.organization!.id),
+    enabled: !!data?.organization?.id,
+  });
+
   const church = data?.organization;
   const leaders = data?.leaders ?? [];
   const sermons = data?.sermons ?? [];
+
+  // Check if user is affiliated with THIS church
+  const myAffiliation = affiliationData?.affiliation;
+  const isAffiliatedWithThisChurch = myAffiliation?.organizationId === church?.id;
+  const currentAffiliationType = isAffiliatedWithThisChurch ? myAffiliation?.affiliationType : null;
+
+  // Affiliation mutations
+  const setAffiliationMutation = useMutation({
+    mutationFn: (affiliationType: 'attending' | 'member') =>
+      churchesAPI.setAffiliation({
+        organizationId: church?.id,
+        affiliationType,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-church-affiliation'] });
+      setShowAffiliationModal(false);
+    },
+  });
+
+  const removeAffiliationMutation = useMutation({
+    mutationFn: () => churchesAPI.removeAffiliation(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-church-affiliation'] });
+      setShowAffiliationModal(false);
+    },
+  });
 
   const handleOpenWebsite = () => {
     if (church?.website) {
@@ -60,7 +105,41 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
           .filter(Boolean)
           .join(', ')
       );
-      Linking.openURL(`https://maps.google.com/?q=${address}`);
+
+      const openAppleMaps = () => {
+        Linking.openURL(`maps://maps.apple.com/?q=${address}`);
+      };
+
+      const openGoogleMaps = () => {
+        Linking.openURL(`https://maps.google.com/?q=${address}`);
+      };
+
+      if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options: ['Cancel', 'Apple Maps', 'Google Maps'],
+            cancelButtonIndex: 0,
+            title: 'Open in Maps',
+          },
+          (buttonIndex) => {
+            if (buttonIndex === 1) {
+              openAppleMaps();
+            } else if (buttonIndex === 2) {
+              openGoogleMaps();
+            }
+          }
+        );
+      } else {
+        // Android - show Alert with options
+        Alert.alert(
+          'Open in Maps',
+          'Choose your preferred maps app',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Google Maps', onPress: openGoogleMaps },
+          ]
+        );
+      }
     }
   };
 
@@ -191,7 +270,10 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
             <Image source={{ uri: church.logoUrl }} style={styles.logo} />
           ) : (
             <View style={[styles.logoPlaceholder, { backgroundColor: colors.primary + '20' }]}>
-              <Ionicons name="business" size={48} color={colors.primary} />
+              <Image
+                source={require('../../assets/church-icon.png')}
+                style={{ width: 56, height: 56, tintColor: colors.primary }}
+              />
             </View>
           )}
           <Text style={[styles.churchName, { color: colors.textPrimary }]}>{church.name}</Text>
@@ -235,6 +317,105 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
             </Pressable>
           )}
         </View>
+
+        {/* Church Affiliation Section */}
+        <Pressable
+          style={[
+            styles.affiliationCard,
+            {
+              backgroundColor: isAffiliatedWithThisChurch ? colors.primary + '10' : colors.surface,
+              borderColor: isAffiliatedWithThisChurch ? colors.primary : colors.borderSubtle,
+            }
+          ]}
+          onPress={() => setShowAffiliationModal(true)}
+        >
+          <View style={styles.affiliationContent}>
+            <View style={[
+              styles.affiliationIconContainer,
+              { backgroundColor: isAffiliatedWithThisChurch ? colors.primary + '20' : colors.surfaceMuted }
+            ]}>
+              <Ionicons
+                name={isAffiliatedWithThisChurch ? "checkmark-circle" : "add-circle-outline"}
+                size={24}
+                color={isAffiliatedWithThisChurch ? colors.primary : colors.textSecondary}
+              />
+            </View>
+            <View style={styles.affiliationTextContainer}>
+              {isAffiliatedWithThisChurch ? (
+                <>
+                  <Text style={[styles.affiliationTitle, { color: colors.primary }]}>
+                    {currentAffiliationType === 'member' ? "I'm a Member" : "I Attend Here"}
+                  </Text>
+                  <Text style={[styles.affiliationSubtitle, { color: colors.textSecondary }]}>
+                    Tap to update your status
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.affiliationTitle, { color: colors.textPrimary }]}>
+                    This is my church
+                  </Text>
+                  <Text style={[styles.affiliationSubtitle, { color: colors.textSecondary }]}>
+                    Let others know you attend here
+                  </Text>
+                </>
+              )}
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </View>
+        </Pressable>
+
+        {/* Connections Attending Section */}
+        {connectionsData && connectionsData.count > 0 && (
+          <View style={[styles.connectionsCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+            <View style={styles.connectionsContent}>
+              <View style={styles.connectionsAvatars}>
+                {connectionsData.connections.slice(0, 3).map((connection, index) => (
+                  <View
+                    key={connection.id}
+                    style={[
+                      styles.connectionAvatar,
+                      { marginLeft: index > 0 ? -12 : 0, zIndex: 3 - index },
+                    ]}
+                  >
+                    {connection.avatarUrl ? (
+                      <Image
+                        source={{ uri: connection.avatarUrl }}
+                        style={[styles.connectionAvatarImage, { borderColor: colors.surface }]}
+                      />
+                    ) : (
+                      <View style={[styles.connectionAvatarPlaceholder, { backgroundColor: colors.primary + '20', borderColor: colors.surface }]}>
+                        <Text style={[styles.connectionAvatarInitial, { color: colors.primary }]}>
+                          {(connection.displayName || connection.username)[0].toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+              <View style={styles.connectionsTextContainer}>
+                <Text style={[styles.connectionsText, { color: colors.textPrimary }]}>
+                  {connectionsData.count === 1 ? (
+                    <Text>
+                      <Text style={{ fontWeight: '600' }}>{connectionsData.connections[0].displayName || connectionsData.connections[0].username}</Text>
+                      {' attends here'}
+                    </Text>
+                  ) : connectionsData.count <= 3 ? (
+                    <Text>
+                      <Text style={{ fontWeight: '600' }}>{connectionsData.count} of your connections</Text>
+                      {' attend here'}
+                    </Text>
+                  ) : (
+                    <Text>
+                      <Text style={{ fontWeight: '600' }}>{connectionsData.connections[0].displayName || connectionsData.connections[0].username}</Text>
+                      {` and ${connectionsData.count - 1} other connections attend here`}
+                    </Text>
+                  )}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* About Section */}
         {(church.description || church.mission) && (
@@ -299,6 +480,134 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      {/* Affiliation Modal */}
+      <Modal
+        visible={showAffiliationModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowAffiliationModal(false)}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          {/* Modal Header */}
+          <View style={[styles.modalHeader, { borderBottomColor: colors.borderSubtle }]}>
+            <Pressable onPress={() => setShowAffiliationModal(false)} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
+            </Pressable>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>My Church</Text>
+            <View style={styles.modalCloseButton} />
+          </View>
+
+          <View style={styles.modalContent}>
+            <View style={styles.modalChurchInfo}>
+              {church?.logoUrl ? (
+                <Image source={{ uri: church.logoUrl }} style={styles.modalChurchLogo} />
+              ) : (
+                <View style={[styles.modalChurchLogoPlaceholder, { backgroundColor: colors.primary + '20' }]}>
+                  <Image
+                    source={require('../../assets/church-icon.png')}
+                    style={{ width: 32, height: 32, tintColor: colors.primary }}
+                  />
+                </View>
+              )}
+              <Text style={[styles.modalChurchName, { color: colors.textPrimary }]}>{church?.name}</Text>
+            </View>
+
+            <Text style={[styles.modalSectionLabel, { color: colors.textSecondary }]}>
+              Select your relationship with this church
+            </Text>
+
+            {/* Attending Option */}
+            <Pressable
+              style={[
+                styles.affiliationOption,
+                {
+                  backgroundColor: currentAffiliationType === 'attending' ? colors.primary + '10' : colors.surface,
+                  borderColor: currentAffiliationType === 'attending' ? colors.primary : colors.borderSubtle,
+                }
+              ]}
+              onPress={() => setAffiliationMutation.mutate('attending')}
+              disabled={setAffiliationMutation.isPending}
+            >
+              <View style={styles.affiliationOptionContent}>
+                <Ionicons
+                  name={currentAffiliationType === 'attending' ? "checkmark-circle" : "people-outline"}
+                  size={24}
+                  color={currentAffiliationType === 'attending' ? colors.primary : colors.textSecondary}
+                />
+                <View style={styles.affiliationOptionText}>
+                  <Text style={[styles.affiliationOptionTitle, { color: colors.textPrimary }]}>
+                    I Attend Here
+                  </Text>
+                  <Text style={[styles.affiliationOptionDescription, { color: colors.textSecondary }]}>
+                    I regularly visit this church for services
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+
+            {/* Member Option */}
+            <Pressable
+              style={[
+                styles.affiliationOption,
+                {
+                  backgroundColor: currentAffiliationType === 'member' ? colors.primary + '10' : colors.surface,
+                  borderColor: currentAffiliationType === 'member' ? colors.primary : colors.borderSubtle,
+                }
+              ]}
+              onPress={() => setAffiliationMutation.mutate('member')}
+              disabled={setAffiliationMutation.isPending}
+            >
+              <View style={styles.affiliationOptionContent}>
+                <Ionicons
+                  name={currentAffiliationType === 'member' ? "checkmark-circle" : "ribbon-outline"}
+                  size={24}
+                  color={currentAffiliationType === 'member' ? colors.primary : colors.textSecondary}
+                />
+                <View style={styles.affiliationOptionText}>
+                  <Text style={[styles.affiliationOptionTitle, { color: colors.textPrimary }]}>
+                    I'm a Member
+                  </Text>
+                  <Text style={[styles.affiliationOptionDescription, { color: colors.textSecondary }]}>
+                    I am an official member of this church
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+
+            {/* Remove affiliation button */}
+            {isAffiliatedWithThisChurch && (
+              <Pressable
+                style={[styles.removeAffiliationButton, { borderColor: colors.destructive }]}
+                onPress={() => {
+                  Alert.alert(
+                    'Remove Affiliation',
+                    'Are you sure you want to remove your affiliation with this church?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Remove',
+                        style: 'destructive',
+                        onPress: () => removeAffiliationMutation.mutate(),
+                      },
+                    ]
+                  );
+                }}
+                disabled={removeAffiliationMutation.isPending}
+              >
+                <Ionicons name="close-circle-outline" size={20} color={colors.destructive} />
+                <Text style={[styles.removeAffiliationText, { color: colors.destructive }]}>
+                  Remove my affiliation
+                </Text>
+              </Pressable>
+            )}
+
+            {(setAffiliationMutation.isPending || removeAffiliationMutation.isPending) && (
+              <ActivityIndicator style={{ marginTop: 16 }} color={colors.primary} />
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -546,6 +855,173 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
+  },
+  // Affiliation styles
+  affiliationCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  affiliationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  affiliationIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  affiliationTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  affiliationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  affiliationSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  // Connections attending styles
+  connectionsCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  connectionsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  connectionsAvatars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  connectionAvatar: {
+    width: 32,
+    height: 32,
+  },
+  connectionAvatarImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+  },
+  connectionAvatarPlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectionAvatarInitial: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  connectionsTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  connectionsText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  modalContent: {
+    padding: 20,
+  },
+  modalChurchInfo: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalChurchLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  modalChurchLogoPlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  modalChurchName: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalSectionLabel: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  affiliationOption: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  affiliationOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  affiliationOptionText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  affiliationOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  affiliationOptionDescription: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  removeAffiliationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  removeAffiliationText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

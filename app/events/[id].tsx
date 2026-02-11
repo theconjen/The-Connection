@@ -198,7 +198,6 @@ export default function EventDetailScreen() {
           });
         }
       } catch (error) {
-        console.log('Geocoding error:', error);
       } finally {
         setIsGeocoding(false);
       }
@@ -220,7 +219,6 @@ export default function EventDetailScreen() {
           setFlyerHeight(calculatedHeight);
         },
         (error) => {
-          console.log('Error getting image size:', error);
           setFlyerHeight(200); // Fallback height
         }
       );
@@ -250,7 +248,6 @@ export default function EventDetailScreen() {
       } else {
         Alert.alert('Error', message);
       }
-      console.error('[RSVP Error]', status, message);
     },
   });
 

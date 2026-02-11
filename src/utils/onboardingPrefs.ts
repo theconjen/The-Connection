@@ -66,7 +66,6 @@ export async function saveLocationPermissionGranted(granted: boolean): Promise<v
   try {
     await AsyncStorage.setItem(KEYS.LOCATION_PERMISSION_GRANTED, JSON.stringify(granted));
   } catch (error) {
-    console.error('Error saving location permission status:', error);
   }
 }
 
@@ -78,7 +77,6 @@ export async function getLocationPermissionGranted(): Promise<boolean> {
     const value = await AsyncStorage.getItem(KEYS.LOCATION_PERMISSION_GRANTED);
     return value ? JSON.parse(value) : false;
   } catch (error) {
-    console.error('Error getting location permission status:', error);
     return false;
   }
 }
@@ -94,7 +92,6 @@ export async function saveLastKnownCoords(coords: { latitude: number; longitude:
     };
     await AsyncStorage.setItem(KEYS.LAST_KNOWN_COORDS, JSON.stringify(storedCoords));
   } catch (error) {
-    console.error('Error saving coordinates:', error);
   }
 }
 
@@ -117,7 +114,6 @@ export async function getLastKnownCoords(): Promise<StoredCoords | null> {
 
     return coords;
   } catch (error) {
-    console.error('Error getting coordinates:', error);
     return null;
   }
 }
@@ -129,7 +125,6 @@ export async function saveSelectedTopics(topics: string[]): Promise<void> {
   try {
     await AsyncStorage.setItem(KEYS.SELECTED_TOPICS, JSON.stringify(topics));
   } catch (error) {
-    console.error('Error saving topics:', error);
   }
 }
 
@@ -141,7 +136,6 @@ export async function getSelectedTopics(): Promise<string[]> {
     const value = await AsyncStorage.getItem(KEYS.SELECTED_TOPICS);
     return value ? JSON.parse(value) : [];
   } catch (error) {
-    console.error('Error getting topics:', error);
     return [];
   }
 }
@@ -153,7 +147,6 @@ export async function setStartHereCompleted(completed: boolean): Promise<void> {
   try {
     await AsyncStorage.setItem(KEYS.START_HERE_COMPLETED, JSON.stringify(completed));
   } catch (error) {
-    console.error('Error saving Start Here completion status:', error);
   }
 }
 
@@ -165,7 +158,6 @@ export async function isStartHereCompleted(): Promise<boolean> {
     const value = await AsyncStorage.getItem(KEYS.START_HERE_COMPLETED);
     return value ? JSON.parse(value) : false;
   } catch (error) {
-    console.error('Error getting Start Here completion status:', error);
     return false;
   }
 }
@@ -201,6 +193,5 @@ export async function clearOnboardingPrefs(): Promise<void> {
       AsyncStorage.removeItem(KEYS.START_HERE_COMPLETED),
     ]);
   } catch (error) {
-    console.error('Error clearing onboarding preferences:', error);
   }
 }

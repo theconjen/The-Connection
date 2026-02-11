@@ -170,7 +170,6 @@ export async function shareContent(content: ShareContent): Promise<{ success: bo
 
     return { success: true };
   } catch (error: any) {
-    console.error('Share error:', error);
     return { success: false, error: error.message || 'Failed to share' };
   }
 }
@@ -282,7 +281,6 @@ export async function copyShareUrl(content: ShareContent): Promise<{ success: bo
     await Clipboard.setStringAsync(shareData.url);
     return { success: true };
   } catch (error: any) {
-    console.error('Copy URL error:', error);
     return { success: false, error: error.message || 'Failed to copy URL' };
   }
 }

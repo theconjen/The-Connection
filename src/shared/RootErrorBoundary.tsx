@@ -41,7 +41,6 @@ export class RootErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log the error to console
-    console.error('[ErrorBoundary] Caught error:', {
       error: error.toString(),
       errorInfo: errorInfo.componentStack,
     });

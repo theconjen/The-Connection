@@ -118,7 +118,7 @@ export function MenuPopup({
                       }}
                     >
                       <Ionicons name={item.iconName} size={20} color={colors.foreground} />
-                      {item.badge && item.badge > 0 && (
+                      {item.badge != null && item.badge > 0 && (
                         <View
                           style={{
                             position: 'absolute',

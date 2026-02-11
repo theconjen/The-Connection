@@ -59,7 +59,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setThemePreference(savedTheme as ThemePreference);
       }
     } catch (error) {
-      console.error('Error loading theme:', error);
     } finally {
       setIsLoaded(true);
     }
@@ -70,7 +69,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
       setThemePreference(newTheme);
     } catch (error) {
-      console.error('Error saving theme:', error);
     }
   };
 

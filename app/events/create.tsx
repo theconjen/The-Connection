@@ -59,7 +59,6 @@ async function searchLocations(query: string): Promise<LocationSuggestion[]> {
     const data = await response.json();
     return data || [];
   } catch (error) {
-    console.warn('[Geocoding] Failed to search locations:', error);
     return [];
   }
 }
@@ -221,13 +220,10 @@ export default function CreateEventScreen() {
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       // Log the payload for debugging
-      console.info('[CreateEvent] Sending payload:', JSON.stringify(data, null, 2));
       const response = await eventsAPI.create(data);
-      console.info('[CreateEvent] API Response:', JSON.stringify(response));
       return response;
     },
     onSuccess: (data) => {
-      console.info('[CreateEvent] SUCCESS - Created event:', JSON.stringify(data));
       queryClient.invalidateQueries({ queryKey: ['events'] });
       if (selectedCommunityId) {
         queryClient.invalidateQueries({ queryKey: ['community-events', selectedCommunityId] });
@@ -255,7 +251,6 @@ export default function CreateEventScreen() {
         }
       }
 
-      console.error('[CreateEvent] Error:', error.response?.status, errorData);
       Alert.alert('Error', message);
     },
   });
@@ -306,7 +301,6 @@ export default function CreateEventScreen() {
     if (selectedLocation) {
       latitude = parseFloat(selectedLocation.lat);
       longitude = parseFloat(selectedLocation.lon);
-      console.info('[CreateEvent] Using selected location coordinates:', { latitude, longitude });
     } else if (location.trim()) {
       // Fallback: try to geocode if location text entered but no suggestion selected
       setIsGeocoding(true);
@@ -315,12 +309,9 @@ export default function CreateEventScreen() {
         if (results.length > 0) {
           latitude = parseFloat(results[0].lat);
           longitude = parseFloat(results[0].lon);
-          console.info('[CreateEvent] Geocoded location:', { latitude, longitude });
         } else {
-          console.warn('[CreateEvent] Could not geocode location, creating event without coordinates');
         }
       } catch (error) {
-        console.warn('[CreateEvent] Geocoding error:', error);
       } finally {
         setIsGeocoding(false);
       }
@@ -360,10 +351,6 @@ export default function CreateEventScreen() {
     }
 
     // Debug logging - show exactly what's being sent
-    console.info('[CreateEvent] === PAYLOAD DEBUG ===');
-    console.info('[CreateEvent] selectedCommunityId:', selectedCommunityId, '(type:', typeof selectedCommunityId, ')');
-    console.info('[CreateEvent] isAppOwner:', isAppOwner);
-    console.info('[CreateEvent] Full payload:', JSON.stringify(payload));
 
     createMutation.mutate(payload);
   };

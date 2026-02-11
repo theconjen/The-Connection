@@ -35,6 +35,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import { formatDistanceToNow, isToday, isWithinInterval, subDays, startOfDay } from 'date-fns';
+import { useRouter } from 'expo-router';
 
 // ============================================================================
 // TYPES
@@ -643,6 +644,7 @@ function FollowRequestsSection() {
 export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
   const { colors, spacing } = useTheme();
   const { user } = useAuth();
+  const router = useRouter();
 
   const { data: notifications = [], isLoading, refetch } = useNotifications();
   const markAsReadMutation = useMarkAsRead();
@@ -653,7 +655,74 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
     if (!notification.isRead) {
       markAsReadMutation.mutate(notification.id);
     }
-    // TODO: Navigate to the relevant screen based on notification.data
+
+    // Navigate based on notification category and data
+    const data = notification.data || {};
+
+    switch (notification.category) {
+      case 'event':
+        if (data.eventId) {
+          router.push(`/events/${data.eventId}`);
+        }
+        break;
+
+      case 'invitation':
+        // Could be event or community invitation
+        if (data.eventId) {
+          router.push(`/events/${data.eventId}`);
+        } else if (data.communityId) {
+          router.push(`/communities/${data.communityId}`);
+        }
+        break;
+
+      case 'like':
+      case 'comment':
+      case 'reply':
+        // Navigate to the post or microblog
+        if (data.postId) {
+          router.push(`/posts/${data.postId}`);
+        } else if (data.microblogId) {
+          router.push(`/microblogs/${data.microblogId}`);
+        }
+        break;
+
+      case 'community':
+        if (data.communityId) {
+          router.push(`/communities/${data.communityId}`);
+        } else if (data.communitySlug) {
+          router.push(`/communities/${data.communitySlug}`);
+        }
+        break;
+
+      case 'follow':
+        if (data.userId) {
+          router.push(`/profile/${data.userId}`);
+        } else if (data.followerId) {
+          router.push(`/profile/${data.followerId}`);
+        }
+        break;
+
+      case 'message':
+        if (data.senderId) {
+          router.push(`/messages/${data.senderId}`);
+        } else if (data.conversationId) {
+          router.push(`/messages/${data.conversationId}`);
+        }
+        break;
+
+      default:
+        // For unknown categories, try to infer from data
+        if (data.eventId) {
+          router.push(`/events/${data.eventId}`);
+        } else if (data.postId) {
+          router.push(`/posts/${data.postId}`);
+        } else if (data.communityId) {
+          router.push(`/communities/${data.communityId}`);
+        } else if (data.userId) {
+          router.push(`/profile/${data.userId}`);
+        }
+        break;
+    }
   };
 
   const handleMarkAllAsRead = () => {

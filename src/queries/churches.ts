@@ -2,7 +2,7 @@
  * Church/Organization API queries
  */
 
-import apiClient from '../lib/apiClient';
+import apiClient, { sermonsAPI } from '../lib/apiClient';
 
 // Types
 export interface ChurchListItem {
@@ -120,6 +120,57 @@ export interface ChurchInvitationRequest {
   createdAt: string;
 }
 
+// Church Bulletin Types (for home screen)
+export interface ChurchBulletinEvent {
+  id: number;
+  title: string;
+  eventDate: string;
+  startTime: string | null;
+  location: string | null;
+}
+
+export interface ChurchBulletinSermon {
+  id: number;
+  title: string;
+  speaker: string | null;
+  thumbnailUrl: string | null;
+  sermonDate: string | null;
+}
+
+export interface ChurchBulletinData {
+  hasBulletin: boolean;
+  church?: {
+    id: number;
+    name: string;
+    slug: string;
+    logoUrl: string | null;
+    serviceTimes: string | null;
+  };
+  upcomingEvents?: ChurchBulletinEvent[];
+  recentSermons?: ChurchBulletinSermon[];
+}
+
+// Sermon Playback Types (MUX + JW Player)
+export interface SermonPlaybackResponse {
+  sermon: {
+    id: number;
+    title: string;
+    description?: string | null;
+    speaker?: string | null;
+    sermonDate?: string | null;
+    series?: string | null;
+    duration?: number | null;
+  };
+  playback: {
+    hlsUrl: string;
+    posterUrl?: string | null;
+  };
+  ads: {
+    enabled: boolean;
+    tagUrl?: string | null;
+  };
+}
+
 // API functions
 export const churchesAPI = {
   /**
@@ -213,6 +264,36 @@ export const churchesAPI = {
    */
   getMyInvitationRequests: (): Promise<{ requests: ChurchInvitationRequest[] }> => {
     return apiClient.get('/api/user/church-invitation-requests').then(res => res.data);
+  },
+
+  /**
+   * Get connections (mutual follows) who attend this church
+   */
+  getConnectionsAttending: (orgId: number): Promise<{
+    count: number;
+    connections: {
+      id: number;
+      username: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+      affiliationType: string;
+    }[];
+  }> => {
+    return apiClient.get(`/api/orgs/${orgId}/connections-attending`).then(res => res.data);
+  },
+
+  /**
+   * Get sermon playback data (MUX HLS stream + JW Player ads config)
+   */
+  getSermonPlayback: (sermonId: number): Promise<SermonPlaybackResponse> => {
+    return sermonsAPI.getPlayback(sermonId);
+  },
+
+  /**
+   * Get church bulletin for home screen (if user has church affiliation)
+   */
+  getMyChurchBulletin: (): Promise<ChurchBulletinData> => {
+    return apiClient.get('/api/user/church-bulletin').then(res => res.data);
   },
 };
 

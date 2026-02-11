@@ -88,7 +88,6 @@ export default function PostDetailScreen() {
     queryKey: ['post', postId],
     queryFn: async () => {
       const response = await apiClient.get(`/api/posts/${postId}`);
-      console.log('[Post Detail] API response:', response.data);
       return response.data;
     },
   });
@@ -100,7 +99,6 @@ export default function PostDetailScreen() {
         const response = await apiClient.get(`/api/posts/${postId}/comments`);
         return Array.isArray(response.data) ? response.data : [];
       } catch (error) {
-        console.error('Error fetching post comments:', error);
         return [];
       }
     },

@@ -64,7 +64,6 @@ export default function CreateForumPostScreen() {
       ]);
     },
     onError: (error: any) => {
-      console.error('Forum post creation error:', error);
       const errorMessage = error?.response?.data?.message || 'Failed to create forum post';
       Alert.alert('Error', errorMessage);
     },
@@ -240,7 +239,6 @@ export default function CreateForumPostScreen() {
         videoUrl: videoUrl || undefined,
       });
     } catch (error) {
-      console.error('Error preparing post:', error);
       Alert.alert('Error', 'Failed to prepare media. Please try again.');
     }
   };

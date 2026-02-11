@@ -39,7 +39,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
   // Handle new DM event
   const handleNewDM = useCallback((message: any) => {
-    console.log('[Socket] Received dm:new event:', message);
 
     // Update conversations list cache
     queryClient.invalidateQueries({ queryKey: ['conversations'] });
@@ -55,14 +54,12 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
   // Handle DM reaction event
   const handleDMReaction = useCallback((data: any) => {
-    console.log('[Socket] Received dm:reaction event:', data);
     // Invalidate the specific conversation
     queryClient.invalidateQueries({ queryKey: ['messages'] });
   }, [queryClient]);
 
   // Handle new notification event (for all notification types: follows, likes, comments, events, etc.)
   const handleNewNotification = useCallback((notification: any) => {
-    console.log('[Socket] Received notif:new event:', notification);
 
     // Update notifications list cache
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -111,7 +108,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
     const connectSocket = async () => {
       // Skip socket connection if disabled
       if (!SOCKET_ENABLED) {
-        console.log('[Socket] Disabled - skipping connection (set SOCKET_ENABLED=true when server is ready)');
         return;
       }
 
@@ -119,12 +115,10 @@ export function SocketProvider({ children }: SocketProviderProps) {
         // Get JWT token for socket auth
         const token = await SecureStore.getItemAsync('auth_token');
         if (!token) {
-          console.warn('[Socket] No auth token available');
           return;
         }
 
         const socketUrl = getApiBase();
-        console.log('[Socket] Connecting to:', socketUrl, 'for user:', user.id);
 
         // Create socket connection
         const socket = io(socketUrl, {
@@ -145,7 +139,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
         // Connection handlers
         socket.on('connect', () => {
-          console.log('[Socket] Connected, socket id:', socket.id);
           setIsConnected(true);
 
           // Join user's personal room for DMs
@@ -153,20 +146,17 @@ export function SocketProvider({ children }: SocketProviderProps) {
         });
 
         socket.on('disconnect', (reason) => {
-          console.log('[Socket] Disconnected:', reason);
           setIsConnected(false);
         });
 
         socket.on('connect_error', (error) => {
           // Use warn instead of error to avoid red error dialog in dev mode
           // WebSocket may not always be available - app works fine with HTTP
-          console.warn('[Socket] Connection error - using HTTP fallback');
           setIsConnected(false);
         });
 
         socket.on('error', (error) => {
           // Use warn instead of error to avoid red error dialog in dev mode
-          console.warn('[Socket] Error:', error?.message || error);
         });
 
         // DM event handlers - listen for both new and legacy event names
@@ -179,7 +169,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
       } catch (error) {
         // Use warn instead of error to avoid red error dialog
-        console.warn('[Socket] Error connecting:', error);
       }
     };
 

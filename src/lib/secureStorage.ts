@@ -22,7 +22,6 @@ export async function saveAuthToken(token: string): Promise<void> {
       await SecureStore.setItemAsync(TOKEN_KEY, token);
     }
   } catch (error) {
-    console.error('Error saving auth token:', error);
     // Don't throw - continue gracefully to prevent crashes
   }
 }
@@ -38,7 +37,6 @@ export async function getAuthToken(): Promise<string | null> {
       return await SecureStore.getItemAsync(TOKEN_KEY);
     }
   } catch (error) {
-    console.error('Error getting auth token:', error);
     return null;
   }
 }
@@ -54,7 +52,6 @@ export async function removeAuthToken(): Promise<void> {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
     }
   } catch (error) {
-    console.error('Error removing auth token:', error);
     // Don't throw - continue gracefully to prevent crashes
   }
 }
@@ -71,7 +68,6 @@ export async function saveUserData(userData: any): Promise<void> {
       await SecureStore.setItemAsync(USER_KEY, jsonValue);
     }
   } catch (error) {
-    console.error('Error saving user data:', error);
     // Don't throw - continue gracefully to prevent crashes
   }
 }
@@ -89,7 +85,6 @@ export async function getUserData(): Promise<any | null> {
     }
     return jsonValue != null ? JSON.parse(jsonValue) : null;
   } catch (error) {
-    console.error('Error getting user data:', error);
     return null;
   }
 }
@@ -105,7 +100,6 @@ export async function removeUserData(): Promise<void> {
       await SecureStore.deleteItemAsync(USER_KEY);
     }
   } catch (error) {
-    console.error('Error removing user data:', error);
     // Don't throw - continue gracefully to prevent crashes
   }
 }
@@ -130,7 +124,6 @@ export async function saveSessionCookie(cookie: string): Promise<void> {
       await SecureStore.setItemAsync(SESSION_KEY, cookie);
     }
   } catch (error) {
-    console.error('Error saving session cookie:', error);
   }
 }
 
@@ -142,7 +135,6 @@ export async function getSessionCookie(): Promise<string | null> {
       return await SecureStore.getItemAsync(SESSION_KEY);
     }
   } catch (error) {
-    console.error('Error getting session cookie:', error);
     return null;
   }
 }
@@ -155,6 +147,5 @@ export async function removeSessionCookie(): Promise<void> {
       await SecureStore.deleteItemAsync(SESSION_KEY);
     }
   } catch (error) {
-    console.error('Error removing session cookie:', error);
   }
 }

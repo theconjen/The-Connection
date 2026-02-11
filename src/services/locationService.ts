@@ -13,7 +13,6 @@ const getLocation = () => {
     try {
       Location = require('expo-location');
     } catch (error) {
-      console.warn('expo-location not available:', error);
       return null;
     }
   }
@@ -35,7 +34,6 @@ export interface UserLocation {
 export async function requestLocationPermission(): Promise<boolean> {
   const Loc = getLocation();
   if (!Loc) {
-    console.warn('Location service not available');
     return false;
   }
 
@@ -65,7 +63,6 @@ export async function requestLocationPermission(): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error('Error requesting location permission:', error);
     return false;
   }
 }
@@ -81,7 +78,6 @@ export async function hasLocationPermission(): Promise<boolean> {
     const { status } = await Loc.getForegroundPermissionsAsync();
     return status === 'granted';
   } catch (error) {
-    console.error('Error checking location permission:', error);
     return false;
   }
 }
@@ -92,7 +88,6 @@ export async function hasLocationPermission(): Promise<boolean> {
 export async function getCurrentLocation(): Promise<UserLocation | null> {
   const Loc = getLocation();
   if (!Loc) {
-    console.warn('Location service not available');
     return null;
   }
 
@@ -114,7 +109,6 @@ export async function getCurrentLocation(): Promise<UserLocation | null> {
       longitude: location.coords.longitude,
     };
   } catch (error) {
-    console.error('Error getting current location:', error);
     Alert.alert(
       'Location Error',
       'Unable to get your current location. Please make sure location services are enabled on your device.'
@@ -129,7 +123,6 @@ export async function getCurrentLocation(): Promise<UserLocation | null> {
 export async function getCurrentLocationWithAddress(): Promise<UserLocation | null> {
   const Loc = getLocation();
   if (!Loc) {
-    console.warn('Location service not available');
     return null;
   }
 
@@ -155,7 +148,6 @@ export async function getCurrentLocationWithAddress(): Promise<UserLocation | nu
 
     return location;
   } catch (error) {
-    console.error('Error getting location with address:', error);
     // Return location without address if geocoding fails
     return getCurrentLocation();
   }

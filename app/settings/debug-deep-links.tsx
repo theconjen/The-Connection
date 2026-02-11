@@ -89,7 +89,6 @@ export default function DeepLinkDebugScreen() {
         recordDeepLinkEvent(initialUrl, false);
       }
     } catch (error) {
-      console.error('Error getting initial URL:', error);
     }
   };
 

@@ -23,7 +23,6 @@ const setupGlobalErrorHandler = () => {
   try {
     // Check if ErrorUtils is available (it should be in React Native)
     if (typeof ErrorUtils === 'undefined') {
-      console.warn('[Updates] ErrorUtils not available, skipping global error handler setup');
       return;
     }
 
@@ -42,7 +41,6 @@ const setupGlobalErrorHandler = () => {
         error?.stack?.includes('expo-updates');
 
       if (isUpdatesError) {
-        console.error('[Updates] Caught updates error:', {
           message: error.message,
           stack: error.stack,
           isFatal,
@@ -53,7 +51,6 @@ const setupGlobalErrorHandler = () => {
 
         // Don't propagate fatal errors from updates - they're not worth crashing for
         if (isFatal) {
-          console.warn('[Updates] Suppressed fatal updates error to prevent crash');
           return;
         }
       }
@@ -64,7 +61,6 @@ const setupGlobalErrorHandler = () => {
       }
     });
   } catch (error) {
-    console.error('[Updates] Error setting up global error handler:', error);
     // Don't throw - continue without global error handler
   }
 };
@@ -95,7 +91,6 @@ export async function setupUpdates(): Promise<void> {
           // Use string comparisons to avoid depending on exported enums
           const t = event?.type;
           if (t === 'error') {
-            console.error('[Updates] Update error:', event.message);
             // Don't crash - just log
           } else if (t === 'noUpdateAvailable') {
           } else if (t === 'updateAvailable') {
@@ -104,11 +99,9 @@ export async function setupUpdates(): Promise<void> {
       } else {
       }
     } catch (err) {
-      console.warn('[Updates] Failed to attach update listener:', err);
     }
 
   } catch (error) {
-    console.error('[Updates] Error setting up updates:', error);
     // Don't throw - just log and continue
     // Better to run without updates than to crash
   }
@@ -139,7 +132,6 @@ export async function checkForUpdatesSafely(): Promise<boolean> {
 
     return false;
   } catch (error) {
-    console.error('[Updates] Error checking for updates:', error);
     return false;
   }
 }
@@ -169,7 +161,6 @@ export async function fetchUpdateSafely(): Promise<boolean> {
 
     return false;
   } catch (error) {
-    console.error('[Updates] Error fetching update:', error);
     return false;
   }
 }

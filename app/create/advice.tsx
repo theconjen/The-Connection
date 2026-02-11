@@ -103,7 +103,6 @@ export default function CreateAdviceScreen() {
       ]);
     },
     onError: (error: any) => {
-      console.error('Advice post error:', error);
       const errorMessage = error?.response?.data?.message || 'Failed to post question';
       Alert.alert('Error', errorMessage);
     },

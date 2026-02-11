@@ -56,7 +56,6 @@ export default function CreatePostScreen() {
       ]);
     },
     onError: (error: any) => {
-      console.error('Post creation error:', error);
       const errorMessage = error?.response?.data?.message || 'Failed to create post';
       Alert.alert('Error', errorMessage);
     },

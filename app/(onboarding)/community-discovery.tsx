@@ -59,7 +59,6 @@ export default function CommunityDiscoveryScreen() {
 
       setCommunities(sorted);
     } catch (error) {
-      console.error('Error loading communities:', error);
       Alert.alert('Error', 'Failed to load communities');
     } finally {
       setIsLoading(false);
@@ -82,7 +81,6 @@ export default function CommunityDiscoveryScreen() {
         setJoinedCommunities(prev => new Set(prev).add(communityId));
       }
     } catch (error: any) {
-      console.error('Error toggling community:', error);
       Alert.alert('Error', error.response?.data?.message || 'Failed to update membership');
     }
   };
@@ -132,7 +130,6 @@ export default function CommunityDiscoveryScreen() {
         );
       }, 500);
     } catch (error) {
-      console.error('Error completing onboarding:', error);
       Alert.alert('Error', 'Failed to complete setup. You can finish it later in settings.');
       router.replace('/(tabs)/home');
     } finally {

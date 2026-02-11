@@ -90,7 +90,6 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
         setSearchHistory(JSON.parse(history));
       }
     } catch (error) {
-      console.error('Error loading search history:', error);
     }
   };
 
@@ -101,7 +100,6 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
         setSavedSearches(JSON.parse(saved));
       }
     } catch (error) {
-      console.error('Error loading saved searches:', error);
     }
   };
 
@@ -115,7 +113,6 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
       setSearchHistory(updatedHistory);
       await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updatedHistory));
     } catch (error) {
-      console.error('Error saving search history:', error);
     }
   };
 
@@ -124,7 +121,6 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
       setSearchHistory([]);
       await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
     } catch (error) {
-      console.error('Error clearing search history:', error);
     }
   };
 
@@ -150,7 +146,6 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
       setSaveSearchName('');
       Alert.alert('Success', 'Search saved successfully!');
     } catch (error) {
-      console.error('Error saving search:', error);
       Alert.alert('Error', 'Failed to save search');
     }
   };
@@ -161,7 +156,6 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
       setSavedSearches(updated);
       await AsyncStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(updated));
     } catch (error) {
-      console.error('Error deleting saved search:', error);
     }
   };
 

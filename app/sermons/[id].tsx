@@ -1,249 +1,168 @@
 /**
- * Sermon Video Player Screen
- * View and play sermon videos from church profiles
+ * Sermon Player Screen
+ *
+ * Displays sermon video with native JW Player on both iOS and Android.
+ * Fetches playback data from API including CSAI ads configuration.
+ * When ads.enabled=true, the native player receives adTagUrl for pre-roll ads.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
-  Pressable,
+  ScrollView,
   ActivityIndicator,
-  StatusBar,
-  Dimensions,
+  TouchableOpacity,
 } from 'react-native';
-import { Text } from '../../src/theme';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../src/contexts/ThemeContext';
+import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { useQuery } from '@tanstack/react-query';
-import apiClient from '../../src/lib/apiClient';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { MuxJWPlayer } from '../../src/components/video/MuxJWPlayer';
+import { churchesAPI, SermonPlaybackResponse } from '../../src/queries/churches';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const VIDEO_HEIGHT = (SCREEN_WIDTH * 9) / 16; // 16:9 aspect ratio
+function formatDuration(seconds: number): string {
+  if (!seconds || seconds < 0) return '0:00';
 
-interface SermonPlayback {
-  playback: {
-    hlsUrl: string;
-    posterUrl: string | null;
-  };
-  ads: {
-    enabled: boolean;
-    tagUrl: string | null;
-  };
-  sermon: {
-    id: number;
-    title: string;
-    description: string | null;
-    speaker: string | null;
-    sermonDate: string | null;
-    series: string | null;
-    thumbnailUrl: string | null;
-    duration: number | null;
-  };
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
 
 export default function SermonPlayerScreen() {
-  const router = useRouter();
-  const { id } = useLocalSearchParams() as { id: string };
-  const { colors } = useTheme();
-  const videoRef = useRef<Video>(null);
+  const params = useLocalSearchParams();
+  const id = params.id as string | undefined;
+  const { user } = useAuth();
+  const sermonId = parseInt(id || '0', 10);
+  const [playbackState, setPlaybackState] = useState<string>('idle');
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(true);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [showControls, setShowControls] = useState(true);
-
-  // Fetch sermon playback info
-  const { data, isLoading, isError } = useQuery<SermonPlayback>({
-    queryKey: ['sermon-playback', id],
-    queryFn: async () => {
-      const response = await apiClient.get(`/api/sermons/${id}/playback`);
-      return response.data;
-    },
-    enabled: !!id,
+  const { data, isLoading, error } = useQuery<SermonPlaybackResponse>({
+    queryKey: ['sermon-playback', sermonId],
+    queryFn: () => churchesAPI.getSermonPlayback(sermonId),
+    enabled: !!sermonId,
   });
-
-  const handlePlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-    if (!status.isLoaded) {
-      setIsBuffering(true);
-      return;
-    }
-
-    setIsPlaying(status.isPlaying);
-    setIsBuffering(status.isBuffering);
-    setPosition(status.positionMillis);
-    setDuration(status.durationMillis || 0);
-  }, []);
-
-  const togglePlayPause = async () => {
-    if (!videoRef.current) return;
-
-    if (isPlaying) {
-      await videoRef.current.pauseAsync();
-    } else {
-      await videoRef.current.playAsync();
-    }
-  };
-
-  const handleSeek = async (value: number) => {
-    if (!videoRef.current) return;
-    await videoRef.current.setPositionAsync(value);
-  };
-
-  const formatTime = (millis: number) => {
-    const totalSeconds = Math.floor(millis / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const toggleControls = () => {
-    setShowControls(!showControls);
-  };
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: '#000' }]}>
-        <StatusBar barStyle="light-content" />
+      <View style={styles.container}>
+        <Stack.Screen
+          options={{
+            title: 'Loading...',
+            headerShown: true,
+          }}
+        />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#fff" />
+          <ActivityIndicator size="large" color="#1a2a4a" />
+          <Text style={styles.loadingText}>Loading sermon...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  if (isError || !data) {
+  if (error || !data) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-          </Pressable>
-        </View>
+      <View style={styles.container}>
+        <Stack.Screen
+          options={{
+            title: 'Error',
+            headerShown: true,
+          }}
+        />
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.destructive} />
-          <Text style={[styles.errorText, { color: colors.textPrimary }]}>
-            Unable to load video
+          <Ionicons name="videocam-off" size={64} color="#999" />
+          <Text style={styles.errorTitle}>Video Not Available</Text>
+          <Text style={styles.errorText}>
+            {error instanceof Error ? error.message : 'This sermon is not available for playback.'}
           </Text>
-          <Pressable
-            style={[styles.retryButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.back()}
-          >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Go Back</Text>
-          </Pressable>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  const sermon = data.sermon;
+  const { sermon, playback, ads } = data;
 
   return (
-    <View style={[styles.container, { backgroundColor: '#000' }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: sermon.title,
+          headerShown: true,
+        }}
+      />
 
-      {/* Video Player */}
-      <Pressable style={styles.videoContainer} onPress={toggleControls}>
-        <Video
-          ref={videoRef}
-          source={{ uri: data.playback.hlsUrl }}
-          posterSource={data.playback.posterUrl ? { uri: data.playback.posterUrl } : undefined}
-          usePoster={!!data.playback.posterUrl}
-          resizeMode={ResizeMode.CONTAIN}
-          shouldPlay={false}
-          isLooping={false}
-          onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-          style={styles.video}
+      <ScrollView style={styles.scrollView}>
+        {/* Video Player */}
+        <MuxJWPlayer
+          hlsUrl={playback.hlsUrl}
+          posterUrl={playback.posterUrl || undefined}
+          autoPlay={false}
+          videoId={String(sermon.id)}
+          videoTitle={sermon.title}
+          videoSeries={sermon.series || undefined}
+          videoDuration={sermon.duration ? sermon.duration * 1000 : undefined}
+          viewerUserId={user?.id ? String(user.id) : undefined}
+          adsEnabled={ads.enabled}
+          adTagUrl={ads.tagUrl || undefined}
+          style={styles.player}
+          onStateChange={setPlaybackState}
         />
 
-        {/* Buffering Indicator */}
-        {isBuffering && (
-          <View style={styles.bufferingOverlay}>
-            <ActivityIndicator size="large" color="#fff" />
-          </View>
-        )}
+        {/* Sermon Info */}
+        <View style={styles.infoContainer}>
+          <Text style={styles.title}>{sermon.title}</Text>
 
-        {/* Controls Overlay */}
-        {showControls && (
-          <View style={styles.controlsOverlay}>
-            {/* Top Bar */}
-            <SafeAreaView edges={['top']} style={styles.topBar}>
-              <Pressable onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={28} color="#fff" />
-              </Pressable>
-              {data.ads.enabled && (
-                <View style={styles.adBadge}>
-                  <Text style={styles.adBadgeText}>Sponsored</Text>
-                </View>
-              )}
-            </SafeAreaView>
-
-            {/* Center Play Button */}
-            <Pressable style={styles.playButton} onPress={togglePlayPause}>
-              <Ionicons
-                name={isPlaying ? 'pause' : 'play'}
-                size={48}
-                color="#fff"
-              />
-            </Pressable>
-
-            {/* Bottom Progress Bar */}
-            <View style={styles.bottomBar}>
-              <Text style={styles.timeText}>{formatTime(position)}</Text>
-              <View style={styles.progressContainer}>
-                <View style={styles.progressBackground}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${duration > 0 ? (position / duration) * 100 : 0}%` },
-                    ]}
-                  />
-                </View>
+          <View style={styles.metaRow}>
+            {sermon.speaker && (
+              <View style={styles.metaItem}>
+                <Ionicons name="person" size={16} color="#666" />
+                <Text style={styles.metaText}>{sermon.speaker}</Text>
               </View>
-              <Text style={styles.timeText}>{formatTime(duration)}</Text>
-            </View>
+            )}
+            {sermon.sermonDate && (
+              <View style={styles.metaItem}>
+                <Ionicons name="calendar" size={16} color="#666" />
+                <Text style={styles.metaText}>{sermon.sermonDate}</Text>
+              </View>
+            )}
+            {sermon.duration && (
+              <View style={styles.metaItem}>
+                <Ionicons name="time" size={16} color="#666" />
+                <Text style={styles.metaText}>{formatDuration(sermon.duration)}</Text>
+              </View>
+            )}
           </View>
-        )}
-      </Pressable>
 
-      {/* Video Info */}
-      <SafeAreaView edges={['bottom']} style={[styles.infoContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={2}>
-          {sermon.title}
-        </Text>
-
-        <View style={styles.metaRow}>
-          {sermon.speaker && (
-            <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-              <Ionicons name="person-outline" size={14} /> {sermon.speaker}
-            </Text>
+          {sermon.series && (
+            <View style={styles.seriesContainer}>
+              <Ionicons name="bookmark" size={16} color="#1a2a4a" />
+              <Text style={styles.seriesText}>Series: {sermon.series}</Text>
+            </View>
           )}
-          {sermon.sermonDate && (
-            <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-              <Ionicons name="calendar-outline" size={14} /> {new Date(sermon.sermonDate).toLocaleDateString()}
+
+          {sermon.description && (
+            <View style={styles.descriptionContainer}>
+              <Text style={styles.descriptionTitle}>About This Message</Text>
+              <Text style={styles.descriptionText}>{sermon.description}</Text>
+            </View>
+          )}
+
+          {ads.enabled && (
+            <Text style={styles.adsNotice}>
+              This content may include advertisements.
             </Text>
           )}
         </View>
-
-        {sermon.series && (
-          <View style={[styles.seriesBadge, { backgroundColor: colors.surfaceMuted }]}>
-            <Text style={[styles.seriesText, { color: colors.textSecondary }]}>
-              Series: {sermon.series}
-            </Text>
-          </View>
-        )}
-
-        {sermon.description && (
-          <Text style={[styles.description, { color: colors.textSecondary }]}>
-            {sermon.description}
-          </Text>
-        )}
-      </SafeAreaView>
+      </ScrollView>
     </View>
   );
 }
@@ -251,126 +170,63 @@ export default function SermonPlayerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
   },
-  header: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
-    gap: 16,
+    padding: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
   },
   errorText: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
+    marginBottom: 24,
   },
-  retryButton: {
+  backButton: {
+    backgroundColor: '#1a2a4a',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
-  videoContainer: {
-    width: SCREEN_WIDTH,
-    height: VIDEO_HEIGHT,
-    backgroundColor: '#000',
-  },
-  video: {
-    width: '100%',
-    height: '100%',
-  },
-  bufferingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  controlsOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'space-between',
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  adBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginRight: 16,
-  },
-  adBadgeText: {
+  backButtonText: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '600',
-    textTransform: 'uppercase',
   },
-  playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: 8,
-  },
-  timeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    minWidth: 40,
-    textAlign: 'center',
-  },
-  progressContainer: {
-    flex: 1,
-    height: 32,
-    justifyContent: 'center',
-  },
-  progressBackground: {
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 2,
+  player: {
+    width: '100%',
+    aspectRatio: 16 / 9,
   },
   infoContainer: {
-    flex: 1,
     padding: 16,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 12,
+    color: '#1a1a1a',
   },
   metaRow: {
     flexDirection: 'row',
@@ -378,22 +234,52 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 12,
   },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   metaText: {
     fontSize: 14,
+    color: '#666',
   },
-  seriesBadge: {
-    alignSelf: 'flex-start',
+  seriesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginBottom: 12,
+    backgroundColor: '#f0f4f8',
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   seriesText: {
-    fontSize: 13,
+    fontSize: 14,
+    color: '#1a2a4a',
     fontWeight: '500',
   },
-  description: {
-    fontSize: 15,
+  descriptionContainer: {
+    marginTop: 8,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+  },
+  descriptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#1a1a1a',
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: '#444',
     lineHeight: 22,
+  },
+  adsNotice: {
+    marginTop: 16,
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
   },
 });

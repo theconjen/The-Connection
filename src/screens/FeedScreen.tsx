@@ -38,7 +38,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import apiClient, { exploreFeedAPI, MicroblogTopic, MicroblogType } from '../lib/apiClient';
+import apiClient, { exploreFeedAPI, MicroblogTopic, MicroblogType, safetyAPI } from '../lib/apiClient';
 import { AppHeader } from './AppHeader';
 import { formatDistanceToNow } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
@@ -46,6 +46,7 @@ import { PostCard } from './PostCard';
 import { TopicChips } from '../components/TopicChips';
 import { PollCard } from '../components/PollCard';
 import { ImageCarousel } from '../components/ImageCarousel';
+import { GIF_CONFIG } from '../config';
 
 // ============================================================================
 // TYPES
@@ -191,7 +192,6 @@ function useMicroblogs(filter: 'latest' | 'popular', trendingFilter?: { type: 'h
         // Otherwise, sorted by filter (recent or popular) from API
         return microblogsWithAuthors;
       } catch (error) {
-        console.error('Error fetching microblogs:', error);
         throw error;
       }
     },
@@ -214,7 +214,6 @@ function usePosts(filter: 'latest' | 'popular') {
         // Debug logging
         const bookmarkedPosts = posts.filter((p: any) => p.isBookmarked);
         if (bookmarkedPosts.length > 0) {
-          console.log('[DEBUG] Posts with bookmarks:', bookmarkedPosts.map((p: any) => ({ id: p.id, isBookmarked: p.isBookmarked })));
         }
 
         return posts.map((post: any) => ({
@@ -226,7 +225,6 @@ function usePosts(filter: 'latest' | 'popular') {
           },
         }));
       } catch (error) {
-        console.error('Error fetching posts:', error);
         return []; // Return empty array on error instead of throwing
       }
     },
@@ -590,18 +588,14 @@ function useBookmarkMicroblog() {
     mutationFn: async ({ postId, isBookmarked, type = 'microblog' }: { postId: number; isBookmarked: boolean; type?: 'microblog' | 'post' }) => {
       try {
         const endpoint = type === 'post' ? `/api/posts/${postId}/bookmark` : `/api/microblogs/${postId}/bookmark`;
-        console.log(`[BOOKMARK] ${type} ${postId}: ${isBookmarked ? 'unbookmark' : 'bookmark'} via ${endpoint}`);
         if (isBookmarked) {
           // Currently bookmarked, so unbookmark
           await apiClient.delete(endpoint);
-          console.log(`[BOOKMARK] Successfully unbookmarked ${type} ${postId}`);
         } else {
           // Not bookmarked, so bookmark
           const response = await apiClient.post(endpoint);
-          console.log(`[BOOKMARK] Successfully bookmarked ${type} ${postId}`, response.data);
         }
       } catch (error: any) {
-        console.log(`[BOOKMARK] Error for ${type} ${postId}:`, error.response?.status, error.response?.data);
         // If we get 404 on delete, the bookmark didn't exist - treat as success
         if (error.response?.status === 404 && isBookmarked) {
           return;
@@ -656,7 +650,6 @@ function useBookmarkMicroblog() {
       Alert.alert('Error', 'Failed to update bookmark. Please try again.');
     },
     onSettled: async (data, error, variables) => {
-      console.log(`[BOOKMARK] Settled for ${variables.type} ${variables.postId}, invalidating queries...`);
       // Always refetch after error or success to sync with server
       await queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
       await queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
@@ -668,7 +661,6 @@ function useBookmarkMicroblog() {
         const postsData = queryClient.getQueryData(['/api/posts', 'latest']) as any[];
         if (postsData) {
           const post = postsData.find((p: any) => p.id === variables.postId);
-          console.log(`[BOOKMARK] After refetch, ${variables.type} ${variables.postId} isBookmarked:`, post?.isBookmarked);
         }
       }, 500);
     },
@@ -904,7 +896,6 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               style={styles.sourceUrlContainer}
               onPress={() => {
                 // Open URL (will implement linking)
-                console.log('Open URL:', post.sourceUrl);
               }}
             >
               <Ionicons name="link" size={14} color={colors.link} />
@@ -1213,9 +1204,16 @@ export default function FeedScreen({
         {
           text: 'Block',
           style: 'destructive',
-          onPress: () => {
-            // TODO: Implement block user API call
-            Alert.alert('Coming Soon', 'Block user functionality will be available soon');
+          onPress: async () => {
+            try {
+              await safetyAPI.blockUser({ userId });
+              Alert.alert('User Blocked', 'You will no longer see posts from this user.');
+              // Refresh the feed to remove blocked user's posts
+              queryClient.invalidateQueries({ queryKey: ['microblogs'] });
+              queryClient.invalidateQueries({ queryKey: ['feed'] });
+            } catch (error) {
+              Alert.alert('Error', 'Failed to block user. Please try again.');
+            }
           },
         },
       ]
@@ -1398,31 +1396,29 @@ export default function FeedScreen({
   };
 
   // GIF Picker Functions
-  const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh'; // Free Giphy API key (public beta)
-
   const searchGifs = async (query: string) => {
+    const { apiKey, baseUrl } = GIF_CONFIG.giphy;
+
     if (!query.trim()) {
       // Load trending GIFs when no search query
       try {
         const response = await fetch(
-          `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=50&rating=g`
+          `${baseUrl}/trending?api_key=${apiKey}&limit=50&rating=g`
         );
         const data = await response.json();
         setGifs(data.data || []);
       } catch (error) {
-        console.error('Error loading trending GIFs:', error);
       }
       return;
     }
 
     try {
       const response = await fetch(
-        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=50&rating=g`
+        `${baseUrl}/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=50&rating=g`
       );
       const data = await response.json();
       setGifs(data.data || []);
     } catch (error) {
-      console.error('Error searching GIFs:', error);
       Alert.alert('Error', 'Failed to load GIFs. Please try again.');
     }
   };
@@ -1524,10 +1520,6 @@ export default function FeedScreen({
           Alert.alert('Success', composerMode === 'poll' ? 'Poll created successfully!' : 'Post created successfully!');
         },
         onError: (error: any) => {
-          console.error('Failed to create post - Full error:', JSON.stringify(error, null, 2));
-          console.error('Error response:', error?.response);
-          console.error('Error status:', error?.response?.status);
-          console.error('Error data:', error?.response?.data);
 
           const errorMessage = error?.response?.data?.message
             || error?.response?.data?.error
@@ -1538,7 +1530,6 @@ export default function FeedScreen({
         },
       });
     } catch (error) {
-      console.error('Error preparing post:', error);
       Alert.alert('Error', 'Failed to prepare media. Please try again.');
     }
   };
@@ -1585,7 +1576,6 @@ export default function FeedScreen({
         next.delete(userId);
         return next;
       });
-      console.error('Failed to follow user:', error);
     }
   };
 
@@ -1594,7 +1584,6 @@ export default function FeedScreen({
       await apiClient.post('/api/user/suggestions/hide', { hiddenUserId: userId });
       refetchSuggestions();
     } catch (error) {
-      console.error('Failed to hide suggestion:', error);
     }
   };
 

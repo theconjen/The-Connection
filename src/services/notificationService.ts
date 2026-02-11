@@ -73,7 +73,6 @@ async function setupAndroidChannels() {
         enableVibrate: true,
       });
     }
-    console.info('[Notifications] Android channels configured');
   }
 }
 
@@ -87,7 +86,6 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   try {
     // Check if we're on a physical device
     if (!Device.isDevice) {
-      console.warn('[Notifications] Must use physical device for push notifications');
       return false;
     }
 
@@ -102,14 +100,11 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     }
 
     if (finalStatus !== 'granted') {
-      console.warn('[Notifications] Permission denied by user');
       return false;
     }
 
-    console.info('[Notifications] Permissions granted');
     return true;
   } catch (error) {
-    console.error('[Notifications] Error requesting permissions:', error);
     return false;
   }
 }
@@ -133,10 +128,8 @@ export async function getExpoPushToken(): Promise<string | null> {
     });
 
     const token = tokenData.data;
-    console.info('[Notifications] Expo push token obtained');
     return token;
   } catch (error) {
-    console.error('[Notifications] Error getting Expo push token:', error);
     return null;
   }
 }
@@ -157,14 +150,11 @@ export async function registerPushToken(token: string): Promise<boolean> {
       platform,
     });
 
-    console.info('[Notifications] Token registered with backend');
     return true;
   } catch (error: any) {
     // Log error but don't block app startup
     if (error?.response?.status === 404) {
-      console.warn('[Notifications] Push token endpoint not available (this is normal in development)');
     } else {
-      console.error('[Notifications] Error registering token:', error);
     }
     return false;
   }
@@ -179,7 +169,6 @@ export async function registerPushToken(token: string): Promise<boolean> {
 export async function unregisterPushToken(token: string): Promise<void> {
   try {
     await apiClient.delete(`/api/push-tokens/${encodeURIComponent(token)}`);
-    console.info('[Notifications] Token unregistered from backend');
   } catch (error: any) {
     // Suppress expected errors:
     // - 401: not logged in
@@ -189,9 +178,7 @@ export async function unregisterPushToken(token: string): Promise<void> {
     const isNetworkError = error?.message === 'Network Error' || !error?.response;
 
     if (status !== 401 && status !== 404 && !isNetworkError) {
-      console.error('[Notifications] Error unregistering token:', error);
     } else if (isNetworkError) {
-      console.info('[Notifications] Token unregistration skipped (device offline)');
     }
   }
 }
@@ -204,11 +191,9 @@ export async function unregisterPushToken(token: string): Promise<void> {
  */
 export function handleNotificationNavigation(data: any) {
   if (!data || !data.type) {
-    console.warn('[Notifications] No navigation data in notification');
     return;
   }
 
-  console.info('[Notifications] Navigating from notification:', data.type);
 
   try {
     switch (data.type) {
@@ -251,12 +236,10 @@ export function handleNotificationNavigation(data: any) {
         break;
 
       default:
-        console.warn('[Notifications] Unknown notification type:', data.type);
         // Fallback to notifications center
         router.push('/notifications');
     }
   } catch (error) {
-    console.error('[Notifications] Navigation error:', error);
     // Fallback to notifications center on error
     router.push('/notifications');
   }
@@ -281,21 +264,18 @@ export async function initializeNotifications(
   responseListener: Notifications.Subscription | null;
 } | null> {
   try {
-    console.info('[Notifications] Initializing notification service...');
 
     // Set up Android notification channels
     await setupAndroidChannels();
 
     // Don't register token if user not logged in
     if (!isAuthenticated) {
-      console.info('[Notifications] User not authenticated, skipping token registration');
       return null;
     }
 
     // Request permissions and get token
     const token = await getExpoPushToken();
     if (!token) {
-      console.warn('[Notifications] Could not get push token');
       return null;
     }
 
@@ -304,21 +284,17 @@ export async function initializeNotifications(
 
     // Set up notification received listener (while app is open)
     const receivedListener = Notifications.addNotificationReceivedListener((notification) => {
-      console.info('[Notifications] Notification received while app open:', notification.request.content.title);
       // Notification will be shown automatically due to setNotificationHandler
     });
 
     // Set up notification response listener (when user taps notification)
     const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.info('[Notifications] Notification tapped:', response.notification.request.content.title);
       const data = response.notification.request.content.data;
       handleNotificationNavigation(data);
     });
 
-    console.info('[Notifications] Service initialized successfully');
     return { receivedListener, responseListener };
   } catch (error) {
-    console.error('[Notifications] Error initializing notifications:', error);
     return null;
   }
 }
@@ -341,10 +317,8 @@ export function cleanupNotifications(
     if (responseListener) {
       responseListener.remove();
     }
-    console.info('[Notifications] Listeners cleaned up');
   } catch (error) {
     // Silently handle cleanup errors (common when running in Expo Go)
-    console.warn('[Notifications] Error during cleanup (may be running in Expo Go):', error);
   }
 }
 
@@ -359,7 +333,6 @@ export async function getCurrentToken(): Promise<string | null> {
     });
     return tokenData.data;
   } catch (error) {
-    console.error('[Notifications] Error getting current token:', error);
     return null;
   }
 }
@@ -371,7 +344,6 @@ export async function getBadgeCount(): Promise<number> {
   try {
     return await Notifications.getBadgeCountAsync();
   } catch (error) {
-    console.error('[Notifications] Error getting badge count:', error);
     return 0;
   }
 }
@@ -383,7 +355,6 @@ export async function setBadgeCount(count: number): Promise<void> {
   try {
     await Notifications.setBadgeCountAsync(count);
   } catch (error) {
-    console.error('[Notifications] Error setting badge count:', error);
   }
 }
 
@@ -393,8 +364,6 @@ export async function setBadgeCount(count: number): Promise<void> {
 export async function clearAllNotifications(): Promise<void> {
   try {
     await Notifications.dismissAllNotificationsAsync();
-    console.info('[Notifications] All notifications cleared');
   } catch (error) {
-    console.error('[Notifications] Error clearing notifications:', error);
   }
 }

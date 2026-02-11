@@ -455,7 +455,6 @@ export function CommunityDetailScreen({
         next.delete(userId);
         return next;
       });
-      console.error('Failed to follow user:', error);
     }
   };
 
@@ -465,7 +464,6 @@ export function CommunityDetailScreen({
       await apiClient.post('/api/user/suggestions/hide', { hiddenUserId: userId });
       refetchSuggestions();
     } catch (error) {
-      console.error('Failed to hide suggestion:', error);
     }
   };
 

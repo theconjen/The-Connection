@@ -42,7 +42,6 @@ export function VideoSplash({ onFinish, minDisplayTime = 0 }: VideoSplashProps) 
   };
 
   const handleError = (error: string) => {
-    console.error('Video splash error:', error);
     // On error, just finish and show the app
     onFinish();
   };
@@ -58,7 +57,6 @@ export function VideoSplash({ onFinish, minDisplayTime = 0 }: VideoSplashProps) 
   // Fallback timeout in case video doesn't load or play
   useEffect(() => {
     const fallbackTimeout = setTimeout(() => {
-      console.warn('Video splash fallback timeout triggered');
       onFinish();
     }, 5000); // 5 second max fallback
 

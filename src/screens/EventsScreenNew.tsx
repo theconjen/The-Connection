@@ -810,7 +810,6 @@ export default function EventsScreenNew({
       const serverMessage = error.response?.data?.error || error.response?.data?.message;
       const statusCode = error.response?.status;
 
-      console.error('[RSVP Error]', {
         statusCode,
         serverMessage,
         responseData: error.response?.data,

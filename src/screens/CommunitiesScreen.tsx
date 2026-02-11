@@ -841,7 +841,6 @@ export function CommunitiesScreen({
         }
       } catch (err) {
         // Non-blocking - continue without location
-        console.log('[CommunitiesScreen] Location check failed:', err);
       }
     };
 
@@ -868,7 +867,6 @@ export function CommunitiesScreen({
         const data = await fetchCommunities(searchQuery, selectedFilters, userLocation, maxDistance);
         setCommunities(data);
       } catch (err) {
-        console.error('Error loading communities:', err);
         setError('Failed to load communities');
       } finally {
         setIsLoading(false);
@@ -883,11 +881,9 @@ export function CommunitiesScreen({
   // Filter communities by selected category
   const filteredCommunities = React.useMemo(() => {
     if (!selectedCategory) {
-      console.log('[CommunitiesScreen] No category selected, showing all communities:', communities.length);
       return communities;
     }
 
-    console.log('[CommunitiesScreen] Filtering by category:', selectedCategory);
 
     // Map category IDs to filter fields
     const categoryMap: Record<string, { field: keyof any; value: string }> = {
@@ -920,11 +916,9 @@ export function CommunitiesScreen({
 
     const mapping = categoryMap[selectedCategory];
     if (!mapping) {
-      console.log('[CommunitiesScreen] No mapping found for category:', selectedCategory);
       return communities;
     }
 
-    console.log('[CommunitiesScreen] Mapping:', mapping);
 
     const filtered = communities.filter((community: any) => {
       const fieldValue = community[mapping.field];
@@ -935,8 +929,6 @@ export function CommunitiesScreen({
       return fieldValue === mapping.value;
     });
 
-    console.log('[CommunitiesScreen] Filtered communities:', filtered.length);
-    console.log('[CommunitiesScreen] Filtered community names:', filtered.map((c: any) => c.name));
 
     return filtered;
   }, [communities, selectedCategory]);

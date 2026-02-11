@@ -58,7 +58,6 @@ async function cacheUserData(user: User | null) {
       await SecureStore.deleteItemAsync(CACHED_USER_KEY);
     }
   } catch (error) {
-    console.warn('[AuthContext] Failed to cache user data:', error);
   }
 }
 
@@ -70,7 +69,6 @@ async function loadCachedUser(): Promise<User | null> {
       return JSON.parse(cached);
     }
   } catch (error) {
-    console.warn('[AuthContext] Failed to load cached user:', error);
   }
   return null;
 }
@@ -108,8 +106,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // We have a token - verify with server
       const response = await apiClient.get('/api/user');
-      console.info('[AuthContext] API response data:', JSON.stringify(response.data, null, 2));
-      console.info('[AuthContext] Permissions in response:', response.data?.permissions);
 
       // Update user and cache
       setUser(response.data);
@@ -123,7 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY).catch(() => {});
       } else {
         // Network error or other issue - keep cached user if we have one
-        console.warn('[AuthContext] Auth verification failed:', error);
         // Don't clear user on network errors to allow offline usage
       }
     } finally {
@@ -141,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (cachedUser && hasToken) {
           // We have cached user data and token - show immediately
-          console.info('[AuthContext] Loaded cached user:', cachedUser.username);
           setUser(cachedUser);
           setIsLoading(false);
 
@@ -149,16 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           verifyAuth(true);
         } else if (hasToken) {
           // We have token but no cached user - need to fetch
-          console.info('[AuthContext] Has token but no cached user - fetching...');
           await verifyAuth(false);
         } else {
           // No token - definitely not logged in
-          console.info('[AuthContext] No auth token found');
           setUser(null);
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('[AuthContext] Init error:', error);
         setIsLoading(false);
       }
     }
@@ -187,22 +178,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = response.data.token;
         const tokenParts = token.split('.');
 
-        console.info('[AUTH] Login successful - Received JWT token');
-        console.info('[AUTH] Token format valid:', tokenParts.length === 3 ? 'YES (3 parts)' : `NO (${tokenParts.length} parts)`);
 
         const { saveAuthToken } = await import('../lib/secureStorage');
         await saveAuthToken(token);
-        console.info('[AUTH] JWT token saved to SecureStore successfully');
       } else {
-        console.error('[AUTH] No JWT token in login response - authentication may fail');
       }
 
       // Fetch complete user data with permissions
-      console.info('[AUTH] Login successful, fetching complete user data with permissions...');
       await verifyAuth(false);
     } catch (error: any) {
-      console.error('Login error:', error);
-      console.error('Login error response:', error.response?.data);
 
       // Special handling for EMAIL_NOT_VERIFIED error
       if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
@@ -218,7 +202,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: RegisterPayload) => {
     try {
-      console.info('[AUTH] Starting registration with data:', {
         email: data.email,
         username: data.username,
         hasPassword: !!data.password,
@@ -229,9 +212,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const response = await apiClient.post('/api/auth/register', data);
 
-      console.info('[AUTH] Registration successful, user ID:', response.data?.id);
-      console.info('[AUTH] Verification sent:', response.data?.verificationSent);
-      console.info('[AUTH] Requires verification:', response.data?.requiresVerification);
 
       // NOTE: Server no longer issues JWT until email is verified
       // Do NOT set user or save token - user must verify email first
@@ -244,9 +224,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         message: response.data?.message,
       };
     } catch (error: any) {
-      console.error('[AUTH] Registration error:', error);
-      console.error('[AUTH] Registration error status:', error.response?.status);
-      console.error('[AUTH] Registration error response:', error.response?.data);
 
       // More specific error messages
       if (error.response?.status === 500) {
@@ -263,7 +240,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await apiClient.post('/api/auth/logout');
     } catch (error) {
-      console.error('Logout error:', error);
     } finally {
       // Clear all auth data
       await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY).catch(() => {});

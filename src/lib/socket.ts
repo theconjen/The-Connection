@@ -6,7 +6,6 @@
 import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = 'https://api.theconnection.app'; // Production
-// const SOCKET_URL = 'http://localhost:5000'; // Development
 
 // Set to false to disable socket connections entirely
 const SOCKET_ENABLED = true;
@@ -45,19 +44,16 @@ let pendingMessageCallback: ((message: ChatMessage) => void) | null = null;
 export const socketService = {
   connect: (userId: number) => {
     if (!SOCKET_ENABLED) {
-      console.log('[Socket] Disabled - skipping connection');
       return null;
     }
 
     if (socket?.connected) {
       // Socket already connected - execute any pending operations
       if (pendingRoomJoin !== null) {
-        console.log('[Socket] Executing pending room join:', pendingRoomJoin);
         socket.emit('join_room', pendingRoomJoin);
         pendingRoomJoin = null;
       }
       if (pendingMessageCallback) {
-        console.log('[Socket] Attaching pending message callback');
         socket.on('message_received', pendingMessageCallback);
         pendingMessageCallback = null;
       }
@@ -79,44 +75,38 @@ export const socketService = {
       });
 
       socket.on('connect', () => {
-        console.log('[Socket] Connected successfully');
         // Join user's personal room for DMs
         socket?.emit('join_user_room', userId);
 
         // Execute any pending room join
         if (pendingRoomJoin !== null) {
-          console.log('[Socket] Executing pending room join after connect:', pendingRoomJoin);
           socket?.emit('join_room', pendingRoomJoin);
           pendingRoomJoin = null;
         }
 
         // Attach any pending message callback
         if (pendingMessageCallback) {
-          console.log('[Socket] Attaching pending message callback after connect');
           socket?.on('message_received', pendingMessageCallback);
           pendingMessageCallback = null;
         }
       });
 
-      socket.on('disconnect', (reason) => {
-        console.log('[Socket] Disconnected:', reason);
+      socket.on('disconnect', () => {
+        // Silent disconnect handling
       });
 
-      socket.on('error', (error) => {
-        // Log quietly - don't throw errors that break the app
-        console.warn('[Socket] Error:', error?.message || error);
+      socket.on('error', () => {
+        // Silent error handling - app continues with HTTP fallback
       });
 
-      socket.on('connect_error', (error) => {
-        // Log quietly - WebSocket may not always be available
+      socket.on('connect_error', () => {
+        // Silent - WebSocket may not always be available
         // The app should still work with HTTP-only fallback
-        console.warn('[Socket] Connection failed - chat will use HTTP fallback');
       });
 
       return socket;
     } catch (error) {
-      // Catch any initialization errors
-      console.warn('[Socket] Failed to initialize:', error);
+      // Silent fail - app continues without real-time features
       return null;
     }
   },
@@ -131,11 +121,9 @@ export const socketService = {
   // Community Chat Methods
   joinChatRoom: (roomId: number) => {
     if (socket?.connected) {
-      console.log('[Socket] Joining room:', roomId);
       socket.emit('join_room', roomId);
     } else {
       // Store for later when socket connects
-      console.log('[Socket] Storing pending room join:', roomId);
       pendingRoomJoin = roomId;
     }
   },
@@ -153,18 +141,15 @@ export const socketService = {
   sendChatMessage: (roomId: number, content: string, senderId: number, isAnnouncement: boolean = false) => {
     if (socket?.connected) {
       socket.emit('new_message', { roomId, content, senderId, isAnnouncement });
-    } else {
-      console.warn('[Socket] Cannot send message - not connected');
     }
+    // Silent fail if not connected - message won't be sent
   },
 
   onChatMessage: (callback: (message: ChatMessage) => void) => {
     if (socket?.connected) {
-      console.log('[Socket] Attaching message callback');
       socket.on('message_received', callback);
     } else {
       // Store for later when socket connects
-      console.log('[Socket] Storing pending message callback');
       pendingMessageCallback = callback;
     }
   },

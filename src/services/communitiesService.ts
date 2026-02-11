@@ -93,7 +93,6 @@ export async function fetchCommunities(
     const response = await apiClient.get(url);
     return response.data;
   } catch (error) {
-    console.error('Error fetching communities:', error);
     throw error;
   }
 }
@@ -103,7 +102,6 @@ export async function fetchCommunity(idOrSlug: string | number): Promise<Communi
     const response = await apiClient.get(`/api/communities/${idOrSlug}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching community:', error);
     throw error;
   }
 }

@@ -134,7 +134,6 @@ export default function BookmarksScreen() {
       queryClient.invalidateQueries({ queryKey: ['/api/microblogs/bookmarks/advice'] });
       queryClient.invalidateQueries({ queryKey: ['advice-posts'] });
     } catch (error) {
-      console.error('Error unbookmarking advice:', error);
     }
   };
 
@@ -144,7 +143,6 @@ export default function BookmarksScreen() {
       queryClient.invalidateQueries({ queryKey: ['/api/apologetics/bookmarks/full'] });
       queryClient.invalidateQueries({ queryKey: ['apologetics-bookmarks'] });
     } catch (error) {
-      console.error('Error unbookmarking apologetics Q&A:', error);
     }
   };
 

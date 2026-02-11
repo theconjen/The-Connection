@@ -101,7 +101,6 @@ export default function ForgotPasswordScreen() {
         Alert.alert('Clipboard Empty', 'Please copy the reset link from your email first.');
       }
     } catch (error) {
-      console.log('[FORGOT_PASSWORD] Clipboard error:', error);
       Alert.alert('Error', 'Could not access clipboard. Please paste the token manually.');
     }
   };
@@ -181,14 +180,6 @@ export default function ForgotPasswordScreen() {
     const baseURL = apiClient.defaults.baseURL;
 
     // Debug logging - ALWAYS log for password reset debugging
-    console.log('[FORGOT_PASSWORD] ========== SUBMIT START ==========');
-    console.log('[FORGOT_PASSWORD] x-request-id:', requestId);
-    console.log('[FORGOT_PASSWORD] baseURL:', baseURL);
-    console.log('[FORGOT_PASSWORD] tokenLen:', normalizedToken.length);
-    console.log('[FORGOT_PASSWORD] tokenIsHex:', TOKEN_REGEX.test(normalizedToken));
-    console.log('[FORGOT_PASSWORD] tokenPrefix:', normalizedToken.substring(0, 6));
-    console.log('[FORGOT_PASSWORD] tokenSuffix:', normalizedToken.substring(normalizedToken.length - 6));
-    console.log('[FORGOT_PASSWORD] ===================================');
 
     try {
       await apiClient.post('/api/password-reset/reset', {
@@ -200,7 +191,6 @@ export default function ForgotPasswordScreen() {
         }
       });
 
-      console.log('[FORGOT_PASSWORD] ✅ SUCCESS x-request-id:', requestId);
       setStep('success');
     } catch (error: any) {
       const errorData = error.response?.data;
@@ -208,16 +198,9 @@ export default function ForgotPasswordScreen() {
       const serverRequestId = errorData?.requestId || 'none';
 
       // Log correlation info for debugging
-      console.log('[FORGOT_PASSWORD] ❌ ERROR');
-      console.log('[FORGOT_PASSWORD] client x-request-id:', requestId);
-      console.log('[FORGOT_PASSWORD] server requestId:', serverRequestId);
-      console.log('[FORGOT_PASSWORD] status:', error?.response?.status);
-      console.log('[FORGOT_PASSWORD] code:', errorCode);
-      console.log('[FORGOT_PASSWORD] error:', errorData?.error);
 
       // Diagnostics only present in dev/debug mode
       if (errorData?.diagnostics) {
-        console.log('[FORGOT_PASSWORD] diagnostics:', JSON.stringify(errorData.diagnostics));
       }
 
       let message = 'Invalid or expired token. Please request a new reset link.';

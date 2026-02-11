@@ -130,7 +130,6 @@ export default function EventAttendeesScreen() {
             });
             sentCount++;
           } catch (err) {
-            console.error('Failed to send DM to', attendee.userId, err);
           }
         }
       }
@@ -139,7 +138,6 @@ export default function EventAttendeesScreen() {
       setMessageText('');
       Alert.alert('Success', `Message sent to ${sentCount} attendee${sentCount !== 1 ? 's' : ''}.`);
     } catch (err) {
-      console.error('Error sending messages:', err);
       Alert.alert('Error', 'Failed to send messages. Please try again.');
     } finally {
       setIsSendingMessage(false);

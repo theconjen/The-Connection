@@ -213,7 +213,6 @@ export default function CommunitySettingsScreen() {
           finalCoordinates = result.coordinates;
         }
       } catch (error) {
-        console.error('Error geocoding:', error);
       } finally {
         setIsGeocodingLocation(false);
       }

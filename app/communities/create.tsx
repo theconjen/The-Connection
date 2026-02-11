@@ -109,7 +109,6 @@ export default function CreateCommunityScreen() {
       ]);
     },
     onError: (error: any) => {
-      console.error('Community creation error:', error);
       const errorMessage = error.response?.data?.message
         || error.response?.data?.error
         || error.message
@@ -144,7 +143,6 @@ export default function CreateCommunityScreen() {
         setGeocodedCoordinates(coords);
       }
     } catch (error) {
-      console.error('Error getting current location:', error);
       Alert.alert('Error', 'Failed to get your current location. Please enter it manually.');
     } finally {
       setIsGeocodingLocation(false);
@@ -169,7 +167,6 @@ export default function CreateCommunityScreen() {
         ]);
       }
     } catch (error) {
-      console.error('Error geocoding location:', error);
       Alert.alert('Error', 'Failed to verify location. Please try again.');
     } finally {
       setIsGeocodingLocation(false);
@@ -201,7 +198,6 @@ export default function CreateCommunityScreen() {
           setLocation('');
         }
       } catch (error) {
-        console.error('Error geocoding location:', error);
         Alert.alert('Error', 'Failed to verify location. Your community will still be created.');
       } finally {
         setIsGeocodingLocation(false);

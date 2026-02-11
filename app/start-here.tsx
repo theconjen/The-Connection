@@ -350,7 +350,6 @@ export default function StartHereScreen() {
       // Initial filter
       filterCommunitiesByCategories(allCommunities, selectedCategories);
     } catch (error) {
-      console.error('Error loading communities:', error);
     } finally {
       setIsLoadingCommunities(false);
     }
@@ -373,7 +372,6 @@ export default function StartHereScreen() {
         }
       }
     } catch (error) {
-      console.error('Error enabling location:', error);
     } finally {
       setLocationLoading(false);
     }
@@ -439,7 +437,6 @@ export default function StartHereScreen() {
         });
       } else {
         const response = await communitiesAPI.join(communityId);
-        console.log('[StartHere] Join response:', response);
 
         // Check if join was successful or pending (for private communities)
         if (response?.isPending) {
@@ -458,7 +455,6 @@ export default function StartHereScreen() {
         }
       }
     } catch (error: any) {
-      console.error('Error toggling community:', error);
       const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to update membership';
 
       // If already a member, update the UI accordingly
@@ -490,7 +486,6 @@ export default function StartHereScreen() {
       // Navigate back to communities
       router.replace('/(tabs)/communities');
     } catch (error) {
-      console.error('Error finishing onboarding:', error);
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setIsFinishing(false);

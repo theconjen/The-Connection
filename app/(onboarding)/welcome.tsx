@@ -42,7 +42,6 @@ export default function WelcomeScreen() {
       // Navigate to feed
       router.replace('/(tabs)/home');
     } catch (error) {
-      console.error('Error skipping onboarding:', error);
       Alert.alert('Error', 'Failed to skip onboarding. Please try again.');
     } finally {
       setIsSkipping(false);

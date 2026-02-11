@@ -71,7 +71,6 @@ export const useNotificationCount = () => {
         }
         return { count: 0 };
       } catch (error) {
-        console.error('[Notifications] Error fetching count:', error);
         return { count: 0 };
       }
     },

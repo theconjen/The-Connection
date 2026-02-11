@@ -75,7 +75,6 @@ async function searchLocations(query: string): Promise<LocationSuggestion[]> {
     const data = await response.json();
     return data || [];
   } catch (error) {
-    console.warn('[Geocoding] Failed to search locations:', error);
     return [];
   }
 }
@@ -250,7 +249,6 @@ export default function CreateEventScreen() {
           longitude = parseFloat(results[0].lon);
         }
       } catch (error) {
-        console.warn('[CreateEvent] Geocoding error:', error);
       } finally {
         setIsGeocoding(false);
       }

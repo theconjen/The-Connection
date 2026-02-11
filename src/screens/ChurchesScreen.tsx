@@ -52,59 +52,78 @@ const getStateAbbreviation = (stateName: string): string | null => {
   return STATE_ABBREVS[stateName] || null;
 };
 
-// Church traditions with their denominations
+// Church traditions with their denominations (alphabetized)
 const CHURCH_TRADITIONS = [
   {
     id: 'protestant',
     label: 'Protestant',
     denominations: [
-      // Evangelical
-      'Evangelical', 'Non-Denominational', 'Bible Church',
-      // Baptist
-      'Baptist', 'Southern Baptist', 'American Baptist', 'First Baptist',
-      // Methodist
       'African Methodist Episcopal',
-      // Lutheran
-      'Lutheran',
-      // Presbyterian
-      'Presbyterian', 'PCA', 'Orthodox Presbyterian',
-      // Anglican
+      'American Baptist',
       'Anglican',
-      // Reformed
-      'Reformed', 'Dutch Reformed',
-      // Pentecostal / Charismatic
-      'Pentecostal', 'Assembly of God', 'Foursquare',
-      'Church of God', 'Church of God in Christ',
-      'Charismatic', 'Vineyard',
-      // Wesleyan / Holiness
-      'Nazarene', 'Wesleyan', 'Holiness',
-      // Other Protestant
-      'Evangelical Free', 'Evangelical Covenant',
+      'Assembly of God',
+      'Baptist',
+      'Bible Church',
+      'Brethren',
+      'Calvary Chapel',
+      'Charismatic',
       'Christian & Missionary Alliance',
+      'Church of God',
+      'Church of God in Christ',
       'Congregational',
-      'Mennonite', 'Brethren',
+      'Dutch Reformed',
+      'Evangelical',
+      'Evangelical Covenant',
+      'Evangelical Free',
+      'First Baptist',
+      'Holiness',
+      'Lutheran',
+      'Mennonite',
+      'Nazarene',
+      'Non-Denominational',
+      'Orthodox Presbyterian',
+      'PCA',
+      'Pentecostal',
+      'Presbyterian',
+      'Reformed',
+      'Southern Baptist',
+      'Vineyard',
+      'Wesleyan',
     ],
   },
   {
     id: 'catholic',
     label: 'Catholic',
     denominations: [
-      'Roman Catholic', 'Catholic',
-      'Byzantine Catholic', 'Ukrainian Catholic',
-      'Maronite Catholic', 'Melkite Catholic',
-      'Chaldean Catholic', 'Syro-Malabar',
+      'Byzantine Catholic',
+      'Catholic',
+      'Chaldean Catholic',
+      'Maronite Catholic',
+      'Melkite Catholic',
+      'Roman Catholic',
+      'Syro-Malabar',
+      'Ukrainian Catholic',
     ],
   },
   {
     id: 'orthodox',
     label: 'Orthodox',
     denominations: [
-      'Eastern Orthodox', 'Greek Orthodox', 'Russian Orthodox',
-      'Serbian Orthodox', 'Romanian Orthodox', 'Bulgarian Orthodox',
-      'Antiochian Orthodox', 'Orthodox Church in America',
-      'Coptic Orthodox', 'Ethiopian Orthodox', 'Eritrean Orthodox',
-      'Armenian Apostolic', 'Syriac Orthodox',
-      'Assyrian Church of the East', 'Ancient Church of the East',
+      'Ancient Church of the East',
+      'Antiochian Orthodox',
+      'Armenian Apostolic',
+      'Assyrian Church of the East',
+      'Bulgarian Orthodox',
+      'Coptic Orthodox',
+      'Eastern Orthodox',
+      'Eritrean Orthodox',
+      'Ethiopian Orthodox',
+      'Greek Orthodox',
+      'Orthodox Church in America',
+      'Romanian Orthodox',
+      'Russian Orthodox',
+      'Serbian Orthodox',
+      'Syriac Orthodox',
     ],
   },
 ];
@@ -155,7 +174,6 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
           }
         }
       } catch (error) {
-        console.log('Location error:', error);
       } finally {
         setLocationLoading(false);
       }
@@ -184,7 +202,10 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
   // Get denominations for selected church type
   const getFilterDenomination = () => {
     if (selectedDenomination) return selectedDenomination;
-    // Don't filter by tradition label - let user pick specific denomination
+    // If a tradition is selected but no specific denomination, filter by all denominations in that tradition
+    if (selectedTradition) {
+      return selectedTradition.denominations.join(',');
+    }
     return undefined;
   };
 
@@ -252,7 +273,10 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
             <Image source={{ uri: item.logoUrl }} style={styles.churchLogo} />
           ) : (
             <View style={[styles.churchLogoPlaceholder, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="people" size={24} color={colors.primary} />
+              <Image
+                source={require('../../assets/church-icon.png')}
+                style={{ width: 28, height: 28, tintColor: colors.primary }}
+              />
             </View>
           )}
           <View style={styles.churchMainInfo}>
@@ -290,7 +314,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
         {/* Community indicators */}
         <View style={styles.churchCardBottom}>
           <View style={styles.communityIndicators}>
-            {item.congregationSize && item.congregationSize > 0 && (
+            {item.congregationSize != null && item.congregationSize > 0 && (
               <View style={[styles.indicator, { backgroundColor: colors.surfaceMuted }]}>
                 <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
                 <Text style={[styles.indicatorText, { color: colors.textSecondary }]}>
@@ -335,7 +359,10 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
     return (
       <View style={styles.emptyContainer}>
         <View style={[styles.emptyIcon, { backgroundColor: colors.surfaceMuted }]}>
-          <Ionicons name="people-outline" size={40} color={colors.textMuted} />
+          <Image
+            source={require('../../assets/church-icon.png')}
+            style={{ width: 40, height: 40, tintColor: colors.textMuted }}
+          />
         </View>
         <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
           {hasFilters ? 'No churches found' : 'Discover local churches'}

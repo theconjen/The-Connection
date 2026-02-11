@@ -45,7 +45,6 @@ export default function NotificationSettingsScreen() {
       setNotifyForums(data.notifyForums !== false);
       setNotifyFeed(data.notifyFeed !== false);
     } catch (error) {
-      console.error('Error loading settings:', error);
       Alert.alert('Error', 'Failed to load notification settings');
     } finally {
       setIsLoading(false);
@@ -75,7 +74,6 @@ export default function NotificationSettingsScreen() {
 
       Alert.alert('Success', 'Notification preferences updated successfully');
     } catch (error) {
-      console.error('Error saving settings:', error);
       Alert.alert('Error', 'Failed to save notification settings');
     } finally {
       setIsSaving(false);

@@ -61,7 +61,6 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
           const response = await apiClient.get(`/api/search?q=${encodeURIComponent(searchQuery)}&filter=accounts`);
           setSearchResults(response.data);
         } catch (error) {
-          console.error('Search error:', error);
           setSearchResults([]);
         } finally {
           setIsSearching(false);
