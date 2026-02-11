@@ -28,11 +28,11 @@ let poolInstance: Pool | undefined;
 
 if (isConnected && databaseUrl) {
   sqlInstance = neon(databaseUrl);
-  // Neon serverless pool - keep options minimal for compatibility
+  // Neon serverless pool - scaled for 1,000+ users
   poolInstance = new Pool({
     connectionString: databaseUrl,
-    max: 10, // Maximum connections
-    idleTimeoutMillis: 30000, // Close idle connections after 30s
+    max: 25, // Maximum connections (Neon free tier supports up to 100)
+    idleTimeoutMillis: 20000, // Close idle connections after 20s
     connectionTimeoutMillis: 10000, // Fail fast if can't connect
   });
 }
