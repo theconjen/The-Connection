@@ -238,14 +238,18 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 25));
       const cursor = req.query.cursor as string | undefined; // Cursor for pagination
 
+      // Fetch limit for DB queries (get more for ranking, then slice)
+      const fetchLimit = filter === 'popular' ? 200 : limit * 2;
+      const queryOptions = { topic, limit: fetchLimit };
+
       let microblogs: any[] = [];
 
       if (userId) {
         if (filter === 'popular') {
           // Popular: mix of followed users' posts + most popular posts
           const [followingMicroblogs, allMicroblogs] = await Promise.all([
-            storage.getFollowingMicroblogs(userId),
-            storage.getAllMicroblogs()
+            storage.getFollowingMicroblogs(userId, queryOptions),
+            storage.getAllMicroblogs(queryOptions)
           ]);
 
           if (followingMicroblogs.length === 0) {
@@ -259,79 +263,70 @@ export function createMicroblogsRouter(storage = defaultStorage) {
           }
         } else {
           // Recent: show posts from followed users, or all posts if not following anyone
-          const followingMicroblogs = await storage.getFollowingMicroblogs(userId);
+          const followingMicroblogs = await storage.getFollowingMicroblogs(userId, queryOptions);
 
           if (followingMicroblogs.length === 0) {
             // Not following anyone: show all posts
-            microblogs = await storage.getAllMicroblogs();
+            microblogs = await storage.getAllMicroblogs(queryOptions);
           } else {
             microblogs = followingMicroblogs;
           }
         }
       } else {
-        // Not logged in: show all microblogs
-        microblogs = await storage.getAllMicroblogs();
+        // Not logged in: show all microblogs (topic filter applied at DB level)
+        microblogs = await storage.getAllMicroblogs(queryOptions);
       }
 
-      // Filter by topic if specified (e.g., topic=QUESTION for Seeking Advice)
-      if (topic) {
-        microblogs = microblogs.filter(m => m.topic === topic);
-      }
+      // Topic filtering now done at database level - no in-memory filter needed
 
-      // Enrich microblogs with author data and user engagement status
-      const enrichedMicroblogs = await Promise.all(
-        microblogs.map(async (microblog) => {
-          const author = await storage.getUser(microblog.authorId);
-          const isLiked = userId ? await storage.hasUserLikedMicroblog(microblog.id, userId) : false;
-          const isReposted = userId ? await storage.hasUserRepostedMicroblog(microblog.id, userId) : false;
-          const isBookmarked = userId ? await storage.hasUserBookmarkedMicroblog(microblog.id, userId) : false;
+      // OPTIMIZED: Batch load all related data in parallel (eliminates N+1 queries)
+      const microblogIds = microblogs.map(m => m.id);
+      const authorIds = [...new Set(microblogs.map(m => m.authorId))];
 
-          // Always calculate actual counts from the database tables
-          let actualLikeCount = microblog.likeCount || 0;
-          let actualReplyCount = microblog.replyCount || 0;
+      // Batch load all data in parallel - 4 queries total instead of 4*N
+      const [authorsMap, likedSet, repostedSet, bookmarkedSet] = await Promise.all([
+        storage.getUsersByIds ? storage.getUsersByIds(authorIds) : Promise.resolve(new Map()),
+        userId && storage.getUserLikedMicroblogIds
+          ? storage.getUserLikedMicroblogIds(userId, microblogIds)
+          : Promise.resolve(new Set<number>()),
+        userId && storage.getUserRepostedMicroblogIds
+          ? storage.getUserRepostedMicroblogIds(userId, microblogIds)
+          : Promise.resolve(new Set<number>()),
+        userId && storage.getUserBookmarkedMicroblogIds
+          ? storage.getUserBookmarkedMicroblogIds(userId, microblogIds)
+          : Promise.resolve(new Set<number>()),
+      ]);
 
-          // Get actual like count from microblog_likes table
-          if (storage.getMicroblogLikeCount) {
-            try {
-              actualLikeCount = await storage.getMicroblogLikeCount(microblog.id);
-            } catch {
-              // Fall back to cached count
-            }
-          }
+      // Enrich microblogs using pre-loaded data (no additional queries)
+      const enrichedMicroblogs = microblogs.map((microblog) => {
+        const author = authorsMap.get(microblog.authorId);
 
-          // Get actual reply count from microblogs table (posts with parentId = this microblog)
-          if (storage.getMicroblogReplies) {
-            try {
-              const replies = await storage.getMicroblogReplies(microblog.id);
-              actualReplyCount = replies?.length || 0;
-            } catch {
-              // Fall back to cached count
-            }
-          }
+        // Use cached counts from microblogs table (already accurate from triggers/updates)
+        const actualLikeCount = microblog.likeCount || 0;
+        const actualReplyCount = microblog.replyCount || 0;
 
-          return {
-            ...microblog,
-            likeCount: actualLikeCount,
-            replyCount: actualReplyCount,
-            commentCount: actualReplyCount, // Alias for frontend compatibility
-            author: author ? {
-              id: author.id,
-              username: author.username,
-              displayName: author.displayName,
-              profileImageUrl: author.profileImageUrl,
-              avatarUrl: author.avatarUrl,
-            } : {
-              id: microblog.authorId,
-              username: 'deleted',
-              displayName: 'Deleted User',
-              profileImageUrl: null,
-            },
-            isLiked,
-            isReposted,
-            isBookmarked,
-          };
-        })
-      );
+        return {
+          ...microblog,
+          likeCount: actualLikeCount,
+          replyCount: actualReplyCount,
+          commentCount: actualReplyCount, // Alias for frontend compatibility
+          author: author ? {
+            id: author.id,
+            username: author.username,
+            displayName: author.displayName,
+            profileImageUrl: author.profileImageUrl,
+            avatarUrl: author.avatarUrl,
+          } : {
+            id: microblog.authorId,
+            username: 'deleted',
+            displayName: 'Deleted User',
+            profileImageUrl: null,
+          },
+          isLiked: likedSet.has(microblog.id),
+          isReposted: repostedSet.has(microblog.id),
+          isBookmarked: bookmarkedSet.has(microblog.id),
+        };
+      });
 
       // Apply final sorting
       let sortedMicroblogs = enrichedMicroblogs;

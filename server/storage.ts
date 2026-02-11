@@ -393,10 +393,16 @@ export interface IStorage {
   getEventAttendeeCount(eventId: number): Promise<number>;
 
   // Microblog methods
-  getAllMicroblogs(): Promise<Microblog[]>;
+  getAllMicroblogs(options?: { topic?: string; limit?: number }): Promise<Microblog[]>;
   getMicroblog(id: number): Promise<Microblog | undefined>;
   getUserMicroblogs(userId: number): Promise<Microblog[]>;
-  getFollowingMicroblogs(userId: number): Promise<Microblog[]>;
+  getFollowingMicroblogs(userId: number, options?: { topic?: string; limit?: number }): Promise<Microblog[]>;
+
+  // Batch loading methods (eliminates N+1 queries)
+  getUsersByIds?(ids: number[]): Promise<Map<number, User>>;
+  getUserLikedMicroblogIds?(userId: number, microblogIds: number[]): Promise<Set<number>>;
+  getUserRepostedMicroblogIds?(userId: number, microblogIds: number[]): Promise<Set<number>>;
+  getUserBookmarkedMicroblogIds?(userId: number, microblogIds: number[]): Promise<Set<number>>;
   createMicroblog(microblog: InsertMicroblog): Promise<Microblog>;
   updateMicroblog(id: number, data: Partial<Microblog>): Promise<Microblog>;
   deleteMicroblog(id: number): Promise<boolean>;
@@ -2007,8 +2013,20 @@ export class MemStorage implements IStorage {
   }
   
   // Microblog methods
-  async getAllMicroblogs(): Promise<Microblog[]> {
-    return [...this.data.microblogs].sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+  async getAllMicroblogs(options?: { topic?: string; limit?: number }): Promise<Microblog[]> {
+    let result = [...this.data.microblogs]
+      .filter(m => !m.parentId) // Only top-level posts
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+
+    if (options?.topic) {
+      result = result.filter(m => m.topic === options.topic);
+    }
+
+    if (options?.limit) {
+      result = result.slice(0, options.limit);
+    }
+
+    return result;
   }
   
   async getMicroblog(id: number): Promise<Microblog | undefined> {
@@ -2021,7 +2039,7 @@ export class MemStorage implements IStorage {
       .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
 
-  async getFollowingMicroblogs(_userId: number): Promise<Microblog[]> {
+  async getFollowingMicroblogs(_userId: number, _options?: { topic?: string; limit?: number }): Promise<Microblog[]> {
     // In-memory stub - not implemented
     return [];
   }
@@ -2423,6 +2441,55 @@ export class DbStorage implements IStorage {
   
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users).where(whereNotDeleted(users));
+  }
+
+  // Batch load users by IDs (eliminates N+1 queries)
+  async getUsersByIds(ids: number[]): Promise<Map<number, User>> {
+    if (ids.length === 0) return new Map();
+    const uniqueIds = [...new Set(ids)];
+    const result = await db.select().from(users).where(
+      and(
+        inArray(users.id, uniqueIds),
+        whereNotDeleted(users)
+      )
+    );
+    return new Map(result.map(u => [u.id, u]));
+  }
+
+  // Batch check which microblogs a user has liked
+  async getUserLikedMicroblogIds(userId: number, microblogIds: number[]): Promise<Set<number>> {
+    if (microblogIds.length === 0) return new Set();
+    const result = await db.select({ microblogId: microblogLikes.microblogId })
+      .from(microblogLikes)
+      .where(and(
+        eq(microblogLikes.userId, userId),
+        inArray(microblogLikes.microblogId, microblogIds)
+      ));
+    return new Set(result.map(r => r.microblogId));
+  }
+
+  // Batch check which microblogs a user has reposted
+  async getUserRepostedMicroblogIds(userId: number, microblogIds: number[]): Promise<Set<number>> {
+    if (microblogIds.length === 0) return new Set();
+    const result = await db.select({ microblogId: microblogReposts.microblogId })
+      .from(microblogReposts)
+      .where(and(
+        eq(microblogReposts.userId, userId),
+        inArray(microblogReposts.microblogId, microblogIds)
+      ));
+    return new Set(result.map(r => r.microblogId));
+  }
+
+  // Batch check which microblogs a user has bookmarked
+  async getUserBookmarkedMicroblogIds(userId: number, microblogIds: number[]): Promise<Set<number>> {
+    if (microblogIds.length === 0) return new Set();
+    const result = await db.select({ microblogId: microblogBookmarks.microblogId })
+      .from(microblogBookmarks)
+      .where(and(
+        eq(microblogBookmarks.userId, userId),
+        inArray(microblogBookmarks.microblogId, microblogIds)
+      ));
+    return new Set(result.map(r => r.microblogId));
   }
 
   // Moderation methods (DB)
@@ -4289,12 +4356,22 @@ export class DbStorage implements IStorage {
   }
   
   // Microblog methods
-  async getAllMicroblogs(): Promise<Microblog[]> {
+  async getAllMicroblogs(options?: { topic?: string; limit?: number }): Promise<Microblog[]> {
     // Only return top-level posts (not replies)
+    const conditions = [isNull(microblogs.parentId)];
+
+    // Filter by topic at database level (not in memory)
+    if (options?.topic) {
+      conditions.push(eq(microblogs.topic, options.topic));
+    }
+
+    const limit = options?.limit || 100; // Default limit to prevent fetching entire table
+
     const allMicroblogs = await db.select()
       .from(microblogs)
-      .where(isNull(microblogs.parentId))
-      .orderBy(desc(microblogs.createdAt));
+      .where(and(...conditions))
+      .orderBy(desc(microblogs.createdAt))
+      .limit(limit);
     return allMicroblogs;
   }
   
@@ -4314,7 +4391,7 @@ export class DbStorage implements IStorage {
     return userMicroblogs;
   }
 
-  async getFollowingMicroblogs(userId: number): Promise<Microblog[]> {
+  async getFollowingMicroblogs(userId: number, options?: { topic?: string; limit?: number }): Promise<Microblog[]> {
     // Get IDs of users that this user follows
     const following = await db.select({ followingId: userFollows.followingId })
       .from(userFollows)
@@ -4326,14 +4403,25 @@ export class DbStorage implements IStorage {
       return [];
     }
 
+    // Build conditions
+    const conditions = [
+      sql`${microblogs.authorId} IN (${sql.join(followingIds.map(id => sql`${id}`), sql`, `)})`,
+      isNull(microblogs.parentId)
+    ];
+
+    // Filter by topic at database level
+    if (options?.topic) {
+      conditions.push(eq(microblogs.topic, options.topic));
+    }
+
+    const limit = options?.limit || 100;
+
     // Get microblogs from followed users (only top-level posts, not replies)
     const followingMicroblogs = await db.select()
       .from(microblogs)
-      .where(and(
-        sql`${microblogs.authorId} IN (${sql.join(followingIds.map(id => sql`${id}`), sql`, `)})`,
-        isNull(microblogs.parentId)
-      ))
-      .orderBy(desc(microblogs.createdAt));
+      .where(and(...conditions))
+      .orderBy(desc(microblogs.createdAt))
+      .limit(limit);
 
     return followingMicroblogs;
   }

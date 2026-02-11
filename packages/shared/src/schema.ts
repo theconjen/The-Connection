@@ -1055,7 +1055,14 @@ export const microblogLikes = pgTable("microblog_likes", {
   microblogId: integer("microblog_id").references(() => microblogs.id).notNull(),
   userId: integer("user_id").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-} as any);
+}, (table) => [
+  // Composite index for checking if user liked a microblog
+  uniqueIndex("idx_microblog_likes_microblog_user").on(table.microblogId, table.userId),
+  // Index for batch queries (fetching all likes for multiple microblogs)
+  index("idx_microblog_likes_microblog_id").on(table.microblogId),
+  // Index for user queries (user's likes)
+  index("idx_microblog_likes_user_id").on(table.userId),
+]);
 
 export const insertMicroblogLikeSchema = createInsertSchema(microblogLikes).pick({
   microblogId: true,
@@ -1068,7 +1075,11 @@ export const microblogReposts = pgTable("microblog_reposts", {
   microblogId: integer("microblog_id").references(() => microblogs.id, { onDelete: 'cascade' }).notNull(),
   userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-} as any);
+}, (table) => [
+  uniqueIndex("idx_microblog_reposts_microblog_user").on(table.microblogId, table.userId),
+  index("idx_microblog_reposts_microblog_id").on(table.microblogId),
+  index("idx_microblog_reposts_user_id").on(table.userId),
+]);
 
 export const insertMicroblogRepostSchema = createInsertSchema(microblogReposts).pick({
   microblogId: true,
@@ -1081,7 +1092,11 @@ export const microblogBookmarks = pgTable("microblog_bookmarks", {
   microblogId: integer("microblog_id").references(() => microblogs.id, { onDelete: 'cascade' }).notNull(),
   userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-} as any);
+}, (table) => [
+  uniqueIndex("idx_microblog_bookmarks_microblog_user").on(table.microblogId, table.userId),
+  index("idx_microblog_bookmarks_microblog_id").on(table.microblogId),
+  index("idx_microblog_bookmarks_user_id").on(table.userId),
+]);
 
 export const insertMicroblogBookmarkSchema = createInsertSchema(microblogBookmarks).pick({
   microblogId: true,
