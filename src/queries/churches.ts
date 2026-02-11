@@ -79,6 +79,40 @@ export interface ChurchDirectoryResponse {
   nextCursor: string | null;
 }
 
+export interface ChurchFilters {
+  denominations: string[];
+  states: string[];
+}
+
+// User Church Affiliation Types
+export interface UserChurchAffiliation {
+  id: number;
+  affiliationType: 'attending' | 'member';
+  organizationId: number | null;
+  customChurchName: string | null;
+  customChurchCity: string | null;
+  customChurchState: string | null;
+  startedAt: string | null;
+  organization: {
+    id: number;
+    name: string;
+    slug: string;
+    logoUrl: string | null;
+    city: string | null;
+    state: string | null;
+    denomination: string | null;
+  } | null;
+}
+
+export interface ChurchInvitationRequest {
+  id: number;
+  churchName: string;
+  churchCity: string | null;
+  churchState: string | null;
+  status: 'pending' | 'sent' | 'accepted' | 'declined';
+  createdAt: string;
+}
+
 // API functions
 export const churchesAPI = {
   /**
@@ -117,6 +151,61 @@ export const churchesAPI = {
    */
   getBySlug: (slug: string): Promise<ChurchProfileResponse> => {
     return apiClient.get(`/api/orgs/${slug}`).then(res => res.data);
+  },
+
+  /**
+   * Get filter options (denominations and states)
+   */
+  getFilters: (): Promise<ChurchFilters> => {
+    return apiClient.get('/api/orgs/filters').then(res => res.data);
+  },
+
+  /**
+   * Get current user's church affiliation
+   */
+  getMyAffiliation: (): Promise<{ affiliation: UserChurchAffiliation | null }> => {
+    return apiClient.get('/api/user/church-affiliation').then(res => res.data);
+  },
+
+  /**
+   * Set or update church affiliation
+   */
+  setAffiliation: (data: {
+    organizationId?: number | null;
+    customChurchName?: string | null;
+    customChurchCity?: string | null;
+    customChurchState?: string | null;
+    affiliationType: 'attending' | 'member';
+    startedAt?: string | null;
+  }): Promise<{ affiliation: UserChurchAffiliation }> => {
+    return apiClient.put('/api/user/church-affiliation', data).then(res => res.data);
+  },
+
+  /**
+   * Remove church affiliation
+   */
+  removeAffiliation: (): Promise<{ success: boolean }> => {
+    return apiClient.delete('/api/user/church-affiliation').then(res => res.data);
+  },
+
+  /**
+   * Request a church to join the platform
+   */
+  requestChurchInvitation: (data: {
+    churchName: string;
+    churchEmail: string;
+    churchCity?: string;
+    churchState?: string;
+    churchWebsite?: string;
+  }): Promise<{ success: boolean; message: string; request: { id: number; churchName: string; status: string } }> => {
+    return apiClient.post('/api/user/request-church-invitation', data).then(res => res.data);
+  },
+
+  /**
+   * Get user's church invitation requests
+   */
+  getMyInvitationRequests: (): Promise<{ requests: ChurchInvitationRequest[] }> => {
+    return apiClient.get('/api/user/church-invitation-requests').then(res => res.data);
   },
 };
 
