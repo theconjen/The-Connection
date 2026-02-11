@@ -27,18 +27,20 @@ const VIDEO_HEIGHT = (SCREEN_WIDTH * 9) / 16; // 16:9 aspect ratio
 interface SermonPlayback {
   playback: {
     hlsUrl: string;
-    posterUrl?: string;
+    posterUrl: string | null;
   };
   ads: {
     enabled: boolean;
+    tagUrl: string | null;
   };
-  video: {
+  sermon: {
     id: number;
     title: string;
     description: string | null;
     speaker: string | null;
     sermonDate: string | null;
     series: string | null;
+    thumbnailUrl: string | null;
     duration: number | null;
   };
 }
@@ -59,7 +61,7 @@ export default function SermonPlayerScreen() {
   const { data, isLoading, isError } = useQuery<SermonPlayback>({
     queryKey: ['sermon-playback', id],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/videos/${id}/playback`);
+      const response = await apiClient.get(`/api/sermons/${id}/playback`);
       return response.data;
     },
     enabled: !!id,
@@ -139,7 +141,7 @@ export default function SermonPlayerScreen() {
     );
   }
 
-  const sermon = data.video;
+  const sermon = data.sermon;
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]}>
