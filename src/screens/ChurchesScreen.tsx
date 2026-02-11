@@ -52,13 +52,68 @@ const getStateAbbreviation = (stateName: string): string | null => {
   return STATE_ABBREVS[stateName] || null;
 };
 
-// Default church types (fallback if API doesn't return them)
-const DEFAULT_CHURCH_TYPES = [
-  { id: 'protestant', label: 'Protestant', denominations: ['Baptist', 'Methodist', 'Lutheran', 'Presbyterian', 'Pentecostal', 'Non-Denominational'] },
-  { id: 'evangelical', label: 'Evangelical', denominations: ['Baptist', 'Pentecostal', 'Assembly of God', 'Non-Denominational', 'Evangelical'] },
-  { id: 'catholic', label: 'Catholic', denominations: ['Catholic', 'Roman Catholic'] },
-  { id: 'orthodox', label: 'Orthodox', denominations: ['Orthodox', 'Eastern Orthodox', 'Greek Orthodox'] },
-  { id: 'church-of-east', label: 'Church of the East', denominations: ['Assyrian Church of the East', 'Chaldean Catholic'] },
+// Church traditions with their denominations
+const CHURCH_TRADITIONS = [
+  {
+    id: 'protestant',
+    label: 'Protestant',
+    denominations: [
+      'Baptist', 'Southern Baptist', 'American Baptist',
+      'Methodist', 'United Methodist', 'African Methodist Episcopal',
+      'Lutheran', 'ELCA', 'Missouri Synod',
+      'Presbyterian', 'PCA', 'PCUSA',
+      'Anglican', 'Episcopal',
+      'Reformed', 'Dutch Reformed',
+      'Congregational', 'United Church of Christ',
+      'Mennonite', 'Amish', 'Brethren',
+      'Quaker', 'Friends',
+      'Adventist', 'Seventh-day Adventist',
+    ],
+  },
+  {
+    id: 'evangelical',
+    label: 'Evangelical',
+    denominations: [
+      'Non-Denominational', 'Bible Church',
+      'Baptist', 'Southern Baptist',
+      'Pentecostal', 'Assembly of God', 'Foursquare',
+      'Church of God', 'Church of God in Christ',
+      'Nazarene', 'Wesleyan', 'Holiness',
+      'Charismatic', 'Vineyard',
+      'Evangelical Free', 'Evangelical Covenant',
+      'Christian & Missionary Alliance',
+    ],
+  },
+  {
+    id: 'catholic',
+    label: 'Catholic',
+    denominations: [
+      'Roman Catholic', 'Catholic',
+      'Byzantine Catholic', 'Ukrainian Catholic',
+      'Maronite Catholic', 'Melkite Catholic',
+      'Chaldean Catholic', 'Syro-Malabar',
+    ],
+  },
+  {
+    id: 'orthodox',
+    label: 'Orthodox',
+    denominations: [
+      'Eastern Orthodox', 'Greek Orthodox', 'Russian Orthodox',
+      'Serbian Orthodox', 'Romanian Orthodox', 'Bulgarian Orthodox',
+      'Antiochian Orthodox', 'Orthodox Church in America',
+      'Coptic Orthodox', 'Ethiopian Orthodox', 'Eritrean Orthodox',
+      'Armenian Apostolic', 'Syriac Orthodox',
+    ],
+  },
+  {
+    id: 'church-of-east',
+    label: 'Church of the East',
+    denominations: [
+      'Assyrian Church of the East',
+      'Ancient Church of the East',
+      'Chaldean Catholic',
+    ],
+  },
 ];
 
 export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
@@ -128,17 +183,15 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
     queryFn: () => churchesAPI.getFilters(),
   });
 
-  // Use API church types or fallback to defaults
-  const churchTypes = filtersData?.churchTypes?.length ? filtersData.churchTypes : DEFAULT_CHURCH_TYPES;
+  // Get selected tradition's denominations
+  const selectedTradition = selectedChurchType
+    ? CHURCH_TRADITIONS.find(t => t.id === selectedChurchType)
+    : null;
 
   // Get denominations for selected church type
   const getFilterDenomination = () => {
     if (selectedDenomination) return selectedDenomination;
-    if (selectedChurchType) {
-      const type = churchTypes.find(t => t.id === selectedChurchType);
-      // Return the type label as denomination filter
-      return type?.label || undefined;
-    }
+    // Don't filter by tradition label - let user pick specific denomination
     return undefined;
   };
 
@@ -399,7 +452,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
       {/* Filter Panel */}
       {showFilters && (
         <View style={styles.filterPanel}>
-          {/* Church Types - Primary filter row */}
+          {/* Church Traditions - Primary filter row */}
           <View style={styles.filterSection}>
             <Text style={[styles.filterSectionLabel, { color: colors.textMuted }]}>Tradition</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
@@ -408,32 +461,72 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
                   styles.typeChip,
                   { backgroundColor: !selectedChurchType ? colors.primary : colors.surface, borderColor: colors.borderSubtle },
                 ]}
-                onPress={() => setSelectedChurchType(null)}
+                onPress={() => { setSelectedChurchType(null); setSelectedDenomination(null); }}
               >
                 <Text style={{ color: !selectedChurchType ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '500' }}>All</Text>
               </Pressable>
-              {churchTypes.map((type) => (
+              {CHURCH_TRADITIONS.map((tradition) => (
                 <Pressable
-                  key={type.id}
+                  key={tradition.id}
                   style={[
                     styles.typeChip,
-                    { backgroundColor: selectedChurchType === type.id ? colors.primary : colors.surface, borderColor: colors.borderSubtle },
+                    { backgroundColor: selectedChurchType === tradition.id ? colors.primary : colors.surface, borderColor: colors.borderSubtle },
                   ]}
-                  onPress={() => setSelectedChurchType(selectedChurchType === type.id ? null : type.id)}
+                  onPress={() => {
+                    setSelectedChurchType(selectedChurchType === tradition.id ? null : tradition.id);
+                    setSelectedDenomination(null);
+                  }}
                 >
-                  <Text style={{ color: selectedChurchType === type.id ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '500' }}>
-                    {type.label}
+                  <Text style={{ color: selectedChurchType === tradition.id ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '500' }}>
+                    {tradition.label}
                   </Text>
                 </Pressable>
               ))}
             </ScrollView>
           </View>
 
+          {/* Denominations - Show when tradition is selected */}
+          {selectedTradition && (
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterSectionLabel, { color: colors.textMuted }]}>
+                {selectedTradition.label} Denominations
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
+                <Pressable
+                  style={[
+                    styles.denomChip,
+                    { borderColor: !selectedDenomination ? colors.primary : colors.borderSubtle },
+                    !selectedDenomination && { backgroundColor: colors.primary + '15' },
+                  ]}
+                  onPress={() => setSelectedDenomination(null)}
+                >
+                  <Text style={{ color: !selectedDenomination ? colors.primary : colors.textSecondary, fontSize: 12 }}>
+                    All {selectedTradition.label}
+                  </Text>
+                </Pressable>
+                {selectedTradition.denominations.map((denom) => (
+                  <Pressable
+                    key={denom}
+                    style={[
+                      styles.denomChip,
+                      { borderColor: selectedDenomination === denom ? colors.primary : colors.borderSubtle },
+                      selectedDenomination === denom && { backgroundColor: colors.primary + '15' },
+                    ]}
+                    onPress={() => setSelectedDenomination(selectedDenomination === denom ? null : denom)}
+                  >
+                    <Text style={{ color: selectedDenomination === denom ? colors.primary : colors.textSecondary, fontSize: 12 }}>
+                      {denom}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Location filter row */}
           <View style={styles.filterSection}>
             <Text style={[styles.filterSectionLabel, { color: colors.textMuted }]}>Location</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
-              {/* Near me chip */}
               {userLocation && (
                 <Pressable
                   style={[
@@ -452,7 +545,6 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
                   </Text>
                 </Pressable>
               )}
-              {/* All locations chip */}
               <Pressable
                 style={[
                   styles.locationChip,
@@ -466,7 +558,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
             </ScrollView>
           </View>
 
-          {/* Clear filters if any active */}
+          {/* Clear filters */}
           {hasActiveFilters && (
             <Pressable style={styles.clearFiltersRow} onPress={clearFilters}>
               <Ionicons name="close-circle" size={16} color={colors.textMuted} />
@@ -877,6 +969,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
+    borderWidth: 1,
+  },
+  denomChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
   },
   locationChip: {
