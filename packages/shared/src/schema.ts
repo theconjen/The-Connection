@@ -206,6 +206,53 @@ export const insertOrganizationLeaderSchema = createInsertSchema(organizationLea
 export type OrganizationLeader = typeof organizationLeaders.$inferSelect;
 export type InsertOrganizationLeader = typeof organizationLeaders.$inferInsert;
 
+// User Church Affiliations - tracks where users attend/are members
+// This is separate from organizationUsers which is for staff/leadership roles
+export const userChurchAffiliations = pgTable("user_church_affiliations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  organizationId: integer("organization_id").references(() => organizations.id, { onDelete: 'set null' }),
+  // For churches not yet on the platform
+  customChurchName: text("custom_church_name"),
+  customChurchCity: text("custom_church_city"),
+  customChurchState: text("custom_church_state"),
+  // Affiliation type: 'attending' (visitor/attender) or 'member' (formal member)
+  affiliationType: text("affiliation_type").notNull().default("attending"),
+  // When this affiliation started
+  startedAt: timestamp("started_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("user_church_affiliation_unique_idx").on(table.userId),
+]);
+
+export type UserChurchAffiliation = typeof userChurchAffiliations.$inferSelect;
+export type InsertUserChurchAffiliation = typeof userChurchAffiliations.$inferInsert;
+
+// Church Invitation Requests - when users request their church join the platform
+export const churchInvitationRequests = pgTable("church_invitation_requests", {
+  id: serial("id").primaryKey(),
+  requesterId: integer("requester_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  churchName: text("church_name").notNull(),
+  churchEmail: text("church_email").notNull(),
+  churchCity: text("church_city"),
+  churchState: text("church_state"),
+  churchWebsite: text("church_website"),
+  // Status: pending, sent, accepted, declined
+  status: text("status").notNull().default("pending"),
+  // If the church signs up, link to their organization
+  resultingOrgId: integer("resulting_org_id").references(() => organizations.id),
+  sentAt: timestamp("sent_at"),
+  respondedAt: timestamp("responded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("church_invitation_requests_email_idx").on(table.churchEmail),
+  index("church_invitation_requests_status_idx").on(table.status),
+]);
+
+export type ChurchInvitationRequest = typeof churchInvitationRequests.$inferSelect;
+export type InsertChurchInvitationRequest = typeof churchInvitationRequests.$inferInsert;
+
 // Communities table schema
 export const communities = pgTable("communities", {
   id: serial("id").primaryKey(),
@@ -2441,28 +2488,6 @@ export const insertOrgBillingSchema = createInsertSchema(orgBilling).pick({
 export type OrgBilling = typeof orgBilling.$inferSelect;
 export type InsertOrgBilling = typeof orgBilling.$inferInsert;
 
-// User Church Affiliations - Soft affiliations ("my churches")
-// XOR constraint: either organizationId OR freeTextName, not both
-export const userChurchAffiliations = pgTable("user_church_affiliations", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  organizationId: integer("organization_id").references(() => organizations.id),
-  freeTextName: text("free_text_name"), // For churches not in the system
-  roleLabel: text("role_label"), // User-defined label like "Member", "Deacon", etc.
-  visibility: text("visibility").default("public"), // public, private
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const insertUserChurchAffiliationSchema = createInsertSchema(userChurchAffiliations).pick({
-  userId: true,
-  organizationId: true,
-  freeTextName: true,
-  roleLabel: true,
-  visibility: true,
-} as any);
-
-export type UserChurchAffiliation = typeof userChurchAffiliations.$inferSelect;
-export type InsertUserChurchAffiliation = typeof userChurchAffiliations.$inferInsert;
 
 // Organization Membership Requests - Attendee requesting to become member
 export const orgMembershipRequests = pgTable("org_membership_requests", {

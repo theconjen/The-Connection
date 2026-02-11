@@ -76,11 +76,13 @@ import {
   Poll, InsertPoll, PollOption, InsertPollOption, PollVote, InsertPollVote,
   // organizations tables
   organizations, organizationUsers, organizationLeaders,
-  orgBilling, userChurchAffiliations, orgMembershipRequests, orgMeetingRequests,
+  orgBilling, userChurchAffiliations, churchInvitationRequests,
+  orgMembershipRequests, orgMeetingRequests,
   ordinationPrograms, ordinationApplications, ordinationReviews, organizationActivityLogs,
   OrgBilling, InsertOrgBilling,
   OrganizationLeader, InsertOrganizationLeader,
   UserChurchAffiliation, InsertUserChurchAffiliation,
+  ChurchInvitationRequest, InsertChurchInvitationRequest,
   OrgMembershipRequest, InsertOrgMembershipRequest,
   OrgMeetingRequest, InsertOrgMeetingRequest,
   OrdinationProgram, InsertOrdinationProgram,
@@ -6943,6 +6945,78 @@ export class DbStorage implements IStorage {
         eq(userChurchAffiliations.userId, userId)
       ));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async updateUserChurchAffiliation(
+    userId: number,
+    data: Partial<InsertUserChurchAffiliation>
+  ): Promise<UserChurchAffiliation | null> {
+    // Users can only have one church affiliation, so we upsert
+    const existing = await db.select()
+      .from(userChurchAffiliations)
+      .where(eq(userChurchAffiliations.userId, userId))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const [result] = await db.update(userChurchAffiliations)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(userChurchAffiliations.userId, userId))
+        .returning();
+      return result;
+    } else {
+      const [result] = await db.insert(userChurchAffiliations)
+        .values({ userId, ...data } as InsertUserChurchAffiliation)
+        .returning();
+      return result;
+    }
+  }
+
+  async getUserChurchAffiliation(userId: number): Promise<UserChurchAffiliation | null> {
+    const result = await db.select()
+      .from(userChurchAffiliations)
+      .where(eq(userChurchAffiliations.userId, userId))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  // Church invitation requests (for inviting churches to join the platform)
+  async createChurchInvitationRequest(request: InsertChurchInvitationRequest): Promise<ChurchInvitationRequest> {
+    const [result] = await db.insert(churchInvitationRequests).values(request).returning();
+    return result;
+  }
+
+  async getChurchInvitationRequestsByUser(userId: number): Promise<ChurchInvitationRequest[]> {
+    return await db.select()
+      .from(churchInvitationRequests)
+      .where(eq(churchInvitationRequests.requesterId, userId))
+      .orderBy(desc(churchInvitationRequests.createdAt));
+  }
+
+  async getChurchInvitationRequestByEmail(email: string): Promise<ChurchInvitationRequest | null> {
+    const result = await db.select()
+      .from(churchInvitationRequests)
+      .where(eq(churchInvitationRequests.churchEmail, email.toLowerCase()))
+      .orderBy(desc(churchInvitationRequests.createdAt))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async updateChurchInvitationRequest(
+    id: number,
+    data: Partial<ChurchInvitationRequest>
+  ): Promise<ChurchInvitationRequest | null> {
+    const [result] = await db.update(churchInvitationRequests)
+      .set(data)
+      .where(eq(churchInvitationRequests.id, id))
+      .returning();
+    return result || null;
+  }
+
+  async getPendingChurchInvitationRequests(): Promise<ChurchInvitationRequest[]> {
+    return await db.select()
+      .from(churchInvitationRequests)
+      .where(eq(churchInvitationRequests.status, 'pending'))
+      .orderBy(churchInvitationRequests.createdAt);
   }
 
   // Membership requests

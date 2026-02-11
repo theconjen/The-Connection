@@ -87,6 +87,7 @@ import supportRoutes from './routes/api/support';
 import debugRoutes from './routes/api/debug';
 import accountRoutes from './routes/account';
 import safetyRoutes from './routes/safety';
+import userChurchRoutes from './routes/user-church';
 import { FEATURES } from './config/features';
 import { setSocketInstance } from './socketInstance';
 
@@ -688,6 +689,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   
   if (FEATURES.AUTH) {
     app.use('/api/user', userSettingsRoutes); // Must be before userRoutes to avoid /:id catching /settings
+    app.use('/api/user', userChurchRoutes);   // Church affiliation routes
     app.use('/api/user', userRoutes);
     app.use('/api/me', meRoutes); // Single source of truth for capabilities
     registerOnboardingRoutes(app); // Register onboarding completion endpoint

@@ -226,6 +226,51 @@ router.get('/search', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/orgs/filters - Get available filter options
+ */
+router.get('/filters', async (_req: Request, res: Response) => {
+  try {
+    // Common denominations in order of prevalence
+    const denominations = [
+      'Non-Denominational',
+      'Baptist',
+      'Catholic',
+      'Methodist',
+      'Lutheran',
+      'Presbyterian',
+      'Pentecostal',
+      'Episcopal',
+      'Church of Christ',
+      'Assembly of God',
+      'Evangelical',
+      'Orthodox',
+      'Seventh-day Adventist',
+      'Church of God',
+      'Nazarene',
+      'Charismatic',
+      'Reformed',
+      'Anglican',
+      'Mennonite',
+      'Other',
+    ];
+
+    // US States
+    const states = [
+      'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+      'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+      'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+      'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+      'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+    ];
+
+    res.json({ denominations, states });
+  } catch (error) {
+    console.error('Error fetching filters:', error);
+    res.status(500).json({ error: 'Failed to fetch filters' });
+  }
+});
+
+/**
  * GET /api/orgs/directory - Cursor-paginated directory
  */
 router.get('/directory', async (req: Request, res: Response) => {
