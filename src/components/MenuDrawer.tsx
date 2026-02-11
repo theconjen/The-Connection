@@ -228,7 +228,10 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                         onChurches();
                       }}
                     >
-                      <Ionicons name="business-outline" size={24} color={colors.textPrimary} />
+                      <Image
+                        source={require('../../assets/church-icon.png')}
+                        style={{ width: 24, height: 24, tintColor: colors.textPrimary }}
+                      />
                       <Text style={styles.menuItemText}>Churches</Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                     </Pressable>
