@@ -6849,7 +6849,13 @@ export class DbStorage implements IStorage {
     }
 
     if (options.denomination) {
-      conditions.push(eq(organizations.denomination, options.denomination));
+      // Support comma-separated denominations for tradition filtering
+      const denominations = options.denomination.split(',').map(d => d.trim()).filter(Boolean);
+      if (denominations.length === 1) {
+        conditions.push(eq(organizations.denomination, denominations[0]));
+      } else if (denominations.length > 1) {
+        conditions.push(inArray(organizations.denomination, denominations));
+      }
     }
 
     if (options.cursor) {
