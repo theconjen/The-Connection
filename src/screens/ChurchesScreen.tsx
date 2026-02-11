@@ -61,7 +61,7 @@ const CHURCH_TRADITIONS = [
       // Evangelical
       'Evangelical', 'Non-Denominational', 'Bible Church',
       // Baptist
-      'Baptist', 'Southern Baptist', 'American Baptist',
+      'Baptist', 'Southern Baptist', 'American Baptist', 'First Baptist',
       // Methodist
       'Methodist', 'United Methodist', 'African Methodist Episcopal',
       // Lutheran
