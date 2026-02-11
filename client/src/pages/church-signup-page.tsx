@@ -7,9 +7,66 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { useToast } from "../hooks/use-toast";
 import { Church, ArrowLeft } from "lucide-react";
 import { z } from "zod";
+
+// Church traditions with their denominations - matching mobile app
+const CHURCH_TRADITIONS = [
+  {
+    id: 'protestant',
+    label: 'Protestant',
+    denominations: [
+      'Evangelical', 'Non-Denominational', 'Bible Church',
+      'Baptist', 'Southern Baptist', 'American Baptist', 'First Baptist',
+      'African Methodist Episcopal',
+      'Lutheran',
+      'Presbyterian', 'PCA', 'Orthodox Presbyterian',
+      'Anglican',
+      'Reformed', 'Dutch Reformed',
+      'Pentecostal', 'Assembly of God', 'Foursquare',
+      'Church of God', 'Church of God in Christ',
+      'Charismatic', 'Vineyard',
+      'Nazarene', 'Wesleyan', 'Holiness',
+      'Evangelical Free', 'Evangelical Covenant',
+      'Christian & Missionary Alliance',
+      'Congregational',
+      'Mennonite', 'Brethren',
+    ],
+  },
+  {
+    id: 'catholic',
+    label: 'Catholic',
+    denominations: [
+      'Roman Catholic', 'Catholic',
+      'Byzantine Catholic', 'Ukrainian Catholic',
+      'Maronite Catholic', 'Melkite Catholic',
+      'Chaldean Catholic', 'Syro-Malabar',
+    ],
+  },
+  {
+    id: 'orthodox',
+    label: 'Orthodox',
+    denominations: [
+      'Eastern Orthodox', 'Greek Orthodox', 'Russian Orthodox',
+      'Serbian Orthodox', 'Romanian Orthodox', 'Bulgarian Orthodox',
+      'Antiochian Orthodox', 'Orthodox Church in America',
+      'Coptic Orthodox', 'Ethiopian Orthodox', 'Eritrean Orthodox',
+      'Armenian Apostolic', 'Syriac Orthodox',
+      'Assyrian Church of the East', 'Ancient Church of the East',
+    ],
+  },
+];
+
+// Flatten all denominations for the dropdown
+const ALL_DENOMINATIONS = CHURCH_TRADITIONS.flatMap(t => t.denominations);
 
 const createOrganizationSchema = z.object({
   name: z.string().min(3, "Organization name must be at least 3 characters"),
@@ -158,12 +215,28 @@ export default function ChurchSignupPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="denomination">Denomination</Label>
-                  <Input
-                    id="denomination"
-                    value={formData.denomination}
-                    onChange={(e) => handleInputChange("denomination", e.target.value)}
-                    placeholder="e.g., Baptist, Methodist, Non-denominational"
-                  />
+                  <Select
+                    value={formData.denomination || ""}
+                    onValueChange={(value) => handleInputChange("denomination", value)}
+                  >
+                    <SelectTrigger id="denomination">
+                      <SelectValue placeholder="Select your denomination" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CHURCH_TRADITIONS.map((tradition) => (
+                        <div key={tradition.id}>
+                          <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted/50">
+                            {tradition.label}
+                          </div>
+                          {tradition.denominations.map((denom) => (
+                            <SelectItem key={denom} value={denom}>
+                              {denom}
+                            </SelectItem>
+                          ))}
+                        </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

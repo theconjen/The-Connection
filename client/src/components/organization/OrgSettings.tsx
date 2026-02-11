@@ -13,7 +13,61 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+
+// Church traditions with their denominations - matching mobile app
+const CHURCH_TRADITIONS = [
+  {
+    id: 'protestant',
+    label: 'Protestant',
+    denominations: [
+      'Evangelical', 'Non-Denominational', 'Bible Church',
+      'Baptist', 'Southern Baptist', 'American Baptist', 'First Baptist',
+      'African Methodist Episcopal',
+      'Lutheran',
+      'Presbyterian', 'PCA', 'Orthodox Presbyterian',
+      'Anglican',
+      'Reformed', 'Dutch Reformed',
+      'Pentecostal', 'Assembly of God', 'Foursquare',
+      'Church of God', 'Church of God in Christ',
+      'Charismatic', 'Vineyard',
+      'Nazarene', 'Wesleyan', 'Holiness',
+      'Evangelical Free', 'Evangelical Covenant',
+      'Christian & Missionary Alliance',
+      'Congregational',
+      'Mennonite', 'Brethren',
+    ],
+  },
+  {
+    id: 'catholic',
+    label: 'Catholic',
+    denominations: [
+      'Roman Catholic', 'Catholic',
+      'Byzantine Catholic', 'Ukrainian Catholic',
+      'Maronite Catholic', 'Melkite Catholic',
+      'Chaldean Catholic', 'Syro-Malabar',
+    ],
+  },
+  {
+    id: 'orthodox',
+    label: 'Orthodox',
+    denominations: [
+      'Eastern Orthodox', 'Greek Orthodox', 'Russian Orthodox',
+      'Serbian Orthodox', 'Romanian Orthodox', 'Bulgarian Orthodox',
+      'Antiochian Orthodox', 'Orthodox Church in America',
+      'Coptic Orthodox', 'Ethiopian Orthodox', 'Eritrean Orthodox',
+      'Armenian Apostolic', 'Syriac Orthodox',
+      'Assyrian Church of the East', 'Ancient Church of the East',
+    ],
+  },
+];
 import {
   AlertDialog,
   AlertDialogAction,
@@ -196,11 +250,28 @@ export function OrgSettings({ organization, isLoading, onSave, onDelete, isOwner
 
           <div className="space-y-2">
             <Label htmlFor="denomination">Denomination</Label>
-            <Input
-              id="denomination"
-              {...form.register("denomination")}
-              placeholder="e.g., Baptist, Methodist, Non-denominational"
-            />
+            <Select
+              value={form.watch("denomination") || ""}
+              onValueChange={(value) => form.setValue("denomination", value)}
+            >
+              <SelectTrigger id="denomination">
+                <SelectValue placeholder="Select your denomination" />
+              </SelectTrigger>
+              <SelectContent>
+                {CHURCH_TRADITIONS.map((tradition) => (
+                  <div key={tradition.id}>
+                    <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted/50">
+                      {tradition.label}
+                    </div>
+                    {tradition.denominations.map((denom) => (
+                      <SelectItem key={denom} value={denom}>
+                        {denom}
+                      </SelectItem>
+                    ))}
+                  </div>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
