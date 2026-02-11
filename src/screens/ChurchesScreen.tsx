@@ -104,15 +104,7 @@ const CHURCH_TRADITIONS = [
       'Antiochian Orthodox', 'Orthodox Church in America',
       'Coptic Orthodox', 'Ethiopian Orthodox', 'Eritrean Orthodox',
       'Armenian Apostolic', 'Syriac Orthodox',
-    ],
-  },
-  {
-    id: 'church-of-east',
-    label: 'Church of the East',
-    denominations: [
-      'Assyrian Church of the East',
-      'Ancient Church of the East',
-      'Chaldean Catholic',
+      'Assyrian Church of the East', 'Ancient Church of the East',
     ],
   },
 ];
