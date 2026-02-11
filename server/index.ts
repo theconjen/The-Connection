@@ -148,8 +148,11 @@ async function bootstrap() {
   // Skip CSRF for: /api routes, JWT-authenticated requests (mobile apps), and safe methods
   const csrfProtection = lusca.csrf();
   app.use((req: Request, res: Response, next: NextFunction) => {
-    // Skip CSRF for /api routes (check both path and url for different route mounting scenarios)
-    if (req.path.startsWith('/api') || req.url.startsWith('/api')) {
+    // Use originalUrl which contains the full path regardless of route mounting
+    const fullPath = req.originalUrl || req.url || req.path;
+
+    // Skip CSRF for all /api routes (REST API uses session cookies, not CSRF tokens)
+    if (fullPath.startsWith('/api')) {
       return next();
     }
 
@@ -200,7 +203,15 @@ async function bootstrap() {
 
   // Set body size limit for image uploads (profile pictures, post images)
   // Matches Instagram's ~8MB image limit for good quality without excessive bandwidth
-  app.use(express.json({ limit: '10mb' }));
+  // Save raw body for Stripe webhook signature verification
+  app.use(express.json({
+    limit: '10mb',
+    verify: (req: any, _res, buf) => {
+      if (req.originalUrl?.startsWith('/api/stripe/webhook')) {
+        req.rawBody = buf;
+      }
+    },
+  }));
   app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
   // Legacy compatibility handler for probes that still request /api.php

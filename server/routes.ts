@@ -124,6 +124,7 @@ import ordinationsRoutes from './routes/ordinations';
 import orgAdminRoutes from './routes/org-admin';
 import sermonsRoutes from './routes/sermons';
 import muxWebhookRoutes from './routes/webhooks-mux';
+import stripeRoutes from './routes/stripe';
 
 declare module 'express-session' {
   interface SessionData {
@@ -603,6 +604,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api/org-admin', orgAdminRoutes);        // Steward Console (org admin)
     app.use('/api/sermons', sermonsRoutes);           // Public sermon playback
     app.use('/api/webhooks/mux', muxWebhookRoutes);   // Mux video webhooks
+    app.use('/api/stripe', stripeRoutes);             // Stripe payments
   }
 
   if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {

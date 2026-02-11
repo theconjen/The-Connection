@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Check, Loader2, Sparkles, Building2, Crown } from "lucide-react";
+import { Check, Loader2, Sparkles, Building2, Crown, CreditCard, ExternalLink, Info } from "lucide-react";
 
 interface Plan {
   id: string;
@@ -93,6 +94,16 @@ export function OrgPlanSelector({ orgId }: OrgPlanSelectorProps) {
   const queryClient = useQueryClient();
   const [confirmPlan, setConfirmPlan] = useState<string | null>(null);
 
+  // Check if Stripe is configured
+  const { data: stripeConfig } = useQuery({
+    queryKey: ["/api/stripe/config"],
+    queryFn: async () => {
+      const response = await fetch("/api/stripe/config", { credentials: "include" });
+      if (!response.ok) return { configured: false };
+      return response.json();
+    },
+  });
+
   // Fetch current billing info
   const { data: billing, isLoading } = useQuery({
     queryKey: ["/api/org-admin", orgId, "billing"],
@@ -108,14 +119,56 @@ export function OrgPlanSelector({ orgId }: OrgPlanSelectorProps) {
     },
   });
 
-  // Update plan mutation
+  // Stripe checkout mutation (for upgrades)
+  const checkoutMutation = useMutation({
+    mutationFn: async (tier: string) => {
+      // apiRequest throws on non-OK responses
+      const response = await apiRequest("POST", `/api/stripe/checkout/${orgId}`, { tier });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Checkout failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Cancel subscription mutation (for downgrades to free)
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/stripe/cancel/${orgId}`, {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org-admin", orgId, "billing"] });
+      toast({
+        title: "Subscription canceled",
+        description: data.message || "Your church is now on the Free plan.",
+      });
+      setConfirmPlan(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to cancel",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Direct update mutation (fallback when Stripe not configured)
   const updatePlanMutation = useMutation({
     mutationFn: async (tier: string) => {
       const response = await apiRequest("PATCH", `/api/org-admin/${orgId}/billing`, { tier });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update plan");
-      }
       return response.json();
     },
     onSuccess: (_, tier) => {
@@ -136,7 +189,29 @@ export function OrgPlanSelector({ orgId }: OrgPlanSelectorProps) {
     },
   });
 
+  // Billing portal mutation
+  const portalMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/stripe/portal/${orgId}`, {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to open billing portal",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const currentTier = billing?.tier || "free";
+  const hasSubscription = billing?.stripeSubscriptionId;
+  const isPending = checkoutMutation.isPending || cancelMutation.isPending || updatePlanMutation.isPending;
 
   const handleSelectPlan = (planId: string) => {
     if (planId === currentTier) return;
@@ -144,7 +219,18 @@ export function OrgPlanSelector({ orgId }: OrgPlanSelectorProps) {
   };
 
   const handleConfirmChange = () => {
-    if (confirmPlan) {
+    if (!confirmPlan) return;
+
+    const upgrading = isUpgrade(confirmPlan);
+
+    if (upgrading && stripeConfig?.configured) {
+      // Use Stripe Checkout for upgrades
+      checkoutMutation.mutate(confirmPlan);
+    } else if (!upgrading && confirmPlan === "free") {
+      // Cancel subscription for downgrades to free
+      cancelMutation.mutate();
+    } else {
+      // Direct update (fallback or Stripe not configured)
       updatePlanMutation.mutate(confirmPlan);
     }
   };
@@ -183,7 +269,42 @@ export function OrgPlanSelector({ orgId }: OrgPlanSelectorProps) {
             Choose the plan that best fits your church's needs
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          {/* Billing Portal Access */}
+          {hasSubscription && stripeConfig?.configured && (
+            <Alert>
+              <CreditCard className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>Manage payment methods, invoices, and billing details</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => portalMutation.mutate()}
+                  disabled={portalMutation.isPending}
+                >
+                  {portalMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      Billing Portal
+                      <ExternalLink className="ml-2 h-3 w-3" />
+                    </>
+                  )}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Stripe not configured notice (dev mode) */}
+          {!stripeConfig?.configured && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Payment processing is not configured. Plan changes will be applied directly.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid gap-4 md:grid-cols-3">
             {PLANS.map((plan) => {
               const isCurrent = plan.id === currentTier;
@@ -240,7 +361,7 @@ export function OrgPlanSelector({ orgId }: OrgPlanSelectorProps) {
                   <Button
                     className="w-full"
                     variant={isCurrent ? "outline" : plan.highlighted ? "default" : "outline"}
-                    disabled={isCurrent || updatePlanMutation.isPending}
+                    disabled={isCurrent || isPending}
                     onClick={() => handleSelectPlan(plan.id)}
                   >
                     {isCurrent ? (
@@ -268,28 +389,40 @@ export function OrgPlanSelector({ orgId }: OrgPlanSelectorProps) {
             <AlertDialogDescription>
               {confirmPlan && isUpgrade(confirmPlan) ? (
                 <>
-                  You'll get access to additional features including:{" "}
-                  {confirmPlanData?.features.slice(-2).join(", ")}.
+                  {stripeConfig?.configured ? (
+                    <>You'll be redirected to complete payment securely via Stripe.</>
+                  ) : (
+                    <>
+                      You'll get access to additional features including:{" "}
+                      {confirmPlanData?.features.slice(-2).join(", ")}.
+                    </>
+                  )}
                 </>
               ) : (
                 <>
-                  You may lose access to some features. Make sure you've backed up any data
-                  that depends on your current plan's features.
+                  {hasSubscription ? (
+                    <>Your subscription will be canceled at the end of the current billing period.</>
+                  ) : (
+                    <>You may lose access to some features. Make sure you've backed up any data
+                    that depends on your current plan's features.</>
+                  )}
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmChange}
-              disabled={updatePlanMutation.isPending}
+              disabled={isPending}
             >
-              {updatePlanMutation.isPending ? (
+              {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  Processing...
                 </>
+              ) : confirmPlan && isUpgrade(confirmPlan) && stripeConfig?.configured ? (
+                "Continue to Payment"
               ) : (
                 "Confirm"
               )}

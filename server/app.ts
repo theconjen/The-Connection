@@ -106,7 +106,16 @@ app.use(cookieParser());
 
 // Limit JSON and form body sizes to mitigate DoS
 // Increased to 10mb to support base64 image uploads (avatars, post images)
-app.use(express.json({ limit: '10mb' }));
+// Save raw body for Stripe webhook signature verification
+app.use(express.json({
+  limit: '10mb',
+  verify: (req: any, _res, buf) => {
+    // Save raw body for routes that need it (e.g., Stripe webhooks)
+    if (req.originalUrl?.startsWith('/api/stripe/webhook')) {
+      req.rawBody = buf;
+    }
+  },
+}));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Recursively escape '<' and '>' in strings from req.body, req.query and req.params to neutralise basic XSS
@@ -173,8 +182,11 @@ app.use(passport.session());
 // Skip CSRF for: /api routes, JWT-authenticated requests (mobile apps), and safe methods
 const csrfProtection = lusca.csrf();
 app.use((req, res, next) => {
-  // Skip CSRF for /api routes (check both path and url for different route mounting scenarios)
-  if (req.path.startsWith('/api') || req.url.startsWith('/api')) return next();
+  // Use originalUrl which contains the full path regardless of route mounting
+  const fullPath = req.originalUrl || req.url || req.path;
+
+  // Skip CSRF for all /api routes (REST API uses session cookies, not CSRF tokens)
+  if (fullPath.startsWith('/api')) return next();
 
   // Skip CSRF for mobile app requests (identified by custom header)
   if (req.headers['x-mobile-app'] === 'true' || req.headers['x-requested-with'] === 'com.theconnection.mobile') return next();
