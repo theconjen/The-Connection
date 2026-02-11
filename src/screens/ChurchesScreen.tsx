@@ -60,14 +60,12 @@ const CHURCH_TRADITIONS = [
     denominations: [
       'Baptist', 'Southern Baptist', 'American Baptist',
       'Methodist', 'United Methodist', 'African Methodist Episcopal',
-      'Lutheran', 'ELCA', 'Missouri Synod',
+      'Lutheran', 'ELCA',
       'Presbyterian', 'PCA', 'PCUSA',
       'Anglican', 'Episcopal',
       'Reformed', 'Dutch Reformed',
       'Congregational', 'United Church of Christ',
-      'Mennonite', 'Amish', 'Brethren',
-      'Quaker', 'Friends',
-      'Adventist', 'Seventh-day Adventist',
+      'Mennonite', 'Brethren',
     ],
   },
   {
