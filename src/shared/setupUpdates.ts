@@ -41,14 +41,6 @@ const setupGlobalErrorHandler = () => {
         error?.stack?.includes('expo-updates');
 
       if (isUpdatesError) {
-          message: error.message,
-          stack: error.stack,
-          isFatal,
-        });
-
-        // Log to a monitoring service if available
-        // TODO: Send to Sentry or other error tracking service
-
         // Don't propagate fatal errors from updates - they're not worth crashing for
         if (isFatal) {
           return;

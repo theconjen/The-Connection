@@ -95,12 +95,6 @@ export default function CommunityDetailScreen() {
     queryKey: ['community', communityId],
     queryFn: async () => {
       const result = await communitiesAPI.getById(communityId);
-        id: result.id,
-        name: result.name,
-        isMember: result.isMember,
-        role: result.role,
-        isAdmin: result.isAdmin
-      });
       return result;
     },
     enabled: !!communityId,

@@ -810,12 +810,6 @@ export default function EventsScreenNew({
       const serverMessage = error.response?.data?.error || error.response?.data?.message;
       const statusCode = error.response?.status;
 
-        statusCode,
-        serverMessage,
-        responseData: error.response?.data,
-        axiosMessage: error.message
-      });
-
       // Show user-friendly message based on error
       if (statusCode === 403 && serverMessage?.includes('suspended')) {
         Alert.alert('Account Issue', serverMessage || 'Your account has been suspended. Please contact support.');

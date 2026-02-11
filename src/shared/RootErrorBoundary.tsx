@@ -40,11 +40,6 @@ export class RootErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log the error to console
-      error: error.toString(),
-      errorInfo: errorInfo.componentStack,
-    });
-
     // Update state with error details
     this.setState({
       error,

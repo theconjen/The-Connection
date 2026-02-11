@@ -46,10 +46,6 @@ export const useConversations = () => {
         const conversations = await messagesAPI.getConversations();
         return conversations;
       } catch (error: any) {
-          status: error?.response?.status,
-          message: error?.response?.data?.message || error?.message,
-          url: error?.config?.url,
-        });
         throw error;
       }
     },

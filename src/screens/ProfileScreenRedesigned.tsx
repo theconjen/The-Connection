@@ -87,18 +87,6 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
     enabled: !!targetUserId && activeTab === 'advice',
   });
 
-  // Debug logging
-  React.useEffect(() => {
-    if (profile) {
-        location: profile.user?.location,
-        denomination: profile.user?.denomination,
-        homeChurch: profile.user?.homeChurch,
-        favoriteBibleVerse: profile.user?.favoriteBibleVerse,
-        testimony: profile.user?.testimony,
-        interests: profile.user?.interests,
-      });
-    }
-  }, [profile]);
 
   const followMutation = useFollowUser();
   const unfollowMutation = useUnfollowUser();

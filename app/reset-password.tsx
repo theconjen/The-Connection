@@ -154,14 +154,6 @@ export default function ResetPasswordScreen() {
     }
   };
 
-  // Debug logging (dev only)
-  if (__DEV__) {
-      rawToken: params.token?.substring(0, 10) + '...',
-      tokenLen: params.token?.length,
-      normalizedTokenLen: initialToken.length,
-      email: params.email
-    });
-  }
 
   useEffect(() => {
     // If we have a valid token from the deep link, verify it with the server
