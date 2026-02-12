@@ -3,7 +3,7 @@
  * Inside (tabs) to show bottom navigation bar
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -130,15 +130,21 @@ export default function AdviceListScreen() {
 
   const advicePosts = data?.pages.flatMap(page => page.items) || [];
 
-  // Sort posts by hot score (Reddit-style ranking)
-  const sortedPosts = [...advicePosts].sort((a, b) => calculateHotScore(b) - calculateHotScore(a));
+  // Memoize sorted posts by hot score (Reddit-style ranking)
+  const sortedPosts = useMemo(() =>
+    [...advicePosts].sort((a, b) => calculateHotScore(b) - calculateHotScore(a)),
+    [advicePosts]
+  );
 
-  // Filter posts based on search query
-  const filteredPosts = searchQuery.trim()
-    ? sortedPosts.filter(post =>
-        post.content?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : sortedPosts;
+  // Memoize filtered posts based on search query
+  const filteredPosts = useMemo(() =>
+    searchQuery.trim()
+      ? sortedPosts.filter(post =>
+          post.content?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : sortedPosts,
+    [sortedPosts, searchQuery]
+  );
 
   // Upvote mutation
   const upvoteMutation = useMutation({
@@ -254,7 +260,7 @@ export default function AdviceListScreen() {
     });
   }, []);
 
-  const renderItem = ({ item }: { item: AdvicePost }) => {
+  const renderItem = useCallback(({ item }: { item: AdvicePost }) => {
     const isUpvoted = unupvotedPosts.has(item.id) ? false : (upvotedPosts.has(item.id) || item.isLiked);
     const isBookmarked = unbookmarkedPosts.has(item.id) ? false : (bookmarkedPosts.has(item.id) || item.isBookmarked);
     const isReported = reportedPosts.has(item.id);
@@ -355,7 +361,7 @@ export default function AdviceListScreen() {
         </View>
       </Pressable>
     );
-  };
+  }, [colors, router, upvotedPosts, unupvotedPosts, bookmarkedPosts, unbookmarkedPosts, reportedPosts, handleUpvote, handleBookmark, handleUndoReport, showMenu]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -435,6 +441,11 @@ export default function AdviceListScreen() {
           showsVerticalScrollIndicator={false}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
           ListFooterComponent={
             isFetchingNextPage ? (
               <View style={styles.footerLoader}>
