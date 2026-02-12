@@ -64,6 +64,8 @@ interface UserProfile {
   recentPosts?: any[];
   recentMicroblogs?: any[];
   isPrivate?: boolean;
+  isTopContributor?: boolean;
+  topContributorContexts?: string[];
 }
 
 export default function UserProfileScreen() {
@@ -346,6 +348,12 @@ export default function UserProfileScreen() {
                   style={{ width: 18, height: 18, marginLeft: 2 }}
                   resizeMode="contain"
                 />
+              )}
+              {profile.isTopContributor && (
+                <View style={styles.topContributorRow}>
+                  <Ionicons name="checkmark-circle" size={14} color={colors.success || '#22C55E'} />
+                  <Text style={[styles.topContributorLabel, { color: colors.textMuted }]}>Top Contributor</Text>
+                </View>
               )}
               {user.denomination && (
                 <View style={[styles.denominationBadge, { backgroundColor: `${colors.primary}15` }]}>
@@ -761,6 +769,15 @@ const styles = StyleSheet.create({
   denominationText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  topContributorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  topContributorLabel: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   username: {
     fontSize: 14,

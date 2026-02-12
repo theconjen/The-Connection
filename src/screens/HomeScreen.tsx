@@ -200,19 +200,44 @@ function useArticles() {
   });
 }
 
-// Calculate hot score for advice posts
+// Reddit-style hot score for advice posts
+// Gives new posts a fair chance while rewarding engagement logarithmically
+// Formula: score = log10(engagement) + (post_time / 45000)
+// - First 10 upvotes matter as much as going from 10→100 or 100→1000
+// - Every 12.5 hours, a new post gains +1 point just for being newer
+// - A 0-vote post from now ranks equal to a 10-vote post from 12.5 hours ago
 function calculateHotScore(post: AdvicePost): number {
   const upvotes = post.likeCount || 0;
   const replies = post.replyCount || post.commentCount || 0;
-  const createdAt = new Date(post.createdAt).getTime();
-  const now = Date.now();
-  const ageInHours = (now - createdAt) / (1000 * 60 * 60);
+  const createdAtSeconds = new Date(post.createdAt).getTime() / 1000;
 
-  const engagementScore = (upvotes * 2) + (replies * 3);
-  const recencyBoost = Math.max(0, 48 - ageInHours) / 48;
-  const timeDecay = 1 / Math.pow(ageInHours + 2, 0.5);
+  // Epoch: Jan 1, 2024 - keeps numbers manageable
+  const EPOCH = new Date('2024-01-01T00:00:00Z').getTime() / 1000;
 
-  return (engagementScore + 1) * (0.5 + recencyBoost) * timeDecay;
+  // Combined engagement (replies worth 2x for advice questions - they represent actual help)
+  const engagement = Math.max(1, upvotes + (replies * 2));
+
+  // Logarithmic engagement: 1-10 = 10-100 = 100-1000 (equal weight)
+  // This prevents high-engagement posts from dominating indefinitely
+  const engagementScore = Math.log10(engagement);
+
+  // Time bonus: every 12.5 hours = +1 point for being newer
+  // This gives new posts a fair chance to be seen
+  const timeScore = (createdAtSeconds - EPOCH) / 45000;
+
+  // Wilson-inspired penalty for low-engagement posts (prevents 1-vote posts from gaming)
+  // Posts with <5 total engagement get a confidence penalty
+  let score = engagementScore + timeScore;
+
+  const totalEngagement = upvotes + replies;
+  if (totalEngagement < 5) {
+    const confidence = totalEngagement > 0
+      ? Math.min(1, totalEngagement / 5)
+      : 0.1;
+    score *= (0.5 + (confidence * 0.5));
+  }
+
+  return score;
 }
 
 function useJoinedCommunities() {

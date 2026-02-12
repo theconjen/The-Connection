@@ -83,6 +83,7 @@ export default function AdviceDetailScreen() {
   const [reportedResponses, setReportedResponses] = useState<Set<number>>(new Set());
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareContent, setShareContent] = useState<ShareableContent | null>(null);
+  const [myHelpfulMarkReplyId, setMyHelpfulMarkReplyId] = useState<number | null>(null);
 
   const adviceId = parseInt(id || '0');
 
@@ -183,6 +184,56 @@ export default function AdviceDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['advice', adviceId] });
     },
   });
+
+  // Mark helpful mutation - any user can mark ONE reply per question
+  const markHelpfulMutation = useMutation({
+    mutationFn: async (replyId: number) => {
+      const response = await apiClient.post(`/api/microblogs/${adviceId}/replies/${replyId}/mark-helpful`);
+      return response.data;
+    },
+    onMutate: async (replyId: number) => {
+      setMyHelpfulMarkReplyId(replyId);
+    },
+    onSuccess: (data) => {
+      setMyHelpfulMarkReplyId(data.mark?.replyId || null);
+      queryClient.invalidateQueries({ queryKey: ['advice-responses', adviceId] });
+    },
+    onError: () => {
+      setMyHelpfulMarkReplyId(null);
+      Alert.alert('Error', 'Could not mark as helpful. Please try again.');
+    },
+  });
+
+  // Unmark helpful mutation
+  const unmarkHelpfulMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.delete(`/api/microblogs/${adviceId}/mark-helpful`);
+      return response.data;
+    },
+    onMutate: async () => {
+      setMyHelpfulMarkReplyId(null);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['advice-responses', adviceId] });
+    },
+    onError: () => {
+      Alert.alert('Error', 'Could not remove helpful mark. Please try again.');
+    },
+  });
+
+  // Handle marking/unmarking helpful
+  const handleToggleHelpful = (replyId: number) => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to mark responses as helpful.');
+      return;
+    }
+
+    if (myHelpfulMarkReplyId === replyId) {
+      unmarkHelpfulMutation.mutate();
+    } else {
+      markHelpfulMutation.mutate(replyId);
+    }
+  };
 
   const handleSubmitResponse = () => {
     if (!commentText.trim()) return;
@@ -554,8 +605,12 @@ export default function AdviceDetailScreen() {
                   );
                 }
 
+                const isMarkedHelpful = response.isMarkedHelpfulByMe || myHelpfulMarkReplyId === response.id;
+                const helpfulCount = response.helpfulCount || 0;
+                const isTopHelpful = helpfulCount > 0 && responses.every((r: any) => r.helpfulCount <= helpfulCount);
+
                 return (
-                  <View key={response.id} style={styles.commentCard}>
+                  <View key={response.id} style={[styles.commentCard, isTopHelpful && styles.topHelpfulCard]}>
                     <Image
                       source={{ uri: getAvatarUrl(response.author) }}
                       style={styles.commentAvatar}
@@ -566,6 +621,10 @@ export default function AdviceDetailScreen() {
                           <Text style={styles.commentAuthorName}>
                             {response.author?.displayName || response.author?.username || 'User'}
                           </Text>
+                          {/* Top Contributor Label */}
+                          {response.author?.isTopContributor && (
+                            <Text style={styles.topContributorLabel}>Top Contributor</Text>
+                          )}
                           <Text style={styles.postDot}>·</Text>
                           {response.createdAt && (
                             <Text style={styles.postTime}>{formatTime(response.createdAt)}</Text>
@@ -580,6 +639,31 @@ export default function AdviceDetailScreen() {
                         </Pressable>
                       </View>
                       <Text style={styles.commentContent}>{response.content}</Text>
+                      {/* Helpful Mark Section */}
+                      <View style={styles.responseActions}>
+                        <Pressable
+                          style={styles.helpfulButton}
+                          onPress={() => handleToggleHelpful(response.id)}
+                          hitSlop={8}
+                        >
+                          <Ionicons
+                            name={isMarkedHelpful ? "checkmark-circle" : "checkmark-circle-outline"}
+                            size={18}
+                            color={isMarkedHelpful ? colors.success || '#22C55E' : colors.textMuted}
+                          />
+                          <Text style={[
+                            styles.helpfulButtonText,
+                            isMarkedHelpful && { color: colors.success || '#22C55E' }
+                          ]}>
+                            {helpfulCount > 0 ? helpfulCount : ''} Helpful
+                          </Text>
+                        </Pressable>
+                        {isTopHelpful && helpfulCount > 0 && (
+                          <View style={styles.mostHelpfulBadge}>
+                            <Text style={styles.mostHelpfulText}>Most Helpful</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
                 );
@@ -1100,6 +1184,50 @@ const getStyles = (colors: any, theme: string) => {
     reportedResponseText: {
       fontSize: 12,
       textAlign: 'center',
+    },
+
+    // Gamification: Helpful Marks and Top Contributor styles
+    topContributorLabel: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginLeft: 6,
+      fontWeight: '500',
+    },
+    responseActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 10,
+      gap: 12,
+    },
+    helpfulButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 4,
+      paddingHorizontal: 2,
+    },
+    helpfulButtonText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontWeight: '500',
+    },
+    topHelpfulCard: {
+      backgroundColor: isDark ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.04)',
+      borderLeftWidth: 3,
+      borderLeftColor: '#22C55E',
+      marginLeft: -16,
+      paddingLeft: 13,
+    },
+    mostHelpfulBadge: {
+      backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 4,
+    },
+    mostHelpfulText: {
+      fontSize: 11,
+      color: '#22C55E',
+      fontWeight: '600',
     },
   });
 };
