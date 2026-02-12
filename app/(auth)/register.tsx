@@ -34,7 +34,7 @@ export default function RegisterScreen() {
     password: '',
     confirmPassword: '',
     dateOfBirth: null as Date | null,
-    ageConfirmed: false,
+    termsAccepted: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -67,9 +67,29 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Age Assurance: Must confirm 13+
-    if (!formData.ageConfirmed) {
-      Alert.alert('Age Confirmation Required', 'Please confirm that you are 13 years or older to continue.');
+    // Age Verification: DOB is required and must be 13+
+    if (!formData.dateOfBirth) {
+      Alert.alert('Date of Birth Required', 'Please enter your date of birth to verify your age.');
+      return;
+    }
+
+    // Calculate age from DOB
+    const today = new Date();
+    const birthDate = formData.dateOfBirth;
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    if (age < 13) {
+      Alert.alert('Age Restriction', 'You must be 13 years or older to use this app.');
+      return;
+    }
+
+    // Terms of Service acceptance required
+    if (!formData.termsAccepted) {
+      Alert.alert('Terms Required', 'Please accept the Terms of Service and Privacy Policy to continue.');
       return;
     }
 
@@ -85,10 +105,8 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     try {
-      // Format DOB as ISO date string (YYYY-MM-DD) if provided (optional)
-      const dobString = formData.dateOfBirth
-        ? formData.dateOfBirth.toISOString().split('T')[0]
-        : undefined;
+      // Format DOB as ISO date string (YYYY-MM-DD) - required for age verification
+      const dobString = formData.dateOfBirth!.toISOString().split('T')[0];
 
       const result = await register({
         email: formData.email.trim(),
@@ -97,7 +115,6 @@ export default function RegisterScreen() {
         firstName: formData.firstName.trim() || undefined,
         lastName: formData.lastName.trim() || undefined,
         dob: dobString,
-        ageConfirmed: true,
       });
 
       // Registration successful - show verification pending screen
@@ -300,21 +317,21 @@ export default function RegisterScreen() {
           {/* Age Confirmation - Required */}
           <TouchableOpacity
             style={styles.checkboxRow}
-            onPress={() => setFormData({ ...formData, ageConfirmed: !formData.ageConfirmed })}
+            onPress={() => setFormData({ ...formData, termsAccepted: !formData.termsAccepted })}
             disabled={isLoading}
             activeOpacity={0.7}
           >
             <View style={[
               styles.checkbox,
               { borderColor: colors.borderSubtle },
-              formData.ageConfirmed && { backgroundColor: colors.primary, borderColor: colors.primary }
+              formData.termsAccepted && { backgroundColor: colors.primary, borderColor: colors.primary }
             ]}>
-              {formData.ageConfirmed && (
+              {formData.termsAccepted && (
                 <Ionicons name="checkmark" size={16} color={colors.primaryForeground} />
               )}
             </View>
             <Text style={styles.checkboxLabel}>
-              I confirm that I am 13 years of age or older *
+              I agree to the Terms of Service and Privacy Policy *
             </Text>
           </TouchableOpacity>
 

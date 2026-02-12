@@ -27,7 +27,7 @@ interface RegisterPayload {
   password: string;
   firstName?: string;
   lastName?: string;
-  dob?: string; // Date of birth in YYYY-MM-DD format for age verification
+  dob: string; // Date of birth in YYYY-MM-DD format - required for age verification
 }
 
 interface RegisterResult {
@@ -83,6 +83,35 @@ async function hasAuthToken(): Promise<boolean> {
   }
 }
 
+// Helper to check if JWT token is expired (client-side check)
+async function isTokenExpired(): Promise<boolean> {
+  try {
+    const token = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+    if (!token) return true;
+
+    // JWT format: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+
+    // Decode payload (base64url)
+    const payload = parts[1];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+
+    // Check expiry - JWT exp is in seconds, Date.now() is in milliseconds
+    if (decoded.exp) {
+      const expiryTime = decoded.exp * 1000;
+      const now = Date.now();
+      // Consider expired if less than 5 minutes remaining (buffer for clock skew)
+      return now > (expiryTime - 5 * 60 * 1000);
+    }
+
+    return false; // No exp claim, assume valid
+  } catch (error) {
+    // If we can't decode, assume expired to trigger re-auth
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,24 +159,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function initializeAuth() {
       try {
-        // Step 1: Immediately load cached user (instant, no network)
-        const cachedUser = await loadCachedUser();
+        // Step 1: Check if we have a token and if it's expired
         const hasToken = await hasAuthToken();
+        const tokenExpired = await isTokenExpired();
 
-        if (cachedUser && hasToken) {
-          // We have cached user data and token - show immediately
+        if (!hasToken || tokenExpired) {
+          // No token or token is expired - clear everything and show login
+          if (tokenExpired && hasToken) {
+            // Token was expired - clean up stale data
+            await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY).catch(() => {});
+            await cacheUserData(null);
+          }
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+
+        // Step 2: Token exists and isn't expired - load cached user for instant display
+        const cachedUser = await loadCachedUser();
+
+        if (cachedUser) {
+          // Show cached user immediately
           setUser(cachedUser);
           setIsLoading(false);
 
-          // Step 2: Verify in background (don't block UI)
+          // Step 3: Verify in background (don't block UI)
+          // This will update user data if needed or log out if token became invalid
           verifyAuth(true);
-        } else if (hasToken) {
-          // We have token but no cached user - need to fetch
-          await verifyAuth(false);
         } else {
-          // No token - definitely not logged in
-          setUser(null);
-          setIsLoading(false);
+          // We have a valid token but no cached user - need to fetch
+          await verifyAuth(false);
         }
       } catch (error) {
         setIsLoading(false);
@@ -176,18 +217,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Save JWT token (mobile apps use JWT exclusively, not session cookies)
       if (response.data.token) {
         const token = response.data.token;
-        const tokenParts = token.split('.');
-
-
         const { saveAuthToken } = await import('../lib/secureStorage');
         await saveAuthToken(token);
-      } else {
       }
 
       // Fetch complete user data with permissions
       await verifyAuth(false);
     } catch (error: any) {
-
       // Special handling for EMAIL_NOT_VERIFIED error
       if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
         const emailNotVerifiedError = new Error('EMAIL_NOT_VERIFIED') as any;
@@ -196,7 +232,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw emailNotVerifiedError;
       }
 
-      throw new Error(error.response?.data?.message || 'Login failed');
+      // Pass through the full error response for status code handling (423 lockout, 429 rate limit)
+      const authError = new Error(error.response?.data?.message || 'Login failed') as any;
+      authError.response = error.response;
+      throw authError;
     }
   };
 

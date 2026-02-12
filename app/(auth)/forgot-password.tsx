@@ -149,8 +149,8 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    if (!newPassword || newPassword.length < 12) {
-      Alert.alert('Error', 'Password must be at least 12 characters long');
+    if (!newPassword || newPassword.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters long');
       return;
     }
 

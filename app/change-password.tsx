@@ -54,8 +54,8 @@ export default function ChangePasswordScreen() {
   });
 
   const validatePassword = (password: string): string | null => {
-    if (password.length < 12) {
-      return 'Password must be at least 12 characters long';
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long';
     }
     if (!/[A-Z]/.test(password)) {
       return 'Password must contain at least one uppercase letter';
@@ -188,7 +188,7 @@ export default function ChangePasswordScreen() {
               size={16}
               color={formData.newPassword.length >= 12 ? '#10B981' : colors.mutedForeground}
             />
-            <Text style={styles.requirementText}>At least 12 characters</Text>
+            <Text style={styles.requirementText}>At least 8 characters</Text>
           </View>
           <View style={styles.requirement}>
             <Ionicons

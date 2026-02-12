@@ -91,6 +91,26 @@ apiClient.interceptors.response.use(
         }
       }
 
+      // Handle 401 (Unauthorized) - clear auth state
+      // Skip for login/register endpoints to allow proper error handling
+      if (error.response?.status === 401) {
+        const url = String(error.config?.url ?? '');
+        const isAuthEndpoint = url.includes('/auth/login') ||
+                               url.includes('/auth/register') ||
+                               url.includes('/auth/verify');
+
+        if (!isAuthEndpoint) {
+          // Clear stored token - user needs to re-authenticate
+          try {
+            const SecureStore = await import('expo-secure-store');
+            await SecureStore.deleteItemAsync('auth_token');
+            await SecureStore.deleteItemAsync('cached_user');
+          } catch {
+            // Silent fail - auth context will handle this
+          }
+        }
+      }
+
       if (error.response) {
         // Suppress expected errors that are handled gracefully in the UI
         const message = String(error.response.data?.message ?? '');

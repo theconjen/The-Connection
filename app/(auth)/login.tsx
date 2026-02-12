@@ -80,8 +80,32 @@ export default function LoginScreen() {
       if (error.code === 'EMAIL_NOT_VERIFIED' && error.email) {
         setUnverifiedEmail(error.email);
         setShowVerificationNeeded(true);
+      } else if (error.response?.status === 423) {
+        // Account is locked due to too many failed attempts
+        const lockoutMinutes = error.response?.data?.lockoutMinutes || 120;
+        const lockoutHours = Math.ceil(lockoutMinutes / 60);
+        Alert.alert(
+          'Account Temporarily Locked',
+          `Your account has been temporarily locked due to too many failed login attempts. Please try again in ${lockoutHours} hour${lockoutHours > 1 ? 's' : ''}.`,
+          [{ text: 'OK' }]
+        );
+      } else if (error.response?.status === 429) {
+        // Rate limited
+        const retryAfter = error.response?.data?.retryAfterSeconds || 60;
+        Alert.alert(
+          'Too Many Attempts',
+          `Please wait ${Math.ceil(retryAfter / 60)} minute${retryAfter > 60 ? 's' : ''} before trying again.`,
+          [{ text: 'OK' }]
+        );
       } else {
-        Alert.alert('Login Failed', error.message);
+        // Provide helpful fallback messages based on error type
+        let errorMessage = error.message;
+        if (!errorMessage || errorMessage === 'Network Error') {
+          errorMessage = 'Unable to connect. Please check your internet connection and try again.';
+        } else if (errorMessage === 'Login failed') {
+          errorMessage = 'Invalid username or password. Please try again.';
+        }
+        Alert.alert('Login Failed', errorMessage);
       }
     } finally {
       setIsLoading(false);
