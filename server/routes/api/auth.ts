@@ -99,8 +99,13 @@ router.post('/auth/login', async (req, res) => {
       return res.status(400).json({ message: "Username and password are required" });
     }
 
-    // Find user by username
-    const user = await storage.getUserByUsername(username);
+    // Find user by username or email
+    let user = await storage.getUserByUsername(username);
+
+    // If not found by username, try by email (supports "Username or Email" login)
+    if (!user && username.includes('@')) {
+      user = await storage.getUserByEmail(username);
+    }
 
     if (!user) {
       return res.status(401).json({ message: "Invalid username or password" });
@@ -168,22 +173,31 @@ router.post('/auth/login', async (req, res) => {
 // Admins should use the regular login endpoint with their credentials
 
 // Logout endpoint
-router.post('/auth/logout', (req, res) => {
+router.post('/auth/logout', async (req, res) => {
   try {
-    // For JWT-based auth (mobile apps), just return success
-    // The client will discard the token
-    if (!req.session || req.headers.authorization) {
+    // For JWT-based auth (mobile apps), blacklist the token
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      // Dynamically import to avoid circular dependency
+      const { blacklistToken } = await import('../../lib/tokenBlacklist');
+      blacklistToken(token);
+      console.info('[LOGOUT] JWT token blacklisted');
       return res.json({ message: "Logged out successfully" });
     }
 
     // For session-based auth (web), destroy the session
-    req.session.destroy((err) => {
-      if (err) {
-        console.error('Session destroy error:', err);
-        return res.status(500).json(buildErrorResponse("Error logging out", err));
-      }
+    if (req.session) {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Session destroy error:', err);
+          return res.status(500).json(buildErrorResponse("Error logging out", err));
+        }
+        res.json({ message: "Logged out successfully" });
+      });
+    } else {
       res.json({ message: "Logged out successfully" });
-    });
+    }
   } catch (error) {
     console.error('Logout error:', error);
     // Don't fail logout - just return success
@@ -411,45 +425,41 @@ router.post('/auth/register', async (req, res) => {
       return res.status(400).json({ message: 'Email, username, and password are required' });
     }
 
-    // SECURITY: Age Assurance - user must confirm they are 13+
-    if (!ageConfirmed) {
-      return res.status(400).json({ message: 'You must confirm that you are 13 years of age or older' });
+    // SECURITY: Age Verification - DOB is required for COPPA/GDPR compliance
+    if (!dob) {
+      return res.status(400).json({ message: 'Date of birth is required to verify your age' });
     }
 
-    // If DOB is provided (optional), validate it
-    let dobString: string | undefined;
-    if (dob) {
-      const dobDate = new Date(dob);
-      if (isNaN(dobDate.getTime())) {
-        return res.status(400).json({ message: 'Invalid date of birth format. Use YYYY-MM-DD.' });
-      }
-
-      // Check DOB is not in the future
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (dobDate > today) {
-        return res.status(400).json({ message: 'Date of birth cannot be in the future' });
-      }
-
-      // Check DOB is not unreasonably old (150 years)
-      const maxAge = new Date();
-      maxAge.setFullYear(maxAge.getFullYear() - 150);
-      if (dobDate < maxAge) {
-        return res.status(400).json({ message: 'Invalid date of birth' });
-      }
-
-      // If DOB is provided, also verify age is 13+
-      const age = calculateAge(dobDate);
-      if (age < 13) {
-        console.info('[REGISTRATION] Age restriction blocked signup for user under 13');
-        return res.status(403).json({
-          code: 'AGE_RESTRICTED',
-          message: 'You must be 13 or older to use this app.'
-        });
-      }
-
-      dobString = dobDate.toISOString().split('T')[0];
+    const dobDate = new Date(dob);
+    if (isNaN(dobDate.getTime())) {
+      return res.status(400).json({ message: 'Invalid date of birth format. Use YYYY-MM-DD.' });
     }
+
+    // Check DOB is not in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (dobDate > today) {
+      return res.status(400).json({ message: 'Date of birth cannot be in the future' });
+    }
+
+    // Check DOB is not unreasonably old (150 years)
+    const maxAge = new Date();
+    maxAge.setFullYear(maxAge.getFullYear() - 150);
+    if (dobDate < maxAge) {
+      return res.status(400).json({ message: 'Invalid date of birth' });
+    }
+
+    // SECURITY: Verify age is 13+ (COPPA compliance)
+    const age = calculateAge(dobDate);
+    if (age < 13) {
+      console.info('[REGISTRATION] Age restriction blocked signup for user under 13');
+      return res.status(403).json({
+        code: 'AGE_RESTRICTED',
+        message: 'You must be 13 or older to use this app.'
+      });
+    }
+
+    const dobString = dobDate.toISOString().split('T')[0];
 
     if (password.length < 8) {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });

@@ -1,6 +1,7 @@
 import createHttpError from 'http-errors';
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { isTokenBlacklisted } from '../lib/tokenBlacklist';
 
 function normalizeSessionValue(raw: string | number | undefined): number | undefined {
   if (raw === undefined || raw === null) return undefined;
@@ -29,6 +30,12 @@ export function getSessionUserId(req: Request): number | undefined {
     }
 
     try {
+      // Check if token is blacklisted (logged out)
+      if (isTokenBlacklisted(token)) {
+        console.error('[AUTH] JWT token is blacklisted (user logged out)');
+        return undefined;
+      }
+
       const decoded = jwt.verify(token, jwtSecret) as { sub?: number; id?: number; userId?: number };
       console.error('[AUTH] Decoded JWT token:', { sub: decoded.sub, id: decoded.id, userId: decoded.userId });
       const userId = decoded.userId || decoded.sub || decoded.id;
