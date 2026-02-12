@@ -641,6 +641,18 @@ router.get('/users/:userId/profile', async (req, res) => {
       console.error('[PROFILE] Error fetching microblogs:', error);
     }
 
+    // Check if user is a top contributor in global advice
+    let isTopContributor = false;
+    let topContributorContexts: string[] = [];
+    try {
+      isTopContributor = await storage.isTopContributor(userId, 'global_advice', null);
+      if (isTopContributor) {
+        topContributorContexts.push('global_advice');
+      }
+    } catch (error) {
+      console.error('[PROFILE] Error checking top contributor status:', error);
+    }
+
     res.json({
       user: {
         id: user.id,
@@ -656,6 +668,7 @@ router.get('/users/:userId/profile', async (req, res) => {
         interests: user.interests,
         profileVisibility: isSelf || isAdmin ? user.profileVisibility : undefined,
         createdAt: user.createdAt,
+        isTopContributor,
       },
       stats: {
         ...basicProfile.stats,
@@ -666,6 +679,7 @@ router.get('/users/:userId/profile', async (req, res) => {
       communities: communities.slice(0, 6),
       recentPosts: posts,
       recentMicroblogs: microblogs,
+      topContributorContexts,
     });
   } catch (error) {
     console.error('Error fetching user profile:', error);

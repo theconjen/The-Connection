@@ -94,6 +94,10 @@ import {
   // Sermons
   sermons, sermonViews,
   Sermon, InsertSermon, SermonView, InsertSermonView,
+  // Gamification
+  contributorScores, helpfulMarks,
+  ContributorScore, InsertContributorScore,
+  HelpfulMark, InsertHelpfulMark,
 } from "@shared/schema";
 import { postVotes, commentVotes } from "@shared/schema";
 import { db } from "./db";
@@ -428,6 +432,20 @@ export interface IStorage {
   hasUserBookmarkedMicroblog(microblogId: number, userId: number): Promise<boolean>;
   getMicroblogLikeCount(microblogId: number): Promise<number>;
   getMicroblogReplies(microblogId: number): Promise<Microblog[]>;
+
+  // Helpful marks methods (gamification)
+  markReplyAsHelpful(userId: number, questionId: number, replyId: number): Promise<HelpfulMark>;
+  unmarkReplyAsHelpful(userId: number, questionId: number): Promise<boolean>;
+  getUserHelpfulMark(userId: number, questionId: number): Promise<HelpfulMark | undefined>;
+  getReplyHelpfulCount(replyId: number): Promise<number>;
+  getQuestionHelpfulMarks(questionId: number): Promise<HelpfulMark[]>;
+  hasUserMarkedHelpful(userId: number, questionId: number, replyId: number): Promise<boolean>;
+
+  // Contributor scores methods (gamification)
+  getContributorScore(userId: number, contextType: string, contextId: number | null): Promise<ContributorScore | undefined>;
+  upsertContributorScore(data: InsertContributorScore): Promise<ContributorScore>;
+  getTopContributors(contextType: string, contextId: number | null, limit?: number): Promise<ContributorScore[]>;
+  isTopContributor(userId: number, contextType: string, contextId: number | null): Promise<boolean>;
 
   // Post bookmark methods
   bookmarkPost(postId: number, userId: number): Promise<PostBookmark>;
@@ -2226,6 +2244,48 @@ export class MemStorage implements IStorage {
       .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }
 
+  // Helpful marks methods (gamification) - MemStorage stubs
+  async markReplyAsHelpful(_userId: number, _questionId: number, _replyId: number): Promise<HelpfulMark> {
+    throw new Error('Not implemented in MemStorage');
+  }
+
+  async unmarkReplyAsHelpful(_userId: number, _questionId: number): Promise<boolean> {
+    throw new Error('Not implemented in MemStorage');
+  }
+
+  async getUserHelpfulMark(_userId: number, _questionId: number): Promise<HelpfulMark | undefined> {
+    return undefined;
+  }
+
+  async getReplyHelpfulCount(_replyId: number): Promise<number> {
+    return 0;
+  }
+
+  async getQuestionHelpfulMarks(_questionId: number): Promise<HelpfulMark[]> {
+    return [];
+  }
+
+  async hasUserMarkedHelpful(_userId: number, _questionId: number, _replyId: number): Promise<boolean> {
+    return false;
+  }
+
+  // Contributor scores methods (gamification) - MemStorage stubs
+  async getContributorScore(_userId: number, _contextType: string, _contextId: number | null): Promise<ContributorScore | undefined> {
+    return undefined;
+  }
+
+  async upsertContributorScore(_data: InsertContributorScore): Promise<ContributorScore> {
+    throw new Error('Not implemented in MemStorage');
+  }
+
+  async getTopContributors(_contextType: string, _contextId: number | null, _limit?: number): Promise<ContributorScore[]> {
+    return [];
+  }
+
+  async isTopContributor(_userId: number, _contextType: string, _contextId: number | null): Promise<boolean> {
+    return false;
+  }
+
   // Post bookmark methods
   async bookmarkPost(_postId: number, _userId: number): Promise<PostBookmark> {
     throw new Error('Not implemented in MemStorage');
@@ -3757,11 +3817,20 @@ export class DbStorage implements IStorage {
       } as any)
       .returning();
 
-    // Update post comment count
+    // Update comment count on the parent (could be a post or a microblog)
     if (newComment.postId) {
-      await db.update(posts)
-        .set({ commentCount: sql`${posts.commentCount} + 1` })
-        .where(eq(posts.id, newComment.postId));
+      // Try updating post first
+      const postResult = await db.update(posts)
+        .set({ commentCount: sql`COALESCE(${posts.commentCount}, 0) + 1` })
+        .where(eq(posts.id, newComment.postId))
+        .returning({ id: posts.id });
+
+      // If no post was updated, this comment is on a microblog (advice post)
+      if (postResult.length === 0) {
+        await db.update(microblogs)
+          .set({ replyCount: sql`COALESCE(${microblogs.replyCount}, 0) + 1` as any })
+          .where(eq(microblogs.id, newComment.postId));
+      }
     }
 
     return newComment;
@@ -4707,6 +4776,232 @@ export class DbStorage implements IStorage {
       .orderBy(desc(microblogs.createdAt));
 
     return replies;
+  }
+
+  // ============================================================================
+  // HELPFUL MARKS METHODS (DbStorage) - Gamification
+  // ============================================================================
+
+  /**
+   * Mark a reply as helpful - user can only mark ONE reply per question
+   * If user already marked a different reply, switch to new one
+   */
+  async markReplyAsHelpful(userId: number, questionId: number, replyId: number): Promise<HelpfulMark> {
+    // Check if user already marked a reply for this question
+    const existing = await this.getUserHelpfulMark(userId, questionId);
+
+    if (existing) {
+      // If marking the same reply, do nothing (idempotent)
+      if (existing.replyId === replyId) {
+        return existing;
+      }
+
+      // Decrement old reply's helpful count
+      await db
+        .update(microblogs)
+        .set({ helpfulCount: sql`COALESCE(helpful_count, 0) - 1` })
+        .where(eq(microblogs.id, existing.replyId));
+
+      // Update to new reply
+      const [updated] = await db
+        .update(helpfulMarks)
+        .set({ replyId, createdAt: new Date() })
+        .where(eq(helpfulMarks.id, existing.id))
+        .returning();
+
+      // Increment new reply's helpful count
+      await db
+        .update(microblogs)
+        .set({ helpfulCount: sql`COALESCE(helpful_count, 0) + 1` })
+        .where(eq(microblogs.id, replyId));
+
+      return updated;
+    }
+
+    // Create new helpful mark
+    const [mark] = await db
+      .insert(helpfulMarks)
+      .values({ userId, questionId, replyId })
+      .returning();
+
+    // Increment reply's helpful count
+    await db
+      .update(microblogs)
+      .set({ helpfulCount: sql`COALESCE(helpful_count, 0) + 1` })
+      .where(eq(microblogs.id, replyId));
+
+    return mark;
+  }
+
+  /**
+   * Remove user's helpful mark for a question
+   */
+  async unmarkReplyAsHelpful(userId: number, questionId: number): Promise<boolean> {
+    const existing = await this.getUserHelpfulMark(userId, questionId);
+
+    if (!existing) {
+      return false;
+    }
+
+    // Delete the mark
+    await db
+      .delete(helpfulMarks)
+      .where(eq(helpfulMarks.id, existing.id));
+
+    // Decrement reply's helpful count
+    await db
+      .update(microblogs)
+      .set({ helpfulCount: sql`GREATEST(COALESCE(helpful_count, 0) - 1, 0)` })
+      .where(eq(microblogs.id, existing.replyId));
+
+    return true;
+  }
+
+  /**
+   * Get user's helpful mark for a specific question
+   */
+  async getUserHelpfulMark(userId: number, questionId: number): Promise<HelpfulMark | undefined> {
+    const [mark] = await db
+      .select()
+      .from(helpfulMarks)
+      .where(and(
+        eq(helpfulMarks.userId, userId),
+        eq(helpfulMarks.questionId, questionId)
+      ))
+      .limit(1);
+
+    return mark;
+  }
+
+  /**
+   * Get the helpful count for a reply
+   */
+  async getReplyHelpfulCount(replyId: number): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(helpfulMarks)
+      .where(eq(helpfulMarks.replyId, replyId));
+
+    return result[0]?.count || 0;
+  }
+
+  /**
+   * Get all helpful marks for a question (to show which replies are marked)
+   */
+  async getQuestionHelpfulMarks(questionId: number): Promise<HelpfulMark[]> {
+    return await db
+      .select()
+      .from(helpfulMarks)
+      .where(eq(helpfulMarks.questionId, questionId));
+  }
+
+  /**
+   * Check if user has marked a specific reply as helpful
+   */
+  async hasUserMarkedHelpful(userId: number, questionId: number, replyId: number): Promise<boolean> {
+    const [mark] = await db
+      .select()
+      .from(helpfulMarks)
+      .where(and(
+        eq(helpfulMarks.userId, userId),
+        eq(helpfulMarks.questionId, questionId),
+        eq(helpfulMarks.replyId, replyId)
+      ))
+      .limit(1);
+
+    return !!mark;
+  }
+
+  // ============================================================================
+  // CONTRIBUTOR SCORE METHODS (DbStorage) - Gamification
+  // ============================================================================
+
+  /**
+   * Get contributor score for a user in a specific context
+   */
+  async getContributorScore(userId: number, contextType: string, contextId: number | null): Promise<ContributorScore | undefined> {
+    const conditions = [
+      eq(contributorScores.userId, userId),
+      eq(contributorScores.contextType, contextType),
+    ];
+
+    if (contextId === null) {
+      conditions.push(isNull(contributorScores.contextId));
+    } else {
+      conditions.push(eq(contributorScores.contextId, contextId));
+    }
+
+    const [score] = await db
+      .select()
+      .from(contributorScores)
+      .where(and(...conditions))
+      .limit(1);
+
+    return score;
+  }
+
+  /**
+   * Create or update contributor score
+   */
+  async upsertContributorScore(data: InsertContributorScore): Promise<ContributorScore> {
+    const existing = await this.getContributorScore(
+      data.userId,
+      data.contextType,
+      data.contextId ?? null
+    );
+
+    if (existing) {
+      const [updated] = await db
+        .update(contributorScores)
+        .set({
+          ...data,
+          lastCalculatedAt: new Date(),
+        })
+        .where(eq(contributorScores.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db
+      .insert(contributorScores)
+      .values({
+        ...data,
+        lastCalculatedAt: new Date(),
+      })
+      .returning();
+
+    return created;
+  }
+
+  /**
+   * Get top contributors for a context
+   */
+  async getTopContributors(contextType: string, contextId: number | null, limit: number = 10): Promise<ContributorScore[]> {
+    const conditions = [
+      eq(contributorScores.contextType, contextType),
+      eq(contributorScores.isTopContributor, true),
+    ];
+
+    if (contextId === null) {
+      conditions.push(isNull(contributorScores.contextId));
+    } else {
+      conditions.push(eq(contributorScores.contextId, contextId));
+    }
+
+    return await db
+      .select()
+      .from(contributorScores)
+      .where(and(...conditions))
+      .orderBy(desc(contributorScores.score))
+      .limit(limit);
+  }
+
+  /**
+   * Check if user is a top contributor in a context
+   */
+  async isTopContributor(userId: number, contextType: string, contextId: number | null): Promise<boolean> {
+    const score = await this.getContributorScore(userId, contextType, contextId);
+    return score?.isTopContributor ?? false;
   }
 
   // ============================================================================

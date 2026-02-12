@@ -52,6 +52,7 @@ interface UserProfile {
     interests?: string;
     isVerifiedClergy?: boolean;
     isVerifiedApologeticsAnswerer?: boolean;
+    isTopContributor?: boolean;
   };
   stats: {
     followersCount: number;
@@ -64,6 +65,7 @@ interface UserProfile {
   recentPosts?: any[];
   recentMicroblogs?: any[];
   isPrivate?: boolean;
+  topContributorContexts?: string[];
 }
 
 export default function UserProfileScreen() {
@@ -353,6 +355,15 @@ export default function UserProfileScreen() {
                 </View>
               )}
             </View>
+            {/* Top Contributor Label - Subtle recognition for advice helpers */}
+            {(user.isTopContributor || profile.topContributorContexts?.includes('global_advice')) && (
+              <View style={styles.topContributorRow}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.success || '#22C55E'} />
+                <Text style={[styles.topContributorLabel, { color: colors.textMuted }]}>
+                  Top Contributor
+                </Text>
+              </View>
+            )}
 
             <Text style={[styles.username, { color: colors.textSecondary }]}>@{user.username}</Text>
 
@@ -765,6 +776,16 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 14,
     marginTop: 2,
+  },
+  topContributorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  topContributorLabel: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   compactInfoRow: {
     flexDirection: 'row',

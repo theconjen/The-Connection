@@ -36,8 +36,8 @@ const RANKING_CONFIG = {
     uniqueRepliers: 4.0,   // Heavy weight on unique repliers
     pollVotes: 3.0,        // Heavy weight on poll votes
     reposts: 2.0,          // Medium weight on reposts
-    likes: 0.5,            // Tiny weight on likes (avoid like farming)
-    comments: 1.5,         // Medium weight on comments
+    likes: 2.5,            // Upvotes signal resonance - people want this answered
+    comments: 2.0,         // Comments signal actual engagement
   },
   decay: {
     halfLifeHours: 48,     // Score halves every 48 hours
@@ -425,6 +425,15 @@ export function createMicroblogsRouter(storage = defaultStorage) {
 
       // Enrich with author data
       const author = await storage.getUser((microblog as any).authorId);
+
+      // Check if author is a top contributor (for advice posts)
+      let isTopContributor = false;
+      if (author && microblog.topic === 'QUESTION') {
+        try {
+          isTopContributor = await storage.isTopContributor(author.id, 'global_advice', null);
+        } catch {}
+      }
+
       const enrichedMicroblog = {
         ...microblog,
         author: author ? {
@@ -433,11 +442,13 @@ export function createMicroblogsRouter(storage = defaultStorage) {
           displayName: author.displayName,
           avatarUrl: author.avatarUrl,
           profileImageUrl: author.avatarUrl,
+          isTopContributor,
         } : {
           id: (microblog as any).authorId,
           username: 'deleted',
           displayName: 'Deleted User',
           avatarUrl: null,
+          isTopContributor: false,
         },
       };
 
@@ -798,7 +809,14 @@ export function createMicroblogsRouter(storage = defaultStorage) {
       // Combine and enrich both sources
       const allResponses = [...replies, ...comments];
 
-      // Enrich with author data
+      // Get user's helpful mark for this question (if logged in)
+      let userHelpfulMarkReplyId: number | null = null;
+      if (userId) {
+        const userMark = await storage.getUserHelpfulMark(userId, microblogId);
+        userHelpfulMarkReplyId = userMark?.replyId || null;
+      }
+
+      // Enrich with author data and helpful counts
       const enrichedComments = await Promise.all(
         allResponses.map(async (item: any) => {
           const author = await storage.getUser(item.authorId);
@@ -811,30 +829,51 @@ export function createMicroblogsRouter(storage = defaultStorage) {
             } catch {}
           }
 
+          // Get helpful count for this reply
+          const helpfulCount = item.helpfulCount || 0;
+          const isMarkedHelpfulByMe = userHelpfulMarkReplyId === item.id;
+
+          // Check if author is a top contributor (for global_advice context)
+          let isTopContributor = false;
+          if (author) {
+            try {
+              isTopContributor = await storage.isTopContributor(author.id, 'global_advice', null);
+            } catch {}
+          }
+
           return {
             ...item,
             likeCount,
+            helpfulCount,
+            isMarkedHelpfulByMe,
             author: author ? {
               id: author.id,
               username: author.username,
               displayName: author.displayName,
               avatarUrl: author.avatarUrl,
               profileImageUrl: author.avatarUrl,
+              isTopContributor,
             } : {
               id: item.authorId,
               username: 'deleted',
               displayName: 'Deleted User',
               avatarUrl: null,
               profileImageUrl: null,
+              isTopContributor: false,
             },
           };
         })
       );
 
-      // Sort by creation date (oldest first for conversation flow)
-      enrichedComments.sort((a: any, b: any) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
+      // Sort: most helpful first, then by creation date
+      enrichedComments.sort((a: any, b: any) => {
+        // Primary: helpful count (descending)
+        if (b.helpfulCount !== a.helpfulCount) {
+          return b.helpfulCount - a.helpfulCount;
+        }
+        // Secondary: creation date (oldest first for conversation flow)
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
 
       res.json(enrichedComments);
     } catch (error) {
@@ -880,6 +919,128 @@ export function createMicroblogsRouter(storage = defaultStorage) {
     } catch (error) {
       console.error('Error creating microblog comment:', error);
       res.status(500).json(buildErrorResponse('Error creating microblog comment', error));
+    }
+  });
+
+  // ============================================================================
+  // HELPFUL MARKS - Community-driven answer quality (Gamification)
+  // ============================================================================
+
+  /**
+   * Mark a reply as helpful - any user can mark ONE reply per question
+   * Marking a new reply automatically un-marks the previous one
+   */
+  router.post('/microblogs/:questionId/replies/:replyId/mark-helpful', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const questionId = parseInt(req.params.questionId);
+      const replyId = parseInt(req.params.replyId);
+
+      // Validate question exists and is a QUESTION topic (advice post)
+      const question = await storage.getMicroblog(questionId);
+      if (!question || (question as any).deletedAt) {
+        return res.status(404).json({ error: 'Question not found' });
+      }
+      if (question.topic !== 'QUESTION') {
+        return res.status(400).json({ error: 'Can only mark helpful on advice questions' });
+      }
+
+      // Validate reply exists and is a reply to this question
+      const reply = await storage.getMicroblog(replyId);
+      if (!reply || (reply as any).deletedAt) {
+        return res.status(404).json({ error: 'Reply not found' });
+      }
+      if (reply.parentId !== questionId) {
+        return res.status(400).json({ error: 'Reply does not belong to this question' });
+      }
+
+      // Check if user is marking their own reply (allowed but discouraged)
+      // We allow it for flexibility but it won't count as much in scoring
+
+      // Check if this is a new mark (not switching from another reply)
+      const existingMark = await storage.getUserHelpfulMark(userId, questionId);
+      const isNewMark = !existingMark || existingMark.replyId !== replyId;
+
+      // Mark the reply as helpful (handles switching from previous mark)
+      const mark = await storage.markReplyAsHelpful(userId, questionId, replyId);
+
+      // Get updated helpful count for the reply
+      const helpfulCount = await storage.getReplyHelpfulCount(replyId);
+
+      // Send encouraging notification to reply author (if not self-marking)
+      if (isNewMark && reply.authorId !== userId) {
+        // Notification thresholds for "X users found your advice helpful"
+        const HELPFUL_THRESHOLDS = [1, 5, 10, 25, 50, 100];
+
+        if (HELPFUL_THRESHOLDS.includes(helpfulCount)) {
+          // Import the message generator for varied, encouraging notifications
+          import('../services/contributorScoreService').then(async ({ getHelpfulMarkMessage }) => {
+            const { title, body } = getHelpfulMarkMessage(helpfulCount);
+
+            await notifyUserWithPreferences(reply.authorId, {
+              title,
+              body,
+              data: {
+                type: 'helpful_mark',
+                questionId,
+                replyId,
+                helpfulCount,
+              },
+              category: 'feed',
+            });
+          }).catch(error => console.error('[Microblogs] Error sending helpful notification:', error));
+        }
+      }
+
+      res.json({
+        success: true,
+        mark,
+        helpfulCount,
+        message: 'Reply marked as helpful',
+      });
+    } catch (error) {
+      console.error('Error marking reply as helpful:', error);
+      res.status(500).json(buildErrorResponse('Error marking reply as helpful', error));
+    }
+  });
+
+  /**
+   * Remove helpful mark from a question (unmark whatever reply was marked)
+   */
+  router.delete('/microblogs/:questionId/mark-helpful', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const questionId = parseInt(req.params.questionId);
+
+      const removed = await storage.unmarkReplyAsHelpful(userId, questionId);
+
+      res.json({
+        success: true,
+        removed,
+        message: removed ? 'Helpful mark removed' : 'No mark to remove',
+      });
+    } catch (error) {
+      console.error('Error removing helpful mark:', error);
+      res.status(500).json(buildErrorResponse('Error removing helpful mark', error));
+    }
+  });
+
+  /**
+   * Get user's helpful mark for a question (which reply they marked)
+   */
+  router.get('/microblogs/:questionId/my-helpful-mark', requireAuth, async (req, res) => {
+    try {
+      const userId = requireSessionUserId(req);
+      const questionId = parseInt(req.params.questionId);
+
+      const mark = await storage.getUserHelpfulMark(userId, questionId);
+
+      res.json({
+        markedReplyId: mark?.replyId || null,
+      });
+    } catch (error) {
+      console.error('Error getting helpful mark:', error);
+      res.status(500).json(buildErrorResponse('Error getting helpful mark', error));
     }
   });
 

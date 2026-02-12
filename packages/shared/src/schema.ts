@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, varchar, index, uuid, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, time, varchar, index, uuid, uniqueIndex, decimal } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -1019,6 +1019,7 @@ export const microblogs: any = pgTable("microblogs", {
   replyCount: integer("reply_count").default(0),
   bookmarkCount: integer("bookmark_count").default(0), // Cached bookmark count for ranking
   uniqueReplierCount: integer("unique_replier_count").default(0), // Cached unique repliers for ranking
+  helpfulCount: integer("helpful_count").default(0), // Cached count of "helpful" marks (for replies)
   parentId: integer("parent_id").references(() => microblogs.id), // For replies to other microblogs
   detectedLanguage: text("detected_language"), // ISO 639-1 language code (e.g., en, ar, es)
   // New fields for post types and polls
@@ -2739,3 +2740,72 @@ export const sermonViews = pgTable("sermon_views", {
 
 export type SermonView = typeof sermonViews.$inferSelect;
 export type InsertSermonView = typeof sermonViews.$inferInsert;
+
+// ============================================
+// GAMIFICATION SYSTEM - Subtle contributor recognition
+// ============================================
+
+// Contributor scores - tracks quality contributions for Top Contributor status
+export const contributorScores = pgTable("contributor_scores", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  contextType: text("context_type").notNull(), // 'global_advice' or 'community'
+  contextId: integer("context_id"), // NULL for global, community_id for per-community
+  score: integer("score").default(0),
+  upvotesReceived: integer("upvotes_received").default(0),
+  helpfulMarksReceived: integer("helpful_marks_received").default(0),
+  repliesGiven: integer("replies_given").default(0),
+  postsWithZeroEngagement: integer("posts_with_zero_engagement").default(0),
+  isTopContributor: boolean("is_top_contributor").default(false),
+  percentile: decimal("percentile", { precision: 5, scale: 2 }),
+  lastCalculatedAt: timestamp("last_calculated_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  // Each user has one score per context
+  uniqueIndex("idx_contributor_scores_user_context").on(table.userId, table.contextType, table.contextId),
+  // Fast lookup of top contributors
+  index("idx_contributor_scores_top").on(table.contextType, table.contextId).where(sql`is_top_contributor = TRUE`),
+  index("idx_contributor_scores_user").on(table.userId),
+]);
+
+export const insertContributorScoreSchema = createInsertSchema(contributorScores).pick({
+  userId: true,
+  contextType: true,
+  contextId: true,
+  score: true,
+  upvotesReceived: true,
+  helpfulMarksReceived: true,
+  repliesGiven: true,
+  postsWithZeroEngagement: true,
+  isTopContributor: true,
+  percentile: true,
+  lastCalculatedAt: true,
+} as any);
+
+export type ContributorScore = typeof contributorScores.$inferSelect;
+export type InsertContributorScore = typeof contributorScores.$inferInsert;
+
+// Helpful marks - any user can mark ONE reply per question as helpful
+export const helpfulMarks = pgTable("helpful_marks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  questionId: integer("question_id").references(() => microblogs.id, { onDelete: 'cascade' }).notNull(),
+  replyId: integer("reply_id").references(() => microblogs.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  // Each user can mark ONE reply per question
+  uniqueIndex("idx_helpful_marks_user_question").on(table.userId, table.questionId),
+  // Fast lookup of marks for a reply
+  index("idx_helpful_marks_reply").on(table.replyId),
+  // Fast lookup of marks for a question
+  index("idx_helpful_marks_question").on(table.questionId),
+]);
+
+export const insertHelpfulMarkSchema = createInsertSchema(helpfulMarks).pick({
+  userId: true,
+  questionId: true,
+  replyId: true,
+} as any);
+
+export type HelpfulMark = typeof helpfulMarks.$inferSelect;
+export type InsertHelpfulMark = typeof helpfulMarks.$inferInsert;
