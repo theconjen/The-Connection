@@ -131,13 +131,13 @@ router.post('/auth/login', async (req, res) => {
     // Return user data (excluding password)
     const { password: _, ...userData } = user;
 
-    // Generate JWT token for mobile apps
+    // Generate JWT token for mobile apps (10 days for sliding session)
     const jwtSecret = process.env.JWT_SECRET;
     if (jwtSecret) {
       const token = jwt.sign(
         { sub: user.id, email: user.email, username: user.username },
         jwtSecret,
-        { expiresIn: '7d' }
+        { expiresIn: '10d' }
       );
 
       // Return token for mobile apps
@@ -212,6 +212,65 @@ router.post('/auth/logout', async (req, res) => {
 //   - routes.ts:466 (app.get('/api/user', ...)) - returns user WITH permissions
 //   - user.ts:32 (router.get('/', ...)) - returns user WITH permissions
 // Removing this endpoint allows the correct handlers to execute.
+
+// Token refresh endpoint - extends session for active users (sliding session)
+// Call this when app comes to foreground to keep users logged in
+router.post('/auth/refresh', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    const oldToken = authHeader.substring(7);
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+
+    // Verify the current token is valid
+    let decoded: any;
+    try {
+      decoded = jwt.verify(oldToken, jwtSecret);
+    } catch (error: any) {
+      // Token is invalid or expired
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+
+    // Check if token is blacklisted
+    const { isTokenBlacklisted } = await import('../../lib/tokenBlacklist');
+    if (isTokenBlacklisted(oldToken)) {
+      return res.status(401).json({ message: 'Token has been revoked' });
+    }
+
+    // Get the user to ensure they still exist and are valid
+    const userId = decoded.sub || decoded.userId || decoded.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Invalid token payload' });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    // Issue a fresh token with new 10-day expiry
+    const newToken = jwt.sign(
+      { sub: user.id, email: user.email, username: user.username },
+      jwtSecret,
+      { expiresIn: '10d' }
+    );
+
+    console.info(`[AUTH] Token refreshed for user ${user.id}`);
+
+    // Return new token
+    res.json({ token: newToken });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(500).json({ message: 'Failed to refresh token' });
+  }
+});
 
 // Send (or resend) verification email for a user's email address
 // SECURITY: Always returns 200 to prevent email enumeration
