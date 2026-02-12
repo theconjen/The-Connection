@@ -83,19 +83,26 @@ async function hasAuthToken(): Promise<boolean> {
   }
 }
 
+// Helper to decode JWT payload
+function decodeJwtPayload(token: string): any | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = parts[1];
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+  } catch {
+    return null;
+  }
+}
+
 // Helper to check if JWT token is expired (client-side check)
 async function isTokenExpired(): Promise<boolean> {
   try {
     const token = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
     if (!token) return true;
 
-    // JWT format: header.payload.signature
-    const parts = token.split('.');
-    if (parts.length !== 3) return true;
-
-    // Decode payload (base64url)
-    const payload = parts[1];
-    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    const decoded = decodeJwtPayload(token);
+    if (!decoded) return true;
 
     // Check expiry - JWT exp is in seconds, Date.now() is in milliseconds
     if (decoded.exp) {
@@ -109,6 +116,44 @@ async function isTokenExpired(): Promise<boolean> {
   } catch (error) {
     // If we can't decode, assume expired to trigger re-auth
     return true;
+  }
+}
+
+// Helper to check if token should be refreshed (older than 1 day)
+// This implements "sliding session" - active users stay logged in
+async function shouldRefreshToken(): Promise<boolean> {
+  try {
+    const token = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+    if (!token) return false;
+
+    const decoded = decodeJwtPayload(token);
+    if (!decoded || !decoded.iat) return false;
+
+    // Token issued at (iat) is in seconds
+    const issuedAt = decoded.iat * 1000;
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+
+    // Refresh if token is older than 1 day
+    return (now - issuedAt) > oneDayMs;
+  } catch {
+    return false;
+  }
+}
+
+// Helper to refresh the auth token
+async function refreshAuthToken(): Promise<boolean> {
+  try {
+    const response = await apiClient.post('/api/auth/refresh');
+    if (response.data?.token) {
+      await SecureStore.setItemAsync(AUTH_TOKEN_KEY, response.data.token);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    // Refresh failed - token may be invalid or expired
+    // Don't clear auth here - let the normal 401 handling take care of it
+    return false;
   }
 }
 
@@ -198,11 +243,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAuth();
   }, [verifyAuth]);
 
-  // Re-verify when app comes to foreground
+  // Re-verify when app comes to foreground and refresh token if needed (sliding session)
   useEffect(() => {
-    const handleAppStateChange = (state: AppStateStatus) => {
+    const handleAppStateChange = async (state: AppStateStatus) => {
       if (state === 'active') {
-        // Silent refresh - don't show loading state
+        // Check if token should be refreshed (older than 1 day)
+        // This keeps active users logged in indefinitely
+        const needsRefresh = await shouldRefreshToken();
+        if (needsRefresh) {
+          await refreshAuthToken();
+        }
+
+        // Silent refresh user data - don't show loading state
         verifyAuth(true);
       }
     };

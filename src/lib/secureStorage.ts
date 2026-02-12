@@ -114,38 +114,3 @@ export async function clearAuthData(): Promise<void> {
   ]);
 }
 
-const SESSION_KEY = 'session_cookie';
-
-export async function saveSessionCookie(cookie: string): Promise<void> {
-  try {
-    if (Platform.OS === 'web') {
-      await AsyncStorage.setItem(SESSION_KEY, cookie);
-    } else {
-      await SecureStore.setItemAsync(SESSION_KEY, cookie);
-    }
-  } catch (error) {
-  }
-}
-
-export async function getSessionCookie(): Promise<string | null> {
-  try {
-    if (Platform.OS === 'web') {
-      return await AsyncStorage.getItem(SESSION_KEY);
-    } else {
-      return await SecureStore.getItemAsync(SESSION_KEY);
-    }
-  } catch (error) {
-    return null;
-  }
-}
-
-export async function removeSessionCookie(): Promise<void> {
-  try {
-    if (Platform.OS === 'web') {
-      await AsyncStorage.removeItem(SESSION_KEY);
-    } else {
-      await SecureStore.deleteItemAsync(SESSION_KEY);
-    }
-  } catch (error) {
-  }
-}
