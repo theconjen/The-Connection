@@ -276,6 +276,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
               <Image
                 source={require('../../assets/church-icon.png')}
                 style={{ width: 28, height: 28, tintColor: colors.primary }}
+                resizeMode="contain"
               />
             </View>
           )}
@@ -362,6 +363,7 @@ export function ChurchesScreen({ onBack, onChurchPress }: ChurchesScreenProps) {
           <Image
             source={require('../../assets/church-icon.png')}
             style={{ width: 40, height: 40, tintColor: colors.textMuted }}
+            resizeMode="contain"
           />
         </View>
         <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>

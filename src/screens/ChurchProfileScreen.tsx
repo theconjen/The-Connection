@@ -273,6 +273,7 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
               <Image
                 source={require('../../assets/church-icon.png')}
                 style={{ width: 56, height: 56, tintColor: colors.primary }}
+                resizeMode="contain"
               />
             </View>
           )}
@@ -507,6 +508,7 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
                   <Image
                     source={require('../../assets/church-icon.png')}
                     style={{ width: 32, height: 32, tintColor: colors.primary }}
+                    resizeMode="contain"
                   />
                 </View>
               )}

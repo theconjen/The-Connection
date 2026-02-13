@@ -426,7 +426,7 @@ function EventCard({
             {/* Event type icon */}
             <View style={styles.posterIconContainer}>
               {isSundayService ? (
-                <Image source={ChurchIcon} style={styles.customIconImage} />
+                <Image source={ChurchIcon} style={styles.customIconImage} resizeMode="contain" />
               ) : (
                 <Ionicons name={eventIcon || 'calendar-outline'} size={32} color={colors.textInverse} />
               )}
@@ -485,7 +485,7 @@ function EventCard({
             ]}
           >
             {isSundayService ? (
-              <Image source={ChurchIcon} style={styles.chipIconImage} />
+              <Image source={ChurchIcon} style={styles.chipIconImage} resizeMode="contain" />
             ) : (
               <Ionicons name={eventIcon || 'calendar-outline'} size={11} color={colors.textPrimary} style={{ marginRight: 4 }} />
             )}
@@ -684,7 +684,7 @@ function EventMapView({
               {/* Custom marker with event type icon */}
               <View style={[styles.customMarker, { backgroundColor: markerColor }]}>
                 {isSundayService ? (
-                  <Image source={ChurchIcon} style={styles.markerIconImage} />
+                  <Image source={ChurchIcon} style={styles.markerIconImage} resizeMode="contain" />
                 ) : (
                   <Ionicons name={eventIcon || 'calendar-outline'} size={18} color="#FFFFFF" />
                 )}

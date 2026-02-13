@@ -230,6 +230,7 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                       <Image
                         source={require('../../assets/church-icon.png')}
                         style={{ width: 24, height: 24, tintColor: colors.textPrimary }}
+                        resizeMode="contain"
                       />
                       <Text style={styles.menuItemText}>Churches</Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
