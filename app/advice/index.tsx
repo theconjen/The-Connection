@@ -339,6 +339,11 @@ export default function AdviceListScreen() {
             showsVerticalScrollIndicator={false}
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.5}
+            // Performance optimizations
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            initialNumToRender={10}
             ListFooterComponent={
               isFetchingNextPage ? (
                 <View style={styles.footerLoader}>

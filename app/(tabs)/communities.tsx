@@ -28,7 +28,7 @@ export default function CommunitiesTab() {
       }
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    refetchInterval: 60000, // Reduced from 30s to save battery
   });
 
   // Fetch unread DM count
@@ -44,7 +44,7 @@ export default function CommunitiesTab() {
       }
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    refetchInterval: 60000, // Reduced from 30s to save battery
   });
 
   return (

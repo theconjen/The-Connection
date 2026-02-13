@@ -1,6 +1,7 @@
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { queryClient } from '../lib/queryClient';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
 import { CreateMenuProvider } from '../src/contexts/CreateMenuContext';
@@ -44,22 +45,7 @@ if (Platform.OS !== 'web') {
   };
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Keep data fresh for 2 minutes by default
-      staleTime: 2 * 60 * 1000,
-      // Keep data in cache for 30 minutes even when unused
-      gcTime: 30 * 60 * 1000,
-      // Don't refetch on mount if data exists and is fresh
-      refetchOnMount: 'always',
-      // Don't refetch when window regains focus
-      refetchOnWindowFocus: false,
-      // Retry failed requests once
-      retry: 1,
-    },
-  },
-});
+// QueryClient imported from lib/queryClient.ts to avoid duplicate instances
 
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();

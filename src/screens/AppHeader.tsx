@@ -1,5 +1,6 @@
 import React, { ReactNode, useState, useEffect } from 'react';
-import { View, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Text, useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 

@@ -1042,6 +1042,11 @@ export default function HomeScreen({
           contentContainerStyle={styles.horizontalListContent}
           onEndReached={handleAdviceEndReached}
           onEndReachedThreshold={0.5}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={5}
+          windowSize={3}
+          initialNumToRender={5}
           ListFooterComponent={
             isFetchingNextAdvicePage ? (
               <View style={styles.horizontalLoader}>
@@ -1144,6 +1149,11 @@ export default function HomeScreen({
           onEndReachedThreshold={0.5}
           ListHeaderComponent={ListHeaderComponent}
           ListFooterComponent={ListFooterComponent}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
         />
       )}
 

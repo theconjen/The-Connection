@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { View, Pressable, StyleSheet, Image, Text as RNText } from 'react-native';
+import { View, Pressable, StyleSheet, Text as RNText } from 'react-native';
+import { Image } from 'expo-image';
 import { Text, Badge, Avatar } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -147,6 +148,7 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
               borderRadius: 20,
               backgroundColor: colors.surfaceMuted,
             }}
+            cachePolicy="memory-disk"
           />
         </Pressable>
 
@@ -269,7 +271,8 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
                 marginBottom: spacing.sm,
                 backgroundColor: colors.surfaceMuted,
               }}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
             />
           )}
 
@@ -297,7 +300,8 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
                   height: 180,
                   backgroundColor: colors.surfaceMuted,
                 }}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="memory-disk"
               />
               <View style={{
                 position: 'absolute',

@@ -10,7 +10,6 @@
 import React, { useState, useRef } from 'react';
 import {
   View,
-  Image,
   Text,
   StyleSheet,
   Dimensions,
@@ -19,6 +18,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -68,7 +68,8 @@ export function ImageCarousel({
             borderRadius,
           },
         ]}
-        resizeMode="cover"
+        contentFit="cover"
+          cachePolicy="memory-disk"
       />
     </Pressable>
   );
@@ -87,7 +88,8 @@ export function ImageCarousel({
               borderRadius,
             },
           ]}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
         />
       </Pressable>
     );

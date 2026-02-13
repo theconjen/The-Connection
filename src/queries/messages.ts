@@ -89,7 +89,7 @@ export const useUnreadCount = () => {
   return useQuery({
     queryKey: ['unread-count'],
     queryFn: messagesAPI.getUnreadCount,
-    refetchInterval: 30000, // Poll every 30 seconds
+    refetchInterval: 60000, // Poll every 60 seconds (reduced to save battery)
   });
 };
 

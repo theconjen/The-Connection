@@ -27,7 +27,7 @@ export default function ApologeticsTab() {
       }
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    refetchInterval: 60000, // Reduced from 30s to save battery
   });
 
   // Fetch unread DM count (for message icon badge)
@@ -43,7 +43,7 @@ export default function ApologeticsTab() {
       }
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    refetchInterval: 60000, // Reduced from 30s to save battery
   });
 
   return (

@@ -11,9 +11,9 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Image,
   Pressable,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useConversations } from '../queries/messages';
@@ -225,7 +225,7 @@ export default function MessagesScreen({
                   { width: 700, height: 140 },
                   colorScheme === 'dark' && { tintColor: colors.headerForeground }
                 ]}
-                resizeMode="contain"
+                contentFit="contain" cachePolicy="memory-disk"
               />
             </View>
 
@@ -312,7 +312,7 @@ export default function MessagesScreen({
                   { width: 700, height: 140 },
                   colorScheme === 'dark' && { tintColor: colors.headerForeground }
                 ]}
-                resizeMode="contain"
+                contentFit="contain" cachePolicy="memory-disk"
               />
             </View>
 
@@ -399,7 +399,7 @@ export default function MessagesScreen({
                 { width: 700, height: 140 },
                 colorScheme === 'dark' && { tintColor: colors.headerForeground }
               ]}
-              resizeMode="contain"
+              contentFit="contain" cachePolicy="memory-disk"
             />
           </View>
 
@@ -435,6 +435,11 @@ export default function MessagesScreen({
           renderItem={renderConversation}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ paddingHorizontal: 16 }}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
           ListEmptyComponent={
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
               <Ionicons name="search-outline" size={48} color={colors.textSecondary} />
