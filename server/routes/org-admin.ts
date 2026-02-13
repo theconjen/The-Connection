@@ -110,6 +110,7 @@ router.patch('/:orgId', requireOrgAdminOr404(), async (req: Request, res: Respon
       serviceTimes: z.string().max(1000).optional().nullable(),
       socialMedia: z.string().max(1000).optional().nullable(),
       congregationSize: z.number().min(0).optional().nullable(),
+      logoUrl: z.string().url().optional().nullable(),
       showPhone: z.boolean().optional(),
       showAddress: z.boolean().optional(),
     });
