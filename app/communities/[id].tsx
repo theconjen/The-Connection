@@ -27,7 +27,6 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { Text } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback } from 'react';
 import socketService, { ChatMessage } from '../../src/lib/socket';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
