@@ -3,7 +3,7 @@
  * Features: Icon-only design, advanced filters, search functionality
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -13,6 +13,7 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -458,7 +459,7 @@ function FilterModal({
 }
 
 // Category card component
-function CategoryCard({
+const CategoryCard = memo(function CategoryCard({
   category,
   onPress,
 }: {
@@ -526,10 +527,10 @@ function CategoryCard({
       </View>
     </Pressable>
   );
-}
+});
 
 // Community row component
-function CommunityRow({
+const CommunityRow = memo(function CommunityRow({
   community,
   onPress,
   recommendationReason,
@@ -722,7 +723,7 @@ function CommunityRow({
       <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
     </Pressable>
   );
-}
+});
 
 // Main screen props
 interface CommunitiesScreenProps {
@@ -1291,29 +1292,37 @@ export function CommunitiesScreen({
                   </Pressable>
                 </View>
               ) : (
-                filteredCommunities.map((community) => {
-                  const reason = deriveRecommendationReason(community);
-                  return (
-                    <CommunityRow
-                      key={community.id}
-                      community={{
-                        id: community.id,
-                        title: community.name,
-                        subtitle: community.description,
-                        members: community.memberCount?.toString() || '0',
-                        iconName: (community.iconName || 'people') as any,
-                        tag: community.isPrivate ? 'Private' : 'Public',
-                        bgColor: getLightBackground(community.iconColor),
-                        iconColor: community.iconColor || '#4F46E5',
-                        isNew: false,
-                        distance: community.distance,
-                      }}
-                      recommendationReason={reason}
-                      showDistanceChip={hasLocationPerm}
-                      onPress={() => onCommunityPress?.(community as any)}
-                    />
-                  );
-                })
+                <FlatList
+                  data={filteredCommunities}
+                  keyExtractor={(item) => item.id.toString()}
+                  scrollEnabled={false}
+                  renderItem={({ item: community }) => {
+                    const reason = deriveRecommendationReason(community);
+                    return (
+                      <CommunityRow
+                        community={{
+                          id: community.id,
+                          title: community.name,
+                          subtitle: community.description,
+                          members: community.memberCount?.toString() || '0',
+                          iconName: (community.iconName || 'people') as any,
+                          tag: community.isPrivate ? 'Private' : 'Public',
+                          bgColor: getLightBackground(community.iconColor),
+                          iconColor: community.iconColor || '#4F46E5',
+                          isNew: false,
+                          distance: community.distance,
+                        }}
+                        recommendationReason={reason}
+                        showDistanceChip={hasLocationPerm}
+                        onPress={() => onCommunityPress?.(community as any)}
+                      />
+                    );
+                  }}
+                  ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={10}
+                  windowSize={5}
+                />
               )}
             </View>
           )}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Pressable, StyleSheet, TextInput, ScrollView, Image, ActivityIndicator, Platform } from 'react-native';
+import { Modal, View, Pressable, StyleSheet, TextInput, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -139,6 +140,7 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                           <Image
                             source={{ uri: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.username)}&background=random` }}
                             style={styles.userAvatar}
+                            cachePolicy="memory-disk"
                           />
                           <View style={styles.userInfo}>
                             <Text style={styles.userDisplayName}>{user.displayName || user.username}</Text>
@@ -230,7 +232,8 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
                       <Image
                         source={require('../../assets/church-icon.png')}
                         style={{ width: 24, height: 24, tintColor: colors.textPrimary }}
-                        resizeMode="contain"
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
                       />
                       <Text style={styles.menuItemText}>Churches</Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />

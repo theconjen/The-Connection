@@ -3,7 +3,7 @@
  * Matches the Figma design for forum post previews
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { View, Pressable, StyleSheet, Text as RNText } from 'react-native';
 import { Image } from 'expo-image';
 import { Text, Badge, Avatar } from '../theme';
@@ -81,7 +81,7 @@ interface PostCardProps {
   isBookmarked?: boolean;
 }
 
-export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmarkPress, onMorePress, isBookmarked }: PostCardProps) {
+export const PostCard = memo(function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmarkPress, onMorePress, isBookmarked }: PostCardProps) {
   const { colors, spacing, radii } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -453,4 +453,4 @@ export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmark
     </View>
   </Pressable>
   );
-}
+});

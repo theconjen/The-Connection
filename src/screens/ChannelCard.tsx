@@ -3,7 +3,7 @@
  * Displays community/channel cards in horizontal scroll
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text,  } from '../theme';
@@ -50,7 +50,7 @@ interface ChannelCardProps {
   onPress?: (channel: Channel) => void; // Navigate to channel/community
 }
 
-export function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps) {
+export const ChannelCard = memo(function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps) {
   const { colors, spacing, radii, shadows } = useTheme();
   const [isJoined, setIsJoined] = useState(channel.isJoined);
 
@@ -136,10 +136,10 @@ export function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps
       </Text>
     </Pressable>
   );
-}
+});
 
 // Find Communities Button - for discovering new communities (opens filters)
-export function AddChannelCard({
+export const AddChannelCard = memo(function AddChannelCard({
   onPress,
   activeFilterCount = 0
 }: {
@@ -205,4 +205,4 @@ export function AddChannelCard({
       </Text>
     </Pressable>
   );
-}
+});
