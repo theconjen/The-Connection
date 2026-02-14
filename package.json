@@ -101,7 +101,7 @@
     "@types/memoizee": "^0.4.12",
     "@types/passport-local": "^1.0.38",
     "@vercel/node": "^5.5.27",
-    "axios": "^1.13.2",
+    "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
     "connect-pg-simple": "^10.0.0",
