@@ -244,7 +244,7 @@ export default function AdviceListScreen() {
         {item.imageUrls && item.imageUrls.length > 0 && (
           <View style={styles.imageThumbnails}>
             {item.imageUrls.slice(0, 3).map((url, index) => (
-              <View key={index} style={styles.thumbnailWrapper}>
+              <View key={url} style={styles.thumbnailWrapper}>
                 <Image source={{ uri: url }} style={styles.thumbnail} resizeMode="cover" />
                 {index === 2 && item.imageUrls && item.imageUrls.length > 3 && (
                   <View style={styles.moreImagesOverlay}>

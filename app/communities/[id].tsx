@@ -3,7 +3,7 @@
  * Shows community feed, events, chat, members, and prayer requests
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -16,8 +16,9 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  Image,
+  FlatList,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -869,84 +870,93 @@ export default function CommunityDetailScreen() {
                     </Text>
                   </View>
                 ) : (
-                  wallPosts.map((post) => {
-                    const canDelete = community.isAdmin || community.isModerator;
-                    return (
-                      <View key={post.id} style={styles.postCard}>
-                        <View style={styles.postHeader}>
-                          <View style={styles.authorInfo}>
-                            <View style={styles.avatar}>
-                              {(post.authorAvatar || post.author?.profileImageUrl || post.author?.avatarUrl) ? (
-                                <Image
-                                  source={{ uri: post.authorAvatar || post.author?.profileImageUrl || post.author?.avatarUrl }}
-                                  style={styles.avatarImage}
-                                />
-                              ) : (
-                                <Text style={styles.avatarText}>
-                                  {post.authorName?.charAt(0).toUpperCase() || 'U'}
-                                </Text>
-                              )}
+                  <FlatList
+                    data={wallPosts}
+                    keyExtractor={(item) => item.id.toString()}
+                    scrollEnabled={false}
+                    renderItem={({ item: post }) => {
+                      const canDelete = community.isAdmin || community.isModerator;
+                      return (
+                        <View style={styles.postCard}>
+                          <View style={styles.postHeader}>
+                            <View style={styles.authorInfo}>
+                              <View style={styles.avatar}>
+                                {(post.authorAvatar || post.author?.profileImageUrl || post.author?.avatarUrl) ? (
+                                  <Image
+                                    source={{ uri: post.authorAvatar || post.author?.profileImageUrl || post.author?.avatarUrl }}
+                                    style={styles.avatarImage}
+                                    cachePolicy="memory-disk"
+                                  />
+                                ) : (
+                                  <Text style={styles.avatarText}>
+                                    {post.authorName?.charAt(0).toUpperCase() || 'U'}
+                                  </Text>
+                                )}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    if (post.authorId) {
+                                      router.push(`/(tabs)/profile?userId=${post.authorId}`);
+                                    }
+                                  }}
+                                >
+                                  <Text style={styles.authorName}>
+                                    {post.author?.displayName || post.authorName}
+                                  </Text>
+                                </TouchableOpacity>
+                                <Text style={styles.postTime}>{formatDate(post.createdAt)}</Text>
+                              </View>
                             </View>
-                            <View style={{ flex: 1 }}>
+                            {canDelete && (
                               <TouchableOpacity
                                 onPress={() => {
-                                  if (post.authorId) {
-                                    router.push(`/(tabs)/profile?userId=${post.authorId}`);
-                                  }
+                                  Alert.alert(
+                                    'Delete Post',
+                                    'Are you sure you want to delete this post?',
+                                    [
+                                      { text: 'Cancel', style: 'cancel' },
+                                      {
+                                        text: 'Delete',
+                                        style: 'destructive',
+                                        onPress: () => deletePostMutation.mutate(post.id),
+                                      },
+                                    ]
+                                  );
                                 }}
+                                style={styles.deleteButton}
+                                disabled={deletePostMutation.isPending}
                               >
-                                <Text style={styles.authorName}>
-                                  {post.author?.displayName || post.authorName}
-                                </Text>
+                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
                               </TouchableOpacity>
-                              <Text style={styles.postTime}>{formatDate(post.createdAt)}</Text>
-                            </View>
+                            )}
                           </View>
-                          {canDelete && (
-                            <TouchableOpacity
-                              onPress={() => {
-                                Alert.alert(
-                                  'Delete Post',
-                                  'Are you sure you want to delete this post?',
-                                  [
-                                    { text: 'Cancel', style: 'cancel' },
-                                    {
-                                      text: 'Delete',
-                                      style: 'destructive',
-                                      onPress: () => deletePostMutation.mutate(post.id),
-                                    },
-                                  ]
-                                );
-                              }}
-                              style={styles.deleteButton}
-                              disabled={deletePostMutation.isPending}
-                            >
-                              <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                            </TouchableOpacity>
+                          <Text style={styles.postContent}>{post.content}</Text>
+                          {post.imageUrl && (
+                            post.imageUrl.includes('video') ? (
+                              <Video
+                                source={{ uri: post.imageUrl }}
+                                style={styles.postImage}
+                                resizeMode={ResizeMode.COVER}
+                                shouldPlay={false}
+                                isLooping={false}
+                                useNativeControls
+                              />
+                            ) : (
+                              <Image
+                                source={{ uri: post.imageUrl }}
+                                style={styles.postImage}
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                              />
+                            )
                           )}
                         </View>
-                        <Text style={styles.postContent}>{post.content}</Text>
-                        {post.imageUrl && (
-                          post.imageUrl.includes('video') ? (
-                            <Video
-                              source={{ uri: post.imageUrl }}
-                              style={styles.postImage}
-                              resizeMode={ResizeMode.COVER}
-                              shouldPlay={false}
-                              isLooping={false}
-                              useNativeControls
-                            />
-                          ) : (
-                            <Image
-                              source={{ uri: post.imageUrl }}
-                              style={styles.postImage}
-                              resizeMode="cover"
-                            />
-                          )
-                        )}
-                      </View>
-                    );
-                  })
+                      );
+                    }}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={10}
+                  />
                 )}
               </>
             )}
@@ -1011,62 +1021,70 @@ export default function CommunityDetailScreen() {
                     <Text style={styles.noRequestsText}>No pending requests</Text>
                   </View>
                 ) : (
-                  joinRequests.map((request: any) => {
-                    const userData = request.user || request;
-                    return (
-                      <View key={request.id} style={styles.joinRequestCard}>
-                        <View style={styles.avatar}>
-                          {(userData.profileImageUrl || userData.avatarUrl) ? (
-                            <Image
-                              source={{ uri: userData.profileImageUrl || userData.avatarUrl }}
-                              style={styles.avatarImage}
-                            />
-                          ) : (
-                            <Text style={styles.avatarText}>
-                              {(userData.displayName || userData.username || 'U').charAt(0).toUpperCase()}
+                  <FlatList
+                    data={joinRequests}
+                    keyExtractor={(item) => item.id.toString()}
+                    scrollEnabled={false}
+                    renderItem={({ item: request }) => {
+                      const userData = request.user || request;
+                      return (
+                        <View style={styles.joinRequestCard}>
+                          <View style={styles.avatar}>
+                            {(userData.profileImageUrl || userData.avatarUrl) ? (
+                              <Image
+                                source={{ uri: userData.profileImageUrl || userData.avatarUrl }}
+                                style={styles.avatarImage}
+                                cachePolicy="memory-disk"
+                              />
+                            ) : (
+                              <Text style={styles.avatarText}>
+                                {(userData.displayName || userData.username || 'U').charAt(0).toUpperCase()}
+                              </Text>
+                            )}
+                          </View>
+                          <View style={styles.requestInfo}>
+                            <Text style={styles.memberName}>
+                              {userData.displayName || userData.username}
                             </Text>
-                          )}
+                            <Text style={styles.requestTime}>
+                              Requested {formatDate(request.createdAt || request.requestedAt)}
+                            </Text>
+                          </View>
+                          <View style={styles.requestActions}>
+                            <TouchableOpacity
+                              style={styles.approveButton}
+                              onPress={() => approveJoinRequestMutation.mutate(request.id)}
+                              disabled={approveJoinRequestMutation.isPending || denyJoinRequestMutation.isPending}
+                            >
+                              <Ionicons name="checkmark" size={20} color="#fff" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.denyButton}
+                              onPress={() => {
+                                Alert.alert(
+                                  'Deny Request',
+                                  `Are you sure you want to deny ${userData.displayName || userData.username}'s request?`,
+                                  [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                      text: 'Deny',
+                                      style: 'destructive',
+                                      onPress: () => denyJoinRequestMutation.mutate(request.id),
+                                    },
+                                  ]
+                                );
+                              }}
+                              disabled={approveJoinRequestMutation.isPending || denyJoinRequestMutation.isPending}
+                            >
+                              <Ionicons name="close" size={20} color="#fff" />
+                            </TouchableOpacity>
+                          </View>
                         </View>
-                        <View style={styles.requestInfo}>
-                          <Text style={styles.memberName}>
-                            {userData.displayName || userData.username}
-                          </Text>
-                          <Text style={styles.requestTime}>
-                            Requested {formatDate(request.createdAt || request.requestedAt)}
-                          </Text>
-                        </View>
-                        <View style={styles.requestActions}>
-                          <TouchableOpacity
-                            style={styles.approveButton}
-                            onPress={() => approveJoinRequestMutation.mutate(request.id)}
-                            disabled={approveJoinRequestMutation.isPending || denyJoinRequestMutation.isPending}
-                          >
-                            <Ionicons name="checkmark" size={20} color="#fff" />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.denyButton}
-                            onPress={() => {
-                              Alert.alert(
-                                'Deny Request',
-                                `Are you sure you want to deny ${userData.displayName || userData.username}'s request?`,
-                                [
-                                  { text: 'Cancel', style: 'cancel' },
-                                  {
-                                    text: 'Deny',
-                                    style: 'destructive',
-                                    onPress: () => denyJoinRequestMutation.mutate(request.id),
-                                  },
-                                ]
-                              );
-                            }}
-                            disabled={approveJoinRequestMutation.isPending || denyJoinRequestMutation.isPending}
-                          >
-                            <Ionicons name="close" size={20} color="#fff" />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })
+                      );
+                    }}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={5}
+                  />
                 )}
               </View>
             )}
@@ -1120,59 +1138,66 @@ export default function CommunityDetailScreen() {
                   </TouchableOpacity>
                 )}
 
-                {members.map((member: any) => {
-                  const memberData = member.user || member;
-                  const isOwner = member.role === 'owner';
-                  const canManage = community.isAdmin && !isOwner;
+                <FlatList
+                  data={members}
+                  keyExtractor={(item) => (item.id || item.user?.id || Math.random()).toString()}
+                  scrollEnabled={false}
+                  renderItem={({ item: member }) => {
+                    const memberData = member.user || member;
+                    const isOwner = member.role === 'owner';
+                    const canManage = community.isAdmin && !isOwner;
 
-                  return (
-                    <TouchableOpacity
-                      key={member.id || memberData.id}
-                      style={styles.memberCard}
-                      onPress={() => {
-                        if (canManage) {
-                          setSelectedMember(member);
-                          setShowModeratorModal(true);
-                        }
-                      }}
-                      disabled={!canManage}
-                    >
-                      <View style={styles.avatar}>
-                        {(memberData.profileImageUrl || memberData.avatarUrl) ? (
-                          <Image
-                            source={{ uri: memberData.profileImageUrl || memberData.avatarUrl }}
-                            style={styles.avatarImage}
-                          />
-                        ) : (
-                          <Text style={styles.avatarText}>
-                            {memberData.displayName?.charAt(0).toUpperCase() ||
-                             memberData.username?.charAt(0).toUpperCase() || 'U'}
-                          </Text>
-                        )}
-                      </View>
-                      <View style={styles.memberInfo}>
-                        <Text style={styles.memberName}>
-                          {memberData.displayName || memberData.username}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Text style={[
-                            styles.memberRole,
-                            isOwner && { color: '#10B981', fontWeight: '600' },
-                            member.role === 'moderator' && { color: '#3B82F6', fontWeight: '600' },
-                          ]}>
-                            {isOwner ? 'Creator' : member.role || 'member'}
-                          </Text>
-                          {isOwner && (
-                            <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+                    return (
+                      <TouchableOpacity
+                        style={styles.memberCard}
+                        onPress={() => {
+                          if (canManage) {
+                            setSelectedMember(member);
+                            setShowModeratorModal(true);
+                          }
+                        }}
+                        disabled={!canManage}
+                      >
+                        <View style={styles.avatar}>
+                          {(memberData.profileImageUrl || memberData.avatarUrl) ? (
+                            <Image
+                              source={{ uri: memberData.profileImageUrl || memberData.avatarUrl }}
+                              style={styles.avatarImage}
+                              cachePolicy="memory-disk"
+                            />
+                          ) : (
+                            <Text style={styles.avatarText}>
+                              {memberData.displayName?.charAt(0).toUpperCase() ||
+                               memberData.username?.charAt(0).toUpperCase() || 'U'}
+                            </Text>
                           )}
                         </View>
-                      </View>
-                      {canManage && (
-                        <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
+                        <View style={styles.memberInfo}>
+                          <Text style={styles.memberName}>
+                            {memberData.displayName || memberData.username}
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={[
+                              styles.memberRole,
+                              isOwner && { color: '#10B981', fontWeight: '600' },
+                              member.role === 'moderator' && { color: '#3B82F6', fontWeight: '600' },
+                            ]}>
+                              {isOwner ? 'Creator' : member.role || 'member'}
+                            </Text>
+                            {isOwner && (
+                              <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+                            )}
+                          </View>
+                        </View>
+                        {canManage && (
+                          <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  }}
+                  initialNumToRender={15}
+                  maxToRenderPerBatch={10}
+                />
               </>
             )}
           </View>
@@ -1263,63 +1288,71 @@ export default function CommunityDetailScreen() {
                     </Text>
                   </View>
                 ) : (
-                  prayerRequests.map((prayer: any) => {
-                    const isAuthor = prayer.authorId === user?.id;
-                    return (
-                      <View key={prayer.id} style={styles.prayerCard}>
-                        <View style={styles.prayerHeader}>
-                          <View style={styles.authorInfo}>
-                            <View style={styles.avatar}>
-                              {!prayer.isAnonymous && prayer.authorAvatar ? (
-                                <Image
-                                  source={{ uri: prayer.authorAvatar }}
-                                  style={styles.avatarImage}
-                                />
-                              ) : (
-                                <Text style={styles.avatarText}>
-                                  {prayer.isAnonymous ? '?' : (prayer.authorName?.charAt(0).toUpperCase() || 'U')}
+                  <FlatList
+                    data={prayerRequests}
+                    keyExtractor={(item) => item.id.toString()}
+                    scrollEnabled={false}
+                    renderItem={({ item: prayer }) => {
+                      const isAuthor = prayer.authorId === user?.id;
+                      return (
+                        <View style={styles.prayerCard}>
+                          <View style={styles.prayerHeader}>
+                            <View style={styles.authorInfo}>
+                              <View style={styles.avatar}>
+                                {!prayer.isAnonymous && prayer.authorAvatar ? (
+                                  <Image
+                                    source={{ uri: prayer.authorAvatar }}
+                                    style={styles.avatarImage}
+                                    cachePolicy="memory-disk"
+                                  />
+                                ) : (
+                                  <Text style={styles.avatarText}>
+                                    {prayer.isAnonymous ? '?' : (prayer.authorName?.charAt(0).toUpperCase() || 'U')}
+                                  </Text>
+                                )}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.authorName}>
+                                  {prayer.isAnonymous ? 'Anonymous' : (prayer.author?.displayName || prayer.authorName)}
                                 </Text>
-                              )}
+                                <Text style={styles.postTime}>{formatDate(prayer.createdAt)}</Text>
+                              </View>
                             </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.authorName}>
-                                {prayer.isAnonymous ? 'Anonymous' : (prayer.author?.displayName || prayer.authorName)}
-                              </Text>
-                              <Text style={styles.postTime}>{formatDate(prayer.createdAt)}</Text>
-                            </View>
+                            {prayer.isAnswered && (
+                              <View style={styles.answeredBadge}>
+                                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                <Text style={styles.answeredBadgeText}>Answered</Text>
+                              </View>
+                            )}
                           </View>
-                          {prayer.isAnswered && (
-                            <View style={styles.answeredBadge}>
-                              <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                              <Text style={styles.answeredBadgeText}>Answered</Text>
+                          <Text style={styles.prayerContent}>{prayer.content}</Text>
+
+                          {prayer.isAnswered && prayer.answeredDescription && (
+                            <View style={styles.answeredSection}>
+                              <Ionicons name="sparkles" size={16} color="#10B981" style={{ marginRight: 6 }} />
+                              <Text style={styles.answeredDescription}>{prayer.answeredDescription}</Text>
                             </View>
                           )}
+
+                          {/* Answered Button - Only for author and unanswered prayers */}
+                          {isAuthor && !prayer.isAnswered && (
+                            <TouchableOpacity
+                              style={styles.answeredButton}
+                              onPress={() => {
+                                setSelectedPrayer(prayer);
+                                setShowAnsweredModal(true);
+                              }}
+                            >
+                              <Ionicons name="checkmark-circle-outline" size={18} color="#10B981" />
+                              <Text style={styles.answeredButtonText}>Mark as Answered</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
-                        <Text style={styles.prayerContent}>{prayer.content}</Text>
-
-                        {prayer.isAnswered && prayer.answeredDescription && (
-                          <View style={styles.answeredSection}>
-                            <Ionicons name="sparkles" size={16} color="#10B981" style={{ marginRight: 6 }} />
-                            <Text style={styles.answeredDescription}>{prayer.answeredDescription}</Text>
-                          </View>
-                        )}
-
-                        {/* Answered Button - Only for author and unanswered prayers */}
-                        {isAuthor && !prayer.isAnswered && (
-                          <TouchableOpacity
-                            style={styles.answeredButton}
-                            onPress={() => {
-                              setSelectedPrayer(prayer);
-                              setShowAnsweredModal(true);
-                            }}
-                          >
-                            <Ionicons name="checkmark-circle-outline" size={18} color="#10B981" />
-                            <Text style={styles.answeredButtonText}>Mark as Answered</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    );
-                  })
+                      );
+                    }}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={10}
+                  />
                 )}
               </>
             )}

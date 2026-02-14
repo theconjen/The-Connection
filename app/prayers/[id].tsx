@@ -2,7 +2,7 @@
  * Prayer Request Detail with Comments
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  FlatList,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -147,22 +148,29 @@ export default function PrayerDetailScreen() {
           ) : !comments || comments.length === 0 ? (
             <Text style={styles.noComments}>No comments yet. Be the first to encourage!</Text>
           ) : (
-            Array.isArray(comments) && comments.map((comment: any) => (
-              <View key={comment.id} style={styles.commentCard}>
-                <View style={styles.commentHeader}>
-                  <View style={styles.smallAvatar}>
-                    <Text style={styles.smallAvatarText}>
-                      {comment.authorName?.charAt(0).toUpperCase() || 'U'}
-                    </Text>
+            <FlatList
+              data={comments}
+              keyExtractor={(item) => item.id.toString()}
+              scrollEnabled={false}
+              renderItem={({ item: comment }) => (
+                <View style={styles.commentCard}>
+                  <View style={styles.commentHeader}>
+                    <View style={styles.smallAvatar}>
+                      <Text style={styles.smallAvatarText}>
+                        {comment.authorName?.charAt(0).toUpperCase() || 'U'}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.commentAuthor}>{comment.authorName}</Text>
+                      <Text style={styles.commentDate}>{formatDate(comment.createdAt)}</Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={styles.commentAuthor}>{comment.authorName}</Text>
-                    <Text style={styles.commentDate}>{formatDate(comment.createdAt)}</Text>
-                  </View>
+                  <Text style={styles.commentContent}>{comment.content}</Text>
                 </View>
-                <Text style={styles.commentContent}>{comment.content}</Text>
-              </View>
-            ))
+              )}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+            />
           )}
         </View>
       </ScrollView>

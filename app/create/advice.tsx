@@ -249,7 +249,7 @@ export default function CreateAdviceScreen() {
             <View style={styles.imagesContainer}>
               <View style={styles.imagesGrid}>
                 {selectedImages.map((imageUri, index) => (
-                  <View key={index} style={[
+                  <View key={imageUri} style={[
                     styles.imageWrapper,
                     selectedImages.length === 1 && styles.singleImageWrapper,
                     selectedImages.length === 2 && styles.doubleImageWrapper,

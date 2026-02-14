@@ -360,7 +360,7 @@ export default function CreateForumPostScreen() {
           <View style={styles.imagesGridContainer}>
             <View style={styles.imagesGrid}>
               {selectedImages.map((imageUri, index) => (
-                <View key={index} style={[
+                <View key={imageUri} style={[
                   styles.gridImageWrapper,
                   selectedImages.length === 1 && styles.singleImageWrapper,
                   selectedImages.length === 2 && styles.doubleImageWrapper,

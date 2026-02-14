@@ -3,19 +3,20 @@
  * Matches feed card styling for consistency
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import {
   View,
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Image,
   StyleSheet,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -173,6 +174,7 @@ export default function PostDetailScreen() {
                 <Image
                   source={{ uri: getAvatarUrl(post.author) }}
                   style={styles.postAvatar}
+                  cachePolicy="memory-disk"
                 />
                 <View style={styles.postMain}>
                   <View style={styles.postHeaderRow}>
@@ -251,33 +253,41 @@ export default function PostDetailScreen() {
                 </Text>
               </View>
             ) : (
-              comments.map((comment: any) => (
-                <View key={comment.id} style={styles.commentCard}>
-                  <Image
-                    source={{ uri: getAvatarUrl(comment.author) }}
-                    style={styles.commentAvatar}
-                  />
-                  <View style={styles.commentMain}>
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentAuthorName}>
-                        {comment.author?.displayName || comment.author?.username || comment.authorName || 'User'}
-                      </Text>
-                      <Text style={styles.postDot}>·</Text>
-                      {comment.createdAt && (
-                        <Text style={styles.postTime}>{formatTime(comment.createdAt)}</Text>
-                      )}
+              <FlatList
+                data={comments}
+                keyExtractor={(item) => item.id.toString()}
+                scrollEnabled={false}
+                renderItem={({ item: comment }) => (
+                  <View style={styles.commentCard}>
+                    <Image
+                      source={{ uri: getAvatarUrl(comment.author) }}
+                      style={styles.commentAvatar}
+                      cachePolicy="memory-disk"
+                    />
+                    <View style={styles.commentMain}>
+                      <View style={styles.commentHeader}>
+                        <Text style={styles.commentAuthorName}>
+                          {comment.author?.displayName || comment.author?.username || comment.authorName || 'User'}
+                        </Text>
+                        <Text style={styles.postDot}>·</Text>
+                        {comment.createdAt && (
+                          <Text style={styles.postTime}>{formatTime(comment.createdAt)}</Text>
+                        )}
+                      </View>
+                      <Text style={styles.commentContent}>{comment.content}</Text>
                     </View>
-                    <Text style={styles.commentContent}>{comment.content}</Text>
                   </View>
-                </View>
-              ))
+                )}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+              />
             )}
           </View>
         </ScrollView>
 
         {/* Comment Input */}
         <View style={styles.inputContainer}>
-          <Image source={{ uri: getAvatarUrl(user) }} style={styles.inputAvatar} />
+          <Image source={{ uri: getAvatarUrl(user) }} style={styles.inputAvatar} cachePolicy="memory-disk" />
           <TextInput
             style={styles.input}
             value={commentText}

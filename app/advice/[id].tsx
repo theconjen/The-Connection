@@ -4,13 +4,12 @@
  * Uses upvote instead of like for community-driven engagement
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import {
   View,
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Image,
   StyleSheet,
   ActivityIndicator,
   Alert,
@@ -21,7 +20,9 @@ import {
   TouchableWithoutFeedback,
   Linking,
   Dimensions,
+  FlatList,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -481,9 +482,9 @@ export default function AdviceDetailScreen() {
                 {/* Attached Images */}
                 {advicePost.imageUrls && advicePost.imageUrls.length > 0 && (
                   <View style={styles.attachedImages}>
-                    {advicePost.imageUrls.map((imageUrl: string, index: number) => (
+                    {advicePost.imageUrls.map((imageUrl: string) => (
                       <TouchableOpacity
-                        key={index}
+                        key={imageUrl}
                         style={[
                           styles.attachedImageWrapper,
                           advicePost.imageUrls.length === 1 && styles.singleAttachedImage,
@@ -494,7 +495,8 @@ export default function AdviceDetailScreen() {
                         <Image
                           source={{ uri: imageUrl }}
                           style={styles.attachedImage}
-                          resizeMode="cover"
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
                         />
                       </TouchableOpacity>
                     ))}
@@ -518,8 +520,8 @@ export default function AdviceDetailScreen() {
                 {/* Tags */}
                 {advicePost.tags && advicePost.tags.length > 0 && (
                   <View style={styles.tagsContainer}>
-                    {advicePost.tags.map((tag: string, index: number) => (
-                      <View key={index} style={styles.tag}>
+                    {advicePost.tags.map((tag: string) => (
+                      <View key={tag} style={styles.tag}>
                         <Text style={styles.tagText}>#{tag}</Text>
                       </View>
                     ))}
@@ -580,101 +582,109 @@ export default function AdviceDetailScreen() {
                 </Text>
               </View>
             ) : (
-              responses.map((response: any) => {
-                const isResponseReported = reportedResponses.has(response.id);
+              <FlatList
+                data={responses}
+                keyExtractor={(item) => item.id.toString()}
+                scrollEnabled={false}
+                renderItem={({ item: response }) => {
+                  const isResponseReported = reportedResponses.has(response.id);
 
-                if (isResponseReported) {
+                  if (isResponseReported) {
+                    return (
+                      <View style={[styles.commentCard, styles.reportedResponseCard]}>
+                        <View style={styles.reportedResponseContent}>
+                          <Ionicons name="flag" size={20} color={colors.textMuted} />
+                          <Text style={[styles.reportedResponseTitle, { color: colors.textSecondary }]}>
+                            Response Reported
+                          </Text>
+                          <Text style={[styles.reportedResponseText, { color: colors.textMuted }]}>
+                            This will be reviewed by The Connection Team
+                          </Text>
+                          <Pressable
+                            style={[styles.undoButton, { borderColor: colors.textMuted }]}
+                            onPress={() => handleUndoReportResponse(response.id)}
+                          >
+                            <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    );
+                  }
+
+                  const isMarkedHelpful = response.isMarkedHelpfulByMe || myHelpfulMarkReplyId === response.id;
+                  const helpfulCount = response.helpfulCount || 0;
+                  const isTopHelpful = helpfulCount > 0 && responses.every((r: any) => r.helpfulCount <= helpfulCount);
+
                   return (
-                    <View key={response.id} style={[styles.commentCard, styles.reportedResponseCard]}>
-                      <View style={styles.reportedResponseContent}>
-                        <Ionicons name="flag" size={20} color={colors.textMuted} />
-                        <Text style={[styles.reportedResponseTitle, { color: colors.textSecondary }]}>
-                          Response Reported
-                        </Text>
-                        <Text style={[styles.reportedResponseText, { color: colors.textMuted }]}>
-                          This will be reviewed by The Connection Team
-                        </Text>
-                        <Pressable
-                          style={[styles.undoButton, { borderColor: colors.textMuted }]}
-                          onPress={() => handleUndoReportResponse(response.id)}
-                        >
-                          <Text style={[styles.undoButtonText, { color: colors.textMuted }]}>Undo</Text>
-                        </Pressable>
+                    <View style={[styles.commentCard, isTopHelpful && styles.topHelpfulCard]}>
+                      <Image
+                        source={{ uri: getAvatarUrl(response.author) }}
+                        style={styles.commentAvatar}
+                        cachePolicy="memory-disk"
+                      />
+                      <View style={styles.commentMain}>
+                        <View style={styles.commentHeader}>
+                          <View style={styles.commentAuthorRow}>
+                            <Text style={styles.commentAuthorName}>
+                              {response.author?.displayName || response.author?.username || 'User'}
+                            </Text>
+                            {/* Top Contributor Label */}
+                            {response.author?.isTopContributor && (
+                              <Text style={styles.topContributorLabel}>Top Contributor</Text>
+                            )}
+                            <Text style={styles.postDot}>·</Text>
+                            {response.createdAt && (
+                              <Text style={styles.postTime}>{formatTime(response.createdAt)}</Text>
+                            )}
+                          </View>
+                          <Pressable
+                            onPress={(e) => showResponseMenu(response, e.nativeEvent.pageY)}
+                            hitSlop={8}
+                            style={styles.responseMenuButton}
+                          >
+                            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+                          </Pressable>
+                        </View>
+                        <Text style={styles.commentContent}>{response.content}</Text>
+                        {/* Helpful Mark Section */}
+                        <View style={styles.responseActions}>
+                          <Pressable
+                            style={styles.helpfulButton}
+                            onPress={() => handleToggleHelpful(response.id)}
+                            hitSlop={8}
+                          >
+                            <Ionicons
+                              name={isMarkedHelpful ? "checkmark-circle" : "checkmark-circle-outline"}
+                              size={18}
+                              color={isMarkedHelpful ? colors.success || '#22C55E' : colors.textMuted}
+                            />
+                            <Text style={[
+                              styles.helpfulButtonText,
+                              isMarkedHelpful && { color: colors.success || '#22C55E' }
+                            ]}>
+                              {helpfulCount > 0 ? helpfulCount : ''} Helpful
+                            </Text>
+                          </Pressable>
+                          {isTopHelpful && helpfulCount > 0 && (
+                            <View style={styles.mostHelpfulBadge}>
+                              <Text style={styles.mostHelpfulText}>Most Helpful</Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
                     </View>
                   );
-                }
-
-                const isMarkedHelpful = response.isMarkedHelpfulByMe || myHelpfulMarkReplyId === response.id;
-                const helpfulCount = response.helpfulCount || 0;
-                const isTopHelpful = helpfulCount > 0 && responses.every((r: any) => r.helpfulCount <= helpfulCount);
-
-                return (
-                  <View key={response.id} style={[styles.commentCard, isTopHelpful && styles.topHelpfulCard]}>
-                    <Image
-                      source={{ uri: getAvatarUrl(response.author) }}
-                      style={styles.commentAvatar}
-                    />
-                    <View style={styles.commentMain}>
-                      <View style={styles.commentHeader}>
-                        <View style={styles.commentAuthorRow}>
-                          <Text style={styles.commentAuthorName}>
-                            {response.author?.displayName || response.author?.username || 'User'}
-                          </Text>
-                          {/* Top Contributor Label */}
-                          {response.author?.isTopContributor && (
-                            <Text style={styles.topContributorLabel}>Top Contributor</Text>
-                          )}
-                          <Text style={styles.postDot}>·</Text>
-                          {response.createdAt && (
-                            <Text style={styles.postTime}>{formatTime(response.createdAt)}</Text>
-                          )}
-                        </View>
-                        <Pressable
-                          onPress={(e) => showResponseMenu(response, e.nativeEvent.pageY)}
-                          hitSlop={8}
-                          style={styles.responseMenuButton}
-                        >
-                          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
-                        </Pressable>
-                      </View>
-                      <Text style={styles.commentContent}>{response.content}</Text>
-                      {/* Helpful Mark Section */}
-                      <View style={styles.responseActions}>
-                        <Pressable
-                          style={styles.helpfulButton}
-                          onPress={() => handleToggleHelpful(response.id)}
-                          hitSlop={8}
-                        >
-                          <Ionicons
-                            name={isMarkedHelpful ? "checkmark-circle" : "checkmark-circle-outline"}
-                            size={18}
-                            color={isMarkedHelpful ? colors.success || '#22C55E' : colors.textMuted}
-                          />
-                          <Text style={[
-                            styles.helpfulButtonText,
-                            isMarkedHelpful && { color: colors.success || '#22C55E' }
-                          ]}>
-                            {helpfulCount > 0 ? helpfulCount : ''} Helpful
-                          </Text>
-                        </Pressable>
-                        {isTopHelpful && helpfulCount > 0 && (
-                          <View style={styles.mostHelpfulBadge}>
-                            <Text style={styles.mostHelpfulText}>Most Helpful</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                );
-              })
+                }}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+              />
             )}
           </View>
         </ScrollView>
 
         {/* Response Input */}
         <View style={styles.inputContainer}>
-          <Image source={{ uri: getAvatarUrl(user) }} style={styles.inputAvatar} />
+          <Image source={{ uri: getAvatarUrl(user) }} style={styles.inputAvatar} cachePolicy="memory-disk" />
           <TextInput
             style={styles.input}
             value={commentText}
