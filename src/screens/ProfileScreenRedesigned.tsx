@@ -25,7 +25,7 @@ import { useRouter } from 'expo-router';
 import { Text } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { AppHeader } from './AppHeader';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -48,8 +48,7 @@ const formatActivityDate = (date: Date) => {
   }
 };
 
-// Custom church icon
-const ChurchIcon = require('../../assets/church-icon.png');
+// Church icon now uses MaterialCommunityIcons
 
 interface ProfileScreenProps {
   onBackPress?: () => void;
@@ -363,11 +362,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 )}
                 {user.homeChurch && (
                   <>
-                    <Image
-                      source={ChurchIcon}
-                      style={{ width: 14, height: 14, tintColor: colors.textSecondary }}
-                      resizeMode="contain"
-                    />
+                    <MaterialCommunityIcons name="church" size={14} color={colors.textSecondary} />
                     <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>{user.homeChurch}</Text>
                   </>
                 )}
