@@ -20,10 +20,12 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../src/contexts/ThemeContext';
 import { useMutation } from '@tanstack/react-query';
 import apiClient from '../src/lib/apiClient';
+import { useAuth } from '../src/contexts/AuthContext';
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -150,6 +152,15 @@ export default function ChangePasswordScreen() {
               />
             </Pressable>
           </View>
+          <Pressable
+            onPress={() => router.push({
+              pathname: '/(auth)/forgot-password',
+              params: { email: user?.email || '' }
+            })}
+            style={styles.forgotPasswordLink}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot your current password?</Text>
+          </Pressable>
         </View>
 
         {/* New Password */}
@@ -348,6 +359,15 @@ const getStyles = (colors: any) =>
     },
     eyeButton: {
       padding: 12,
+    },
+    forgotPasswordLink: {
+      marginTop: 8,
+      alignSelf: 'flex-start',
+    },
+    forgotPasswordText: {
+      fontSize: 14,
+      color: '#2563EB',
+      fontWeight: '500',
     },
     requirementsBox: {
       backgroundColor: colors.surfaceMuted,
