@@ -16,6 +16,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import apiClient from '../src/lib/apiClient';
 import { VideoSplash } from '../src/components/VideoSplash';
 import { BirthdayCelebration } from '../src/components/BirthdayCelebration';
+import { BiometricSetupPrompt } from '../src/components/BiometricSetupPrompt';
 import { initSentry, setSentryUser, clearSentryUser } from '../src/lib/sentry';
 
 // Initialize Sentry as early as possible
@@ -240,6 +241,7 @@ export default function RootLayout() {
             <SocketProvider>
               <CreateMenuProvider>
                 <RootLayoutNav />
+                <BiometricSetupPrompt />
               </CreateMenuProvider>
             </SocketProvider>
           </AuthProvider>

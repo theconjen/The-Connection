@@ -23,7 +23,16 @@ export default function LoginScreen() {
   const router = useRouter();
   const { verified } = useLocalSearchParams();
   const isVerified = verified === '1' || verified === 'true';
-  const { login, isAuthenticated, user, refresh } = useAuth();
+  const {
+    login,
+    isAuthenticated,
+    user,
+    refresh,
+    biometricAvailable,
+    biometricType,
+    biometricEnabled,
+    loginWithBiometric,
+  } = useAuth();
   const { colors, colorScheme } = useTheme();
   const styles = getStyles(colors, colorScheme);
 
@@ -31,6 +40,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBiometricLoading, setIsBiometricLoading] = useState(false);
 
   // Email verification state
   const [showVerificationNeeded, setShowVerificationNeeded] = useState(false);
@@ -64,6 +74,22 @@ export default function LoginScreen() {
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
+
+  const handleBiometricLogin = async () => {
+    setIsBiometricLoading(true);
+    try {
+      const success = await loginWithBiometric();
+      if (!success) {
+        // Don't show error - user may have cancelled or biometric failed
+        // They can still use password login
+      }
+      // Navigation is handled by useEffect based on isAuthenticated
+    } catch (error) {
+      // Silent fail - user can use password
+    } finally {
+      setIsBiometricLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!username.trim() || !password) {
@@ -279,7 +305,7 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
             onPress={handleLogin}
-            disabled={isLoading}
+            disabled={isLoading || isBiometricLoading}
           >
             {isLoading ? (
               <ActivityIndicator color={colors.primaryForeground} />
@@ -287,6 +313,27 @@ export default function LoginScreen() {
               <Text style={styles.buttonText}>Sign In</Text>
             )}
           </TouchableOpacity>
+
+          {biometricAvailable && biometricEnabled && (
+            <TouchableOpacity
+              style={[styles.biometricButton, isBiometricLoading && styles.buttonDisabled]}
+              onPress={handleBiometricLogin}
+              disabled={isLoading || isBiometricLoading}
+            >
+              {isBiometricLoading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <>
+                  <Ionicons
+                    name={biometricType.includes('Face') ? 'scan-outline' : 'finger-print-outline'}
+                    size={24}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.biometricButtonText}>Sign in with {biometricType}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.forgotPassword}
@@ -421,6 +468,23 @@ const getStyles = (colors: any, colorScheme: string) => StyleSheet.create({
   },
   buttonText: {
     color: colors.primaryForeground,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: 'transparent',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  biometricButtonText: {
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },

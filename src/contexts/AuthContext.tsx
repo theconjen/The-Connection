@@ -4,6 +4,15 @@ import * as SecureStore from 'expo-secure-store';
 import apiClient from '../lib/apiClient';
 import { logger } from '../lib/logger';
 import { setSentryUser, clearSentryUser } from '../lib/sentry';
+import {
+  isBiometricSupported,
+  isBiometricLoginEnabled,
+  getBiometricType,
+  enableBiometricLogin,
+  disableBiometricLogin,
+  authenticateWithBiometric,
+  getBiometricUserId,
+} from '../lib/biometricAuth';
 
 // Keys for SecureStore
 const AUTH_TOKEN_KEY = 'auth_token';
@@ -47,6 +56,15 @@ interface AuthContextType {
   register: (data: RegisterPayload) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  // Biometric authentication
+  biometricAvailable: boolean;
+  biometricType: string;
+  biometricEnabled: boolean;
+  loginWithBiometric: () => Promise<boolean>;
+  enableBiometric: () => Promise<boolean>;
+  disableBiometric: () => Promise<void>;
+  shouldPromptBiometricSetup: boolean;
+  dismissBiometricPrompt: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -162,6 +180,27 @@ async function refreshAuthToken(): Promise<boolean> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Biometric authentication state
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricType, setBiometricType] = useState('Biometric');
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [shouldPromptBiometricSetup, setShouldPromptBiometricSetup] = useState(false);
+
+  // Check biometric availability on mount
+  useEffect(() => {
+    async function checkBiometric() {
+      const available = await isBiometricSupported();
+      setBiometricAvailable(available);
+      if (available) {
+        const type = await getBiometricType();
+        setBiometricType(type);
+        const enabled = await isBiometricLoginEnabled();
+        setBiometricEnabled(enabled);
+      }
+    }
+    checkBiometric();
+  }, []);
 
   // Verify auth with server and update user data
   const verifyAuth = useCallback(async (silent: boolean = false) => {
@@ -283,6 +322,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch complete user data with permissions
       await verifyAuth(false);
       logger.info('Login successful', { username });
+
+      // Check if we should prompt for biometric setup
+      if (biometricAvailable && !biometricEnabled) {
+        setShouldPromptBiometricSetup(true);
+      }
     } catch (error: any) {
       // Special handling for EMAIL_NOT_VERIFIED error
       if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
@@ -351,9 +395,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Biometric login - authenticate with Face ID/Touch ID
+  const loginWithBiometric = async (): Promise<boolean> => {
+    try {
+      if (!biometricEnabled) {
+        return false;
+      }
+
+      // Get stored user ID for biometric
+      const storedUserId = await getBiometricUserId();
+      if (!storedUserId) {
+        return false;
+      }
+
+      // Authenticate with biometrics
+      const authenticated = await authenticateWithBiometric();
+      if (!authenticated) {
+        return false;
+      }
+
+      // Check if we have a valid auth token
+      const hasToken = await hasAuthToken();
+      if (!hasToken) {
+        // No token - biometric auth alone isn't enough, need to re-login
+        logger.warn('Biometric auth succeeded but no token found');
+        return false;
+      }
+
+      // Verify the token is still valid
+      await verifyAuth(false);
+
+      if (user) {
+        logger.info('Biometric login successful', { userId: user.id });
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      logger.error('Biometric login failed', error);
+      return false;
+    }
+  };
+
+  // Enable biometric login for current user
+  const enableBiometric = async (): Promise<boolean> => {
+    if (!user) return false;
+
+    const success = await enableBiometricLogin(user.id);
+    if (success) {
+      setBiometricEnabled(true);
+      setShouldPromptBiometricSetup(false);
+      logger.info('Biometric login enabled', { userId: user.id });
+    }
+    return success;
+  };
+
+  // Disable biometric login
+  const disableBiometric = async (): Promise<void> => {
+    await disableBiometricLogin();
+    setBiometricEnabled(false);
+    logger.info('Biometric login disabled');
+  };
+
+  // Dismiss biometric setup prompt
+  const dismissBiometricPrompt = () => {
+    setShouldPromptBiometricSetup(false);
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, isAuthenticated: !!user, login, register, logout, refresh: () => verifyAuth(false) }}
+      value={{
+        user,
+        isLoading,
+        isAuthenticated: !!user,
+        login,
+        register,
+        logout,
+        refresh: () => verifyAuth(false),
+        // Biometric
+        biometricAvailable,
+        biometricType,
+        biometricEnabled,
+        loginWithBiometric,
+        enableBiometric,
+        disableBiometric,
+        shouldPromptBiometricSetup,
+        dismissBiometricPrompt,
+      }}
     >
       {children}
     </AuthContext.Provider>

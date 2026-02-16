@@ -21,7 +21,16 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, logout, refresh } = useAuth();
+  const {
+    user,
+    logout,
+    refresh,
+    biometricAvailable,
+    biometricType,
+    biometricEnabled,
+    enableBiometric,
+    disableBiometric,
+  } = useAuth();
   const queryClient = useQueryClient();
   const { theme, setTheme, colorScheme, colors } = useTheme();
   const [emailNotifications, setEmailNotifications] = React.useState(true);
@@ -185,6 +194,20 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleBiometricToggle = async (value: boolean) => {
+    if (value) {
+      const success = await enableBiometric();
+      if (!success) {
+        Alert.alert(
+          'Unable to Enable',
+          `${biometricType} could not be enabled. Please make sure ${biometricType} is set up on your device.`
+        );
+      }
+    } else {
+      await disableBiometric();
+    }
+  };
+
   const SettingsItem = ({
     icon,
     label,
@@ -261,6 +284,20 @@ export default function SettingsScreen() {
             label="Change Password"
             onPress={() => router.push('/change-password')}
           />
+          {biometricAvailable && (
+            <SettingsItem
+              icon={biometricType.includes('Face') ? 'scan-outline' : 'finger-print-outline'}
+              label={`Use ${biometricType}`}
+              showArrow={false}
+              rightElement={
+                <Switch
+                  value={biometricEnabled}
+                  onValueChange={handleBiometricToggle}
+                  trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
+                />
+              }
+            />
+          )}
           <SettingsItem
             icon="calendar-outline"
             label="Birthday"
