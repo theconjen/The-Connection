@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit';
 import { buildErrorResponse } from '../../utils/errors';
 import { getSessionUserId, setSessionUserId } from '../../utils/session';
 import { generateVerificationToken, hashToken, createAndSendVerification } from '../../lib/emailVerification';
+import { logger } from '../../lib/logger';
 
 const router = Router();
 
@@ -94,6 +95,7 @@ router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
 router.post('/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
+    logger.info('Login attempt', { username, ip: req.ip });
 
     if (!username || !password) {
       return res.status(400).json({ message: "Username and password are required" });
@@ -108,6 +110,7 @@ router.post('/auth/login', async (req, res) => {
     }
 
     if (!user) {
+      logger.warn('Login failed - user not found', { username, ip: req.ip });
       return res.status(401).json({ message: "Invalid username or password" });
     }
 
@@ -115,12 +118,13 @@ router.post('/auth/login', async (req, res) => {
     const passwordMatches = await bcrypt.compare(password, user.password);
 
     if (!passwordMatches) {
+      logger.warn('Login failed - invalid password', { username, userId: user.id, ip: req.ip });
       return res.status(401).json({ message: "Invalid username or password" });
     }
 
     // SECURITY: Block login for unverified users
     if (!user.emailVerified) {
-      console.info('[LOGIN] Blocked unverified user:', user.email);
+      logger.warn('Login blocked - email not verified', { username, userId: user.id, email: user.email });
       return res.status(403).json({
         code: 'EMAIL_NOT_VERIFIED',
         message: 'Please verify your email address before logging in.',
@@ -140,6 +144,7 @@ router.post('/auth/login', async (req, res) => {
         { expiresIn: '10d' }
       );
 
+      logger.info('Login successful', { userId: user.id, username: user.username, method: 'jwt' });
       // Return token for mobile apps
       return res.json({ ...userData, token });
     }
@@ -182,7 +187,7 @@ router.post('/auth/logout', async (req, res) => {
       // Dynamically import to avoid circular dependency
       const { blacklistToken } = await import('../../lib/tokenBlacklist');
       blacklistToken(token);
-      console.info('[LOGOUT] JWT token blacklisted');
+      logger.info('Logout - JWT token blacklisted', { ip: req.ip });
       return res.json({ message: "Logged out successfully" });
     }
 

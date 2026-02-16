@@ -1,12 +1,16 @@
 import * as Sentry from "@sentry/node";
 // import { nodeProfilingIntegration } from "@sentry/profiling-node"; // Optional: install @sentry/profiling-node
 
+// Re-export the logger for structured logging
+export const sentryLogger = Sentry.logger;
+
 /**
  * Initialize Sentry for server-side error tracking
  *
  * Features:
  * - Error tracking and reporting
  * - Performance monitoring
+ * - Structured logging
  * - Request tracking
  * - User context
  * - Release tracking
@@ -39,10 +43,17 @@ export function initSentry() {
 
       // Integrations
       integrations: [
+        // Capture console statements as Sentry logs
+        Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
         // Enable profiling (requires @sentry/profiling-node)
         // Uncomment when @sentry/profiling-node is installed:
         // nodeProfilingIntegration(),
       ],
+
+      // Enable structured logging
+      _experiments: {
+        enableLogs: true,
+      },
 
       // Privacy settings
       sendDefaultPii: process.env.SENTRY_SEND_DEFAULT_PII === 'true',
