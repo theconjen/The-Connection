@@ -314,11 +314,14 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {biometricAvailable && biometricEnabled && (
+          {biometricAvailable && (
             <TouchableOpacity
-              style={[styles.biometricButton, isBiometricLoading && styles.buttonDisabled]}
+              style={[
+                styles.biometricButton,
+                (isBiometricLoading || !biometricEnabled) && styles.buttonDisabled
+              ]}
               onPress={handleBiometricLogin}
-              disabled={isLoading || isBiometricLoading}
+              disabled={isLoading || isBiometricLoading || !biometricEnabled}
             >
               {isBiometricLoading ? (
                 <ActivityIndicator color={colors.primary} />
@@ -327,9 +330,17 @@ export default function LoginScreen() {
                   <Ionicons
                     name={biometricType.includes('Face') ? 'scan-outline' : 'finger-print-outline'}
                     size={24}
-                    color={colors.primary}
+                    color={biometricEnabled ? colors.primary : colors.textSecondary}
                   />
-                  <Text style={styles.biometricButtonText}>Sign in with {biometricType}</Text>
+                  <Text style={[
+                    styles.biometricButtonText,
+                    !biometricEnabled && { color: colors.textSecondary }
+                  ]}>
+                    {biometricEnabled
+                      ? `Sign in with ${biometricType}`
+                      : `${biometricType} not enabled`
+                    }
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -481,7 +492,7 @@ const getStyles = (colors: any, colorScheme: string) => StyleSheet.create({
     padding: 16,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.borderSubtle,
   },
   biometricButtonText: {
     color: colors.primary,
