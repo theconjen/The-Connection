@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { AppState, AppStateStatus } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import apiClient from '../lib/apiClient';
+import { logger } from '../lib/logger';
+import { setSentryUser, clearSentryUser } from '../lib/sentry';
 
 // Keys for SecureStore
 const AUTH_TOKEN_KEY = 'auth_token';
@@ -184,12 +186,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Update user and cache
       setUser(response.data);
       await cacheUserData(response.data);
+      setSentryUser(response.data);
+      logger.info('Auth verified', { userId: response.data.id });
     } catch (error) {
       const status = (error as any)?.response?.status;
       if (status === 401) {
         // Token is invalid - clear everything
+        logger.info('Auth token invalid, logging out');
         setUser(null);
         await cacheUserData(null);
+        clearSentryUser();
         await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY).catch(() => {});
       } else {
         // Network error or other issue - keep cached user if we have one
@@ -264,6 +270,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     try {
+      logger.info('Login attempt', { username });
       const response = await apiClient.post('/api/auth/login', { username, password });
 
       // Save JWT token (mobile apps use JWT exclusively, not session cookies)
@@ -275,9 +282,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch complete user data with permissions
       await verifyAuth(false);
+      logger.info('Login successful', { username });
     } catch (error: any) {
       // Special handling for EMAIL_NOT_VERIFIED error
       if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        logger.warn('Login failed - email not verified', { username });
         const emailNotVerifiedError = new Error('EMAIL_NOT_VERIFIED') as any;
         emailNotVerifiedError.code = 'EMAIL_NOT_VERIFIED';
         emailNotVerifiedError.email = error.response.data.email;
@@ -285,6 +294,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Pass through the full error response for status code handling (423 lockout, 429 rate limit)
+      const status = error.response?.status;
+      logger.warn('Login failed', { username, status, code: error.response?.data?.code });
       const authError = new Error(error.response?.data?.message || 'Login failed') as any;
       authError.response = error.response;
       throw authError;
@@ -293,8 +304,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: RegisterPayload) => {
     try {
+      logger.info('Registration attempt', { email: data.email, username: data.username });
       const response = await apiClient.post('/api/auth/register', data);
 
+      logger.info('Registration successful', { email: data.email });
 
       // NOTE: Server no longer issues JWT until email is verified
       // Do NOT set user or save token - user must verify email first
@@ -307,6 +320,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         message: response.data?.message,
       };
     } catch (error: any) {
+      const status = error.response?.status;
+      logger.error('Registration failed', error, { email: data.email, status });
 
       // More specific error messages
       if (error.response?.status === 500) {
@@ -320,14 +335,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    const userId = user?.id;
+    logger.info('Logout initiated', { userId });
     try {
       await apiClient.post('/api/auth/logout');
     } catch (error) {
+      logger.warn('Logout API call failed', { userId });
     } finally {
       // Clear all auth data
       await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY).catch(() => {});
       await cacheUserData(null);
+      clearSentryUser();
       setUser(null);
+      logger.info('Logout completed', { userId });
     }
   };
 

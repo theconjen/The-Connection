@@ -6,11 +6,15 @@
  * - Error tracking
  * - Performance monitoring
  * - Native crash reporting
+ * - Structured logging
  * - React Native error boundaries integration
  */
 
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
+
+// Re-export the logger for structured logging
+export const sentryLogger = Sentry.logger;
 
 /**
  * Initialize Sentry for the mobile app
@@ -42,10 +46,10 @@ export function initSentry() {
 
       // Integrations
       integrations: [
-        // React Native-specific integrations
-        new Sentry.ReactNativeTracing({
-          routingInstrumentation: new Sentry.ReactNavigationInstrumentation(),
-        }),
+        // React Native tracing (v7.x API)
+        Sentry.reactNativeTracingIntegration(),
+        // React Navigation integration for route tracking
+        Sentry.reactNavigationIntegration(),
       ],
 
       // Privacy settings
@@ -100,6 +104,11 @@ export function initSentry() {
       // Auto session tracking
       enableAutoSessionTracking: true,
       sessionTrackingIntervalMillis: 30000, // 30 seconds
+
+      // Enable structured logging
+      _experiments: {
+        enableLogs: true,
+      },
     });
 
   } catch (error) {

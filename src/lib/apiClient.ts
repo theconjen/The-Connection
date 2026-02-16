@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import 'react-native-get-random-values'; // Required for uuid in React Native
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from './logger';
 
 // Get API URL from app config (exclusive to Render backend)
 // Always uses Render backend URL from app.json extra config
@@ -157,7 +158,16 @@ apiClient.interceptors.response.use(
           }
         );
 
-        // Error logging removed for production - errors handled by UI
+        // Log non-suppressed API errors to Sentry
+        if (!shouldSuppress) {
+          const requestId = (error.config as any)?._requestId;
+          logger.warn('API error', {
+            status,
+            url,
+            message,
+            requestId,
+          });
+        }
       }
     } catch (interceptorError) {
       // Interceptor must be stable - silent fail
