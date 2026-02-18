@@ -24,7 +24,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { churchesAPI, ChurchLeader, ChurchSermon } from '../queries/churches';
+import { churchesAPI, ChurchLeader, ChurchSermon, ChurchAnnouncement } from '../queries/churches';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ChurchProfileScreenProps {
   slug: string;
@@ -54,6 +55,15 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
     queryFn: () => churchesAPI.getConnectionsAttending(data!.organization!.id),
     enabled: !!data?.organization?.id,
   });
+
+  // Get church announcements
+  const { data: announcementsData } = useQuery({
+    queryKey: ['church-announcements', data?.organization?.id],
+    queryFn: () => churchesAPI.getAnnouncements(data!.organization!.id),
+    enabled: !!data?.organization?.id,
+  });
+
+  const announcements = announcementsData ?? [];
 
   const church = data?.organization;
   const leaders = data?.leaders ?? [];
@@ -205,6 +215,46 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
       </View>
     </Pressable>
   );
+
+  const renderAnnouncementCard = (announcement: ChurchAnnouncement) => {
+    const timeAgo = formatDistanceToNow(new Date(announcement.createdAt), { addSuffix: true });
+
+    return (
+      <View
+        key={announcement.id}
+        style={[
+          styles.announcementCard,
+          {
+            backgroundColor: announcement.isPinned ? colors.primary + '08' : colors.surface,
+            borderColor: announcement.isPinned ? colors.primary + '30' : colors.borderSubtle,
+          }
+        ]}
+      >
+        {announcement.isPinned && (
+          <View style={styles.pinnedBadge}>
+            <Ionicons name="pin" size={12} color={colors.primary} />
+            <Text style={[styles.pinnedText, { color: colors.primary }]}>Pinned</Text>
+          </View>
+        )}
+        <Text style={[styles.announcementTitle, { color: colors.textPrimary }]}>
+          {announcement.title}
+        </Text>
+        <Text style={[styles.announcementContent, { color: colors.textSecondary }]} numberOfLines={3}>
+          {announcement.content}
+        </Text>
+        <View style={styles.announcementMeta}>
+          {announcement.author && (
+            <Text style={[styles.announcementAuthor, { color: colors.textMuted }]}>
+              {announcement.author.displayName || announcement.author.username}
+            </Text>
+          )}
+          <Text style={[styles.announcementTime, { color: colors.textMuted }]}>
+            {timeAgo}
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -415,6 +465,17 @@ export function ChurchProfileScreen({ slug, onBack }: ChurchProfileScreenProps) 
                 </Text>
               </View>
             </View>
+          </View>
+        )}
+
+        {/* Announcements Section */}
+        {announcements.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeaderRow}>
+              <Ionicons name="megaphone-outline" size={20} color={colors.primary} />
+              <Text style={[styles.sectionTitleLarge, { color: colors.textPrimary }]}>Announcements</Text>
+            </View>
+            {announcements.slice(0, 3).map(renderAnnouncementCard)}
           </View>
         )}
 
@@ -773,6 +834,50 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  // Announcement styles
+  announcementCard: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  pinnedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  pinnedText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  announcementTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  announcementContent: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  announcementMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  announcementAuthor: {
+    fontSize: 12,
+  },
+  announcementTime: {
+    fontSize: 12,
   },
   leadersScroll: {
     marginHorizontal: -16,

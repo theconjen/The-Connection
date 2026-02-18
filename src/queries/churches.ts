@@ -150,6 +150,23 @@ export interface ChurchBulletinData {
   recentSermons?: ChurchBulletinSermon[];
 }
 
+// Church Announcement Types
+export interface ChurchAnnouncement {
+  id: number;
+  title: string;
+  content: string;
+  visibility: 'all' | 'members' | 'leaders';
+  isPinned: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+  author: {
+    id: number;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null;
+}
+
 // Sermon Playback Types (MUX + JW Player)
 export interface SermonPlaybackResponse {
   sermon: {
@@ -294,6 +311,13 @@ export const churchesAPI = {
    */
   getMyChurchBulletin: (): Promise<ChurchBulletinData> => {
     return apiClient.get('/api/user/church-bulletin').then(res => res.data);
+  },
+
+  /**
+   * Get announcements for a church
+   */
+  getAnnouncements: (orgId: number): Promise<ChurchAnnouncement[]> => {
+    return apiClient.get(`/api/orgs/${orgId}/announcements`).then(res => res.data);
   },
 };
 
