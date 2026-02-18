@@ -1021,4 +1021,174 @@ router.patch('/:orgId/billing', requireOrgAdminOr404(), async (req: Request, res
   }
 });
 
+// ============================================================================
+// ANNOUNCEMENTS
+// ============================================================================
+
+/**
+ * GET /api/org-admin/:orgId/announcements - List all announcements (admin view)
+ */
+router.get('/:orgId/announcements', requireOrgModeratorOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const includeDeleted = req.query.includeDeleted === 'true';
+
+    const announcements = await storage.getOrganizationAnnouncements(org.id, { includeDeleted });
+    res.json(announcements);
+  } catch (error) {
+    console.error('Error fetching announcements:', error);
+    res.status(500).json({ error: 'Failed to fetch announcements' });
+  }
+});
+
+/**
+ * POST /api/org-admin/:orgId/announcements - Create a new announcement
+ */
+router.post('/:orgId/announcements', requireOrgModeratorOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+
+    const schema = z.object({
+      title: z.string().min(1).max(200),
+      content: z.string().min(1).max(5000),
+      visibility: z.enum(['all', 'members', 'leaders']).optional().default('all'),
+      isPinned: z.boolean().optional().default(false),
+      expiresAt: z.string().datetime().optional().nullable(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const announcement = await storage.createOrganizationAnnouncement({
+      organizationId: org.id,
+      authorId: userId,
+      title: data.title,
+      content: data.content,
+      visibility: data.visibility,
+      isPinned: data.isPinned,
+      expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+    });
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'announcement.created',
+      targetType: 'organization_announcement',
+      targetId: announcement.id,
+      metadata: { title: data.title },
+    });
+
+    // Send notifications to members (async, don't block response)
+    storage.notifyOrganizationMembers(org.id, {
+      title: `${org.name}: ${data.title}`,
+      body: data.content.slice(0, 100) + (data.content.length > 100 ? '...' : ''),
+      data: {
+        type: 'organization_announcement',
+        organizationId: org.id,
+        announcementId: announcement.id,
+      },
+    }).catch(err => console.error('Error sending announcement notifications:', err));
+
+    res.status(201).json(announcement);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request', details: error.errors });
+    }
+    console.error('Error creating announcement:', error);
+    res.status(500).json({ error: 'Failed to create announcement' });
+  }
+});
+
+/**
+ * PATCH /api/org-admin/:orgId/announcements/:id - Update an announcement
+ */
+router.patch('/:orgId/announcements/:id', requireOrgModeratorOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+    const announcementId = parseInt(req.params.id, 10);
+
+    if (isNaN(announcementId)) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    const existing = await storage.getOrganizationAnnouncement(announcementId);
+    if (!existing || existing.organizationId !== org.id) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    const schema = z.object({
+      title: z.string().min(1).max(200).optional(),
+      content: z.string().min(1).max(5000).optional(),
+      visibility: z.enum(['all', 'members', 'leaders']).optional(),
+      isPinned: z.boolean().optional(),
+      expiresAt: z.string().datetime().optional().nullable(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const updated = await storage.updateOrganizationAnnouncement(announcementId, {
+      ...data,
+      expiresAt: data.expiresAt ? new Date(data.expiresAt) : data.expiresAt === null ? null : undefined,
+      updatedAt: new Date(),
+    });
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'announcement.updated',
+      targetType: 'organization_announcement',
+      targetId: announcementId,
+      metadata: { fields: Object.keys(data) },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request', details: error.errors });
+    }
+    console.error('Error updating announcement:', error);
+    res.status(500).json({ error: 'Failed to update announcement' });
+  }
+});
+
+/**
+ * DELETE /api/org-admin/:orgId/announcements/:id - Delete an announcement (soft delete)
+ */
+router.delete('/:orgId/announcements/:id', requireOrgModeratorOr404(), async (req: Request, res: Response) => {
+  try {
+    const org = (req as any).org;
+    const userId = requireSessionUserId(req);
+    const announcementId = parseInt(req.params.id, 10);
+
+    if (isNaN(announcementId)) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    const existing = await storage.getOrganizationAnnouncement(announcementId);
+    if (!existing || existing.organizationId !== org.id) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    await storage.deleteOrganizationAnnouncement(announcementId);
+
+    // Log activity
+    await storage.logOrganizationActivity({
+      organizationId: org.id,
+      actorId: userId,
+      action: 'announcement.deleted',
+      targetType: 'organization_announcement',
+      targetId: announcementId,
+      metadata: { title: existing.title },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
+    res.status(500).json({ error: 'Failed to delete announcement' });
+  }
+});
+
 export default router;

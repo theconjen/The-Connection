@@ -75,7 +75,7 @@ import {
   polls, pollOptions, pollVotes,
   Poll, InsertPoll, PollOption, InsertPollOption, PollVote, InsertPollVote,
   // organizations tables
-  organizations, organizationUsers, organizationLeaders,
+  organizations, organizationUsers, organizationLeaders, organizationAnnouncements,
   orgBilling, userChurchAffiliations, churchInvitationRequests,
   orgMembershipRequests, orgMeetingRequests,
   ordinationPrograms, ordinationApplications, ordinationReviews, organizationActivityLogs,
@@ -658,6 +658,14 @@ export interface IStorage {
   createOrganizationLeader(data: any): Promise<any>;
   updateOrganizationLeader(id: number, orgId: number, data: any): Promise<any>;
   deleteOrganizationLeader(id: number, orgId: number): Promise<boolean>;
+
+  // Organization announcements (church-wide announcements)
+  getOrganizationAnnouncements(orgId: number, opts?: { includeDeleted?: boolean; visibility?: string }): Promise<any[]>;
+  getOrganizationAnnouncement(id: number): Promise<any | undefined>;
+  createOrganizationAnnouncement(data: any): Promise<any>;
+  updateOrganizationAnnouncement(id: number, data: any): Promise<any>;
+  deleteOrganizationAnnouncement(id: number): Promise<boolean>;
+  notifyOrganizationMembers(orgId: number, notification: { title: string; body: string; data: any }): Promise<void>;
 
   // Activity logs (admin-only, safe metadata)
   logOrganizationActivity(log: any): Promise<void>;
@@ -2460,6 +2468,14 @@ export class MemStorage implements IStorage {
   async createOrganizationLeader(data: any): Promise<any> { return { id: this.nextId++, ...data }; }
   async updateOrganizationLeader(_id: number, _orgId: number, data: any): Promise<any> { return data; }
   async deleteOrganizationLeader(_id: number, _orgId: number): Promise<boolean> { return true; }
+
+  // Organization announcements (MemStorage stubs)
+  async getOrganizationAnnouncements(_orgId: number, _opts?: { includeDeleted?: boolean; visibility?: string }): Promise<any[]> { return []; }
+  async getOrganizationAnnouncement(_id: number): Promise<any | undefined> { return undefined; }
+  async createOrganizationAnnouncement(data: any): Promise<any> { return { id: this.nextId++, ...data }; }
+  async updateOrganizationAnnouncement(_id: number, data: any): Promise<any> { return data; }
+  async deleteOrganizationAnnouncement(_id: number): Promise<boolean> { return true; }
+  async notifyOrganizationMembers(_orgId: number, _notification: { title: string; body: string; data: any }): Promise<void> {}
 
   // Sermons (MemStorage stubs)
   async createSermon(data: any): Promise<any> { return { id: this.nextId++, ...data }; }
@@ -4514,6 +4530,15 @@ export class DbStorage implements IStorage {
         replyCount: 0,
       } as any)
       .returning();
+
+    // If this is a reply, increment parent's reply count
+    if (microblog.parentId) {
+      await db
+        .update(microblogs)
+        .set({ replyCount: sql`COALESCE(${microblogs.replyCount}, 0) + 1` as any })
+        .where(eq(microblogs.id, microblog.parentId));
+    }
+
     return newMicroblog;
   }
 
@@ -7702,6 +7727,101 @@ export class DbStorage implements IStorage {
         eq(organizationLeaders.organizationId, orgId)
       ));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // ==========================================================================
+  // ORGANIZATION ANNOUNCEMENTS
+  // ==========================================================================
+
+  async getOrganizationAnnouncements(orgId: number, opts?: { includeDeleted?: boolean; visibility?: string }): Promise<any[]> {
+    const conditions = [eq(organizationAnnouncements.organizationId, orgId)];
+    if (!opts?.includeDeleted) {
+      conditions.push(isNull(organizationAnnouncements.deletedAt));
+    }
+    if (opts?.visibility) {
+      conditions.push(eq(organizationAnnouncements.visibility, opts.visibility));
+    }
+
+    const results = await db.select({
+      announcement: organizationAnnouncements,
+      author: {
+        id: users.id,
+        username: users.username,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+      },
+    })
+      .from(organizationAnnouncements)
+      .leftJoin(users, eq(organizationAnnouncements.authorId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(organizationAnnouncements.isPinned), desc(organizationAnnouncements.createdAt));
+
+    return results.map(r => ({
+      ...r.announcement,
+      author: r.author,
+    }));
+  }
+
+  async getOrganizationAnnouncement(id: number): Promise<any | undefined> {
+    const result = await db.select()
+      .from(organizationAnnouncements)
+      .where(eq(organizationAnnouncements.id, id));
+    return result[0];
+  }
+
+  async createOrganizationAnnouncement(data: any): Promise<any> {
+    const [result] = await db.insert(organizationAnnouncements).values(data).returning();
+    return result;
+  }
+
+  async updateOrganizationAnnouncement(id: number, data: Partial<any>): Promise<any> {
+    const [result] = await db.update(organizationAnnouncements)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(organizationAnnouncements.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteOrganizationAnnouncement(id: number): Promise<boolean> {
+    // Soft delete
+    const [result] = await db.update(organizationAnnouncements)
+      .set({ deletedAt: new Date() })
+      .where(eq(organizationAnnouncements.id, id))
+      .returning();
+    return !!result;
+  }
+
+  async notifyOrganizationMembers(orgId: number, notification: { title: string; body: string; data: any }): Promise<void> {
+    // Get all affiliated users (members who attend this church)
+    const affiliations = await db.select({ userId: userChurchAffiliations.userId })
+      .from(userChurchAffiliations)
+      .where(eq(userChurchAffiliations.organizationId, orgId));
+
+    // Get org staff members
+    const orgMembers = await db.select({ userId: organizationUsers.userId })
+      .from(organizationUsers)
+      .where(eq(organizationUsers.organizationId, orgId));
+
+    // Combine unique user IDs
+    const userIds = [...new Set([
+      ...affiliations.map(a => a.userId),
+      ...orgMembers.map(m => m.userId),
+    ])];
+
+    // Send notifications to each user
+    for (const userId of userIds) {
+      try {
+        await this.createNotification({
+          userId,
+          type: 'organization_announcement',
+          title: notification.title,
+          message: notification.body,
+          data: notification.data,
+        });
+      } catch (error) {
+        console.error(`Failed to notify user ${userId}:`, error);
+      }
+    }
   }
 
   // ==========================================================================

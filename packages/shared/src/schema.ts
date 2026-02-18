@@ -206,6 +206,41 @@ export const insertOrganizationLeaderSchema = createInsertSchema(organizationLea
 export type OrganizationLeader = typeof organizationLeaders.$inferSelect;
 export type InsertOrganizationLeader = typeof organizationLeaders.$inferInsert;
 
+// Organization Announcements - church-wide announcements from leadership
+export const organizationAnnouncements = pgTable("organization_announcements", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  authorId: integer("author_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  // Visibility: 'all' (public), 'members' (members only), 'leaders' (staff only)
+  visibility: text("visibility").notNull().default("all"),
+  // Optional: pin to top of announcement list
+  isPinned: boolean("is_pinned").default(false),
+  // Optional: expiration date for time-sensitive announcements
+  expiresAt: timestamp("expires_at"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"), // Soft delete
+}, (table) => [
+  index("org_announcements_org_idx").on(table.organizationId),
+  index("org_announcements_created_idx").on(table.createdAt),
+]);
+
+export const insertOrganizationAnnouncementSchema = createInsertSchema(organizationAnnouncements).pick({
+  organizationId: true,
+  authorId: true,
+  title: true,
+  content: true,
+  visibility: true,
+  isPinned: true,
+  expiresAt: true,
+} as any);
+
+export type OrganizationAnnouncement = typeof organizationAnnouncements.$inferSelect;
+export type InsertOrganizationAnnouncement = typeof organizationAnnouncements.$inferInsert;
+
 // User Church Affiliations - tracks where users attend/are members
 // This is separate from organizationUsers which is for staff/leadership roles
 export const userChurchAffiliations = pgTable("user_church_affiliations", {

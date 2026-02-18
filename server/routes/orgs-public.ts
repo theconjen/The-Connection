@@ -230,36 +230,36 @@ router.get('/search', async (req: Request, res: Response) => {
  */
 router.get('/filters', async (_req: Request, res: Response) => {
   try {
-    // Church types (major Christian traditions)
+    // Church types (major Christian traditions) - denominations alphabetized
     const churchTypes = [
-      { id: 'protestant', label: 'Protestant', denominations: ['Baptist', 'Methodist', 'Lutheran', 'Presbyterian', 'Pentecostal', 'Episcopal', 'Church of Christ', 'Assembly of God', 'Seventh-day Adventist', 'Church of God', 'Nazarene', 'Reformed', 'Anglican', 'Mennonite', 'Non-Denominational'] },
-      { id: 'evangelical', label: 'Evangelical', denominations: ['Baptist', 'Pentecostal', 'Assembly of God', 'Church of God', 'Nazarene', 'Charismatic', 'Non-Denominational', 'Evangelical'] },
+      { id: 'protestant', label: 'Protestant', denominations: ['Anglican', 'Assembly of God', 'Baptist', 'Calvary Chapel', 'Church of Christ', 'Church of God', 'Episcopal', 'Lutheran', 'Mennonite', 'Methodist', 'Nazarene', 'Non-Denominational', 'Pentecostal', 'Presbyterian', 'Reformed', 'Seventh-day Adventist'] },
+      { id: 'evangelical', label: 'Evangelical', denominations: ['Assembly of God', 'Baptist', 'Charismatic', 'Church of God', 'Evangelical', 'Nazarene', 'Non-Denominational', 'Pentecostal'] },
       { id: 'catholic', label: 'Catholic', denominations: ['Catholic', 'Roman Catholic'] },
-      { id: 'orthodox', label: 'Orthodox', denominations: ['Orthodox', 'Eastern Orthodox', 'Greek Orthodox', 'Russian Orthodox', 'Coptic Orthodox'] },
+      { id: 'orthodox', label: 'Orthodox', denominations: ['Coptic Orthodox', 'Eastern Orthodox', 'Greek Orthodox', 'Orthodox', 'Russian Orthodox'] },
       { id: 'church-of-east', label: 'Church of the East', denominations: ['Assyrian Church of the East', 'Chaldean Catholic', 'Church of the East'] },
     ];
 
-    // Common denominations in order of prevalence
+    // Common denominations (alphabetized)
     const denominations = [
-      'Non-Denominational',
+      'Anglican',
+      'Assembly of God',
       'Baptist',
       'Catholic',
-      'Methodist',
-      'Lutheran',
-      'Presbyterian',
-      'Pentecostal',
-      'Episcopal',
-      'Church of Christ',
-      'Assembly of God',
-      'Evangelical',
-      'Orthodox',
-      'Seventh-day Adventist',
-      'Church of God',
-      'Nazarene',
       'Charismatic',
-      'Reformed',
-      'Anglican',
+      'Church of Christ',
+      'Church of God',
+      'Episcopal',
+      'Evangelical',
+      'Lutheran',
       'Mennonite',
+      'Methodist',
+      'Nazarene',
+      'Non-Denominational',
+      'Orthodox',
+      'Pentecostal',
+      'Presbyterian',
+      'Reformed',
+      'Seventh-day Adventist',
       'Other',
     ];
 
@@ -428,6 +428,111 @@ router.get('/:slug', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching organization profile:', error);
     res.status(500).json({ error: 'Failed to fetch organization' });
+  }
+});
+
+/**
+ * GET /api/orgs/:id/connections-attending
+ * Get the count and preview of user's connections who attend this church
+ */
+router.get('/:id/connections-attending', async (req: Request, res: Response) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.json({ count: 0, connections: [] });
+    }
+
+    const orgId = parseInt(req.params.id, 10);
+    if (isNaN(orgId)) {
+      return res.status(400).json({ error: 'Invalid organization ID' });
+    }
+
+    // Get user's connections who attend this church
+    const connectionsAttending = await storage.getConnectionsAttendingOrg(userId, orgId);
+
+    res.json({
+      count: connectionsAttending.length,
+      connections: connectionsAttending.slice(0, 5).map(c => ({
+        id: c.id,
+        username: c.username,
+        displayName: c.displayName,
+        avatarUrl: c.avatarUrl,
+        affiliationType: c.affiliationType,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching connections attending:', error);
+    res.status(500).json({ error: 'Failed to fetch connections' });
+  }
+});
+
+/**
+ * GET /api/orgs/:id/announcements
+ * Get public announcements for an organization (church)
+ * - Public visibility: Anyone can see
+ * - Members visibility: Only affiliated users
+ * - Leaders visibility: Only org staff (handled separately)
+ */
+router.get('/:id/announcements', async (req: Request, res: Response) => {
+  try {
+    const userId = getSessionUserId(req);
+    const orgId = parseInt(req.params.id, 10);
+
+    if (isNaN(orgId)) {
+      return res.status(400).json({ error: 'Invalid organization ID' });
+    }
+
+    // Check if user is affiliated with this org
+    let isAffiliated = false;
+    let isStaff = false;
+
+    if (userId) {
+      // Check if member/attendee
+      const affiliation = await storage.getUserChurchAffiliation(userId);
+      if (affiliation?.organizationId === orgId) {
+        isAffiliated = true;
+      }
+
+      // Check if staff
+      const role = await storage.getUserRoleInOrg(orgId, userId);
+      if (role && ['owner', 'admin', 'moderator'].includes(role)) {
+        isStaff = true;
+        isAffiliated = true;
+      }
+    }
+
+    // Get announcements with appropriate visibility filter
+    let visibilityFilter: string | undefined;
+    if (isStaff) {
+      // Staff can see everything
+      visibilityFilter = undefined;
+    } else if (isAffiliated) {
+      // Members can see 'all' and 'members' announcements
+      // We'll filter out 'leaders' announcements
+    } else {
+      // Public users can only see 'all' visibility
+      visibilityFilter = 'all';
+    }
+
+    const announcements = await storage.getOrganizationAnnouncements(orgId, {
+      visibility: visibilityFilter,
+    });
+
+    // Filter out leaders-only announcements for non-staff
+    const filteredAnnouncements = isStaff
+      ? announcements
+      : announcements.filter(a => a.visibility !== 'leaders' && (isAffiliated || a.visibility === 'all'));
+
+    // Filter out expired announcements
+    const now = new Date();
+    const activeAnnouncements = filteredAnnouncements.filter(a =>
+      !a.expiresAt || new Date(a.expiresAt) > now
+    );
+
+    res.json(activeAnnouncements);
+  } catch (error) {
+    console.error('Error fetching announcements:', error);
+    res.status(500).json({ error: 'Failed to fetch announcements' });
   }
 });
 
