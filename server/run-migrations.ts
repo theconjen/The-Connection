@@ -13,6 +13,7 @@ import { runMigration as addKeywordSystem } from "./migrations/add-keyword-syste
 import { runMigration as addPostHashtagKeywordSystem } from "./migrations/add-post-hashtag-keyword-system";
 import { runMigration as addQaInboxSystem } from "./migrations/add-qa-inbox-system";
 import { runMigration as addEventsCategory } from "./migrations/add-events-category";
+import { runMigration as addEventPositionAudience } from "./migrations/add-event-position-audience";
 import { isConnected } from "./db";
 
 /**
@@ -101,6 +102,13 @@ export async function runAllMigrations() {
     const eventsCategoryResult = await addEventsCategory();
     if (!eventsCategoryResult) {
       log("❌ Add events category migration failed");
+      return false;
+    }
+
+    // Add image_position, target_gender, target_age_group to events table
+    const eventPositionAudienceResult = await addEventPositionAudience();
+    if (!eventPositionAudienceResult) {
+      log("❌ Add event position/audience migration failed");
       return false;
     }
 

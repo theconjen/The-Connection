@@ -829,7 +829,8 @@ router.patch('/events/:id', requireAuth, async (req, res) => {
     const updatePayload: any = {};
     const allowedFields = ['title', 'description', 'category', 'eventDate', 'eventEndDate', 'startTime', 'endTime', 'isVirtual',
                            'location', 'address', 'city', 'state', 'zipCode', 'latitude', 'longitude',
-                           'virtualMeetingUrl', 'isPublic', 'imageUrl'];
+                           'virtualMeetingUrl', 'isPublic', 'imageUrl', 'imagePosition',
+                           'targetGender', 'targetAgeGroup'];
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {

@@ -1352,6 +1352,9 @@ export const events = pgTable("events", {
   startTime: time("start_time").notNull(),
   endTime: time("end_time").notNull(),
   imageUrl: text("image_url"),
+  imagePosition: text("image_position").default('center'), // Focal point for card display: top, center, bottom
+  targetGender: text("target_gender"), // Target audience gender: men, women, or null (all)
+  targetAgeGroup: text("target_age_group"), // Target audience age group: kids, teens, young_adults, adults, seniors, or null (all ages)
   latitude: text("latitude"), // For map integration
   longitude: text("longitude"), // For map integration
   communityId: integer("community_id").references(() => communities.id), // Nullable - admin can create events for "The Connection" without a community
@@ -1380,6 +1383,9 @@ export const insertEventSchema = createInsertSchema(events).pick({
   startTime: true,
   endTime: true,
   imageUrl: true,
+  imagePosition: true,
+  targetGender: true,
+  targetAgeGroup: true,
   latitude: true,
   longitude: true,
   communityId: true,
