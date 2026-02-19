@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Loader2, Users, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap, BookOpen, Shield } from 'lucide-react';
+import { Loader2, Users, User, Layout, CheckCircle, AlertCircle, BarChart4, Activity, GraduationCap, BookOpen, Shield, AlertTriangle } from 'lucide-react';
 import AdminLayout from '../../components/layouts/admin-layout';
 import { apiUrl } from '../../lib/env';
 
@@ -45,6 +45,18 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const res = await fetch(apiUrl('/api/admin/reports?status=pending'));
       if (!res.ok) throw new Error('Failed to fetch moderation reports');
+      return res.json();
+    }
+  });
+
+  // Query to fetch sentry alert stats
+  const { data: sentryStats, isLoading: isLoadingSentry } = useQuery<{ activeCount: number; last24hCount: number }>({
+    queryKey: ['/api/admin/sentry-alerts/stats'],
+    retry: false,
+    enabled: !!(isAuthenticated && user?.isAdmin),
+    queryFn: async () => {
+      const res = await fetch(apiUrl('/api/admin/sentry-alerts/stats'));
+      if (!res.ok) throw new Error('Failed to fetch sentry stats');
       return res.json();
     }
   });
@@ -286,6 +298,48 @@ export default function AdminDashboard() {
           <CardFooter className="mt-auto">
             <Button asChild variant="outline" className="w-full">
               <Link href="/admin/settings">Platform Settings</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        {/* Sentry Alerts Card */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl">Sentry Alerts</CardTitle>
+              <AlertTriangle className="h-5 w-5 text-primary" />
+            </div>
+            <CardDescription>Monitor errors and alerts from Sentry</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Active Alerts</p>
+                {isLoadingSentry ? (
+                  <Loader2 className="mt-1 h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <div className="flex items-center">
+                    <span className="text-2xl font-bold">{sentryStats?.activeCount ?? 0}</span>
+                    {(sentryStats?.activeCount ?? 0) > 0 && (
+                      <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800">
+                        Needs Attention
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {(sentryStats?.activeCount ?? 0) > 0 ? (
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                ) : (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                )}
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="mt-auto">
+            <Button asChild className="w-full" variant={(sentryStats?.activeCount ?? 0) > 0 ? "default" : "outline"}>
+              <Link href="/admin/sentry-alerts">View Alerts</Link>
             </Button>
           </CardFooter>
         </Card>

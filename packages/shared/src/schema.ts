@@ -2850,3 +2850,42 @@ export const insertHelpfulMarkSchema = createInsertSchema(helpfulMarks).pick({
 
 export type HelpfulMark = typeof helpfulMarks.$inferSelect;
 export type InsertHelpfulMark = typeof helpfulMarks.$inferInsert;
+
+// ========================
+// SENTRY ALERTS
+// ========================
+export const sentryAlerts = pgTable("sentry_alerts", {
+  id: serial("id").primaryKey(),
+  sentryEventId: text("sentry_event_id"),
+  resource: text("resource").notNull(), // 'issue', 'event_alert', 'metric_alert'
+  action: text("action").notNull(), // 'created', 'resolved', 'triggered', etc.
+  title: text("title").notNull(),
+  message: text("message"),
+  level: text("level"), // 'error', 'warning', 'info', 'fatal'
+  sentryUrl: text("sentry_url"),
+  project: text("project"),
+  payload: jsonb("payload"),
+  isDismissed: boolean("is_dismissed").default(false),
+  dismissedBy: integer("dismissed_by").references(() => users.id),
+  dismissedAt: timestamp("dismissed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_sentry_alerts_resource").on(table.resource),
+  index("idx_sentry_alerts_created_at").on(table.createdAt),
+  index("idx_sentry_alerts_is_dismissed").on(table.isDismissed),
+]);
+
+export const insertSentryAlertSchema = createInsertSchema(sentryAlerts).pick({
+  sentryEventId: true,
+  resource: true,
+  action: true,
+  title: true,
+  message: true,
+  level: true,
+  sentryUrl: true,
+  project: true,
+  payload: true,
+} as any);
+
+export type SentryAlert = typeof sentryAlerts.$inferSelect;
+export type InsertSentryAlert = typeof sentryAlerts.$inferInsert;

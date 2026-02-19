@@ -61,6 +61,7 @@ const AdminModeration = lazy(() => import("./pages/admin/AdminModerationPage"));
 const AdminApologistApplications = lazy(() => import("./pages/admin/apologist-scholar-applications"));
 const AdminApologeticsResources = lazy(() => import("./pages/admin/apologetics-resources"));
 const AdminAnalytics = lazy(() => import("./pages/admin/analytics"));
+const AdminSentryAlerts = lazy(() => import("./pages/admin/sentry-alerts"));
 
 // Organization admin (Steward Console - web-only)
 const OrganizationAdminPage = lazy(() => import("./pages/organization-admin-page"));
@@ -194,6 +195,7 @@ function App() {
             <Route path="/admin/moderation" component={AdminModeration} />
             <Route path="/admin/apologist-scholar-applications" component={AdminApologistApplications} />
             <Route path="/admin/apologetics-resources" component={AdminApologeticsResources} />
+            <Route path="/admin/sentry-alerts" component={AdminSentryAlerts} />
 
             {/* Organization Admin (Steward Console - web-only) */}
             <Route path="/org-admin/:orgId" component={OrganizationAdminPage} />

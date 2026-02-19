@@ -12,7 +12,8 @@ import {
   Shield,
   GraduationCap,
   BookOpen,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle
 } from "lucide-react";
 import {
   Collapsible,
@@ -87,6 +88,11 @@ export function AdminNav() {
           icon: <Book className="h-4 w-4 mr-2" />,
         },
       ],
+    },
+    {
+      title: "Sentry Alerts",
+      href: "/admin/sentry-alerts",
+      icon: <AlertTriangle className="h-4 w-4 mr-2" />,
     },
     {
       title: "Platform Settings",

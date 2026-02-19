@@ -18,9 +18,10 @@ import {
   prayerRequests,
   messages,
   platformSettings,
-  apologeticsResources
+  apologeticsResources,
+  sentryAlerts
 } from '@shared/schema';
-import { eq, and, count, gte, sql } from 'drizzle-orm';
+import { eq, and, count, gte, sql, desc } from 'drizzle-orm';
 
 const router = Router();
 
@@ -859,6 +860,125 @@ router.delete('/apologetics-resources/:id', async (req, res, next) => {
   } catch (error) {
     console.error('Error deleting resource:', error);
     res.status(500).json({ error: 'Failed to delete resource' });
+  }
+});
+
+// ============================================================================
+// SENTRY ALERTS
+// ============================================================================
+
+/**
+ * GET /admin/sentry-alerts
+ * List sentry alerts with optional filters and pagination
+ * Query params: dismissed (boolean), resource (string), limit (number), offset (number)
+ */
+router.get('/sentry-alerts', async (req, res, next) => {
+  try {
+    const dismissed = req.query.dismissed === 'true';
+    const resource = req.query.resource as string | undefined;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const conditions = [eq(sentryAlerts.isDismissed, dismissed)];
+    if (resource) {
+      conditions.push(eq(sentryAlerts.resource, resource));
+    }
+
+    const alerts = await db
+      .select()
+      .from(sentryAlerts)
+      .where(and(...conditions))
+      .orderBy(desc(sentryAlerts.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    res.json(alerts);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /admin/sentry-alerts/stats
+ * Get summary stats: active count, last 24h count
+ */
+router.get('/sentry-alerts/stats', async (req, res, next) => {
+  try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const [activeResult] = await db
+      .select({ count: count() })
+      .from(sentryAlerts)
+      .where(eq(sentryAlerts.isDismissed, false));
+
+    const [last24hResult] = await db
+      .select({ count: count() })
+      .from(sentryAlerts)
+      .where(gte(sentryAlerts.createdAt, oneDayAgo));
+
+    res.json({
+      activeCount: activeResult?.count ?? 0,
+      last24hCount: last24hResult?.count ?? 0,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /admin/sentry-alerts/:id/dismiss
+ * Dismiss a single alert
+ */
+router.patch('/sentry-alerts/:id/dismiss', async (req, res, next) => {
+  try {
+    const alertId = parseInt(req.params.id);
+    if (isNaN(alertId)) {
+      return res.status(400).json({ error: 'Invalid alert ID' });
+    }
+
+    const adminId = getSessionUserId(req);
+
+    const [updated] = await db
+      .update(sentryAlerts)
+      .set({
+        isDismissed: true,
+        dismissedBy: adminId,
+        dismissedAt: new Date(),
+      })
+      .where(eq(sentryAlerts.id, alertId))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Alert not found' });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /admin/sentry-alerts/dismiss-all
+ * Bulk dismiss all active alerts
+ */
+router.post('/sentry-alerts/dismiss-all', async (req, res, next) => {
+  try {
+    const adminId = getSessionUserId(req);
+
+    const result = await db
+      .update(sentryAlerts)
+      .set({
+        isDismissed: true,
+        dismissedBy: adminId,
+        dismissedAt: new Date(),
+      })
+      .where(eq(sentryAlerts.isDismissed, false))
+      .returning({ id: sentryAlerts.id });
+
+    res.json({ dismissed: result.length });
+  } catch (error) {
+    next(error);
   }
 });
 

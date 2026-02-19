@@ -125,6 +125,7 @@ import ordinationsRoutes from './routes/ordinations';
 import orgAdminRoutes from './routes/org-admin';
 import sermonsRoutes from './routes/sermons';
 import muxWebhookRoutes from './routes/webhooks-mux';
+import sentryWebhookRoutes from './routes/webhooks-sentry';
 import stripeRoutes from './routes/stripe';
 
 declare module 'express-session' {
@@ -607,6 +608,9 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api/webhooks/mux', muxWebhookRoutes);   // Mux video webhooks
     app.use('/api/stripe', stripeRoutes);             // Stripe payments
   }
+
+  // Sentry error alert webhooks (platform-level, always available)
+  app.use('/api/webhooks/sentry', sentryWebhookRoutes);
 
   if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {
     app.use('/api/support', supportRoutes);
