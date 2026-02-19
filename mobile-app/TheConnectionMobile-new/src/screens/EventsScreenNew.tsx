@@ -64,6 +64,7 @@ type HostUser = {
 type EventItem = {
   id: number | string;
   title: string;
+  description?: string | null;
   // API returns these separate fields:
   eventDate?: string;      // "2026-01-12 00:00:00"
   startTime?: string;      // "10:30:00"
@@ -82,6 +83,9 @@ type EventItem = {
   distanceMiles?: number | null;
   posterUrl?: string | null;
   imageUrl?: string | null;
+  imagePosition?: 'top' | 'center' | 'bottom' | null;
+  targetGender?: 'men' | 'women' | null;
+  targetAgeGroup?: string | null; // comma-separated: "teens,young_adults"
   category?: string | null; // "Worship", "Bible Study", "Apologetics"
   isPublic?: boolean; // true = visible on main Events page
   attendingCount?: number | null;
@@ -376,6 +380,80 @@ const RSVP_COLORS: Record<string, string> = {
   not_going: '#EF4444', // Red
 };
 
+// ----- SMART FILTER TYPES & UTILITIES -----
+
+type CategoryFilter = 'all' | string;
+type GenderFilter = 'all' | 'men' | 'women';
+type AgeGroupFilter = 'all' | 'kids' | 'teens' | 'young_adults' | 'adults' | 'seniors';
+
+const EVENT_CATEGORIES = [
+  'All', 'Sunday Service', 'Worship', 'Bible Study', 'Prayer Meeting',
+  'Youth Group', 'Small Group', 'Fellowship', 'Outreach', 'Conference',
+  'Workshop', 'Activity',
+] as const;
+
+const AGE_GROUP_LABELS: Record<string, string> = {
+  all: 'All Ages',
+  kids: 'Kids',
+  teens: 'Teens',
+  young_adults: 'Young Adults',
+  adults: 'Adults',
+  seniors: 'Seniors',
+};
+
+interface SmartTags {
+  gender: 'men' | 'women' | null;
+  ageGroup: 'kids' | 'teens' | 'young_adults' | 'adults' | 'seniors' | null;
+}
+
+function extractSmartTags(title: string | undefined, description: string | undefined): SmartTags {
+  const text = `${title || ''} ${description || ''}`.toLowerCase();
+
+  // Gender detection
+  let gender: SmartTags['gender'] = null;
+  if (/\b(men'?s|guys|brothers|\bmale\b)\b/.test(text) && !/\b(women|ladies|sisters|female)\b/.test(text)) {
+    gender = 'men';
+  } else if (/\b(women'?s|ladies|sisters|\bfemale\b)\b/.test(text)) {
+    gender = 'women';
+  }
+
+  // Age group detection
+  let ageGroup: SmartTags['ageGroup'] = null;
+  if (/\b(kids|children|child)\b/.test(text)) {
+    ageGroup = 'kids';
+  } else if (/\b(teens?|teenagers?)\b/.test(text)) {
+    ageGroup = 'teens';
+  } else if (/\b(youth|young\s*adults?|college|campus)\b/.test(text)) {
+    ageGroup = 'young_adults';
+  } else if (/\b(seniors?|elderly|retirees?|50\+|55\+|60\+|65\+)\b/.test(text)) {
+    ageGroup = 'seniors';
+  } else if (/\b(adults?)\b/.test(text) && !/young\s*adults?/.test(text)) {
+    ageGroup = 'adults';
+  }
+
+  // Age range patterns: "18-40", "18+", "21+"
+  if (!ageGroup) {
+    const ageRangeMatch = text.match(/(\d{1,2})\s*[-–]\s*(\d{1,2})/);
+    const agePlusMatch = text.match(/(\d{1,2})\+/);
+    if (ageRangeMatch) {
+      const low = parseInt(ageRangeMatch[1]);
+      const high = parseInt(ageRangeMatch[2]);
+      if (low <= 12) ageGroup = 'kids';
+      else if (low <= 17) ageGroup = 'teens';
+      else if (high <= 35) ageGroup = 'young_adults';
+      else if (low >= 50) ageGroup = 'seniors';
+      else ageGroup = 'adults';
+    } else if (agePlusMatch) {
+      const age = parseInt(agePlusMatch[1]);
+      if (age >= 50) ageGroup = 'seniors';
+      else if (age >= 18 && age <= 25) ageGroup = 'young_adults';
+      else if (age >= 21) ageGroup = 'adults';
+    }
+  }
+
+  return { gender, ageGroup };
+}
+
 // DEV-ONLY: Viewer type for debug panel
 type ViewerInfo = {
   id?: number;
@@ -453,17 +531,22 @@ function EventCard({
       <View
         style={[
           styles.poster,
-          item.posterUrl
+          (item.posterUrl || item.imageUrl)
             ? { backgroundColor: colors.surfaceNested, borderColor: colors.borderSubtle }
             : { backgroundColor: gradientStart, borderColor: colors.borderSubtle }
         ]}
       >
-        {item.posterUrl ? (
-          <View style={styles.posterImagePlaceholder}>
-            <Text style={{ color: colors.textPrimaryTertiary, fontWeight: "700" }}>
-              Poster
-            </Text>
-          </View>
+        {(item.posterUrl || item.imageUrl) ? (
+          <Image
+            source={{ uri: (item.posterUrl || item.imageUrl)! }}
+            style={[
+              styles.posterImagePositioned,
+              item.imagePosition === 'top' && { top: 0 },
+              item.imagePosition === 'bottom' && { bottom: 0 },
+              (!item.imagePosition || item.imagePosition === 'center') && { top: '50%', marginTop: -150 },
+            ]}
+            resizeMode="cover"
+          />
         ) : (
           <View style={styles.posterFallback}>
             {/* Event type icon */}
@@ -719,6 +802,9 @@ export default function EventsScreenNew({
   const [city, setCity] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [showMyEvents, setShowMyEvents] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
+  const [ageGroupFilter, setAgeGroupFilter] = useState<AgeGroupFilter>('all');
 
   // Location state
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -1139,14 +1225,39 @@ export default function EventsScreenNew({
       }
 
       // If we couldn't parse a valid date, include the event (fail safe)
-      if (!eventDateParsed || isNaN(eventDateParsed.getTime())) {
-        return true;
+      if (eventDateParsed && !isNaN(eventDateParsed.getTime()) && eventDateParsed < now) {
+        return false;
       }
 
-      // Only show events that are today or in the future
-      return eventDateParsed >= now;
+      // Category filter
+      if (categoryFilter !== 'all') {
+        const eventCategory = formatCategory(event.category);
+        if (eventCategory !== categoryFilter) return false;
+      }
+
+      // Gender & age group filters — use explicit fields first, fall back to keyword detection
+      if (genderFilter !== 'all' || ageGroupFilter !== 'all') {
+        const explicitGender = event.targetGender || null;
+        const explicitAgeRaw = event.targetAgeGroup || null;
+        // targetAgeGroup can be comma-separated (e.g. "teens,young_adults")
+        const explicitAgeGroups = explicitAgeRaw ? explicitAgeRaw.split(',').filter(Boolean) : [];
+        const tags = (!explicitGender || explicitAgeGroups.length === 0)
+          ? extractSmartTags(event.title, event.description ?? undefined)
+          : null;
+
+        const eventGender = explicitGender || tags?.gender || null;
+
+        if (genderFilter !== 'all' && eventGender !== null && eventGender !== genderFilter) return false;
+        if (ageGroupFilter !== 'all') {
+          const eventAgeGroups = explicitAgeGroups.length > 0 ? explicitAgeGroups : (tags?.ageGroup ? [tags.ageGroup] : []);
+          // If event has age groups set, check if the selected filter is among them
+          if (eventAgeGroups.length > 0 && !eventAgeGroups.includes(ageGroupFilter)) return false;
+        }
+      }
+
+      return true;
     });
-  }, [rawData, myEventsData, showMyEvents]);
+  }, [rawData, myEventsData, showMyEvents, categoryFilter, genderFilter, ageGroupFilter]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -1156,8 +1267,11 @@ export default function EventsScreenNew({
     if (distance !== "all") count++;
     if (q.trim()) count++;
     if (city.trim()) count++;
+    if (categoryFilter !== "all") count++;
+    if (genderFilter !== "all") count++;
+    if (ageGroupFilter !== "all") count++;
     return count;
-  }, [range, mode, distance, q, city]);
+  }, [range, mode, distance, q, city, categoryFilter, genderFilter, ageGroupFilter]);
 
   const clearAllFilters = () => {
     setRange("week");
@@ -1165,6 +1279,9 @@ export default function EventsScreenNew({
     setDistance("all");
     setQ("");
     setCity("");
+    setCategoryFilter("all");
+    setGenderFilter("all");
+    setAgeGroupFilter("all");
   };
 
   const getDistanceLabel = (dist: DistanceFilter) => {
@@ -1289,6 +1406,35 @@ export default function EventsScreenNew({
                 </Pressable>
               </View>
             )}
+            {categoryFilter !== "all" && (
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>{categoryFilter}</Text>
+                <Pressable onPress={() => setCategoryFilter("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={colors.primary} />
+                </Pressable>
+              </View>
+            )}
+            {genderFilter !== "all" && (
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Ionicons name={genderFilter === 'men' ? "man-outline" : "woman-outline"} size={14} color={colors.primary} style={{ marginRight: 4 }} />
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
+                  {genderFilter === 'men' ? 'Men' : 'Women'}
+                </Text>
+                <Pressable onPress={() => setGenderFilter("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={colors.primary} />
+                </Pressable>
+              </View>
+            )}
+            {ageGroupFilter !== "all" && (
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
+                  {AGE_GROUP_LABELS[ageGroupFilter]}
+                </Text>
+                <Pressable onPress={() => setAgeGroupFilter("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={colors.primary} />
+                </Pressable>
+              </View>
+            )}
             <Pressable onPress={clearAllFilters} style={[styles.clearAllBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.textMuted }]}>
               <Text style={[styles.clearAllText, { color: colors.textPrimary }]}>Clear All</Text>
             </Pressable>
@@ -1362,6 +1508,45 @@ export default function EventsScreenNew({
                     icon="videocam-outline"
                     colors={colors}
                   />
+                </View>
+              </FilterSection>
+
+              {/* Event Type (Category) */}
+              <FilterSection title="EVENT TYPE" colors={colors}>
+                <View style={styles.filterGrid}>
+                  {EVENT_CATEGORIES.map((cat) => (
+                    <FilterChip
+                      key={cat}
+                      label={cat}
+                      active={cat === 'All' ? categoryFilter === 'all' : categoryFilter === cat}
+                      onPress={() => setCategoryFilter(cat === 'All' ? 'all' : cat)}
+                      colors={colors}
+                    />
+                  ))}
+                </View>
+              </FilterSection>
+
+              {/* For Who (Gender) */}
+              <FilterSection title="FOR WHO" colors={colors}>
+                <View style={styles.filterGrid}>
+                  <FilterChip label="All" active={genderFilter === 'all'} onPress={() => setGenderFilter('all')} colors={colors} />
+                  <FilterChip label="Men" active={genderFilter === 'men'} onPress={() => setGenderFilter('men')} icon="man-outline" colors={colors} />
+                  <FilterChip label="Women" active={genderFilter === 'women'} onPress={() => setGenderFilter('women')} icon="woman-outline" colors={colors} />
+                </View>
+              </FilterSection>
+
+              {/* Age Group */}
+              <FilterSection title="AGE GROUP" colors={colors}>
+                <View style={styles.filterGrid}>
+                  {(Object.entries(AGE_GROUP_LABELS) as [AgeGroupFilter | 'all', string][]).map(([key, label]) => (
+                    <FilterChip
+                      key={key}
+                      label={label}
+                      active={ageGroupFilter === key}
+                      onPress={() => setAgeGroupFilter(key as AgeGroupFilter)}
+                      colors={colors}
+                    />
+                  ))}
                 </View>
               </FilterSection>
 
@@ -1935,6 +2120,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: "hidden",
     position: "relative",
+  },
+  posterImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+  },
+  posterImagePositioned: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    width: '100%',
+    height: 300,
+    borderRadius: 10,
   },
   posterImagePlaceholder: {
     flex: 1,

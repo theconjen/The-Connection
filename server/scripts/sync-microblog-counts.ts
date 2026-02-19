@@ -13,58 +13,64 @@ import { microblogs, microblogLikes } from '@shared/schema';
 import { sql, eq } from 'drizzle-orm';
 
 async function syncMicroblogCounts() {
-  console.log('\n🔄 Syncing microblog counts...\n');
+  console.info('\n🔄 Syncing microblog counts...\n');
 
   try {
     // 1. Update like counts from microblog_likes table
-    console.log('📊 Updating like counts...');
+    console.info('📊 Updating like counts...');
     const likeResult = await db.execute(sql`
       UPDATE microblogs m
       SET like_count = (
         SELECT COUNT(*)::int FROM microblog_likes ml WHERE ml.microblog_id = m.id
       )
     `);
-    console.log('   ✅ Like counts updated');
+    console.info('   ✅ Like counts updated');
 
-    // 2. Update reply counts from child microblogs (where parent_id = this microblog)
-    console.log('📊 Updating reply counts...');
+    // 2. Update reply counts from child microblogs AND comments table
+    // Advice posts get responses via both:
+    //   - child microblogs (parent_id = this microblog)
+    //   - comments table (post_id = this microblog)
+    console.info('📊 Updating reply counts (microblogs + comments)...');
     const replyResult = await db.execute(sql`
       UPDATE microblogs m
       SET reply_count = (
-        SELECT COUNT(*)::int FROM microblogs r WHERE r.parent_id = m.id
+        SELECT (
+          COALESCE((SELECT COUNT(*)::int FROM microblogs r WHERE r.parent_id = m.id), 0) +
+          COALESCE((SELECT COUNT(*)::int FROM comments c WHERE c.post_id = m.id), 0)
+        )
       )
     `);
-    console.log('   ✅ Reply counts updated');
+    console.info('   ✅ Reply counts updated (includes both microblogs and comments)');
 
     // 3. Update bookmark counts from microblog_bookmarks table
-    console.log('📊 Updating bookmark counts...');
+    console.info('📊 Updating bookmark counts...');
     const bookmarkResult = await db.execute(sql`
       UPDATE microblogs m
       SET bookmark_count = (
         SELECT COUNT(*)::int FROM microblog_bookmarks mb WHERE mb.microblog_id = m.id
       )
     `);
-    console.log('   ✅ Bookmark counts updated');
+    console.info('   ✅ Bookmark counts updated');
 
     // 4. Update repost counts from microblog_reposts table
-    console.log('📊 Updating repost counts...');
+    console.info('📊 Updating repost counts...');
     const repostResult = await db.execute(sql`
       UPDATE microblogs m
       SET repost_count = (
         SELECT COUNT(*)::int FROM microblog_reposts mr WHERE mr.microblog_id = m.id
       )
     `);
-    console.log('   ✅ Repost counts updated');
+    console.info('   ✅ Repost counts updated');
 
     // 5. Update unique replier counts
-    console.log('📊 Updating unique replier counts...');
+    console.info('📊 Updating unique replier counts...');
     const uniqueReplierResult = await db.execute(sql`
       UPDATE microblogs m
       SET unique_replier_count = (
         SELECT COUNT(DISTINCT author_id)::int FROM microblogs r WHERE r.parent_id = m.id
       )
     `);
-    console.log('   ✅ Unique replier counts updated');
+    console.info('   ✅ Unique replier counts updated');
 
     // Get some stats
     const stats = await db.execute(sql`
@@ -78,21 +84,21 @@ async function syncMicroblogCounts() {
       FROM microblogs
     `);
 
-    console.log('\n' + '='.repeat(50));
-    console.log('✨ Sync Complete!');
-    console.log('='.repeat(50));
+    console.info('\n' + '='.repeat(50));
+    console.info('✨ Sync Complete!');
+    console.info('='.repeat(50));
 
     const row = (stats as any)[0];
     if (row) {
-      console.log(`📝 Total microblogs: ${row.total_microblogs}`);
-      console.log(`❤️  Total likes: ${row.total_likes}`);
-      console.log(`💬 Total replies: ${row.total_replies}`);
-      console.log(`🔖 Total bookmarks: ${row.total_bookmarks}`);
-      console.log(`📈 Posts with likes: ${row.posts_with_likes}`);
-      console.log(`📈 Posts with replies: ${row.posts_with_replies}`);
+      console.info(`📝 Total microblogs: ${row.total_microblogs}`);
+      console.info(`❤️  Total likes: ${row.total_likes}`);
+      console.info(`💬 Total replies: ${row.total_replies}`);
+      console.info(`🔖 Total bookmarks: ${row.total_bookmarks}`);
+      console.info(`📈 Posts with likes: ${row.posts_with_likes}`);
+      console.info(`📈 Posts with replies: ${row.posts_with_replies}`);
     }
 
-    console.log('='.repeat(50) + '\n');
+    console.info('='.repeat(50) + '\n');
 
   } catch (error) {
     console.error('❌ Error syncing counts:', error);
@@ -102,7 +108,7 @@ async function syncMicroblogCounts() {
 
 async function main() {
   await syncMicroblogCounts();
-  console.log('🎉 Done!\n');
+  console.info('🎉 Done!\n');
   process.exit(0);
 }
 

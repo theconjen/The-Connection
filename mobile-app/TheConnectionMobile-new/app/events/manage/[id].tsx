@@ -24,11 +24,13 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { eventsAPI } from '../../../src/lib/apiClient';
+import * as ImagePicker from 'expo-image-picker';
+import apiClient, { eventsAPI } from '../../../src/lib/apiClient';
 import { useTheme } from '../../../src/contexts/ThemeContext';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { isHost } from '../../../src/lib/eventHelpers';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 type TabType = 'details' | 'rsvps' | 'settings';
@@ -106,13 +108,13 @@ export default function ManageEventScreen() {
   const eventId = parseInt(id || '0');
   const { colors, colorScheme } = useTheme();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   // Check if eventId is valid
   const isValidEventId = eventId > 0 && !isNaN(eventId);
   const styles = getStyles(colors, colorScheme);
 
-  // Active tab
-  const [activeTab, setActiveTab] = useState<TabType>('details');
+  // (tabs removed — all content is inline now)
 
   // Fetch event data
   const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
@@ -125,7 +127,7 @@ export default function ManageEventScreen() {
   const { data: rsvpsData, isLoading: rsvpsLoading } = useQuery<RsvpsManageResponse>({
     queryKey: ['event-rsvps-manage', eventId],
     queryFn: () => eventsAPI.getRsvpsManage(eventId),
-    enabled: !!eventId && activeTab === 'rsvps',
+    enabled: !!eventId,
   });
 
   // Form state (Details tab)
@@ -142,9 +144,20 @@ export default function ManageEventScreen() {
   // Date and time state
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState(new Date());
+  const [selectedEndTime, setSelectedEndTime] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+
+  // Flyer image state
+  const [flyerUri, setFlyerUri] = useState<string | null>(null); // local URI for newly picked image
+  const [flyerUrl, setFlyerUrl] = useState<string | null>(null); // existing URL from server
+  const [isUploadingFlyer, setIsUploadingFlyer] = useState(false);
+  const [flyerRemoved, setFlyerRemoved] = useState(false); // track if user explicitly removed the flyer
+  const [imagePosition, setImagePosition] = useState<'top' | 'center' | 'bottom'>('center');
+  const [targetGender, setTargetGender] = useState<'all' | 'men' | 'women'>('all');
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
 
   // Initialize form with event data
   useEffect(() => {
@@ -154,6 +167,14 @@ export default function ManageEventScreen() {
       setCategory((event.category as EventCategory) || 'Sunday Service');
       setLocation(event.location || '');
       setIsPublic(event.isPublic !== false);
+      setFlyerUrl(event.imageUrl || null);
+      setImagePosition(event.imagePosition || 'center');
+      setTargetGender(event.targetGender || 'all');
+      setSelectedAgeGroups(
+        event.targetAgeGroup
+          ? event.targetAgeGroup.split(',').filter(Boolean)
+          : []
+      );
 
       // Parse date
       if (event.eventDate) {
@@ -162,12 +183,19 @@ export default function ManageEventScreen() {
         setSelectedDate(new Date(year, month - 1, day));
       }
 
-      // Parse time
+      // Parse start time
       if (event.startTime) {
         const [hours, minutes] = event.startTime.split(':').map(Number);
         const timeDate = new Date();
         timeDate.setHours(hours, minutes, 0, 0);
         setSelectedTime(timeDate);
+      }
+      // Parse end time
+      if (event.endTime && event.endTime !== event.startTime) {
+        const [hours, minutes] = event.endTime.split(':').map(Number);
+        const endDate = new Date();
+        endDate.setHours(hours, minutes, 0, 0);
+        setSelectedEndTime(endDate);
       }
     }
   }, [event]);
@@ -239,6 +267,68 @@ export default function ManageEventScreen() {
     },
   });
 
+  const pickFlyer = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'We need permission to access your photos to add an event flyer.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.85,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setFlyerUri(result.assets[0].uri);
+        setFlyerRemoved(false);
+      }
+    } catch (error) {
+      console.error('Error picking flyer image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const removeFlyer = () => {
+    Alert.alert('Remove Flyer', 'Are you sure you want to remove the event flyer?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          setFlyerUri(null);
+          setFlyerUrl(null);
+          setFlyerRemoved(true);
+        },
+      },
+    ]);
+  };
+
+  const uploadFlyerImage = async (imageUri: string): Promise<string> => {
+    const formData = new FormData();
+    const uriParts = imageUri.split('.');
+    const fileType = uriParts[uriParts.length - 1];
+
+    formData.append('image', {
+      uri: imageUri,
+      name: `event-flyer.${fileType}`,
+      type: `image/${fileType}`,
+    } as any);
+
+    const response = await apiClient.post('/api/upload/event-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+
+    return response.data.url;
+  };
+
   const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('Error', 'Title is required');
@@ -252,10 +342,18 @@ export default function ManageEventScreen() {
     // Format date as YYYY-MM-DD
     const eventDate = selectedDate.toISOString().slice(0, 10);
 
-    // Format time as HH:MM:SS
+    // Format start time as HH:MM:SS
     const hours = selectedTime.getHours().toString().padStart(2, '0');
     const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
     const startTime = `${hours}:${minutes}:00`;
+
+    // Format end time if set
+    let endTime = startTime;
+    if (selectedEndTime) {
+      const eh = selectedEndTime.getHours().toString().padStart(2, '0');
+      const em = selectedEndTime.getMinutes().toString().padStart(2, '0');
+      endTime = `${eh}:${em}:00`;
+    }
 
     // Use coordinates from selected location suggestion, or preserve existing if location unchanged
     let latitude: number | undefined;
@@ -282,6 +380,24 @@ export default function ManageEventScreen() {
       longitude = typeof event.longitude === 'string' ? parseFloat(event.longitude) : event.longitude;
     }
 
+    // Handle flyer upload if a new image was picked
+    let imageUrl: string | null | undefined;
+    if (flyerUri) {
+      try {
+        setIsUploadingFlyer(true);
+        imageUrl = await uploadFlyerImage(flyerUri);
+      } catch (error: any) {
+        console.error('Error uploading flyer:', error);
+        Alert.alert('Upload Error', 'Failed to upload event flyer. Please try again.');
+        setIsUploadingFlyer(false);
+        return;
+      } finally {
+        setIsUploadingFlyer(false);
+      }
+    } else if (flyerRemoved) {
+      imageUrl = null; // explicitly remove flyer
+    }
+
     updateMutation.mutate({
       title: title.trim(),
       description: description.trim(),
@@ -291,8 +407,12 @@ export default function ManageEventScreen() {
       longitude,
       eventDate,
       startTime,
-      endTime: startTime,
+      endTime,
       isPublic,
+      imagePosition,
+      targetGender: targetGender === 'all' ? null : targetGender,
+      targetAgeGroup: selectedAgeGroups.length > 0 ? selectedAgeGroups.join(',') : null,
+      ...(imageUrl !== undefined && { imageUrl }),
     });
   };
 
@@ -445,62 +565,21 @@ export default function ManageEventScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Header */}
+      {/* Header: Cancel / Edit Event / Save */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          <Text style={[styles.headerAction, { color: colors.textPrimary }]}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Manage Event</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'details' && styles.tabActive]}
-          onPress={() => setActiveTab('details')}
-        >
-          <Ionicons
-            name="create-outline"
-            size={20}
-            color={activeTab === 'details' ? colors.primary : colors.textMuted}
-          />
-          <Text style={[styles.tabText, activeTab === 'details' && styles.tabTextActive]}>
-            Details
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'rsvps' && styles.tabActive]}
-          onPress={() => setActiveTab('rsvps')}
-        >
-          <Ionicons
-            name="people-outline"
-            size={20}
-            color={activeTab === 'rsvps' ? colors.primary : colors.textMuted}
-          />
-          <Text style={[styles.tabText, activeTab === 'rsvps' && styles.tabTextActive]}>
-            RSVPs
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'settings' && styles.tabActive]}
-          onPress={() => setActiveTab('settings')}
-        >
-          <Ionicons
-            name="settings-outline"
-            size={20}
-            color={activeTab === 'settings' ? colors.primary : colors.textMuted}
-          />
-          <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>
-            Settings
+        <Text style={styles.title}>Edit Event</Text>
+        <TouchableOpacity onPress={handleSave} disabled={updateMutation.isPending}>
+          <Text style={[styles.headerAction, { color: colors.primary, fontWeight: '600' }]}>
+            {updateMutation.isPending ? 'Saving...' : 'Save'}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Tab Content */}
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Details Tab */}
-        {activeTab === 'details' && (
+      {/* Content */}
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
           <View style={styles.form}>
             {/* Title */}
             <View style={styles.inputGroup}>
@@ -542,6 +621,90 @@ export default function ManageEventScreen() {
                 <Text style={styles.pickerText}>{category}</Text>
                 <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
+            </View>
+
+            {/* Target Audience: For Who */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>For Who</Text>
+              <View style={styles.chipRow}>
+                {(['all', 'men', 'women'] as const).map((val) => {
+                  const labels: Record<string, string> = { all: 'Everyone', men: 'Men', women: 'Women' };
+                  const icons: Record<string, string> = { all: 'people-outline', men: 'man-outline', women: 'woman-outline' };
+                  return (
+                    <TouchableOpacity
+                      key={val}
+                      style={[
+                        styles.audienceChip,
+                        targetGender === val
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
+                      ]}
+                      onPress={() => setTargetGender(val)}
+                    >
+                      <Ionicons
+                        name={icons[val] as any}
+                        size={16}
+                        color={targetGender === val ? '#fff' : colors.textSecondary}
+                      />
+                      <Text style={[
+                        styles.audienceChipText,
+                        { color: targetGender === val ? '#fff' : colors.textPrimary },
+                      ]}>
+                        {labels[val]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Target Audience: Age Group (multi-select) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Age Group</Text>
+              <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 6 }}>
+                Select one or more. Leave empty for all ages.
+              </Text>
+              <View style={styles.chipRow}>
+                {([
+                  ['kids', 'Kids'],
+                  ['teens', 'Teens'],
+                  ['young_adults', 'Young Adults'],
+                  ['adults', 'Adults'],
+                  ['seniors', 'Seniors'],
+                ] as const).map(([val, label]) => {
+                  const isSelected = selectedAgeGroups.includes(val);
+                  return (
+                    <TouchableOpacity
+                      key={val}
+                      style={[
+                        styles.audienceChip,
+                        isSelected
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
+                      ]}
+                      onPress={() => {
+                        setSelectedAgeGroups(prev =>
+                          isSelected
+                            ? prev.filter(v => v !== val)
+                            : [...prev, val]
+                        );
+                      }}
+                    >
+                      <Text style={[
+                        styles.audienceChipText,
+                        { color: isSelected ? '#fff' : colors.textPrimary },
+                      ]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {selectedAgeGroups.length === 0 && (
+                <Text style={{ fontSize: 12, color: colors.textMuted, fontStyle: 'italic', marginTop: 4 }}>
+                  All ages welcome
+                </Text>
+              )}
             </View>
 
             {/* Location with Autocomplete */}
@@ -619,6 +782,82 @@ export default function ManageEventScreen() {
               )}
             </View>
 
+            {/* Event Flyer */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Event Flyer</Text>
+              {flyerUri || flyerUrl ? (
+                <View style={styles.flyerContainer}>
+                  <Image
+                    source={{ uri: flyerUri || flyerUrl! }}
+                    style={styles.flyerImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.flyerOverlay}>
+                    <TouchableOpacity style={styles.flyerActionButton} onPress={pickFlyer}>
+                      <Ionicons name="pencil" size={18} color="#fff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.flyerActionButton, { backgroundColor: colors.danger }]} onPress={removeFlyer}>
+                      <Ionicons name="trash" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.addFlyerButton} onPress={pickFlyer}>
+                  <Ionicons name="camera-outline" size={24} color={colors.primary} />
+                  <Text style={styles.addFlyerText}>Add Event Flyer</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Image Position Picker - only show when flyer exists */}
+              {(flyerUri || flyerUrl) && (
+                <View style={styles.positionPickerContainer}>
+                  <Text style={styles.positionPickerLabel}>Card crop position</Text>
+                  <View style={styles.positionPickerRow}>
+                    {(['top', 'center', 'bottom'] as const).map((pos) => (
+                      <TouchableOpacity
+                        key={pos}
+                        style={[
+                          styles.positionPickerOption,
+                          imagePosition === pos && { backgroundColor: colors.primary, borderColor: colors.primary },
+                          imagePosition !== pos && { borderColor: colors.borderSubtle },
+                        ]}
+                        onPress={() => setImagePosition(pos)}
+                      >
+                        <Ionicons
+                          name={pos === 'top' ? 'arrow-up' : pos === 'bottom' ? 'arrow-down' : 'remove'}
+                          size={16}
+                          color={imagePosition === pos ? '#fff' : colors.textSecondary}
+                        />
+                        <Text style={[
+                          styles.positionPickerText,
+                          { color: imagePosition === pos ? '#fff' : colors.textPrimary },
+                        ]}>
+                          {pos.charAt(0).toUpperCase() + pos.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Live preview of card crop */}
+                  <View style={styles.positionPreviewContainer}>
+                    <Text style={styles.positionPreviewLabel}>Preview on card:</Text>
+                    <View style={styles.positionPreviewBox}>
+                      <Image
+                        source={{ uri: flyerUri || flyerUrl! }}
+                        style={[
+                          styles.positionPreviewImage,
+                          imagePosition === 'top' && { top: 0 },
+                          imagePosition === 'bottom' && { bottom: 0 },
+                          imagePosition === 'center' && { top: '50%', marginTop: -100 },
+                        ]}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+
             {/* Public/Private Toggle */}
             <View style={styles.inputGroup}>
               <View style={styles.toggleRow}>
@@ -660,9 +899,9 @@ export default function ManageEventScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Time Picker */}
+            {/* Start Time Picker */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Time *</Text>
+              <Text style={styles.label}>Start Time *</Text>
               <TouchableOpacity
                 style={styles.pickerButton}
                 onPress={() => setShowTimePicker(true)}
@@ -672,72 +911,38 @@ export default function ManageEventScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Save Button */}
-            <TouchableOpacity
-              style={[styles.saveButton, updateMutation.isPending && styles.buttonDisabled]}
-              onPress={handleSave}
-              disabled={updateMutation.isPending}
-            >
-              {updateMutation.isPending ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save Changes</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* RSVPs Tab */}
-        {activeTab === 'rsvps' && (
-          <View style={styles.rsvpsContainer}>
-            {rsvpsLoading ? (
-              <View style={styles.centered}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>Loading attendees...</Text>
-              </View>
-            ) : rsvpsData ? (
-              <>
-                {/* Summary */}
-                <View style={styles.rsvpSummary}>
-                  <Text style={styles.rsvpSummaryTitle}>Total Responses</Text>
-                  <Text style={styles.rsvpSummaryCount}>{rsvpsData.counts.total}</Text>
-                </View>
-
-                {renderRsvpSection('Going', rsvpsData.going, 'checkmark-circle', colors.success)}
-                {renderRsvpSection('Maybe', rsvpsData.maybe, 'help-circle', colors.warning)}
-                {renderRsvpSection('Not Going', rsvpsData.notGoing, 'close-circle', colors.danger)}
-              </>
-            ) : (
-              <Text style={styles.rsvpEmptyText}>No RSVP data available</Text>
-            )}
-          </View>
-        )}
-
-        {/* Settings Tab */}
-        {activeTab === 'settings' && (
-          <View style={styles.settingsContainer}>
-            <View style={styles.dangerZone}>
-              <Text style={styles.dangerZoneTitle}>Danger Zone</Text>
-              <Text style={styles.dangerZoneDescription}>
-                Cancelling an event will permanently delete it and notify all attendees via email.
-              </Text>
+            {/* End Time Picker */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>End Time</Text>
               <TouchableOpacity
-                style={[styles.cancelEventButton, cancelMutation.isPending && styles.buttonDisabled]}
-                onPress={handleCancel}
-                disabled={cancelMutation.isPending}
+                style={styles.pickerButton}
+                onPress={() => setShowEndTimePicker(true)}
               >
-                {cancelMutation.isPending ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="trash-outline" size={20} color="#fff" />
-                    <Text style={styles.cancelEventButtonText}>Cancel Event</Text>
-                  </>
-                )}
+                <Ionicons name="time-outline" size={20} color={colors.primary} />
+                <Text style={styles.pickerText}>
+                  {selectedEndTime ? formatTime(selectedEndTime) : 'No end time'}
+                </Text>
               </TouchableOpacity>
+              {selectedEndTime && (
+                <TouchableOpacity onPress={() => setSelectedEndTime(null)} style={{ marginTop: 6 }}>
+                  <Text style={{ color: colors.danger, fontSize: 14 }}>Clear end time</Text>
+                </TouchableOpacity>
+              )}
             </View>
+
+            {/* View RSVPs */}
+            <TouchableOpacity
+              style={[styles.pickerButton, { marginTop: 12 }]}
+              onPress={() => router.push({ pathname: '/events/[id]/attendees', params: { id: String(eventId) } })}
+            >
+              <Ionicons name="people-outline" size={20} color={colors.textMuted} />
+              <Text style={[styles.pickerText, { flex: 1 }]}>
+                View RSVPs ({rsvpsData?.counts?.total ?? 0})
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+
           </View>
-        )}
       </ScrollView>
 
       {/* Date Picker Modal (iOS) */}
@@ -850,6 +1055,61 @@ export default function ManageEventScreen() {
         )
       )}
 
+      {/* End Time Picker Modal (iOS) */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showEndTimePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowEndTimePicker(false)}
+        >
+          <Pressable
+            style={styles.pickerModalOverlay}
+            onPress={() => setShowEndTimePicker(false)}
+          >
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                  <Text style={styles.pickerModalCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerModalTitle}>Select End Time</Text>
+                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                  <Text style={styles.pickerModalDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedEndTime || selectedTime}
+                mode="time"
+                display="spinner"
+                is24Hour={false}
+                onChange={(event, date) => {
+                  if (date) {
+                    setSelectedEndTime(date);
+                  }
+                }}
+                themeVariant={colorScheme}
+                style={styles.iosPicker}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showEndTimePicker && (
+          <DateTimePicker
+            value={selectedEndTime || selectedTime}
+            mode="time"
+            display="default"
+            is24Hour={false}
+            onChange={(event, date) => {
+              setShowEndTimePicker(false);
+              if (date) {
+                setSelectedEndTime(date);
+              }
+            }}
+          />
+        )
+      )}
+
       {/* Category Picker Modal */}
       <Modal
         visible={showCategoryPicker}
@@ -921,6 +1181,9 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
       fontSize: 18,
       fontWeight: 'bold',
       color: colors.textPrimary,
+    },
+    headerAction: {
+      fontSize: 16,
     },
     tabBar: {
       flexDirection: 'row',
@@ -1055,11 +1318,121 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
       color: colors.textMuted,
       lineHeight: 18,
     },
+    flyerContainer: {
+      borderRadius: 8,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    flyerImage: {
+      width: '100%',
+      height: 180,
+      borderRadius: 8,
+    },
+    flyerOverlay: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      flexDirection: 'row',
+      gap: 8,
+    },
+    flyerActionButton: {
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      borderRadius: 20,
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addFlyerButton: {
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+      borderStyle: 'dashed',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    addFlyerText: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: colors.primary,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    audienceChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1,
+    },
+    audienceChipText: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    positionPickerContainer: {
+      marginTop: 12,
+    },
+    positionPickerLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    positionPickerRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    positionPickerOption: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    positionPickerText: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    positionPreviewContainer: {
+      marginTop: 12,
+    },
+    positionPreviewLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 6,
+    },
+    positionPreviewBox: {
+      height: 80,
+      borderRadius: 8,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+    },
+    positionPreviewImage: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      width: '100%',
+      height: 200,
+    },
     saveButton: {
       backgroundColor: colors.primary,
       borderRadius: 8,
       padding: 16,
       alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
       marginTop: 10,
     },
     saveButtonText: {

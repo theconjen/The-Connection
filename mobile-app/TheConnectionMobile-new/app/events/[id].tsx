@@ -13,6 +13,8 @@ import {
   Alert,
   Linking,
   Image,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -52,6 +54,8 @@ interface Event {
   userRsvpStatus?: RSVPStatus; // User's RSVP status from API
   isBookmarked?: boolean;
   creatorId: number;
+  imageUrl?: string | null; // Event flyer image
+  imagePosition?: 'top' | 'center' | 'bottom' | null; // Focal point for card/detail display
   hostUserId?: number; // Reliable host identifier
   host?: HostUser | null; // Host user info from API
   communityId?: number | null; // null = Connection Hosted event
@@ -70,6 +74,7 @@ export default function EventDetailScreen() {
   console.info('[EventDetail] MOUNTED - id param:', id, '-> eventId:', eventId);
   const [showMap, setShowMap] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showManageMenu, setShowManageMenu] = useState(false);
   const [currentRsvp, setCurrentRsvp] = useState<RSVPStatus | null>(null);
   const [rsvpFeedback, setRsvpFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -406,12 +411,36 @@ export default function EventDetailScreen() {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Event Details</Text>
-        <TouchableOpacity onPress={() => setShowShareModal(true)} style={{ padding: 8 }}>
-          <Ionicons name="paper-plane-outline" size={22} color={colors.accent} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <TouchableOpacity onPress={() => setShowShareModal(true)} style={{ padding: 8 }}>
+            <Ionicons name="paper-plane-outline" size={22} color={colors.accent} />
+          </TouchableOpacity>
+          {event && isHost(event, user?.id) && (
+            <TouchableOpacity
+              onPress={() => setShowManageMenu(true)}
+              style={{ backgroundColor: colors.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Manage</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView style={styles.content}>
+        {event.imageUrl && (
+          <View style={styles.flyerContainer}>
+            <Image
+              source={{ uri: event.imageUrl }}
+              style={[
+                styles.flyerImagePositioned,
+                event.imagePosition === 'top' && { top: 0 },
+                event.imagePosition === 'bottom' && { bottom: 0 },
+                (!event.imagePosition || event.imagePosition === 'center') && { top: '50%', marginTop: -170 },
+              ]}
+              resizeMode="cover"
+            />
+          </View>
+        )}
         <View style={styles.dateSection}>
           <View style={styles.dateBox}>
             <Text style={styles.dateMonth}>
@@ -565,17 +594,7 @@ export default function EventDetailScreen() {
         </View>
       )}
 
-      {/* Manage Event Button (host only) */}
-      {event && isHost(event, user?.id) && (
-        <View style={styles.manageEventContainer}>
-          <TouchableOpacity
-            style={[styles.manageEventButton, { backgroundColor: colors.accent }]}
-            onPress={() => router.push({ pathname: '/events/manage/[id]', params: { id: String(eventId) } })}
-          >
-            <Text style={styles.manageEventText}>Manage Event</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Manage button is now in the header */}
 
       {/* Invite Friends Button (for hosts and attendees) */}
       {event && isAuthenticated && (isHost(event, user?.id) || currentRsvp === 'going' || currentRsvp === 'maybe') && (
@@ -709,6 +728,68 @@ export default function EventDetailScreen() {
         )}
       </View>
 
+      {/* Manage Action Sheet */}
+      <Modal
+        visible={showManageMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowManageMenu(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => setShowManageMenu(false)}
+        >
+          <View style={{
+            backgroundColor: colors.surface,
+            borderRadius: 16,
+            width: '75%',
+            overflow: 'hidden',
+          }}>
+            {[
+              { label: 'Manage Event', onPress: () => router.push({ pathname: '/events/manage/[id]', params: { id: String(eventId) } }) },
+              { label: 'View Attendees', onPress: () => router.push({ pathname: '/events/[id]/attendees', params: { id: String(eventId) } }) },
+              { label: 'Send Announcement', onPress: () => setShowShareModal(true) },
+              { label: 'Edit Event', onPress: () => router.push({ pathname: '/events/manage/[id]', params: { id: String(eventId) } }) },
+              { label: 'Delete Event', onPress: () => {
+                Alert.alert('Delete Event', 'Are you sure you want to delete this event? This cannot be undone.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: async () => {
+                    try {
+                      await eventsAPI.delete(eventId);
+                      router.replace('/(tabs)/events');
+                    } catch (e) {
+                      Alert.alert('Error', 'Failed to delete event');
+                    }
+                  }},
+                ]);
+              }, danger: true },
+            ].map((item, i, arr) => (
+              <TouchableOpacity
+                key={item.label}
+                onPress={() => {
+                  setShowManageMenu(false);
+                  item.onPress();
+                }}
+                style={{
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                  borderBottomWidth: i < arr.length - 1 ? 1 : 0,
+                  borderBottomColor: colors.borderSubtle,
+                }}
+              >
+                <Text style={{
+                  fontSize: 17,
+                  color: (item as any).danger ? colors.danger : colors.textPrimary,
+                  fontWeight: '500',
+                }}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* In-App Share Modal */}
       <ShareContentModal
         visible={showShareModal}
@@ -757,6 +838,22 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
   },
   content: {
     flex: 1,
+  },
+  flyerContainer: {
+    width: '100%',
+    height: 220,
+    overflow: 'hidden',
+  },
+  flyerImage: {
+    width: '100%',
+    height: 220,
+  },
+  flyerImagePositioned: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    width: '100%',
+    height: 340,
   },
   dateSection: {
     flexDirection: 'row',

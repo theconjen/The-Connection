@@ -25,13 +25,35 @@ import {
   Image as ImageIcon,
   X,
   Users,
-  Megaphone
+  Megaphone,
+  ArrowUp,
+  Minus,
+  ArrowDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { useAuth } from "../hooks/use-auth";
 import { Link, useLocation, useParams } from "wouter";
 import type { Event, EventRsvp } from "@connection/shared/mobile-web/types";
+
+const EVENT_CATEGORIES = [
+  'Sunday Service',
+  'Worship',
+  'Bible Study',
+  'Prayer Meeting',
+  'Youth Group',
+  'Small Group',
+  'Fellowship',
+  'Outreach',
+  'Conference',
+  'Workshop',
+  'Activity',
+  'Other',
+] as const;
+
+type ImagePosition = 'top' | 'center' | 'bottom';
+type TargetGender = 'all' | 'men' | 'women';
+type AgeGroupValue = 'kids' | 'teens' | 'young_adults' | 'adults' | 'seniors';
 
 export default function EventEditPage() {
   const [, setLocation] = useLocation();
@@ -48,6 +70,10 @@ export default function EventEditPage() {
   const [isAnnouncementDialogOpen, setIsAnnouncementDialogOpen] = useState(false);
   const [announcementMessage, setAnnouncementMessage] = useState("");
   const [isSendingAnnouncement, setIsSendingAnnouncement] = useState(false);
+  const [imagePosition, setImagePosition] = useState<ImagePosition>('center');
+  const [targetGender, setTargetGender] = useState<TargetGender>('all');
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState<AgeGroupValue[]>([]);
+  const [category, setCategory] = useState<string>('Sunday Service');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -122,6 +148,14 @@ export default function EventEditPage() {
       if (event.imageUrl) {
         setImagePreview(event.imageUrl);
       }
+      setImagePosition(event.imagePosition || 'center');
+      setTargetGender(event.targetGender || 'all');
+      setSelectedAgeGroups(
+        event.targetAgeGroup
+          ? event.targetAgeGroup.split(',').filter(Boolean) as AgeGroupValue[]
+          : []
+      );
+      setCategory(event.category || 'Sunday Service');
     }
   }, [event]);
 
@@ -220,6 +254,10 @@ export default function EventEditPage() {
       await updateEventMutation.mutateAsync({
         ...formData,
         imageUrl,
+        imagePosition,
+        category,
+        targetGender: targetGender === 'all' ? null : targetGender,
+        targetAgeGroup: selectedAgeGroups.length > 0 ? selectedAgeGroups.join(',') : null,
       });
     } catch (error) {
       // Error handled in mutation
@@ -406,6 +444,124 @@ export default function EventEditPage() {
                         <span className="text-muted-foreground">Click to upload flyer</span>
                       </div>
                     </Button>
+                  )}
+
+                  {/* Image Position Picker - only when flyer exists */}
+                  {imagePreview && (
+                    <div className="space-y-2 pt-2">
+                      <Label className="text-xs text-muted-foreground">Card Crop Position</Label>
+                      <div className="flex gap-2">
+                        {([
+                          { value: 'top' as const, label: 'Top', icon: ArrowUp },
+                          { value: 'center' as const, label: 'Center', icon: Minus },
+                          { value: 'bottom' as const, label: 'Bottom', icon: ArrowDown },
+                        ]).map(({ value, label, icon: Icon }) => (
+                          <Button
+                            key={value}
+                            type="button"
+                            variant={imagePosition === value ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1 gap-1"
+                            onClick={() => setImagePosition(value)}
+                          >
+                            <Icon size={14} />
+                            {label}
+                          </Button>
+                        ))}
+                      </div>
+                      {/* Live preview */}
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Preview on card:</span>
+                        <div className="w-full h-24 rounded-lg border overflow-hidden relative">
+                          <img
+                            src={imagePreview}
+                            alt="Position preview"
+                            className="absolute left-0 right-0 w-full"
+                            style={{
+                              height: 200,
+                              objectFit: 'cover',
+                              ...(imagePosition === 'top' ? { top: 0 } : {}),
+                              ...(imagePosition === 'bottom' ? { bottom: 0 } : {}),
+                              ...(imagePosition === 'center' ? { top: '50%', transform: 'translateY(-50%)' } : {}),
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Event Type / Category */}
+                <div className="space-y-2">
+                  <Label>Event Type</Label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {EVENT_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Target Audience: For Who */}
+                <div className="space-y-2">
+                  <Label>For Who</Label>
+                  <div className="flex gap-2">
+                    {([
+                      { value: 'all' as const, label: 'Everyone' },
+                      { value: 'men' as const, label: 'Men' },
+                      { value: 'women' as const, label: 'Women' },
+                    ]).map(({ value, label }) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        variant={targetGender === value ? "default" : "outline"}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setTargetGender(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Target Audience: Age Group (multi-select) */}
+                <div className="space-y-2">
+                  <Label>Age Group</Label>
+                  <p className="text-xs text-muted-foreground">Select one or more. Leave empty for all ages.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { value: 'kids' as AgeGroupValue, label: 'Kids' },
+                      { value: 'teens' as AgeGroupValue, label: 'Teens' },
+                      { value: 'young_adults' as AgeGroupValue, label: 'Young Adults' },
+                      { value: 'adults' as AgeGroupValue, label: 'Adults' },
+                      { value: 'seniors' as AgeGroupValue, label: 'Seniors' },
+                    ]).map(({ value, label }) => {
+                      const isSelected = selectedAgeGroups.includes(value);
+                      return (
+                        <Button
+                          key={value}
+                          type="button"
+                          variant={isSelected ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setSelectedAgeGroups(prev =>
+                              isSelected
+                                ? prev.filter(v => v !== value)
+                                : [...prev, value]
+                            );
+                          }}
+                        >
+                          {label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  {selectedAgeGroups.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">All ages welcome</p>
                   )}
                 </div>
               </CardContent>

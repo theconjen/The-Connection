@@ -66,7 +66,9 @@ export function calculateEngagementScore(microblog: Microblog): number {
   const reposts = microblog.repostCount || 0;
   const comments = microblog.replyCount || 0;
 
-  return (comments * 5) + (reposts * 3) + (likes * 1);
+  // Upvotes (likes) signal resonance - people want this question answered
+  // Comments signal actual help/engagement
+  return (comments * 5) + (reposts * 3) + (likes * 3);
 }
 
 export function calculateRecencyScore(createdAt: Date): number {
