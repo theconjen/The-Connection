@@ -10,14 +10,11 @@ const getApiBaseUrl = () => {
   // Always use Render backend (no localhost fallback)
   const configApiBase = Constants.expoConfig?.extra?.apiBase;
   if (configApiBase) {
-    console.info('[API] Using Render backend:', configApiBase);
     return configApiBase;
   }
 
-  // Hardcoded fallback to Render backend (never localhost)
-  const renderUrl = 'https://api.theconnection.app';
-  console.info('[API] Using hardcoded Render backend:', renderUrl);
-  return renderUrl;
+  // Hardcoded fallback to Render backend
+  return 'https://api.theconnection.app';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -55,23 +52,15 @@ apiClient.interceptors.request.use(
         // Validate token format (JWT has 3 parts: header.payload.signature)
         const tokenParts = authToken.split('.');
         if (tokenParts.length !== 3) {
-          console.error('[API] ⚠️ MALFORMED JWT TOKEN - Expected 3 parts, got:', tokenParts.length);
-          console.error('[API] Token preview:', authToken.substring(0, 50) + '...');
-          console.error('[API] User needs to log out and log back in to get a fresh token');
-        } else {
-          console.info('[API] ✓ Valid JWT token format (3 parts)');
+          console.error('[API] Malformed JWT token - expected 3 parts, got:', tokenParts.length);
         }
 
         config.headers['Authorization'] = `Bearer ${authToken}`;
-        console.info('[API] Using JWT token for auth');
-      } else {
-        console.warn('[API] No JWT token found - user may not be authenticated');
       }
 
-      // Do NOT send session cookies - mobile apps use JWT tokens exclusively
-      // Session cookies cause the backend to ignore JWT tokens
-
-      console.info('[API Request]', config.method?.toUpperCase(), config.url);
+      if (__DEV__) {
+        console.info('[API Request]', config.method?.toUpperCase(), config.url);
+      }
     } catch (error) {
       console.error('Error reading auth credentials:', error);
     }
@@ -86,8 +75,9 @@ const delay = (ms: number) => new Promise<void>(resolve => setTimeout(() => reso
 // Response interceptor for logging, error handling, and retry logic
 apiClient.interceptors.response.use(
   async (response) => {
-    console.info('[API Response]', response.status, response.config.url);
-    // Mobile apps use JWT tokens only - do NOT capture session cookies
+    if (__DEV__) {
+      console.info('[API Response]', response.status, response.config.url);
+    }
     return response;
   },
   async (error) => {
@@ -399,6 +389,7 @@ export const eventsAPI = {
     eventDate: string;
     startTime: string;
     endTime: string;
+    imageUrl: string | null;
   }>) => apiClient.patch(`/api/events/${id}`, data).then(res => res.data),
   delete: (id: number) => apiClient.delete(`/api/events/${id}`).then(res => res.data),
   rsvp: (id: number, status: string) =>
@@ -408,6 +399,10 @@ export const eventsAPI = {
   // Send announcement to all RSVPed attendees (host only)
   announce: (id: number, message: string) =>
     apiClient.post(`/api/events/${id}/announce`, { message }).then(res => res.data),
+
+  // Attendance confirmations (post-event check-in)
+  getPendingConfirmations: () =>
+    apiClient.get('/api/events/pending-confirmations').then(res => res.data),
 
   // Event Invitations
   inviteUsers: (eventId: number, inviteeIds: number[], sendDm: boolean = true) =>
