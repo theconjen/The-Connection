@@ -7,18 +7,18 @@
  */
 
 import { neon } from '@neondatabase/serverless';
-import * as bcrypt from 'bcryptjs';
+import { hashPassword } from './utils/passwords';
 import 'dotenv/config';
 
 const sql = neon(process.env.DATABASE_URL!);
 
 async function seedDemoAccount() {
-  console.log('🌱 Creating demo account for App Store screenshots...\n');
+  console.info('🌱 Creating demo account for App Store screenshots...\n');
 
   try {
     // Hash the password
     const password = 'Demo123!';
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     // Create demo user
     const existingUser = await sql`
@@ -29,7 +29,7 @@ async function seedDemoAccount() {
 
     if (existingUser.length > 0) {
       userId = existingUser[0].id;
-      console.log(`✅ Demo user already exists (ID: ${userId}), updating...`);
+      console.info(`✅ Demo user already exists (ID: ${userId}), updating...`);
 
       await sql`
         UPDATE users SET
@@ -64,11 +64,11 @@ async function seedDemoAccount() {
         RETURNING id
       `;
       userId = result[0].id;
-      console.log(`✅ Created demo user (ID: ${userId})`);
+      console.info(`✅ Created demo user (ID: ${userId})`);
     }
 
     // Create sample microblogs
-    console.log('\n📝 Creating demo microblogs...');
+    console.info('\n📝 Creating demo microblogs...');
 
     const microblogs = [
       {
@@ -98,14 +98,14 @@ async function seedDemoAccount() {
           INSERT INTO microblogs (author_id, content, created_at)
           VALUES (${userId}, ${blog.content}, NOW() - INTERVAL '1 day' * ${daysAgo})
         `;
-        console.log(`  ✅ Added microblog: "${blog.content.substring(0, 40)}..."`);
+        console.info(`  ✅ Added microblog: "${blog.content.substring(0, 40)}..."`);
       } else {
-        console.log(`  ⏭️ Microblog already exists: "${blog.content.substring(0, 40)}..."`);
+        console.info(`  ⏭️ Microblog already exists: "${blog.content.substring(0, 40)}..."`);
       }
     }
 
     // Join demo user to communities
-    console.log('\n🏘️ Joining demo user to communities...');
+    console.info('\n🏘️ Joining demo user to communities...');
 
     const communities = await sql`
       SELECT id, name FROM communities LIMIT 5
@@ -121,14 +121,14 @@ async function seedDemoAccount() {
           INSERT INTO community_members (community_id, user_id, role, joined_at)
           VALUES (${community.id}, ${userId}, 'member', NOW())
         `;
-        console.log(`  ✅ Joined: ${community.name}`);
+        console.info(`  ✅ Joined: ${community.name}`);
       } else {
-        console.log(`  ⏭️ Already member of: ${community.name}`);
+        console.info(`  ⏭️ Already member of: ${community.name}`);
       }
     }
 
     // Add some followers for the demo user
-    console.log('\n👥 Setting up follower relationships...');
+    console.info('\n👥 Setting up follower relationships...');
 
     const otherUsers = await sql`
       SELECT id, username FROM users WHERE id != ${userId} LIMIT 10
@@ -167,11 +167,11 @@ async function seedDemoAccount() {
       }
     }
 
-    console.log(`  ✅ Added ${followersAdded} followers`);
-    console.log(`  ✅ Following ${followingAdded} users`);
+    console.info(`  ✅ Added ${followersAdded} followers`);
+    console.info(`  ✅ Following ${followingAdded} users`);
 
     // RSVP to some events
-    console.log('\n📅 RSVPing to events...');
+    console.info('\n📅 RSVPing to events...');
 
     const upcomingEvents = await sql`
       SELECT id, title FROM events
@@ -189,21 +189,21 @@ async function seedDemoAccount() {
           INSERT INTO event_rsvps (event_id, user_id, status, created_at)
           VALUES (${event.id}, ${userId}, 'going', NOW())
         `;
-        console.log(`  ✅ RSVP'd to: ${event.title}`);
+        console.info(`  ✅ RSVP'd to: ${event.title}`);
       } else {
-        console.log(`  ⏭️ Already RSVP'd to: ${event.title}`);
+        console.info(`  ⏭️ Already RSVP'd to: ${event.title}`);
       }
     }
 
-    console.log('\n✨ Demo account setup complete!\n');
-    console.log('═══════════════════════════════════════');
-    console.log('  Demo Account Credentials');
-    console.log('═══════════════════════════════════════');
-    console.log(`  Username: DemoUser`);
-    console.log(`  Password: Demo123!`);
-    console.log(`  Display Name: Sarah Grace`);
-    console.log(`  User ID: ${userId}`);
-    console.log('═══════════════════════════════════════\n');
+    console.info('\n✨ Demo account setup complete!\n');
+    console.info('═══════════════════════════════════════');
+    console.info('  Demo Account Credentials');
+    console.info('═══════════════════════════════════════');
+    console.info(`  Username: DemoUser`);
+    console.info(`  Password: Demo123!`);
+    console.info(`  Display Name: Sarah Grace`);
+    console.info(`  User ID: ${userId}`);
+    console.info('═══════════════════════════════════════\n');
 
   } catch (error) {
     console.error('❌ Error seeding demo account:', error);

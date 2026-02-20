@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   Switch,
   Alert,
-  Linking,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -361,12 +360,12 @@ export default function SettingsScreen() {
           <SettingsItem
             icon="document-text-outline"
             label="Terms of Service"
-            onPress={() => Linking.openURL('https://theconnection.app/terms')}
+            onPress={() => router.push('/terms')}
           />
           <SettingsItem
             icon="shield-outline"
             label="Privacy Policy"
-            onPress={() => Linking.openURL('https://theconnection.app/privacy')}
+            onPress={() => router.push('/privacy')}
           />
         </View>
 

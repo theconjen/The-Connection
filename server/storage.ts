@@ -106,6 +106,7 @@ import { whereNotDeleted, andNotDeleted } from "./db/helpers";
 import { geocodeAddress } from "./geocoding";
 import softDelete from './db/softDelete';
 import { extractHashtags } from './utils/hashtagExtractor';
+import { encryptMessage, decryptMessage } from './utils/encryption';
 import { extractKeywords } from './utils/keywordExtractor';
 import { isOrgBillingStatus, isOrgTier } from "../shared/orgTierPlans";
 
@@ -3450,7 +3451,7 @@ export class DbStorage implements IStorage {
 
     return messages.map(m => ({
       id: m.chat_messages.id,
-      content: m.chat_messages.content,
+      content: decryptMessage(m.chat_messages.content),
       chatRoomId: m.chat_messages.chatRoomId,
       senderId: m.chat_messages.senderId,
       isSystemMessage: m.chat_messages.isSystemMessage,
@@ -3479,7 +3480,7 @@ export class DbStorage implements IStorage {
 
     return messages.map(m => ({
       id: m.chat_messages.id,
-      content: m.chat_messages.content,
+      content: decryptMessage(m.chat_messages.content),
       chatRoomId: m.chat_messages.chatRoomId,
       senderId: m.chat_messages.senderId,
       isSystemMessage: m.chat_messages.isSystemMessage,
@@ -3489,10 +3490,11 @@ export class DbStorage implements IStorage {
   }
 
   async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const encryptedMessage = { ...message, content: encryptMessage(message.content) };
     const [newMessage] = await db.insert(chatMessages)
-      .values(message as any)
+      .values(encryptedMessage as any)
       .returning();
-    return newMessage;
+    return { ...newMessage, content: decryptMessage(newMessage.content) };
   }
   
   async deleteChatMessage(id: number): Promise<boolean> {
@@ -5669,6 +5671,7 @@ export class DbStorage implements IStorage {
 
       enrichedMessages.push({
         ...msg,
+        content: decryptMessage(msg.content),
         sender: sender ? {
           id: sender.id,
           username: sender.username,
@@ -5687,10 +5690,11 @@ export class DbStorage implements IStorage {
 
     return enrichedMessages;
   }
-  
+
   async createDirectMessage(message: any): Promise<any> {
-    const result = await db.insert(messages).values(message).returning();
-    return result[0];
+    const encryptedMessage = { ...message, content: encryptMessage(message.content) };
+    const result = await db.insert(messages).values(encryptedMessage).returning();
+    return { ...result[0], content: decryptMessage(result[0].content) };
   }
 
   async getUserConversations(userId: number): Promise<any[]> {
@@ -5734,7 +5738,7 @@ export class DbStorage implements IStorage {
 
         conversationMap.set(otherUserId, {
           otherUserId,
-          lastMessageContent: msg.content,
+          lastMessageContent: decryptMessage(msg.content),
           lastMessageTime: msg.createdAt,
           lastMessageSenderId: msg.senderId,
           unreadCount: unreadMessages[0]?.count || 0

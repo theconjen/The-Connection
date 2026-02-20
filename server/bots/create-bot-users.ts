@@ -8,7 +8,7 @@
 
 import { db } from '../db';
 import { users } from '../../packages/shared/src/schema';
-import { hash } from 'bcryptjs';
+import { hashPassword } from '../utils/passwords';
 import { eq } from 'drizzle-orm';
 
 interface BotConfig {
@@ -51,7 +51,7 @@ async function createBotUser(config: BotConfig) {
     }
 
     // Hash password
-    const hashedPassword = await hash(config.password, 10);
+    const hashedPassword = await hashPassword(config.password);
 
     // Create bot user
     const [newUser] = await db

@@ -11,7 +11,6 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -440,14 +439,14 @@ export default function RegisterScreen() {
           <View style={styles.termsContainer}>
             <Text style={styles.termsText}>By creating an account, you agree to our </Text>
             <TouchableOpacity
-              onPress={() => Linking.openURL('https://theconnection.app/terms')}
+              onPress={() => router.push('/terms')}
               disabled={isLoading}
             >
               <Text style={styles.termsLink}>Terms of Service</Text>
             </TouchableOpacity>
             <Text style={styles.termsText}> and </Text>
             <TouchableOpacity
-              onPress={() => Linking.openURL('https://theconnection.app/privacy')}
+              onPress={() => router.push('/privacy')}
               disabled={isLoading}
             >
               <Text style={styles.termsLink}>Privacy Policy</Text>

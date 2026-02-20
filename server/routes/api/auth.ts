@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import bcrypt from 'bcryptjs';
+import { hashPassword, verifyPassword } from '../../utils/passwords';
 import { storage } from '../../storage-optimized';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -114,12 +114,17 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ message: "Invalid username or password" });
     }
 
-    // Use bcrypt to compare password
-    const passwordMatches = await bcrypt.compare(password, user.password);
+    // Verify password using centralized utility (handles bcrypt + Argon2id)
+    const passwordResult = await verifyPassword(password, user.password);
 
-    if (!passwordMatches) {
+    if (!passwordResult.valid) {
       logger.warn('Login failed - invalid password', { username, userId: user.id, ip: req.ip });
       return res.status(401).json({ message: "Invalid username or password" });
+    }
+
+    // Silently upgrade bcrypt hash to Argon2id on successful login
+    if (passwordResult.upgradedHash) {
+      await storage.updateUser(user.id, { password: passwordResult.upgradedHash });
     }
 
     // SECURITY: Block login for unverified users
@@ -540,8 +545,8 @@ router.post('/auth/register', async (req, res) => {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Hash password with Argon2id
+    const passwordHash = await hashPassword(password);
 
     // Create user with age assurance fields
     const user = await storage.createUser({

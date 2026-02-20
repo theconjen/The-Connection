@@ -8,14 +8,10 @@ import 'dotenv/config';
 import { db } from './db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from './utils/passwords';
 
 // Flag users as screenshot data
 const SCREENSHOT_FLAG = '[SCREENSHOT]';
-
-async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 12);
-}
 
 const screenshotUsers = [
   {

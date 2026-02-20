@@ -523,6 +523,13 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Must be registered FIRST, before any other middleware
   app.use(wellKnownRoutes);
 
+  // Hydrate JWT token blacklist from PostgreSQL (fire-and-forget)
+  import('./lib/tokenBlacklist').then(({ initializeBlacklist }) => {
+    initializeBlacklist().catch((err) => {
+      console.error('[ROUTES] Failed to initialize token blacklist:', err.message);
+    });
+  });
+
   // Set up authentication
   setupAuth(app);
 

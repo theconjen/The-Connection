@@ -14,7 +14,7 @@ export function getSessionUserId(req: Request): number | undefined {
   // First, try session-based auth
   const normalized = normalizeSessionValue(req.session?.userId as any);
   if (normalized && normalized > 0) {
-    console.error(`[AUTH] Using session userId: ${normalized}`);
+    console.debug(`[AUTH] Using session userId: ${normalized}`);
     return normalized;
   }
 
@@ -37,10 +37,10 @@ export function getSessionUserId(req: Request): number | undefined {
       }
 
       const decoded = jwt.verify(token, jwtSecret) as { sub?: number; id?: number; userId?: number };
-      console.error('[AUTH] Decoded JWT token:', { sub: decoded.sub, id: decoded.id, userId: decoded.userId });
+      console.debug('[AUTH] Decoded JWT token:', { sub: decoded.sub, id: decoded.id, userId: decoded.userId });
       const userId = decoded.userId || decoded.sub || decoded.id;
       if (userId && userId > 0) {
-        console.error(`[AUTH] Using JWT userId: ${userId}`);
+        console.debug(`[AUTH] Using JWT userId: ${userId}`);
         return userId;
       } else {
         console.error('[AUTH] JWT token decoded but no valid userId found:', decoded);
@@ -52,7 +52,8 @@ export function getSessionUserId(req: Request): number | undefined {
     console.error('[AUTH] Authorization header present but not Bearer token:', authHeader.substring(0, 20));
   }
 
-  console.error('[AUTH] No valid authentication found');
+  // Not an error - expected for public pages (terms, privacy, health checks, etc.)
+  console.debug('[AUTH] No valid authentication found');
   return undefined;
 }
 

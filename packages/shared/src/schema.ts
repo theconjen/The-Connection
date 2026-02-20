@@ -24,6 +24,21 @@ export const platformSettings = pgTable("platform_settings", {
   updatedBy: integer("updated_by").references(() => users.id),
 });
 
+// JWT token blacklist - persists blacklisted tokens across server restarts
+export const tokenBlacklist = pgTable(
+  "token_blacklist",
+  {
+    id: serial("id").primaryKey(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("IDX_token_blacklist_hash").on(table.tokenHash),
+    index("IDX_token_blacklist_expires").on(table.expiresAt),
+  ],
+);
+
 // Password reset tokens table - stores hashed tokens for security
 export const passwordResetTokens = pgTable(
   "password_reset_tokens",

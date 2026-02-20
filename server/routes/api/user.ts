@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
+import { hashPassword, verifyPassword } from '../../utils/passwords';
 import { requireAuth } from '../../middleware/auth';
 import { storage } from '../../storage-optimized';
 import { buildErrorResponse } from '../../utils/errors';
@@ -365,13 +365,13 @@ router.post("/change-password", async (req, res) => {
     }
 
     // Verify current password
-    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
-    if (!isValidPassword) {
+    const passwordResult = await verifyPassword(currentPassword, user.password);
+    if (!passwordResult.valid) {
       return res.status(401).json({ message: 'Current password is incorrect' });
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    // Hash new password with Argon2id
+    const hashedPassword = await hashPassword(newPassword);
 
     // Update password
     await storage.updateUser(userId, { password: hashedPassword });
@@ -405,8 +405,8 @@ router.delete("/account", async (req, res) => {
     }
 
     // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
+    const passwordResult = await verifyPassword(password, user.password);
+    if (!passwordResult.valid) {
       return res.status(401).json({ message: 'Incorrect password' });
     }
 

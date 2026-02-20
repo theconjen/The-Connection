@@ -4,7 +4,7 @@ import { sendPasswordResetEmail } from './email';
 import { db } from './db';
 import { passwordResetTokens } from '@shared/schema';
 import { eq, and, gt, isNull } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from './utils/passwords';
 
 // ============================================================================
 // ENVIRONMENT & CONFIGURATION
@@ -396,8 +396,8 @@ export async function resetPassword(
       return result;
     }
 
-    // Hash and update password using bcryptjs (consistent with other server modules)
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    // Hash and update password using Argon2id
+    const hashedPassword = await hashPassword(newPassword);
     const updatedUser = await storage.updateUserPassword(user.id, hashedPassword);
 
     if (!updatedUser) {
