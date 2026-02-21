@@ -630,13 +630,14 @@ router.get('/suggestions/friends', async (req, res, next) => {
 
             // Calculate mutual communities (capped at 2) and get first shared community name
             if (communityIds.length > 0) {
+              const { inArray } = await import('drizzle-orm');
               const mutualCommunities = await db
                 .select({ communityId: communityMembers.communityId })
                 .from(communityMembers)
                 .where(
                   and(
                     eq(communityMembers.userId, user.id),
-                    sql`${communityMembers.communityId} IN (${communityIds.join(',')})`
+                    inArray(communityMembers.communityId, communityIds)
                   )
                 );
               mutualCommunitiesCount = Math.min(mutualCommunities.length, 2); // Cap at 2

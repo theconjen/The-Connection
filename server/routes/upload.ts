@@ -42,7 +42,7 @@ const upload = multer({
 /**
  * Health check for storage service
  */
-router.get('/api/upload/health', async (req: Request, res: Response) => {
+router.get('/api/upload/health', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const health = await healthCheck();
     res.json({

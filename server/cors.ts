@@ -20,9 +20,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
 ];
 
 // Patterns for Vercel preview/production deployments
-// Matches: the-connection-*.vercel.app or custom Vercel domains
-// Allows dots in branch names (e.g., feature.branch-name-abc123.vercel.app)
-const VERCEL_PATTERN = /^https:\/\/[a-z0-9.-]+\.vercel\.app$/i;
+// Only matches: the-connection*.vercel.app (project-specific deployments)
+const VERCEL_PATTERN = /^https:\/\/the-connection[a-z0-9-]*\.vercel\.app$/i;
 
 export function makeCors() {
   const allowlist = new Set<string | undefined>([undefined, ...DEFAULT_ALLOWED_ORIGINS]);

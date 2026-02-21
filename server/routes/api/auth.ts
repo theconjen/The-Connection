@@ -38,7 +38,10 @@ router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
     const { email } = req.body || {};
     if (!email) return res.status(400).json({ message: 'email required' });
 
-    const deterministic = /^(review|tester)@/i.test(String(email)) ? '111222' : undefined;
+    // SECURITY: Only allow deterministic codes via env vars (for App Store review)
+    const reviewEmail = process.env.APP_REVIEW_EMAIL;
+    const reviewCode = process.env.APP_REVIEW_CODE;
+    const deterministic = (reviewEmail && reviewCode && String(email).toLowerCase() === reviewEmail.toLowerCase()) ? reviewCode : undefined;
     const code = deterministic ?? Math.floor(100000 + Math.random() * 900000).toString();
     const token = crypto.randomBytes(16).toString('hex');
     magicStore[token] = { email, code, expiresAt: Date.now() + 1000 * 60 * 15 };
@@ -73,7 +76,12 @@ router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
     if (Date.now() > entry.expiresAt) return res.status(400).json({ message: 'expired' });
     if (entry.code !== String(code)) return res.status(400).json({ message: 'invalid code' });
 
-    const user = { id: Math.floor(Math.random() * 1000000), email: entry.email };
+    // SECURITY: Look up real user by email instead of generating synthetic ID
+    const user = await storage.getUserByEmail(entry.email);
+    if (!user) {
+      delete magicStore[token];
+      return res.status(404).json({ message: 'No account found for this email' });
+    }
     delete magicStore[token];
 
     // SECURITY: Enforce JWT_SECRET
@@ -83,8 +91,9 @@ router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
       return res.status(500).json(buildErrorResponse('Server configuration error', new Error('Missing JWT_SECRET')));
     }
 
+    const { password: _, ...userData } = user;
     const jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });
-    return res.json({ token: jwtToken, user });
+    return res.json({ token: jwtToken, user: userData });
   } catch (error) {
     console.error('Magic verify error:', error);
     res.status(500).json(buildErrorResponse('Server error during verification', error));
@@ -114,12 +123,48 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ message: "Invalid username or password" });
     }
 
+    // SECURITY: Check if account is locked out
+    if (user.lockoutUntil && new Date(user.lockoutUntil) > new Date()) {
+      const remainingMs = new Date(user.lockoutUntil).getTime() - Date.now();
+      const lockoutMinutes = Math.ceil(remainingMs / 60000);
+      logger.warn('Login blocked - account locked', { username, userId: user.id, ip: req.ip });
+      return res.status(423).json({
+        message: `Account locked due to repeated failed attempts. Try again in ${lockoutMinutes} minute(s).`
+      });
+    }
+
     // Verify password using centralized utility (handles bcrypt + Argon2id)
     const passwordResult = await verifyPassword(password, user.password);
 
     if (!passwordResult.valid) {
-      logger.warn('Login failed - invalid password', { username, userId: user.id, ip: req.ip });
+      // SECURITY: Track failed attempts and lock out after 10 failures
+      const newAttempts = (user.loginAttempts || 0) + 1;
+      const maxAttempts = 10;
+      const lockoutDuration = 2 * 60 * 60 * 1000; // 2 hours
+
+      if (newAttempts >= maxAttempts) {
+        const lockoutUntil = new Date(Date.now() + lockoutDuration);
+        await storage.updateUser(user.id, {
+          loginAttempts: newAttempts,
+          lockoutUntil,
+        });
+        logger.warn('Login failed - account locked after max attempts', { username, userId: user.id, ip: req.ip });
+        return res.status(423).json({
+          message: 'Account locked due to too many failed login attempts. Please try again in 2 hours.'
+        });
+      }
+
+      await storage.updateUser(user.id, { loginAttempts: newAttempts });
+      logger.warn('Login failed - invalid password', { username, userId: user.id, ip: req.ip, attempt: newAttempts });
       return res.status(401).json({ message: "Invalid username or password" });
+    }
+
+    // SECURITY: Reset failed login attempts on successful login
+    if (user.loginAttempts && user.loginAttempts > 0) {
+      await storage.updateUser(user.id, {
+        loginAttempts: 0,
+        lockoutUntil: null,
+      });
     }
 
     // Silently upgrade bcrypt hash to Argon2id on successful login

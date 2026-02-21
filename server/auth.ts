@@ -83,7 +83,7 @@ export function setupAuth(app: Express) {
   const registrationSchema = insertUserSchema.extend({
     username: z.string().min(3, "Username must be at least 3 characters"),
     email: z.string().email("Please enter a valid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
     displayName: z.string().min(0).optional(),
     phoneNumber: z.string().optional(),
   });
@@ -326,7 +326,7 @@ export function setupAuth(app: Express) {
           await logLoginFailed(username, `Invalid password (attempt ${newAttempts}/${maxAttempts})`, req);
 
           return res.status(401).json({
-            message: `Invalid username or password. ${maxAttempts - newAttempts} attempt(s) remaining before lockout.`
+            message: 'Invalid username or password'
           });
         }
 

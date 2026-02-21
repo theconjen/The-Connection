@@ -621,7 +621,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   if (FEATURES.NOTIFICATIONS || FEATURES.COMMUNITIES || FEATURES.POSTS || FEATURES.FEED) {
     app.use('/api/support', supportRoutes);
-    app.use('/api/debug', debugRoutes);
+    // SECURITY: Debug routes only available in non-production environments
+    if (process.env.NODE_ENV !== 'production') {
+      app.use('/api/debug', debugRoutes);
+    }
   }
 
   // Minimal MVP routes are always available under /api/mvp

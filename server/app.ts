@@ -1,4 +1,5 @@
 import "dotenv/config";
+import crypto from "crypto";
 import express from "express";
 import session from "express-session";
 import passport from "passport";
@@ -34,7 +35,7 @@ if (isProduction) {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
           styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
           imgSrc: ["'self'", "data:", "https:", "blob:"],
           connectSrc: ["'self'", "https:", "wss:"],
@@ -162,7 +163,7 @@ const sessionStore = new PgSessionStore({
 
 app.use(session({
   store: sessionStore,
-  secret: process.env.SESSION_SECRET || "theconnection-session-secret",
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
   name: 'sessionId',

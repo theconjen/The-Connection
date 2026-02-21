@@ -1,6 +1,7 @@
 // IMPORTANT: Load dotenv FIRST before any other imports
 import "dotenv/config";
 
+import crypto from "crypto";
 import express, { type NextFunction, type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
 import session from "express-session";
@@ -48,7 +49,7 @@ async function bootstrap() {
         contentSecurityPolicy: {
           directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: [
               "'self'",
               "'unsafe-inline'",
@@ -116,7 +117,7 @@ async function bootstrap() {
   const sameSiteMode: "lax" | "none" = isSecureCookie ? "none" : "lax";
 
   const sessionOptions: session.SessionOptions = {
-    secret: envConfig.sessionSecret ?? "theconnection-session-secret-dev-only",
+    secret: envConfig.sessionSecret ?? crypto.randomBytes(32).toString('hex'),
     resave: false,
     saveUninitialized: false,
     name: "sessionId",

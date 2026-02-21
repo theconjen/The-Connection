@@ -1,10 +1,29 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { sendEmail } from '../email';
 import { buildErrorResponse } from '../utils/errors';
+import { storage } from '../storage-optimized';
 
 const router = Router();
+
+// SECURITY: Rate limiters for magic code authentication
+const magicCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 magic code requests per 15 minutes
+  message: 'Too many magic code requests from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const magicVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 verification attempts per 15 minutes
+  message: 'Too many verification attempts from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // In-memory feed for MVP (volatile)
 const feed: Array<{ id: string; text: string; createdAt: string; author?: string; communityId?: number }> = [];
@@ -27,13 +46,15 @@ async function sendMagicCode(email: string, code: string) {
   }
 }
 
-// POST /api/auth/magic { email }
-router.post('/auth/magic', async (req, res) => {
+// POST /api/auth/magic { email } with rate limiting
+router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ message: 'email required' });
 
-  // Deterministic code for reviewer/demo accounts
-  const deterministic = /^(review|tester)@/i.test(String(email)) ? '111222' : undefined;
+  // SECURITY: Only allow deterministic codes via env vars (for App Store review)
+  const reviewEmail = process.env.APP_REVIEW_EMAIL;
+  const reviewCode = process.env.APP_REVIEW_CODE;
+  const deterministic = (reviewEmail && reviewCode && String(email).toLowerCase() === reviewEmail.toLowerCase()) ? reviewCode : undefined;
   const code = deterministic ?? Math.floor(100000 + Math.random() * 900000).toString();
   const token = crypto.randomBytes(16).toString('hex');
   magicStore[token] = { email, code, expiresAt: Date.now() + 1000 * 60 * 15 };
@@ -46,15 +67,20 @@ router.post('/auth/magic', async (req, res) => {
   return res.json({ token, message: 'Magic code sent' });
 });
 
-// POST /api/auth/verify { token, code } => { token: jwt, user }
-router.post('/auth/verify', async (req, res) => {
+// POST /api/auth/verify { token, code } => { token: jwt, user } with rate limiting
+router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
   const { token, code } = req.body || {};
   const entry = magicStore[token];
   if (!entry) return res.status(400).json({ message: 'invalid token' });
   if (Date.now() > entry.expiresAt) return res.status(400).json({ message: 'expired' });
   if (entry.code !== String(code)) return res.status(400).json({ message: 'invalid code' });
 
-  const user = { id: Math.floor(Math.random() * 1000000), email: entry.email };
+  // SECURITY: Look up real user by email instead of generating synthetic ID
+  const user = await storage.getUserByEmail(entry.email);
+  if (!user) {
+    delete magicStore[token];
+    return res.status(404).json({ message: 'No account found for this email' });
+  }
   delete magicStore[token];
 
   // SECURITY: Enforce JWT_SECRET
@@ -64,8 +90,9 @@ router.post('/auth/verify', async (req, res) => {
     return res.status(500).json(buildErrorResponse('Server configuration error', new Error('Missing JWT_SECRET')));
   }
 
+  const { password: _, ...userData } = user;
   const jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });
-  return res.json({ token: jwtToken, user });
+  return res.json({ token: jwtToken, user: userData });
 });
 
 // GET /api/feed - read-only array of posts (kept for MVP in-memory; real feed lives in /api/feed router)
