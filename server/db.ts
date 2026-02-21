@@ -35,6 +35,13 @@ if (isConnected && databaseUrl) {
     idleTimeoutMillis: 20000, // Close idle connections after 20s
     connectionTimeoutMillis: 10000, // Fail fast if can't connect
   });
+
+  // Prevent unhandled pool errors from crashing the process.
+  // Neon's WebSocket connections can drop due to auto-suspend, network blips,
+  // or idle timeouts — the pool recovers automatically but emits 'error' events.
+  poolInstance.on('error', (err) => {
+    console.error('[DB POOL] Connection error (non-fatal, pool will reconnect):', err.message);
+  });
 }
 
 export const sql = sqlInstance;
