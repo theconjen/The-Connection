@@ -198,6 +198,63 @@ router.post(
   }
 );
 
+// ============================================================================
+// VIDEO UPLOAD
+// ============================================================================
+
+// Configure multer for video uploads (higher file size limit)
+const videoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB max for videos
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
+    if (allowedVideoTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only mp4, mov, webm, and avi videos are allowed.'));
+    }
+  },
+});
+
+/**
+ * Upload video
+ * POST /api/upload/video
+ */
+router.post(
+  '/api/upload/video',
+  isAuthenticated,
+  videoUpload.single('video'),
+  async (req: Request, res: Response) => {
+    try {
+      const userId = requireSessionUserId(req);
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No video file uploaded' });
+      }
+
+      const url = await uploadFile(
+        req.file.buffer,
+        UploadCategory.POST_ATTACHMENTS,
+        req.file.originalname,
+        userId
+      );
+
+      res.json({
+        url,
+        filename: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        mediaType: 'video',
+      });
+    } catch (error: any) {
+      console.error('Error uploading video:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
 /**
  * Delete uploaded file
  * DELETE /api/upload/:category/:filename

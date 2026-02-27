@@ -9,6 +9,9 @@ import { buildErrorResponse } from '../../utils/errors';
 import { getSessionUserId, setSessionUserId } from '../../utils/session';
 import { generateVerificationToken, hashToken, createAndSendVerification } from '../../lib/emailVerification';
 import { logger } from '../../lib/logger';
+import { magicCodes } from '@shared/schema';
+import { db } from '../../db';
+import { eq, and, lt, isNull } from 'drizzle-orm';
 
 const router = Router();
 
@@ -29,8 +32,19 @@ const magicVerifyLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// In-memory magic code store
-const magicStore: Record<string, { email: string; code: string; expiresAt: number }> = {};
+// Helper: SHA-256 hash for magic codes
+function hashMagicCode(code: string): string {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+// Cleanup expired magic codes periodically (every hour)
+setInterval(async () => {
+  try {
+    await db.delete(magicCodes).where(lt(magicCodes.expiresAt, new Date()));
+  } catch (e) {
+    console.warn('[MAGIC] cleanup error:', e);
+  }
+}, 60 * 60 * 1000);
 
 // Magic code: POST /api/auth/magic { email } with rate limiting
 router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
@@ -44,7 +58,14 @@ router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
     const deterministic = (reviewEmail && reviewCode && String(email).toLowerCase() === reviewEmail.toLowerCase()) ? reviewCode : undefined;
     const code = deterministic ?? Math.floor(100000 + Math.random() * 900000).toString();
     const token = crypto.randomBytes(16).toString('hex');
-    magicStore[token] = { email, code, expiresAt: Date.now() + 1000 * 60 * 15 };
+
+    // Store in database with hashed code (survives server restarts)
+    await db.insert(magicCodes).values({
+      token,
+      email,
+      codeHash: hashMagicCode(code),
+      expiresAt: new Date(Date.now() + 1000 * 60 * 15),
+    });
 
     // Email the code (plain text; mock-friendly)
     try {
@@ -58,8 +79,6 @@ router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
       console.warn('[MAGIC] email send failed (mock ok):', e);
     }
 
-    // Log for QA
-
     return res.json({ token, message: 'Magic code sent' });
   } catch (error) {
     console.error('Magic auth error:', error);
@@ -71,18 +90,24 @@ router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
 router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
   try {
     const { token, code } = req.body || {};
-    const entry = magicStore[token];
+
+    // Look up magic code from database
+    const [entry] = await db.select().from(magicCodes).where(
+      and(eq(magicCodes.token, token), isNull(magicCodes.usedAt))
+    );
     if (!entry) return res.status(400).json({ message: 'invalid token' });
-    if (Date.now() > entry.expiresAt) return res.status(400).json({ message: 'expired' });
-    if (entry.code !== String(code)) return res.status(400).json({ message: 'invalid code' });
+    if (new Date() > entry.expiresAt) return res.status(400).json({ message: 'expired' });
+    if (entry.codeHash !== hashMagicCode(String(code))) return res.status(400).json({ message: 'invalid code' });
 
     // SECURITY: Look up real user by email instead of generating synthetic ID
     const user = await storage.getUserByEmail(entry.email);
     if (!user) {
-      delete magicStore[token];
+      // Mark as used even if no user found
+      await db.update(magicCodes).set({ usedAt: new Date() }).where(eq(magicCodes.token, token));
       return res.status(404).json({ message: 'No account found for this email' });
     }
-    delete magicStore[token];
+    // Mark token as used
+    await db.update(magicCodes).set({ usedAt: new Date() }).where(eq(magicCodes.token, token));
 
     // SECURITY: Enforce JWT_SECRET
     const jwtSecret = process.env.JWT_SECRET;
@@ -180,6 +205,34 @@ router.post('/auth/login', async (req, res) => {
         message: 'Please verify your email address before logging in.',
         email: user.email,
       });
+    }
+
+    // 2FA CHECK: If user has 2FA enabled, require TOTP code
+    if ((user as any).twoFactorEnabled) {
+      const { totpCode } = req.body;
+
+      if (!totpCode) {
+        // First step: password correct, but 2FA code needed
+        return res.status(200).json({
+          requires2FA: true,
+          userId: user.id,
+          message: 'Two-factor authentication code required',
+        });
+      }
+
+      // Verify TOTP code
+      try {
+        const { verifySync } = await import('otplib');
+        const secret = (user as any).twoFactorSecret;
+
+        if (!secret || !verifySync({ token: totpCode, secret }).valid) {
+          logger.warn('Login failed - invalid 2FA code', { userId: user.id, ip: req.ip });
+          return res.status(401).json({ message: 'Invalid two-factor authentication code' });
+        }
+      } catch (e) {
+        logger.error('2FA verification error', { userId: user.id, error: e });
+        return res.status(500).json({ message: 'Error verifying two-factor code' });
+      }
     }
 
     // Return user data (excluding password)
@@ -630,6 +683,116 @@ router.post('/auth/register', async (req, res) => {
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json(buildErrorResponse('Server error during registration', error));
+  }
+});
+
+// ============================================================================
+// TWO-FACTOR AUTHENTICATION (TOTP)
+// ============================================================================
+
+import { requireAuth } from '../../middleware/auth';
+
+// Setup 2FA: generate secret and return QR code URI
+router.post('/auth/2fa/setup', requireAuth, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if ((user as any).twoFactorEnabled) {
+      return res.status(400).json({ error: '2FA is already enabled' });
+    }
+
+    const { generateSecret, generateURI } = await import('otplib');
+
+    const secret = generateSecret();
+    const otpauthUrl = generateURI({ issuer: 'The Connection', label: user.email, secret });
+
+    // Store the secret temporarily (not yet enabled)
+    await storage.updateUser(userId, { twoFactorSecret: secret } as any);
+
+    res.json({
+      secret,
+      otpauthUrl,
+      message: 'Scan the QR code with your authenticator app, then verify with a code',
+    });
+  } catch (error) {
+    console.error('2FA setup error:', error);
+    res.status(500).json(buildErrorResponse('Error setting up 2FA', error));
+  }
+});
+
+// Verify and enable 2FA
+router.post('/auth/2fa/verify', requireAuth, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+    const { code } = req.body;
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Verification code is required' });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const secret = (user as any).twoFactorSecret;
+    if (!secret) {
+      return res.status(400).json({ error: 'No 2FA setup in progress. Call /auth/2fa/setup first.' });
+    }
+
+    const { verifySync } = await import('otplib');
+
+    if (!verifySync({ token: code, secret }).valid) {
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    // Enable 2FA
+    await storage.updateUser(userId, { twoFactorEnabled: true } as any);
+
+    res.json({ message: 'Two-factor authentication enabled successfully' });
+  } catch (error) {
+    console.error('2FA verify error:', error);
+    res.status(500).json(buildErrorResponse('Error verifying 2FA', error));
+  }
+});
+
+// Disable 2FA (requires password confirmation)
+router.post('/auth/2fa/disable', requireAuth, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required to disable 2FA' });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!(user as any).twoFactorEnabled) {
+      return res.status(400).json({ error: '2FA is not enabled' });
+    }
+
+    // Verify password
+    const passwordResult = await verifyPassword(password, user.password);
+    if (!passwordResult.valid) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    // Disable 2FA and clear secret
+    await storage.updateUser(userId, {
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+    } as any);
+
+    res.json({ message: 'Two-factor authentication disabled' });
+  } catch (error) {
+    console.error('2FA disable error:', error);
+    res.status(500).json(buildErrorResponse('Error disabling 2FA', error));
   }
 });
 

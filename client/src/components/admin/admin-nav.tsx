@@ -13,7 +13,8 @@ import {
   GraduationCap,
   BookOpen,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Ban
 } from "lucide-react";
 import {
   Collapsible,
@@ -44,6 +45,11 @@ export function AdminNav() {
       title: "Content Moderation",
       href: "/admin/moderation",
       icon: <Shield className="h-4 w-4 mr-2" />,
+    },
+    {
+      title: "Suspensions",
+      href: "/admin/suspensions",
+      icon: <Ban className="h-4 w-4 mr-2" />,
     },
     {
       title: "Applications",

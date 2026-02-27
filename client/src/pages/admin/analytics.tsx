@@ -1,252 +1,380 @@
 /**
  * Admin Analytics Page
- * Shows platform-wide statistics and metrics
+ * Shows platform-wide statistics, trends, and moderation metrics with charts
  */
 
 import { useQuery } from '@tanstack/react-query';
 import AdminLayout from '../../components/layouts/admin-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Loader2, Users, MessageSquare, Calendar, BookOpen, Heart, TrendingUp, Activity } from 'lucide-react';
+import { Loader2, Users, Shield, TrendingUp, Activity, AlertTriangle } from 'lucide-react';
 import { apiUrl } from '../../lib/env';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
 
-interface PlatformStats {
-  users: {
-    total: number;
-    newThisWeek: number;
-    newThisMonth: number;
-    active: number;
-  };
-  communities: {
-    total: number;
-    members: number;
-  };
-  content: {
-    microblogs: number;
-    events: number;
-    prayerRequests: number;
-    apologeticsArticles: number;
-  };
-  engagement: {
-    messagesThisWeek: number;
-    eventsThisMonth: number;
-  };
+// --- Types ---
+
+interface OverviewData {
+  totalUsers: number;
+  dailyActiveUsers: number;
+  weeklyActiveUsers: number;
+  monthlyActiveUsers: number;
+  pendingReports: number;
+}
+
+interface SignupsByDay {
+  signupsByDay: Array<{ date: string; count: number }>;
+}
+
+interface ContentByDay {
+  contentByDay: Array<{ date: string; microblogs: number; events: number }>;
+}
+
+interface ModerationData {
+  reportsByStatus: { pending: number; reviewed: number; dismissed: number };
+  suspensionsByType: { warning: number; suspension: number; ban: number };
+}
+
+// --- Helper to safely fetch with fallback ---
+
+async function fetchWithFallback<T>(url: string, fallback: T): Promise<T> {
+  try {
+    const res = await fetch(apiUrl(url), { credentials: 'include' });
+    if (!res.ok) return fallback;
+    return await res.json();
+  } catch {
+    return fallback;
+  }
+}
+
+// --- Stat Card Component ---
+
+function StatCard({
+  title,
+  value,
+  description,
+  colorClass = '',
+}: {
+  title: string;
+  value: number | string;
+  description: string;
+  colorClass?: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardDescription>{title}</CardDescription>
+        <CardTitle className={`text-3xl ${colorClass}`}>{value}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// --- Fallback Card for unavailable data ---
+
+function DataUnavailableCard({ title }: { title: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">{title}</CardTitle>
+        <CardDescription>Data not available</CardDescription>
+      </CardHeader>
+      <CardContent className="flex items-center justify-center py-8">
+        <div className="text-center text-muted-foreground">
+          <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">Unable to load this data. The endpoint may not be configured yet.</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function AnalyticsPage() {
-  // Fetch platform stats
-  const { data: stats, isLoading } = useQuery<PlatformStats>({
-    queryKey: ['/api/admin/platform-stats'],
-    queryFn: async () => {
-      const res = await fetch(apiUrl('/api/admin/platform-stats'));
-      if (!res.ok) {
-        // Return default stats if endpoint doesn't exist
-        return {
-          users: { total: 0, newThisWeek: 0, newThisMonth: 0, active: 0 },
-          communities: { total: 0, members: 0 },
-          content: { microblogs: 0, events: 0, prayerRequests: 0, apologeticsArticles: 0 },
-          engagement: { messagesThisWeek: 0, eventsThisMonth: 0 }
-        };
-      }
-      return res.json();
-    },
-    retry: false
+  // Fetch overview metrics
+  const {
+    data: overview,
+    isLoading: overviewLoading,
+    isError: overviewError,
+  } = useQuery<OverviewData>({
+    queryKey: ['admin-analytics-overview'],
+    queryFn: () =>
+      fetchWithFallback('/api/admin/analytics/overview', {
+        totalUsers: 0,
+        dailyActiveUsers: 0,
+        weeklyActiveUsers: 0,
+        monthlyActiveUsers: 0,
+        pendingReports: 0,
+      }),
+    retry: false,
+    staleTime: 60_000,
   });
 
-  // Fetch user count as a fallback
-  const { data: userCount } = useQuery<{ count: number }>({
-    queryKey: ['/api/admin/users/count'],
-    queryFn: async () => {
-      const res = await fetch(apiUrl('/api/admin/users?count=true'));
-      if (!res.ok) return { count: 0 };
-      const data = await res.json();
-      return { count: Array.isArray(data) ? data.length : data.count || 0 };
-    },
-    retry: false
+  // Fetch signup trend (last 30 days)
+  const {
+    data: signupData,
+    isLoading: signupLoading,
+    isError: signupError,
+  } = useQuery<SignupsByDay>({
+    queryKey: ['admin-analytics-users'],
+    queryFn: () =>
+      fetchWithFallback('/api/admin/analytics/users', { signupsByDay: [] }),
+    retry: false,
+    staleTime: 60_000,
   });
+
+  // Fetch content creation trend
+  const {
+    data: contentData,
+    isLoading: contentLoading,
+    isError: contentError,
+  } = useQuery<ContentByDay>({
+    queryKey: ['admin-analytics-content'],
+    queryFn: () =>
+      fetchWithFallback('/api/admin/analytics/content', { contentByDay: [] }),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  // Fetch moderation stats
+  const {
+    data: moderationData,
+    isLoading: moderationLoading,
+    isError: moderationError,
+  } = useQuery<ModerationData>({
+    queryKey: ['admin-analytics-moderation'],
+    queryFn: () =>
+      fetchWithFallback('/api/admin/analytics/moderation', {
+        reportsByStatus: { pending: 0, reviewed: 0, dismissed: 0 },
+        suspensionsByType: { warning: 0, suspension: 0, ban: 0 },
+      }),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const isInitialLoading = overviewLoading && signupLoading && contentLoading && moderationLoading;
+
+  // Format date labels for charts (e.g. "Jan 15")
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
 
   return (
     <AdminLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Analytics</h1>
-        <p className="text-gray-500">Platform statistics and metrics</p>
+        <p className="text-gray-500">Platform statistics, trends, and moderation metrics</p>
       </div>
 
-      {isLoading ? (
+      {isInitialLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
         <div className="space-y-8">
-          {/* User Stats */}
+          {/* Section 1: Overview Cards */}
           <div>
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              User Statistics
+              User Overview
             </h2>
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Total Users</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {stats?.users?.total || userCount?.count || 0}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">All registered accounts</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>New This Week</CardDescription>
-                  <CardTitle className="text-3xl text-green-600">
-                    +{stats?.users?.newThisWeek || 0}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">Users joined in last 7 days</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>New This Month</CardDescription>
-                  <CardTitle className="text-3xl text-blue-600">
-                    +{stats?.users?.newThisMonth || 0}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">Users joined in last 30 days</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Active Users</CardDescription>
-                  <CardTitle className="text-3xl text-purple-600">
-                    {stats?.users?.active || 0}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">Active in last 7 days</p>
-                </CardContent>
-              </Card>
-            </div>
+            {overviewError || !overview ? (
+              <DataUnavailableCard title="User Overview" />
+            ) : (
+              <div className="grid gap-4 md:grid-cols-4">
+                <StatCard
+                  title="Total Users"
+                  value={overview.totalUsers.toLocaleString()}
+                  description="All registered accounts"
+                />
+                <StatCard
+                  title="Daily Active Users"
+                  value={overview.dailyActiveUsers.toLocaleString()}
+                  description="Active in last 24 hours"
+                  colorClass="text-green-600"
+                />
+                <StatCard
+                  title="Weekly Active Users"
+                  value={overview.weeklyActiveUsers.toLocaleString()}
+                  description="Active in last 7 days"
+                  colorClass="text-blue-600"
+                />
+                <StatCard
+                  title="Monthly Active Users"
+                  value={overview.monthlyActiveUsers.toLocaleString()}
+                  description="Active in last 30 days"
+                  colorClass="text-purple-600"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Content Stats */}
-          <div>
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
-              Content Statistics
-            </h2>
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4" />
-                    Advice Posts
-                  </CardDescription>
-                  <CardTitle className="text-3xl">
-                    {stats?.content?.microblogs || 0}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Events
-                  </CardDescription>
-                  <CardTitle className="text-3xl">
-                    {stats?.content?.events || 0}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center gap-2">
-                    <Heart className="h-4 w-4" />
-                    Prayer Requests
-                  </CardDescription>
-                  <CardTitle className="text-3xl">
-                    {stats?.content?.prayerRequests || 0}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    Apologetics Articles
-                  </CardDescription>
-                  <CardTitle className="text-3xl">
-                    {stats?.content?.apologeticsArticles || 0}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-            </div>
-          </div>
-
-          {/* Community Stats */}
-          <div>
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Community Statistics
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Total Communities</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {stats?.communities?.total || 0}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">Active community groups</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Total Memberships</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {stats?.communities?.members || 0}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">Users in communities</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Engagement Stats */}
+          {/* Section 2: Signup Trend Line Chart */}
           <div>
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Engagement
+              Signup Trend (Last 30 Days)
             </h2>
-            <div className="grid gap-4 md:grid-cols-2">
+            {signupError || !signupData || signupData.signupsByDay.length === 0 ? (
+              <DataUnavailableCard title="Signup Trend" />
+            ) : (
               <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Messages This Week</CardDescription>
-                  <CardTitle className="text-3xl text-green-600">
-                    {stats?.engagement?.messagesThisWeek || 0}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">Direct and community messages</p>
+                <CardContent className="pt-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart
+                      data={signupData.signupsByDay}
+                      margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatDate}
+                        tick={{ fontSize: 12 }}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                      <Tooltip
+                        labelFormatter={formatDate}
+                        formatter={(value: number) => [value, 'New signups']}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#6366f1"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                        name="Signups"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
+            )}
+          </div>
+
+          {/* Section 3: Content Creation Bar Chart */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Content Creation (Last 30 Days)
+            </h2>
+            {contentError || !contentData || contentData.contentByDay.length === 0 ? (
+              <DataUnavailableCard title="Content Creation" />
+            ) : (
               <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Events This Month</CardDescription>
-                  <CardTitle className="text-3xl text-blue-600">
-                    {stats?.engagement?.eventsThisMonth || 0}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">Events created this month</p>
+                <CardContent className="pt-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={contentData.contentByDay}
+                      margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatDate}
+                        tick={{ fontSize: 12 }}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                      <Tooltip labelFormatter={formatDate} />
+                      <Legend />
+                      <Bar
+                        dataKey="microblogs"
+                        fill="#6366f1"
+                        name="Advice Posts"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="events"
+                        fill="#f59e0b"
+                        name="Events"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
-            </div>
+            )}
+          </div>
+
+          {/* Section 4: Moderation Stats */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Moderation Overview
+            </h2>
+            {moderationError || !moderationData ? (
+              <DataUnavailableCard title="Moderation Overview" />
+            ) : (
+              <div className="space-y-4">
+                {/* Reports by Status */}
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">Reports by Status</h3>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <StatCard
+                      title="Pending Reports"
+                      value={moderationData.reportsByStatus.pending}
+                      description="Awaiting moderator review"
+                      colorClass="text-amber-600"
+                    />
+                    <StatCard
+                      title="Reviewed Reports"
+                      value={moderationData.reportsByStatus.reviewed}
+                      description="Action taken by moderator"
+                      colorClass="text-green-600"
+                    />
+                    <StatCard
+                      title="Dismissed Reports"
+                      value={moderationData.reportsByStatus.dismissed}
+                      description="No action required"
+                      colorClass="text-gray-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Suspensions by Type */}
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">Suspensions by Type</h3>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <StatCard
+                      title="Warnings"
+                      value={moderationData.suspensionsByType.warning}
+                      description="Users warned"
+                      colorClass="text-yellow-600"
+                    />
+                    <StatCard
+                      title="Suspensions"
+                      value={moderationData.suspensionsByType.suspension}
+                      description="Temporary suspensions"
+                      colorClass="text-orange-600"
+                    />
+                    <StatCard
+                      title="Bans"
+                      value={moderationData.suspensionsByType.ban}
+                      description="Permanent bans"
+                      colorClass="text-red-600"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

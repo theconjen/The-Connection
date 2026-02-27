@@ -1,4 +1,4 @@
-gfimport { http } from '../http';
+import { http } from '../http';
 import { FeedZ, FeedPageZ, type Feed, type FeedPage } from '../app-schema';
 
 export async function getFeed(): Promise<Feed> {

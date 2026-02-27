@@ -134,9 +134,96 @@ async function fixSoleMemberOwnership() {
   console.info(`\n✨ Fixed ownership for ${fixed} communities.`);
 }
 
+// Location-based communities: rename from Texas to Detroit/Metro Detroit
+const LOCATION_COMMUNITY_UPDATES = [
+  {
+    oldSlug: 'dfw-christians',
+    newSlug: 'detroit-christians',
+    name: 'Detroit City Christians',
+    description: 'Connecting believers in the Motor City. Local events, churches, and community.',
+    city: 'Detroit',
+    state: 'MI',
+    latitude: '42.3314',
+    longitude: '-83.0458',
+  },
+  {
+    oldSlug: 'austin-faith',
+    newSlug: 'dearborn-faith',
+    name: 'Dearborn Faith Community',
+    description: 'Building bridges of faith in Dearborn. Connecting Christians across the community.',
+    city: 'Dearborn',
+    state: 'MI',
+    latitude: '42.3223',
+    longitude: '-83.1763',
+  },
+  {
+    oldSlug: 'houston-believers',
+    newSlug: 'royal-oak-believers',
+    name: 'Royal Oak Believers',
+    description: 'Metro Detroit Christians connecting in Royal Oak. Churches, events, and fellowship.',
+    city: 'Royal Oak',
+    state: 'MI',
+    latitude: '42.4895',
+    longitude: '-83.1446',
+  },
+  {
+    oldSlug: 'san-antonio-christians',
+    newSlug: 'ann-arbor-christians',
+    name: 'Ann Arbor Christians',
+    description: 'Believers in Ann Arbor and Washtenaw County. Church connections and community.',
+    city: 'Ann Arbor',
+    state: 'MI',
+    latitude: '42.2808',
+    longitude: '-83.7430',
+  },
+];
+
+async function updateLocationCommunities() {
+  console.info('\n🏙️  Updating location-based communities to Detroit/Metro Detroit...\n');
+
+  let updated = 0;
+  for (const update of LOCATION_COMMUNITY_UPDATES) {
+    const existing = await db.select().from(communities)
+      .where(eq(communities.slug, update.oldSlug))
+      .limit(1);
+
+    if (existing.length === 0) {
+      // Try with the new slug (already updated)
+      const alreadyUpdated = await db.select().from(communities)
+        .where(eq(communities.slug, update.newSlug))
+        .limit(1);
+
+      if (alreadyUpdated.length > 0) {
+        console.info(`⏭️  ${update.name}: Already updated`);
+      } else {
+        console.info(`⚠️  ${update.oldSlug}: Not found in database`);
+      }
+      continue;
+    }
+
+    await db.update(communities)
+      .set({
+        name: update.name,
+        slug: update.newSlug,
+        description: update.description,
+        city: update.city,
+        state: update.state,
+        latitude: update.latitude,
+        longitude: update.longitude,
+      })
+      .where(eq(communities.id, existing[0].id));
+
+    console.info(`✅ ${update.oldSlug} → ${update.name} (${update.city}, ${update.state})`);
+    updated++;
+  }
+
+  console.info(`\n✨ Updated ${updated} location-based communities.`);
+}
+
 async function main() {
   try {
     await updateLocations();
+    await updateLocationCommunities();
     await fixSoleMemberOwnership();
     console.info('\n🎉 All fixes complete!');
     process.exit(0);

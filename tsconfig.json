@@ -18,7 +18,18 @@
     "**/*.native.tsx",
     "**/*.native.d.ts",
     "mobile-app/**",
-    "packages/*/src/**/native/**"
+    "packages/*/src/**/native/**",
+    "server/debug-data.ts",
+    "server/check-database-status.ts",
+    "server/check-user-profile.ts",
+    "server/cleanup-old-communities.ts",
+    "server/test-direct-update.ts",
+    "server/scripts/check-storage.ts",
+    "server/scripts/debug-feed.ts",
+    "server/scripts/request-feed.ts",
+    "server/scripts/test-category-filter.ts",
+    "server/scripts/debug-communities.ts",
+    "server/test-recommendations.ts"
   ],
   "compilerOptions": {
     "incremental": true,

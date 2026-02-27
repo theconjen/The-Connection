@@ -947,6 +947,27 @@ router.post('/events/:id/rsvp', requireAuth, async (req, res) => {
       action: normalizedStatus === 'not_going' ? 'remove' : 'add',
     });
 
+    // Notify event host about new RSVP (skip if self-RSVP or cancellation)
+    if (normalizedStatus !== 'not_going' && event.createdBy && event.createdBy !== userId) {
+      const rsvpUser = await storage.getUser(userId);
+      const rsvpName = getUserDisplayName(rsvpUser);
+      const statusLabel = normalizedStatus === 'going' ? 'is going to' : 'is interested in';
+
+      notifyUserWithPreferences(event.createdBy, {
+        title: `New RSVP for ${truncateText(event.title, 40)}`,
+        body: `${rsvpName} ${statusLabel} your event`,
+        data: {
+          type: 'event_rsvp',
+          eventId: event.id,
+          userId,
+          status: normalizedStatus,
+        },
+        category: 'event',
+      }).catch(error => {
+        console.error('[Events] Error notifying event host about RSVP:', error);
+      });
+    }
+
     // If we just hit 20 RSVPs, notify users about popular event
     if (attendingCountBefore < 20 && attendingCountAfter >= 20) {
       console.info(`[Events] Event ${eventId} reached 20 RSVPs! This event is trending!`);
@@ -2118,6 +2139,317 @@ router.get('/events/:id/nearby-users-count', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error counting nearby users:', error);
     res.status(500).json(buildErrorResponse('Error counting nearby users', error));
+  }
+});
+
+// ============================================================================
+// RECURRING EVENTS
+// ============================================================================
+
+// Create a recurring event (generates instances)
+router.post('/events/recurring', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const { recurrenceRule, recurrenceEndDate, instances = 12, ...eventData } = req.body;
+
+    if (!recurrenceRule) {
+      return res.status(400).json({ error: 'recurrenceRule is required (iCal RRULE format)' });
+    }
+
+    // Create the parent event
+    const parentEvent = await storage.createEvent({
+      ...eventData,
+      creatorId: userId,
+      recurrenceRule,
+      recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : null,
+    });
+
+    // Parse recurrence and generate instances
+    const generatedEvents = [parentEvent];
+    const freq = recurrenceRule.match(/FREQ=(\w+)/)?.[1];
+    const interval = parseInt(recurrenceRule.match(/INTERVAL=(\d+)/)?.[1] || '1');
+
+    if (freq && eventData.eventDate) {
+      const baseDate = new Date(eventData.eventDate);
+      const endDateStr = eventData.eventEndDate;
+      const baseDuration = endDateStr ? (new Date(endDateStr).getTime() - baseDate.getTime()) : 0;
+
+      for (let i = 1; i < instances; i++) {
+        const instanceDate = new Date(baseDate);
+
+        switch (freq) {
+          case 'DAILY':
+            instanceDate.setDate(instanceDate.getDate() + (i * interval));
+            break;
+          case 'WEEKLY':
+            instanceDate.setDate(instanceDate.getDate() + (i * 7 * interval));
+            break;
+          case 'MONTHLY':
+            instanceDate.setMonth(instanceDate.getMonth() + (i * interval));
+            break;
+        }
+
+        // Stop if past recurrence end date
+        if (recurrenceEndDate && instanceDate > new Date(recurrenceEndDate)) break;
+
+        const instanceEndDate = baseDuration > 0
+          ? new Date(instanceDate.getTime() + baseDuration).toISOString().split('T')[0]
+          : undefined;
+
+        try {
+          const instance = await storage.createEvent({
+            ...eventData,
+            creatorId: userId,
+            eventDate: instanceDate.toISOString().split('T')[0],
+            eventEndDate: instanceEndDate,
+            parentEventId: parentEvent.id,
+          });
+          generatedEvents.push(instance);
+        } catch (e) {
+          console.error(`Failed to create recurring instance ${i}:`, e);
+        }
+      }
+    }
+
+    res.status(201).json({
+      parentEvent,
+      instances: generatedEvents.length,
+      events: generatedEvents,
+    });
+  } catch (error) {
+    console.error('Error creating recurring event:', error);
+    res.status(500).json(buildErrorResponse('Error creating recurring event', error));
+  }
+});
+
+// ============================================================================
+// QR CHECK-IN
+// ============================================================================
+
+// Check in to an event
+router.post('/events/:id/checkin', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: 'Invalid event ID' });
+    }
+
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const { method } = req.body; // 'qr' or 'manual'
+
+    const { db } = await import('../db');
+    const { eventCheckins } = await import('@shared/schema');
+    const { and, eq } = await import('drizzle-orm');
+
+    // Check if already checked in
+    const existing = await db.select()
+      .from(eventCheckins)
+      .where(and(eq(eventCheckins.eventId, eventId), eq(eventCheckins.userId, userId)));
+
+    if (existing.length > 0) {
+      return res.json({ message: 'Already checked in', checkin: existing[0] });
+    }
+
+    const [checkin] = await db.insert(eventCheckins).values({
+      eventId,
+      userId,
+      method: method || 'manual',
+    } as any).returning();
+
+    res.status(201).json(checkin);
+  } catch (error) {
+    console.error('Error checking in:', error);
+    res.status(500).json(buildErrorResponse('Error checking in', error));
+  }
+});
+
+// Get check-ins for an event (host only)
+router.get('/events/:id/checkins', requireAuth, async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id);
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: 'Invalid event ID' });
+    }
+
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    // Verify user is the event creator
+    const event = await storage.getEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    if (event.creatorId !== userId) {
+      return res.status(403).json({ error: 'Only the event host can view check-ins' });
+    }
+
+    const { db } = await import('../db');
+    const { eventCheckins, users } = await import('@shared/schema');
+    const { eq } = await import('drizzle-orm');
+
+    const checkins = await db.select({
+      id: eventCheckins.id,
+      userId: eventCheckins.userId,
+      username: users.username,
+      displayName: users.displayName,
+      avatarUrl: users.avatarUrl,
+      checkedInAt: eventCheckins.checkedInAt,
+      method: eventCheckins.method,
+    })
+    .from(eventCheckins)
+    .innerJoin(users, eq(eventCheckins.userId, users.id))
+    .where(eq(eventCheckins.eventId, eventId));
+
+    res.json(checkins);
+  } catch (error) {
+    console.error('Error fetching check-ins:', error);
+    res.status(500).json(buildErrorResponse('Error fetching check-ins', error));
+  }
+});
+
+// ============================================================================
+// EVENT TEMPLATES
+// ============================================================================
+
+// Save an event as a template
+router.post('/event-templates', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const { name, templateData, communityId } = req.body;
+
+    if (!name || !templateData) {
+      return res.status(400).json({ error: 'name and templateData are required' });
+    }
+
+    const { db } = await import('../db');
+    const { eventTemplates } = await import('@shared/schema');
+
+    const [template] = await db.insert(eventTemplates).values({
+      creatorId: userId,
+      communityId: communityId || null,
+      name,
+      templateData,
+    } as any).returning();
+
+    res.status(201).json(template);
+  } catch (error) {
+    console.error('Error creating event template:', error);
+    res.status(500).json(buildErrorResponse('Error creating event template', error));
+  }
+});
+
+// List event templates
+router.get('/event-templates', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const communityId = req.query.communityId ? parseInt(req.query.communityId as string) : undefined;
+
+    const { db } = await import('../db');
+    const { eventTemplates } = await import('@shared/schema');
+    const { eq, or, and, isNull, desc } = await import('drizzle-orm');
+
+    let results;
+    if (communityId) {
+      results = await db.select().from(eventTemplates)
+        .where(or(
+          eq(eventTemplates.creatorId, userId),
+          eq(eventTemplates.communityId, communityId)
+        ))
+        .orderBy(desc(eventTemplates.createdAt));
+    } else {
+      results = await db.select().from(eventTemplates)
+        .where(eq(eventTemplates.creatorId, userId))
+        .orderBy(desc(eventTemplates.createdAt));
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error('Error listing event templates:', error);
+    res.status(500).json(buildErrorResponse('Error listing event templates', error));
+  }
+});
+
+// Create event from template
+router.post('/events/from-template/:templateId', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const templateId = parseInt(req.params.templateId);
+    if (isNaN(templateId)) {
+      return res.status(400).json({ error: 'Invalid template ID' });
+    }
+
+    const { db } = await import('../db');
+    const { eventTemplates } = await import('@shared/schema');
+    const { eq } = await import('drizzle-orm');
+
+    const templates = await db.select().from(eventTemplates).where(eq(eventTemplates.id, templateId));
+    if (templates.length === 0) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    const template = templates[0];
+    const data = template.templateData as any;
+
+    // Merge template data with overrides from request body
+    const eventData = {
+      ...data,
+      ...req.body,
+      creatorId: userId,
+      communityId: req.body.communityId || template.communityId || data.communityId,
+    };
+
+    // eventDate and startTime/endTime must be provided
+    if (!eventData.eventDate || !eventData.startTime || !eventData.endTime) {
+      return res.status(400).json({
+        error: 'eventDate, startTime, and endTime are required when creating from template',
+      });
+    }
+
+    const event = await storage.createEvent(eventData);
+    res.status(201).json(event);
+  } catch (error) {
+    console.error('Error creating event from template:', error);
+    res.status(500).json(buildErrorResponse('Error creating event from template', error));
+  }
+});
+
+// Delete an event template
+router.delete('/event-templates/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const templateId = parseInt(req.params.id);
+    if (isNaN(templateId)) {
+      return res.status(400).json({ error: 'Invalid template ID' });
+    }
+
+    const { db } = await import('../db');
+    const { eventTemplates } = await import('@shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+
+    const result = await db.delete(eventTemplates)
+      .where(and(eq(eventTemplates.id, templateId), eq(eventTemplates.creatorId, userId)))
+      .returning();
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Template not found or not owned by you' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting event template:', error);
+    res.status(500).json(buildErrorResponse('Error deleting event template', error));
   }
 });
 

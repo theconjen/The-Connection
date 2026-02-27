@@ -1,11 +1,12 @@
 /**
- * Seed 52 Communities for Discovery
+ * Seed 66 Communities for Discovery
  *
  * Creates diverse communities across categories:
  * - Life Stages (12)
  * - Ministry & Interest (15)
  * - Profession-Based (10)
  * - Interest/Hobby (10)
+ * - Ethnicity & Culture (14)
  * - Location-Based (5)
  *
  * Run: npx tsx server/scripts/seed-communities.ts
@@ -546,53 +547,178 @@ const hobbyCommunities: CommunityDef[] = [
 ];
 
 // ============================================================================
+// ETHNICITY & CULTURE (14 communities)
+// ============================================================================
+
+const ethnicityCommunities: CommunityDef[] = [
+  // Middle Eastern
+  {
+    name: 'Middle Eastern Christians',
+    slug: 'middle-eastern-christians',
+    description: 'Believers with roots in the Middle East. Celebrating our ancient faith and rich heritage together.',
+    iconName: ICONS.globe,
+    iconColor: COLORS.gold,
+    interestTags: ['middle-eastern', 'heritage', 'culture', 'community'],
+  },
+  {
+    name: 'Arab Christian Fellowship',
+    slug: 'arab-christian-fellowship',
+    description: 'Arabic-speaking believers connecting in faith. Worship, culture, and community across the diaspora.',
+    iconName: ICONS.people,
+    iconColor: COLORS.terracotta,
+    interestTags: ['arab', 'arabic', 'fellowship', 'diaspora'],
+  },
+  {
+    name: 'Persian Christian Community',
+    slug: 'persian-christians',
+    description: 'Iranian and Persian-speaking believers growing together. A home for Farsi-speaking Christians.',
+    iconName: ICONS.star,
+    iconColor: COLORS.ocean,
+    interestTags: ['persian', 'iranian', 'farsi', 'community'],
+  },
+  {
+    name: 'Coptic & Egyptian Christians',
+    slug: 'coptic-egyptian-christians',
+    description: 'Carrying forward one of Christianity\'s oldest traditions. Coptic and Egyptian believers united.',
+    iconName: ICONS.flame,
+    iconColor: COLORS.gold,
+    interestTags: ['coptic', 'egyptian', 'orthodox', 'tradition'],
+  },
+  {
+    name: 'Assyrian & Chaldean Christians',
+    slug: 'assyrian-chaldean-christians',
+    description: 'Preserving our ancient faith and Aramaic heritage. Assyrian and Chaldean believers worldwide.',
+    iconName: ICONS.shield,
+    iconColor: COLORS.clay,
+    interestTags: ['assyrian', 'chaldean', 'aramaic', 'heritage'],
+  },
+  {
+    name: 'Lebanese Christians',
+    slug: 'lebanese-christians',
+    description: 'Maronite, Orthodox, and all Lebanese believers connecting across borders.',
+    iconName: ICONS.leaf,
+    iconColor: COLORS.forest,
+    interestTags: ['lebanese', 'maronite', 'orthodox', 'community'],
+  },
+  // African & African American
+  {
+    name: 'African American Christians',
+    slug: 'african-american-christians',
+    description: 'Rooted in a rich tradition of faith and resilience. Black believers growing together.',
+    iconName: ICONS.people,
+    iconColor: COLORS.plum,
+    interestTags: ['african-american', 'black-church', 'heritage', 'community'],
+  },
+  {
+    name: 'African Christians',
+    slug: 'african-christians',
+    description: 'Believers from across the African continent and diaspora. One faith, many nations.',
+    iconName: ICONS.globe,
+    iconColor: COLORS.moss,
+    interestTags: ['african', 'diaspora', 'nations', 'community'],
+  },
+  // Latino & Hispanic
+  {
+    name: 'Latino Christians',
+    slug: 'latino-christians',
+    description: 'Fe, familia, y comunidad. Hispanic and Latino believers worshipping and growing together.',
+    iconName: ICONS.heart,
+    iconColor: COLORS.terracotta,
+    interestTags: ['latino', 'hispanic', 'spanish', 'familia'],
+  },
+  // Asian
+  {
+    name: 'Korean American Christians',
+    slug: 'korean-american-christians',
+    description: 'Bridging generations and cultures. Korean American believers in community.',
+    iconName: ICONS.people,
+    iconColor: COLORS.ocean,
+    interestTags: ['korean', 'korean-american', 'culture', 'community'],
+  },
+  {
+    name: 'Filipino Christians',
+    slug: 'filipino-christians',
+    description: 'Kabayan in Christ! Filipino believers sharing faith, food, and fellowship.',
+    iconName: ICONS.heart,
+    iconColor: COLORS.rose,
+    interestTags: ['filipino', 'pinoy', 'faith', 'fellowship'],
+  },
+  {
+    name: 'South Asian Christians',
+    slug: 'south-asian-christians',
+    description: 'Believers with roots in India, Pakistan, Sri Lanka, and beyond. Faith across cultures.',
+    iconName: ICONS.sparkles,
+    iconColor: COLORS.gold,
+    interestTags: ['south-asian', 'indian', 'pakistani', 'culture'],
+  },
+  // Caribbean
+  {
+    name: 'Caribbean Christians',
+    slug: 'caribbean-christians',
+    description: 'Island roots, Kingdom faith. Believers from the Caribbean islands and diaspora.',
+    iconName: ICONS.star,
+    iconColor: COLORS.sage,
+    interestTags: ['caribbean', 'island', 'diaspora', 'culture'],
+  },
+  // East Asian
+  {
+    name: 'Chinese Christian Fellowship',
+    slug: 'chinese-christian-fellowship',
+    description: 'Mandarin and Cantonese-speaking believers connecting in faith and community.',
+    iconName: ICONS.chatbubbles,
+    iconColor: COLORS.slate,
+    interestTags: ['chinese', 'mandarin', 'cantonese', 'fellowship'],
+  },
+];
+
+// ============================================================================
 // LOCATION-BASED (5 communities)
 // ============================================================================
 
 const locationCommunities: CommunityDef[] = [
   {
-    name: 'Dallas/Fort Worth Christians',
-    slug: 'dfw-christians',
-    description: 'Connecting believers in the DFW metroplex. Local events, churches, and community.',
+    name: 'Detroit City Christians',
+    slug: 'detroit-christians',
+    description: 'Connecting believers in the Motor City. Local events, churches, and community.',
     iconName: ICONS.location,
     iconColor: COLORS.terracotta,
     isLocalCommunity: true,
-    city: 'Dallas',
-    state: 'TX',
-    interestTags: ['dallas', 'fort-worth', 'local', 'texas'],
+    city: 'Detroit',
+    state: 'MI',
+    interestTags: ['detroit', 'motor-city', 'local', 'michigan'],
   },
   {
-    name: 'Austin Faith Community',
-    slug: 'austin-faith',
-    description: 'Keep Austin weird and faithful. Connecting Christians in the capital city.',
+    name: 'Dearborn Faith Community',
+    slug: 'dearborn-faith',
+    description: 'Building bridges of faith in Dearborn. Connecting Christians across the community.',
     iconName: ICONS.location,
     iconColor: COLORS.moss,
     isLocalCommunity: true,
-    city: 'Austin',
-    state: 'TX',
-    interestTags: ['austin', 'local', 'texas', 'community'],
+    city: 'Dearborn',
+    state: 'MI',
+    interestTags: ['dearborn', 'local', 'michigan', 'community'],
   },
   {
-    name: 'Houston Believers',
-    slug: 'houston-believers',
-    description: 'H-Town Christians connecting. Churches, events, and fellowship.',
+    name: 'Royal Oak Believers',
+    slug: 'royal-oak-believers',
+    description: 'Metro Detroit Christians connecting in Royal Oak. Churches, events, and fellowship.',
     iconName: ICONS.location,
     iconColor: COLORS.ocean,
     isLocalCommunity: true,
-    city: 'Houston',
-    state: 'TX',
-    interestTags: ['houston', 'local', 'texas', 'community'],
+    city: 'Royal Oak',
+    state: 'MI',
+    interestTags: ['royal-oak', 'local', 'michigan', 'community'],
   },
   {
-    name: 'San Antonio Christians',
-    slug: 'san-antonio-christians',
-    description: 'Believers in the Alamo City. Local church connections and community.',
+    name: 'Ann Arbor Christians',
+    slug: 'ann-arbor-christians',
+    description: 'Believers in Ann Arbor and Washtenaw County. Church connections and community.',
     iconName: ICONS.location,
     iconColor: COLORS.clay,
     isLocalCommunity: true,
-    city: 'San Antonio',
-    state: 'TX',
-    interestTags: ['san-antonio', 'local', 'texas', 'community'],
+    city: 'Ann Arbor',
+    state: 'MI',
+    interestTags: ['ann-arbor', 'local', 'michigan', 'community'],
   },
   {
     name: 'Global Online Community',
@@ -614,6 +740,7 @@ const ALL_COMMUNITIES: CommunityDef[] = [
   ...ministryCommunities,
   ...professionCommunities,
   ...hobbyCommunities,
+  ...ethnicityCommunities,
   ...locationCommunities,
 ];
 
@@ -731,6 +858,7 @@ async function main() {
   console.info(`   - Ministry & Interest: ${ministryCommunities.length}`);
   console.info(`   - Profession-Based: ${professionCommunities.length}`);
   console.info(`   - Interest/Hobby: ${hobbyCommunities.length}`);
+  console.info(`   - Ethnicity & Culture: ${ethnicityCommunities.length}`);
   console.info(`   - Location-Based: ${locationCommunities.length}`);
   console.info('');
 

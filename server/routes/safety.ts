@@ -19,13 +19,49 @@ router.post('/reports', moderationReportLimiter, requireAuth, async (req: Reques
     const allowed = ['post', 'community', 'event', 'microblog'];
     if (!allowed.includes(String(subjectType))) return res.status(400).json({ message: 'Invalid subjectType' });
 
+    const contentId = parseInt(subjectId as any) || subjectId;
+
     const report = await storage.createContentReport({
       reporterId,
       contentType: subjectType,
-      contentId: parseInt(subjectId as any) || subjectId,
+      contentId,
       reason: reason || 'other',
       description: description || null
     } as any);
+
+    // Auto-flag: if content gets 3+ reports, auto-set to 'reviewing'
+    try {
+      const { db } = await import('../db');
+      const { contentReports } = await import('@shared/schema');
+      const { eq, and, count, sql } = await import('drizzle-orm');
+
+      const reportCount = await db
+        .select({ count: count() })
+        .from(contentReports)
+        .where(
+          and(
+            eq(contentReports.contentType, subjectType),
+            eq(contentReports.contentId, contentId),
+            eq(contentReports.status, 'pending')
+          )
+        );
+
+      if (Number(reportCount[0]?.count ?? 0) >= 3) {
+        // Auto-escalate all pending reports for this content to 'reviewing'
+        await db
+          .update(contentReports)
+          .set({ status: 'reviewing', updatedAt: new Date() })
+          .where(
+            and(
+              eq(contentReports.contentType, subjectType),
+              eq(contentReports.contentId, contentId),
+              eq(contentReports.status, 'pending')
+            )
+          );
+      }
+    } catch (autoFlagError) {
+      console.error('Auto-flag check failed (non-critical):', autoFlagError);
+    }
 
     res.json({ ok: true, report });
   } catch (error) {

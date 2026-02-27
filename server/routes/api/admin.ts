@@ -982,4 +982,365 @@ router.post('/sentry-alerts/dismiss-all', async (req, res, next) => {
   }
 });
 
+// ============================================================================
+// BAN / SUSPENSION SYSTEM
+// ============================================================================
+
+import { userSuspensions, contentReports } from '@shared/schema';
+
+// Suspend/ban a user
+router.post('/users/:id/suspend', async (req, res, next) => {
+  try {
+    const targetUserId = parseInt(req.params.id);
+    if (isNaN(targetUserId)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    const adminId = getSessionUserId(req);
+    if (!adminId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (targetUserId === adminId) {
+      return res.status(400).json({ message: 'You cannot suspend yourself' });
+    }
+
+    const { reason, type, durationHours } = req.body;
+
+    if (!reason || typeof reason !== 'string') {
+      return res.status(400).json({ message: 'Reason is required' });
+    }
+    if (!type || !['warn', 'suspend', 'ban'].includes(type)) {
+      return res.status(400).json({ message: 'Type must be warn, suspend, or ban' });
+    }
+
+    // Calculate expiry
+    let expiresAt: Date | null = null;
+    if (type === 'suspend' && durationHours) {
+      expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000);
+    }
+    // bans are permanent (expiresAt = null), warns have no expiry effect
+
+    const [suspension] = await db.insert(userSuspensions).values({
+      userId: targetUserId,
+      adminId,
+      reason,
+      type,
+      expiresAt,
+    } as any).returning();
+
+    res.status(201).json(suspension);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// List all suspensions (with optional filters)
+router.get('/suspensions', async (req, res, next) => {
+  try {
+    const { status, type } = req.query;
+
+    let query = db.select({
+      suspension: userSuspensions,
+      username: users.username,
+      displayName: users.displayName,
+    })
+    .from(userSuspensions)
+    .innerJoin(users, eq(userSuspensions.userId, users.id))
+    .orderBy(desc(userSuspensions.createdAt));
+
+    const results = await query;
+
+    let filtered = results;
+
+    // Filter by active/expired
+    if (status === 'active') {
+      const now = new Date();
+      filtered = results.filter(r => {
+        const s = r.suspension;
+        return s.type === 'ban' || !s.expiresAt || s.expiresAt > now;
+      });
+    }
+
+    // Filter by type
+    if (type && ['warn', 'suspend', 'ban'].includes(type as string)) {
+      filtered = filtered.filter(r => r.suspension.type === type);
+    }
+
+    res.json(filtered.map(r => ({
+      ...r.suspension,
+      username: r.username,
+      displayName: r.displayName,
+    })));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Review an appeal
+router.patch('/suspensions/:id/appeal', async (req, res, next) => {
+  try {
+    const suspensionId = parseInt(req.params.id);
+    if (isNaN(suspensionId)) {
+      return res.status(400).json({ message: 'Invalid suspension ID' });
+    }
+
+    const { decision } = req.body;
+    if (!decision || !['approved', 'denied'].includes(decision)) {
+      return res.status(400).json({ message: 'Decision must be approved or denied' });
+    }
+
+    const existing = await db.select().from(userSuspensions).where(eq(userSuspensions.id, suspensionId));
+    if (existing.length === 0) {
+      return res.status(404).json({ message: 'Suspension not found' });
+    }
+    if (existing[0].appealStatus !== 'pending') {
+      return res.status(400).json({ message: 'No pending appeal for this suspension' });
+    }
+
+    const updates: any = { appealStatus: decision };
+
+    // If approved, lift the suspension by setting expiresAt to now
+    if (decision === 'approved') {
+      updates.expiresAt = new Date();
+    }
+
+    const [updated] = await db
+      .update(userSuspensions)
+      .set(updates)
+      .where(eq(userSuspensions.id, suspensionId))
+      .returning();
+
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// CONTENT MODERATION QUEUE
+// ============================================================================
+
+// Get moderation queue (content reports)
+router.get('/reports', async (req, res, next) => {
+  try {
+    const { status: filterStatus, contentType } = req.query;
+
+    let results = await db
+      .select({
+        report: contentReports,
+        reporterUsername: users.username,
+      })
+      .from(contentReports)
+      .innerJoin(users, eq(contentReports.reporterId, users.id))
+      .orderBy(desc(contentReports.createdAt))
+      .limit(100);
+
+    if (filterStatus && typeof filterStatus === 'string') {
+      results = results.filter(r => r.report.status === filterStatus);
+    }
+    if (contentType && typeof contentType === 'string') {
+      results = results.filter(r => r.report.contentType === contentType);
+    }
+
+    res.json(results.map(r => ({
+      ...r.report,
+      reporterUsername: r.reporterUsername,
+    })));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Take action on a report
+router.patch('/reports/:id', async (req, res, next) => {
+  try {
+    const reportId = parseInt(req.params.id);
+    if (isNaN(reportId)) {
+      return res.status(400).json({ message: 'Invalid report ID' });
+    }
+
+    const adminId = getSessionUserId(req);
+    const { action, moderatorNotes } = req.body;
+
+    if (!action || !['reviewed', 'actioned', 'dismissed'].includes(action)) {
+      return res.status(400).json({ message: 'Action must be reviewed, actioned, or dismissed' });
+    }
+
+    const [updated] = await db
+      .update(contentReports)
+      .set({
+        status: action,
+        moderatorId: adminId,
+        moderatorNotes: moderatorNotes || null,
+        resolvedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(contentReports.id, reportId))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ message: 'Report not found' });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// ADMIN ANALYTICS DASHBOARD
+// ============================================================================
+
+// Overview metrics
+router.get('/analytics/overview', async (req, res, next) => {
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [
+      totalUsers,
+      newUsersThisMonth,
+      totalCommunities,
+      totalEvents,
+      totalMicroblogs,
+      totalPrayers,
+      recentReports,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(users),
+      db.select({ count: count() }).from(users).where(gte(users.createdAt, thirtyDaysAgo)),
+      db.select({ count: count() }).from(communities),
+      db.select({ count: count() }).from(events),
+      db.select({ count: count() }).from(microblogs),
+      db.select({ count: count() }).from(prayerRequests),
+      db.select({ count: count() }).from(contentReports).where(eq(contentReports.status, 'pending')),
+    ]);
+
+    // Try to get active user counts from analytics events
+    let activeUsers = { dau: 0, wau: 0, mau: 0 };
+    try {
+      const { getActiveUserCounts } = await import('../../services/analyticsService');
+      activeUsers = await getActiveUserCounts();
+    } catch {
+      // Analytics service not available yet, skip
+    }
+
+    res.json({
+      totalUsers: Number(totalUsers[0]?.count ?? 0),
+      newUsersThisMonth: Number(newUsersThisMonth[0]?.count ?? 0),
+      totalCommunities: Number(totalCommunities[0]?.count ?? 0),
+      totalEvents: Number(totalEvents[0]?.count ?? 0),
+      totalMicroblogs: Number(totalMicroblogs[0]?.count ?? 0),
+      totalPrayers: Number(totalPrayers[0]?.count ?? 0),
+      pendingReports: Number(recentReports[0]?.count ?? 0),
+      activeUsers,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// User signup/retention trends
+router.get('/analytics/users', async (req, res, next) => {
+  try {
+    const days = parseInt(req.query.days as string) || 30;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const signupTrend = await db
+      .select({
+        date: sql<string>`to_char(date_trunc('day', ${users.createdAt}), 'YYYY-MM-DD')`,
+        count: count(),
+      })
+      .from(users)
+      .where(gte(users.createdAt, since))
+      .groupBy(sql`date_trunc('day', ${users.createdAt})`)
+      .orderBy(sql`date_trunc('day', ${users.createdAt})`);
+
+    res.json({
+      signupTrend: signupTrend.map(r => ({ date: r.date, count: Number(r.count) })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Content creation trends
+router.get('/analytics/content', async (req, res, next) => {
+  try {
+    const days = parseInt(req.query.days as string) || 30;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [microblogTrend, eventTrend] = await Promise.all([
+      db.select({
+        date: sql<string>`to_char(date_trunc('day', ${microblogs.createdAt}), 'YYYY-MM-DD')`,
+        count: count(),
+      })
+      .from(microblogs)
+      .where(gte(microblogs.createdAt, since))
+      .groupBy(sql`date_trunc('day', ${microblogs.createdAt})`)
+      .orderBy(sql`date_trunc('day', ${microblogs.createdAt})`),
+
+      db.select({
+        date: sql<string>`to_char(date_trunc('day', ${events.createdAt}), 'YYYY-MM-DD')`,
+        count: count(),
+      })
+      .from(events)
+      .where(gte(events.createdAt, since))
+      .groupBy(sql`date_trunc('day', ${events.createdAt})`)
+      .orderBy(sql`date_trunc('day', ${events.createdAt})`),
+    ]);
+
+    res.json({
+      microblogTrend: microblogTrend.map(r => ({ date: r.date, count: Number(r.count) })),
+      eventTrend: eventTrend.map(r => ({ date: r.date, count: Number(r.count) })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Moderation analytics
+router.get('/analytics/moderation', async (req, res, next) => {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [reportsByStatus, reportsByReason, suspensionsByType] = await Promise.all([
+      db.select({
+        status: contentReports.status,
+        count: count(),
+      })
+      .from(contentReports)
+      .where(gte(contentReports.createdAt, thirtyDaysAgo))
+      .groupBy(contentReports.status),
+
+      db.select({
+        reason: contentReports.reason,
+        count: count(),
+      })
+      .from(contentReports)
+      .where(gte(contentReports.createdAt, thirtyDaysAgo))
+      .groupBy(contentReports.reason)
+      .orderBy(desc(count())),
+
+      db.select({
+        type: userSuspensions.type,
+        count: count(),
+      })
+      .from(userSuspensions)
+      .where(gte(userSuspensions.createdAt, thirtyDaysAgo))
+      .groupBy(userSuspensions.type),
+    ]);
+
+    res.json({
+      reportsByStatus: reportsByStatus.map(r => ({ status: r.status, count: Number(r.count) })),
+      reportsByReason: reportsByReason.map(r => ({ reason: r.reason, count: Number(r.count) })),
+      suspensionsByType: suspensionsByType.map(r => ({ type: r.type, count: Number(r.count) })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

@@ -157,4 +157,130 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
+// ============================================================================
+// SEARCH HISTORY & SUGGESTIONS
+// ============================================================================
+
+// Get search suggestions (prefix matches from popular past searches + top entities)
+router.get('/suggestions', requireAuth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    const prefix = String(q || '').trim().toLowerCase();
+
+    if (!prefix || prefix.length < 1) {
+      return res.json([]);
+    }
+
+    const { db } = await import('../db');
+    const { searchHistory } = await import('@shared/schema');
+    const { sql, desc, ilike } = await import('drizzle-orm');
+
+    // Get popular past searches matching the prefix
+    const popularSearches = await db
+      .select({
+        query: searchHistory.query,
+        count: sql<number>`count(*)`,
+      })
+      .from(searchHistory)
+      .where(ilike(searchHistory.query, `${prefix}%`))
+      .groupBy(searchHistory.query)
+      .orderBy(desc(sql`count(*)`))
+      .limit(5);
+
+    const suggestions = popularSearches.map(s => ({
+      type: 'search' as const,
+      text: s.query,
+      popularity: Number(s.count),
+    }));
+
+    res.json(suggestions);
+  } catch (error) {
+    console.error('Search suggestions error:', error);
+    res.json([]);
+  }
+});
+
+// Get user's search history
+router.get('/history', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { db } = await import('../db');
+    const { searchHistory } = await import('@shared/schema');
+    const { eq, desc } = await import('drizzle-orm');
+
+    const history = await db
+      .select({
+        id: searchHistory.id,
+        query: searchHistory.query,
+        searchType: searchHistory.searchType,
+        resultCount: searchHistory.resultCount,
+        createdAt: searchHistory.createdAt,
+      })
+      .from(searchHistory)
+      .where(eq(searchHistory.userId, userId))
+      .orderBy(desc(searchHistory.createdAt))
+      .limit(10);
+
+    res.json(history);
+  } catch (error) {
+    console.error('Search history error:', error);
+    res.status(500).json(buildErrorResponse('Failed to get search history', error));
+  }
+});
+
+// Log a search (called when user submits search)
+router.post('/history', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { query, searchType, resultCount } = req.body;
+    if (!query || typeof query !== 'string' || query.trim().length < 2) {
+      return res.status(400).json({ error: 'Query must be at least 2 characters' });
+    }
+
+    const { db } = await import('../db');
+    const { searchHistory } = await import('@shared/schema');
+
+    await db.insert(searchHistory).values({
+      userId,
+      query: query.trim().toLowerCase(),
+      searchType: searchType || 'all',
+      resultCount: resultCount || 0,
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Log search error:', error);
+    res.status(500).json(buildErrorResponse('Failed to log search', error));
+  }
+});
+
+// Clear user's search history
+router.delete('/history', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { db } = await import('../db');
+    const { searchHistory } = await import('@shared/schema');
+    const { eq } = await import('drizzle-orm');
+
+    await db.delete(searchHistory).where(eq(searchHistory.userId, userId));
+
+    res.json({ success: true, message: 'Search history cleared' });
+  } catch (error) {
+    console.error('Clear search history error:', error);
+    res.status(500).json(buildErrorResponse('Failed to clear search history', error));
+  }
+});
+
 export default router;

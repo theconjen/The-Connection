@@ -96,6 +96,9 @@ export const users = pgTable("users", {
   smsVerificationCode: text("sms_verification_code"),
   loginAttempts: integer("login_attempts").default(0),
   lockoutUntil: timestamp("lockout_until"),
+  // Two-Factor Authentication
+  twoFactorSecret: text("two_factor_secret"), // Encrypted TOTP secret
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
   // Christian-focused profile fields
   location: text("location"),
   denomination: text("denomination"),
@@ -338,6 +341,8 @@ export const communities = pgTable("communities", {
   upcomingEventCount: integer("upcoming_event_count").default(0), // Events in next 30 days
   // Organization association
   organizationId: integer("organization_id").references(() => organizations.id, { onDelete: 'set null' }), // Nullable - for org-owned communities
+  // Sub-communities
+  parentCommunityId: integer("parent_community_id"), // Self-reference for sub-communities
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   createdBy: integer("created_by").references(() => users.id),
@@ -1079,6 +1084,7 @@ export const microblogs: any = pgTable("microblogs", {
   sourceUrl: text("source_url"), // For NEWS/CULTURE/ENTERTAINMENT posts with external links
   anonymousNickname: text("anonymous_nickname"), // Optional nickname for anonymous advice posts (e.g., "Struggling Mom")
   anonymousCity: text("anonymous_city"), // Optional city for advice posts to connect with nearby users
+  mediaType: text("media_type"), // 'image', 'video', or null
   createdAt: timestamp("created_at").defaultNow(),
 } as any);
 
@@ -1372,6 +1378,10 @@ export const events = pgTable("events", {
   targetAgeGroup: text("target_age_group"), // Target audience age group: kids, teens, young_adults, adults, seniors, or null (all ages)
   latitude: text("latitude"), // For map integration
   longitude: text("longitude"), // For map integration
+  // Recurring event fields
+  recurrenceRule: text("recurrence_rule"), // iCal RRULE format (e.g., FREQ=WEEKLY;BYDAY=SU)
+  recurrenceEndDate: timestamp("recurrence_end_date"), // When recurrence stops
+  parentEventId: integer("parent_event_id"), // Self-reference for recurrence instances
   communityId: integer("community_id").references(() => communities.id), // Nullable - admin can create events for "The Connection" without a community
   groupId: integer("group_id").references(() => groups.id),
   organizationId: integer("organization_id").references(() => organizations.id, { onDelete: 'set null' }), // Nullable - for org-owned events
@@ -2904,3 +2914,128 @@ export const insertSentryAlertSchema = createInsertSchema(sentryAlerts).pick({
 
 export type SentryAlert = typeof sentryAlerts.$inferSelect;
 export type InsertSentryAlert = typeof sentryAlerts.$inferInsert;
+
+// Magic codes table - persisted login codes (replaces in-memory store)
+export const magicCodes = pgTable("magic_codes", {
+  id: serial("id").primaryKey(),
+  token: text("token").notNull().unique(),
+  email: text("email").notNull(),
+  codeHash: text("code_hash").notNull(), // SHA-256 hash of the code
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_magic_codes_token").on(table.token),
+  index("idx_magic_codes_expires_at").on(table.expiresAt),
+]);
+
+export type MagicCode = typeof magicCodes.$inferSelect;
+export type InsertMagicCode = typeof magicCodes.$inferInsert;
+
+// ============================================================================
+// FEATURES 13-20: Advanced Search, Moderation, Analytics, User Features, etc.
+// ============================================================================
+
+// Search History - tracks user search queries for suggestions
+export const searchHistory = pgTable("search_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  query: text("query").notNull(),
+  searchType: text("search_type").notNull().default("all"), // 'all', 'users', 'events', 'communities'
+  resultCount: integer("result_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_search_history_user").on(table.userId),
+  index("idx_search_history_query").on(table.query),
+  index("idx_search_history_created").on(table.createdAt),
+]);
+
+export type SearchHistory = typeof searchHistory.$inferSelect;
+export type InsertSearchHistory = typeof searchHistory.$inferInsert;
+
+// User Suspensions - ban/suspension system with expiry and appeals
+export const userSuspensions = pgTable("user_suspensions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  adminId: integer("admin_id").notNull().references(() => users.id),
+  reason: text("reason").notNull(),
+  type: text("type").notNull(), // 'warn', 'suspend', 'ban'
+  expiresAt: timestamp("expires_at"), // null = permanent
+  appealText: text("appeal_text"),
+  appealStatus: text("appeal_status"), // 'pending', 'approved', 'denied'
+  appealedAt: timestamp("appealed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_user_suspensions_user").on(table.userId),
+  index("idx_user_suspensions_expires").on(table.expiresAt),
+  index("idx_user_suspensions_type").on(table.type),
+]);
+
+export type UserSuspension = typeof userSuspensions.$inferSelect;
+export type InsertUserSuspension = typeof userSuspensions.$inferInsert;
+
+// Event Check-ins - QR code based attendance tracking
+export const eventCheckins = pgTable("event_checkins", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  checkedInAt: timestamp("checked_in_at").defaultNow(),
+  method: text("method").notNull().default("manual"), // 'qr', 'manual'
+}, (table) => [
+  uniqueIndex("event_checkins_event_user_idx").on(table.eventId, table.userId),
+  index("idx_event_checkins_event").on(table.eventId),
+]);
+
+export type EventCheckin = typeof eventCheckins.$inferSelect;
+export type InsertEventCheckin = typeof eventCheckins.$inferInsert;
+
+// Analytics Events - lightweight event tracking for platform analytics
+export const analyticsEvents = pgTable("analytics_events", {
+  id: serial("id").primaryKey(),
+  eventType: text("event_type").notNull(), // 'page_view', 'login', 'signup', 'post_created', 'event_rsvp', 'community_join', 'search', etc.
+  userId: integer("user_id").references(() => users.id, { onDelete: 'set null' }),
+  metadata: jsonb("metadata"), // Additional context
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_analytics_events_type").on(table.eventType),
+  index("idx_analytics_events_user").on(table.userId),
+  index("idx_analytics_events_created").on(table.createdAt),
+]);
+
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = typeof analyticsEvents.$inferInsert;
+
+// Community Roles - custom role-based permissions for communities
+export const communityRoles = pgTable("community_roles", {
+  id: serial("id").primaryKey(),
+  communityId: integer("community_id").notNull().references(() => communities.id, { onDelete: 'cascade' }),
+  name: text("name").notNull(),
+  permissions: jsonb("permissions").notNull().default('[]'), // Array of permission strings
+  color: text("color"), // Hex color for role display
+  position: integer("position").notNull().default(0), // Higher = more authority
+  isDefault: boolean("is_default").default(false), // Default role for new members
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_community_roles_community").on(table.communityId),
+  uniqueIndex("community_roles_name_unique_idx").on(table.communityId, table.name),
+]);
+
+export type CommunityRole = typeof communityRoles.$inferSelect;
+export type InsertCommunityRole = typeof communityRoles.$inferInsert;
+
+// Event Templates - reusable event configurations
+export const eventTemplates = pgTable("event_templates", {
+  id: serial("id").primaryKey(),
+  creatorId: integer("creator_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  communityId: integer("community_id").references(() => communities.id, { onDelete: 'cascade' }),
+  name: text("name").notNull(),
+  templateData: jsonb("template_data").notNull(), // { title, description, category, duration, location, settings, etc. }
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_templates_creator").on(table.creatorId),
+  index("idx_event_templates_community").on(table.communityId),
+]);
+
+export type EventTemplate = typeof eventTemplates.$inferSelect;
+export type InsertEventTemplate = typeof eventTemplates.$inferInsert;

@@ -81,7 +81,7 @@ export async function updateReputation(update: ReputationUpdate): Promise<void> 
       moderatorId: moderatorId || null,
     } as any);
 
-     - ${reason}`);
+    console.info(`[Reputation] User ${userId} score: ${current.reputationScore} -> ${newScore} - ${reason}`);
 
     // Check if user should be restricted
     if (newScore < 20) {

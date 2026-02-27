@@ -9,6 +9,10 @@ import { storage as storageReal } from './storage';
 import rateLimit from 'express-rate-limit';
 import { sendPushNotification } from './services/pushService';
 import { notifyUserWithPreferences, notifyCommunityMembers, truncateText } from './services/notificationHelper';
+
+// Throttle map for community chat push notifications: roomId:userId -> last notification time
+const chatPushThrottle = new Map<string, number>();
+const CHAT_PUSH_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes
 import { contentCreationLimiter, messageCreationLimiter } from './rate-limiters';
 
 // NOTE: many of the shared "Insert..." Zod-derived types are being inferred
@@ -425,6 +429,43 @@ export function registerSocketHandlers(
             },
             [authenticatedUserId] // Exclude sender from notifications
           );
+        } else {
+          // Non-announcement: push to offline community members with 5-min throttle per user per room
+          const community = await storageDep.getCommunity(chatRoom.communityId);
+          const communityName = community?.name || 'Community';
+          const senderName = sender?.displayName || sender?.username || 'Someone';
+
+          // Get community members, exclude sender and currently online users in the room
+          const members = await storageDep.getCommunityMembers(chatRoom.communityId);
+          const onlineUserIds = new Set<number>();
+          const roomSockets = await io.in(`room_${roomId}`).fetchSockets();
+          for (const s of roomSockets) {
+            const uid = (s.data as any)?.userId;
+            if (uid) onlineUserIds.add(uid);
+          }
+
+          const now = Date.now();
+          for (const member of members) {
+            if (member.userId === authenticatedUserId) continue; // skip sender
+            if (onlineUserIds.has(member.userId)) continue; // skip online users
+
+            // Throttle: max 1 push per 5 min per user per room
+            const throttleKey = `${roomId}:${member.userId}`;
+            const lastNotified = chatPushThrottle.get(throttleKey) || 0;
+            if (now - lastNotified < CHAT_PUSH_THROTTLE_MS) continue;
+            chatPushThrottle.set(throttleKey, now);
+
+            notifyUserWithPreferences(member.userId, {
+              title: `${communityName}`,
+              body: `${senderName}: ${truncateText(content, 80)}`,
+              data: {
+                type: 'community_chat',
+                communityId: chatRoom.communityId,
+                roomId: parseInt(roomId),
+              },
+              category: 'community',
+            }).catch(() => {}); // Fire-and-forget, don't block
+          }
         }
       } catch (error) {
         emitSocketError(socket, logger, 'Error handling chat message', error, {
@@ -557,6 +598,14 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   });
 
   app.use('/api', generalApiLimiter);
+
+  // Analytics tracking middleware (fire-and-forget, non-blocking)
+  try {
+    const { analyticsTracker } = require('./middleware/analyticsTracker');
+    app.use(analyticsTracker);
+  } catch (e) {
+    console.warn('[ROUTES] Analytics tracker not available:', (e as Error).message);
+  }
 
   // Set up Socket.IO for real-time chat with memory optimizations
   const io = new SocketIOServer(httpServer, {
@@ -2017,12 +2066,32 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   app.post('/api/prayer-requests/:id/pray', isAuthenticated, async (req, res) => {
     try {
       const prayerRequestId = parseInt(req.params.id);
-  const userId = requireSessionUserId(req);
+      const userId = requireSessionUserId(req);
 
       const prayer = await storage.createPrayer({
         prayerRequestId: prayerRequestId,
         userId: userId
       });
+
+      // Notify prayer request author (skip if self-pray)
+      const prayerRequest = await storage.getPrayerRequest(prayerRequestId);
+      if (prayerRequest && prayerRequest.userId !== userId) {
+        const prayerUser = await storage.getUser(userId);
+        const prayerName = prayerUser?.displayName || prayerUser?.username || 'Someone';
+
+        notifyUserWithPreferences(prayerRequest.userId, {
+          title: 'Someone is praying for you',
+          body: `${prayerName} prayed for your request`,
+          data: {
+            type: 'prayer',
+            prayerRequestId,
+            prayerId: userId,
+          },
+          category: 'community',
+        }).catch(error => {
+          console.error('[Prayer] Error notifying prayer request author:', error);
+        });
+      }
 
       res.status(201).json(prayer);
     } catch (error) {

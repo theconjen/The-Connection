@@ -19,6 +19,7 @@
 import { Storage } from '@google-cloud/storage';
 import path from 'path';
 import crypto from 'crypto';
+import { processImage, processImageSingle, type ImageCategory } from './imageProcessor';
 
 // Environment configuration
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID;
@@ -106,14 +107,55 @@ const MAX_FILE_SIZES = {
   [UploadCategory.PRAYER_REQUEST_IMAGES]: 10 * 1024 * 1024, // 10MB
 };
 
+// Map upload categories to image processing categories
+const CATEGORY_TO_IMAGE_CATEGORY: Record<UploadCategory, ImageCategory> = {
+  [UploadCategory.PROFILE_PICTURES]: 'profile',
+  [UploadCategory.EVENT_IMAGES]: 'event',
+  [UploadCategory.COMMUNITY_BANNERS]: 'community',
+  [UploadCategory.POST_ATTACHMENTS]: 'post',
+  [UploadCategory.PRAYER_REQUEST_IMAGES]: 'prayer',
+};
+
+// Check if a MIME type is an image that can be processed
+function isProcessableImage(mimeType: string): boolean {
+  return ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(mimeType);
+}
+
 /**
- * Upload file to Google Cloud Storage
+ * Upload a buffer to GCS with a given filename and content type.
+ * Returns the public URL.
+ */
+async function uploadBufferToGcs(
+  buf: Buffer,
+  filename: string,
+  contentType: string,
+  userId?: number,
+  originalName?: string
+): Promise<string> {
+  const file = bucket.file(filename);
+  await file.save(buf, {
+    metadata: {
+      contentType,
+      metadata: {
+        uploadedBy: userId?.toString() || 'anonymous',
+        originalName: originalName || 'unknown',
+        uploadedAt: new Date().toISOString(),
+      },
+    },
+    public: true,
+  });
+  return `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
+}
+
+/**
+ * Upload file to Google Cloud Storage with automatic image optimization.
+ * Images are resized, converted to WebP, and a thumbnail is generated.
  *
- * @param file - File buffer or readable stream
- * @param category - Upload category (determines folder and permissions)
+ * @param fileBuffer - File buffer
+ * @param category - Upload category (determines folder and max dimensions)
  * @param originalFilename - Original filename (for extension)
  * @param userId - User ID (for organizing files)
- * @returns Public URL of uploaded file
+ * @returns Object with url and optional thumbnailUrl
  */
 export async function uploadFile(
   fileBuffer: Buffer,
@@ -121,9 +163,20 @@ export async function uploadFile(
   originalFilename: string,
   userId?: number
 ): Promise<string> {
+  const mimeType = getMimeType(originalFilename);
+
   // Mock mode if GCS not configured
   if (!storage || !bucket) {
-    const mockUrl = `https://storage.mock.theconnection.app/${category}/${crypto.randomBytes(16).toString('hex')}${path.extname(originalFilename)}`;
+    // Still process images even in mock mode (for testing optimization)
+    if (isProcessableImage(mimeType)) {
+      try {
+        const imageCategory = CATEGORY_TO_IMAGE_CATEGORY[category];
+        await processImageSingle(fileBuffer, imageCategory); // validate it works
+      } catch (e) {
+        // Ignore processing errors in mock mode
+      }
+    }
+    const mockUrl = `https://storage.mock.theconnection.app/${category}/${crypto.randomBytes(16).toString('hex')}.webp`;
     return mockUrl;
   }
 
@@ -133,32 +186,36 @@ export async function uploadFile(
     throw new Error(`File too large. Maximum size: ${maxSize / 1024 / 1024}MB`);
   }
 
-  // Generate unique filename
-  const ext = path.extname(originalFilename);
   const randomId = crypto.randomBytes(16).toString('hex');
   const timestamp = Date.now();
   const userPrefix = userId ? `user-${userId}/` : '';
+
+  // Process images through Sharp pipeline
+  if (isProcessableImage(mimeType)) {
+    const imageCategory = CATEGORY_TO_IMAGE_CATEGORY[category];
+
+    try {
+      const { full, thumbnail } = await processImage(fileBuffer, imageCategory);
+
+      // Upload optimized full image
+      const fullFilename = `${category}/${userPrefix}${timestamp}-${randomId}.webp`;
+      const fullUrl = await uploadBufferToGcs(full.buffer, fullFilename, 'image/webp', userId, originalFilename);
+
+      // Upload thumbnail alongside
+      const thumbFilename = `${category}/${userPrefix}${timestamp}-${randomId}-thumb.webp`;
+      await uploadBufferToGcs(thumbnail.buffer, thumbFilename, 'image/webp', userId, originalFilename);
+
+      return fullUrl;
+    } catch (e) {
+      console.warn('[ImageProcessor] Sharp processing failed, uploading original:', e);
+      // Fall through to upload original if Sharp fails
+    }
+  }
+
+  // Non-image files or Sharp failure: upload as-is
+  const ext = path.extname(originalFilename);
   const filename = `${category}/${userPrefix}${timestamp}-${randomId}${ext}`;
-
-  // Upload to GCS
-  const file = bucket.file(filename);
-
-  await file.save(fileBuffer, {
-    metadata: {
-      contentType: getMimeType(originalFilename),
-      metadata: {
-        uploadedBy: userId?.toString() || 'anonymous',
-        originalName: originalFilename,
-        uploadedAt: new Date().toISOString(),
-      },
-    },
-    public: true, // Make file publicly accessible
-  });
-
-  // Return public URL
-  const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
-
-  return publicUrl;
+  return await uploadBufferToGcs(fileBuffer, filename, mimeType, userId, originalFilename);
 }
 
 /**

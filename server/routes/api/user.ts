@@ -814,4 +814,238 @@ router.post('/suggestions/hide', async (req, res, next) => {
   }
 });
 
+// ============================================================================
+// NOTIFICATION PREFERENCES
+// ============================================================================
+
+// Update notification preferences
+router.patch('/notification-preferences', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const {
+      notifyDms,
+      notifyCommunities,
+      notifyForums,
+      notifyFeed,
+      emailEvents,
+      emailPrayer,
+      emailDigest,
+      pushMessages,
+      pushMentions,
+    } = req.body;
+
+    const updateData: any = {};
+
+    // Core notification toggles (stored as columns on users table)
+    if (typeof notifyDms === 'boolean') updateData.notifyDms = notifyDms;
+    if (typeof notifyCommunities === 'boolean') updateData.notifyCommunities = notifyCommunities;
+    if (typeof notifyForums === 'boolean') updateData.notifyForums = notifyForums;
+    if (typeof notifyFeed === 'boolean') updateData.notifyFeed = notifyFeed;
+
+    // Extended email/push preferences (stored in notificationPreferences jsonb)
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const existingPrefs = (user as any).notificationPreferences || {};
+    const newPrefs = { ...existingPrefs };
+
+    if (typeof emailEvents === 'boolean') newPrefs.emailEvents = emailEvents;
+    if (typeof emailPrayer === 'boolean') newPrefs.emailPrayer = emailPrayer;
+    if (typeof emailDigest === 'boolean') newPrefs.emailDigest = emailDigest;
+    if (typeof pushMessages === 'boolean') newPrefs.pushMessages = pushMessages;
+    if (typeof pushMentions === 'boolean') newPrefs.pushMentions = pushMentions;
+
+    // Only update jsonb if extended prefs were provided
+    const hasExtendedPrefs = [emailEvents, emailPrayer, emailDigest, pushMessages, pushMentions]
+      .some(v => typeof v === 'boolean');
+    if (hasExtendedPrefs) {
+      updateData.notificationPreferences = newPrefs;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: 'No valid preferences provided' });
+    }
+
+    const updatedUser = await storage.updateUser(userId, updateData);
+
+    // Clear the notification preferences cache
+    clearPreferencesCache(userId);
+
+    const { password, ...userData } = updatedUser;
+    res.json({
+      message: 'Notification preferences updated',
+      preferences: {
+        notifyDms: updatedUser.notifyDms,
+        notifyCommunities: updatedUser.notifyCommunities,
+        notifyForums: updatedUser.notifyForums,
+        notifyFeed: updatedUser.notifyFeed,
+        ...(updatedUser as any).notificationPreferences,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get notification preferences
+router.get('/notification-preferences', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      notifyDms: user.notifyDms ?? true,
+      notifyCommunities: user.notifyCommunities ?? true,
+      notifyForums: user.notifyForums ?? true,
+      notifyFeed: user.notifyFeed ?? true,
+      ...((user as any).notificationPreferences || {}),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// SUSPENSION STATUS
+// ============================================================================
+
+// Check current user's suspension status
+router.get('/suspension', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const { db } = await import('../../db');
+    const { userSuspensions } = await import('@shared/schema');
+    const { eq, and, or, isNull, gte, desc } = await import('drizzle-orm');
+
+    const now = new Date();
+    const activeSuspension = await db
+      .select()
+      .from(userSuspensions)
+      .where(
+        and(
+          eq(userSuspensions.userId, userId),
+          or(
+            isNull(userSuspensions.expiresAt),
+            gte(userSuspensions.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(userSuspensions.createdAt))
+      .limit(1);
+
+    if (activeSuspension.length === 0) {
+      return res.json({ suspended: false });
+    }
+
+    const suspension = activeSuspension[0];
+    res.json({
+      suspended: true,
+      type: suspension.type,
+      reason: suspension.reason,
+      expiresAt: suspension.expiresAt,
+      appealStatus: suspension.appealStatus,
+      canAppeal: !suspension.appealStatus || suspension.appealStatus === null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Submit an appeal for a suspension
+router.post('/appeal', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const { appealText } = req.body;
+    if (!appealText || typeof appealText !== 'string' || appealText.trim().length < 10) {
+      return res.status(400).json({ message: 'Appeal text must be at least 10 characters' });
+    }
+
+    const { db } = await import('../../db');
+    const { userSuspensions } = await import('@shared/schema');
+    const { eq, and, or, isNull, gte, desc } = await import('drizzle-orm');
+
+    const now = new Date();
+    const activeSuspension = await db
+      .select()
+      .from(userSuspensions)
+      .where(
+        and(
+          eq(userSuspensions.userId, userId),
+          or(
+            isNull(userSuspensions.expiresAt),
+            gte(userSuspensions.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(userSuspensions.createdAt))
+      .limit(1);
+
+    if (activeSuspension.length === 0) {
+      return res.status(404).json({ message: 'No active suspension found' });
+    }
+
+    const suspension = activeSuspension[0];
+    if (suspension.appealStatus) {
+      return res.status(400).json({ message: 'An appeal has already been submitted' });
+    }
+
+    await db
+      .update(userSuspensions)
+      .set({
+        appealText: appealText.trim(),
+        appealStatus: 'pending',
+        appealedAt: now,
+      })
+      .where(eq(userSuspensions.id, suspension.id));
+
+    res.json({ message: 'Appeal submitted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// ACCOUNT DATA EXPORT (GDPR)
+// ============================================================================
+
+// Request data export
+router.post('/export', async (req, res, next) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) {
+      return;
+    }
+
+    const { exportUserData } = await import('../../services/dataExportService');
+    const data = await exportUserData(userId);
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="the-connection-data-export-${userId}.json"`);
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

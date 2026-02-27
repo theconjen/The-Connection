@@ -1853,4 +1853,280 @@ router.delete('/communities/:id/members/:userId/v2', requireAuth, async (req, re
   res.status(mapStatusToHttpCode(result.status)).json(result);
 });
 
+// ============================================================================
+// COMMUNITY ANALYTICS
+// ============================================================================
+
+// Helper to resolve community by numeric ID or slug string
+async function resolveCommunity(idOrSlug: string) {
+  const numericId = parseInt(idOrSlug);
+  if (Number.isFinite(numericId)) {
+    return storage.getCommunity(numericId);
+  }
+  return storage.getCommunityBySlug(idOrSlug);
+}
+
+// Get analytics for a community (admin/moderator only)
+router.get('/communities/:idOrSlug/analytics', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const { idOrSlug } = req.params;
+    const community = await resolveCommunity(idOrSlug as string);
+    if (!community) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    // Check if user is owner or moderator
+    const membership = await storage.getCommunityMember(community.id, userId);
+    if (!membership || (membership.role !== 'owner' && membership.role !== 'moderator')) {
+      return res.status(403).json({ error: 'Only community admins and moderators can view analytics' });
+    }
+
+    const { getCommunityAnalytics } = await import('../services/communityAnalytics');
+    const analytics = await getCommunityAnalytics(community.id);
+
+    res.json(analytics);
+  } catch (error) {
+    console.error('Error fetching community analytics:', error);
+    res.status(500).json(buildErrorResponse('Error fetching community analytics', error));
+  }
+});
+
+// ============================================================================
+// CUSTOM COMMUNITY ROLES
+// ============================================================================
+
+// List roles for a community
+router.get('/communities/:idOrSlug/roles', requireAuth, async (req, res) => {
+  try {
+    const { idOrSlug } = req.params;
+    const community = await resolveCommunity(idOrSlug as string);
+    if (!community) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    const { db } = await import('../db');
+    const { communityRoles } = await import('@shared/schema');
+    const { eq, asc } = await import('drizzle-orm');
+
+    const roles = await db.select()
+      .from(communityRoles)
+      .where(eq(communityRoles.communityId, community.id))
+      .orderBy(asc(communityRoles.position));
+
+    res.json(roles);
+  } catch (error) {
+    console.error('Error fetching community roles:', error);
+    res.status(500).json(buildErrorResponse('Error fetching community roles', error));
+  }
+});
+
+// Create a custom role
+router.post('/communities/:idOrSlug/roles', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const { idOrSlug } = req.params;
+    const community = await resolveCommunity(idOrSlug as string);
+    if (!community) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    // Only owner can create roles
+    const membership = await storage.getCommunityMember(community.id, userId);
+    if (!membership || membership.role !== 'owner') {
+      return res.status(403).json({ error: 'Only community owners can create roles' });
+    }
+
+    const { name, permissions, color, position } = req.body;
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ error: 'Role name is required' });
+    }
+
+    const { db } = await import('../db');
+    const { communityRoles } = await import('@shared/schema');
+
+    const [role] = await db.insert(communityRoles).values({
+      communityId: community.id,
+      name: name.trim(),
+      permissions: permissions || [],
+      color: color || null,
+      position: position || 0,
+    } as any).returning();
+
+    res.status(201).json(role);
+  } catch (error) {
+    console.error('Error creating community role:', error);
+    res.status(500).json(buildErrorResponse('Error creating community role', error));
+  }
+});
+
+// Update a role
+router.patch('/communities/:idOrSlug/roles/:roleId', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const { idOrSlug, roleId } = req.params;
+    const roleIdNum = parseInt(roleId as string);
+    if (isNaN(roleIdNum)) {
+      return res.status(400).json({ error: 'Invalid role ID' });
+    }
+
+    const community = await resolveCommunity(idOrSlug as string);
+    if (!community) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    const membership = await storage.getCommunityMember(community.id, userId);
+    if (!membership || membership.role !== 'owner') {
+      return res.status(403).json({ error: 'Only community owners can update roles' });
+    }
+
+    const { name, permissions, color, position } = req.body;
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (permissions !== undefined) updateData.permissions = permissions;
+    if (color !== undefined) updateData.color = color;
+    if (position !== undefined) updateData.position = position;
+
+    const { db } = await import('../db');
+    const { communityRoles } = await import('@shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+
+    const [updated] = await db.update(communityRoles)
+      .set(updateData)
+      .where(and(eq(communityRoles.id, roleIdNum), eq(communityRoles.communityId, community.id)))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating community role:', error);
+    res.status(500).json(buildErrorResponse('Error updating community role', error));
+  }
+});
+
+// Delete a role
+router.delete('/communities/:idOrSlug/roles/:roleId', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const { idOrSlug, roleId } = req.params;
+    const roleIdNum = parseInt(roleId as string);
+    if (isNaN(roleIdNum)) {
+      return res.status(400).json({ error: 'Invalid role ID' });
+    }
+
+    const community = await resolveCommunity(idOrSlug as string);
+    if (!community) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    const membership = await storage.getCommunityMember(community.id, userId);
+    if (!membership || membership.role !== 'owner') {
+      return res.status(403).json({ error: 'Only community owners can delete roles' });
+    }
+
+    const { db } = await import('../db');
+    const { communityRoles } = await import('@shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+
+    const result = await db.delete(communityRoles)
+      .where(and(eq(communityRoles.id, roleIdNum), eq(communityRoles.communityId, community.id)))
+      .returning();
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting community role:', error);
+    res.status(500).json(buildErrorResponse('Error deleting community role', error));
+  }
+});
+
+// ============================================================================
+// SUB-COMMUNITIES
+// ============================================================================
+
+// Get sub-communities of a community
+router.get('/communities/:idOrSlug/sub-communities', async (req, res) => {
+  try {
+    const { idOrSlug } = req.params;
+    const community = await resolveCommunity(idOrSlug as string);
+    if (!community) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    const { db } = await import('../db');
+    const { communities } = await import('@shared/schema');
+    const { eq } = await import('drizzle-orm');
+
+    const subCommunities = await db.select()
+      .from(communities)
+      .where(eq(communities.parentCommunityId, community.id));
+
+    res.json(subCommunities);
+  } catch (error) {
+    console.error('Error fetching sub-communities:', error);
+    res.status(500).json(buildErrorResponse('Error fetching sub-communities', error));
+  }
+});
+
+// Create a sub-community
+router.post('/communities/:idOrSlug/sub-communities', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    if (!userId) return;
+
+    const { idOrSlug } = req.params;
+    const parentCommunity = await resolveCommunity(idOrSlug as string);
+    if (!parentCommunity) {
+      return res.status(404).json({ error: 'Parent community not found' });
+    }
+
+    // Only owner can create sub-communities
+    const membership = await storage.getCommunityMember(parentCommunity.id, userId);
+    if (!membership || membership.role !== 'owner') {
+      return res.status(403).json({ error: 'Only community owners can create sub-communities' });
+    }
+
+    const { name, description, iconName, iconColor, isPrivate } = req.body;
+    if (!name || !description || !iconName || !iconColor) {
+      return res.status(400).json({ error: 'name, description, iconName, and iconColor are required' });
+    }
+
+    // Generate slug from name
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const newCommunity = await storage.createCommunity({
+      name,
+      description,
+      slug: `${parentCommunity.slug}-${slug}`,
+      iconName,
+      iconColor,
+      isPrivate: isPrivate ?? parentCommunity.isPrivate,
+      parentCommunityId: parentCommunity.id,
+      createdBy: userId,
+    });
+
+    // Auto-add creator as owner
+    await storage.addCommunityMember({ communityId: newCommunity.id, userId, role: 'owner' });
+
+    res.status(201).json(newCommunity);
+  } catch (error) {
+    console.error('Error creating sub-community:', error);
+    res.status(500).json(buildErrorResponse('Error creating sub-community', error));
+  }
+});
+
 export default router;

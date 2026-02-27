@@ -137,6 +137,20 @@ function assertValidOrgBillingInput(data: { tier?: unknown; status?: unknown }) 
   }
 }
 
+/**
+ * Convert a search term into a tsquery string for PostgreSQL full-text search.
+ * Adds :* suffix for prefix matching ("joh" matches "john").
+ * Falls back gracefully if the term has special characters.
+ */
+function toTsQuery(term: string): string {
+  // Sanitize: remove special tsquery characters, trim
+  const sanitized = term.replace(/[&|!<>():*'"\\]/g, ' ').trim();
+  if (!sanitized) return '';
+  // Split into words, add :* for prefix matching, join with &
+  const words = sanitized.split(/\s+/).filter(Boolean);
+  return words.map(w => `${w}:*`).join(' & ');
+}
+
 // Add this safety utility class at the top of the file, after imports
 class StorageSafety {
   private static implementedMethods = new Set([
@@ -2515,6 +2529,21 @@ export class DbStorage implements IStorage {
   }
   
   async searchUsers(searchTerm: string): Promise<User[]> {
+    const tsQuery = toTsQuery(searchTerm);
+    if (tsQuery) {
+      try {
+        const results = await db.execute(sql`
+          SELECT * FROM users
+          WHERE search_vector @@ to_tsquery('english', ${tsQuery})
+            AND deleted_at IS NULL
+          ORDER BY ts_rank(search_vector, to_tsquery('english', ${tsQuery})) DESC
+          LIMIT 50
+        `);
+        if (results.rows.length > 0) return results.rows as User[];
+      } catch (e) {
+        // search_vector column may not exist yet; fall through to ILIKE
+      }
+    }
     const term = `%${searchTerm}%`;
     return await db.select().from(users).where(and(
       or(
@@ -2525,7 +2554,7 @@ export class DbStorage implements IStorage {
       whereNotDeleted(users)
     ));
   }
-  
+
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users).where(whereNotDeleted(users));
   }
@@ -2984,6 +3013,21 @@ export class DbStorage implements IStorage {
   }
   
   async searchCommunities(searchTerm: string): Promise<Community[]> {
+    const tsQuery = toTsQuery(searchTerm);
+    if (tsQuery) {
+      try {
+        const results = await db.execute(sql`
+          SELECT * FROM communities
+          WHERE search_vector @@ to_tsquery('english', ${tsQuery})
+            AND deleted_at IS NULL
+          ORDER BY ts_rank(search_vector, to_tsquery('english', ${tsQuery})) DESC
+          LIMIT 50
+        `);
+        if (results.rows.length > 0) return results.rows as Community[];
+      } catch (e) {
+        // fall through to ILIKE
+      }
+    }
     const term = `%${searchTerm}%`;
     return await db.select().from(communities).where(and(
       or(
@@ -3735,6 +3779,21 @@ export class DbStorage implements IStorage {
   }
 
   async searchPosts(searchTerm: string): Promise<Post[]> {
+    const tsQuery = toTsQuery(searchTerm);
+    if (tsQuery) {
+      try {
+        const results = await db.execute(sql`
+          SELECT * FROM posts
+          WHERE search_vector @@ to_tsquery('english', ${tsQuery})
+            AND deleted_at IS NULL
+          ORDER BY ts_rank(search_vector, to_tsquery('english', ${tsQuery})) DESC
+          LIMIT 50
+        `);
+        if (results.rows.length > 0) return results.rows as Post[];
+      } catch (e) {
+        // fall through to ILIKE
+      }
+    }
     const term = `%${searchTerm}%`;
     return await db.select()
       .from(posts)
@@ -3835,20 +3894,12 @@ export class DbStorage implements IStorage {
       } as any)
       .returning();
 
-    // Update comment count on the parent (could be a post or a microblog)
+    // Update comment count on the parent post (if it's a post, not a microblog)
+    // Note: microblog reply_count is handled by trigger trg_microblog_comment_count
     if (newComment.postId) {
-      // Try updating post first
-      const postResult = await db.update(posts)
+      await db.update(posts)
         .set({ commentCount: sql`COALESCE(${posts.commentCount}, 0) + 1` })
-        .where(eq(posts.id, newComment.postId))
-        .returning({ id: posts.id });
-
-      // If no post was updated, this comment is on a microblog (advice post)
-      if (postResult.length === 0) {
-        await db.update(microblogs)
-          .set({ replyCount: sql`COALESCE(${microblogs.replyCount}, 0) + 1` as any })
-          .where(eq(microblogs.id, newComment.postId));
-      }
+        .where(eq(posts.id, newComment.postId));
     }
 
     return newComment;
@@ -4305,6 +4356,20 @@ export class DbStorage implements IStorage {
   }
 
   async searchEvents(searchTerm: string): Promise<Event[]> {
+    const tsQuery = toTsQuery(searchTerm);
+    if (tsQuery) {
+      try {
+        const results = await db.execute(sql`
+          SELECT * FROM events
+          WHERE search_vector @@ to_tsquery('english', ${tsQuery})
+          ORDER BY ts_rank(search_vector, to_tsquery('english', ${tsQuery})) DESC
+          LIMIT 50
+        `);
+        if (results.rows.length > 0) return results.rows as Event[];
+      } catch (e) {
+        // fall through to ILIKE
+      }
+    }
     const term = `%${searchTerm}%`;
     return await db.select()
       .from(events)
@@ -4533,13 +4598,7 @@ export class DbStorage implements IStorage {
       } as any)
       .returning();
 
-    // If this is a reply, increment parent's reply count
-    if (microblog.parentId) {
-      await db
-        .update(microblogs)
-        .set({ replyCount: sql`COALESCE(${microblogs.replyCount}, 0) + 1` as any })
-        .where(eq(microblogs.id, microblog.parentId));
-    }
+    // Parent's reply_count is auto-incremented by trigger trg_microblog_reply_count
 
     return newMicroblog;
   }
@@ -4564,6 +4623,20 @@ export class DbStorage implements IStorage {
   }
 
   async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
+    const tsQuery = toTsQuery(searchTerm);
+    if (tsQuery) {
+      try {
+        const results = await db.execute(sql`
+          SELECT * FROM microblogs
+          WHERE search_vector @@ to_tsquery('english', ${tsQuery})
+          ORDER BY ts_rank(search_vector, to_tsquery('english', ${tsQuery})) DESC
+          LIMIT 50
+        `);
+        if (results.rows.length > 0) return results.rows as Microblog[];
+      } catch (e) {
+        // fall through to ILIKE
+      }
+    }
     const term = `%${searchTerm}%`;
     return await db.select()
       .from(microblogs)
@@ -4585,23 +4658,17 @@ export class DbStorage implements IStorage {
       throw new Error('Already liked');
     }
 
-    // Insert like
+    // Insert like (trigger trg_microblog_like_count auto-increments like_count)
     const [newLike] = await db
       .insert(microblogLikes)
       .values({ microblogId, userId } as any)
       .returning();
 
-    // Increment like count
-    await db
-      .update(microblogs)
-      .set({ likeCount: sql`COALESCE(${microblogs.likeCount}, 0) + 1` as any })
-      .where(eq(microblogs.id, microblogId));
-
     return newLike;
   }
 
   async unlikeMicroblog(microblogId: number, userId: number): Promise<boolean> {
-    // Delete like
+    // Delete like (trigger trg_microblog_like_count auto-decrements like_count)
     const deleted = await db
       .delete(microblogLikes)
       .where(and(
@@ -4610,15 +4677,7 @@ export class DbStorage implements IStorage {
       ))
       .returning();
 
-    if (deleted.length === 0) return false;
-
-    // Decrement like count
-    await db
-      .update(microblogs)
-      .set({ likeCount: sql`GREATEST(COALESCE(${microblogs.likeCount}, 0) - 1, 0)` as any })
-      .where(eq(microblogs.id, microblogId));
-
-    return true;
+    return deleted.length > 0;
   }
 
   async getUserLikedMicroblogs(userId: number): Promise<Microblog[]> {
@@ -5662,14 +5721,21 @@ export class DbStorage implements IStorage {
       )
     ).orderBy(messages.createdAt);
 
-    // Enrich messages with sender and receiver user information + reactions
-    const enrichedMessages = [];
-    for (const msg of result) {
-      const sender = await this.getUser(msg.senderId);
-      const receiver = await this.getUser(msg.receiverId);
-      const reactions = await this.getMessageReactions(msg.id);
+    if (result.length === 0) return [];
 
-      enrichedMessages.push({
+    // Batch-load users (1 query instead of 2N)
+    const userIds = [...new Set(result.flatMap(m => [m.senderId, m.receiverId]))];
+    const usersMap = await this.getUsersByIds(userIds);
+
+    // Batch-load reactions (1 query instead of N)
+    const messageIds = result.map(m => m.id);
+    const allReactions = await this.getMessageReactionsBatch(messageIds);
+
+    // Map over results using the two Maps
+    return result.map(msg => {
+      const sender = usersMap.get(msg.senderId);
+      const receiver = usersMap.get(msg.receiverId);
+      return {
         ...msg,
         content: decryptMessage(msg.content),
         sender: sender ? {
@@ -5684,11 +5750,9 @@ export class DbStorage implements IStorage {
           displayName: receiver.displayName,
           profileImageUrl: receiver.profileImageUrl,
         } : null,
-        reactions: reactions,
-      });
-    }
-
-    return enrichedMessages;
+        reactions: allReactions.get(msg.id) || [],
+      };
+    });
   }
 
   async createDirectMessage(message: any): Promise<any> {
@@ -5698,76 +5762,59 @@ export class DbStorage implements IStorage {
   }
 
   async getUserConversations(userId: number): Promise<any[]> {
-    // Get all messages for this user
-    const userMessages = await db
-      .select({
-        id: messages.id,
-        senderId: messages.senderId,
-        receiverId: messages.receiverId,
-        content: messages.content,
-        createdAt: messages.createdAt,
-        isRead: messages.isRead,
-      })
-      .from(messages)
-      .where(
-        or(
-          eq(messages.senderId, userId),
-          eq(messages.receiverId, userId)
-        )
+    // Single query: get last message per conversation partner + unread counts
+    // Uses DISTINCT ON to get only the latest message per partner
+    const lastMessages = await db.execute(sql`
+      WITH ranked AS (
+        SELECT
+          m.*,
+          CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END AS other_user_id,
+          ROW_NUMBER() OVER (
+            PARTITION BY CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END
+            ORDER BY m.created_at DESC
+          ) AS rn
+        FROM messages m
+        WHERE m.sender_id = ${userId} OR m.receiver_id = ${userId}
+      ),
+      unread_counts AS (
+        SELECT sender_id AS other_user_id, COUNT(*)::int AS unread_count
+        FROM messages
+        WHERE receiver_id = ${userId} AND is_read = false
+        GROUP BY sender_id
       )
-      .orderBy(desc(messages.createdAt));
+      SELECT
+        r.id, r.sender_id, r.receiver_id, r.content, r.created_at, r.other_user_id,
+        COALESCE(u.unread_count, 0) AS unread_count
+      FROM ranked r
+      LEFT JOIN unread_counts u ON u.other_user_id = r.other_user_id
+      WHERE r.rn = 1
+      ORDER BY r.created_at DESC
+    `);
 
-    // Group by conversation partner
-    const conversationMap = new Map();
+    if (lastMessages.rows.length === 0) return [];
 
-    for (const msg of userMessages) {
-      const otherUserId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+    // Batch-load all conversation partner users (1 query instead of N)
+    const otherUserIds = lastMessages.rows.map((r: any) => r.other_user_id as number);
+    const usersMap = await this.getUsersByIds(otherUserIds);
 
-      if (!conversationMap.has(otherUserId)) {
-        // Get unread count for this conversation
-        const unreadMessages = await db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(messages)
-          .where(
-            and(
-              eq(messages.senderId, otherUserId),
-              eq(messages.receiverId, userId),
-              eq(messages.isRead, false)
-            )
-          );
-
-        conversationMap.set(otherUserId, {
-          otherUserId,
-          lastMessageContent: decryptMessage(msg.content),
-          lastMessageTime: msg.createdAt,
-          lastMessageSenderId: msg.senderId,
-          unreadCount: unreadMessages[0]?.count || 0
-        });
-      }
-    }
-
-    // Get user details for each conversation
-    const conversations = [];
-    for (const [otherUserId, conv] of conversationMap) {
-      const otherUser = await this.getUser(otherUserId);
-      conversations.push({
-        id: otherUserId, // Add ID for mobile app
-        otherUser: { // Nest user info
-          id: otherUserId,
+    return lastMessages.rows.map((row: any) => {
+      const otherUser = usersMap.get(row.other_user_id);
+      return {
+        id: row.other_user_id,
+        otherUser: {
+          id: row.other_user_id,
           username: otherUser?.username || 'Unknown',
           displayName: otherUser?.displayName,
-          avatarUrl: otherUser?.avatarUrl || null // Use avatarUrl for consistency
+          avatarUrl: (otherUser as any)?.avatarUrl || null,
         },
-        lastMessage: { // Nest last message info
-          content: conv.lastMessageContent,
-          createdAt: conv.lastMessageTime,
-          senderId: conv.lastMessageSenderId // Include sender for better context
+        lastMessage: {
+          content: decryptMessage(row.content),
+          createdAt: row.created_at,
+          senderId: row.sender_id,
         },
-        unreadCount: conv.unreadCount
-      });
-    }
-
-    return conversations;
+        unreadCount: row.unread_count,
+      };
+    });
   }
 
   async markMessageAsRead(messageId: string, userId: number): Promise<boolean> {
@@ -5866,6 +5913,23 @@ export class DbStorage implements IStorage {
       .from(messageReactions)
       .where(eq(messageReactions.messageId, messageId))
       .orderBy(messageReactions.createdAt);
+  }
+
+  // Batch-load reactions for multiple messages (1 query instead of N)
+  async getMessageReactionsBatch(messageIds: string[]): Promise<Map<string, MessageReaction[]>> {
+    if (messageIds.length === 0) return new Map();
+    const allReactions = await db
+      .select()
+      .from(messageReactions)
+      .where(inArray(messageReactions.messageId, messageIds))
+      .orderBy(messageReactions.createdAt);
+    const map = new Map<string, MessageReaction[]>();
+    for (const r of allReactions) {
+      const existing = map.get(r.messageId) || [];
+      existing.push(r);
+      map.set(r.messageId, existing);
+    }
+    return map;
   }
 
   // Push token + notifications (DB) - stubs until full implementation
