@@ -11,7 +11,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Text, TextInput, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import { initializeNotifications, cleanupNotifications, unregisterPushToken, getCurrentToken } from '../src/services/notificationService';
+import * as Linking from 'expo-linking';
+import * as SecureStore from 'expo-secure-store';
+import { initializeNotifications, cleanupNotifications, unregisterPushToken, getCurrentToken, setBadgeCount } from '../src/services/notificationService';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import apiClient from '../src/lib/apiClient';
 import { VideoSplash } from '../src/components/VideoSplash';
@@ -58,6 +60,31 @@ function RootLayoutNav() {
     receivedListener: Notifications.Subscription | null;
     responseListener: Notifications.Subscription | null;
   } | null>(null);
+
+  // Handle invite deep links — store community ID for onboarding
+  useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      try {
+        const { url } = event;
+        // Match patterns like theconnection://invite/123 or https://theconnection.app/invite/123
+        const inviteMatch = url.match(/invite\/(\d+)/);
+        if (inviteMatch) {
+          await SecureStore.setItemAsync('invite_community_id', inviteMatch[1]);
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+
+    // Check if app was opened with a URL
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink({ url });
+    });
+
+    // Listen for URLs while app is open
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    return () => subscription.remove();
+  }, []);
 
   // Prefetch events data when user is authenticated
   useEffect(() => {
@@ -137,8 +164,9 @@ function RootLayoutNav() {
           notificationListeners.current = null;
         }
 
-        // Unregister token on logout
+        // Unregister token and clear badge on logout
         if (!user) {
+          setBadgeCount(0);
           const currentToken = await getCurrentToken();
           if (currentToken) {
             await unregisterPushToken(currentToken);
@@ -153,6 +181,13 @@ function RootLayoutNav() {
         if (listeners) {
           notificationListeners.current = listeners;
         }
+
+        // Sync app icon badge with server unread count
+        try {
+          const resp = await apiClient.get('/api/notifications/unread-count');
+          const count = resp.data?.data?.count ?? resp.data?.count ?? 0;
+          await setBadgeCount(count);
+        } catch {}
       }
     }
 

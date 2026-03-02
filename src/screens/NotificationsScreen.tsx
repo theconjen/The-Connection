@@ -36,6 +36,7 @@ import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import { formatDistanceToNow, isToday, isWithinInterval, subDays, startOfDay } from 'date-fns';
 import { useRouter } from 'expo-router';
+import { setBadgeCount } from '../services/notificationService';
 
 // ============================================================================
 // TYPES
@@ -109,6 +110,7 @@ function useMarkAllAsRead() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notification-count'] });
+      setBadgeCount(0);
     },
   });
 }

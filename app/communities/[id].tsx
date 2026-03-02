@@ -22,12 +22,13 @@ import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { communitiesAPI, chatAPI } from '../../src/lib/apiClient';
+import apiClient, { communitiesAPI, chatAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { Text } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import socketService, { ChatMessage } from '../../src/lib/socket';
+import CommunityAnalyticsTab from '../../src/components/community/CommunityAnalyticsTab';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Video, ResizeMode } from 'expo-av';
@@ -58,7 +59,7 @@ interface Community {
   iconColor?: string; // Community brand color
 }
 
-type TabType = 'feed' | 'events' | 'chat' | 'members' | 'prayers';
+type TabType = 'feed' | 'events' | 'chat' | 'members' | 'prayers' | 'analytics';
 
 export default function CommunityDetailScreen() {
   const router = useRouter();
@@ -150,6 +151,31 @@ export default function CommunityDetailScreen() {
       }
     },
     enabled: !!communityId && canManageRequests && activeTab === 'members',
+  });
+
+  // Fetch notification mute status
+  const { data: muteData } = useQuery({
+    queryKey: ['community-mute', communityId],
+    queryFn: async () => {
+      const res = await apiClient.get(`/api/communities/${communityId}/mute`);
+      return res.data;
+    },
+    enabled: !!communityId && !!community?.isMember,
+  });
+  const isMuted = muteData?.muted ?? false;
+
+  // Toggle mute mutation
+  const toggleMuteMutation = useMutation({
+    mutationFn: async () => {
+      if (isMuted) {
+        await apiClient.delete(`/api/communities/${communityId}/mute`);
+      } else {
+        await apiClient.post(`/api/communities/${communityId}/mute`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-mute', communityId] });
+    },
   });
 
   // Fetch chat room
@@ -613,10 +639,23 @@ export default function CommunityDetailScreen() {
         <TouchableOpacity style={styles.backIcon} onPress={() => router.push('/(tabs)/communities')}>
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <View style={styles.headerContent}>
+        <View style={[styles.headerContent, { flex: 1 }]}>
           <Text style={styles.communityName}>{community.name}</Text>
           <Text style={styles.description}>{community.description}</Text>
         </View>
+        {community.isMember && (
+          <TouchableOpacity
+            onPress={() => toggleMuteMutation.mutate()}
+            style={{ padding: 8 }}
+            disabled={toggleMuteMutation.isPending}
+          >
+            <Ionicons
+              name={isMuted ? 'notifications-off' : 'notifications'}
+              size={22}
+              color={isMuted ? colors.mutedForeground : colors.foreground}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Community Info Banner */}
@@ -728,6 +767,16 @@ export default function CommunityDetailScreen() {
           colors={colors}
           accentColor={communityColor}
         />
+        {(community?.isAdmin || community?.isModerator || community?.role === 'owner' || community?.role === 'moderator') && (
+          <TabButton
+            icon="analytics"
+            label="Analytics"
+            active={activeTab === 'analytics'}
+            onPress={() => setActiveTab('analytics')}
+            colors={colors}
+            accentColor={communityColor}
+          />
+        )}
       </View>
 
       {/* Content */}
@@ -1356,6 +1405,11 @@ export default function CommunityDetailScreen() {
               </>
             )}
           </View>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <CommunityAnalyticsTab communityId={communityId} />
         )}
       </ScrollView>
       ) : (

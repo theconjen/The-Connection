@@ -1,10 +1,11 @@
 import HomeScreen from "../../src/screens/HomeScreen";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "../../src/lib/apiClient";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
+import { setBadgeCount } from "../../src/services/notificationService";
 
 export default function HomeTab() {
   const router = useRouter();
@@ -29,6 +30,11 @@ export default function HomeTab() {
     enabled: !!user,
     refetchInterval: 60000, // Reduced from 30s to save battery
   });
+
+  // Sync app icon badge whenever polled notification count changes
+  useEffect(() => {
+    setBadgeCount(unreadNotificationCount);
+  }, [unreadNotificationCount]);
 
   // Fetch unread DM count (for message icon badge)
   const { data: unreadMessageCount = 0 } = useQuery<number>({
