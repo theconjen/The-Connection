@@ -89,7 +89,7 @@ export function ChatRoom({ roomId, roomName }: ChatRoomProps) {
       <ScrollArea className="flex-1 p-4">
         {roomMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-muted-foreground">No messages yet. Be the first to say hello!</p>
+            <p className="text-muted-foreground">No messages yet — type below to start the conversation!</p>
           </div>
         ) : (
           <div className="space-y-4">

@@ -504,7 +504,15 @@ export function CommunityEvents({ community, isMember, isOwner, isModerator }: C
                   Events on {format(selectedDate, "MMMM d, yyyy")}
                 </h3>
                 {getEventsForDate(selectedDate).length === 0 ? (
-                  <p className="text-muted-foreground">No events scheduled for this date.</p>
+                  <div>
+                    <p className="text-muted-foreground mb-4">No events scheduled for this date.</p>
+                    {isMember && (
+                      <Button variant="outline" size="sm" onClick={() => setShowCreateEvent(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Event
+                      </Button>
+                    )}
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {getEventsForDate(selectedDate).map((event) => (
@@ -541,10 +549,10 @@ export function CommunityEvents({ community, isMember, isOwner, isModerator }: C
                   <p className="text-muted-foreground mb-4">
                     {filter === "upcoming" ? "No upcoming events scheduled." : `No ${filter} events.`}
                   </p>
-                  {(isMember && (isOwner || isModerator)) && filter === "upcoming" && (
+                  {isMember && filter === "upcoming" && (
                     <Button onClick={() => setShowCreateEvent(true)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Create First Event
+                      Create Event
                     </Button>
                   )}
                 </div>
@@ -576,7 +584,13 @@ export function CommunityEvents({ community, isMember, isOwner, isModerator }: C
                   <CardContent className="text-center py-12">
                     <CalendarDays className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No events found</h3>
-                    <p className="text-muted-foreground">No events match your current filter.</p>
+                    <p className="text-muted-foreground mb-4">No events match your current filter.</p>
+                    {isMember && (
+                      <Button onClick={() => setShowCreateEvent(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Event
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (

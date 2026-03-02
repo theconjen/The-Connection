@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { Loader2, Send, MessageCircle, Search, MoreVertical, Phone, Video, Smile, Paperclip, Check, CheckCheck } from 'lucide-react';
+import { Loader2, Send, MessageCircle, Search, MoreVertical, Phone, Video, Smile, Paperclip, Check, CheckCheck, Users } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
 import { apiUrl } from '../lib/env';
 
@@ -273,6 +273,15 @@ export default function DMsPage() {
               <p className="text-muted-foreground text-xs mt-1">
                 Start a conversation from someone's profile
               </p>
+              <Button
+                variant="default"
+                size="sm"
+                className="mt-3"
+                onClick={() => navigate('/communities')}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Find People
+              </Button>
             </div>
           ) : (
             <div>

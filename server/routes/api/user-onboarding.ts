@@ -12,6 +12,7 @@ const onboardingSchema = z.object({
   zipCode: z.string().optional(),
   interests: z.array(z.string()).optional(),
   onboardingCompleted: z.boolean().optional(),
+  onboardingStep: z.string().optional(),
   latitude: z.string().optional(),
   longitude: z.string().optional(),
 });
@@ -26,18 +27,19 @@ export const handleOnboarding = async (req: Request, res: Response) => {
     // Validate the request body
     const validation = onboardingSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ 
-        message: "Invalid data", 
-        errors: validation.error.issues 
+      return res.status(400).json({
+        message: "Invalid data",
+        errors: validation.error.issues
       });
     }
 
-    const { 
-      city, 
-      state, 
-      zipCode, 
-      interests, 
+    const {
+      city,
+      state,
+      zipCode,
+      interests,
       onboardingCompleted,
+      onboardingStep,
       latitude,
       longitude
     } = validation.data;
@@ -48,6 +50,7 @@ export const handleOnboarding = async (req: Request, res: Response) => {
       state,
       zipCode,
       onboardingCompleted,
+      onboardingStep,
       latitude,
       longitude
     });
@@ -59,9 +62,9 @@ export const handleOnboarding = async (req: Request, res: Response) => {
       });
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Onboarding completed successfully",
-      success: true 
+      success: true
     });
   } catch (error) {
     console.error("Error in onboarding:", error);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { format } from 'date-fns';
-import { CalendarDays, ChevronRight, Clock, MapPin, Filter, List, Map } from 'lucide-react';
+import { CalendarDays, ChevronRight, Clock, MapPin, Filter, List, Map, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ContentActions } from '@/components/moderation/ContentActions';
 import { useBlockedUserIds } from '@/hooks/use-blocked-users';
@@ -293,14 +293,22 @@ export default function EventsList({
             <CalendarDays size={36} className="text-primary" />
           </div>
           <h3 className="text-2xl font-medium mb-2">No events found</h3>
-          <p className="text-muted-foreground mt-2 max-w-md px-4">
-            {viewMode === "nearby" 
+          <p className="text-muted-foreground mt-2 max-w-md px-4 mb-4">
+            {viewMode === "nearby"
               ? "There are no events near your current location. Try expanding your search radius or check back later."
-              : viewMode === "public" 
+              : viewMode === "public"
                 ? "There are no public events available. Try creating one yourself!"
                 : "No events match your search criteria. Try adjusting your filters or create a new event."
             }
           </p>
+          {user && (
+            <Link href="/events/create">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Event
+              </Button>
+            </Link>
+          )}
         </div>
       )}
     </div>
