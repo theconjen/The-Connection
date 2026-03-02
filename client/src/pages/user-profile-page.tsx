@@ -29,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { useAuth } from "../hooks/use-auth";
 import { useToast } from "../hooks/use-toast";
 import { apiRequest } from "../lib/queryClient";
+import { JsonLd } from "../components/seo/json-ld";
 
 interface UserProfile {
   id: number;
@@ -195,6 +196,24 @@ export default function UserProfilePage({ byId = false }: UserProfilePageProps) 
 
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "ProfilePage",
+          mainEntity: {
+            "@type": "Person",
+            name: profile.displayName || profile.username,
+            url: `https://theconnection.app/u/${profile.username}`,
+            ...(profile.bio && { description: profile.bio }),
+            ...(avatarUrl && { image: avatarUrl }),
+            interactionStatistic: {
+              "@type": "InteractionCounter",
+              interactionType: "https://schema.org/FollowAction",
+              userInteractionCount: profile.followerCount || 0,
+            },
+          },
+        }}
+      />
       {/* Profile Header */}
       <Card className="mb-6">
         <CardContent className="pt-6">

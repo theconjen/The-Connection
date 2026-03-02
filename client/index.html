@@ -12,12 +12,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>The Connection - Your Christian Community Platform</title>
     <meta name="description" content="The Connection is a Christian community platform focused on spiritual growth, apologetics, and Bible study groups. Join discussions, access resources, and connect with other believers." />
+    <meta name="keywords" content="Christian community, Bible study, apologetics, prayer requests, church groups, spiritual growth, fellowship, Christian events, faith community" />
+    <link rel="canonical" href="https://theconnection.app" />
+
+    <!-- Favicon & App Icons -->
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0B132B" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
     <!-- Open Graph Tags -->
     <meta property="og:title" content="The Connection - Your Christian Community Platform" />
     <meta property="og:description" content="Join our Christian community focused on spiritual growth, apologetics, and Bible study groups." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://theconnection.app" />
     <meta property="og:site_name" content="The Connection" />
+    <meta property="og:image" content="https://theconnection.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter Card Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="The Connection - Your Christian Community Platform" />
+    <meta name="twitter:description" content="Join our Christian community focused on spiritual growth, apologetics, and Bible study groups." />
+    <meta name="twitter:image" content="https://theconnection.app/og-image.png" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "The Connection",
+      "url": "https://theconnection.app",
+      "logo": "https://theconnection.app/apple-touch-icon.png",
+      "description": "A Christian community platform focused on spiritual growth, apologetics, and Bible study groups.",
+      "foundingDate": "2024",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "url": "https://theconnection.app/support",
+        "contactType": "customer support"
+      },
+      "sameAs": ["https://www.instagram.com/theconnection_app"]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "The Connection",
+      "url": "https://theconnection.app",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://theconnection.app/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
     <!-- Font Awesome for social sharing icons -->
@@ -34,13 +85,10 @@
     </div>
     <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
     <script>
-      // Debug: Log when script starts
-      console.log('[DEBUG] Inline script executing');
       document.getElementById('loading-text').textContent = 'Loading scripts...';
 
       // Error handler for module loading
       window.onerror = function(msg, url, line, col, error) {
-        console.error('[DEBUG] Global error:', msg, url, line, col, error);
         var loadingText = document.getElementById('loading-text');
         if (loadingText) {
           loadingText.textContent = 'Error: ' + msg;
@@ -51,7 +99,6 @@
     </script>
     <script type="module" src="/src/main.tsx" onerror="document.getElementById('loading-text').textContent='Module load error'; document.getElementById('loading-text').style.color='red';"></script>
     <script type="module">
-      console.log('[DEBUG] Module script loaded successfully');
       document.getElementById('loading-text').textContent = 'React initializing...';
     </script>
     <script nomodule>

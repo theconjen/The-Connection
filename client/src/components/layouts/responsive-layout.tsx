@@ -6,6 +6,7 @@ import MobileNavigation from "../mobile-navigation";
 import SidebarNavigation from "../sidebar-navigation";
 import { GuestAccessBanner } from "../guest-access-banner";
 import AppDownloadBanner from "../AppDownloadBanner";
+import Footer from "../footer";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type ResponsiveLayoutProps = {
@@ -153,6 +154,9 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
           isVisible={!isKeyboardVisible}
         />
       )}
+
+      {/* Site-wide Footer - hidden on admin pages */}
+      {!location.startsWith('/admin') && <Footer />}
 
       {/* Guest call-to-action banner to encourage sign in/up while still allowing browsing */}
       <GuestAccessBanner />

@@ -24,6 +24,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { OpenInAppBanner, openInApp, getStoreUrl } from "@/components/OpenInAppBanner";
+import { JsonLd } from "@/components/seo/json-ld";
 import { format, parseISO } from "date-fns";
 
 interface EventPreview {
@@ -187,8 +188,41 @@ export default function EventPreviewPage() {
 
   const isOnline = preview.isVirtual || preview.isOnline;
 
+  const eventJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: preview.title,
+    description: preview.description || undefined,
+    startDate: preview.startsAt || preview.eventDate,
+    ...(preview.endsAt && { endDate: preview.endsAt }),
+    ...(preview.imageUrl && { image: preview.imageUrl }),
+    eventAttendanceMode: isOnline
+      ? "https://schema.org/OnlineEventAttendanceMode"
+      : "https://schema.org/OfflineEventAttendanceMode",
+    eventStatus: "https://schema.org/EventScheduled",
+    location: isOnline
+      ? { "@type": "VirtualLocation", url: preview.shareUrl }
+      : {
+          "@type": "Place",
+          name: preview.locationDisplay || "TBD",
+          address: {
+            "@type": "PostalAddress",
+            ...(preview.address && { streetAddress: preview.address }),
+            ...(preview.city && { addressLocality: preview.city }),
+            ...(preview.state && { addressRegion: preview.state }),
+          },
+        },
+    organizer: {
+      "@type": "Person",
+      name: preview.hostName,
+    },
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Event JSON-LD */}
+      <JsonLd data={eventJsonLd} />
+
       {/* Open in App Banner */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container max-w-3xl mx-auto px-4 py-3">

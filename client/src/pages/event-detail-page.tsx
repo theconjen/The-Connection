@@ -45,6 +45,7 @@ import { Separator } from "../components/ui/separator";
 import { Badge } from "../components/ui/badge";
 import { Textarea } from "../components/ui/textarea";
 import type { Event, EventRsvp } from '@connection/shared/mobile-web/types';
+import { JsonLd } from "../components/seo/json-ld";
 
 export default function EventDetailPage() {
   const [, setLocation] = useLocation();
@@ -329,8 +330,36 @@ export default function EventDetailPage() {
 
   const isCreator = user && event.creatorId === user.id;
 
+  const eventLocation = event.isVirtual
+    ? { "@type": "VirtualLocation" as const, url: event.virtualMeetingUrl || "https://theconnection.app" }
+    : {
+        "@type": "Place" as const,
+        name: event.location || "TBD",
+        address: [event.address, event.city, event.state, event.zipCode].filter(Boolean).join(", ") || undefined,
+      };
+
   return (
     <div className="container py-8">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Event",
+          name: event.title,
+          description: event.description,
+          startDate: event.eventDate,
+          ...(event.eventEndDate && { endDate: event.eventEndDate }),
+          location: eventLocation,
+          ...(event.imageUrl && { image: event.imageUrl }),
+          organizer: {
+            "@type": "Organization",
+            name: "The Connection",
+            url: "https://theconnection.app",
+          },
+          eventAttendanceMode: event.isVirtual
+            ? "https://schema.org/OnlineEventAttendanceMode"
+            : "https://schema.org/OfflineEventAttendanceMode",
+        }}
+      />
       <div className="mb-6">
         <Button asChild variant="ghost" className="gap-2">
           <Link href="/events">

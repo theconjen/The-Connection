@@ -67,9 +67,13 @@ function generateOgHtml(meta: {
   type?: string;
   author?: string;
   publishedTime?: string;
+  jsonLd?: Record<string, unknown>;
 }): string {
   const ogImage = meta.image || DEFAULT_IMAGE;
   const ogType = meta.type || 'website';
+  const jsonLdBlock = meta.jsonLd
+    ? `\n  <script type="application/ld+json">${JSON.stringify(meta.jsonLd)}</script>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -103,6 +107,7 @@ function generateOgHtml(meta: {
   <meta property="al:android:package" content="app.theconnection.mobile">
   <meta property="al:android:app_name" content="The Connection">
   <meta property="al:android:url" content="theconnection://${meta.url.replace(BASE_URL, '')}">
+${jsonLdBlock}
 
   <!-- Redirect to SPA -->
   <script>window.location.href = "${escapeHtml(meta.url)}";</script>
@@ -180,14 +185,31 @@ async function handleApologeticsOg(slugOrId: string, res: Response) {
   const slug = (resource as any).slug || `apologetics-${resource.id}`;
   const quickAnswer = (resource as any).quickAnswer || (resource as any).summary || resource.content?.substring(0, 200);
 
+  const authorName = (resource as any).authorDisplayName || 'The Connection Team';
+
   const html = generateOgHtml({
     title: `${resource.title} | The Connection`,
     description: truncate(quickAnswer, 200),
     url: `${BASE_URL}/a/${slug}`,
     image: (resource as any).imageUrl,
     type: 'article',
-    author: (resource as any).authorDisplayName || 'The Connection Team',
+    author: authorName,
     publishedTime: resource.createdAt?.toISOString(),
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: resource.title,
+      description: truncate(quickAnswer, 200),
+      author: { '@type': 'Person', name: authorName },
+      ...(resource.createdAt && { datePublished: resource.createdAt.toISOString() }),
+      publisher: {
+        '@type': 'Organization',
+        name: SITE_NAME,
+        url: BASE_URL,
+        logo: { '@type': 'ImageObject', url: `${BASE_URL}/apple-touch-icon.png` },
+      },
+      mainEntityOfPage: { '@type': 'WebPage', '@id': `${BASE_URL}/a/${slug}` },
+    },
   });
 
   res.set('Content-Type', 'text/html');
@@ -227,12 +249,29 @@ async function handleEventOg(eventId: string, res: Response) {
     day: 'numeric',
   }) : '';
 
+  const isVirtual = (event as any).isVirtual;
+  const eventJsonLdLocation = isVirtual
+    ? { '@type': 'VirtualLocation', url: (event as any).virtualMeetingUrl || BASE_URL }
+    : { '@type': 'Place', name: event.location || 'TBD', address: locationDisplay };
+
   const html = generateOgHtml({
     title: `${event.title} | The Connection`,
     description: truncate(`${dateStr} · ${locationDisplay} · Hosted by ${hostName}. ${event.description || ''}`, 200),
     url: `${BASE_URL}/e/${event.id}`,
     image: (event as any).imageUrl || (event as any).posterUrl,
     type: 'event',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'Event',
+      name: event.title,
+      description: event.description,
+      ...(eventDate && { startDate: new Date(eventDate).toISOString() }),
+      location: eventJsonLdLocation,
+      organizer: { '@type': 'Organization', name: SITE_NAME, url: BASE_URL },
+      eventAttendanceMode: isVirtual
+        ? 'https://schema.org/OnlineEventAttendanceMode'
+        : 'https://schema.org/OfflineEventAttendanceMode',
+    },
   });
 
   res.set('Content-Type', 'text/html');
@@ -270,6 +309,21 @@ async function handlePostOg(postId: string, res: Response) {
     type: 'article',
     author: authorName,
     publishedTime: post.createdAt?.toISOString(),
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: title,
+      description: truncate(contentPreview, 200),
+      author: { '@type': 'Person', name: authorName },
+      ...(post.createdAt && { datePublished: post.createdAt.toISOString() }),
+      publisher: {
+        '@type': 'Organization',
+        name: SITE_NAME,
+        url: BASE_URL,
+        logo: { '@type': 'ImageObject', url: `${BASE_URL}/apple-touch-icon.png` },
+      },
+      mainEntityOfPage: { '@type': 'WebPage', '@id': `${BASE_URL}/p/${post.id}` },
+    },
   });
 
   res.set('Content-Type', 'text/html');
@@ -301,12 +355,30 @@ async function handleProfileOg(username: string, res: Response) {
     description += ` · ${followerCount} followers`;
   }
 
+  const profileUrl = `${BASE_URL}/u/${user.username}`;
+
   const html = generateOgHtml({
     title: `${displayName} (@${user.username}) | The Connection`,
     description: description,
-    url: `${BASE_URL}/u/${user.username}`,
+    url: profileUrl,
     image: user.avatarUrl,
     type: 'profile',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'ProfilePage',
+      mainEntity: {
+        '@type': 'Person',
+        name: displayName,
+        url: profileUrl,
+        ...(!isPrivate && (user as any).bio ? { description: truncate((user as any).bio, 200) } : {}),
+        ...(user.avatarUrl ? { image: user.avatarUrl } : {}),
+        interactionStatistic: {
+          '@type': 'InteractionCounter',
+          interactionType: 'https://schema.org/FollowAction',
+          userInteractionCount: followerCount,
+        },
+      },
+    },
   });
 
   res.set('Content-Type', 'text/html');

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, ArrowLeft, Shield, Flame, ExternalLink, Edit, Calendar } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { JsonLd } from '@/components/seo/json-ld';
 
 type LibraryPost = {
   id: number;
@@ -88,6 +89,29 @@ export default function LibraryPostPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: post.title,
+          description: post.tldr || post.summary || post.bodyMarkdown?.substring(0, 200),
+          author: {
+            "@type": "Person",
+            name: post.authorDisplayName,
+          },
+          ...(post.publishedAt && { datePublished: post.publishedAt }),
+          publisher: {
+            "@type": "Organization",
+            name: "The Connection",
+            url: "https://theconnection.app",
+            logo: { "@type": "ImageObject", url: "https://theconnection.app/apple-touch-icon.png" },
+          },
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": `https://theconnection.app/library/${post.id}`,
+          },
+        }}
+      />
       {/* Header Navigation */}
       <div className="flex items-center justify-between mb-6">
         <Link href="/library">

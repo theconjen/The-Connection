@@ -21,6 +21,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { OpenInAppBanner, openInApp, getStoreUrl } from "@/components/OpenInAppBanner";
+import { JsonLd } from "@/components/seo/json-ld";
 
 interface ApologeticsPreview {
   id: number;
@@ -149,6 +150,32 @@ export default function ApologeticsPreviewPage() {
           />
         </div>
       </div>
+
+      {/* Article JSON-LD */}
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: preview.title,
+          description: preview.quickAnswer,
+          author: {
+            "@type": "Person",
+            name: preview.authorDisplayName,
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "The Connection",
+            url: "https://theconnection.app",
+            logo: { "@type": "ImageObject", url: "https://theconnection.app/apple-touch-icon.png" },
+          },
+          dateModified: preview.updatedAt,
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": preview.shareUrl,
+          },
+          ...(preview.ogImageUrl && { image: preview.ogImageUrl }),
+        }}
+      />
 
       {/* Article Preview */}
       <div className="container max-w-3xl mx-auto px-4 py-8">

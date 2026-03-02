@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
 import AppShellPage from "../components/app-shell-page";
+import { JsonLd } from "../components/seo/json-ld";
 
 interface Question {
   id: number;
@@ -98,8 +99,52 @@ export default function QuestionDetailPage() {
     );
   }
 
+  const acceptedAnswer = question.answers?.find((a) => a.isAccepted);
+  const suggestedAnswers = question.answers?.filter((a) => !a.isAccepted) || [];
+
   return (
     <div className="container max-w-3xl mx-auto py-8 px-4">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "QAPage",
+          mainEntity: {
+            "@type": "Question",
+            name: question.title,
+            text: question.content,
+            dateCreated: question.createdAt,
+            author: {
+              "@type": "Person",
+              name: question.user?.displayName || question.user?.username || "Anonymous",
+            },
+            answerCount: question.answers?.length || 0,
+            ...(acceptedAnswer && {
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: acceptedAnswer.content,
+                dateCreated: acceptedAnswer.createdAt,
+                upvoteCount: acceptedAnswer.upvotes || 0,
+                author: {
+                  "@type": "Person",
+                  name: acceptedAnswer.user?.displayName || acceptedAnswer.user?.username || "Anonymous",
+                },
+              },
+            }),
+            ...(suggestedAnswers.length > 0 && {
+              suggestedAnswer: suggestedAnswers.map((a) => ({
+                "@type": "Answer",
+                text: a.content,
+                dateCreated: a.createdAt,
+                upvoteCount: a.upvotes || 0,
+                author: {
+                  "@type": "Person",
+                  name: a.user?.displayName || a.user?.username || "Anonymous",
+                },
+              })),
+            }),
+          },
+        }}
+      />
       <Button
         variant="ghost"
         className="mb-4"

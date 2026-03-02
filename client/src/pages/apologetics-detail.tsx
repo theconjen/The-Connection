@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "../hooks/use-auth";
+import { JsonLd } from "../components/seo/json-ld";
 import { Edit } from "lucide-react";
 
 type LibraryPostSource = {
@@ -125,6 +126,50 @@ export default function ApologeticsDetail() {
 
   return (
     <MainLayout>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: post.title,
+          description: post.tldr || post.bodyMarkdown?.substring(0, 200),
+          author: {
+            "@type": "Person",
+            name: post.authorDisplayName,
+            url: `https://theconnection.app/profile/${post.authorUserId}`,
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "The Connection",
+            url: "https://theconnection.app",
+            logo: { "@type": "ImageObject", url: "https://theconnection.app/apple-touch-icon.png" },
+          },
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": `https://theconnection.app/a/${postId}`,
+          },
+          ...(post.sources.length > 0 && {
+            citation: post.sources.map((s) => ({
+              "@type": "CreativeWork",
+              name: s.title,
+              author: s.author,
+              ...(s.publisher && { publisher: s.publisher }),
+              ...(s.year && { datePublished: String(s.year) }),
+              ...(s.url && { url: s.url }),
+            })),
+          }),
+        }}
+      />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://theconnection.app" },
+            { "@type": "ListItem", position: 2, name: "Apologetics", item: "https://theconnection.app/apologetics" },
+            { "@type": "ListItem", position: 3, name: post.title, item: `https://theconnection.app/a/${postId}` },
+          ],
+        }}
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back Button + Edit */}
         <div className="flex items-center justify-between mb-4">
