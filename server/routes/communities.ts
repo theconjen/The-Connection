@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { insertCommunitySchema } from '@shared/schema';
 import { requireAuth } from '../middleware/auth';
@@ -1334,6 +1335,241 @@ router.post('/community-invitations/:id/decline', requireAuth, async (req, res) 
   } catch (error) {
     console.error('Error declining invitation:', error);
     res.status(500).json(buildErrorResponse('Error declining invitation', error));
+  }
+});
+
+// ============================================================================
+// INVITE CODE (Shareable Link) ENDPOINTS
+// ============================================================================
+
+// Generate or get invite code for a community (owner/moderator only)
+router.post('/communities/:id/invite-code', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'Invalid community ID' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can manage invite codes' });
+    }
+
+    // Return existing code if one exists
+    if (community.inviteCode) {
+      return res.json({
+        inviteCode: community.inviteCode,
+        inviteUrl: `https://theconnection.app/invite/${community.inviteCode}`,
+      });
+    }
+
+    // Generate a new 8-char invite code
+    const inviteCode = crypto.randomBytes(6).toString('base64url').slice(0, 8);
+    await storage.updateCommunity(communityId, { inviteCode } as any);
+
+    res.status(201).json({
+      inviteCode,
+      inviteUrl: `https://theconnection.app/invite/${inviteCode}`,
+    });
+  } catch (error) {
+    console.error('Error generating invite code:', error);
+    res.status(500).json(buildErrorResponse('Error generating invite code', error));
+  }
+});
+
+// Get invite code for a community (owner/moderator only)
+router.get('/communities/:id/invite-code', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'Invalid community ID' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can view invite codes' });
+    }
+
+    if (!community.inviteCode) {
+      return res.json({ inviteCode: null, inviteUrl: null });
+    }
+
+    res.json({
+      inviteCode: community.inviteCode,
+      inviteUrl: `https://theconnection.app/invite/${community.inviteCode}`,
+    });
+  } catch (error) {
+    console.error('Error getting invite code:', error);
+    res.status(500).json(buildErrorResponse('Error getting invite code', error));
+  }
+});
+
+// Revoke invite code (owner only)
+router.delete('/communities/:id/invite-code', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'Invalid community ID' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    // Only owner can revoke
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member || member.role !== 'owner') {
+      return res.status(403).json({ message: 'Only the community owner can revoke invite codes' });
+    }
+
+    await storage.updateCommunity(communityId, { inviteCode: null } as any);
+
+    res.json({ success: true, message: 'Invite code revoked' });
+  } catch (error) {
+    console.error('Error revoking invite code:', error);
+    res.status(500).json(buildErrorResponse('Error revoking invite code', error));
+  }
+});
+
+// Public community preview via invite code (no auth required)
+router.get('/public/community-invite/:code', async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const community = await storage.getCommunityByInviteCode(code);
+    if (!community) {
+      return res.status(404).json({ message: 'Invalid invite code' });
+    }
+
+    // Return public-safe community info only
+    res.json({
+      id: community.id,
+      name: community.name,
+      description: community.description,
+      slug: community.slug,
+      memberCount: community.memberCount || 0,
+      isPrivate: community.isPrivate || false,
+      iconName: community.iconName,
+      iconColor: community.iconColor,
+    });
+  } catch (error) {
+    console.error('Error fetching community preview:', error);
+    res.status(500).json(buildErrorResponse('Error fetching community preview', error));
+  }
+});
+
+// Join community via invite code (auth required)
+router.post('/community-invite/:code/join', requireAuth, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const userId = requireSessionUserId(req);
+
+    const community = await storage.getCommunityByInviteCode(code);
+    if (!community) {
+      return res.status(404).json({ message: 'Invalid invite code' });
+    }
+
+    // Check if already a member
+    const existingMember = await storage.getCommunityMember(community.id, userId);
+    if (existingMember) {
+      return res.json({
+        success: true,
+        message: 'You are already a member of this community',
+        communityId: community.id,
+        slug: community.slug,
+        alreadyMember: true,
+      });
+    }
+
+    // Add as member
+    await storage.addCommunityMember({
+      communityId: community.id,
+      userId,
+      role: 'member',
+    });
+
+    // Track the invite link join in communityInvitations for analytics
+    await storage.createCommunityInvitation({
+      communityId: community.id,
+      inviterUserId: userId, // Self — sentinel for "joined via link"
+      inviteeEmail: 'invite-link',
+      inviteeUserId: userId,
+      status: 'accepted',
+      token: `link-${code}-${Date.now()}`,
+      expiresAt: new Date(Date.now() + 1000), // already accepted, expiry irrelevant
+    });
+
+    // Notify community owner
+    const members = await storage.getCommunityMembers(community.id);
+    const owner = members.find(m => m.role === 'owner');
+    if (owner && owner.userId !== userId) {
+      const joinerName = await getUserDisplayName(userId);
+      await notifyUserWithPreferences(owner.userId, {
+        title: 'New Member via Invite Link',
+        body: `${joinerName} joined ${community.name} via invite link`,
+        data: { communityId: community.id, type: 'community_member_joined' },
+        category: 'community',
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'You have joined the community',
+      communityId: community.id,
+      slug: community.slug,
+    });
+  } catch (error) {
+    console.error('Error joining via invite code:', error);
+    res.status(500).json(buildErrorResponse('Error joining via invite code', error));
+  }
+});
+
+// Invite link analytics (owner/moderator only)
+router.get('/communities/:id/invite-stats', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId)) {
+      return res.status(400).json({ message: 'Invalid community ID' });
+    }
+
+    const community = await storage.getCommunity(communityId);
+    if (!community) return res.status(404).json({ message: 'Community not found' });
+
+    const isModerator = await storage.isCommunityModerator(communityId, userId);
+    if (!isModerator) {
+      return res.status(403).json({ message: 'Only admins and moderators can view invite stats' });
+    }
+
+    const invitations = await storage.getCommunityInvitations(communityId);
+
+    const linkJoins = invitations.filter(i => i.inviteeEmail === 'invite-link' && i.status === 'accepted').length;
+    const emailInvitesSent = invitations.filter(i => i.inviteeEmail !== 'invite-link').length;
+    const emailInvitesAccepted = invitations.filter(i => i.inviteeEmail !== 'invite-link' && i.status === 'accepted').length;
+    const emailInvitesPending = invitations.filter(i => i.inviteeEmail !== 'invite-link' && i.status === 'pending').length;
+
+    res.json({
+      linkJoins,
+      emailInvitesSent,
+      emailInvitesAccepted,
+      emailInvitesPending,
+      totalViaInvite: linkJoins + emailInvitesAccepted,
+    });
+  } catch (error) {
+    console.error('Error getting invite stats:', error);
+    res.status(500).json(buildErrorResponse('Error getting invite stats', error));
   }
 });
 

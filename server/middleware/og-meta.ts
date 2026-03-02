@@ -157,6 +157,12 @@ export function ogMetaMiddleware() {
         return await handleProfileOg(username, res);
       }
 
+      // Handle /invite/:code - Community invite links
+      if (path.startsWith('/invite/')) {
+        const code = path.substring(8);
+        return await handleInviteOg(code, res);
+      }
+
       // Not a canonical URL, continue to next middleware
       next();
     } catch (error) {
@@ -378,6 +384,36 @@ async function handleProfileOg(username: string, res: Response) {
           userInteractionCount: followerCount,
         },
       },
+    },
+  });
+
+  res.set('Content-Type', 'text/html');
+  res.send(html);
+}
+
+async function handleInviteOg(code: string, res: Response) {
+  const community = await storage.getCommunityByInviteCode(code);
+  if (!community) {
+    return res.status(404).send('Not found');
+  }
+
+  const description = community.description
+    ? truncate(community.description, 150) + ` · ${community.memberCount || 0} members`
+    : `Join ${community.name} on The Connection · ${community.memberCount || 0} members`;
+
+  const inviteUrl = `${BASE_URL}/invite/${code}`;
+
+  const html = generateOgHtml({
+    title: `Join ${community.name} on The Connection`,
+    description,
+    url: inviteUrl,
+    type: 'website',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: `Join ${community.name}`,
+      description,
+      url: inviteUrl,
     },
   });
 

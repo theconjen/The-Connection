@@ -345,6 +345,7 @@ export const communities = pgTable("communities", {
   organizationId: integer("organization_id").references(() => organizations.id, { onDelete: 'set null' }), // Nullable - for org-owned communities
   // Sub-communities
   parentCommunityId: integer("parent_community_id"), // Self-reference for sub-communities
+  inviteCode: text("invite_code").unique(),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   createdBy: integer("created_by").references(() => users.id),

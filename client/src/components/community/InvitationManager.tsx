@@ -28,14 +28,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { 
-  Loader2, 
-  Mail, 
-  X, 
-  Calendar, 
+import {
+  Loader2,
+  Mail,
+  X,
+  Calendar,
   Clock,
   UserPlus,
-  AlertTriangle
+  AlertTriangle,
+  Link2,
+  Copy,
+  Check,
+  BarChart3,
 } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -46,9 +50,54 @@ interface InvitationManagerProps {
   communityName: string;
 }
 
+interface InviteStats {
+  linkJoins: number;
+  emailInvitesSent: number;
+  emailInvitesAccepted: number;
+  emailInvitesPending: number;
+  totalViaInvite: number;
+}
+
 export function InvitationManager({ communityId, communityName }: InvitationManagerProps) {
   const { toast } = useToast();
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Fetch invite code
+  const { data: inviteCodeData } = useQuery<{ inviteCode: string | null; inviteUrl: string | null }>({
+    queryKey: [`/api/communities/${communityId}/invite-code`],
+    enabled: !!communityId,
+  });
+
+  // Fetch invite stats
+  const { data: stats } = useQuery<InviteStats>({
+    queryKey: [`/api/communities/${communityId}/invite-stats`],
+    enabled: !!communityId,
+  });
+
+  // Generate invite code
+  const generateCodeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/communities/${communityId}/invite-code`, {});
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/communities/${communityId}/invite-code`] });
+      toast({ title: "Invite link created", description: "Share this link to invite people to your community." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to create invite link", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleCopyLink = async () => {
+    if (inviteCodeData?.inviteUrl) {
+      await navigator.clipboard.writeText(inviteCodeData.inviteUrl);
+      setCopied(true);
+      toast({ title: "Copied!", description: "Invite link copied to clipboard." });
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   // Fetch pending invitations
   const {
@@ -167,6 +216,80 @@ export function InvitationManager({ communityId, communityName }: InvitationMana
   const allInvitations = invitations || [];
 
   return (
+    <div className="space-y-4">
+      {/* Shareable Invite Link Card */}
+      <Card data-testid="card-invite-link">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="h-5 w-5" />
+            Invite Link
+          </CardTitle>
+          <CardDescription>
+            Share a link that lets anyone join "{communityName}" with one click
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {inviteCodeData?.inviteUrl ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <code className="flex-1 bg-muted px-3 py-2 rounded-md text-sm truncate" data-testid="invite-url">
+                  {inviteCodeData.inviteUrl}
+                </code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyLink}
+                  data-testid="button-copy-invite"
+                >
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              onClick={() => generateCodeMutation.mutate()}
+              disabled={generateCodeMutation.isPending}
+              data-testid="button-generate-invite"
+            >
+              {generateCodeMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Link2 className="mr-2 h-4 w-4" />
+              )}
+              Generate Invite Link
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Invite Stats Card */}
+      {stats && stats.totalViaInvite > 0 && (
+        <Card data-testid="card-invite-stats">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="h-4 w-4" />
+              Invite Stats
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold">{stats.linkJoins}</div>
+                <div className="text-xs text-muted-foreground">Via Link</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{stats.emailInvitesAccepted}</div>
+                <div className="text-xs text-muted-foreground">Email Accepted</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{stats.emailInvitesPending}</div>
+                <div className="text-xs text-muted-foreground">Email Pending</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
     <Card data-testid="card-invitation-manager">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -285,5 +408,6 @@ export function InvitationManager({ communityId, communityName }: InvitationMana
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }

@@ -279,6 +279,7 @@ export interface IStorage {
   deleteCommunityInvitation(id: number): Promise<boolean>;
   getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined>;
   getPendingCommunityInvitationsForUser(userId: number): Promise<CommunityInvitation[]>;
+  getCommunityByInviteCode(code: string): Promise<Community | undefined>;
 
   // Community Members & Roles
   getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]>;
@@ -1150,6 +1151,10 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getCommunityByInviteCode(code: string): Promise<Community | undefined> {
+    return this.data.communities.find(c => (c as any).inviteCode === code);
+  }
+
   // Community member methods
   async getCommunityMembers(communityId: number): Promise<(CommunityMember & { user: User })[]> {
     return this.data.communityMembers
@@ -1159,7 +1164,7 @@ export class MemStorage implements IStorage {
         user: this.data.users.find(u => u.id === m.userId)!
       }));
   }
-  
+
   async getCommunityMember(communityId: number, userId: number): Promise<CommunityMember | undefined> {
     return this.data.communityMembers.find(m => m.communityId === communityId && m.userId === userId);
   }
@@ -2797,22 +2802,32 @@ export class DbStorage implements IStorage {
   }
   
   async updateUserPreferences(userId: number, preferences: Partial<UserPreferences>): Promise<UserPreferences> {
-    // For now, just return a default preferences object
-    // This can be expanded when the userPreferences table is properly set up
-    return {
-      id: 1,
-      userId,
-      interests: preferences.interests || null,
-      favoriteTopics: preferences.favoriteTopics || null,
-      engagementHistory: preferences.engagementHistory || null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    // Upsert: try update first, insert if not found
+    const existing = await db.select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const [result] = await db.update(userPreferences)
+        .set({ ...preferences, updatedAt: new Date() })
+        .where(eq(userPreferences.userId, userId))
+        .returning();
+      return result;
+    }
+
+    const [result] = await db.insert(userPreferences)
+      .values({ userId, ...preferences } as any)
+      .returning();
+    return result;
   }
-  
+
   async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
-    // For now, return undefined since the table isn't fully implemented
-    return undefined;
+    const [prefs] = await db.select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId))
+      .limit(1);
+    return prefs;
   }
   
   async createUser(user: InsertUser): Promise<User> {
@@ -3385,23 +3400,50 @@ export class DbStorage implements IStorage {
   }
   
   async getCommunityInvitations(communityId: number): Promise<(CommunityInvitation & { inviter: User })[]> {
-    return [];
+    const rows = await db.select({
+      invitation: communityInvitations,
+      inviter: users,
+    })
+      .from(communityInvitations)
+      .innerJoin(users, eq(communityInvitations.inviterUserId, users.id))
+      .where(eq(communityInvitations.communityId, communityId))
+      .orderBy(communityInvitations.createdAt);
+
+    return rows.map(row => ({
+      ...row.invitation,
+      inviter: row.inviter,
+    }));
   }
-  
+
   async getCommunityInvitationByToken(token: string): Promise<CommunityInvitation | undefined> {
-    return undefined;
+    const [invitation] = await db.select()
+      .from(communityInvitations)
+      .where(eq(communityInvitations.token, token))
+      .limit(1);
+    return invitation;
   }
-  
+
   async getCommunityInvitationById(id: number): Promise<CommunityInvitation | undefined> {
-    return undefined;
+    const [invitation] = await db.select()
+      .from(communityInvitations)
+      .where(eq(communityInvitations.id, id))
+      .limit(1);
+    return invitation;
   }
-  
+
   async updateCommunityInvitationStatus(id: number, status: string): Promise<CommunityInvitation> {
-    throw new Error('Not implemented');
+    const [updated] = await db.update(communityInvitations)
+      .set({ status })
+      .where(eq(communityInvitations.id, id))
+      .returning();
+    return updated;
   }
-  
+
   async deleteCommunityInvitation(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(communityInvitations)
+      .where(eq(communityInvitations.id, id))
+      .returning();
+    return result.length > 0;
   }
   
   async getCommunityInvitationByEmailAndCommunity(email: string, communityId: number): Promise<CommunityInvitation | undefined> {
@@ -3429,6 +3471,14 @@ export class DbStorage implements IStorage {
 
     // Filter out self-invitations (join requests)
     return invitations.filter(inv => inv.inviterUserId !== inv.inviteeUserId);
+  }
+
+  async getCommunityByInviteCode(code: string): Promise<Community | undefined> {
+    const [community] = await db.select()
+      .from(communities)
+      .where(eq(communities.inviteCode, code))
+      .limit(1);
+    return community;
   }
 
   // Community chat room methods
@@ -3542,9 +3592,10 @@ export class DbStorage implements IStorage {
   }
   
   async deleteChatMessage(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(chatMessages).where(eq(chatMessages.id, id)).returning();
+    return result.length > 0;
   }
-  
+
   // Community wall post methods
   async getCommunityWallPosts(communityId: number, isPrivate?: boolean): Promise<(CommunityWallPost & { author: User })[]> {
     const query = db.select()
@@ -4622,25 +4673,42 @@ export class DbStorage implements IStorage {
     return true;
   }
 
-  async searchMicroblogs(searchTerm: string): Promise<Microblog[]> {
+  async searchMicroblogs(searchTerm: string, options?: { topic?: string; limit?: number }): Promise<Microblog[]> {
+    const limit = options?.limit || 50;
+
+    // Try full-text search first (faster and more relevant)
     const tsQuery = toTsQuery(searchTerm);
     if (tsQuery) {
       try {
+        const topicFilter = options?.topic ? sql` AND topic = ${options.topic}` : sql``;
         const results = await db.execute(sql`
           SELECT * FROM microblogs
           WHERE search_vector @@ to_tsquery('english', ${tsQuery})
+            AND parent_id IS NULL
+            ${topicFilter}
           ORDER BY ts_rank(search_vector, to_tsquery('english', ${tsQuery})) DESC
-          LIMIT 50
+          LIMIT ${limit}
         `);
         if (results.rows.length > 0) return results.rows as Microblog[];
       } catch (e) {
         // fall through to ILIKE
       }
     }
+
+    // Fallback to ILIKE
     const term = `%${searchTerm}%`;
+    const conditions: any[] = [
+      ilike(microblogs.content, term),
+      isNull(microblogs.parentId),
+    ];
+    if (options?.topic) {
+      conditions.push(eq(microblogs.topic, options.topic));
+    }
     return await db.select()
       .from(microblogs)
-      .where(like(microblogs.content, term));
+      .where(and(...conditions))
+      .orderBy(desc(microblogs.createdAt))
+      .limit(limit);
   }
 
   // Microblog like methods
@@ -5599,79 +5667,126 @@ export class DbStorage implements IStorage {
   }
 
   async createLivestreamerApplication(application: InsertLivestreamerApplication): Promise<LivestreamerApplication> {
-    throw new Error('Not implemented');
+    const [result] = await db.insert(livestreamerApplications).values(application).returning();
+    return result;
   }
-  
+
   async updateLivestreamerApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<LivestreamerApplication> {
-    throw new Error('Not implemented');
+    const [result] = await db.update(livestreamerApplications)
+      .set({ status, reviewNotes, reviewedBy: reviewerId, reviewedAt: new Date() })
+      .where(eq(livestreamerApplications.id, id))
+      .returning();
+    return result;
   }
-  
+
   async isApprovedLivestreamer(userId: number): Promise<boolean> {
-    return false;
+    const [app] = await db.select()
+      .from(livestreamerApplications)
+      .where(and(
+        eq(livestreamerApplications.userId, userId),
+        eq(livestreamerApplications.status, 'approved')
+      ))
+      .limit(1);
+    return !!app;
   }
-  
+
   // Apologist Scholar application methods
   async getApologistScholarApplicationByUserId(userId: number): Promise<ApologistScholarApplication | undefined> {
-    return undefined;
+    const [app] = await db.select()
+      .from(apologistScholarApplications)
+      .where(eq(apologistScholarApplications.userId, userId))
+      .limit(1);
+    return app;
   }
-  
+
   async getPendingApologistScholarApplications(): Promise<ApologistScholarApplication[]> {
-    return [];
+    return await db.select()
+      .from(apologistScholarApplications)
+      .where(eq(apologistScholarApplications.status, 'pending'));
   }
-  
+
   async createApologistScholarApplication(application: InsertApologistScholarApplication): Promise<ApologistScholarApplication> {
-    throw new Error('Not implemented');
+    const [result] = await db.insert(apologistScholarApplications).values(application).returning();
+    return result;
   }
-  
+
   async updateApologistScholarApplication(id: number, status: string, reviewNotes: string, reviewerId: number): Promise<ApologistScholarApplication> {
-    throw new Error('Not implemented');
+    const [result] = await db.update(apologistScholarApplications)
+      .set({ status, reviewNotes, reviewedBy: reviewerId, reviewedAt: new Date() })
+      .where(eq(apologistScholarApplications.id, id))
+      .returning();
+    return result;
   }
   
   // Bible Reading Plan methods
   async getAllBibleReadingPlans(): Promise<BibleReadingPlan[]> {
-    return [];
+    return await db.select().from(bibleReadingPlans);
   }
-  
+
   async getBibleReadingPlan(id: number): Promise<BibleReadingPlan | undefined> {
-    return undefined;
+    const [plan] = await db.select().from(bibleReadingPlans).where(eq(bibleReadingPlans.id, id)).limit(1);
+    return plan;
   }
-  
+
   async createBibleReadingPlan(plan: InsertBibleReadingPlan): Promise<BibleReadingPlan> {
-    throw new Error('Not implemented');
+    const [result] = await db.insert(bibleReadingPlans).values(plan).returning();
+    return result;
   }
-  
+
   // Bible Reading Progress methods
   async getBibleReadingProgress(userId: number, planId: number): Promise<BibleReadingProgress | undefined> {
-    return undefined;
+    const [progress] = await db.select()
+      .from(bibleReadingProgress)
+      .where(and(
+        eq(bibleReadingProgress.userId, userId),
+        eq(bibleReadingProgress.planId, planId)
+      ))
+      .limit(1);
+    return progress;
   }
-  
+
   async createBibleReadingProgress(progress: InsertBibleReadingProgress): Promise<BibleReadingProgress> {
-    throw new Error('Not implemented');
+    const [result] = await db.insert(bibleReadingProgress).values(progress).returning();
+    return result;
   }
-  
+
   async markDayCompleted(progressId: number, day: string): Promise<BibleReadingProgress> {
-    throw new Error('Not implemented');
+    const existing = await db.select().from(bibleReadingProgress).where(eq(bibleReadingProgress.id, progressId)).limit(1);
+    const currentDays = (existing[0]?.completedDays as string[]) || [];
+    const updatedDays = [...currentDays, day];
+    const [result] = await db.update(bibleReadingProgress)
+      .set({ completedDays: updatedDays, currentDay: updatedDays.length + 1 })
+      .where(eq(bibleReadingProgress.id, progressId))
+      .returning();
+    return result;
   }
-  
+
   // Bible Study Note methods
   async getBibleStudyNotes(userId: number): Promise<BibleStudyNote[]> {
-    return [];
+    return await db.select().from(bibleStudyNotes).where(eq(bibleStudyNotes.userId, userId));
   }
-  
+
   async getBibleStudyNote(id: number): Promise<BibleStudyNote | undefined> {
-    return undefined;
+    const [note] = await db.select().from(bibleStudyNotes).where(eq(bibleStudyNotes.id, id)).limit(1);
+    return note;
   }
-  
+
   async createBibleStudyNote(note: InsertBibleStudyNote): Promise<BibleStudyNote> {
-    throw new Error('Not implemented');
+    const [result] = await db.insert(bibleStudyNotes).values(note).returning();
+    return result;
   }
-  
+
   async updateBibleStudyNote(id: number, data: Partial<BibleStudyNote>): Promise<BibleStudyNote> {
-    throw new Error('Not implemented');
+    const [result] = await db.update(bibleStudyNotes)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(bibleStudyNotes.id, id))
+      .returning();
+    return result;
   }
-  
+
   async deleteBibleStudyNote(id: number): Promise<boolean> {
-    return false;
+    const result = await db.delete(bibleStudyNotes).where(eq(bibleStudyNotes.id, id)).returning();
+    return result.length > 0;
   }
   
   // Admin methods
@@ -7134,27 +7249,6 @@ export class DbStorage implements IStorage {
     const results = await query
       .orderBy(desc(microblogs.createdAt))
       .limit(options.limit);
-
-    return results;
-  }
-
-  // Search microblogs/advice posts by content
-  async searchMicroblogs(searchTerm: string, options?: { topic?: string; limit?: number }): Promise<Microblog[]> {
-    const term = `%${searchTerm}%`;
-    const conditions: any[] = [
-      ilike(microblogs.content, term),
-      isNull(microblogs.parentId), // Only top-level posts
-    ];
-
-    if (options?.topic) {
-      conditions.push(eq(microblogs.topic, options.topic));
-    }
-
-    const results = await db.select()
-      .from(microblogs)
-      .where(and(...conditions))
-      .orderBy(desc(microblogs.createdAt))
-      .limit(options?.limit || 20);
 
     return results;
   }

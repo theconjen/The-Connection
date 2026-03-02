@@ -1,7 +1,9 @@
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 
-// Create a new Expo SDK client
-const expo = new Expo();
+// Create a new Expo SDK client (access token required for production push delivery)
+const expo = new Expo({
+  accessToken: process.env.EXPO_ACCESS_TOKEN,
+});
 
 export interface PushNotificationPayload {
   to: string; // Expo push token

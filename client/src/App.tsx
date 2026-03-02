@@ -86,6 +86,7 @@ const ApologeticsPreviewPage = lazy(() => import("./pages/public/apologetics-pre
 const EventPreviewPage = lazy(() => import("./pages/public/event-preview-page"));
 const PostPreviewPage = lazy(() => import("./pages/public/post-preview-page"));
 const ProfilePreviewPage = lazy(() => import("./pages/public/profile-preview-page"));
+const CommunityInvitePage = lazy(() => import("./pages/community-invite-page"));
 
 // Analytics tracking component with event tracking
 function AnalyticsTracker() {
@@ -131,6 +132,7 @@ function App() {
             <Route path="/e/:eventId" component={EventPreviewPage} />
             <Route path="/p/:postId" component={PostPreviewPage} />
             <Route path="/u/:username" component={ProfilePreviewPage} />
+            <Route path="/invite/:code" component={CommunityInvitePage} />
 
             {/* Auth routes */}
             <Route path="/" component={() => <HomePage />} />
