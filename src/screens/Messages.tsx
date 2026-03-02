@@ -16,6 +16,7 @@ import {
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useConversations } from '../queries/messages';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,6 +36,7 @@ export default function MessagesScreen({
   onProfilePress,
 }: MessagesScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
   const { user } = useAuth();
   const { colors, colorScheme } = useTheme();
 
@@ -347,6 +349,13 @@ export default function MessagesScreen({
             <Ionicons name="chatbubbles-outline" size={64} color={colors.textSecondary} />
             <Text style={{ marginTop: 16, fontSize: 18, fontWeight: '600', color: colors.textPrimary }}>No conversations yet</Text>
             <Text style={{ marginTop: 8, fontSize: 14, color: colors.textSecondary, textAlign: 'center' }}>Start chatting with other members!</Text>
+            <Pressable
+              style={{ marginTop: 16, backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
+              onPress={() => router.push('/search')}
+            >
+              <Ionicons name="people-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Find People</Text>
+            </Pressable>
           </View>
         </View>
       </SafeAreaView>

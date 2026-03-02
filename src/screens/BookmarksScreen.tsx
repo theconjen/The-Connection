@@ -251,6 +251,21 @@ export default function BookmarksScreen() {
           ? 'Bookmark advice posts to save them for later'
           : 'Bookmark Q&A entries from Apologetics to save them for later'}
       </Text>
+      <Pressable
+        style={{
+          marginTop: 16,
+          backgroundColor: colors.primary,
+          paddingHorizontal: 20,
+          paddingVertical: 10,
+          borderRadius: 20,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
+        onPress={() => router.push('/(tabs)/advice')}
+      >
+        <Ionicons name="compass-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Browse Advice</Text>
+      </Pressable>
     </View>
   );
 

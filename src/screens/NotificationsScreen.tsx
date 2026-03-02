@@ -875,6 +875,23 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
                 >
                   Notifications about events, invitations, and engagement will appear here.
                 </Text>
+                <Pressable
+                  style={{
+                    marginTop: spacing.md,
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: 20,
+                    paddingVertical: 10,
+                    borderRadius: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => router.push('/(tabs)/communities')}
+                >
+                  <Ionicons name="people-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+                  <Text variant="body" style={{ color: '#fff', fontWeight: '600' }}>
+                    Explore Communities
+                  </Text>
+                </Pressable>
               </View>
             )}
           </View>

@@ -1039,6 +1039,15 @@ export default function CommunityDetailScreen() {
                   <Text style={styles.emptyStateSubtext}>
                     {community.isMember ? 'Create your first event' : 'Check back later for upcoming events'}
                   </Text>
+                  {community.isMember && !community.isAdmin && (
+                    <TouchableOpacity
+                      style={[styles.emptyStateCta, { backgroundColor: colors.primary }]}
+                      onPress={() => router.push(`/events/create?communityId=${communityId}`)}
+                    >
+                      <Ionicons name="add-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+                      <Text style={styles.emptyStateCtaText}>Create Event</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </>
             )}
@@ -1334,6 +1343,15 @@ export default function CommunityDetailScreen() {
                     <Text style={styles.emptyStateSubtext}>
                       {community.isMember ? 'Be the first to share a prayer request' : 'Join to see prayer requests'}
                     </Text>
+                    {community.isMember && (
+                      <TouchableOpacity
+                        style={[styles.emptyStateCta, { backgroundColor: colors.primary }]}
+                        onPress={() => setIsPrayerInputVisible(true)}
+                      >
+                        <Ionicons name="heart" size={18} color="#fff" style={{ marginRight: 6 }} />
+                        <Text style={styles.emptyStateCtaText}>Share a Prayer Request</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ) : (
                   <FlatList
@@ -1443,7 +1461,7 @@ export default function CommunityDetailScreen() {
                     <Ionicons name="chatbubbles-outline" size={64} color={colors.mutedForeground} />
                     <Text style={styles.emptyStateText}>No messages yet</Text>
                     <Text style={styles.emptyStateSubtext}>
-                      Be the first to say something!
+                      Type below to start the conversation!
                     </Text>
                   </View>
                 ) : (
@@ -2230,6 +2248,20 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
     color: colors.mutedForeground,
     textAlign: 'center',
     lineHeight: 21,
+  },
+  emptyStateCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 16,
+  },
+  emptyStateCtaText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   errorText: {
     fontSize: 18,

@@ -15,6 +15,7 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   RefreshControl,
   ActivityIndicator,
   StyleSheet,
@@ -638,9 +639,48 @@ function AdvicePostCard({
   );
 }
 
-function EmptyState({ colors, onExplore }: { colors: any; onExplore: () => void }) {
+interface OfficialPost {
+  id: number;
+  content: string;
+  createdAt: string;
+  author?: { displayName?: string; avatarUrl?: string };
+}
+
+function EmptyState({ colors, onExplore, officialPosts = [] }: { colors: any; onExplore: () => void; officialPosts?: OfficialPost[] }) {
   return (
-    <View style={styles.emptyState}>
+    <ScrollView contentContainerStyle={styles.emptyState}>
+      {/* Show official account posts if available */}
+      {officialPosts.length > 0 && (
+        <View style={{ width: '100%', marginBottom: 24 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Ionicons name="megaphone-outline" size={18} color={colors.primary} />
+            <Text style={{ marginLeft: 6, fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>
+              From The Connection Team
+            </Text>
+          </View>
+          {officialPosts.slice(0, 3).map((post) => (
+            <View
+              key={post.id}
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 10,
+                borderWidth: 1,
+                borderColor: colors.borderSubtle,
+              }}
+            >
+              <Text style={{ fontSize: 14, lineHeight: 20, color: colors.textPrimary }}>
+                {post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content}
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 6 }}>
+                {new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <View style={[styles.emptyIcon, { backgroundColor: colors.surfaceMuted }]}>
         <Ionicons name="people-outline" size={48} color={colors.textMuted} />
       </View>
@@ -656,7 +696,7 @@ function EmptyState({ colors, onExplore }: { colors: any; onExplore: () => void 
       >
         <Text style={styles.emptyButtonText}>Explore Communities</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -711,7 +751,7 @@ export default function HomeScreen({
   const [reportedAdvicePosts, setReportedAdvicePosts] = useState<Set<number>>(new Set());
   const [reportedArticles, setReportedArticles] = useState<Set<number>>(new Set());
 
-  // Upvote mutation
+  // Upvote mutation with optimistic count update
   const upvoteMutation = useMutation({
     mutationFn: async ({ postId, isCurrentlyLiked }: { postId: number; isCurrentlyLiked: boolean }) => {
       if (isCurrentlyLiked) {
@@ -721,7 +761,23 @@ export default function HomeScreen({
       }
     },
     onMutate: async ({ postId, isCurrentlyLiked }) => {
-      // Optimistic update - track both additions and removals
+      await queryClient.cancelQueries({ queryKey: ['advice-feed'] });
+      const previous = queryClient.getQueryData(['advice-feed', user?.id]);
+      // Optimistically update count in cache
+      queryClient.setQueryData(['advice-feed', user?.id], (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            items: page.items.map((item: any) =>
+              item.id === postId
+                ? { ...item, isLiked: !isCurrentlyLiked, likeCount: Math.max(0, (item.likeCount || 0) + (isCurrentlyLiked ? -1 : 1)) }
+                : item
+            ),
+          })),
+        };
+      });
       if (isCurrentlyLiked) {
         setUpvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
         setUnupvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
@@ -729,19 +785,16 @@ export default function HomeScreen({
         setUpvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
         setUnupvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
       }
+      return { previous };
     },
-    onError: (error, { postId, isCurrentlyLiked }) => {
-      // Revert on error
-      if (isCurrentlyLiked) {
-        setUpvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
-        setUnupvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
-      } else {
-        setUpvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
-        setUnupvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
+    onError: (_error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['advice-feed', user?.id], context.previous);
       }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['advice-feed'] });
+      queryClient.invalidateQueries({ queryKey: ['advice-list'] });
     },
   });
 
@@ -894,6 +947,17 @@ export default function HomeScreen({
 
   const hasJoinedCommunities = joinedCommunities.length > 0;
   const hasFeedItems = verticalFeedItems.length > 0 || advicePosts.length > 0;
+
+  // Fetch official account posts for users with no feed content
+  const { data: officialPosts = [] } = useQuery<OfficialPost[]>({
+    queryKey: ['official-posts'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/microblogs?username=theconnectionteam&limit=5');
+      return res.data?.items || res.data || [];
+    },
+    enabled: !isLoading && !hasFeedItems,
+    staleTime: 1000 * 60 * 30,
+  });
 
   // Handle infinite scroll for vertical content
   const handleEndReached = useCallback(() => {
@@ -1130,6 +1194,7 @@ export default function HomeScreen({
         <EmptyState
           colors={colors}
           onExplore={() => router.push('/(tabs)/communities' as any)}
+          officialPosts={officialPosts}
         />
       ) : (
         <FlatList
