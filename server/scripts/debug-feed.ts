@@ -15,13 +15,14 @@ async function debug() {
   (storage as any).getAllPosts = async () => posts;
   (storage as any).getBlockedUserIdsFor = async () => [];
 
-  let res = await request(app).get('/api/feed');
-   ? res.body.items.length : 'legacy array');
+  const res = await request(app).get('/api/feed');
+  console.info('Feed response:', Array.isArray(res.body.items) ? `${res.body.items.length} items` : 'legacy array');
 
-  // traverse a few pages
+  // Traverse a few pages
   let page = res.body;
   for (let i = 0; i < 5; i++) {
     if (!page || !Array.isArray(page.items)) break;
+    console.info(`Page ${i + 1}: ${page.items.length} items, cursor: ${page.nextCursor || 'none'}`);
     if (!page.nextCursor) break;
     const next = await request(app).get('/api/feed').query({ cursor: page.nextCursor });
     page = next.body;

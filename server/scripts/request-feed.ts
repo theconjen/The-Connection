@@ -17,8 +17,8 @@ async function main() {
   (storage as any).getBlockedUserIdsFor = async () => [];
 
   const res = await request(app).get('/api/feed');
-   ? res.body.items.length : 'not-array');
-   ? res.body.items.slice(0,5).map((p:any)=>p.id) : null);
+  console.info('Items:', Array.isArray(res.body.items) ? res.body.items.length : 'not-array');
+  console.info('First 5 IDs:', Array.isArray(res.body.items) ? res.body.items.slice(0, 5).map((p: any) => p.id) : null);
 }
 
-main().catch(e=>{ console.error(e); process.exit(1); });
+main().catch(e => { console.error(e); process.exit(1); });

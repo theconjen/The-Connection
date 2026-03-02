@@ -24,7 +24,9 @@ async function checkDatabaseStatus() {
     `);
 
     if (userFields.rows.length === 6) {
+      console.info('[Check] ✅ All 6 Christian profile fields present');
     } else {
+      console.info(`[Check] ⚠️ Only ${userFields.rows.length}/6 Christian profile fields found:`, userFields.rows.map((r: { column_name: string }) => r.column_name));
     }
 
     // Check for microblog_reposts table
@@ -36,7 +38,9 @@ async function checkDatabaseStatus() {
     `);
 
     if (repostsTable.rows[0].exists) {
+      console.info('[Check] ✅ microblog_reposts table exists');
     } else {
+      console.info('[Check] ❌ microblog_reposts table missing');
     }
 
     // Check for microblog_bookmarks table
@@ -48,7 +52,9 @@ async function checkDatabaseStatus() {
     `);
 
     if (bookmarksTable.rows[0].exists) {
+      console.info('[Check] ✅ microblog_bookmarks table exists');
     } else {
+      console.info('[Check] ❌ microblog_bookmarks table missing');
     }
 
     // Check for vote_type in post_votes
@@ -60,7 +66,9 @@ async function checkDatabaseStatus() {
     `);
 
     if (postVoteType.rows[0].exists) {
+      console.info('[Check] ✅ post_votes.vote_type column exists');
     } else {
+      console.info('[Check] ❌ post_votes.vote_type column missing');
     }
 
     // Check for downvotes column in posts
@@ -72,7 +80,9 @@ async function checkDatabaseStatus() {
     `);
 
     if (postDownvotes.rows[0].exists) {
+      console.info('[Check] ✅ posts.downvotes column exists');
     } else {
+      console.info('[Check] ❌ posts.downvotes column missing');
     }
 
     // Check for downvotes column in comments
@@ -84,13 +94,12 @@ async function checkDatabaseStatus() {
     `);
 
     if (commentDownvotes.rows[0].exists) {
+      console.info('[Check] ✅ comments.downvotes column exists');
     } else {
+      console.info('[Check] ❌ comments.downvotes column missing');
     }
 
     // Summary
-    );
-    );
-
     const allChecks = [
       userFields.rows.length === 6,
       repostsTable.rows[0].exists,
@@ -103,7 +112,9 @@ async function checkDatabaseStatus() {
     const passedChecks = allChecks.filter(Boolean).length;
 
     if (passedChecks === 6) {
+      console.info(`\n✅ All ${passedChecks}/6 checks passed — database schema is up to date`);
     } else {
+      console.info(`\n⚠️ ${passedChecks}/6 checks passed — some schema updates may be needed`);
     }
 
   } catch (error) {

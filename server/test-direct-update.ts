@@ -4,7 +4,7 @@
 import { Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { eq } from 'drizzle-orm';
-import { users } from '../packages/shared/src/schema';
+import { users } from '@shared/schema';
 import 'dotenv/config';
 
 async function testDirectUpdate() {
@@ -28,25 +28,28 @@ async function testDirectUpdate() {
       interests: 'Jesus'
     };
 
+    console.info('[Test] Updating user 19 with:', testData);
 
     const result = await db.update(users)
       .set(testData)
       .where(eq(users.id, 19))
       .returning();
 
-    );
+    console.info('[Test] Update result:', result.length > 0 ? 'success' : 'no rows affected');
 
     // Verify by reading back
     const readResult = await db.select().from(users).where(eq(users.id, 19));
 
-    console.log({
-      location: readResult[0].location,
-      denomination: readResult[0].denomination,
-      homeChurch: readResult[0].homeChurch,
-      favoriteBibleVerse: readResult[0].favoriteBibleVerse,
-      testimony: readResult[0].testimony,
-      interests: readResult[0].interests
-    });
+    if (readResult.length > 0) {
+      console.info('[Test] Verified fields:', {
+        location: readResult[0].location,
+        denomination: readResult[0].denomination,
+        homeChurch: readResult[0].homeChurch,
+        favoriteBibleVerse: readResult[0].favoriteBibleVerse,
+        testimony: readResult[0].testimony,
+        interests: readResult[0].interests
+      });
+    }
 
   } catch (error) {
     console.error('[Test] ❌ Error:', error);

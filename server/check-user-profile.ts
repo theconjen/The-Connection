@@ -26,13 +26,14 @@ async function checkUserProfile() {
     `);
 
     if (result.rows.length === 0) {
+      console.info('[Check] User "Janelle" not found');
       return;
     }
 
-    );
+    console.info('[Check] Found user:', JSON.stringify(result.rows[0], null, 2));
 
     // Check if Christian fields are populated
-    const user = result.rows[0];
+    const user = result.rows[0] as Record<string, unknown>;
     const hasChristianFields =
       user.location ||
       user.denomination ||
@@ -42,7 +43,9 @@ async function checkUserProfile() {
       user.interests;
 
     if (hasChristianFields) {
+      console.info('[Check] ✅ Christian profile fields are populated');
     } else {
+      console.info('[Check] ⚠️ Christian profile fields are empty');
     }
 
   } catch (error) {
