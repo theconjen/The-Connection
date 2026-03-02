@@ -73,6 +73,7 @@ export const users = pgTable("users", {
   latitude: text("latitude"),
   longitude: text("longitude"),
   onboardingCompleted: boolean("onboarding_completed").default(false),
+  onboardingStep: text("onboarding_step"),
   isVerifiedApologeticsAnswerer: boolean("is_verified_apologetics_answerer").default(false),
   isAdmin: boolean("is_admin").default(false),
   profileVisibility: text("profile_visibility").default("public"),
@@ -117,6 +118,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
+  lastLoginAt: timestamp("last_login_at"),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -373,6 +375,7 @@ export const communityMembers = pgTable("community_members", {
   userId: integer("user_id").references(() => users.id).notNull(),
   role: text("role").notNull().default("member"), // "owner", "moderator", "member"
   joinedAt: timestamp("joined_at").defaultNow(),
+  notificationsMuted: boolean("notifications_muted").default(false),
 } as any, (table) => ({
   uniqueMemberPerCommunity: uniqueIndex("community_members_unique_idx").on(table.communityId, table.userId),
 }));

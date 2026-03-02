@@ -258,8 +258,9 @@ export async function notifyCommunityMembers(
     // Get all community members
     const members = await storage.getCommunityMembers(communityId);
 
-    // Filter out excluded users
+    // Filter out excluded users and muted members
     const userIds = members
+      .filter(m => !m.notificationsMuted)
       .map(m => m.userId)
       .filter(userId => !excludeUserIds.includes(userId));
 

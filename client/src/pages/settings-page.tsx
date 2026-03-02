@@ -128,6 +128,61 @@ export default function SettingsPage() {
     showInterests: true,
   });
 
+  // Notification preference state (loaded from API)
+  const [notifPrefs, setNotifPrefs] = useState({
+    notifyDms: true,
+    notifyCommunities: true,
+    notifyForums: true,
+    notifyFeed: true,
+    emailEvents: true,
+    emailPrayer: true,
+    emailDigest: true,
+  });
+  const [notifSaving, setNotifSaving] = useState(false);
+
+  // Load notification preferences from API
+  const { data: notifPrefsData } = useQuery({
+    queryKey: ['/api/user/notification-preferences'],
+    queryFn: async () => {
+      const res = await apiRequest('/api/user/notification-preferences');
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  // Sync notification prefs state when data loads
+  useEffect(() => {
+    if (notifPrefsData) {
+      setNotifPrefs({
+        notifyDms: notifPrefsData.notifyDms ?? true,
+        notifyCommunities: notifPrefsData.notifyCommunities ?? true,
+        notifyForums: notifPrefsData.notifyForums ?? true,
+        notifyFeed: notifPrefsData.notifyFeed ?? true,
+        emailEvents: notifPrefsData.emailEvents ?? true,
+        emailPrayer: notifPrefsData.emailPrayer ?? true,
+        emailDigest: notifPrefsData.emailDigest ?? true,
+      });
+    }
+  }, [notifPrefsData]);
+
+  const handleNotifSave = async () => {
+    setNotifSaving(true);
+    try {
+      const res = await apiRequest('/api/user/notification-preferences', {
+        method: 'PATCH',
+        body: JSON.stringify(notifPrefs),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      queryClient.invalidateQueries({ queryKey: ['/api/user/notification-preferences'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      toast({ title: 'Success', description: 'Notification preferences saved' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to save notification preferences', variant: 'destructive' });
+    } finally {
+      setNotifSaving(false);
+    }
+  };
+
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -620,44 +675,101 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="w-5 h-5" />
-                Notification Preferences
+                Push Notifications
               </CardTitle>
               <CardDescription>
-                Choose how you want to receive notifications
+                Control which push notifications you receive
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <div className="text-base font-medium">Email Notifications</div>
-                  <div className="text-sm text-gray-600">
-                    Receive notifications via email
-                  </div>
+                  <div className="text-base font-medium">Direct Messages</div>
+                  <div className="text-sm text-gray-600">New messages and conversations</div>
                 </div>
                 <Switch
-                  checked={preferences.emailNotifications}
-                  onCheckedChange={(checked) => 
-                    setPreferences(prev => ({ ...prev, emailNotifications: checked }))
-                  }
+                  checked={notifPrefs.notifyDms}
+                  onCheckedChange={(checked) => setNotifPrefs(prev => ({ ...prev, notifyDms: checked }))}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="text-base font-medium">Communities & Events</div>
+                  <div className="text-sm text-gray-600">Posts, events, and community activity</div>
+                </div>
+                <Switch
+                  checked={notifPrefs.notifyCommunities}
+                  onCheckedChange={(checked) => setNotifPrefs(prev => ({ ...prev, notifyCommunities: checked }))}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="text-base font-medium">Comments & Replies</div>
+                  <div className="text-sm text-gray-600">Responses to your posts and comments</div>
+                </div>
+                <Switch
+                  checked={notifPrefs.notifyForums}
+                  onCheckedChange={(checked) => setNotifPrefs(prev => ({ ...prev, notifyForums: checked }))}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="text-base font-medium">Likes & Activity</div>
+                  <div className="text-sm text-gray-600">Likes, reposts, and follows</div>
+                </div>
+                <Switch
+                  checked={notifPrefs.notifyFeed}
+                  onCheckedChange={(checked) => setNotifPrefs(prev => ({ ...prev, notifyFeed: checked }))}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                Email Notifications
+              </CardTitle>
+              <CardDescription>
+                Choose which emails you receive
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="text-base font-medium">Event Reminders</div>
+                  <div className="text-sm text-gray-600">Upcoming events you've RSVPed to</div>
+                </div>
+                <Switch
+                  checked={notifPrefs.emailEvents}
+                  onCheckedChange={(checked) => setNotifPrefs(prev => ({ ...prev, emailEvents: checked }))}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="text-base font-medium">Prayer Updates</div>
+                  <div className="text-sm text-gray-600">Updates on prayer requests you follow</div>
+                </div>
+                <Switch
+                  checked={notifPrefs.emailPrayer}
+                  onCheckedChange={(checked) => setNotifPrefs(prev => ({ ...prev, emailPrayer: checked }))}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="text-base font-medium">Weekly Digest</div>
+                  <div className="text-sm text-gray-600">Weekly summary of community activity</div>
+                </div>
+                <Switch
+                  checked={notifPrefs.emailDigest}
+                  onCheckedChange={(checked) => setNotifPrefs(prev => ({ ...prev, emailDigest: checked }))}
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <div className="text-base font-medium">Push Notifications</div>
-                  <div className="text-sm text-gray-600">
-                    Receive browser push notifications
-                  </div>
-                </div>
-                <Switch
-                  checked={preferences.pushNotifications}
-                  onCheckedChange={(checked) => 
-                    setPreferences(prev => ({ ...prev, pushNotifications: checked }))
-                  }
-                />
-              </div>
-
-              <Button>Save Notification Settings</Button>
+              <Button onClick={handleNotifSave} disabled={notifSaving}>
+                {notifSaving ? 'Saving...' : 'Save Notification Settings'}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

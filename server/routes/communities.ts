@@ -5,7 +5,7 @@ import { requireAuth } from '../middleware/auth';
 import { storage } from '../storage-optimized';
 import { getSessionUserId, requireSessionUserId } from '../utils/session';
 import { buildErrorResponse } from '../utils/errors';
-import { notifyUserWithPreferences, getUserDisplayName } from '../services/notificationHelper';
+import { notifyUserWithPreferences, notifyCommunityMembers, getUserDisplayName, truncateText } from '../services/notificationHelper';
 import { broadcastEngagementUpdate } from '../socketInstance';
 import {
   requestJoin,
@@ -1612,6 +1612,25 @@ router.post('/communities/:id/prayer-requests', requireAuth, async (req, res) =>
     } as any);
 
     res.status(201).json(prayerRequest);
+
+    // Non-blocking: notify community members about new prayer request
+    (async () => {
+      try {
+        const displayName = isAnonymous ? 'Anonymous' : await getUserDisplayName(userId);
+        await notifyCommunityMembers(communityId, {
+          title: `New prayer request in ${community.name}`,
+          body: isAnonymous ? truncateText(title.trim(), 100) : `${displayName}: ${truncateText(title.trim(), 80)}`,
+          data: {
+            type: 'new_prayer_request',
+            communityId,
+            prayerRequestId: prayerRequest.id,
+          },
+          category: 'community',
+        }, [userId]);
+      } catch (err) {
+        console.error('[Prayer] Error notifying community about new prayer request:', err);
+      }
+    })();
   } catch (error) {
     console.error('Error creating prayer request:', error);
     res.status(500).json(buildErrorResponse('Error creating prayer request', error));
@@ -1661,6 +1680,73 @@ router.patch('/communities/:id/prayer-requests/:prayerId/answered', requireAuth,
   } catch (error) {
     console.error('Error marking prayer as answered:', error);
     res.status(500).json(buildErrorResponse('Error marking prayer as answered', error));
+  }
+});
+
+// Pray for a prayer request in community
+router.post('/communities/:id/prayer-requests/:prayerId/pray', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const prayerId = parseInt(req.params.prayerId);
+    const userId = requireSessionUserId(req);
+
+    if (!Number.isFinite(communityId) || !Number.isFinite(prayerId)) {
+      return res.status(400).json({ message: 'Invalid community or prayer request ID' });
+    }
+
+    // Check community membership
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ message: 'Must be a community member to pray for requests' });
+    }
+
+    // Get prayer request
+    const prayerRequest = await storage.getPrayerRequest(prayerId);
+    if (!prayerRequest) {
+      return res.status(404).json({ message: 'Prayer request not found' });
+    }
+
+    // Create prayer record (increments prayerCount)
+    const prayer = await storage.createPrayer({
+      prayerRequestId: prayerId,
+      userId,
+    });
+
+    // Broadcast for real-time sync
+    broadcastEngagementUpdate({
+      type: 'prayer',
+      targetType: 'prayer_request',
+      targetId: prayerId,
+      userId,
+      action: 'add',
+    });
+
+    res.status(201).json(prayer);
+
+    // Non-blocking: notify prayer request author (skip if self-pray)
+    if (prayerRequest.authorId !== userId) {
+      (async () => {
+        try {
+          const displayName = await getUserDisplayName(userId);
+          await notifyUserWithPreferences(prayerRequest.authorId, {
+            title: `${displayName} prayed for your request`,
+            body: truncateText(prayerRequest.title, 100),
+            data: {
+              type: 'prayer',
+              prayerRequestId: prayerId,
+              communityId,
+            },
+            category: 'community',
+            actorId: userId,
+          });
+        } catch (err) {
+          console.error('[Prayer] Error notifying prayer request author:', err);
+        }
+      })();
+    }
+  } catch (error) {
+    console.error('Error recording prayer:', error);
+    res.status(500).json(buildErrorResponse('Error recording prayer', error));
   }
 });
 
@@ -2126,6 +2212,96 @@ router.post('/communities/:idOrSlug/sub-communities', requireAuth, async (req, r
   } catch (error) {
     console.error('Error creating sub-community:', error);
     res.status(500).json(buildErrorResponse('Error creating sub-community', error));
+  }
+});
+
+// ============================================================================
+// COMMUNITY NOTIFICATION MUTE
+// ============================================================================
+
+// Get mute status for the current user in a community
+router.get('/communities/:id/mute', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (isNaN(communityId) || communityId <= 0) {
+      return res.status(400).json({ error: 'Invalid community ID' });
+    }
+
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(404).json({ error: 'Not a member of this community' });
+    }
+
+    res.json({ muted: member.notificationsMuted ?? false });
+  } catch (error) {
+    console.error('Error getting mute status:', error);
+    res.status(500).json(buildErrorResponse('Error getting mute status', error));
+  }
+});
+
+// Mute notifications for a community
+router.post('/communities/:id/mute', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (isNaN(communityId) || communityId <= 0) {
+      return res.status(400).json({ error: 'Invalid community ID' });
+    }
+
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(404).json({ error: 'Not a member of this community' });
+    }
+
+    const { db } = await import('../db');
+    const { communityMembers } = await import('@shared/schema');
+    const { eq } = await import('drizzle-orm');
+
+    if (db) {
+      await db.update(communityMembers)
+        .set({ notificationsMuted: true })
+        .where(eq(communityMembers.id, member.id));
+    }
+
+    res.json({ success: true, muted: true });
+  } catch (error) {
+    console.error('Error muting community:', error);
+    res.status(500).json(buildErrorResponse('Error muting community', error));
+  }
+});
+
+// Unmute notifications for a community
+router.delete('/communities/:id/mute', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    const userId = requireSessionUserId(req);
+
+    if (isNaN(communityId) || communityId <= 0) {
+      return res.status(400).json({ error: 'Invalid community ID' });
+    }
+
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(404).json({ error: 'Not a member of this community' });
+    }
+
+    const { db } = await import('../db');
+    const { communityMembers } = await import('@shared/schema');
+    const { eq } = await import('drizzle-orm');
+
+    if (db) {
+      await db.update(communityMembers)
+        .set({ notificationsMuted: false })
+        .where(eq(communityMembers.id, member.id));
+    }
+
+    res.json({ success: true, muted: false });
+  } catch (error) {
+    console.error('Error unmuting community:', error);
+    res.status(500).json(buildErrorResponse('Error unmuting community', error));
   }
 });
 
