@@ -16,7 +16,7 @@ import {
 } from "../components/ui/select";
 import { useToast } from "../hooks/use-toast";
 import { Church, ArrowLeft } from "lucide-react";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 // Church traditions with their denominations - matching mobile app
 const CHURCH_TRADITIONS = [
