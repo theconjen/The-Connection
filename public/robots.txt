@@ -6,7 +6,7 @@ Disallow: /_next/
 Disallow: /dist/
 
 # Sitemap
-Sitemap: https://the-connection-git-main-janelles-projects-2197be4f.vercel.app/sitemap.xml
+Sitemap: https://theconnection.app/sitemap.xml
 
 # Crawl delay for bots
 Crawl-delay: 1

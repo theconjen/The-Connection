@@ -2075,11 +2075,11 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
       // Notify prayer request author (skip if self-pray)
       const prayerRequest = await storage.getPrayerRequest(prayerRequestId);
-      if (prayerRequest && prayerRequest.userId !== userId) {
+      if (prayerRequest && prayerRequest.authorId !== userId) {
         const prayerUser = await storage.getUser(userId);
         const prayerName = prayerUser?.displayName || prayerUser?.username || 'Someone';
 
-        notifyUserWithPreferences(prayerRequest.userId, {
+        notifyUserWithPreferences(prayerRequest.authorId, {
           title: 'Someone is praying for you',
           body: `${prayerName} prayed for your request`,
           data: {
