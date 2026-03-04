@@ -508,6 +508,41 @@ async function seedAdviceWithEngagement(postCount: number = 30) {
       console.info(`   └─ ${likers.length} likes, ${commenters.length} comments ${threadInfo}`);
     }
 
+    // ========================================
+    // SYNC COUNTERS - Recalculate likeCount and replyCount from actual data
+    // (Direct inserts above bypass the storage methods that increment counters)
+    // ========================================
+    console.info('\n🔄 Syncing counters...');
+
+    // Sync likeCount from actual microblog_likes rows
+    await db.execute(sql`
+      UPDATE microblogs m
+      SET like_count = sub.cnt
+      FROM (
+        SELECT microblog_id, COUNT(*)::int AS cnt
+        FROM microblog_likes
+        GROUP BY microblog_id
+      ) sub
+      WHERE m.id = sub.microblog_id
+        AND COALESCE(m.like_count, 0) != sub.cnt
+    `);
+
+    // Sync replyCount from actual child microblogs (replies with parentId)
+    await db.execute(sql`
+      UPDATE microblogs m
+      SET reply_count = sub.cnt
+      FROM (
+        SELECT parent_id, COUNT(*)::int AS cnt
+        FROM microblogs
+        WHERE parent_id IS NOT NULL
+        GROUP BY parent_id
+      ) sub
+      WHERE m.id = sub.parent_id
+        AND COALESCE(m.reply_count, 0) != sub.cnt
+    `);
+
+    console.info('✅ Counters synced!');
+
     console.info('\n' + '='.repeat(60));
     console.info('✨ Seeding Complete!');
     console.info('='.repeat(60));

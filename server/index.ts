@@ -20,6 +20,9 @@ import { initializeEmailTemplates } from "./email";
 import { runAllMigrations } from "./run-migrations";
 import { pool } from "./db";
 import { startEventReminderScheduler } from "./services/eventReminderService";
+import { startWeeklyDigestScheduler } from "./services/weeklyDigestService";
+import { startInactivityNudgeScheduler } from "./services/inactivityNudgeService";
+import { startApologeticsNotificationScheduler } from "./services/apologeticsNotificationService";
 import compression from "compression";
 
 // Hold a module-level reference to the Sentry SDK when initialized so
@@ -351,9 +354,21 @@ async function bootstrap() {
   app.listen(port, "0.0.0.0", () => {
     console.info(`✅ Server listening on http://0.0.0.0:${port}`);
 
-    // Start event reminder scheduler (checks every hour for events in next 24 hours)
+    // Start event reminder scheduler (checks every hour for events in next 24h and 1h)
     startEventReminderScheduler();
     console.info('✅ Event reminder scheduler started');
+
+    // Start weekly digest scheduler (Sunday 6-7 PM UTC)
+    startWeeklyDigestScheduler();
+    console.info('✅ Weekly digest scheduler started');
+
+    // Start inactivity nudge scheduler (every 6 hours)
+    startInactivityNudgeScheduler();
+    console.info('✅ Inactivity nudge scheduler started');
+
+    // Start apologetics notification scheduler (every 12 hours)
+    startApologeticsNotificationScheduler();
+    console.info('✅ Apologetics notification scheduler started');
   });
 }
 

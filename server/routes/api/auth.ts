@@ -184,13 +184,13 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ message: "Invalid username or password" });
     }
 
-    // SECURITY: Reset failed login attempts on successful login
+    // SECURITY: Reset failed login attempts on successful login + track last login
+    const loginUpdate: any = { lastLoginAt: new Date() };
     if (user.loginAttempts && user.loginAttempts > 0) {
-      await storage.updateUser(user.id, {
-        loginAttempts: 0,
-        lockoutUntil: null,
-      });
+      loginUpdate.loginAttempts = 0;
+      loginUpdate.lockoutUntil = null;
     }
+    await storage.updateUser(user.id, loginUpdate);
 
     // Silently upgrade bcrypt hash to Argon2id on successful login
     if (passwordResult.upgradedHash) {
