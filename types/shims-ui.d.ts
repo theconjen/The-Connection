@@ -1,15 +1,6 @@
 // Temporary shims for third-party UI libraries to keep the repo typecheckable
 // while we complete proper typing fixes for the UI package.
 
-declare module 'lucide-react' {
-  const anyExport: any;
-  export default anyExport;
-  export const X: any;
-  export const Check: any;
-  export const ChevronDown: any;
-  export const ChevronUp: any;
-}
-
 declare module '@radix-ui/react-dialog' {
   export const Root: any;
   export const Trigger: any;
