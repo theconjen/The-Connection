@@ -74,7 +74,7 @@ export function initSentry() {
           }
 
           // Remove sensitive query params
-          if (event.request.query_string) {
+          if (typeof event.request.query_string === 'string') {
             event.request.query_string = event.request.query_string
               .replace(/password=[^&]*/gi, 'password=[FILTERED]')
               .replace(/token=[^&]*/gi, 'token=[FILTERED]')
