@@ -34,6 +34,8 @@ type Range = "today" | "week" | "weekend" | "next" | "all";
 type Mode = "all" | "inPerson" | "online";
 type DistanceFilter = "all" | "5" | "10" | "25" | "50";
 type EventType = "all" | "Sunday Service" | "Worship" | "Bible Study" | "Social" | "Service" | "Prayer";
+type GenderFilter = "all" | "men" | "women";
+type AgeGroupFilter = "all" | "kids" | "teens" | "young_adults" | "adults" | "seniors";
 
 // RSVP status type - matches backend values: 'going', 'maybe', 'not_going'
 type RsvpStatus = 'going' | 'maybe' | 'not_going' | null;
@@ -59,6 +61,7 @@ type EventItem = {
   distanceMiles?: number | null;
   posterUrl?: string | null;
   imageUrl?: string | null;
+  imagePosition?: string | null; // 0-100 percentage or legacy 'top'/'center'/'bottom'
   category?: string | null; // "Worship", "Bible Study", "Apologetics"
   isPrivate?: boolean;
   isPublic?: boolean;
@@ -67,6 +70,8 @@ type EventItem = {
   userRsvpStatus?: RsvpStatus; // User's RSVP status from API
   isBookmarked?: boolean; // User's bookmark status from API
   connectionsGoing?: { count: number; names: string[] }; // Connections (following) who RSVP'd going
+  targetGender?: string | null; // "men", "women", or null (all)
+  targetAgeGroup?: string | null; // comma-separated: "kids,teens,young_adults,adults,seniors"
 };
 
 // ----- API -----
@@ -334,6 +339,16 @@ const getEventIcon = (eventType: string) => {
   return EVENT_TYPE_ICONS[eventType] || 'calendar-outline';
 };
 
+// Parse imagePosition: legacy 'top'/'center'/'bottom' or numeric string (0-100)
+function parseImagePosition(pos: string | null | undefined): number {
+  if (!pos) return 50;
+  if (pos === 'top') return 0;
+  if (pos === 'center') return 50;
+  if (pos === 'bottom') return 100;
+  const num = parseInt(pos);
+  return isNaN(num) ? 50 : Math.max(0, Math.min(100, num));
+}
+
 // Default gradient colors for event types - each category has unique color
 const EVENT_TYPE_GRADIENTS: Record<string, [string, string]> = {
   'Sunday Service': ['#4A5568', '#2D3748'],      // Slate gray
@@ -416,11 +431,28 @@ function EventCard({
         ]}
       >
         {(item.imageUrl || item.posterUrl) ? (
-          <Image
-            source={{ uri: item.imageUrl || item.posterUrl || '' }}
-            style={styles.posterImage}
-            resizeMode="cover"
-          />
+          (() => {
+            const pos = parseImagePosition(item.imagePosition);
+            // Use a tall render height so there's enough image to shift
+            const POSTER_H = 160;
+            const RENDER_H = POSTER_H * 5; // 800px tall
+            const maxShift = RENDER_H - POSTER_H; // 480px shift range
+            const topOffset = -(pos / 100) * maxShift;
+            return (
+                <Image
+                  source={{ uri: item.imageUrl || item.posterUrl || '' }}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: topOffset,
+                    width: '100%',
+                    height: RENDER_H,
+                  }}
+                  resizeMode="cover"
+                />
+            );
+          })()
         ) : (
           <View style={styles.posterFallback}>
             {/* Event type icon */}
@@ -766,6 +798,8 @@ export default function EventsScreenNew({
   const [mode, setMode] = useState<Mode>("all");
   const [distance, setDistance] = useState<DistanceFilter>("all");
   const [eventType, setEventType] = useState<EventType>("all");
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>("all");
+  const [ageGroupFilter, setAgeGroupFilter] = useState<AgeGroupFilter>("all");
   const [q, setQ] = useState("");
   const [city, setCity] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -970,7 +1004,7 @@ export default function EventsScreenNew({
     staleTime: 2 * 60 * 1000, // 2 minutes - fresher data for better UX
     gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache longer (formerly cacheTime)
     refetchOnMount: 'always', // Always check for fresh data when mounting
-    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnWindowFocus: false, // Don't refetch on window focus (global handles it)
   });
 
   // Initialize RSVP statuses from API response (persists across app reloads)
@@ -1028,6 +1062,23 @@ export default function EventsScreenNew({
         }
       }
 
+      // Gender filter — show events targeting this gender or events with no gender restriction
+      if (genderFilter !== "all") {
+        if (event.targetGender && event.targetGender !== genderFilter) {
+          return false;
+        }
+      }
+
+      // Age group filter — events store comma-separated values like "kids,teens,adults"
+      if (ageGroupFilter !== "all") {
+        if (event.targetAgeGroup) {
+          const ageGroups = event.targetAgeGroup.split(',').map(s => s.trim());
+          if (!ageGroups.includes(ageGroupFilter)) {
+            return false;
+          }
+        }
+      }
+
       // "My Events" filter - show bookmarked OR events where user RSVP'd "going" or "maybe"
       // (not "not_going" - declining an event shouldn't add it to My Events)
       if (showMyEvents) {
@@ -1057,7 +1108,7 @@ export default function EventsScreenNew({
       // Only show events that are today or in the future
       return eventDateParsed >= now;
     });
-  }, [rawData, showMyEvents, bookmarkedEvents, rsvpStatuses, eventType]);
+  }, [rawData, showMyEvents, bookmarkedEvents, rsvpStatuses, eventType, genderFilter, ageGroupFilter]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -1066,16 +1117,20 @@ export default function EventsScreenNew({
     if (mode !== "all") count++;
     if (distance !== "all") count++;
     if (eventType !== "all") count++;
+    if (genderFilter !== "all") count++;
+    if (ageGroupFilter !== "all") count++;
     if (q.trim()) count++;
     if (city.trim()) count++;
     return count;
-  }, [range, mode, distance, eventType, q, city]);
+  }, [range, mode, distance, eventType, genderFilter, ageGroupFilter, q, city]);
 
   const clearAllFilters = () => {
     setRange("week");
     setMode("all");
     setDistance("all");
     setEventType("all");
+    setGenderFilter("all");
+    setAgeGroupFilter("all");
     setQ("");
     setCity("");
   };
@@ -1181,6 +1236,26 @@ export default function EventsScreenNew({
                 </Pressable>
               </View>
             )}
+            {genderFilter !== "all" && (
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
+                  {genderFilter === 'men' ? 'Men' : 'Women'}
+                </Text>
+                <Pressable onPress={() => setGenderFilter("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
+                </Pressable>
+              </View>
+            )}
+            {ageGroupFilter !== "all" && (
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
+                  {ageGroupFilter === 'young_adults' ? 'Young Adults' : ageGroupFilter.charAt(0).toUpperCase() + ageGroupFilter.slice(1)}
+                </Text>
+                <Pressable onPress={() => setAgeGroupFilter("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
+                </Pressable>
+              </View>
+            )}
             {mode !== "all" && (
               <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
                 <Text style={[styles.activeFilterText, { color: colors.primary }]}>
@@ -1263,7 +1338,51 @@ export default function EventsScreenNew({
                 </ScrollView>
               </View>
 
-              {/* Row 3: Format & Distance combined */}
+              {/* Row 3: For Who (Gender) */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>For</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  {[
+                    { key: "all", label: "Everyone" },
+                    { key: "men", label: "Men", icon: "man-outline" as keyof typeof Ionicons.glyphMap },
+                    { key: "women", label: "Women", icon: "woman-outline" as keyof typeof Ionicons.glyphMap },
+                  ].map((item) => (
+                    <FilterChip
+                      key={item.key}
+                      label={item.label}
+                      active={genderFilter === item.key}
+                      onPress={() => setGenderFilter(item.key as GenderFilter)}
+                      icon={item.icon}
+                      colors={colors}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Row 4: Age Group */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Age</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  {[
+                    { key: "all", label: "All Ages" },
+                    { key: "kids", label: "Kids" },
+                    { key: "teens", label: "Teens" },
+                    { key: "young_adults", label: "Young Adults" },
+                    { key: "adults", label: "Adults" },
+                    { key: "seniors", label: "Seniors" },
+                  ].map((item) => (
+                    <FilterChip
+                      key={item.key}
+                      label={item.label}
+                      active={ageGroupFilter === item.key}
+                      onPress={() => setAgeGroupFilter(item.key as AgeGroupFilter)}
+                      colors={colors}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Row 5: Format & Distance combined */}
               <View style={styles.filterRow}>
                 <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Format</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
@@ -1273,7 +1392,7 @@ export default function EventsScreenNew({
                 </ScrollView>
               </View>
 
-              {/* Row 4: Distance */}
+              {/* Row 6: Distance */}
               <View style={styles.filterRow}>
                 <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Distance</Text>
                 {locationLoading ? (
@@ -1289,7 +1408,7 @@ export default function EventsScreenNew({
                 )}
               </View>
 
-              {/* Row 5: City Search */}
+              {/* Row 7: City Search */}
               <View style={styles.filterRow}>
                 <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>City</Text>
                 <View
@@ -1550,30 +1669,30 @@ const styles = StyleSheet.create({
   // Search Row
   searchRow: {
     flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
   searchInputWrap: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
+    height: 38,
+    borderRadius: 10,
     borderWidth: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    paddingVertical: Platform.select({ ios: 10, android: 8, default: 8 }),
+    fontSize: 13,
+    paddingVertical: Platform.select({ ios: 8, android: 6, default: 6 }),
   },
   filterToggleBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -1629,7 +1748,7 @@ const styles = StyleSheet.create({
 
   // Filters Panel (expanded state) - Compact Layout
   filtersPanel: {
-    maxHeight: 320,
+    maxHeight: 400,
     borderBottomWidth: 1,
     paddingBottom: 8,
   },
@@ -1765,8 +1884,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
   myEventsToggle: {
     flexDirection: 'row',
@@ -1778,37 +1897,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   toggleWrap: {
-    width: 120,
-    height: 36,
-    borderRadius: 20,
+    width: 110,
+    height: 32,
+    borderRadius: 18,
     borderWidth: 1,
     flexDirection: "row",
     padding: 2,
   },
   toggleBtn: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
-  toggleText: { fontSize: 13, fontWeight: "700" },
+  toggleText: { fontSize: 12, fontWeight: "700" },
   resultsCount: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
 
   // Event Card
   card: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    borderRadius: 12,
+    marginHorizontal: 14,
+    marginTop: 8,
+    marginBottom: 3,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: 12,
+    padding: 10,
   },
   poster: {
-    height: 120,
-    borderRadius: 10,
+    height: 160,
+    borderRadius: 8,
     borderWidth: 1,
     overflow: "hidden",
     position: "relative",
@@ -1851,20 +1970,20 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: 10, fontWeight: "900" },
   title: {
-    marginTop: 10,
-    fontSize: 16,
+    marginTop: 8,
+    fontSize: 14,
     fontWeight: "700",
-    lineHeight: 22,
+    lineHeight: 19,
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 6,
+    gap: 5,
+    marginTop: 4,
   },
-  metaText: { fontSize: 13, fontWeight: "500" },
+  metaText: { fontSize: 12, fontWeight: "500" },
   footerRow: {
-    marginTop: 8,
+    marginTop: 6,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1894,9 +2013,9 @@ const styles = StyleSheet.create({
   },
   connectionsText: { fontSize: 10, fontWeight: "600" },
   iconAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",

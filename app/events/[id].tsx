@@ -24,6 +24,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
+import * as Calendar from 'expo-calendar';
 import { Ionicons } from '@expo/vector-icons';
 import { eventsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -49,6 +50,7 @@ interface Event {
   creatorId: number;
   hostUserId?: number;
   imageUrl?: string | null; // Event flyer/poster image
+  imagePosition?: string | null; // 0-100 percentage or legacy 'top'/'center'/'bottom'
   communityId?: number | null; // null = Connection Hosted event
   host?: {
     id: number;
@@ -124,19 +126,21 @@ export default function EventDetailScreen() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['View Attendees', 'Send Announcement', 'Edit Event', 'Delete Event', 'Cancel'],
-          destructiveButtonIndex: 3,
-          cancelButtonIndex: 4,
+          options: ['View Attendees', 'Check-ins', 'Send Announcement', 'Edit Event', 'Delete Event', 'Cancel'],
+          destructiveButtonIndex: 4,
+          cancelButtonIndex: 5,
           title: 'Manage Event',
         },
         (buttonIndex) => {
           if (buttonIndex === 0) {
             router.push(`/events/${eventId}/attendees`);
           } else if (buttonIndex === 1) {
-            setShowAnnouncementModal(true);
+            router.push(`/events/checkins/${eventId}`);
           } else if (buttonIndex === 2) {
-            router.push(`/events/edit/${eventId}`);
+            setShowAnnouncementModal(true);
           } else if (buttonIndex === 3) {
+            router.push(`/events/edit/${eventId}`);
+          } else if (buttonIndex === 4) {
             confirmDelete();
           }
         }
@@ -147,6 +151,7 @@ export default function EventDetailScreen() {
         undefined,
         [
           { text: 'View Attendees', onPress: () => router.push(`/events/${eventId}/attendees`) },
+          { text: 'Check-ins', onPress: () => router.push(`/events/checkins/${eventId}`) },
           { text: 'Send Announcement', onPress: () => setShowAnnouncementModal(true) },
           { text: 'Edit Event', onPress: () => router.push(`/events/edit/${eventId}`) },
           { text: 'Delete Event', style: 'destructive', onPress: confirmDelete },
@@ -214,8 +219,8 @@ export default function EventDetailScreen() {
         event.imageUrl,
         (width, height) => {
           const aspectRatio = height / width;
-          // Constrain height between 150 and 400
-          const calculatedHeight = Math.min(400, Math.max(150, screenWidth * aspectRatio));
+          // Use natural aspect ratio (no max constraint — show the whole flyer)
+          const calculatedHeight = Math.max(150, screenWidth * aspectRatio);
           setFlyerHeight(calculatedHeight);
         },
         (error) => {
@@ -405,6 +410,54 @@ export default function EventDetailScreen() {
     }
   };
 
+  const addToCalendar = async () => {
+    if (!event) return;
+    try {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Needed', 'Please allow calendar access to add this event.');
+        return;
+      }
+
+      // Get default calendar
+      const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+      const defaultCal = calendars.find(
+        (c) => c.allowsModifications && c.source?.name === 'iCloud'
+      ) || calendars.find((c) => c.allowsModifications) || calendars[0];
+
+      if (!defaultCal) {
+        Alert.alert('Error', 'No writable calendar found on this device.');
+        return;
+      }
+
+      // Build start/end dates
+      const datePart = event.eventDate.split(' ')[0];
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [startH, startM] = event.startTime.split(':').map(Number);
+      const startDate = new Date(year, month - 1, day, startH, startM);
+
+      let endDate: Date;
+      if (event.endTime) {
+        const [endH, endM] = event.endTime.split(':').map(Number);
+        endDate = new Date(year, month - 1, day, endH, endM);
+      } else {
+        endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // +1 hour default
+      }
+
+      await Calendar.createEventAsync(defaultCal.id, {
+        title: event.title,
+        startDate,
+        endDate,
+        location: event.location || undefined,
+        notes: event.description || undefined,
+      });
+
+      Alert.alert('Added!', 'Event has been added to your calendar.');
+    } catch (error) {
+      Alert.alert('Error', 'Could not add event to calendar.');
+    }
+  };
+
   // Check if we have coordinates (from event or geocoding)
   const hasCoordinates = !!(event?.latitude && event?.longitude) || !!geocodedCoords;
 
@@ -462,17 +515,6 @@ export default function EventDetailScreen() {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {/* Event Flyer Image */}
-        {event.imageUrl && (
-          <View style={styles.flyerContainer}>
-            <Image
-              source={{ uri: event.imageUrl }}
-              style={[styles.flyerImage, { height: flyerHeight }]}
-              resizeMode="contain"
-            />
-          </View>
-        )}
-
         <View style={styles.dateSection}>
           <View style={styles.dateBox}>
             <Text style={styles.dateMonth}>
@@ -488,7 +530,25 @@ export default function EventDetailScreen() {
               {formatTime(event.startTime)}{event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
             </Text>
           </View>
+          {/* Add to Calendar button */}
+          <TouchableOpacity style={styles.calendarButton} onPress={addToCalendar}>
+            <Ionicons name="calendar-outline" size={18} color={EVENT_BLUE} />
+          </TouchableOpacity>
         </View>
+
+        {/* Event Flyer Image — below date card */}
+        {event.imageUrl && (
+          <View style={styles.flyerContainer}>
+            <Image
+              source={{ uri: event.imageUrl }}
+              style={{
+                width: '100%',
+                height: flyerHeight,
+              }}
+              resizeMode="contain"
+            />
+          </View>
+        )}
 
         <View style={styles.detailSection}>
           <Text style={styles.title}>{event.title}</Text>
@@ -776,7 +836,8 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     backgroundColor: colors.background,
   },
   flyerContainer: {
-    marginBottom: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.surfaceNested,
@@ -854,6 +915,15 @@ const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create(
     color: '#fff',
     fontSize: 28,
     fontWeight: 'bold',
+  },
+  calendarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colorScheme === 'dark' ? colors.surfaceRaised : '#f0f4f8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   dateInfo: {
     flex: 1,
