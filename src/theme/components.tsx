@@ -125,9 +125,9 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
 }
 
 const buttonSizes: Record<ButtonSize, { paddingVertical: number; paddingHorizontal: number; fontSize: number }> = {
-  sm: { paddingVertical: 8, paddingHorizontal: 12, fontSize: 14 },
-  md: { paddingVertical: 12, paddingHorizontal: 16, fontSize: 16 },
-  lg: { paddingVertical: 16, paddingHorizontal: 24, fontSize: 18 },
+  sm: { paddingVertical: 6, paddingHorizontal: 10, fontSize: 13 },
+  md: { paddingVertical: 10, paddingHorizontal: 14, fontSize: 14 },
+  lg: { paddingVertical: 14, paddingHorizontal: 20, fontSize: 16 },
 };
 
 export function Button({

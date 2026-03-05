@@ -12,24 +12,24 @@ export const typography = {
     bold: 'Figtree-Bold',
   },
 
-  // Font sizes
+  // Font sizes (compact)
   size: {
-    h1: 24,       // Screen titles, major headings
-    h2: 20,       // Card titles, event titles, section headers
-    h3: 17,       // Subsection headers
-    body: 16,     // Posts, answers, comments, main content
-    bodySmall: 14,// Secondary content, captions
-    caption: 12,  // Timestamps, counts, metadata
+    h1: 21,       // Screen titles, major headings
+    h2: 17,       // Card titles, event titles, section headers
+    h3: 15,       // Subsection headers
+    body: 14,     // Posts, answers, comments, main content
+    bodySmall: 13,// Secondary content, captions
+    caption: 11,  // Timestamps, counts, metadata
   },
 
   // Line heights (optimized for readability)
   line: {
-    h1: 30,       // 1.25x
-    h2: 26,       // 1.3x
-    h3: 22,       // 1.29x
-    body: 22,     // 1.375x (comfortable reading)
-    bodySmall: 20,// 1.43x
-    caption: 16,  // 1.33x
+    h1: 26,       // 1.24x
+    h2: 22,       // 1.29x
+    h3: 20,       // 1.33x
+    body: 20,     // 1.43x (comfortable reading)
+    bodySmall: 18,// 1.38x
+    caption: 14,  // 1.27x
   },
 } as const;
 

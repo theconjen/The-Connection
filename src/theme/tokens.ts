@@ -221,15 +221,15 @@ export const darkColors = {
   gold: '#D4A860',
 } as const;
 
-// Spacing scale
+// Spacing scale (compact)
 export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
-  xxxl: 48,
+  xs: 3,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 20,
+  xxl: 28,
+  xxxl: 40,
 } as const;
 
 // Border radius scale
@@ -269,14 +269,14 @@ export const shadows = {
 // Typography - imported from typography.ts (Figtree font system)
 export { typography } from './typography';
 
-// Legacy typeScale for backwards compatibility
+// Legacy typeScale for backwards compatibility (compact)
 export const typeScale = {
-  xs: 12,
-  sm: 13,
-  md: 15,
-  lg: 18,
-  xl: 22,
-  '2xl': 28,
+  xs: 11,
+  sm: 12,
+  md: 13,
+  lg: 16,
+  xl: 19,
+  '2xl': 24,
 } as const;
 
 // Combined color object for backwards compatibility
