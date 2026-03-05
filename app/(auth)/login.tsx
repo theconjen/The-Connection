@@ -11,7 +11,6 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -366,14 +365,14 @@ export default function LoginScreen() {
 
           <View style={styles.termsContainer}>
             <TouchableOpacity
-              onPress={() => Linking.openURL('https://theconnection.app/terms')}
+              onPress={() => router.push('/terms')}
               disabled={isLoading}
             >
               <Text style={styles.termsLink}>Terms</Text>
             </TouchableOpacity>
             <Text style={styles.termsText}> • </Text>
             <TouchableOpacity
-              onPress={() => Linking.openURL('https://theconnection.app/privacy')}
+              onPress={() => router.push('/privacy')}
               disabled={isLoading}
             >
               <Text style={styles.termsLink}>Privacy</Text>

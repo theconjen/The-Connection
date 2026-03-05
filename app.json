@@ -90,6 +90,11 @@
               "scheme": "https",
               "host": "theconnection.app",
               "pathPrefix": "/reset-password"
+            },
+            {
+              "scheme": "https",
+              "host": "theconnection.app",
+              "pathPrefix": "/invite"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]

@@ -1,16 +1,26 @@
-import { ScrollView, View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from '../src/theme';
-import { Stack } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../src/contexts/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function PrivacyPolicyScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const styles = getStyles(colors);
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Privacy Policy' }} />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Privacy Policy</Text>
+        <View style={{ width: 32 }} />
+      </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Privacy Policy</Text>
         <Text style={styles.date}>Last Updated: January 10, 2026</Text>
 
@@ -204,7 +214,7 @@ export default function PrivacyPolicyScreen() {
           </Text>
         </View>
       </ScrollView>
-    </>
+    </View>
   );
 }
 
@@ -212,6 +222,23 @@ const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   content: {
     padding: 20,
